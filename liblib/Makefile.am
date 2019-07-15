@@ -70,6 +70,11 @@ AM_CPPFLAGS += -I${top_srcdir}/libsrc4
 libnetcdf_la_LIBADD += ${top_builddir}/libsrc4/libnetcdf4.la
 endif #USE_NETCDF4
 
+if ENABLE_ZARR
+AM_CPPFLAGS += -I${top_srcdir}/libzarr
+libnetcdf_la_LIBADD += ${top_builddir}/libzarr/libzarr.la
+endif #ENABLE_ZARR
+
 if ISCYGWIN
 # Force binary mode for file read/write
 AM_LDFLAGS += -lbinmode

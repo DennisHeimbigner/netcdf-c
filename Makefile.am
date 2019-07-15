@@ -73,6 +73,12 @@ HDF4_TEST_DIR = hdf4_test
 LIBHDF4 = libhdf4
 endif
 
+# Build Cloud Storage if desired.
+if ENABLE_ZARR
+ZARR_TEST_DIR = zarr_test
+ZARR = libzarr
+endif
+
 # Optionally build plugins
 if ENABLE_FILTER_TESTING
 PLUGIN_DIR = plugins
@@ -86,14 +92,14 @@ endif # BUILD_BENCHMARKS
 # Define Test directories
 if BUILD_TESTSETS
 TESTDIRS = $(V2_TEST) nc_test $(NC_TEST4) $(BENCHMARKS_DIR)	\
-$(HDF4_TEST_DIR) $(NCDAP2TESTDIR) $(NCDAP4TESTDIR)
+$(HDF4_TEST_DIR) $(NCDAP2TESTDIR) $(NCDAP4TESTDIR) ${ZARR_TEST_DIR}
 endif
 
 # This is the list of subdirs for which Makefiles will be constructed
 # and run. ncgen must come before ncdump, because their tests
 # depend on it.
 SUBDIRS = include $(H5_TEST_DIR) libdispatch libsrc $(LIBSRC4_DIR)	\
-$(LIBSRCP) $(LIBHDF4) $(LIBHDF5) $(OCLIB) $(DAP2) ${DAP4} liblib	\
+$(LIBSRCP) $(LIBHDF4) $(LIBHDF5) $(OCLIB) $(DAP2) ${DAP4} ${ZARR} liblib \
 $(NCGEN3) $(NCGEN) $(NCDUMP) ${PLUGIN_DIR} $(TESTDIRS) docs		\
 $(EXAMPLES)
 

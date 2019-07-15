@@ -1168,6 +1168,13 @@ IF(NOT BUILD_SHARED_LIBS)
   SET(ENABLE_FILTER_TESTING OFF)
 ENDIF()
 
+# Enable special filter test; experimental when using cmake.
+OPTION(ENABLE_CLOUD "Enable cloud storage support. Ignored if netcdf4 is not enabled" OFF)
+IF(NOT ENABLE_NETCDF4)
+  MESSAGE(WARNING "ENABLE_CLOUD requires netCDF-4 => Disabling Cloud Storage.")
+  SET(ENABLE_CLOUD OFF CACHE BOOL "")
+ENDIF()
+
 # Determine whether or not to generate documentation.
 OPTION(ENABLE_DOXYGEN "Enable generation of doxygen-based documentation." OFF)
 IF(ENABLE_DOXYGEN)
@@ -1606,6 +1613,7 @@ MACRO(print_conf_summary)
   MESSAGE(STATUS "Building DAP2 Support:         ${ENABLE_DAP2}")
   MESSAGE(STATUS "Building DAP4 Support:         ${ENABLE_DAP4}")
   MESSAGE(STATUS "Building Byte-range Support:   ${ENABLE_BYTERANGE}")
+  MESSAGE(STATUS "Building ZARR Support:         ${ENABLE_ZARR}")
   MESSAGE(STATUS "Building Utilities:            ${BUILD_UTILITIES}")
   IF(CMAKE_PREFIX_PATH)
     MESSAGE(STATUS "CMake Prefix Path:             ${CMAKE_PREFIX_PATH}")
@@ -1757,6 +1765,10 @@ IF(ENABLE_DAP4)
   ADD_SUBDIRECTORY(libdap4)
 ENDIF()
 
+IF(ENABLE_CLOUD)
+add_subdirectory(libcloud)
+ENDIF()
+
 add_subdirectory(liblib)
 
 IF(ENABLE_FILTER_TESTING)
@@ -1796,6 +1808,9 @@ IF(ENABLE_TESTS)
   ENDIF()
   IF(ENABLE_DAP4)
     ADD_SUBDIRECTORY(dap4_test)
+  ENDIF()
+  IF(ENABLE_CLOUD)
+    ADD_SUBDIRECTORY(cloud_test)
   ENDIF()
   IF(ENABLE_EXAMPLES)
     ADD_SUBDIRECTORY(examples)
@@ -1967,6 +1982,7 @@ is_enabled(JNA HAS_JNA)
 is_enabled(ENABLE_ZERO_LENGTH_COORD_BOUND RELAX_COORD_BOUND)
 is_enabled(USE_CDF5 HAS_CDF5)
 is_enabled(ENABLE_ERANGE_FILL HAS_ERANGE_FILL)
+is_enabled(ENABLE_ZARR HAS_ZARR)
 
 # Generate file from template.
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/libnetcdf.settings.in"
