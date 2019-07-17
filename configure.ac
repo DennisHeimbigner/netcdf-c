@@ -419,6 +419,23 @@ AC_MSG_RESULT([$enable_dap_long_tests])
 
 AM_CONDITIONAL(INTERNAL_OCLIB,[test "x" = "x"])
 
+# Control zarr storage
+AC_MSG_CHECKING([whether zarr storage should be enabled])
+AC_ARG_ENABLE([zarr],
+              [AS_HELP_STRING([--enable-zarr],
+                              [enable zarr storage support; requires netCDF-4 and libcurl])])
+test "x$enable_zarr" = xyes || enable_zarr=no
+AC_MSG_RESULT($enable_zarr)
+if test "x$enable_netcdf_4" = xno ; then
+AC_MSG_ERROR([netCDF-4 disabled => --disable-zarr])
+enable_zarr=no
+fi
+if test "x$havecurloption" = xno ; then
+  AC_MSG_ERROR([zarr support requires libcurl. Install curl or build without --enable-zarr.])
+  enable_zarr=no
+fi
+AM_CONDITIONAL(ENABLE_ZARR, [test x$enable_zarr = xyes])
+
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
 AC_MSG_CHECKING([whether to enable strict null-byte header padding when reading (default off)])
@@ -898,7 +915,7 @@ AC_FUNC_ALLOCA
 AC_CHECK_DECLS([isnan, isinf, isfinite],,,[#include <math.h>])
 AC_STRUCT_ST_BLKSIZE
 UD_CHECK_IEEE
-AC_CHECK_TYPES([size_t, ssize_t, schar, uchar, longlong, ushort, uint, int64, uint64])
+AC_CHECK_TYPES([size_t, ssize_t, schar, uchar, longlong, ushort, uint, int64, uint64 off64_t])
 AC_TYPE_OFF_T
 AC_TYPE_UINTPTR_T
 AC_C_CHAR_UNSIGNED
@@ -1286,6 +1303,7 @@ AM_CONDITIONAL(BUILD_DOCS, [test x$enable_doxygen = xyes])
 AM_CONDITIONAL(SHOW_DOXYGEN_TAG_LIST, [test x$enable_doxygen_tasks = xyes])
 AM_CONDITIONAL(ENABLE_METADATA_PERF, [test x$enable_metadata_perf = xyes])
 AM_CONDITIONAL(ENABLE_BYTERANGE, [test "x$enable_byterange" = xyes])
+AM_CONDITIONAL(ENABLE_ZARR, [test "x$enable_zarr" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
@@ -1360,19 +1378,6 @@ esac
 
 NC_FLIBS="-lnetcdff $NC_LIBS"
 
-# temporary to deal with a JNA problem
-AC_MSG_CHECKING([If compilation is for use with JNA])
-AC_ARG_ENABLE([jna],
-              [AS_HELP_STRING([--enable-jna],
-                              [enable jna bug fix])],
-				[],
-				[enable_jna=no])
-test "x$enable_jna" = xno || enable_jna=yes
-AC_MSG_RESULT($enable_jna)
-if test "x$enable_jna" = xyes ; then
-AC_DEFINE([JNA], [1], [if true, include JNA bug fix])
-fi
-
 # Control filter test/example
 AC_MSG_CHECKING([whether filter testing should be run])
 AC_ARG_ENABLE([filter-testing],
@@ -1417,6 +1422,7 @@ AC_SUBST(HAS_JNA,[$enable_jna])
 AC_SUBST(RELAX_COORD_BOUND,[$enable_zero_length_coord_bound])
 AC_SUBST(HAS_ERANGE_FILL,[$enable_erange_fill])
 AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
+AC_SUBST(HAS_ZARR,[$enable_zarr])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],
@@ -1486,6 +1492,7 @@ AX_SET_META([NC_HAS_CDF5],[$enable_cdf5],[yes])
 AX_SET_META([NC_HAS_ERANGE_FILL], [$enable_erange_fill],[yes])
 AX_SET_META([NC_RELAX_COORD_BOUND], [$enable_zero_length_coord_bound],[yes])
 AX_SET_META([NC_HAS_BYTERANGE],[$enable_byterange],[yes])
+AX_SET_META([NC_HAS_ZARR],[$enable_zarr],[yes])
 #####
 # End netcdf_meta.h definitions.
 #####
@@ -1528,6 +1535,7 @@ AC_CONFIG_FILES([Makefile
                  libdap2/Makefile
                  libdap4/Makefile
                  libhdf4/Makefile
+                 libzarr/Makefile
                  libdispatch/Makefile
                  liblib/Makefile
                  ncdump/cdl/Makefile
@@ -1544,6 +1552,7 @@ AC_CONFIG_FILES([Makefile
                  ncdap_test/expectremote3/Makefile
                  dap4_test/Makefile
                  plugins/Makefile
+		 zarr_test/Makefile
                  ])
 AC_OUTPUT()
 

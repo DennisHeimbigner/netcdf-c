@@ -829,6 +829,12 @@ ELSE()
   SET(ENABLE_DAP4 OFF)
 ENDIF()
 
+# Option to Build Zarr Clients
+OPTION(ENABLE_ZARR "Enable ZARR Client." OFF)
+IF(NOT ENABLE_NETCDF_4)
+  SET(ENABLE_ZARR OFF CACHE BOOL "")
+ENDIF(ENABLE_NETCDF_4)
+
 # Option to support byte-range reading of remote datasets
 OPTION(ENABLE_BYTERANGE "Enable byte-range access to remote datasets.." OFF)
 
@@ -837,7 +843,7 @@ IF(NOT CURL_LIBRARY)
     MESSAGE(FATAL_ERROR "Byte-range support specified, CURL libraries are not found.")
   ENDIF()
 
-  IF(ENABLE_DAP2 OR ENABLE_DAP4)
+  IF(ENABLE_DAP2 OR ENABLE_DAP4 OR ENABLE_ZARR)
     MESSAGE(FATAL_ERROR "DAP support specified, CURL libraries are not found.")
   ENDIF()
 ENDIF()
