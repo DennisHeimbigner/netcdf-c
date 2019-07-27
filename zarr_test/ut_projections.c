@@ -121,7 +121,6 @@ printtest(ProjTest* test)
     char* result = NULL;
     char value[128];
     NCbytes* buf = ncbytesnew();
-    int r;
 
     ncbytescat(buf,"Test{");
     snprintf(value,sizeof(value),"R=%lu",(unsigned long)test->R);

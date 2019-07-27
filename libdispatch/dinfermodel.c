@@ -43,7 +43,7 @@ struct MagicFile {
     const char* path;
     struct NCURI* uri;
     NCmodel* model;
-    fileoffset_t filelen;
+    off64_t filelen;
     int use_parallel;
     void* parameters; /* !NULL if inmemory && !diskless */
     FILE* fp;
@@ -420,7 +420,7 @@ processuri(const char* path, NCURI** urip, char** newpathp, NClist* modeargs)
     if(newpathp) *newpathp = NULL;
     if(urip) *urip = NULL;
 
-    if(ncuriparse(path,&uri) != NCU_OK) goto done; /* not url */
+    if(ncuriparse(path,&uri) != NC_NOERR) goto done; /* not url */
 
     /* Look up the protocol */
     for(found=0,protolist=ncprotolist;protolist->protocol;protolist++) {
@@ -633,7 +633,7 @@ nc__testurl(const char* path, char** basenamep)
 {
     NCURI* uri;
     int ok = 0;
-    if(ncuriparse(path,&uri) == NCU_OK) {
+    if(ncuriparse(path,&uri) == NC_NOERR) {
 	char* slash = (uri->path == NULL ? NULL : strrchr(uri->path, '/'));
 	char* dot;
 	if(slash == NULL) slash = (char*)path; else slash++;
@@ -867,8 +867,8 @@ readmagic(struct MagicFile* file, long pos, char* magic)
 #ifdef ENABLE_BYTERANGE
     case NC_IOSP_HTTP: {
 	NCbytes* buf = ncbytesnew();
-	fileoffset_t start = (size_t)pos;
-	fileoffset_t count = MAGIC_NUMBER_LEN;
+	off64_t start = (size_t)pos;
+	off64_t count = MAGIC_NUMBER_LEN;
 	status = nc_http_read(file->curl,file->curlurl,start,count,buf);
 	if(status == NC_NOERR) {
 	    if(ncbyteslength(buf) != count)

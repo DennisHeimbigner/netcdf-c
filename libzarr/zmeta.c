@@ -16,7 +16,10 @@
 #include "ncoffsets.h"
 
 /**
- * Provide an API to build a netcdf4 node tree (via libhdf4)
+ * Provide an API to build a netcdf4 node tree (via libhdf4).
+ * Basically a wrapper for libsrc4 objects. 
+ * The various build functions here -- groups, variables, etc --
+ * are invoked elsewhere by walking a json tree (see zjson.[ch]).
  */
 
 /***************************************************/

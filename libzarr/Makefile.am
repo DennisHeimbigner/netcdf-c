@@ -26,17 +26,17 @@ zdispatch.c \
 zfile.c \
 zjson.c \
 zmap.c \
-zmap_file.c \
+zmap_nc4.c \
 zdebug.c
 
 HDRS= \
-ncchunking.h \
 nczdispatch.h \
-ncjson.h \
-nczmap.h \
-ncztypes.h \
+zchunking.h \
+zjson.h \
+ztypes.h \
 zincludes.h \
-nczfuncs.h \
+zfuncs.h \
+zmap.h \
 zdebug.h
 
 if ENABLE_ZARR

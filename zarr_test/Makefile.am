@@ -21,10 +21,10 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 check_PROGRAMS =
 TESTS =
 
-check_PROGRAMS += t_projections
-TESTS += t_projections
+check_PROGRAMS += ut_projections ut_mapnc4
+TESTS += run_unittests.sh
 
-EXTRA_DIST = 
+EXTRA_DIST = run_unittests.sh
 
 CLEANFILES = *.exe
 # This should only be left behind if using parallel io

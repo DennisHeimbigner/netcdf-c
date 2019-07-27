@@ -35,56 +35,83 @@ object is defined by the common prefix model.
 #include "zincludes.h"
 
 /**************************************************/
+/* Import the current implementations */
 
-extern NCZMAP_API* zmap_file_api;
+extern NCZMAP_DS_API zmap_nc4;
 
 /**************************************************/
 
-/*
-Convert implementation enum to corresponding API
-*/
-
-NCZMAP_API*
-nczmap_get_api(NCZM_IMPL impl)
-{
-    switch (impl) {
-    case NCZM_FILE:
-	return zmap_file_api;
-    default:
-	break;
-    }
-    return NULL;
-}
-
+/* Create ; complain if already exists */
 int
-nczmap_create(const char *path, NCZM_IMPL impl, int mode, unsigned flags, void* parameters, NCZMAP** mapp)
+nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
-    NCZMAP_API* api = NULL;
-
+    
     if(mapp) *mapp = NULL;
-    if((api = nczmap_get_api(impl)) == NULL)
+
+    switch (impl) {
+    case NCZM_NC4:
+        stat = zmap_nc4.create(path, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
+    default:
 	{stat = NC_ENOTBUILT; goto done;}
-    if((stat=api->create(api, path, mode, flags, parameters, &map))) goto done;
+    }
     if(mapp) *mapp = map;
 done:
     return stat;
 }
 
+/*
+Terminology:
+protocol: map implementation
+format: zarr | tiledb
+*/
+
 int
-nczmap_open(const char *path, NCZM_IMPL impl, int mode, unsigned flags, void* parameters, NCZMAP** mapp)
+nczmap_open(const char *path0, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
-    NCZMAP_API* api = NULL;
+    NCURI* uri = NULL;
+    NCZM_IMPL impl = NCZM_UNDEF;
 
     if(mapp) *mapp = NULL;
-    if((api = nczmap_get_api(impl)) == NULL)
-	{stat = NC_ENOTBUILT; goto done;}
-    if((stat=api->open(api, path, mode, flags, parameters, &map))) goto done;
-    if(mapp) *mapp = map;
+
+    /* Exploit the path to figure out the implementation */
+    if(!ncuriparse(path0,&uri)) {
+        if(strcasecmp(uri->protocol,"file")==0) {
+            /* Look at the fragment and see if it defines protocol= or proto= */
+	    const char* proto = ncurilookup(uri,"proto");
+   	    if(proto == NULL)
+	        proto = ncurilookup(uri,"protocol");
+	    if(proto == NULL)
+	        impl = NCZM_NC4; /* Default */
+	} else if(strcasecmp(uri->protocol,"s3")==0) {
+	    impl = NCZM_S3;
+	}
+    }
+    switch (impl) {
+	case NCZM_NC4:
+	    stat = zmap_nc4.open(path0,mode,flags,parameters,&map);
+	    break;
+	default:
+	    {stat = NC_ENOTBUILT; goto done;} /* unknown lead protocol */
+    }
+
 done:
+    if(!stat) {
+        if(mapp) *mapp = map;
+    }
+    return stat;
+}
+
+int
+nczmap_close(NCZMAP* map, int delete)
+{
+    int stat = NC_NOERR;
+    stat = map->api->close(map,delete);
     return stat;
 }
 
@@ -92,38 +119,109 @@ done:
 /* API Wrapper */
 
 int
-nczm_close(NCZMAP* map)
+nczm_exists(NCZMAP* map, const char* key)
 {
-    return map->api->close(map);
+    return map->api->exists(map, key);
+}
+
+int
+nczm_len(NCZMAP* map, const char* key, off64_t* lenp)
+{
+    return map->api->len(map, key, lenp);
+}
+
+int
+nczm_read(NCZMAP* map, const char* key, off64_t start, off64_t count, char* content)
+{
+    return map->api->read(map, key, start, count, content);
+}
+
+int
+nczm_write(NCZMAP* map, const char* keypath, off64_t start, off64_t count, const char* content)
+{
+    return map->api->write(map, keypath, start, count, content);
+}
+
+/**************************************************/
+/* Utilities */
+
+/* Split a path into pieces along '/' character */
+int
+nczm_split(const char* path, NClist* segments)
+{
+    int stat = NC_NOERR;
+    const char* p = NULL;
+    const char* q = NULL;
+    ptrdiff_t len = 0;
+    char* seg = NULL;
+
+    if(path == NULL || strlen(path)==0 || segments == NULL)
+	{stat = NC_EINVAL; goto done;}
+
+    for(p=path;*p;) {
+	q = strchr(p,NCZM_SEP);
+	if(q==NULL)
+	    q = p + strlen(p); /* point to trailing nul */
+        len = (q - p);
+	if(len == 0)
+	    {stat = NC_EURL; goto done;}
+	if((seg = malloc(len+1)) == NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	memcpy(seg,p,len);
+	seg[len] = '\0';
+	nclistpush(segments,seg);
+	seg = NULL; /* avoid mem errors */
+	if(*q) p = q+1; else p = q;
+    }
+
+done:
+    if(seg != NULL) free(seg);
+    return stat;
+}
+
+/* Join the first nseg segments into a path using '/' character */
+int
+nczm_joinprefix(NClist* segments, int nsegs, char** pathp)
+{
+    int stat = NC_NOERR;
+    int i;
+    NCbytes* buf = NULL;
+
+    if(segments == NULL)
+	{stat = NC_EINVAL; goto done;}
+    if((buf = ncbytesnew()))
+	{stat = NC_ENOMEM; goto done;}
+    if(nclistlength(segments) < nsegs)
+	nsegs = nclistlength(segments);
+    if(nsegs == 0) {
+	ncbytesappend(buf,NCZM_SEP);
+	goto done;		
+    }
+    for(i=0;i<nsegs;i++) {
+	const char* seg = nclistget(segments,i);
+	ncbytesappend(buf,NCZM_SEP);
+	ncbytescat(buf,seg);		
+    }
+
+done:
+    if(!stat) {
+	if(pathp) *pathp = ncbytesextract(buf);
+    }
+    ncbytesfree(buf);
+    return stat;
+}
+
+/* Convenience: Join all segments into a path using '/' character */
+int
+nczm_join(NClist* segments, char** pathp)
+{
+    return nczm_joinprefix(segments,nclistlength(segments),pathp);
 }
 
 int
 nczm_clear(NCZMAP* map)
 {
-    return map->api->clear(map);
+    if(map) 
+	nullfree(map->url);
+    return NC_NOERR;
 }
-
-int
-nczm_len(NCZMAP* map, const char* rpath, fileoffset_t* lenp)
-{
-    return map->api->len(map, rpath, lenp);
-}
-
-int
-nczm_read(NCZMAP* map, const char* rpath, fileoffset_t start, fileoffset_t count, char** contentp)
-{
-    return map->api->read(map, rpath, start, count, contentp);
-}
-
-int
-nczm_write(NCZMAP* map, const char* rpath, fileoffset_t start, fileoffset_t count, const char* content)
-{
-    return map->api->write(map, rpath, start, count, content);
-}
-
-int
-nczm_rename(NCZMAP* map, const char* oldrpath, const char* newname)
-{
-    return map->api->rename(map, oldrpath, newname);
-}
-

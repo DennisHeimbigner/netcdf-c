@@ -3,8 +3,7 @@
 */
 
 #include "zincludes.h"
-#include "ncjson.h"
-
+#include "zjson.h"
 
 #define NCJ_LBRACKET '['
 #define NCJ_RBRACKET ']'

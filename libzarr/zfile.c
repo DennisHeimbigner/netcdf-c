@@ -12,7 +12,7 @@ NCZ_open(const char *path, int omode,
 {
     int stat = NC_NOERR;
     NCZINFO* zinfo = NULL;
-    int flags = 0;
+    size64_t flags = 0;
 
     ZTRACE();
 
@@ -33,11 +33,11 @@ NCZ_open(const char *path, int omode,
     nc->dispatch = dispatch;
 
     /* Parse url and params */
-    if(ncuriparse(nc->path,&zinfo->uri) != NCU_OK)
+    if(ncuriparse(nc->path,&zinfo->uri))
 	{stat = NC_EDAPURL; goto done;}
 
     /* initialize map handle*/
-    if((stat = nczmap_open(path,NCZM_FILE,omode,flags,parameters,&zinfo->map)))
+    if((stat = nczmap_open(path,omode,flags,parameters,&zinfo->map)))
 	goto done;
 
     /* Load the Zarr/NCZarr meta-data */
@@ -54,7 +54,7 @@ NCZ_create(const char *path, int cmode,
 {
     int stat = NC_NOERR;
     NCZINFO* zinfo = NULL;
-    int flags = 0;
+    size64_t flags = 0;
 
     ZTRACE();
 
@@ -75,11 +75,11 @@ NCZ_create(const char *path, int cmode,
     nc->dispatch = dispatch;
 
     /* Parse url and params */
-    if(ncuriparse(nc->path,&zinfo->uri) != NCU_OK)
+    if(ncuriparse(nc->path,&zinfo->uri))
 	{stat = NC_EDAPURL; goto done;}
 
     /* initialize map handle*/
-    if((stat = nczmap_create(path,NCZM_FILE,cmode,flags,parameters,&zinfo->map)))
+    if((stat = nczmap_create(NCZM_NC4,path,cmode,flags,parameters,&zinfo->map)))
 	goto done;
 
 done:
