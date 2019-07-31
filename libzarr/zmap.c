@@ -8,7 +8,7 @@ This API isolates the key-value pair mapping code
 from the Zarr-based implementation of NetCDF-4.
 
 It wraps an internal C dispatch table manager
-for implementing an abstract data structure
+for implementing an abstract data structurer
 loosely based on the Amazon S3 storage model.
 
 Technically, S3 is a Key-Value Pair model
@@ -48,6 +48,9 @@ nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* 
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
     
+    if(path == NULL || strlen(path) == 0)
+	{stat = NC_EINVAL; goto done;}
+
     if(mapp) *mapp = NULL;
 
     switch (impl) {
@@ -60,7 +63,7 @@ nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* 
     }
     if(mapp) *mapp = map;
 done:
-    return stat;
+    return THROW(stat);
 }
 
 /*
@@ -74,37 +77,24 @@ nczmap_open(const char *path0, int mode, size64_t flags, void* parameters, NCZMA
 {
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
-    NCURI* uri = NULL;
-    NCZM_IMPL impl = NCZM_UNDEF;
+
+    if(path0 == NULL || strlen(path0) == 0)
+	{stat = NC_EINVAL; goto done;}
 
     if(mapp) *mapp = NULL;
 
-    /* Exploit the path to figure out the implementation */
-    if(!ncuriparse(path0,&uri)) {
-        if(strcasecmp(uri->protocol,"file")==0) {
-            /* Look at the fragment and see if it defines protocol= or proto= */
-	    const char* proto = ncurilookup(uri,"proto");
-   	    if(proto == NULL)
-	        proto = ncurilookup(uri,"protocol");
-	    if(proto == NULL)
-	        impl = NCZM_NC4; /* Default */
-	} else if(strcasecmp(uri->protocol,"s3")==0) {
-	    impl = NCZM_S3;
-	}
-    }
-    switch (impl) {
-	case NCZM_NC4:
-	    stat = zmap_nc4.open(path0,mode,flags,parameters,&map);
-	    break;
-	default:
-	    {stat = NC_ENOTBUILT; goto done;} /* unknown lead protocol */
-    }
+    /* Walk thru the implementations to find valid format */
+    if((stat = zmap_nc4.verify(path0,mode,flags,parameters)) == NC_NOERR) {
+        if((stat = zmap_nc4.open(path0,mode,flags,parameters,&map)))
+	    goto done;
+    } else
+	{stat = NC_ENOTBUILT; goto done;} /* unknown format */
 
 done:
     if(!stat) {
         if(mapp) *mapp = map;
     }
-    return stat;
+    return THROW(stat);
 }
 
 int
@@ -112,40 +102,58 @@ nczmap_close(NCZMAP* map, int delete)
 {
     int stat = NC_NOERR;
     stat = map->api->close(map,delete);
-    return stat;
+    return THROW(stat);
 }
 
 /**************************************************/
 /* API Wrapper */
 
 int
-nczm_exists(NCZMAP* map, const char* key)
+nczmap_exists(NCZMAP* map, const char* key)
 {
     return map->api->exists(map, key);
 }
 
 int
-nczm_len(NCZMAP* map, const char* key, off64_t* lenp)
+nczmap_len(NCZMAP* map, const char* key, off64_t* lenp)
 {
     return map->api->len(map, key, lenp);
 }
 
 int
-nczm_read(NCZMAP* map, const char* key, off64_t start, off64_t count, char* content)
+nczmap_def(NCZMAP* map, const char* key, off64_t len)
+{
+    return map->api->def(map, key, len);
+}
+
+int
+nczmap_read(NCZMAP* map, const char* key, off64_t start, off64_t count, void* content)
 {
     return map->api->read(map, key, start, count, content);
 }
 
 int
-nczm_write(NCZMAP* map, const char* keypath, off64_t start, off64_t count, const char* content)
+nczmap_write(NCZMAP* map, const char* key, off64_t start, off64_t count, const void* content)
 {
-    return map->api->write(map, keypath, start, count, content);
+    return map->api->write(map, key, start, count, content);
+}
+
+int
+nczmap_readmeta(NCZMAP* map, const char* key, off64_t count, char* content)
+{
+    return map->api->readmeta(map, key, count, content);
+}
+
+int
+nczmap_writemeta(NCZMAP* map, const char* key, off64_t count, const char* content)
+{
+    return map->api->writemeta(map, key, count, content);
 }
 
 /**************************************************/
 /* Utilities */
 
-/* Split a path into pieces along '/' character */
+/* Split a path into pieces along '/' character; elide any leading '/' */
 int
 nczm_split(const char* path, NClist* segments)
 {
@@ -158,8 +166,10 @@ nczm_split(const char* path, NClist* segments)
     if(path == NULL || strlen(path)==0 || segments == NULL)
 	{stat = NC_EINVAL; goto done;}
 
-    for(p=path;*p;) {
-	q = strchr(p,NCZM_SEP);
+    p = path;
+    if(p[0] == NCZM_SEP[0]) p++;
+    for(;*p;) {
+	q = strchr(p,NCZM_SEP[0]);
 	if(q==NULL)
 	    q = p + strlen(p); /* point to trailing nul */
         len = (q - p);
@@ -176,7 +186,7 @@ nczm_split(const char* path, NClist* segments)
 
 done:
     if(seg != NULL) free(seg);
-    return stat;
+    return THROW(stat);
 }
 
 /* Join the first nseg segments into a path using '/' character */
@@ -194,12 +204,12 @@ nczm_joinprefix(NClist* segments, int nsegs, char** pathp)
     if(nclistlength(segments) < nsegs)
 	nsegs = nclistlength(segments);
     if(nsegs == 0) {
-	ncbytesappend(buf,NCZM_SEP);
+	ncbytescat(buf,NCZM_SEP);
 	goto done;		
     }
     for(i=0;i<nsegs;i++) {
 	const char* seg = nclistget(segments,i);
-	ncbytesappend(buf,NCZM_SEP);
+	ncbytescat(buf,NCZM_SEP);
 	ncbytescat(buf,seg);		
     }
 
@@ -208,7 +218,7 @@ done:
 	if(pathp) *pathp = ncbytesextract(buf);
     }
     ncbytesfree(buf);
-    return stat;
+    return THROW(stat);
 }
 
 /* Convenience: Join all segments into a path using '/' character */
@@ -216,6 +226,25 @@ int
 nczm_join(NClist* segments, char** pathp)
 {
     return nczm_joinprefix(segments,nclistlength(segments),pathp);
+}
+
+/* Convenience: suffix an object name to a group path: caller frees*/
+int
+nczm_suffix(const char* prefix, const char* suffix, char** pathp)
+{
+    NCbytes* buf = ncbytesnew();
+
+    if(prefix == NULL || strlen(prefix)==0) prefix = NCZM_SEP;
+    if(suffix == NULL) suffix = "";
+    ncbytescat(buf,prefix);
+    if(ncbytesget(buf,ncbyteslength(buf)-1) == NCZM_SEP[0])
+	ncbytessetlength(buf,ncbyteslength(buf)-1);
+    if(strlen(suffix) > 0 && suffix[0] != NCZM_SEP[0])
+	ncbytescat(buf,NCZM_SEP);
+    ncbytescat(buf,suffix);
+    if(pathp) *pathp = ncbytesextract(buf);
+    ncbytesfree(buf);
+    return NC_NOERR;
 }
 
 int

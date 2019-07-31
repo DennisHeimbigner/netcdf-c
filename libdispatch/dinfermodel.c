@@ -107,6 +107,7 @@ static struct IOSPS {
 {"dap2",NC_IOSP_DAP2},
 {"dap4",NC_IOSP_DAP4},
 {"bytes",NC_IOSP_HTTP},
+{"zarr",NC_IOSP_ZARR},
 {NULL,0}
 };
 
@@ -129,6 +130,7 @@ static struct FORMATMODES {
 {"64bitoffset",NC_FORMAT_64BIT_OFFSET,0},
 {"64bitdata",NC_FORMAT_64BIT_DATA,0},
 {"cdf5",NC_FORMAT_64BIT_DATA,0}, /*alias*/
+{"zarr",NC_FORMAT_NETCDF4,NC_FORMATX_ZARR},
 #if 0
 {"hdf4",NC_FORMAT_HDF4,NC_FORMATX_NC4},
 #endif
@@ -149,6 +151,7 @@ static struct IospRead {
 {NC_IOSP_MEMORY,1},
 {NC_IOSP_UDF,0},
 {NC_IOSP_HTTP,1},
+{NC_IOSP_ZARR,0},
 {0,0},
 };
 
@@ -163,6 +166,7 @@ static struct NCPROTOCOLLIST {
     {"file",NULL,NULL},
     {"dods","http","dap2"},
     {"dap4","http","dap4"},
+    {"s3","https","zarr"},
     {NULL,NULL,NULL} /* Terminate search */
 };
 
@@ -516,17 +520,22 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
 	    }
     }
 
-    /* Phase 3: See if we can infer DAP */
+    /* Phase 3: See if we can infer ZARR */
     if(!modelcomplete(model) && isuri) {
             if((stat = NC_dapinfer(modeargs,model))) goto done;
     }
 
-    /* Phase 4: mode inference */
+    /* Phase 4: See if we can infer DAP */
+    if(!modelcomplete(model) && isuri) {
+            if((stat = NC_dapinfer(modeargs,model))) goto done;
+    }
+
+    /* Phase 5: mode inference */
     if(!modelcomplete(model)) {
         if((stat = NC_omodeinfer(omode,model))) goto done;
     }
 
-    /* Phase 5: Infer from file content, if possible;
+    /* Phase 6: Infer from file content, if possible;
        this has highest precedence, so it may override
        previous decisions.
     */
@@ -535,7 +544,7 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
 	if((stat = check_file_type(path, omode, useparallel, params, model, uri))) goto done;
     }
 
-    /* Phase 6: Infer impl from format */
+    /* Phase 7: Infer impl from format */
     if(!modelcomplete(model)) {
         if((stat = NC_implinfer(useparallel, model))) goto done;
     }

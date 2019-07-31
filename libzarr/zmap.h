@@ -43,7 +43,10 @@ will almost certainly exceed this limit.
 #ifndef ZMAP_H
 #define ZMAP_H
 
-#define NCZM_SEP '/'
+#define NCZM_SEP "/"
+
+/* Mnemonic */
+#define NCZ_ISMETA 0
 
 /* Forward */
 struct NCZMAP_API;
@@ -87,11 +90,13 @@ struct NCZMAP_API {
     /* Object Operations */
 	int (*exists)(NCZMAP* map, const char* key);
 	int (*len)(NCZMAP* map, const char* key, off64_t* lenp);
+	/* Define an object */
+	int (*def)(NCZMAP* map, const char* key, off64_t len);
 	/* Read/write data */
-	int (*read)(NCZMAP* map, const char* key, off64_t start, off64_t count, char* content);
-	int (*write)(NCZMAP* map, const char* keypath, off64_t start, off64_t count, const char* content);
+	int (*read)(NCZMAP* map, const char* key, off64_t start, off64_t count, void* content);
+	int (*write)(NCZMAP* map, const char* key, off64_t start, off64_t count, const void* content);
 	/* Read/write metadata (e.g. Json)*/
-	int (*readmeta)(NCZMAP* map, const char* key, off64_t* countp, char** contentp);
+	int (*readmeta)(NCZMAP* map, const char* key, off64_t count, char* content);
 	int (*writemeta)(NCZMAP* map, const char* key, off64_t count, const char* content);
 
         int (*close)(NCZMAP* map, int delete);
@@ -100,17 +105,19 @@ struct NCZMAP_API {
 /* Define the Dataset level API */
 typedef struct NCZMAP_DS_API {
     int version;
+    int (*verify)(const char *path, int mode, size64_t flags, void* parameters);
     int (*create)(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
     int (*open)(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
 } NCZMAP_DS_API;
 
 /* Object API Wrappers */
-extern int nczm_exists(NCZMAP* map, const char* key);
-extern int nczm_len(NCZMAP* map, const char* key, off64_t* lenp);
-extern int nczm_read(NCZMAP* map, const char* key, off64_t start, off64_t count, char* content);
-extern int nczm_write(NCZMAP* map, const char* keypath, off64_t start, off64_t count, const char* content);
-extern int nczm_readmeta(NCZMAP* map, const char* key, char* content);
-extern int nczm_writemeta(NCZMAP* map, const char* keypath, const char* content);
+extern int nczmap_exists(NCZMAP* map, const char* key);
+extern int nczmap_len(NCZMAP* map, const char* key, off64_t* lenp);
+extern int nczmap_def(NCZMAP* map, const char* key, off64_t lenp);
+extern int nczmap_read(NCZMAP* map, const char* key, off64_t start, off64_t count, void* content);
+extern int nczmap_write(NCZMAP* map, const char* key, off64_t start, off64_t count, const void* content);
+extern int nczmap_readmeta(NCZMAP* map, const char* key, off64_t count, char* content);
+extern int nczmap_writemeta(NCZMAP* map, const char* key, off64_t count, const char* content);
 extern int nczmap_close(NCZMAP* map, int delete);
 
 /* Create/open and control a dataset using a specific implementation */
@@ -121,6 +128,7 @@ extern int nczmap_open(const char *path, int mode, size64_t flags, void* paramet
 extern int nczm_split(const char* path, NClist* segments);
 extern int nczm_joinprefix(NClist* segments, int nsegs, char** pathp);
 extern int nczm_join(NClist* segments, char** pathp);
+extern int nczm_suffix(const char* prefix, const char* suffix, char** pathp);
 extern int nczm_clear(NCZMAP* map);
 
 #endif /*ZMAP_H*/

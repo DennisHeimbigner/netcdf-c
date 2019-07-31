@@ -4,18 +4,21 @@
  *********************************************************************/
 #include "zincludes.h"
 
-int nczdebug = 0;
-
-#ifdef DZCATCH
+#ifdef ZCATCH
 /* Place breakpoint here to catch errors close to where they occur*/
 int
-dzbreakpoint(int err) {return err;}
+zbreakpoint(int err)
+{
+    return err;
+}
 
 int
-dzthrow(int err)
+zthrow(int err, const char* file, int line)
 {
     if(err == 0) return err;
-    return dzbreakpoint(err);
+    fprintf(stderr,"THROW: %s/%d: (%d) %s\n",file,line,err,nc_strerror(err));
+    fflush(stderr);
+    return zbreakpoint(err);
 }
 #endif
 
