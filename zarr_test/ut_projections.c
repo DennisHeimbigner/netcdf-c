@@ -64,11 +64,11 @@ main(int argc, char** argv)
 	   goto done;
 	}
     }
-    fprintf(stderr,"%s\n",printtest(&test));
+    printf("%s\n",printtest(&test));
     if((stat = ncz_compute_all_slice_projections(test.R, test.slices, test.dimlen, test.chunklen, &indices)))
 	goto done;
     for(r=0;r<test.R;r++) {
-	fprintf(stderr,"\t%s\n",nczprint_sliceindex(indices[r]));
+	printf("\t%s\n",nczprint_sliceindex(indices[r]));
     }
 
 done:

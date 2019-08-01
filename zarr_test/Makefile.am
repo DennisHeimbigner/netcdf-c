@@ -21,11 +21,19 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 check_PROGRAMS =
 TESTS =
 
-check_PROGRAMS += ut_projections ut_mapnc4
+check_PROGRAMS += ut_mapnc4
+check_PROGRAMS += ut_projections
 TESTS += run_unittests.sh
 
-EXTRA_DIST = run_unittests.sh
+EXTRA_DIST = run_unittests.sh \
+	ref_ut_create.cdl ref_ut_meta.cdl ref_ut_wmeta.cdl \
+	ref_ut_wmeta2.cdl ref_ut_write.cdl ref_ut_rmeta.txt \
+	ref_ut_proj1.txt
 
 CLEANFILES = *.exe
+CLEANFILES += testnc4.nc
+CLEANFILES += ut_create.cdl ut_meta.cdl ut_wmeta.cdl ut_wmeta2.cdl ut_write.cdl \
+	ut_rmeta.txt ut_proj1.txt
+
 # This should only be left behind if using parallel io
 CLEANFILES += tmp_*

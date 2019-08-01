@@ -16,8 +16,10 @@ int
 zthrow(int err, const char* file, int line)
 {
     if(err == 0) return err;
+#ifdef ZDEBUG
     fprintf(stderr,"THROW: %s/%d: (%d) %s\n",file,line,err,nc_strerror(err));
     fflush(stderr);
+#endif
     return zbreakpoint(err);
 }
 #endif

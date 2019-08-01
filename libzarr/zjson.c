@@ -12,6 +12,7 @@
 #define NCJ_COLON ':'
 #define NCJ_COMMA ','
 #define NCJ_QUOTE '"'
+#define NCJ_ESCAPE '\\'
 #define NCJ_TRUE "true"
 #define NCJ_FALSE "false"
 
@@ -47,6 +48,10 @@ static int NCJlex(NCJparser* parser);
 static int NCJyytext(NCJparser*, char* start, ptrdiff_t pdlen);
 static void NCJreclaimArray(NClist*);
 static void NCJreclaimDict(NClist*);
+static int NCJunparseR(const NCjson* json, NCbytes* buf, int flags);
+static int NCJunescape(NCJparser* parser);
+static int NCJescape(const char* text, NCbytes* buf);
+static int NCJappendquoted(const char* value, NCbytes* buf);
 
 /**************************************************/
 int
@@ -220,7 +225,8 @@ NCJparseDict(NCJparser* parser, NClist** dictp)
     while(!stop) {
 	/* Get the key, which must be a word of some sort */
 	switch((token = NCJlex(parser))) {
-	case NCJ_STRING:	case NCJ_BOOLEAN:
+	case NCJ_STRING:
+	case NCJ_BOOLEAN:
 	case NCJ_INT: case NCJ_DOUBLE:
 	    key = strdup(parser->yytext);
 	    break;
@@ -312,7 +318,8 @@ NCJlex(NCJparser* parser)
 	next = start+1;
 	for(;;) {
 	    c = *parser->pos++;
-	    if(c == NCJ_QUOTE || c == '\0') break;
+	    if(c == NCJ_ESCAPE) c++;
+	    else if(c == NCJ_QUOTE || c == '\0') break;
 	}
 	if(c == '\0') {
 	    parser->err = NC_EINVAL;
@@ -320,6 +327,7 @@ NCJlex(NCJparser* parser)
 	    goto done;
 	}
 	if(!NCJyytext(parser,start,(next - start))) goto done;
+	if(!NCJunescape(parser)) goto done;
 	token = NCJ_STRING;
     } else { /* single char token */
 	token = *parser->pos++;
@@ -530,3 +538,131 @@ NCJarrayith(NCjson* object, size_t i, NCjson** valuep)
     return NC_NOERR;
 }
 
+/* Unescape the text in parser->yytext; can
+   do in place because unescaped string will
+   always be shorter */
+static int
+NCJunescape(NCJparser* parser)
+{
+    char* p = parser->yytext;
+    char* q = p;
+    int c;
+    for(;(c=*p++);) {
+	if(c == NCJ_ESCAPE) {
+	    c = *p++;
+	    switch (c) {
+	    case 'b': c = '\b'; break;
+	    case 'f': c = '\f'; break;
+	    case 'n': c = '\n'; break;
+	    case 'r': c = '\r'; break;
+	    case 't': c = '\t'; break;
+	    case NCJ_QUOTE: c = c; break;
+	    case NCJ_ESCAPE: c = c; break;
+	    default: c = c; break;/* technically not Json conformant */
+	    }
+	}
+	*q++ = c;
+    }
+    return NC_NOERR;    
+}
+
+/**************************************************/
+/* Unparser to convert NCjson object to text in buffer */
+
+int
+NCjsonunparse(const NCjson* json, int flags, char** textp)
+{
+    int stat = NC_NOERR;
+    NCbytes* buf = ncbytesnew();
+    if((stat = NCJunparseR(json,buf,flags)))
+	goto done;
+    if(textp) {
+	ncbytesnull(buf);
+	*textp = ncbytesextract(buf);
+    }
+done:
+    ncbytesfree(buf);
+    return stat;
+}
+
+static int
+NCJunparseR(const NCjson* json, NCbytes* buf, int flags)
+{
+    int stat = NC_NOERR;
+    int i;
+    switch (json->sort) {
+    case NCJ_STRING:
+	NCJappendquoted(json->value,buf);
+	break;
+    case NCJ_INT:
+    case NCJ_DOUBLE:
+    case NCJ_BOOLEAN:
+	ncbytescat(buf,json->value);
+	break;
+    case NCJ_DICT:
+	ncbytesappend(buf,NCJ_LBRACE);
+	for(i=0;i<nclistlength(json->dict);i+=2) {
+	    const NCjson* key = nclistget(json->dict,i);	    
+	    const NCjson* value = nclistget(json->dict,i+1);
+	    if(i > 0) ncbytesappend(buf,NCJ_COMMA);
+	    NCJunparseR(key,buf,flags);
+	    ncbytesappend(buf,NCJ_COLON);
+	    ncbytesappend(buf,' ');
+	    NCJunparseR(value,buf,flags);
+	}	
+	ncbytesappend(buf,NCJ_RBRACE);
+	break;
+    case NCJ_ARRAY:
+	ncbytesappend(buf,NCJ_LBRACKET);
+	for(i=0;i<nclistlength(json->dict);i++) {
+	    const NCjson* value = nclistget(json->dict,i);
+	    if(i > 0) ncbytesappend(buf,NCJ_COMMA);
+	    NCJunparseR(value,buf,flags);
+	}	
+	ncbytesappend(buf,NCJ_RBRACKET);
+	break;
+    case NCJ_NULL:
+	ncbytescat(buf,"null");
+	break;
+    default:
+	stat = NC_EINVAL; goto done;
+    }
+done:
+    return stat;
+}
+
+/* Escape a string and append to buf */
+static int
+NCJescape(const char* text, NCbytes* buf)
+{
+    const char* p = text;
+    int c;
+    for(;(c=*p++);) {
+        char replace = 0;
+        switch (c) {
+	case '\b': replace = 'b'; break;
+	case '\f': replace = 'f'; break;
+	case '\n': replace = 'n'; break;
+	case '\r': replace = 'r'; break;
+	case '\t': replace = 't'; break;
+	case NCJ_QUOTE: replace = '\''; break;
+	case NCJ_ESCAPE: replace = '\\'; break;
+	default: break;
+	}
+	if(replace) {
+	    ncbytesappend(buf,NCJ_ESCAPE);
+	    ncbytesappend(buf,replace);
+	} else
+	    ncbytesappend(buf,c);
+    }
+    return NC_NOERR;    
+}
+
+static int
+NCJappendquoted(const char* value, NCbytes* buf)
+{
+    ncbytesappend(buf,'"');
+    NCJescape(value,buf);
+    ncbytesappend(buf,'"');
+    return NC_NOERR;
+}

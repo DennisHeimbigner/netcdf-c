@@ -22,5 +22,11 @@ extern int zthrow(int err, const char* fname, int line);
 #define ZLOG(level,msg,...) nclog(level,msg,__VA_ARGS__)
 #define ZTRACE() nclog(NCLOGDBG,"trace: %s.%s",__FILE__,__func__)
 
+/* printers */
+extern char* nczprint_slice(NCZSlice slice);
+extern char* nczprint_odom(NCZOdometer odom);
+extern char* nczprint_projection(NCZProjection proj);
+extern char* nczprint_sliceindex(NCZSliceIndex si);
+
 #endif /*ZDEBUG_H*/
 

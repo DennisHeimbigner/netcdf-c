@@ -61,6 +61,9 @@ extern int NCJappend(NCjson* object, NCjson* value);
 /* Get ith element from array */
 extern int NCJarrayith(NCjson* object, size_t i, NCjson** valuep);
 
+/* Unparser to convert NCjson object to text in buffer */
+extern int NCjsonunparse(const NCjson* json, int flags, char** textp);
+
 /* Utilities */
 extern void NCJreclaim(NCjson*);
 
