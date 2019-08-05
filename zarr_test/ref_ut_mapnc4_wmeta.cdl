@@ -1,0 +1,14 @@
+netcdf testmapnc4 {
+
+group: _zarr {
+
+  // group attributes:
+  		:data = "" ;
+  } // group _zarr
+
+group: meta1 {
+
+  // group attributes:
+  		:data = "{\n\"foo\": 42,\n\"bar\": \"apples\",\n\"baz\": [1, 2, 3, 4]}" ;
+  } // group meta1
+}

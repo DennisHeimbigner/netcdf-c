@@ -35,9 +35,6 @@ defined here, including function-like #defines.
 
 /**************************************************/
 
-extern int NCZ_loadmetadata(NCZINFO*);
-
-
 /**************************************************/
 
 #endif /*NCZFUNC_H*/

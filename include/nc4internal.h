@@ -273,7 +273,7 @@ typedef struct  NC_FILE_INFO
     NClist* alldims;
     NClist* alltypes;
     NClist* allgroups; /* including root group */
-    void *format_file_info;
+    void *format_file_info; /* Format specific annotation data */
     NC4_Provenance provenance;
     struct NC4_Memio {
         NC_memio memio; /* What we sent to image_init and what comes back*/

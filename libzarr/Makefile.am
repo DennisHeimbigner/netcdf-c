@@ -24,6 +24,7 @@ zchunkio.c \
 zsliceindices.c \
 zdispatch.c \
 zfile.c \
+zmeta.c \
 zjson.c \
 zmap.c \
 zmap_nc4.c \
@@ -37,6 +38,7 @@ ztypes.h \
 zincludes.h \
 zfuncs.h \
 zmap.h \
+zmeta.h \
 zdebug.h
 
 if ENABLE_ZARR

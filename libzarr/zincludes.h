@@ -22,10 +22,12 @@
 #include "ncauth.h"
 #include "nclog.h"
 
-#include "zmap.h"
 #include "ztypes.h"
+#include "zmap.h"
+#include "zmeta.h"
 #include "zfuncs.h"
 #include "zchunking.h"
+#include "zjson.h"
 #include "zdebug.h"
 
 #endif /*ZINCLUDES_H*/

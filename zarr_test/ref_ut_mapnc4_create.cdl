@@ -1,0 +1,8 @@
+netcdf testmapnc4 {
+
+group: _zarr {
+
+  // group attributes:
+  		:data = "" ;
+  } // group _zarr
+}

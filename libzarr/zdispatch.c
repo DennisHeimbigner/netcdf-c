@@ -13,7 +13,7 @@
 static int nczinitialized = 0;
 
 static NC_Dispatch NCZ_dispatcher;
-NC_Dispatch* NCZ_dispatch_table = NULL;
+const NC_Dispatch* NCZ_dispatch_table = &NCZ_dispatcher;
 
 /**************************************************/
 
@@ -62,7 +62,7 @@ NCZ_redef(int ncid)
 {return NC_NOERR;}
 
 int
-nc__enddef(int ncid, size_t h_minfree, size_t v_align,
+NCZ__enddef(int ncid, size_t h_minfree, size_t v_align,
         size_t v_minfree, size_t r_align)
 {return NC_NOERR;}
 

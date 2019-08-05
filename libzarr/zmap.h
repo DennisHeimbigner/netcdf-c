@@ -59,6 +59,9 @@ NCZM_FILE=2,  /* File system directory-based implementation */
 NCZM_NC4=3,   /* Netcdf-4 file based implementation */
 } NCZM_IMPL;
 
+/* Define the default map implementation */
+#define NCZM_DEFAULT NCZM_NC4
+
 /*
 For each dataset, we create what amounts to a class
 defining data and the API function implementations.
@@ -92,13 +95,13 @@ struct NCZMAP_API {
 	int (*len)(NCZMAP* map, const char* key, off64_t* lenp);
 	/* Define an object */
 	int (*def)(NCZMAP* map, const char* key, off64_t len);
+        int (*children)(NCZMAP* map, const char* parentkey, NClist* children);
 	/* Read/write data */
 	int (*read)(NCZMAP* map, const char* key, off64_t start, off64_t count, void* content);
 	int (*write)(NCZMAP* map, const char* key, off64_t start, off64_t count, const void* content);
 	/* Read/write metadata (e.g. Json)*/
 	int (*readmeta)(NCZMAP* map, const char* key, off64_t count, char* content);
 	int (*writemeta)(NCZMAP* map, const char* key, off64_t count, const char* content);
-
         int (*close)(NCZMAP* map, int delete);
 };
 
@@ -119,6 +122,7 @@ extern int nczmap_write(NCZMAP* map, const char* key, off64_t start, off64_t cou
 extern int nczmap_readmeta(NCZMAP* map, const char* key, off64_t count, char* content);
 extern int nczmap_writemeta(NCZMAP* map, const char* key, off64_t count, const char* content);
 extern int nczmap_close(NCZMAP* map, int delete);
+extern int nczmap_children(NCZMAP* map, const char* parent, NClist* children);
 
 /* Create/open and control a dataset using a specific implementation */
 extern int nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);

@@ -1886,6 +1886,11 @@ NC_create(const char *path0, int cmode, size_t initialsz,
         dispatcher = UDF1_dispatch_table;
         break;
 #endif /* USE_NETCDF4 */
+#ifdef ENABLE_ZARR
+    case NC_FORMATX_ZARR:
+        dispatcher = NCZ_dispatch_table;
+	break;
+#endif
     case NC_FORMATX_NC3:
         dispatcher = NC3_dispatch_table;
 	break;

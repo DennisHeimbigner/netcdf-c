@@ -556,6 +556,7 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
     case NC_FORMATX_NC4:
     case NC_FORMATX_NC_HDF4:
     case NC_FORMATX_DAP4:
+    case NC_FORMATX_ZARR:
     case NC_FORMATX_UDF0:
     case NC_FORMATX_UDF1:
 	omode |= NC_NETCDF4;

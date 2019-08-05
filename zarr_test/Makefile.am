@@ -25,15 +25,21 @@ check_PROGRAMS += ut_mapnc4
 check_PROGRAMS += ut_projections
 TESTS += run_unittests.sh
 
+noinst_PROGRAMS = z4dump
+z4dump_SOURCES = z4dump.c
+
 EXTRA_DIST = run_unittests.sh \
-	ref_ut_create.cdl ref_ut_meta.cdl ref_ut_wmeta.cdl \
-	ref_ut_wmeta2.cdl ref_ut_write.cdl ref_ut_rmeta.txt \
-	ref_ut_proj1.txt
+	ref_ut_mapnc4_create.cdl ref_ut_mapnc4_meta.cdl \
+	ref_ut_mapnc4_wmeta.cdl ref_ut_mapnc4_wmeta2.cdl \
+	ref_ut_mapnc4_write.cdl ref_ut_mapnc4_rmeta.txt \
+	ref_ut_mapnc4_proj1.txt
 
 CLEANFILES = *.exe
 CLEANFILES += testnc4.nc
-CLEANFILES += ut_create.cdl ut_meta.cdl ut_wmeta.cdl ut_wmeta2.cdl ut_write.cdl \
-	ut_rmeta.txt ut_proj1.txt
+CLEANFILES += ut_mapnc4_create.cdl ut_mapnc4_meta.cdl \
+	ut_mapnc4_wmeta.cdl ut_mapnc4_wmeta2.cdl \
+	ut_mapnc4_write.cdl ut_mapnc4_rmeta.txt \
+	ut_proj1.txt
 
 # This should only be left behind if using parallel io
 CLEANFILES += tmp_*

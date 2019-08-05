@@ -434,6 +434,9 @@ if test "x$havecurloption" = xno ; then
   AC_MSG_ERROR([zarr support requires libcurl. Install curl or build without --enable-zarr.])
   enable_zarr=no
 fi
+if test "x$enable_zarr" = xyes; then
+   AC_DEFINE([ENABLE_ZARR], [1], [if true, build Zarr Client])
+fi
 AM_CONDITIONAL(ENABLE_ZARR, [test x$enable_zarr = xyes])
 
 # Check whether we want to enable strict null byte header padding.
