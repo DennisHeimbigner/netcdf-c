@@ -179,7 +179,6 @@ ncz_close_ncz_file(NC_FILE_INFO_T* file, int abort,  NC_memio *memio)
     return NC_NOERR;
 }
 
-#ifdef LOOK
 /**
  * @internal Output a list of still-open objects in the NCZ
  * file. This is only called if the file fails to close cleanly.
@@ -200,7 +199,9 @@ dumpopenobjects(NC_FILE_INFO_T* file)
     if(ncz_info->hdfid <= 0)
         return; /* File was never opened */
 
-    nobjs = H5Fget_obj_count(ncz_info->hdfid, H5F_OBJ_ALL);
+#ifdef LOOK
+    nobjs = FILEFget_obj_count(ncz_info->hdfid, FILEF_OBJ_ALL);
+#endif
 
     /* Apparently we can get an error even when nobjs == 0 */
     if(nobjs < 0) {
@@ -228,7 +229,6 @@ dumpopenobjects(NC_FILE_INFO_T* file)
 
     return;
 }
-#endif
 
 /**
  * @internal Unfortunately HDF only allows specification of fill value

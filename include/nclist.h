@@ -33,7 +33,7 @@ extern int nclistinsert(NClist*,size_t,void*);
 extern void* nclistremove(NClist* l, size_t i);
 
 /* Tail operations */
-extern int nclistpush(NClist*,void*); /* Add at Tail */
+extern int nclistpush(NClist*,const void*); /* Add at Tail */
 extern void* nclistpop(NClist*);
 extern void* nclisttop(NClist*);
 

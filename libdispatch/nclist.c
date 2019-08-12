@@ -134,11 +134,11 @@ nclistinsert(NClist* l, size_t index, void* elem)
 }
 
 int
-nclistpush(NClist* l, void* elem)
+nclistpush(NClist* l, const void* elem)
 {
   if(l == NULL) return FALSE;
   if(l->length >= l->alloc) nclistsetalloc(l,0);
-  l->content[l->length] = elem;
+  l->content[l->length] = (void*)elem;
   l->length++;
   return TRUE;
 }

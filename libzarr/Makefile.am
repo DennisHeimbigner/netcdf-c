@@ -1,11 +1,15 @@
-## This is a automake file, part of Unidata's netCDF package.
-# Copyright 2005, see the COPYRIGHT file for more information.
+# This is part of Unidata's netCDF package. Copyright 2018, see the
+# COPYRIGHT file for more information.
 
-# This automake file generates the Makefile to libdap2. Whatever that
-# is!
+# Build the ZARR dispatch layer.
 
-# Put together AM_CPPFLAGS and AM_LDFLAGS.
+# Dennis Heimbigner
+
+# Get AM_CPPFLAGS.
 include $(top_srcdir)/lib_flags.am
+AM_CPPFLAGS += -I$(top_srcdir)/libsrc4
+libzarr_la_CPPFLAGS = ${AM_CPPFLAGS}
+libzarr_la_LIBADD =
 
 # Remember ENABLE_ZARR implies USE_NETCDF4
 
@@ -13,42 +17,62 @@ include $(top_srcdir)/lib_flags.am
 DISTCLEANFILES =
 MAINTAINERCLEANFILES =
 CLEANFILES =
-EXTRA_DIST = CMakeLists.txt
-
+EXTRA_DIST = 
 LDADD=
 
-SRC= \
+# This is our output. The ZARR convenience library.
+noinst_LTLIBRARIES = libzarr.la
+
+# The source files.
+libzarr_la_SOURCES = \
+zdispatch.h \
+zinternal.h \
+zattr.c \
+zcache.c \
+zcreate.c \
+zdim.c \
+zdispatch.c \
+zfile.c \
+zgrp.c \
+zinternal.c \
+zopen.c \
+zprov.c \
+zvar.c \
+\
 zodom.c \
 zallchunks.c \
 zchunkio.c \
 zsliceindices.c \
-zdispatch.c \
 zfile.c \
+zenddef.c \
+zclose.c \
+zdim.c \
 zmeta.c \
 zjson.c \
+zutil.c \
 zmap.c \
 zmap_nc4.c \
 zdebug.c
 
 HDRS= \
 nczdispatch.h \
+ncz.h \
 zchunking.h \
 zjson.h \
 ztypes.h \
 zincludes.h \
-zfuncs.h \
 zmap.h \
-zmeta.h \
 zdebug.h
 
-if ENABLE_ZARR
 
-AM_CPPFLAGS += -I$(top_srcdir)/libsrc4
+# For now, ignore these
+IGNORED=ztype.c 
 
-# Build convenience library
-noinst_LTLIBRARIES = libzarr.la
-libzarr_la_SOURCES = $(SRC) $(HDRS)
-libzarr_la_CPPFLAGS = $(AM_CPPFLAGS)
-libzarr_la_LIBADD =
+# Package this for cmake build.
+EXTRA_DIST += CMakeLists.txt
 
-endif # ENABLE_ZARR
+
+
+
+
+
