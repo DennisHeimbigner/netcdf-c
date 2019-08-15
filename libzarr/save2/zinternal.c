@@ -2,7 +2,6 @@
  * Research. See the COPYRIGHT file for copying and redistribution
  * conditions.
  */
-
 /**
  * @file @internal Internal netcdf-4 functions.
  *
@@ -15,7 +14,26 @@
  * @author Dennis Heimbigner, Ed Hartnett
  */
 
-#include "zincludes.h"
+#include "config.h"
+#include "nczinternal.h"
+
+#undef DEBUGH5
+
+#ifdef DEBUGH5
+/**
+ * @internal Provide a catchable error reporting function
+ *
+ * @param ignored Ignored.
+ *
+ * @return 0 for success.
+ */
+static herr_t
+h5catch(void* ignored)
+{
+    H5Eprint(NULL);
+    return 0;
+}
+#endif
 
 /* These are the default chunk cache sizes for ZARR files created or
  * opened with netCDF-4. */
@@ -28,11 +46,11 @@ extern float ncz_chunk_cache_preemption;
    severity 0 for errors, 1 for important log messages, 2 for less
    important, etc. */
 extern int nc_log_level;
+
 #endif /* LOGGING */
 
 int ncz_initialized = 0; /**< True if initialization has happened. */
 
-#ifdef LOOK
 /**
  * @internal Provide a wrapper for H5Eset_auto
  * @param func Pointer to func.
@@ -49,20 +67,17 @@ set_auto(void* func, void *client_data)
     return H5Eset_auto2(H5E_DEFAULT,(H5E_auto2_t)func,client_data);
 #endif
 }
-#endif
 
 /**
  * @internal Provide a function to do any necessary initialization of
  * the ZARR library.
  */
 void
-NCZ_initialize(void)
+ncz_initialize(void)
 {
-#ifdef LOOK
     if (set_auto(NULL, NULL) < 0)
         LOG((0, "Couldn't turn off ZARR error messages!"));
     LOG((1, "NCZ error messages have been turned off."));
-#endif
     ncz_initialized = 1;
 }
 
@@ -71,7 +86,7 @@ NCZ_initialize(void)
  * the ZARR library.
  */
 void
-NCZ_finalize(void)
+ncz_finalize(void)
 {
     /* Reclaim global resources */
     NCZ_provenance_finalize();

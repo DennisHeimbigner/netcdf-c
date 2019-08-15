@@ -1,15 +1,15 @@
 /* Copyright 2003-2018, University Corporation for Atmospheric
  * Research. See COPYRIGHT file for copying and redistribution
  * conditions. */
-
 /**
  * @file
- * @internal This file handles ZARR attributes.
+ * @internal This file handles HDF5 attributes.
  *
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 
-#include "zincludes.h"
+#include "config.h"
+#include "hdf5internal.h"
 
 /**
  * @internal Get the attribute list for either a varid or NC_GLOBAL
@@ -25,19 +25,18 @@
  * [Candidate for moving to libsrc4]
  */
 static int
-getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist)
+getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp,
+           NCindex **attlist)
 {
     int retval;
-    NC_FILE_INFO_T* file = grp->nc4_info;
-    NCZ_FILE_INFO_T* zinfo = file->format_file_info;
 
-    assert(grp && attlist && file && zinfo);
+    assert(grp && attlist);
 
     if (varid == NC_GLOBAL)
     {
         /* Do we need to read the atts? */
         if (!grp->atts_read)
-            if ((retval = NCZ_read_atts(zinfo, (NC_OBJ*)grp)))
+            if ((retval = nc4_read_atts(grp, NULL)))
                 return retval;
 
         if (varp)
@@ -54,7 +53,7 @@ getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlis
 
         /* Do we need to read the atts? */
         if (!var->atts_read)
-            if ((retval = NCZ_read_atts(zinfo, (NC_OBJ*)var)))
+            if ((retval = nc4_read_atts(grp, var)))
                 return retval;
 
         if (varp)
@@ -69,7 +68,7 @@ getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlis
  * ISNETCDF4ATT, and SUPERBLOCKATT. These atts are not all really in
  * the file, they are constructed on the fly.
  *
- * @param h5 Pointer to ZARR file info struct.
+ * @param h5 Pointer to HDF5 file info struct.
  * @param name Name of attribute.
  * @param filetypep Pointer that gets type of the attribute data in
  * file.
@@ -84,7 +83,7 @@ getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlis
  * @author Dennis Heimbigner
  */
 int
-ncz_get_att_special(NC_FILE_INFO_T* h5, const char* name,
+nc4_get_att_special(NC_FILE_INFO_T* h5, const char* name,
                     nc_type* filetypep, nc_type mem_type, size_t* lenp,
                     int* attnump, void* data)
 {
@@ -111,7 +110,7 @@ ncz_get_att_special(NC_FILE_INFO_T* h5, const char* name,
         if(strcmp(name,SUPERBLOCKATT)==0)
             iv = (unsigned long long)h5->provenance.superblockversion;
         else /* strcmp(name,ISNETCDF4ATT)==0 */
-            iv = NCZ_isnetcdf4(h5);
+            iv = NC4_isnetcdf4(h5);
         if(mem_type == NC_NAT) mem_type = NC_INT;
         if(data)
             switch (mem_type) {
@@ -148,10 +147,10 @@ ncz_get_att_special(NC_FILE_INFO_T* h5, const char* name,
  * @return ::NC_EHDFERR HDF error.
  * @return ::NC_ENOMEM Out of memory.
  * @return ::NC_EINTERNAL Could not rebuild list.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
+NC4_HDF5_rename_att(int ncid, int varid, const char *name, const char *newname)
 {
     NC_GRP_INFO_T *grp;
     NC_FILE_INFO_T *h5;
@@ -159,6 +158,7 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
     NC_ATT_INFO_T *att;
     NCindex *list;
     char norm_newname[NC_MAX_NAME + 1], norm_name[NC_MAX_NAME + 1];
+    hid_t datasetid = 0;
     int retval = NC_NOERR;
 
     if (!name || !newname)
@@ -207,18 +207,21 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
         (h5->cmode & NC_CLASSIC_MODEL))
         return NC_ENOTINDEFINE;
 
-    /* Delete the original attribute, if it exists in the ZARR file. */
+    /* Delete the original attribute, if it exists in the HDF5 file. */
     if (att->created)
     {
         if (varid == NC_GLOBAL)
         {
-	    if((retval=NCZ_del_attr(h5, (NC_OBJ*)grp, name)))
-	        goto done;
+            if (H5Adelete(((NC_HDF5_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid,
+                          att->hdr.name) < 0)
+                return NC_EHDFERR;
         }
         else
         {
-	    if((retval=NCZ_del_attr(h5, (NC_OBJ*)var, name)))
-		goto done;
+            if ((retval = nc4_open_var_grp2(grp, varid, &datasetid)))
+                return retval;
+            if (H5Adelete(datasetid, att->hdr.name) < 0)
+                return NC_EHDFERR;
         }
         att->created = NC_FALSE;
     }
@@ -238,7 +241,7 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
     /* Mark attributes on variable dirty, so they get written */
     if(var)
         var->attr_dirty = NC_TRUE;
-done:
+
     return retval;
 }
 
@@ -258,16 +261,17 @@ done:
  * @return ::NC_EPERM File is read only.
  * @return ::NC_ENOTINDEFINE Classic model not in define mode.
  * @return ::NC_EINTERNAL Could not rebuild list.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_del_att(int ncid, int varid, const char *name)
+NC4_HDF5_del_att(int ncid, int varid, const char *name)
 {
     NC_GRP_INFO_T *grp;
     NC_VAR_INFO_T *var;
     NC_FILE_INFO_T *h5;
     NC_ATT_INFO_T *att;
     NCindex* attlist = NULL;
+    hid_t locid = 0;
     int i;
     size_t deletedid;
     int retval;
@@ -293,7 +297,7 @@ NCZ_del_att(int ncid, int varid, const char *name)
     {
         if (h5->cmode & NC_CLASSIC_MODEL)
             return NC_ENOTINDEFINE;
-        if ((retval = NCZ_redef(ncid)))
+        if ((retval = NC4_redef(ncid)))
             return retval;
     }
 
@@ -301,26 +305,22 @@ NCZ_del_att(int ncid, int varid, const char *name)
     if ((retval = getattlist(grp, varid, &var, &attlist)))
         return retval;
 
-#ifdef LOOK
-    /* Determine the location id in the ZARR file. */
+    /* Determine the location id in the HDF5 file. */
     if (varid == NC_GLOBAL)
-        locid = ((NCZ_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid;
+        locid = ((NC_HDF5_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid;
     else if (var->created)
-        locid = ((NCZ_VAR_INFO_T *)(var->format_var_info))->hdf_datasetid;
-#endif
+        locid = ((NC_HDF5_VAR_INFO_T *)(var->format_var_info))->hdf_datasetid;
 
     /* Now find the attribute by name. */
     if (!(att = (NC_ATT_INFO_T*)ncindexlookup(attlist, name)))
         return NC_ENOTATT;
 
-    /* Delete it from the ZARR file, if it's been created. */
+    /* Delete it from the HDF5 file, if it's been created. */
     if (att->created)
     {
-#ifdef LOOK
         assert(locid);
         if (H5Adelete(locid, att->hdr.name) < 0)
             return NC_EATTMETA;
-#endif
     }
 
     deletedid = att->hdr.id;
@@ -353,7 +353,7 @@ NCZ_del_att(int ncid, int varid, const char *name)
  * @param type A netcdf atomic type.
  *
  * @return Type size in bytes, or -1 if type not found.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 nc4typelen(nc_type type)
@@ -380,7 +380,7 @@ nc4typelen(nc_type type)
 
 /**
  * @internal
- * Write an attribute to a netCDF-4/NCZ file, converting
+ * Write an attribute to a netCDF-4/HDF5 file, converting
  * data type if necessary.
  *
  * @param ncid File and group ID.
@@ -398,10 +398,10 @@ nc4typelen(nc_type type)
  * @return ::NC_ENOTVAR Variable not found.
  * @return ::NC_EBADNAME Name contains illegal characters.
  * @return ::NC_ENAMEINUSE Name already in use.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
+nc4_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
             size_t len, const void *data, nc_type mem_type, int force)
 {
     NC* nc;
@@ -474,7 +474,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
         {
             if (h5->cmode & NC_CLASSIC_MODEL)
                 return NC_ENOTINDEFINE;
-            if ((retval = NCZ_redef(ncid)))
+            if ((retval = NC4_redef(ncid)))
                 BAIL(retval);
         }
         new_att = NC_TRUE;
@@ -488,7 +488,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
         {
             if (h5->cmode & NC_CLASSIC_MODEL)
                 return NC_ENOTINDEFINE;
-            if ((retval = NCZ_redef(ncid)))
+            if ((retval = NC4_redef(ncid)))
                 BAIL(retval);
         }
     }
@@ -520,8 +520,8 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
         if ((ret = nc4_att_list_add(attlist, norm_name, &att)))
             BAIL(ret);
 
-        /* Allocate storage for the ZARR specific att info. */
-        if (!(att->format_att_info = calloc(1, sizeof(NCZ_ATT_INFO_T))))
+        /* Allocate storage for the HDF5 specific att info. */
+        if (!(att->format_att_info = calloc(1, sizeof(NC_HDF5_ATT_INFO_T))))
             BAIL(NC_ENOMEM);
     }
 
@@ -740,7 +740,7 @@ exit:
 }
 
 /**
- * @internal Write an attribute to a netCDF-4/NCZ file, converting
+ * @internal Write an attribute to a netCDF-4/HDF5 file, converting
  * data type if necessary.
  *
  * @param ncid File and group ID.
@@ -757,10 +757,10 @@ exit:
  * @return ::NC_ENOTVAR Variable not found.
  * @return ::NC_EBADNAME Name contains illegal characters.
  * @return ::NC_ENAMEINUSE Name already in use.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_put_att(int ncid, int varid, const char *name, nc_type file_type,
+NC4_HDF5_put_att(int ncid, int varid, const char *name, nc_type file_type,
                  size_t len, const void *data, nc_type mem_type)
 {
     NC_FILE_INFO_T *h5;
@@ -768,16 +768,16 @@ NCZ_put_att(int ncid, int varid, const char *name, nc_type file_type,
     int ret;
 
     /* Find info for this file, group, and h5 info. */
-    if ((ret = nc4_find_grp_h5(ncid, &grp, &h5)))
+    if ((ret = nc4_find_nc_grp_h5(ncid, NULL, &grp, &h5)))
         return ret;
     assert(grp && h5);
 
-    return ncz_put_att(grp, varid, name, file_type, len, data, mem_type, 0);
+    return nc4_put_att(grp, varid, name, file_type, len, data, mem_type, 0);
 }
 
 /**
  * @internal Learn about an att. All the nc4 nc_inq_ functions just
- * call ncz_get_att to get the metadata on an attribute.
+ * call nc4_get_att to get the metadata on an attribute.
  *
  * @param ncid File and group ID.
  * @param varid Variable ID.
@@ -787,10 +787,10 @@ NCZ_put_att(int ncid, int varid, const char *name, nc_type file_type,
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_inq_att(int ncid, int varid, const char *name, nc_type *xtypep,
+NC4_HDF5_inq_att(int ncid, int varid, const char *name, nc_type *xtypep,
                  size_t *lenp)
 {
     NC_FILE_INFO_T *h5;
@@ -803,7 +803,7 @@ NCZ_inq_att(int ncid, int varid, const char *name, nc_type *xtypep,
 
     /* Find the file, group, and var info, and do lazy att read if
      * needed. */
-    if ((retval = ncz_find_grp_var_att(ncid, varid, name, 0, 1, norm_name,
+    if ((retval = nc4_hdf5_find_grp_var_att(ncid, varid, name, 0, 1, norm_name,
                                             &h5, &grp, &var, NULL)))
         return retval;
 
@@ -812,11 +812,11 @@ NCZ_inq_att(int ncid, int varid, const char *name, nc_type *xtypep,
     {
         const NC_reservedatt *ra = NC_findreserved(norm_name);
         if (ra  && ra->flags & NAMEONLYFLAG)
-            return ncz_get_att_special(h5, norm_name, xtypep, NC_NAT, lenp, NULL,
+            return nc4_get_att_special(h5, norm_name, xtypep, NC_NAT, lenp, NULL,
                                        NULL);
     }
 
-    return ncz_get_att_ptrs(h5, grp, var, norm_name, xtypep, NC_NAT,
+    return nc4_get_att_ptrs(h5, grp, var, norm_name, xtypep, NC_NAT,
                             lenp, NULL, NULL);
 }
 
@@ -829,10 +829,10 @@ NCZ_inq_att(int ncid, int varid, const char *name, nc_type *xtypep,
  * @param attnump Pointer that gets the attribute index number.
  *
  * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_inq_attid(int ncid, int varid, const char *name, int *attnump)
+NC4_HDF5_inq_attid(int ncid, int varid, const char *name, int *attnump)
 {
     NC_FILE_INFO_T *h5;
     NC_GRP_INFO_T *grp;
@@ -844,7 +844,7 @@ NCZ_inq_attid(int ncid, int varid, const char *name, int *attnump)
 
     /* Find the file, group, and var info, and do lazy att read if
      * needed. */
-    if ((retval = ncz_find_grp_var_att(ncid, varid, name, 0, 1, norm_name,
+    if ((retval = nc4_hdf5_find_grp_var_att(ncid, varid, name, 0, 1, norm_name,
                                             &h5, &grp, &var, NULL)))
         return retval;
 
@@ -853,11 +853,11 @@ NCZ_inq_attid(int ncid, int varid, const char *name, int *attnump)
     {
         const NC_reservedatt *ra = NC_findreserved(norm_name);
         if (ra  && ra->flags & NAMEONLYFLAG)
-            return ncz_get_att_special(h5, norm_name, NULL, NC_NAT, NULL, attnump,
+            return nc4_get_att_special(h5, norm_name, NULL, NC_NAT, NULL, attnump,
                                        NULL);
     }
 
-    return ncz_get_att_ptrs(h5, grp, var, norm_name, NULL, NC_NAT,
+    return nc4_get_att_ptrs(h5, grp, var, norm_name, NULL, NC_NAT,
                             NULL, attnump, NULL);
 }
 
@@ -871,10 +871,10 @@ NCZ_inq_attid(int ncid, int varid, const char *name, int *attnump)
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_inq_attname(int ncid, int varid, int attnum, char *name)
+NC4_HDF5_inq_attname(int ncid, int varid, int attnum, char *name)
 {
     NC_ATT_INFO_T *att;
     int retval;
@@ -883,7 +883,7 @@ NCZ_inq_attname(int ncid, int varid, int attnum, char *name)
 
     /* Find the file, group, and var info, and do lazy att read if
      * needed. */
-    if ((retval = ncz_find_grp_var_att(ncid, varid, NULL, attnum, 0, NULL,
+    if ((retval = nc4_hdf5_find_grp_var_att(ncid, varid, NULL, attnum, 0, NULL,
                                             NULL, NULL, NULL, &att)))
         return retval;
     assert(att);
@@ -907,10 +907,10 @@ NCZ_inq_attname(int ncid, int varid, int attnum, char *name)
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_get_att(int ncid, int varid, const char *name, void *value,
+NC4_HDF5_get_att(int ncid, int varid, const char *name, void *value,
                  nc_type memtype)
 {
     NC_FILE_INFO_T *h5;
@@ -923,7 +923,7 @@ NCZ_get_att(int ncid, int varid, const char *name, void *value,
 
     /* Find the file, group, and var info, and do lazy att read if
      * needed. */
-    if ((retval = ncz_find_grp_var_att(ncid, varid, name, 0, 1, norm_name,
+    if ((retval = nc4_hdf5_find_grp_var_att(ncid, varid, name, 0, 1, norm_name,
                                             &h5, &grp, &var, NULL)))
         return retval;
 
@@ -932,10 +932,10 @@ NCZ_get_att(int ncid, int varid, const char *name, void *value,
     {
         const NC_reservedatt *ra = NC_findreserved(norm_name);
         if (ra  && ra->flags & NAMEONLYFLAG)
-            return ncz_get_att_special(h5, norm_name, NULL, NC_NAT, NULL, NULL,
+            return nc4_get_att_special(h5, norm_name, NULL, NC_NAT, NULL, NULL,
                                        value);
     }
 
-    return ncz_get_att_ptrs(h5, grp, var, norm_name, NULL, memtype,
+    return nc4_get_att_ptrs(h5, grp, var, norm_name, NULL, memtype,
                             NULL, NULL, value);
 }

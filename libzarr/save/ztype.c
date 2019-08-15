@@ -1,19 +1,19 @@
 /* Copyright 2005-2018, University Corporation for Atmospheric
  * Research. See the COPYRIGHT file for copying and redistribution
  * conditions. */
-
 /**
  * @file @internal This file is part of netcdf-4, a netCDF-like
- * interface for NCZ, or a ZARR backend for netCDF, depending on your
+ * interface for HDF5, or a HDF5 backend for netCDF, depending on your
  * point of view.
  *
  * This file handles the nc4 user-defined type functions
  * (i.e. compound and opaque types).
  *
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 
-#include "zincludes.h"
+#include "config.h"
+#include "hdf5internal.h"
 
 /**
  * @internal Determine if two types are equal.
@@ -28,10 +28,10 @@
  * @return ::NC_EBADID Bad ncid.
  * @return ::NC_EBADTYPE Type not found.
  * @return ::NC_EINVAL Invalid type.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 extern int
-NCZ_inq_type_equal(int ncid1, nc_type typeid1, int ncid2,
+NC4_inq_type_equal(int ncid1, nc_type typeid1, int ncid2,
                    nc_type typeid2, int *equalp)
 {
     NC_GRP_INFO_T *grpone, *grptwo;
@@ -67,25 +67,25 @@ NCZ_inq_type_equal(int ncid1, nc_type typeid1, int ncid2,
     }
 
     /* Not atomic types - so find type1 and type2 information. */
-    if ((retval = ncz_find_ncz_grp(ncid1, &grpone)))
+    if ((retval = nc4_find_nc4_grp(ncid1, &grpone)))
         return retval;
-    if (!(type1 = nclistget(grpone->ncz_info->alltypes, typeid1)))
+    if (!(type1 = nclistget(grpone->nc4_info->alltypes, typeid1)))
         return NC_EBADTYPE;
-    if ((retval = ncz_find_ncz_grp(ncid2, &grptwo)))
+    if ((retval = nc4_find_nc4_grp(ncid2, &grptwo)))
         return retval;
-    if (!(type2 = nclistget(grptwo->ncz_info->alltypes, typeid2)))
+    if (!(type2 = nclistget(grptwo->nc4_info->alltypes, typeid2)))
         return NC_EBADTYPE;
 
     /* Are the two types equal? */
     {
         hid_t hid1, hid2;
 
-        /* Get the ZARR types from the NCZ-specific type info. */
+        /* Get the HDF5 types from the HDF5-specific type info. */
         assert(type1->format_type_info && type2->format_type_info);
-        hid1 = ((NCZ_TYPE_INFO_T *)type1->format_type_info)->native_hdf_typeid;
-        hid2 = ((NCZ_TYPE_INFO_T *)type2->format_type_info)->native_hdf_typeid;
+        hid1 = ((NC_HDF5_TYPE_INFO_T *)type1->format_type_info)->native_hdf_typeid;
+        hid2 = ((NC_HDF5_TYPE_INFO_T *)type2->format_type_info)->native_hdf_typeid;
 
-        /* Ask ZARR if the types are equal. */
+        /* Ask HDF5 if the types are equal. */
         if ((retval = H5Tequal(hid1, hid2)) < 0)
             return NC_EHDFERR;
         *equalp = 1 ? retval : 0;
@@ -106,10 +106,10 @@ NCZ_inq_type_equal(int ncid1, nc_type typeid1, int ncid2,
  * @return ::NC_EINVAL Bad size.
  * @return ::NC_ENOTNC4 User types in netCDF-4 files only.
  * @return ::NC_EBADTYPE Type not found.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 extern int
-NCZ_inq_typeid(int ncid, const char *name, nc_type *typeidp)
+NC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
 {
     NC_GRP_INFO_T *grp;
     NC_GRP_INFO_T *grptwo;
@@ -120,7 +120,7 @@ NCZ_inq_typeid(int ncid, const char *name, nc_type *typeidp)
 
     /* Handle atomic types. */
     for (i = 0; i < NUM_ATOMIC_TYPES; i++)
-        if (!strcmp(name, ncz_atomic_name[i]))
+        if (!strcmp(name, nc4_atomic_name[i]))
         {
             if (typeidp)
                 *typeidp = i;
@@ -128,7 +128,7 @@ NCZ_inq_typeid(int ncid, const char *name, nc_type *typeidp)
         }
 
     /* Find info for this file and group, and set pointer to each. */
-    if ((retval = ncz_find_grp_h5(ncid, &grp, &h5)))
+    if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
         return retval;
     assert(h5 && grp);
 
@@ -141,7 +141,7 @@ NCZ_inq_typeid(int ncid, const char *name, nc_type *typeidp)
     /* Normalize name. */
     if (!(norm_name = (char*)malloc(strlen(name) + 1)))
         return NC_ENOMEM;
-    if ((retval = ncz_normalize_name(name, norm_name))) {
+    if ((retval = nc4_normalize_name(name, norm_name))) {
         free(norm_name);
         return retval;
     }
@@ -159,7 +159,7 @@ NCZ_inq_typeid(int ncid, const char *name, nc_type *typeidp)
     /* Still didn't find type? Search file recursively, starting at the
      * root group. */
     if (!type)
-        if ((type = ncz_rec_find_named_type(grp->ncz_info->root_grp, norm_name)))
+        if ((type = nc4_rec_find_named_type(grp->nc4_info->root_grp, norm_name)))
             if (typeidp)
                 *typeidp = type->hdr.id;
 
@@ -190,7 +190,7 @@ NCZ_inq_typeid(int ncid, const char *name, nc_type *typeidp)
  * @return ::NC_EMAXNAME Name is too long.
  * @return ::NC_EBADNAME Name breaks netCDF name rules.
  * @return ::NC_ESTRICTNC3 Cannot define user types in classic model.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 add_user_type(int ncid, size_t size, const char *name, nc_type base_typeid,
@@ -199,19 +199,19 @@ add_user_type(int ncid, size_t size, const char *name, nc_type base_typeid,
     NC_FILE_INFO_T *h5;
     NC_GRP_INFO_T *grp;
     NC_TYPE_INFO_T *type;
-    NCZ_TYPE_INFO_T *ncz_type;
+    NC_HDF5_TYPE_INFO_T *hdf5_type;
     char norm_name[NC_MAX_NAME + 1];
     int retval;
 
     /* Check and normalize the name. */
-    if ((retval = ncz_check_name(name, norm_name)))
+    if ((retval = nc4_check_name(name, norm_name)))
         return retval;
 
     LOG((2, "%s: ncid 0x%x size %d name %s base_typeid %d ",
          __FUNCTION__, ncid, size, norm_name, base_typeid));
 
     /* Find group metadata. */
-    if ((retval = ncz_find_grp_h5(ncid, &grp, &h5)))
+    if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
         return retval;
     assert(h5 && grp);
 
@@ -221,30 +221,30 @@ add_user_type(int ncid, size_t size, const char *name, nc_type base_typeid,
 
     /* Turn on define mode if it is not on. */
     if (!(h5->cmode & NC_INDEF))
-        if ((retval = NCZ_redef(ncid)))
+        if ((retval = NC4_redef(ncid)))
             return retval;
 
     /* No size is provided for vlens or enums, get it from the base type. */
     if (type_class == NC_VLEN || type_class == NC_ENUM)
     {
-        if ((retval = ncz_get_typelen_mem(grp->ncz_info, base_typeid, &size)))
+        if ((retval = nc4_get_typelen_mem(grp->nc4_info, base_typeid, &size)))
             return retval;
     }
     else if (size <= 0)
         return NC_EINVAL;
 
     /* Check that this name is not in use as a var, grp, or type. */
-    if ((retval = ncz_check_dup_name(grp, norm_name)))
+    if ((retval = nc4_check_dup_name(grp, norm_name)))
         return retval;
 
     /* Add to our list of types. */
-    if ((retval = ncz_type_list_add(grp, size, norm_name, &type)))
+    if ((retval = nc4_type_list_add(grp, size, norm_name, &type)))
         return retval;
 
-    /* Allocate storage for NCZ-specific type info. */
-    if (!(ncz_type = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
+    /* Allocate storage for HDF5-specific type info. */
+    if (!(hdf5_type = calloc(1, sizeof(NC_HDF5_TYPE_INFO_T))))
         return NC_ENOMEM;
-    type->format_type_info = ncz_type;
+    type->format_type_info = hdf5_type;
 
     /* Remember info about this type. */
     type->nc_type_class = type_class;
@@ -278,10 +278,10 @@ add_user_type(int ncid, size_t size, const char *name, nc_type base_typeid,
  * @return ::NC_EMAXNAME Name is too long.
  * @return ::NC_EBADNAME Name breaks netCDF name rules.
  * @return ::NC_ESTRICTNC3 Cannot define user types in classic model.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_def_compound(int ncid, size_t size, const char *name, nc_type *typeidp)
+NC4_def_compound(int ncid, size_t size, const char *name, nc_type *typeidp)
 {
     return add_user_type(ncid, size, name, 0, NC_COMPOUND, typeidp);
 }
@@ -299,10 +299,10 @@ NCZ_def_compound(int ncid, size_t size, const char *name, nc_type *typeidp)
  * @return ::NC_EBADID Bad ncid.
  * @return ::NC_EMAXNAME Name is too long.
  * @return ::NC_EBADNAME Name breaks netCDF name rules.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_insert_compound(int ncid, nc_type typeid1, const char *name, size_t offset,
+NC4_insert_compound(int ncid, nc_type typeid1, const char *name, size_t offset,
                     nc_type field_typeid)
 {
     return nc_insert_array_compound(ncid, typeid1, name, offset,
@@ -324,10 +324,10 @@ NCZ_insert_compound(int ncid, nc_type typeid1, const char *name, size_t offset,
  * @return ::NC_EBADID Bad ncid.
  * @return ::NC_EMAXNAME Name is too long.
  * @return ::NC_EBADNAME Name breaks netCDF name rules.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 extern int
-NCZ_insert_array_compound(int ncid, int typeid1, const char *name,
+NC4_insert_array_compound(int ncid, int typeid1, const char *name,
                           size_t offset, nc_type field_typeid,
                           int ndims, const int *dim_sizesp)
 {
@@ -341,15 +341,15 @@ NCZ_insert_array_compound(int ncid, int typeid1, const char *name,
          name, offset, field_typeid, ndims));
 
     /* Check and normalize the name. */
-    if ((retval = ncz_check_name(name, norm_name)))
+    if ((retval = nc4_check_name(name, norm_name)))
         return retval;
 
     /* Find file metadata. */
-    if ((retval = ncz_find_ncz_grp(ncid, &grp)))
+    if ((retval = nc4_find_nc4_grp(ncid, &grp)))
         return retval;
 
     /* Find type metadata. */
-    if ((retval = ncz_find_type(grp->ncz_info, typeid1, &type)))
+    if ((retval = nc4_find_type(grp->nc4_info, typeid1, &type)))
         return retval;
 
     /* Did the user give us a good compound type typeid? */
@@ -362,7 +362,7 @@ NCZ_insert_array_compound(int ncid, int typeid1, const char *name,
         return NC_ETYPDEFINED;
 
     /* Insert new field into this type's list of fields. */
-    if ((retval = ncz_field_list_add(type, norm_name, offset, field_typeid,
+    if ((retval = nc4_field_list_add(type, norm_name, offset, field_typeid,
                                      ndims, dim_sizesp)))
         return retval;
 
@@ -386,10 +386,10 @@ NCZ_insert_array_compound(int ncid, int typeid1, const char *name,
  * @return ::NC_EMAXNAME Name is too long.
  * @return ::NC_EBADNAME Name breaks netCDF name rules.
  * @return ::NC_ESTRICTNC3 Cannot define user types in classic model.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_def_opaque(int ncid, size_t datum_size, const char *name,
+NC4_def_opaque(int ncid, size_t datum_size, const char *name,
                nc_type *typeidp)
 {
     return add_user_type(ncid, datum_size, name, 0, NC_OPAQUE, typeidp);
@@ -410,10 +410,10 @@ NCZ_def_opaque(int ncid, size_t datum_size, const char *name,
  * @return ::NC_EMAXNAME Name is too long.
  * @return ::NC_EBADNAME Name breaks netCDF name rules.
  * @return ::NC_ESTRICTNC3 Cannot define user types in classic model.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_def_vlen(int ncid, const char *name, nc_type base_typeid,
+NC4_def_vlen(int ncid, const char *name, nc_type base_typeid,
              nc_type *typeidp)
 {
     return add_user_type(ncid, 0, name, base_typeid, NC_VLEN, typeidp);
@@ -434,10 +434,10 @@ NCZ_def_vlen(int ncid, const char *name, nc_type base_typeid,
  * @return ::NC_EMAXNAME Name is too long.
  * @return ::NC_EBADNAME Name breaks netCDF name rules.
  * @return ::NC_ESTRICTNC3 Cannot define user types in classic model.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_def_enum(int ncid, nc_type base_typeid, const char *name,
+NC4_def_enum(int ncid, nc_type base_typeid, const char *name,
              nc_type *typeidp)
 {
     return add_user_type(ncid, 0, name, base_typeid, NC_ENUM, typeidp);
@@ -457,10 +457,10 @@ NCZ_def_enum(int ncid, nc_type base_typeid, const char *name,
  * @return ::NC_EBADID Bad ncid.
  * @return ::NC_EBADTYPE Type not found.
  * @return ::NC_ETYPDEFINED Type already defined.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_insert_enum(int ncid, nc_type typeid1, const char *identifier,
+NC4_insert_enum(int ncid, nc_type typeid1, const char *identifier,
                 const void *value)
 {
     NC_GRP_INFO_T *grp;
@@ -472,15 +472,15 @@ NCZ_insert_enum(int ncid, nc_type typeid1, const char *identifier,
          typeid1, identifier, value));
 
     /* Check and normalize the name. */
-    if ((retval = ncz_check_name(identifier, norm_name)))
+    if ((retval = nc4_check_name(identifier, norm_name)))
         return retval;
 
     /* Find file metadata. */
-    if ((retval = ncz_find_ncz_grp(ncid, &grp)))
+    if ((retval = nc4_find_nc4_grp(ncid, &grp)))
         return retval;
 
     /* Find type metadata. */
-    if ((retval = ncz_find_type(grp->ncz_info, typeid1, &type)))
+    if ((retval = nc4_find_type(grp->nc4_info, typeid1, &type)))
         return retval;
 
     /* Did the user give us a good enum typeid? */
@@ -493,7 +493,7 @@ NCZ_insert_enum(int ncid, nc_type typeid1, const char *identifier,
         return NC_ETYPDEFINED;
 
     /* Insert new field into this type's list of fields. */
-    if ((retval = ncz_enum_member_add(type, type->size,
+    if ((retval = nc4_enum_member_add(type, type->size,
                                       norm_name, value)))
         return retval;
 
@@ -511,10 +511,10 @@ NCZ_insert_enum(int ncid, nc_type typeid1, const char *identifier,
  * @param data Element data.
  *
  * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_put_vlen_element(int ncid, int typeid1, void *vlen_element,
+NC4_put_vlen_element(int ncid, int typeid1, void *vlen_element,
                      size_t len, const void *data)
 {
     nc_vlen_t *tmp = (nc_vlen_t*)vlen_element;
@@ -534,10 +534,10 @@ NCZ_put_vlen_element(int ncid, int typeid1, void *vlen_element,
  * @param data Element data.
  *
  * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_get_vlen_element(int ncid, int typeid1, const void *vlen_element,
+NC4_get_vlen_element(int ncid, int typeid1, const void *vlen_element,
                      size_t *len, void *data)
 {
     const nc_vlen_t *tmp = (nc_vlen_t*)vlen_element;

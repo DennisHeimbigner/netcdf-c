@@ -2,16 +2,17 @@
 /* Copyright 2003-2019, University Corporation for Atmospheric
  * Research. See COPYRIGHT file for copying and redistribution
  * conditions.*/
-
 /**
  * @file
- * @internal This file handles the ZARR variable functions.
+ * @internal This file handles the HDF5 variable functions.
  *
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 
-#include "zincludes.h"
-
+#include "config.h"
+#ifdef USE_HDF5
+#include <hdf5internal.h>
+#endif
 #include <math.h> /* For pow() used below. */
 
 #ifdef LOGGING
@@ -44,32 +45,32 @@ reportchunking(const char* title, NC_VAR_INFO_T* var)
 #define NC_TEMP_NAME "_netcdf4_temporary_variable_name_for_rename"
 
 /**
- * @internal If the ZARR dataset for this variable is open, then close
+ * @internal If the HDF5 dataset for this variable is open, then close
  * it and reopen it, with the perhaps new settings for chunk caching.
  *
  * @param grp Pointer to the group info.
  * @param var Pointer to the var info.
  *
  * @returns ::NC_NOERR No error.
- * @returns ::NC_EHDFERR ZARR error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @returns ::NC_EHDFERR HDF5 error.
+ * @author Ed Hartnett
  */
 int
-ncz_reopen_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
+nc4_reopen_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 {
-    NCZ_VAR_INFO_T *ncz_var;
+    NC_HDF5_VAR_INFO_T *hdf5_var;
     hid_t access_pid;
     hid_t grpid;
 
     assert(var && var->format_var_info && grp && grp->format_grp_info);
 
-    /* Get the NCZ-specific var info. */
-    ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
+    /* Get the HDF5-specific var info. */
+    hdf5_var = (NC_HDF5_VAR_INFO_T *)var->format_var_info;
 
-    if (ncz_var->hdf_datasetid)
+    if (hdf5_var->hdf_datasetid)
     {
-        /* Get the ZARR group id. */
-        grpid = ((NCZ_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid;
+        /* Get the HDF5 group id. */
+        grpid = ((NC_HDF5_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid;
 
 
         if ((access_pid = H5Pcreate(H5P_DATASET_ACCESS)) < 0)
@@ -78,9 +79,9 @@ ncz_reopen_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
                                var->chunk_cache_size,
                                var->chunk_cache_preemption) < 0)
             return NC_EHDFERR;
-        if (H5Dclose(ncz_var->hdf_datasetid) < 0)
+        if (H5Dclose(hdf5_var->hdf_datasetid) < 0)
             return NC_EHDFERR;
-        if ((ncz_var->hdf_datasetid = H5Dopen2(grpid, var->hdr.name, access_pid)) < 0)
+        if ((hdf5_var->hdf_datasetid = H5Dopen2(grpid, var->hdr.name, access_pid)) < 0)
             return NC_EHDFERR;
         if (H5Pclose(access_pid) < 0)
             return NC_EHDFERR;
@@ -110,7 +111,7 @@ check_chunksizes(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, const size_t *chunksize
     int d;
     int retval;
 
-    if ((retval = ncz_get_typelen_mem(grp->ncz_info, var->type_info->hdr.id, &type_len)))
+    if ((retval = nc4_get_typelen_mem(grp->nc4_info, var->type_info->hdr.id, &type_len)))
         return retval;
     if (var->type_info->nc_type_class == NC_VLEN)
         dprod = (double)sizeof(hvl_t);
@@ -134,10 +135,10 @@ check_chunksizes(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, const size_t *chunksize
  * @returns ::NC_NOERR for success
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Invalid variable ID.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 static int
-ncz_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
+nc4_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 {
     int d;
     size_t type_size;
@@ -252,10 +253,10 @@ reportchunking("find_default: ",var);
 }
 
 /**
- * @internal Give a var a secret ZARR name. This is needed when a var
+ * @internal Give a var a secret HDF5 name. This is needed when a var
  * is defined with the same name as a dim, but it is not a coord var
  * of that dim. In that case, the var uses a secret name inside the
- * ZARR file.
+ * HDF5 file.
  *
  * @param var Pointer to var info.
  * @param name Name to use for base of secret name.
@@ -263,20 +264,20 @@ reportchunking("find_default: ",var);
  * @returns ::NC_NOERR No error.
  * @returns ::NC_EMAXNAME Name too long to fit secret prefix.
  * @returns ::NC_ENOMEM Out of memory.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 give_var_secret_name(NC_VAR_INFO_T *var, const char *name)
 {
-    /* Set a different ncz name for this variable to avoid name
+    /* Set a different hdf5 name for this variable to avoid name
      * clash. */
     if (strlen(name) + strlen(NON_COORD_PREPEND) > NC_MAX_NAME)
         return NC_EMAXNAME;
-    if (!(var->ncz_name = malloc((strlen(NON_COORD_PREPEND) +
+    if (!(var->hdf5_name = malloc((strlen(NON_COORD_PREPEND) +
                                    strlen(name) + 1) * sizeof(char))))
         return NC_ENOMEM;
 
-    sprintf(var->ncz_name, "%s%s", NON_COORD_PREPEND, name);
+    sprintf(var->hdf5_name, "%s%s", NON_COORD_PREPEND, name);
 
     return NC_NOERR;
 }
@@ -288,7 +289,7 @@ give_var_secret_name(NC_VAR_INFO_T *var, const char *name)
  * @param ncid File ID.
  * @param name Name.
  * @param xtype Type.
- * @param ndims Number of dims. ZARR has maximim of 32.
+ * @param ndims Number of dims. HDF5 has maximim of 32.
  * @param dimidsp Array of dim IDs.
  * @param varidp Gets the var ID.
  *
@@ -296,7 +297,7 @@ give_var_secret_name(NC_VAR_INFO_T *var, const char *name)
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Invalid variable ID.
  * @returns ::NC_ENOTNC4 Attempting netcdf-4 operation on file that is
- * not netCDF-4/NCZ.
+ * not netCDF-4/HDF5.
  * @returns ::NC_ESTRICTNC3 Attempting netcdf-4 operation on strict nc3
  * netcdf-4 file.
  * @returns ::NC_ELATEDEF Too late to change settings for this variable.
@@ -308,12 +309,12 @@ give_var_secret_name(NC_VAR_INFO_T *var, const char *name)
  * @returns ::NC_EBADNAME Bad name.
  * @returns ::NC_EBADTYPE Bad type.
  * @returns ::NC_ENOMEM Out of memory.
- * @returns ::NC_EHDFERR Error returned by ZARR layer.
+ * @returns ::NC_EHDFERR Error returned by HDF5 layer.
  * @returns ::NC_EINVAL Invalid input
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
+NC4_def_var(int ncid, const char *name, nc_type xtype, int ndims,
             const int *dimidsp, int *varidp)
 {
     NC_GRP_INFO_T *grp;
@@ -321,21 +322,21 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     NC_DIM_INFO_T *dim;
     NC_FILE_INFO_T *h5;
     NC_TYPE_INFO_T *type = NULL;
-    NCZ_TYPE_INFO_T *ncz_type;
-    NCZ_GRP_INFO_T *ncz_grp;
+    NC_HDF5_TYPE_INFO_T *hdf5_type;
+    NC_HDF5_GRP_INFO_T *hdf5_grp;
     char norm_name[NC_MAX_NAME + 1];
     int d;
     int retval;
 
     /* Find info for this file and group, and set pointer to each. */
-    if ((retval = ncz_find_grp_h5(ncid, &grp, &h5)))
+    if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
         BAIL(retval);
     assert(grp && grp->format_grp_info && h5);
 
-    /* Get NCZ-specific group info. */
-    ncz_grp = (NCZ_GRP_INFO_T *)grp->format_grp_info;
+    /* Get HDF5-specific group info. */
+    hdf5_grp = (NC_HDF5_GRP_INFO_T *)grp->format_grp_info;
 
-    /* ZARR allows maximum of 32 dimensions. */
+    /* HDF5 allows maximum of 32 dimensions. */
     if (ndims > H5S_MAX_RANK)
         BAIL(NC_EMAXDIMS);
 
@@ -346,13 +347,13 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     {
         if (h5->cmode & NC_CLASSIC_MODEL)
             BAIL(NC_ENOTINDEFINE);
-        if ((retval = NCZ_redef(ncid)))
+        if ((retval = NC4_redef(ncid)))
             BAIL(retval);
     }
     assert(!h5->no_write);
 
     /* Check and normalize the name. */
-    if ((retval = ncz_check_name(name, norm_name)))
+    if ((retval = nc4_check_name(name, norm_name)))
         BAIL(retval);
 
     /* Not a Type is, well, not a type.*/
@@ -372,7 +373,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
         BAIL(NC_EINVAL);
 
     /* Check that this name is not in use as a var, grp, or type. */
-    if ((retval = ncz_check_dup_name(grp, norm_name)))
+    if ((retval = nc4_check_dup_name(grp, norm_name)))
         BAIL(retval);
 
     /* For non-scalar vars, dim IDs must be provided. */
@@ -381,7 +382,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
 
     /* Check all the dimids to make sure they exist. */
     for (d = 0; d < ndims; d++)
-        if ((retval = ncz_find_dim(grp, dimidsp[d], &dim, NULL)))
+        if ((retval = nc4_find_dim(grp, dimidsp[d], &dim, NULL)))
             BAIL(retval);
 
     /* These degrubbing messages sure are handy! */
@@ -402,27 +403,27 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
         size_t len;
 
         /* Get type length. */
-        if ((retval = ncz_get_typelen_mem(h5, xtype, &len)))
+        if ((retval = nc4_get_typelen_mem(h5, xtype, &len)))
             BAIL(retval);
 
         /* Create new NC_TYPE_INFO_T struct for this atomic type. */
-        if ((retval = ncz_type_new(len, ncz_atomic_name[xtype], xtype, &type)))
+        if ((retval = nc4_type_new(len, nc4_atomic_name[xtype], xtype, &type)))
             BAIL(retval);
         type->endianness = NC_ENDIAN_NATIVE;
         type->size = len;
 
-        /* Allocate storage for NCZ-specific type info. */
-        if (!(ncz_type = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
+        /* Allocate storage for HDF5-specific type info. */
+        if (!(hdf5_type = calloc(1, sizeof(NC_HDF5_TYPE_INFO_T))))
             BAIL(NC_ENOMEM);
-        type->format_type_info = ncz_type;
+        type->format_type_info = hdf5_type;
 
-        /* Get ZARR typeids. */
-        if ((retval = ncz_get_hdf_typeid(h5, xtype, &ncz_type->hdf_typeid,
+        /* Get HDF5 typeids. */
+        if ((retval = nc4_get_hdf_typeid(h5, xtype, &hdf5_type->hdf_typeid,
                                          type->endianness)))
             BAIL(retval);
 
-        /* Get the native ZARR typeid. */
-        if ((ncz_type->native_hdf_typeid = H5Tget_native_type(ncz_type->hdf_typeid,
+        /* Get the native HDF5 typeid. */
+        if ((hdf5_type->native_hdf_typeid = H5Tget_native_type(hdf5_type->hdf_typeid,
                                                                H5T_DIR_DEFAULT)) < 0)
             BAIL(NC_EHDFERR);
 
@@ -433,7 +434,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
         {
             H5T_class_t class;
 
-            if ((class = H5Tget_class(ncz_type->hdf_typeid)) < 0)
+            if ((class = H5Tget_class(hdf5_type->hdf_typeid)) < 0)
                 BAIL(NC_EHDFERR);
             switch(class)
             {
@@ -457,16 +458,16 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     else
     {
         /* If this is a user defined type, find it. */
-        if (ncz_find_type(grp->ncz_info, xtype, &type))
+        if (nc4_find_type(grp->nc4_info, xtype, &type))
             BAIL(NC_EBADTYPE);
     }
 
-    /* Create a new var and fill in some ZARR cache setting values. */
-    if ((retval = ncz_var_list_add(grp, norm_name, ndims, &var)))
+    /* Create a new var and fill in some HDF5 cache setting values. */
+    if ((retval = nc4_var_list_add(grp, norm_name, ndims, &var)))
         BAIL(retval);
 
-    /* Add storage for NCZ-specific var info. */
-    if (!(var->format_var_info = calloc(1, sizeof(NCZ_VAR_INFO_T))))
+    /* Add storage for HDF5-specific var info. */
+    if (!(var->format_var_info = calloc(1, sizeof(NC_HDF5_VAR_INFO_T))))
         BAIL(NC_ENOMEM);
 
     /* Set these state flags for the var. */
@@ -494,13 +495,13 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     for (d = 0; d < ndims; d++)
     {
         NC_GRP_INFO_T *dim_grp;
-        NCZ_DIM_INFO_T *ncz_dim;
+        NC_HDF5_DIM_INFO_T *hdf5_dim;
 
         /* Look up each dimension */
-        if ((retval = ncz_find_dim(grp, dimidsp[d], &dim, &dim_grp)))
+        if ((retval = nc4_find_dim(grp, dimidsp[d], &dim, &dim_grp)))
             BAIL(retval);
         assert(dim && dim->format_dim_info);
-        ncz_dim = (NCZ_DIM_INFO_T *)dim->format_dim_info;
+        hdf5_dim = (NC_HDF5_DIM_INFO_T *)dim->format_dim_info;
 
         /* Check for dim index 0 having the same name, in the same group */
         if (d == 0 && dim_grp == grp && strcmp(dim->hdr.name, norm_name) == 0)
@@ -509,23 +510,23 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
             dim->coord_var = var;
 
             /* Use variable's dataset ID for the dimscale ID. So delete
-             * the ZARR DIM_WITHOUT_VARIABLE dataset that was created for
+             * the HDF5 DIM_WITHOUT_VARIABLE dataset that was created for
              * this dim. */
-            if (ncz_dim->hdf_dimscaleid)
+            if (hdf5_dim->hdf_dimscaleid)
             {
                 /* Detach dimscale from any variables using it */
                 if ((retval = rec_detach_scales(grp, dimidsp[d],
-                                                ncz_dim->hdf_dimscaleid)) < 0)
+                                                hdf5_dim->hdf_dimscaleid)) < 0)
                     BAIL(retval);
 
-                /* Close the ZARR DIM_WITHOUT_VARIABLE dataset. */
-                if (H5Dclose(ncz_dim->hdf_dimscaleid) < 0)
+                /* Close the HDF5 DIM_WITHOUT_VARIABLE dataset. */
+                if (H5Dclose(hdf5_dim->hdf_dimscaleid) < 0)
                     BAIL(NC_EHDFERR);
-                ncz_dim->hdf_dimscaleid = 0;
+                hdf5_dim->hdf_dimscaleid = 0;
 
                 /* Now delete the DIM_WITHOUT_VARIABLE dataset (it will be
                  * recreated later, if necessary). */
-                if (H5Gunlink(ncz_grp->hdf_grpid, dim->hdr.name) < 0)
+                if (H5Gunlink(hdf5_grp->hdf_grpid, dim->hdr.name) < 0)
                     BAIL(NC_EDIMMETA);
             }
         }
@@ -547,25 +548,25 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
         if (!(var->chunksizes = calloc(var->ndims, sizeof(size_t))))
             BAIL(NC_ENOMEM);
 
-    if ((retval = ncz_find_default_chunksizes2(grp, var)))
+    if ((retval = nc4_find_default_chunksizes2(grp, var)))
         BAIL(retval);
 
     /* Is this a variable with a chunksize greater than the current
      * cache size? */
-    if ((retval = ncz_adjust_var_cache(grp, var)))
+    if ((retval = nc4_adjust_var_cache(grp, var)))
         BAIL(retval);
 
     /* If the user names this variable the same as a dimension, but
      * doesn't use that dimension first in its list of dimension ids,
-     * is not a coordinate variable. I need to change its ZARR name,
-     * because the dimension will cause a ZARR dataset to be created,
+     * is not a coordinate variable. I need to change its HDF5 name,
+     * because the dimension will cause a HDF5 dataset to be created,
      * and this var has the same name. */
     dim = (NC_DIM_INFO_T*)ncindexlookup(grp->dim,norm_name);
     if (dim && (!var->ndims || dimidsp[0] != dim->hdr.id))
         if ((retval = give_var_secret_name(var, var->hdr.name)))
             BAIL(retval);
 
-    /* If this is a coordinate var, it is marked as a ZARR dimension
+    /* If this is a coordinate var, it is marked as a HDF5 dimension
      * scale. (We found dim above.) Otherwise, allocate space to
      * remember whether dimension scales have been attached to each
      * dimension. */
@@ -580,7 +581,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
 
 exit:
     if (type)
-        if ((retval = ncz_type_free(type)))
+        if ((retval = nc4_type_free(type)))
             BAIL2(retval);
 
     return retval;
@@ -607,7 +608,7 @@ exit:
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Invalid variable ID.
  * @returns ::NC_ENOTNC4 Attempting netcdf-4 operation on file that is
- * not netCDF-4/NCZ.
+ * not netCDF-4/HDF5.
  * @returns ::NC_ESTRICTNC3 Attempting netcdf-4 operation on strict nc3
  * netcdf-4 file.
  * @returns ::NC_ELATEDEF Too late to change settings for this variable.
@@ -615,7 +616,7 @@ exit:
  * @returns ::NC_EPERM File is read only.
  * @returns ::NC_EINVAL Invalid input
  * @returns ::NC_EBADCHUNK Bad chunksize.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
@@ -636,7 +637,7 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
     /* Find info for this file and group, and set pointer to each. */
-    if ((retval = ncz_find_nc_grp_h5(ncid, NULL, &grp, &h5)))
+    if ((retval = nc4_find_nc_grp_h5(ncid, NULL, &grp, &h5)))
         return retval;
     assert(grp && h5);
 
@@ -654,7 +655,7 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
         if (deflate || fletcher32 || shuffle)
             return NC_EINVAL;
 
-    /* If the ZARR dataset has already been created, then it is too
+    /* If the HDF5 dataset has already been created, then it is too
      * late to set all the extra stuff. */
     if (var->created)
         return NC_ELATEDEF;
@@ -743,11 +744,11 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
         /* Determine default chunksizes for this variable (do nothing
          * for scalar vars). */
         if (var->chunksizes && !var->chunksizes[0])
-            if ((retval = ncz_find_default_chunksizes2(grp, var)))
+            if ((retval = nc4_find_default_chunksizes2(grp, var)))
                 return retval;
 
         /* Adjust the cache. */
-        if ((retval = ncz_adjust_var_cache(grp, var)))
+        if ((retval = nc4_adjust_var_cache(grp, var)))
             return retval;
     }
 
@@ -763,7 +764,7 @@ reportchunking(dfalt?"extra: default: ":"extra: user: ",var);
         if (*no_fill)
         {
             /* NC_STRING types may not turn off fill mode. It's disallowed
-             * by ZARR and will cause a ZARR error later. */
+             * by HDF5 and will cause a HDF5 error later. */
             if (*no_fill)
                 if (var->type_info->hdr.id == NC_STRING)
                     return NC_EINVAL;
@@ -783,7 +784,7 @@ reportchunking(dfalt?"extra: default: ":"extra: user: ",var);
              var->hdr.name));
 
         /* If there's a _FillValue attribute, delete it. */
-        retval = NCZ_del_att(ncid, varid, _FillValue);
+        retval = NC4_HDF5_del_att(ncid, varid, _FillValue);
         if (retval && retval != NC_ENOTATT)
             return retval;
 
@@ -815,14 +816,14 @@ reportchunking(dfalt?"extra: default: ":"extra: user: ",var);
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Invalid variable ID.
  * @returns ::NC_ENOTNC4 Attempting netcdf-4 operation on file that is
- * not netCDF-4/NCZ.
+ * not netCDF-4/HDF5.
  * @returns ::NC_ELATEDEF Too late to change settings for this variable.
  * @returns ::NC_ENOTINDEFINE Not in define mode.
  * @returns ::NC_EINVAL Invalid input
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
+NC4_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
                     int deflate_level)
 {
     return nc_def_var_extra(ncid, varid, &shuffle, &deflate,
@@ -841,14 +842,14 @@ NCZ_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Invalid variable ID.
  * @returns ::NC_ENOTNC4 Attempting netcdf-4 operation on file that is
- * not netCDF-4/NCZ.
+ * not netCDF-4/HDF5.
  * @returns ::NC_ELATEDEF Too late to change settings for this variable.
  * @returns ::NC_ENOTINDEFINE Not in define mode.
  * @returns ::NC_EINVAL Invalid input
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_def_var_fletcher32(int ncid, int varid, int fletcher32)
+NC4_def_var_fletcher32(int ncid, int varid, int fletcher32)
 {
     return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, &fletcher32,
                             NULL, NULL, NULL, NULL, NULL);
@@ -857,7 +858,7 @@ NCZ_def_var_fletcher32(int ncid, int varid, int fletcher32)
 /**
  * @internal Define chunking stuff for a var. This is called by
  * nc_def_var_chunking(). Chunking is required in any dataset with one
- * or more unlimited dimensions in NCZ, or any dataset using a
+ * or more unlimited dimensions in HDF5, or any dataset using a
  * filter.
  *
  * @param ncid File ID.
@@ -869,15 +870,15 @@ NCZ_def_var_fletcher32(int ncid, int varid, int fletcher32)
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Invalid variable ID.
  * @returns ::NC_ENOTNC4 Attempting netcdf-4 operation on file that is
- * not netCDF-4/NCZ.
+ * not netCDF-4/HDF5.
  * @returns ::NC_ELATEDEF Too late to change settings for this variable.
  * @returns ::NC_ENOTINDEFINE Not in define mode.
  * @returns ::NC_EINVAL Invalid input
  * @returns ::NC_EBADCHUNK Bad chunksize.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_def_var_chunking(int ncid, int varid, int contiguous, const size_t *chunksizesp)
+NC4_def_var_chunking(int ncid, int varid, int contiguous, const size_t *chunksizesp)
 {
     return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
                             &contiguous, chunksizesp, NULL, NULL, NULL);
@@ -896,12 +897,12 @@ NCZ_def_var_chunking(int ncid, int varid, int contiguous, const size_t *chunksiz
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Invalid variable ID.
  * @returns ::NC_ENOTNC4 Attempting netcdf-4 operation on file that is
- * not netCDF-4/NCZ.
+ * not netCDF-4/HDF5.
  * @returns ::NC_ELATEDEF Too late to change settings for this variable.
  * @returns ::NC_ENOTINDEFINE Not in define mode.
  * @returns ::NC_EINVAL Invalid input
  * @returns ::NC_EBADCHUNK Bad chunksize.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
 nc_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
@@ -911,7 +912,7 @@ nc_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
     int i, retval;
 
     /* Get pointer to the var. */
-    if ((retval = ncz_find_grp_h5_var(ncid, varid, NULL, NULL, &var)))
+    if ((retval = nc4_hdf5_find_grp_h5_var(ncid, varid, NULL, NULL, &var)))
         return retval;
     assert(var);
 
@@ -946,17 +947,17 @@ nc_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Invalid variable ID.
  * @returns ::NC_ENOTNC4 Attempting netcdf-4 operation on file that is
- * not netCDF-4/NCZ.
+ * not netCDF-4/HDF5.
  * @returns ::NC_ESTRICTNC3 Attempting netcdf-4 operation on strict nc3
  * netcdf-4 file.
  * @returns ::NC_ELATEDEF Too late to change settings for this variable.
  * @returns ::NC_ENOTINDEFINE Not in define mode.
  * @returns ::NC_EPERM File is read only.
  * @returns ::NC_EINVAL Invalid input
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
+NC4_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
 {
     return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
                             NULL, &no_fill, fill_value, NULL);
@@ -975,17 +976,17 @@ NCZ_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Invalid variable ID.
  * @returns ::NC_ENOTNC4 Attempting netcdf-4 operation on file that is
- * not netCDF-4/NCZ.
+ * not netCDF-4/HDF5.
  * @returns ::NC_ESTRICTNC3 Attempting netcdf-4 operation on strict nc3
  * netcdf-4 file.
  * @returns ::NC_ELATEDEF Too late to change settings for this variable.
  * @returns ::NC_ENOTINDEFINE Not in define mode.
  * @returns ::NC_EPERM File is read only.
  * @returns ::NC_EINVAL Invalid input
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_def_var_endian(int ncid, int varid, int endianness)
+NC4_def_var_endian(int ncid, int varid, int endianness)
 {
     return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
                             NULL, NULL, NULL, &endianness);
@@ -1004,14 +1005,14 @@ NCZ_def_var_endian(int ncid, int varid, int endianness)
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Invalid variable ID.
  * @returns ::NC_ENOTNC4 Attempting netcdf-4 operation on file that is
- * not netCDF-4/NCZ.
+ * not netCDF-4/HDF5.
  * @returns ::NC_ELATEDEF Too late to change settings for this variable.
  * @returns ::NC_EFILTER Filter error.
  * @returns ::NC_EINVAL Invalid input
  * @author Dennis Heimbigner
  */
 int
-NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
+NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
                    const unsigned int* parms)
 {
     int retval = NC_NOERR;
@@ -1023,7 +1024,7 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
     /* Find info for this file and group, and set pointer to each. */
-    if ((retval = ncz_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
+    if ((retval = nc4_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
         return retval;
 
     assert(nc && grp && h5);
@@ -1034,7 +1035,7 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
         return NC_ENOTVAR;
     assert(var->hdr.id == varid);
 
-    /* If the ZARR dataset has already been created, then it is too
+    /* If the HDF5 dataset has already been created, then it is too
      * late to set all the extra stuff. */
     if (var->created)
         return NC_ELATEDEF;
@@ -1077,10 +1078,10 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
     var->contiguous = NC_FALSE;
     /* Determine default chunksizes for this variable unless already specified */
     if(var->chunksizes && !var->chunksizes[0]) {
-        if((retval = ncz_find_default_chunksizes2(grp, var)))
+        if((retval = nc4_find_default_chunksizes2(grp, var)))
 	    return retval;
         /* Adjust the cache. */
-        if ((retval = ncz_adjust_var_cache(grp, var)))
+        if ((retval = nc4_adjust_var_cache(grp, var)))
             return retval;
     }
 
@@ -1095,7 +1096,7 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
  * Whenever a var has the same name as a dim, and also uses that dim
  * as its first dimension, then that var is aid to be a coordinate
  * variable for that dimensions. Coordinate variables are represented
- * in the ZARR by making them dimscales. Dimensions without coordinate
+ * in the HDF5 by making them dimscales. Dimensions without coordinate
  * vars are represented by datasets which are dimscales, but have a
  * special attribute marking them as dimscales without associated
  * coordinate variables.
@@ -1104,7 +1105,7 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
  * coordinate var (by being renamed to the same name as a dim that is
  * also its first dimension), or whether it is no longer a coordinate
  * var. These cause flags to be set in NC_VAR_INFO_T which are used at
- * enddef time to make changes in the ZARR file.
+ * enddef time to make changes in the HDF5 file.
  *
  * @param ncid File ID.
  * @param varid Variable ID
@@ -1117,13 +1118,13 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
  * @returns ::NC_EMAXNAME Name is too long.
  * @returns ::NC_ENAMEINUSE Name in use.
  * @returns ::NC_ENOMEM Out of memory.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_rename_var(int ncid, int varid, const char *name)
+NC4_rename_var(int ncid, int varid, const char *name)
 {
     NC_GRP_INFO_T *grp;
-    NCZ_GRP_INFO_T *ncz_grp;
+    NC_HDF5_GRP_INFO_T *hdf5_grp;
     NC_FILE_INFO_T *h5;
     NC_VAR_INFO_T *var;
     NC_DIM_INFO_T *other_dim;
@@ -1136,12 +1137,12 @@ NCZ_rename_var(int ncid, int varid, const char *name)
     LOG((2, "%s: ncid 0x%x varid %d name %s", __func__, ncid, varid, name));
 
     /* Find info for this file and group, and set pointer to each. */
-    if ((retval = ncz_find_grp_h5(ncid, &grp, &h5)))
+    if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
         return retval;
     assert(h5 && grp && grp->format_grp_info);
 
-    /* Get NCZ-specific group info. */
-    ncz_grp = (NCZ_GRP_INFO_T *)grp->format_grp_info;
+    /* Get HDF5-specific group info. */
+    hdf5_grp = (NC_HDF5_GRP_INFO_T *)grp->format_grp_info;
 
     /* Is the new name too long? */
     if (strlen(name) > NC_MAX_NAME)
@@ -1179,10 +1180,10 @@ NCZ_rename_var(int ncid, int varid, const char *name)
         strcmp(name, var->dim[0]->hdr.name))
     {
         /* Create a dim without var dataset for old dim. */
-        if ((retval = ncz_create_dim_wo_var(other_dim)))
+        if ((retval = nc4_create_dim_wo_var(other_dim)))
             return retval;
 
-        /* Give this var a secret ZARR name so it can co-exist in file
+        /* Give this var a secret HDF5 name so it can co-exist in file
          * with dim wp var dataset. Base the secret name on the new var
          * name. */
         if ((retval = give_var_secret_name(var, name)))
@@ -1190,27 +1191,27 @@ NCZ_rename_var(int ncid, int varid, const char *name)
         use_secret_name++;
     }
 
-    /* Change the ZARR file, if this var has already been created
+    /* Change the HDF5 file, if this var has already been created
        there. */
     if (var->created)
     {
         int v;
-        char *ncz_name; /* Dataset will be renamed to this. */
-        ncz_name = use_secret_name ? var->ncz_name: (char *)name;
+        char *hdf5_name; /* Dataset will be renamed to this. */
+        hdf5_name = use_secret_name ? var->hdf5_name: (char *)name;
 
         /* Do we need to read var metadata? */
         if (!var->meta_read)
-            if ((retval = ncz_get_var_meta(var)))
+            if ((retval = nc4_get_var_meta(var)))
                 return retval;
 
         if (var->ndims)
         {
-            NCZ_DIM_INFO_T *ncz_d0;
-            ncz_d0 = (NCZ_DIM_INFO_T *)var->dim[0]->format_dim_info;
+            NC_HDF5_DIM_INFO_T *hdf5_d0;
+            hdf5_d0 = (NC_HDF5_DIM_INFO_T *)var->dim[0]->format_dim_info;
 
             /* Is there an existing dimscale-only dataset of this name? If
              * so, it must be deleted. */
-            if (ncz_d0->hdf_dimscaleid)
+            if (hdf5_d0->hdf_dimscaleid)
             {
                 if ((retval = delete_dimscale_dataset(grp, var->dim[0]->hdr.id,
                                                       var->dim[0])))
@@ -1219,8 +1220,8 @@ NCZ_rename_var(int ncid, int varid, const char *name)
         }
 
         LOG((3, "Moving dataset %s to %s", var->hdr.name, name));
-        if (H5Lmove(ncz_grp->hdf_grpid, var->hdr.name, ncz_grp->hdf_grpid,
-                    ncz_name, H5P_DEFAULT, H5P_DEFAULT) < 0)
+        if (H5Lmove(hdf5_grp->hdf_grpid, var->hdr.name, hdf5_grp->hdf_grpid,
+                    hdf5_name, H5P_DEFAULT, H5P_DEFAULT) < 0)
             return NC_EHDFERR;
 
         /* Rename all the vars in this file with a varid greater than
@@ -1237,12 +1238,12 @@ NCZ_rename_var(int ncid, int varid, const char *name)
             LOG((3, "mandatory rename of %s to same name", my_var->hdr.name));
 
             /* Rename to temp name. */
-            if (H5Lmove(ncz_grp->hdf_grpid, my_var->hdr.name, ncz_grp->hdf_grpid,
+            if (H5Lmove(hdf5_grp->hdf_grpid, my_var->hdr.name, hdf5_grp->hdf_grpid,
                         NC_TEMP_NAME, H5P_DEFAULT, H5P_DEFAULT) < 0)
                 return NC_EHDFERR;
 
             /* Rename to real name. */
-            if (H5Lmove(ncz_grp->hdf_grpid, NC_TEMP_NAME, ncz_grp->hdf_grpid,
+            if (H5Lmove(hdf5_grp->hdf_grpid, NC_TEMP_NAME, hdf5_grp->hdf_grpid,
                         my_var->hdr.name, H5P_DEFAULT, H5P_DEFAULT) < 0)
                 return NC_EHDFERR;
         }
@@ -1264,7 +1265,7 @@ NCZ_rename_var(int ncid, int varid, const char *name)
     if (var->dimscale && strcmp(var->hdr.name, var->dim[0]->hdr.name))
     {
         /* Break up the coordinate variable */
-        if ((retval = ncz_break_coord_var(grp, var, var->dim[0])))
+        if ((retval = nc4_break_coord_var(grp, var, var->dim[0])))
             return retval;
     }
 
@@ -1282,12 +1283,12 @@ NCZ_rename_var(int ncid, int varid, const char *name)
              * so, it will have the same name as dimension index 0. If it
              * is a coordinate var, is it a coordinate var in the same
              * group as the dim? */
-            if ((retval = ncz_find_dim(grp, var->dimids[0], &dim, &dim_grp)))
+            if ((retval = nc4_find_dim(grp, var->dimids[0], &dim, &dim_grp)))
                 return retval;
             if (!strcmp(dim->hdr.name, name) && dim_grp == grp)
             {
                 /* Reform the coordinate variable. */
-                if ((retval = ncz_reform_coord_var(grp, var, dim)))
+                if ((retval = nc4_reform_coord_var(grp, var, dim)))
                     return retval;
                 var->became_coord_var = NC_TRUE;
             }
@@ -1310,13 +1311,13 @@ NCZ_rename_var(int ncid, int varid, const char *name)
  * @param memtype The type of these data in memory.
  *
  * @returns ::NC_NOERR for success
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_put_vara(int ncid, int varid, const size_t *startp,
+NC4_put_vara(int ncid, int varid, const size_t *startp,
              const size_t *countp, const void *op, int memtype)
 {
-    return NCZ_put_vars(ncid, varid, startp, countp, NULL, op, memtype);
+    return NC4_put_vars(ncid, varid, startp, countp, NULL, op, memtype);
 }
 
 /**
@@ -1332,26 +1333,26 @@ NCZ_put_vara(int ncid, int varid, const size_t *startp,
  * @param memtype The type of these data after it is read into memory.
 
  * @returns ::NC_NOERR for success
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_get_vara(int ncid, int varid, const size_t *startp,
+NC4_get_vara(int ncid, int varid, const size_t *startp,
              const size_t *countp, void *ip, int memtype)
 {
-    return NCZ_get_vars(ncid, varid, startp, countp, NULL, ip, memtype);
+    return NC4_get_vars(ncid, varid, startp, countp, NULL, ip, memtype);
 }
 
 /**
- * @internal Do some common check for NCZ_put_vars and
- * NCZ_get_vars. These checks have to be done when both reading and
+ * @internal Do some common check for NC4_put_vars and
+ * NC4_get_vars. These checks have to be done when both reading and
  * writing data.
  *
  * @param mem_nc_type Pointer to type of data in memory.
  * @param var Pointer to var info struct.
- * @param h5 Pointer to ZARR file info struct.
+ * @param h5 Pointer to HDF5 file info struct.
  *
  * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 check_for_vara(nc_type *mem_nc_type, NC_VAR_INFO_T *var, NC_FILE_INFO_T *h5)
@@ -1375,7 +1376,7 @@ check_for_vara(nc_type *mem_nc_type, NC_VAR_INFO_T *var, NC_FILE_INFO_T *h5)
     {
         if (h5->cmode & NC_CLASSIC_MODEL)
             return NC_EINDEFINE;
-        if ((retval = ncz_enddef_netcdf4_file(h5)))
+        if ((retval = nc4_enddef_netcdf4_file(h5)))
             return retval;
     }
 
@@ -1409,12 +1410,12 @@ log_dim_info(NC_VAR_INFO_T *var, hsize_t *fdims, hsize_t *fmaxdims,
  * @internal Set the parallel access for a var (collective
  * vs. independent).
  *
- * @param h5 Pointer to ZARR file info struct.
+ * @param h5 Pointer to HDF5 file info struct.
  * @param var Pointer to var info struct.
  * @param xfer_plistid H5FD_MPIO_COLLECTIVE or H5FD_MPIO_INDEPENDENT.
  *
  * @returns NC_NOERR No error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 set_par_access(NC_FILE_INFO_T *h5, NC_VAR_INFO_T *var, hid_t xfer_plistid)
@@ -1424,18 +1425,18 @@ set_par_access(NC_FILE_INFO_T *h5, NC_VAR_INFO_T *var, hid_t xfer_plistid)
      * access, we need to set the transfer mode. */
     if (h5->parallel)
     {
-        H5FD_mpio_xfer_t ncz_xfer_mode;
+        H5FD_mpio_xfer_t hdf5_xfer_mode;
 
         /* Decide on collective or independent. */
-        ncz_xfer_mode = (var->parallel_access != NC_INDEPENDENT) ?
+        hdf5_xfer_mode = (var->parallel_access != NC_INDEPENDENT) ?
             H5FD_MPIO_COLLECTIVE : H5FD_MPIO_INDEPENDENT;
 
         /* Set the mode in the transfer property list. */
-        if (H5Pset_dxpl_mpio(xfer_plistid, ncz_xfer_mode) < 0)
+        if (H5Pset_dxpl_mpio(xfer_plistid, hdf5_xfer_mode) < 0)
             return NC_EPARINIT;
 
         LOG((4, "%s: %d H5FD_MPIO_COLLECTIVE: %d H5FD_MPIO_INDEPENDENT: %d",
-             __func__, (int)ncz_xfer_mode, H5FD_MPIO_COLLECTIVE,
+             __func__, (int)hdf5_xfer_mode, H5FD_MPIO_COLLECTIVE,
              H5FD_MPIO_INDEPENDENT));
     }
     return NC_NOERR;
@@ -1462,24 +1463,24 @@ set_par_access(NC_FILE_INFO_T *h5, NC_VAR_INFO_T *var, hid_t xfer_plistid)
  * @returns ::NC_NOERR No error.
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Var not found.
- * @returns ::NC_EHDFERR ZARR function returned error.
+ * @returns ::NC_EHDFERR HDF5 function returned error.
  * @returns ::NC_EINVALCOORDS Incorrect start.
  * @returns ::NC_EEDGE Incorrect start/count.
  * @returns ::NC_ENOMEM Out of memory.
  * @returns ::NC_EMPI MPI library error (parallel only)
  * @returns ::NC_ECANTEXTEND Can't extend dimension for write.
  * @returns ::NC_ERANGE Data conversion error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
+NC4_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
              const ptrdiff_t *stridep, const void *data, nc_type mem_nc_type)
 {
     NC_GRP_INFO_T *grp;
     NC_FILE_INFO_T *h5;
     NC_VAR_INFO_T *var;
     NC_DIM_INFO_T *dim;
-    NCZ_VAR_INFO_T *ncz_var;
+    NC_HDF5_VAR_INFO_T *hdf5_var;
     hid_t file_spaceid = 0, mem_spaceid = 0, xfer_plistid = 0;
     long long unsigned xtend_size[NC_MAX_VAR_DIMS];
     hsize_t fdims[NC_MAX_VAR_DIMS], fmaxdims[NC_MAX_VAR_DIMS];
@@ -1496,12 +1497,12 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     size_t len = 1;
 
     /* Find info for this file, group, and var. */
-    if ((retval = ncz_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
+    if ((retval = nc4_hdf5_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
         return retval;
     assert(h5 && grp && var && var->hdr.id == varid && var->format_var_info);
 
-    /* Get the NCZ-specific var info. */
-    ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
+    /* Get the HDF5-specific var info. */
+    hdf5_var = (NC_HDF5_VAR_INFO_T *)var->format_var_info;
 
     /* Cannot convert to user-defined types. */
     if (mem_nc_type >= NC_FIRSTUSERTYPEID)
@@ -1514,7 +1515,7 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
      * be switched from define mode, it happens here. */
     if ((retval = check_for_vara(&mem_nc_type, var, h5)))
         return retval;
-    assert(ncz_var->hdf_datasetid && (!var->ndims || (startp && countp)));
+    assert(hdf5_var->hdf_datasetid && (!var->ndims || (startp && countp)));
 
     /* Convert from size_t and ptrdiff_t to hssize_t, and hsize_t. */
     /* Also do sanity checks */
@@ -1534,7 +1535,7 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     }
 
     /* Get file space of data. */
-    if ((file_spaceid = H5Dget_space(ncz_var->hdf_datasetid)) < 0)
+    if ((file_spaceid = H5Dget_space(hdf5_var->hdf_datasetid)) < 0)
         BAIL(NC_EHDFERR);
 
     /* Get the sizes of all the dims and put them in fdims. */
@@ -1706,11 +1707,11 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
             for (d2 = 0; d2 < var->ndims; d2++)
                 fdims[d2] = (hsize_t)xtend_size[d2];
 
-            if (H5Dset_extent(ncz_var->hdf_datasetid, fdims) < 0)
+            if (H5Dset_extent(hdf5_var->hdf_datasetid, fdims) < 0)
                 BAIL(NC_EHDFERR);
             if (file_spaceid > 0 && H5Sclose(file_spaceid) < 0)
                 BAIL2(NC_EHDFERR);
-            if ((file_spaceid = H5Dget_space(ncz_var->hdf_datasetid)) < 0)
+            if ((file_spaceid = H5Dget_space(hdf5_var->hdf_datasetid)) < 0)
                 BAIL(NC_EHDFERR);
             if (H5Sselect_hyperslab(file_spaceid, H5S_SELECT_SET,
                                     start, stride, count, NULL) < 0)
@@ -1721,7 +1722,7 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     /* Do we need to convert the data? */
     if (need_to_convert)
     {
-        if ((retval = ncz_convert_type(data, bufr, mem_nc_type, var->type_info->hdr.id,
+        if ((retval = nc4_convert_type(data, bufr, mem_nc_type, var->type_info->hdr.id,
                                        len, &range_error, var->fill_value,
                                        (h5->cmode & NC_CLASSIC_MODEL))))
             BAIL(retval);
@@ -1729,9 +1730,9 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 
     /* Write the data. At last! */
     LOG((4, "about to H5Dwrite datasetid 0x%x mem_spaceid 0x%x "
-         "file_spaceid 0x%x", ncz_var->hdf_datasetid, mem_spaceid, file_spaceid));
-    if (H5Dwrite(ncz_var->hdf_datasetid,
-                 ((NCZ_TYPE_INFO_T *)var->type_info->format_type_info)->hdf_typeid,
+         "file_spaceid 0x%x", hdf5_var->hdf_datasetid, mem_spaceid, file_spaceid));
+    if (H5Dwrite(hdf5_var->hdf_datasetid,
+                 ((NC_HDF5_TYPE_INFO_T *)var->type_info->format_type_info)->hdf_typeid,
                  mem_spaceid, file_spaceid, xfer_plistid, bufr) < 0)
         BAIL(NC_EHDFERR);
 
@@ -1786,25 +1787,25 @@ exit:
  * @returns ::NC_NOERR No error.
  * @returns ::NC_EBADID Bad ncid.
  * @returns ::NC_ENOTVAR Var not found.
- * @returns ::NC_EHDFERR ZARR function returned error.
+ * @returns ::NC_EHDFERR HDF5 function returned error.
  * @returns ::NC_EINVALCOORDS Incorrect start.
  * @returns ::NC_EEDGE Incorrect start/count.
  * @returns ::NC_ENOMEM Out of memory.
  * @returns ::NC_EMPI MPI library error (parallel only)
  * @returns ::NC_ECANTEXTEND Can't extend dimension for write.
  * @returns ::NC_ERANGE Data conversion error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
+NC4_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
              const ptrdiff_t *stridep, void *data, nc_type mem_nc_type)
 {
     NC_GRP_INFO_T *grp;
     NC_FILE_INFO_T *h5;
     NC_VAR_INFO_T *var;
-    NCZ_VAR_INFO_T *ncz_var;
+    NC_HDF5_VAR_INFO_T *hdf5_var;
     NC_DIM_INFO_T *dim;
-    NCZ_TYPE_INFO_T *ncz_type;
+    NC_HDF5_TYPE_INFO_T *hdf5_type;
     hid_t file_spaceid = 0, mem_spaceid = 0;
     hid_t xfer_plistid = 0;
     size_t file_type_size;
@@ -1821,15 +1822,15 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     size_t len = 1;
 
     /* Find info for this file, group, and var. */
-    if ((retval = ncz_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
+    if ((retval = nc4_hdf5_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
         return retval;
     assert(h5 && grp && var && var->hdr.id == varid && var->format_var_info &&
            var->type_info && var->type_info->size &&
            var->type_info->format_type_info);
 
-    /* Get the NCZ-specific var and type info. */
-    ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
-    ncz_type = (NCZ_TYPE_INFO_T *)var->type_info->format_type_info;
+    /* Get the HDF5-specific var and type info. */
+    hdf5_var = (NC_HDF5_VAR_INFO_T *)var->format_var_info;
+    hdf5_type = (NC_HDF5_TYPE_INFO_T *)var->type_info->format_type_info;
 
     LOG((3, "%s: var->hdr.name %s mem_nc_type %d", __func__,
          var->hdr.name, mem_nc_type));
@@ -1838,7 +1839,7 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
      * mode, if needed. */
     if ((retval = check_for_vara(&mem_nc_type, var, h5)))
         return retval;
-    assert(ncz_var->hdf_datasetid && (!var->ndims || (startp && countp)));
+    assert(hdf5_var->hdf_datasetid && (!var->ndims || (startp && countp)));
 
     /* Convert from size_t and ptrdiff_t to hsize_t. Also do sanity
      * checks. */
@@ -1858,7 +1859,7 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     }
 
     /* Get file space of data. */
-    if ((file_spaceid = H5Dget_space(ncz_var->hdf_datasetid)) < 0)
+    if ((file_spaceid = H5Dget_space(hdf5_var->hdf_datasetid)) < 0)
         BAIL(NC_EHDFERR);
 
     /* Check to ensure the user selection is
@@ -1886,7 +1887,7 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 
             /* We can't go beyond the largest current extent of
                the unlimited dim. */
-            if ((retval = NCZ_inq_dim(ncid, dim->hdr.id, NULL, &ulen)))
+            if ((retval = NC4_inq_dim(ncid, dim->hdr.id, NULL, &ulen)))
                 BAIL(retval);
 
             /* Check for out of bound requests. */
@@ -1968,19 +1969,19 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
                 BAIL(NC_EHDFERR);
         }
 
-        /* Fix bug when reading ZARR files with variable of type
+        /* Fix bug when reading HDF5 files with variable of type
          * fixed-length string.  We need to make it look like a
          * variable-length string, because that's all netCDF-4 data
          * model supports, lacking anonymous dimensions.  So
          * variable-length strings are in allocated memory that user has
          * to free, which we allocate here. */
         if (var->type_info->nc_type_class == NC_STRING &&
-            H5Tget_size(ncz_type->hdf_typeid) > 1 &&
-            !H5Tis_variable_str(ncz_type->hdf_typeid))
+            H5Tget_size(hdf5_type->hdf_typeid) > 1 &&
+            !H5Tis_variable_str(hdf5_type->hdf_typeid))
         {
             hsize_t fstring_len;
 
-            if ((fstring_len = H5Tget_size(ncz_type->hdf_typeid)) == 0)
+            if ((fstring_len = H5Tget_size(hdf5_type->hdf_typeid)) == 0)
                 BAIL(NC_EHDFERR);
             if (!(*(char **)data = malloc(1 + fstring_len)))
                 BAIL(NC_ENOMEM);
@@ -2023,15 +2024,15 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 
         /* Read this hyperslab into memory. */
         LOG((5, "About to H5Dread some data..."));
-        if (H5Dread(ncz_var->hdf_datasetid,
-                    ((NCZ_TYPE_INFO_T *)var->type_info->format_type_info)->native_hdf_typeid,
+        if (H5Dread(hdf5_var->hdf_datasetid,
+                    ((NC_HDF5_TYPE_INFO_T *)var->type_info->format_type_info)->native_hdf_typeid,
                     mem_spaceid, file_spaceid, xfer_plistid, bufr) < 0)
             BAIL(NC_EHDFERR);
 
         /* Convert data type if needed. */
         if (need_to_convert)
         {
-            if ((retval = ncz_convert_type(bufr, data, var->type_info->hdr.id, mem_nc_type,
+            if ((retval = nc4_convert_type(bufr, data, var->type_info->hdr.id, mem_nc_type,
                                            len, &range_error, var->fill_value,
                                            (h5->cmode & NC_CLASSIC_MODEL))))
                 BAIL(retval);
@@ -2065,15 +2066,15 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 
             /* Since no element will be selected, we just get the memory
              * space the same as the file space. */
-            if ((mem_spaceid = H5Dget_space(ncz_var->hdf_datasetid)) < 0)
+            if ((mem_spaceid = H5Dget_space(hdf5_var->hdf_datasetid)) < 0)
                 BAIL(NC_EHDFERR);
             if (H5Sselect_none(mem_spaceid) < 0)
                 BAIL(NC_EHDFERR);
 
             /* Read this hyperslab into memory. */
             LOG((5, "About to H5Dread some data..."));
-            if (H5Dread(ncz_var->hdf_datasetid,
-                        ((NCZ_TYPE_INFO_T *)var->type_info->format_type_info)->native_hdf_typeid,
+            if (H5Dread(hdf5_var->hdf_datasetid,
+                        ((NC_HDF5_TYPE_INFO_T *)var->type_info->format_type_info)->native_hdf_typeid,
                         mem_spaceid, file_spaceid, xfer_plistid, bufr) < 0)
                 BAIL(NC_EHDFERR);
         }
@@ -2093,9 +2094,9 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
             for (real_data_size = file_type_size, d2 = 0; d2 < var->ndims; d2++)
                 real_data_size *= count[d2];
 
-        /* Get the fill value from the ZARR variable. Memory will be
+        /* Get the fill value from the HDF5 variable. Memory will be
          * allocated. */
-        if (ncz_get_fill_value(h5, var, &fillvalue) < 0)
+        if (nc4_get_fill_value(h5, var, &fillvalue) < 0)
             BAIL(NC_EHDFERR);
 
         /* How many fill values do we need? */
@@ -2193,10 +2194,10 @@ exit:
  * @returns ::NC_ENOTVAR Bad varid.
  * @returns ::NC_ENOMEM Out of memory.
  * @returns ::NC_EINVAL Invalid input.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-NCZ_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
+NC4_HDF5_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
                      int *ndimsp, int *dimidsp, int *nattsp,
                      int *shufflep, int *deflatep, int *deflate_levelp,
                      int *fletcher32p, int *contiguousp, size_t *chunksizesp,
@@ -2212,14 +2213,14 @@ NCZ_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
 
     /* Find the file, group, and var info, and do lazy att read if
      * needed. */
-    if ((retval = ncz_find_grp_var_att(ncid, varid, NULL, 0, 0, NULL,
+    if ((retval = nc4_hdf5_find_grp_var_att(ncid, varid, NULL, 0, 0, NULL,
                                             &h5, &grp, &var, NULL)))
         return retval;
     assert(grp && h5);
 
     /* Now that lazy atts have been read, use the libsrc4 function to
      * get the answers. */
-    return NCZ_inq_var_all(ncid, varid, name, xtypep, ndimsp, dimidsp, nattsp,
+    return NC4_inq_var_all(ncid, varid, name, xtypep, ndimsp, dimidsp, nattsp,
                            shufflep, deflatep, deflate_levelp, fletcher32p,
                            contiguousp, chunksizesp, no_fill, fill_valuep,
                            endiannessp, idp, nparamsp, params);
@@ -2241,11 +2242,11 @@ NCZ_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
  * @returns ::NC_ESTRICTNC3 Attempting netcdf-4 operation on strict
  * nc3 netcdf-4 file.
  * @returns ::NC_EINVAL Invalid input.
- * @returns ::NC_EHDFERR ZARR error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @returns ::NC_EHDFERR HDF5 error.
+ * @author Ed Hartnett
  */
 int
-NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems,
+NC4_HDF5_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems,
                              float preemption)
 {
     NC_GRP_INFO_T *grp;
@@ -2258,7 +2259,7 @@ NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems,
         return NC_EINVAL;
 
     /* Find info for this file and group, and set pointer to each. */
-    if ((retval = ncz_find_nc_grp_h5(ncid, NULL, &grp, &h5)))
+    if ((retval = nc4_find_nc_grp_h5(ncid, NULL, &grp, &h5)))
         return retval;
     assert(grp && h5);
 
@@ -2273,13 +2274,13 @@ NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems,
     var->chunk_cache_preemption = preemption;
 
     /* Reopen the dataset to bring new settings into effect. */
-    if ((retval = ncz_reopen_dataset(grp, var)))
+    if ((retval = nc4_reopen_dataset(grp, var)))
         return retval;
     return NC_NOERR;
 }
 
 /**
- * @internal A wrapper for NCZ_set_var_chunk_cache(), we need this
+ * @internal A wrapper for NC4_set_var_chunk_cache(), we need this
  * version for fortran. Negative values leave settings as they are.
  *
  * @param ncid File ID.
@@ -2289,7 +2290,7 @@ NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems,
  * @param preemption Controls cache swapping.
  *
  * @returns ::NC_NOERR for success
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
 nc_set_var_chunk_cache_ints(int ncid, int varid, int size, int nelems,
@@ -2308,6 +2309,6 @@ nc_set_var_chunk_cache_ints(int ncid, int varid, int size, int nelems,
     if (preemption >= 0)
         real_preemption = preemption / 100.;
 
-    return NCZ_set_var_chunk_cache(ncid, varid, real_size, real_nelems,
+    return NC4_HDF5_set_var_chunk_cache(ncid, varid, real_size, real_nelems,
                                         real_preemption);
 }

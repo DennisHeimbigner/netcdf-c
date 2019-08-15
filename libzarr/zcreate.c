@@ -9,7 +9,7 @@
  * @author Dennis Heimbigner, Ed Hartnett
  */
 
-#include "zinternal.h"
+#include "zincludes.h"
 
 /** @internal These flags may not be set for create. */
 static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_DISKLESS|NC_64BIT_OFFSET|NC_CDF5);
@@ -52,39 +52,27 @@ ncz_create_file(const char *path, int cmode, size_t initialsz,
     assert(h5 && h5->root_grp);
     h5->root_grp->atts_read = 1;
 
-    /* Add struct to hold NCZ-specific file metadata. */
-    if (!(h5->format_file_info = calloc(1, sizeof(NCZ_FILE_INFO_T))))
-        BAIL(NC_ENOMEM);
-    zinfo = (NCZ_FILE_INFO_T *)ncz_info->format_file_info;
-
     h5->mem.inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
     h5->mem.diskless = ((mode & NC_DISKLESS) == NC_DISKLESS);
     h5->mem.persist = ((mode & NC_PERSIST) == NC_PERSIST);
+
+    /* Add struct to hold NCZ-specific file metadata. */
+    if (!(h5->format_file_info = calloc(1, sizeof(NCZ_FILE_INFO_T))))
+        BAIL(NC_ENOMEM);
+    zinfo = (NCZ_FILE_INFO_T *)h5->format_file_info;
 
     /* Add struct to hold NCZ-specific group info. */
     if (!(h5->root_grp->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T)))
         return NC_ENOMEM;
     zgrp = (NCZ_GRP_INFO_T *)h5->root_grp->format_grp_info;
 
+    /* Do format specific setup */
+    /* Should check if file already exists, and if NC_NOCLOBBER is specified,
+       return an error */
+    if((stat = NCZ_create_dataset(zinfo,zgrp)))
+	BAIL(stat);
 
 #ifdef LOOK
-    /* If this file already exists, and NC_NOCLOBBER is specified,
-       return an error */
-    if (!h5->mem.diskless && !h5->mem.inmemory) {
-        if ((cmode & NC_NOCLOBBER) && (fp = fopen(path, "r"))) {
-            fclose(fp);
-            BAIL(NC_EEXIST);
-        }
-    }
-
-    /* Need this access plist to control how ZARR handles open objects
-     * on file close. Setting H5F_CLOSE_SEMI will cause H5Fclose to
-     * fail if there are any open objects in the file. */
-    if ((fapl_id = H5Pcreate(H5P_FILE_ACCESS)) < 0)
-        BAIL(NC_EHDFERR);
-    if (H5Pset_fclose_degree(fapl_id, H5F_CLOSE_SEMI))
-        BAIL(NC_EHDFERR);
-
     if (H5Pset_cache(fapl_id, 0, ncz_chunk_cache_nelems, ncz_chunk_cache_size,
                      ncz_chunk_cache_preemption) < 0)
         BAIL(NC_EHDFERR);
@@ -117,7 +105,7 @@ ncz_create_file(const char *path, int cmode, size_t initialsz,
 exit: /*failure exit*/
     if(!h5) return stat;
 #ifdef LOOK
-    ncz_close_ncz_file(ncz_info, 1, NULL); /* treat like abort */
+    ncz_close_ncz_file(h5, 1, NULL); /* treat like abort */
 #endif
     return stat;
 }

@@ -471,7 +471,8 @@ by the desired type. */
 #define NC_ERCFILE       (-133)    /**< RC file failure */
 #define NC_ENULLPAD      (-134)    /**< Header Bytes not Null-Byte padded */
 #define NC_EINMEMORY     (-135)    /**< In-memory file error */
-#define NC4_LAST_ERROR   (-136)    /**< @internal All netCDF errors > this. */
+#define NC_EZARR         (-136)    /**< Error at Zarrlayer. */
+#define NC4_LAST_ERROR   (-137)    /**< @internal All netCDF errors > this. */
 
 /** @internal This is used in netCDF-4 files for dimensions without
  * coordinate vars. */

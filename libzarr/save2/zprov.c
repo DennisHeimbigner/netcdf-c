@@ -7,8 +7,12 @@
  * @author Dennis Heimbigner
  */
 
-#include "zincludes.h"
+#include "config.h"
+#include "nc4internal.h"
+#include "nczinternal.h"
 #include "nc_provenance.h"
+#include "nclist.h"
+#include "ncbytes.h"
 
 /* Provide a hack to suppress the writing of _NCProperties attribute.
    This is for creating a file without _NCProperties for testing purposes.
@@ -21,8 +25,6 @@
 #define NCZ_MAX_NAME 1024 /**< ZARR max name. */
 
 #define ESCAPECHARS "\\=|,"
-
-#define NCPNCZLIB "zarr"
 
 /** @internal Check NetCDF return code. */
 #define NCHECK(expr) {if((expr)!=NC_NOERR) {goto done;}}
@@ -82,9 +84,9 @@ NCZ_provenance_init(void)
 
     /* Insert the ZARR as underlying storage format library */
     ncbytesappend(buffer,NCPROPSSEP2);
-    ncbytescat(buffer,NCPNCZLIB);
+    ncbytescat(buffer,NCPNCZLIB2);
     ncbytescat(buffer,"=");
-    if((stat = NCZ_get_libversion(&major,&minor,&release))) goto done;
+    if((stat = NCZ_nczget_libversion(&major,&minor,&release))) goto done;
     snprintf(printbuf,sizeof(printbuf),"%1u.%1u.%1u",major,minor,release);
     ncbytescat(buffer,printbuf);
 
@@ -135,7 +137,7 @@ NCZ_provenance_finalize(void)
 int
 NCZ_new_provenance(NC_FILE_INFO_T* file)
 {
-    int stat = NC_NOERR;
+    int ncstat = NC_NOERR;
     NCZ_Provenance* provenance = NULL;
     int superblock = -1;
 
@@ -149,19 +151,17 @@ NCZ_new_provenance(NC_FILE_INFO_T* file)
     /* Set the version */
     provenance->version = globalprovenance.version;
 
-#ifdef LOOK
     /* Set the superblock number */
-    if((stat = NCZ_nczget_superblock(file,&superblock))) goto done;
+    if((ncstat = NCZ_nczget_superblock(file,&superblock))) goto done;
     provenance->superblockversion = superblock;
-#endif
 
     if(globalprovenance.ncproperties != NULL) {
         if((provenance->ncproperties = strdup(globalprovenance.ncproperties)) == NULL)
-	    {stat = NC_ENOMEM; goto done;}
+	    {ncstat = NC_ENOMEM; goto done;}
     }
 
 done:
-    if(stat) {
+    if(ncstat) {
         LOG((0,"Could not create _NCProperties attribute"));
     }
     return NC_NOERR;
@@ -181,8 +181,9 @@ done:
 int
 NCZ_read_provenance(NC_FILE_INFO_T* file)
 {
-    int stat = NC_NOERR;
+    int ncstat = NC_NOERR;
     NCZ_Provenance* provenance = NULL;
+    int superblock = -1;
     char* propstring = NULL;
 
     LOG((5, "%s: ncid 0x%x", __func__, file->root_grp->hdr.id));
@@ -192,21 +193,18 @@ NCZ_read_provenance(NC_FILE_INFO_T* file)
     provenance = &file->provenance;
     memset(provenance,0,sizeof(NCZ_Provenance)); /* make sure */
 
-#ifdef LOOK
     /* Set the superblock number */
-    int superblock = -1;
-    if((stat = NCZ_nczget_superblock(file,&superblock))) goto done;
+    if((ncstat = NCZ_nczget_superblock(file,&superblock))) goto done;
     provenance->superblockversion = superblock;
-#endif
 
     /* Read the _NCProperties value from the file */
-    if((stat = NCZ_read_ncproperties(file,&propstring))) goto done;
+    if((ncstat = NCZ_read_ncproperties(file,&propstring))) goto done;
     provenance->ncproperties = propstring;
     propstring = NULL;
 
 done:
     nullfree(propstring);
-    if(stat) {
+    if(ncstat) {
         LOG((0,"Could not create _NCProperties attribute"));
     }
     return NC_NOERR;
@@ -226,19 +224,18 @@ done:
 int
 NCZ_write_provenance(NC_FILE_INFO_T* file)
 {
-    int stat = NC_NOERR;
-    if((stat = NCZ_write_ncproperties(file)))
+    int ncstat = NC_NOERR;
+    if((ncstat = NCZ_write_ncproperties(file)))
 	goto done;
 done:
-    return stat;
+    return ncstat;
 }
 
-#ifdef LOOK
 /* ZARR Specific attribute read/write of _NCProperties */
 static int
 NCZ_read_ncproperties(NC_FILE_INFO_T* h5, char** propstring)
 {
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
     hid_t nczgrpid = -1;
     hid_t attid = -1;
     hid_t aspace = -1;
@@ -265,17 +262,17 @@ NCZ_read_ncproperties(NC_FILE_INFO_T* h5, char** propstring)
     /* Verify atype and size */
     t_class = H5Tget_class(atype);
     if(t_class != H5T_STRING)
-    {stat = NC_EINVAL; goto done;}
+    {retval = NC_EINVAL; goto done;}
     size = H5Tget_size(atype);
     if(size == 0)
-    {stat = NC_EINVAL; goto done;}
+    {retval = NC_EINVAL; goto done;}
     text = (char*)malloc(1+(size_t)size);
     if(text == NULL)
-    {stat = NC_ENOMEM; goto done;}
+    {retval = NC_ENOMEM; goto done;}
     if((ntype = H5Tget_native_type(atype, H5T_DIR_DEFAULT)) < 0)
-    {stat = NC_EHDFERR; goto done;}
+    {retval = NC_EHDFERR; goto done;}
     if((H5Aread(attid, ntype, text)) < 0)
-    {stat = NC_EHDFERR; goto done;}
+    {retval = NC_EHDFERR; goto done;}
     /* Make sure its null terminated */
     text[(size_t)size] = '\0';
     if(propstring) {*propstring = text; text = NULL;}
@@ -283,19 +280,19 @@ NCZ_read_ncproperties(NC_FILE_INFO_T* h5, char** propstring)
 done:
     if(text != NULL) free(text);
     /* Close out the ZARR objects */
-    if(attid > 0 && H5Aclose(attid) < 0) stat = NC_EHDFERR;
-    if(aspace > 0 && H5Sclose(aspace) < 0) stat = NC_EHDFERR;
-    if(atype > 0 && H5Tclose(atype) < 0) stat = NC_EHDFERR;
-    if(ntype > 0 && H5Tclose(ntype) < 0) stat = NC_EHDFERR;
+    if(attid > 0 && H5Aclose(attid) < 0) retval = NC_EHDFERR;
+    if(aspace > 0 && H5Sclose(aspace) < 0) retval = NC_EHDFERR;
+    if(atype > 0 && H5Tclose(atype) < 0) retval = NC_EHDFERR;
+    if(ntype > 0 && H5Tclose(ntype) < 0) retval = NC_EHDFERR;
 
     /* For certain errors, actually fail, else log that attribute was invalid and ignore */
-    if(stat != NC_NOERR) {
-        if(stat != NC_ENOMEM && stat != NC_EHDFERR) {
+    if(retval != NC_NOERR) {
+        if(retval != NC_ENOMEM && retval != NC_EHDFERR) {
             LOG((0,"Invalid _NCProperties attribute: ignored"));
-            stat = NC_NOERR;
+            retval = NC_NOERR;
         }
     }
-    return stat;
+    return retval;
 }
 
 static int
@@ -304,7 +301,7 @@ NCZ_write_ncproperties(NC_FILE_INFO_T* h5)
 #ifdef SUPPRESSNCPROPERTY
     return NC_NOERR;
 #else /*!SUPPRESSNCPROPERTY*/
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
     hid_t nczgrpid = -1;
     hid_t attid = -1;
     hid_t aspace = -1;
@@ -316,7 +313,7 @@ NCZ_write_ncproperties(NC_FILE_INFO_T* h5)
 
     /* If the file is read-only, return an error. */
     if (h5->no_write)
-    {stat = NC_EPERM; goto done;}
+    {retval = NC_EPERM; goto done;}
 
     nczgrpid = ((NCZ_GRP_INFO_T *)(h5->root_grp->format_grp_info))->hdf_grpid;
 
@@ -327,21 +324,21 @@ NCZ_write_ncproperties(NC_FILE_INFO_T* h5)
     if(prov->ncproperties != NULL) {
 	/* Build the ZARR string type */
 	if ((atype = H5Tcopy(H5T_C_S1)) < 0)
-	    {stat = NC_EHDFERR; goto done;}
+	    {retval = NC_EHDFERR; goto done;}
 	if (H5Tset_strpad(atype, H5T_STR_NULLTERM) < 0)
-	    {stat = NC_EHDFERR; goto done;}
+	    {retval = NC_EHDFERR; goto done;}
 	if(H5Tset_cset(atype, H5T_CSET_ASCII) < 0)
-	    {stat = NC_EHDFERR; goto done;}
+	    {retval = NC_EHDFERR; goto done;}
 	len = strlen(prov->ncproperties);
 	if(H5Tset_size(atype, len) < 0)
-	    {stat = NC_EFILEMETA; goto done;}
+	    {retval = NC_EFILEMETA; goto done;}
 	/* Create NCPROPS attribute */
 	if((aspace = H5Screate(H5S_SCALAR)) < 0)
-	    {stat = NC_EFILEMETA; goto done;}
+	    {retval = NC_EFILEMETA; goto done;}
 	if ((attid = H5Acreate(nczgrpid, NCPROPS, atype, aspace, H5P_DEFAULT)) < 0)
-	    {stat = NC_EFILEMETA; goto done;}
+	    {retval = NC_EFILEMETA; goto done;}
 	if (H5Awrite(attid, atype, prov->ncproperties) < 0)
-	    {stat = NC_EFILEMETA; goto done;}
+	    {retval = NC_EFILEMETA; goto done;}
 /* Verify */
 #if 0
     {
@@ -358,12 +355,12 @@ NCZ_write_ncproperties(NC_FILE_INFO_T* h5)
 
 done:
     /* Close out the ZARR objects */
-    if(attid > 0 && H5Aclose(attid) < 0) stat = NC_EHDFERR;
-    if(aspace > 0 && H5Sclose(aspace) < 0) stat = NC_EHDFERR;
-    if(atype > 0 && H5Tclose(atype) < 0) stat = NC_EHDFERR;
+    if(attid > 0 && H5Aclose(attid) < 0) retval = NC_EHDFERR;
+    if(aspace > 0 && H5Sclose(aspace) < 0) retval = NC_EHDFERR;
+    if(atype > 0 && H5Tclose(atype) < 0) retval = NC_EHDFERR;
 
     /* For certain errors, actually fail, else log that attribute was invalid and ignore */
-    switch (stat) {
+    switch (retval) {
     case NC_ENOMEM:
     case NC_EHDFERR:
     case NC_EPERM:
@@ -372,13 +369,12 @@ done:
         break;
     default:
         LOG((0,"Invalid _NCProperties attribute"));
-        stat = NC_NOERR;
+        retval = NC_NOERR;
         break;
     }
-    return stat;
+    return retval;
 #endif /*!SUPPRESSNCPROPERTY*/
 }
-#endif
 
 /**************************************************/
 /* Utilities */
@@ -566,21 +562,21 @@ done:
 static int
 properties_getversion(const char* propstring, int* versionp)
 {
-    int stat = NC_NOERR;
+    int ncstat = NC_NOERR;
     int version = 0;
     /* propstring should begin with "version=dddd" */
     if(propstring == NULL || strlen(propstring) < strlen("version=") + strlen("1"))
-        {stat = NC_EINVAL; goto done;} /* illegal version */
+        {ncstat = NC_EINVAL; goto done;} /* illegal version */
     if(memcmp(propstring,"version=",strlen("version=")) != 0)
-        {stat = NC_EINVAL; goto done;} /* illegal version */
+        {ncstat = NC_EINVAL; goto done;} /* illegal version */
     propstring += strlen("version=");
     /* get version */
     version = atoi(propstring);
     if(version < 0)
-        {stat = NC_EINVAL; goto done;} /* illegal version */
+        {ncstat = NC_EINVAL; goto done;} /* illegal version */
     if(versionp) *versionp = version;
 done:
-    return stat;
+    return ncstat;
 }
 
 /**
@@ -598,7 +594,7 @@ done:
 static int
 parse_provenance(NCZ_Provenance* prov)
 {
-    int stat = NC_NOERR;
+    int ncstat = NC_NOERR;
     char *name = NULL;
     char *value = NULL;
     int version = 0;
@@ -607,17 +603,17 @@ parse_provenance(NCZ_Provenance* prov)
     LOG((5, "%s: prov 0x%x", __func__, prov));
 
     if(prov->ncproperty == NULL || strlen(prov->ncproperty) < strlen("version="))
-        {stat = NC_EINVAL; goto done;}
+        {ncstat = NC_EINVAL; goto done;}
     if((list = nclistnew()) == NULL)
-        {stat = NC_ENOMEM; goto done;}
+        {ncstat = NC_ENOMEM; goto done;}
 
     /* Do we understand the version? */
     if(prov->version > 0 && prov->version <= NCPROPS_VERSION) {/* recognized version */
-        if((stat=properties_parse(prov->ncproperty,list)))
+        if((ncstat=properties_parse(prov->ncproperty,list)))
 	    goto done;
         /* Remove version pair from properties list*/
         if(nclistlength(list) < 2)
-            {stat = NC_EINVAL; goto done;} /* bad _NCProperties attribute */
+            {ncstat = NC_EINVAL; goto done;} /* bad _NCProperties attribute */
         /* Throw away the purported version=... */
         nclistremove(list,0); /* version key */
         nclistremove(list,0); /* version value */
@@ -650,7 +646,7 @@ done:
     nclistfreeall(list);
     if(name != NULL) free(name);
     if(value != NULL) free(value);
-    return stat;
+    return ncstat;
 }
 
 /**

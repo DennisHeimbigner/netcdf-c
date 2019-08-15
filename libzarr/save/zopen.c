@@ -1,56 +1,84 @@
 /* Copyright 2003-2018, University Corporation for Atmospheric
  * Research. See COPYRIGHT file for copying and redistribution
  * conditions. */
-
 /**
  * @file
  * @internal This file contains functions that are used in file
  * opens.
  *
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 
-#include "zincludes.h"
+#include "config.h"
+#include "hdf5internal.h"
+#include "ncrc.h"
 #include "ncmodel.h"
 
-#define NUM_TYPES 12 /**< Number of netCDF atomic types. */
-#define CD_NELEMS_ZLIB 1 /**< Number of parameters needed for filter. */
+#ifdef ENABLE_BYTERANGE
+#include "H5FDhttp.h"
+#endif
 
-#ifdef LOOK
-/** @internal Native ZARR constants for atomic types. For performance,
+#define NUM_TYPES 12 /**< Number of netCDF atomic types. */
+#define CD_NELEMS_ZLIB 1 /**< Number of parameters needed for ZLIB filter. */
+
+/** @internal Native HDF5 constants for atomic types. For performance,
  * fill this array only the first time, and keep it in global memory
  * for each further use. */
 static hid_t h5_native_type_constant_g[NUM_TYPES];
-#endif
+
+/** @internal NetCDF atomic type names. */
+static const char nc_type_name_g[NUM_TYPES][NC_MAX_NAME + 1] = {"char", "byte", "short",
+                                                                "int", "float", "double", "ubyte",
+                                                                "ushort", "uint", "int64",
+                                                                "uint64", "string"};
+
+/** @internal NetCDF atomic types. */
+static const nc_type nc_type_constant_g[NUM_TYPES] = {NC_CHAR, NC_BYTE, NC_SHORT,
+                                                      NC_INT, NC_FLOAT, NC_DOUBLE, NC_UBYTE,
+                                                      NC_USHORT, NC_UINT, NC_INT64,
+                                                      NC_UINT64, NC_STRING};
+
+/** @internal NetCDF atomic type sizes. */
+static const int nc_type_size_g[NUM_TYPES] = {sizeof(char), sizeof(char), sizeof(short),
+                                              sizeof(int), sizeof(float), sizeof(double), sizeof(unsigned char),
+                                              sizeof(unsigned short), sizeof(unsigned int), sizeof(long long),
+                                              sizeof(unsigned long long), sizeof(char *)};
 
 /** @internal These flags may not be set for open mode. */
-static const int ILLEGAL_OPEN_FLAGS = (NC_MMAP|NC_DISKLESS|NC_64BIT_OFFSET|NC_CDF5);
+static const int ILLEGAL_OPEN_FLAGS = (NC_MMAP);
+
+/* From libsrc4, these are the netcdf-4 cache sizes. */
+extern size_t nc4_chunk_cache_size;
+extern size_t nc4_chunk_cache_nelems;
+extern float nc4_chunk_cache_preemption;
+
+/* From nc4mem.c */
+extern int NC4_open_image_file(NC_FILE_INFO_T* h5);
 
 /* Defined later in this file. */
 static int rec_read_metadata(NC_GRP_INFO_T *grp);
 
-#ifdef LOOK
 /**
- * @internal struct to track ZARR object info, for
+ * @internal Struct to track HDF5 object info, for
  * rec_read_metadata(). We get this info for every object in the
- * ZARR file when we H5Literate() over the file. */
-typedef struct ncz_obj_info
+ * HDF5 file when we H5Literate() over the file. */
+typedef struct hdf5_obj_info
 {
-    hid_t oid;                          /* ZARR object ID */
+    hid_t oid;                          /* HDF5 object ID */
     char oname[NC_MAX_NAME + 1];        /* Name of object */
     H5G_stat_t statbuf;                 /* Information about the object */
-    struct ncz_obj_info *next; /* Pointer to next node in list */
-} ncz_obj_info_t;
+    struct hdf5_obj_info *next; /* Pointer to next node in list */
+} hdf5_obj_info_t;
 
 /**
  * @internal User data struct for call to H5Literate() in
  * rec_read_metadata(). When iterating through the objects in a
- * group, if we find child groups, we save their ncz_obj_info_t
+ * group, if we find child groups, we save their hdf5_obj_info_t
  * object in a list. Then we processes them after completely
  * processing the parent group. */
 typedef struct user_data
 {
-    NClist *grps; /* NClist<ncz_obj_info_t*> */
+    NClist *grps; /* NClist<hdf5_obj_info_t*> */
     NC_GRP_INFO_T *grp; /* Pointer to parent group */
 } user_data_t;
 
@@ -59,27 +87,26 @@ typedef struct {
     NC_GRP_INFO_T *grp;
     NC_VAR_INFO_T *var;
 } att_iter_info;
-#endif /*LOOK*/
 
 /**
- * @internal Given an ZARR type, set a pointer to netcdf type_info
+ * @internal Given an HDF5 type, set a pointer to netcdf type_info
  * struct, either an existing one (for user-defined types) or a newly
  * created one.
  *
- * @param h5 Pointer to file info struct.
- * @param datasetid ZARR dataset ID.
+ * @param h5 Pointer to HDF5 file info struct.
+ * @param datasetid HDF5 dataset ID.
  * @param type_info Pointer to pointer that gets type info struct.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
- * @return ::NC_EHDFERR ZARR returned error.
+ * @return ::NC_EHDFERR HDF5 returned error.
  * @return ::NC_EBADTYPID Type not found.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
 {
-    NCZ_TYPE_INFO_T *ncz_type;
+    NC_HDF5_TYPE_INFO_T *hdf5_type;
     htri_t is_str, equal = 0;
     H5T_class_t class;
     hid_t native_typeid, hdf_typeid;
@@ -108,7 +135,7 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
         h5_native_type_constant_g[10] = H5T_NATIVE_ULLONG;
     }
 
-    /* Get the ZARR typeid - we'll need it later. */
+    /* Get the HDF5 typeid - we'll need it later. */
     if ((hdf_typeid = H5Dget_type(datasetid)) < 0)
         return NC_EHDFERR;
 
@@ -128,10 +155,10 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
         if (!(*type_info = calloc(1, sizeof(NC_TYPE_INFO_T))))
             return NC_ENOMEM;
 
-        /* Allocate storage for NCZ-specific type info. */
-        if (!(ncz_type = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
+        /* Allocate storage for HDF5-specific type info. */
+        if (!(hdf5_type = calloc(1, sizeof(NC_HDF5_TYPE_INFO_T))))
             return NC_ENOMEM;
-        (*type_info)->format_type_info = ncz_type;
+        (*type_info)->format_type_info = hdf5_type;
 
         /* H5Tequal doesn't work with H5T_C_S1 for some reason. But
          * H5Tget_class will return H5T_STRING if this is a string. */
@@ -167,7 +194,7 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
 
             /* Find out about endianness. As of HDF 1.8.6, this works
              * with all data types Not just H5T_INTEGER. See
-             * https://www.hdfgroup.org/NCZ/doc/RM/RM_H5T.html#Datatype-GetOrder */
+             * https://www.hdfgroup.org/HDF5/doc/RM/RM_H5T.html#Datatype-GetOrder */
             if ((order = H5Tget_order(hdf_typeid)) < 0)
                 return NC_EHDFERR;
 
@@ -187,8 +214,8 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
         (*type_info)->size = nc_type_size_g[t];
         if (!((*type_info)->hdr.name = strdup(nc_type_name_g[t])))
             return NC_ENOMEM;
-        ncz_type->hdf_typeid = hdf_typeid;
-        ncz_type->native_hdf_typeid = native_typeid;
+        hdf5_type->hdf_typeid = hdf_typeid;
+        hdf5_type->native_hdf_typeid = native_typeid;
         return NC_NOERR;
     }
     else
@@ -196,7 +223,7 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
         NC_TYPE_INFO_T *type;
 
         /* This is a user-defined type. */
-        if((type = ncz_rec_find_hdf_type(h5, native_typeid)))
+        if((type = nc4_rec_find_hdf_type(h5, native_typeid)))
             *type_info = type;
 
         /* The type entry in the array of user-defined types already has
@@ -225,18 +252,18 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
  * @return ::NC_NOERR No error.
  * @return ::NC_ENOTATT Attribute does not exist.
  * @return ::NC_EATTMETA Attribute metadata error.
- * @return ::NC_EHDFERR ZARR error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @return ::NC_EHDFERR HDF5 error.
+ * @author Ed Hartnett
  */
 static int
 read_coord_dimids(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 {
-    NCZ_VAR_INFO_T *ncz_var;
+    NC_HDF5_VAR_INFO_T *hdf5_var;
     hid_t coord_att_typeid = -1, coord_attid = -1, spaceid = -1;
     hssize_t npoints;
     htri_t attr_exists;
     int d;
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
 
     assert(grp && var && var->format_var_info);
     LOG((3, "%s: var->hdr.name %s", __func__, var->hdr.name));
@@ -245,11 +272,11 @@ read_coord_dimids(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
     if (var->coords_read)
         return NC_NOERR;
 
-    /* Get NCZ-sepecific var info. */
-    ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
+    /* Get HDF5-sepecific var info. */
+    hdf5_var = (NC_HDF5_VAR_INFO_T *)var->format_var_info;
 
     /* Does the COORDINATES att exist? */
-    if ((attr_exists = H5Aexists(ncz_var->hdf_datasetid, COORDINATES)) < 0)
+    if ((attr_exists = H5Aexists(hdf5_var->hdf_datasetid, COORDINATES)) < 0)
         return NC_EHDFERR;
     if (!attr_exists)
         return NC_ENOTATT;
@@ -257,7 +284,7 @@ read_coord_dimids(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
     /* There is a hidden attribute telling us the ids of the
      * dimensions that apply to this multi-dimensional coordinate
      * variable. Read it. */
-    if ((coord_attid = H5Aopen_name(ncz_var->hdf_datasetid, COORDINATES)) < 0)
+    if ((coord_attid = H5Aopen_name(hdf5_var->hdf_datasetid, COORDINATES)) < 0)
         BAIL(NC_EATTMETA);
 
     if ((coord_att_typeid = H5Aget_type(coord_attid)) < 0)
@@ -282,7 +309,7 @@ read_coord_dimids(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
     /* Update var->dim field based on the var->dimids. Ok if does not
      * find a dim at this time, but if found set it. */
     for (d = 0; d < var->ndims; d++)
-        ncz_find_dim(grp, var->dimids[d], &var->dim[d], NULL);
+        nc4_find_dim(grp, var->dimids[d], &var->dim[d], NULL);
 
     /* Remember that we have read the coordinates hidden attribute. */
     var->coords_read = NC_TRUE;
@@ -294,24 +321,24 @@ exit:
         BAIL2(NC_EHDFERR);
     if (coord_attid >= 0 && H5Aclose(coord_attid) < 0)
         BAIL2(NC_EHDFERR);
-    return stat;
+    return retval;
 }
 
 /**
  * @internal This function is called when reading a file's metadata
  * for each dimension scale attached to a variable.
  *
- * @param did ZARR ID for dimscale.
+ * @param did HDF5 ID for dimscale.
  * @param dim
  * @param dsid
- * @param dimscale_ncz_objids
+ * @param dimscale_hdf5_objids
  *
  * @return 0 for success, -1 for error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static herr_t
 dimscale_visitor(hid_t did, unsigned dim, hid_t dsid,
-                 void *dimscale_ncz_objids)
+                 void *dimscale_hdf5_objids)
 {
     H5G_stat_t statbuf;
 
@@ -322,10 +349,10 @@ dimscale_visitor(hid_t did, unsigned dim, hid_t dsid,
         return -1;
 
     /* Pass this information back to caller. */
-    (*(NCZ_OBJID_T *)dimscale_ncz_objids).fileno[0] = statbuf.fileno[0];
-    (*(NCZ_OBJID_T *)dimscale_ncz_objids).fileno[1] = statbuf.fileno[1];
-    (*(NCZ_OBJID_T *)dimscale_ncz_objids).objno[0] = statbuf.objno[0];
-    (*(NCZ_OBJID_T *)dimscale_ncz_objids).objno[1] = statbuf.objno[1];
+    (*(HDF5_OBJID_T *)dimscale_hdf5_objids).fileno[0] = statbuf.fileno[0];
+    (*(HDF5_OBJID_T *)dimscale_hdf5_objids).fileno[1] = statbuf.fileno[1];
+    (*(HDF5_OBJID_T *)dimscale_hdf5_objids).objno[0] = statbuf.objno[0];
+    (*(HDF5_OBJID_T *)dimscale_hdf5_objids).objno[1] = statbuf.objno[1];
     return 0;
 }
 
@@ -334,13 +361,13 @@ dimscale_visitor(hid_t did, unsigned dim, hid_t dsid,
  * dimension to match the available datasets.
  *
  * @param grp Pointer to the group info.
- * @param hdf_datasetid ZARR datsetid for the var's dataset.
+ * @param hdf_datasetid HDF5 datsetid for the var's dataset.
  * @param var Pointer to the var info.
  *
  * @returns NC_NOERR No error.
- * @returns NC_EHDFERR ZARR returned an error.
+ * @returns NC_EHDFERR HDF5 returned an error.
  * @returns NC_ENOMEM Out of memory.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 create_phony_dims(NC_GRP_INFO_T *grp, hid_t hdf_datasetid, NC_VAR_INFO_T *var)
@@ -350,7 +377,7 @@ create_phony_dims(NC_GRP_INFO_T *grp, hid_t hdf_datasetid, NC_VAR_INFO_T *var)
     hsize_t *h5dimlen = NULL, *h5dimlenmax = NULL;
     int dataset_ndims;
     int d;
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
 
     /* Find the space information for this dimension. */
     if ((spaceid = H5Dget_space(hdf_datasetid)) < 0)
@@ -399,15 +426,15 @@ create_phony_dims(NC_GRP_INFO_T *grp, hid_t hdf_datasetid, NC_VAR_INFO_T *var)
         if (match < 0)
         {
             char phony_dim_name[NC_MAX_NAME + 1];
-            sprintf(phony_dim_name, "phony_dim_%d", grp->ncz_info->next_dimid);
+            sprintf(phony_dim_name, "phony_dim_%d", grp->nc4_info->next_dimid);
             LOG((3, "%s: creating phony dim for var %s", __func__, var->hdr.name));
 
             /* Add phony dim to metadata list. */
-            if ((stat = ncz_dim_list_add(grp, phony_dim_name, h5dimlen[d], -1, &dim)))
-                BAIL(stat);
+            if ((retval = nc4_dim_list_add(grp, phony_dim_name, h5dimlen[d], -1, &dim)))
+                BAIL(retval);
 
-            /* Create struct for NCZ-specific dim info. */
-            if (!(dim->format_dim_info = calloc(1, sizeof(NCZ_DIM_INFO_T))))
+            /* Create struct for HDF5-specific dim info. */
+            if (!(dim->format_dim_info = calloc(1, sizeof(NC_HDF5_DIM_INFO_T))))
                 BAIL(NC_ENOMEM);
             if (h5dimlenmax[d] == H5S_UNLIMITED)
                 dim->unlimited = NC_TRUE;
@@ -427,7 +454,7 @@ exit:
     if (h5dimlen)
         free(h5dimlen);
 
-    return stat;
+    return retval;
 }
 
 /**
@@ -441,16 +468,16 @@ exit:
  * @param grp Pointer to group info struct.
  *
  * @returns NC_NOERR No error.
- * @returns NC_EHDFERR ZARR returned an error.
+ * @returns NC_EHDFERR HDF5 returned an error.
  * @returns NC_ENOMEM Out of memory.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 rec_match_dimscales(NC_GRP_INFO_T *grp)
 {
     NC_VAR_INFO_T *var;
     NC_DIM_INFO_T *dim;
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
     int i;
 
     assert(grp && grp->hdr.name);
@@ -458,27 +485,27 @@ rec_match_dimscales(NC_GRP_INFO_T *grp)
 
     /* Perform var dimscale match for child groups. */
     for (i = 0; i < ncindexsize(grp->children); i++)
-        if ((stat = rec_match_dimscales((NC_GRP_INFO_T *)ncindexith(grp->children, i))))
-            return stat;
+        if ((retval = rec_match_dimscales((NC_GRP_INFO_T *)ncindexith(grp->children, i))))
+            return retval;
 
     /* Check all the vars in this group. If they have dimscale info,
      * try and find a dimension for them. */
     for (i = 0; i < ncindexsize(grp->vars); i++)
     {
-        NCZ_VAR_INFO_T *ncz_var;
+        NC_HDF5_VAR_INFO_T *hdf5_var;
         int d;
 
-        /* Get pointer to var and to the NCZ-specific var info. */
+        /* Get pointer to var and to the HDF5-specific var info. */
         var = (NC_VAR_INFO_T *)ncindexith(grp->vars, i);
         assert(var && var->format_var_info);
-        ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
+        hdf5_var = (NC_HDF5_VAR_INFO_T *)var->format_var_info;
 
         /* Check all vars and see if dim[i] != NULL if dimids[i]
          * valid. Recall that dimids were initialized to -1. */
         for (d = 0; d < var->ndims; d++)
         {
             if (!var->dim[d])
-                ncz_find_dim(grp, var->dimids[d], &var->dim[d], NULL);
+                nc4_find_dim(grp, var->dimids[d], &var->dim[d], NULL);
         }
 
         /* Skip dimension scale variables */
@@ -497,7 +524,7 @@ rec_match_dimscales(NC_GRP_INFO_T *grp)
             int j;
 
             /* Are there dimscales for this variable? */
-            if (ncz_var->dimscale_ncz_objids)
+            if (hdf5_var->dimscale_hdf5_objids)
             {
                 for (d = 0; d < var->ndims; d++)
                 {
@@ -518,18 +545,18 @@ rec_match_dimscales(NC_GRP_INFO_T *grp)
                         /* Check all dims in this group. */
                         for (j = 0; j < ncindexsize(g->dim); j++)
                         {
-                            /* Get the ZARR specific dim info. */
-                            NCZ_DIM_INFO_T *ncz_dim;
+                            /* Get the HDF5 specific dim info. */
+                            NC_HDF5_DIM_INFO_T *hdf5_dim;
                             dim = (NC_DIM_INFO_T *)ncindexith(g->dim, j);
                             assert(dim && dim->format_dim_info);
-                            ncz_dim = (NCZ_DIM_INFO_T *)dim->format_dim_info;
+                            hdf5_dim = (NC_HDF5_DIM_INFO_T *)dim->format_dim_info;
 
                             /* Check for exact match of fileno/objid arrays
-                             * to find identical objects in ZARR file. */
-                            if (ncz_var->dimscale_ncz_objids[d].fileno[0] == ncz_dim->ncz_objid.fileno[0] &&
-                                ncz_var->dimscale_ncz_objids[d].objno[0] == ncz_dim->ncz_objid.objno[0] &&
-                                ncz_var->dimscale_ncz_objids[d].fileno[1] == ncz_dim->ncz_objid.fileno[1] &&
-                                ncz_var->dimscale_ncz_objids[d].objno[1] == ncz_dim->ncz_objid.objno[1])
+                             * to find identical objects in HDF5 file. */
+                            if (hdf5_var->dimscale_hdf5_objids[d].fileno[0] == hdf5_dim->hdf5_objid.fileno[0] &&
+                                hdf5_var->dimscale_hdf5_objids[d].objno[0] == hdf5_dim->hdf5_objid.objno[0] &&
+                                hdf5_var->dimscale_hdf5_objids[d].fileno[1] == hdf5_dim->hdf5_objid.fileno[1] &&
+                                hdf5_var->dimscale_hdf5_objids[d].objno[1] == hdf5_dim->hdf5_objid.objno[1])
                             {
                                 LOG((4, "%s: for dimension %d, found dim %s", __func__,
                                      d, dim->hdr.name));
@@ -545,13 +572,13 @@ rec_match_dimscales(NC_GRP_INFO_T *grp)
             else
             {
                 /* No dimscales for this var! Invent phony dimensions. */
-                if ((stat = create_phony_dims(grp, ncz_var->hdf_datasetid, var)))
-                    return stat;
+                if ((retval = create_phony_dims(grp, hdf5_var->hdf_datasetid, var)))
+                    return retval;
             }
         }
     }
 
-    return stat;
+    return retval;
 }
 
 /**
@@ -563,7 +590,7 @@ rec_match_dimscales(NC_GRP_INFO_T *grp)
  * file.
  *
  * @return NC_NOERR No error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 check_for_classic_model(NC_GRP_INFO_T *root_grp, int *is_classic)
@@ -575,8 +602,8 @@ check_for_classic_model(NC_GRP_INFO_T *root_grp, int *is_classic)
     assert(root_grp && root_grp->format_grp_info && !root_grp->parent
            && is_classic);
 
-    /* Get the ZARR group id. */
-    grpid = ((NCZ_GRP_INFO_T *)(root_grp->format_grp_info))->hdf_grpid;
+    /* Get the HDF5 group id. */
+    grpid = ((NC_HDF5_GRP_INFO_T *)(root_grp->format_grp_info))->hdf_grpid;
 
     /* If this attribute exists in the root group, then classic model
      * is in effect. */
@@ -604,81 +631,217 @@ check_for_classic_model(NC_GRP_INFO_T *root_grp, int *is_classic)
  * @return ::NC_EMPI MPI error for parallel.
  * @return ::NC_EPARINIT Parallel I/O initialization error.
  * @return ::NC_EINMEMMORY Memory file error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 static int
-ncz_open_file(const char *path, int mode, void* parameters, NC *nc)
+nc4_open_file(const char *path, int mode, void* parameters, NC *nc)
 {
-    int stat;
+    hid_t fapl_id = H5P_DEFAULT;
+    int retval;
     unsigned flags;
-    NC_FILE_INFO_T *h5 = NULL;
+    NC_FILE_INFO_T *nc4_info = NULL;
     int is_classic;
-    NCZ_FILE_INFO *zinfo = NULL;
+    NC_HDF5_FILE_INFO_T *h5 = NULL;
+
+#ifdef USE_PARALLEL4
+    NC_MPI_INFO* mpiinfo = NULL;
+    int comm_duped = 0; /* Whether the MPI Communicator was duplicated */
+    int info_duped = 0; /* Whether the MPI Info object was duplicated */
+#endif
 
     LOG((3, "%s: path %s mode %d", __func__, path, mode));
     assert(path && nc);
 
+    flags = (mode & NC_WRITE) ? H5F_ACC_RDWR : H5F_ACC_RDONLY;
+
     /* Add necessary structs to hold netcdf-4 file data. */
-    if ((stat = nc4_nc4f_list_add(nc, path, mode)))
-        BAIL(stat);
-    h5 = (NC_FILE_INFO_T*)nc->dispatchdata;
-    assert(h5 && h5->root_grp);
+    if ((retval = nc4_nc4f_list_add(nc, path, mode)))
+        BAIL(retval);
+    nc4_info = NC4_DATA(nc);
+    assert(nc4_info && nc4_info->root_grp);
 
-    /* Add struct to hold NCZ-specific file metadata. */
-    if (!(h5->format_file_info = calloc(1, sizeof(NCZ_FILE_INFO))))
+    /* Add struct to hold HDF5-specific file metadata. */
+    if (!(nc4_info->format_file_info = calloc(1, sizeof(NC_HDF5_FILE_INFO_T))))
         BAIL(NC_ENOMEM);
 
-    /* Add struct to hold NCZ-specific group info. */
-    if (!(h5->root_grp->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO))))
+    /* Add struct to hold HDF5-specific group info. */
+    if (!(nc4_info->root_grp->format_grp_info = calloc(1, sizeof(NC_HDF5_GRP_INFO_T))))
         BAIL(NC_ENOMEM);
 
-    zinfo = (NCZ_FILE_INFO*)h5->format_file_info;
+    h5 = (NC_HDF5_FILE_INFO_T*)nc4_info->format_file_info;
 
-    h5->mem.inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
-    h5->mem.diskless = ((mode & NC_DISKLESS) == NC_DISKLESS);
-    h5->mem.persist = ((mode & NC_PERSIST) == NC_PERSIST);
+#ifdef ENABLE_BYTERANGE
+    /* See if we want the byte range protocol */
+    if(nc->model->iosp == NC_IOSP_HTTP) {
+	h5->http.iosp = 1;
+	/* Kill off any conflicting modes flags */
+	mode &= ~(NC_WRITE|NC_DISKLESS|NC_PERSIST|NC_INMEMORY);
+	parameters = NULL; /* kill off parallel */
+    } else
+	h5->http.iosp = 0;
+#endif /*ENABLE_BYTERANGE*/
+
+    nc4_info->mem.inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
+    nc4_info->mem.diskless = ((mode & NC_DISKLESS) == NC_DISKLESS);
+    nc4_info->mem.persist = ((mode & NC_PERSIST) == NC_PERSIST);
 
     /* Does the mode specify that this file is read-only? */
     if ((mode & NC_WRITE) == 0)
-	h5->no_write = NC_TRUE;
+	nc4_info->no_write = NC_TRUE;
 
-#ifdef LOOK
-    {
-       /* Open the ZARR file. */
-       if ((zinfo->hdfid = H5Fopen(path, flags, fapl_id)) < 0)
-          BAIL(NC_EHDFERR);
+    if(nc4_info->mem.inmemory && nc4_info->mem.diskless)
+        BAIL(NC_EINTERNAL);
+
+#ifdef USE_PARALLEL4
+    mpiinfo = (NC_MPI_INFO*)parameters; /* assume, may be changed if inmemory is true */
+#endif /* !USE_PARALLEL4 */
+
+    /* Need this access plist to control how HDF5 handles open objects
+     * on file close. (Setting H5F_CLOSE_SEMI will cause H5Fclose to
+     * fail if there are any open objects in the file). */
+    if ((fapl_id = H5Pcreate(H5P_FILE_ACCESS)) < 0)
+        BAIL(NC_EHDFERR);
+
+    if (H5Pset_fclose_degree(fapl_id, H5F_CLOSE_SEMI) < 0)
+        BAIL(NC_EHDFERR);
+
+#ifdef USE_PARALLEL4
+    if (!(mode & (NC_INMEMORY | NC_DISKLESS)) && mpiinfo != NULL) {
+        /* If this is a parallel file create, set up the file creation
+         * property list.
+         */
+        nc4_info->parallel = NC_TRUE;
+        LOG((4, "opening parallel file with MPI/IO"));
+        if (H5Pset_fapl_mpio(fapl_id, mpiinfo->comm, mpiinfo->info) < 0)
+            BAIL(NC_EPARINIT);
+
+        /* Keep copies of the MPI Comm & Info objects */
+        if (MPI_SUCCESS != MPI_Comm_dup(mpiinfo->comm, &nc4_info->comm))
+            BAIL(NC_EMPI);
+        comm_duped++;
+        if (MPI_INFO_NULL != mpiinfo->info)
+        {
+            if (MPI_SUCCESS != MPI_Info_dup(mpiinfo->info, &nc4_info->info))
+                BAIL(NC_EMPI);
+            info_duped++;
+        }
+        else
+        {
+            /* No dup, just copy it. */
+            nc4_info->info = mpiinfo->info;
+        }
+    }
+
+#ifdef HDF5_HAS_COLL_METADATA_OPS
+    if (H5Pset_all_coll_metadata_ops(fapl_id, 1) < 0)
+        BAIL(NC_EPARINIT);
+#endif
+
+#else /* only set cache for non-parallel. */
+    if (H5Pset_cache(fapl_id, 0, nc4_chunk_cache_nelems, nc4_chunk_cache_size,
+                     nc4_chunk_cache_preemption) < 0)
+        BAIL(NC_EHDFERR);
+    LOG((4, "%s: set HDF raw chunk cache to size %d nelems %d preemption %f",
+         __func__, nc4_chunk_cache_size, nc4_chunk_cache_nelems,
+         nc4_chunk_cache_preemption));
+#endif /* USE_PARALLEL4 */
+
+    /* Process  NC_INMEMORY */
+    if(nc4_info->mem.inmemory) {
+	NC_memio* memio;
+	/* validate */
+	if(parameters == NULL)
+	    BAIL(NC_EINMEMORY);
+	memio = (NC_memio*)parameters;
+	if(memio->memory == NULL || memio->size == 0)
+            BAIL(NC_EINMEMORY);
+	/* initialize h5->mem */
+	nc4_info->mem.memio = *memio;
+	/* Is the incoming memory locked? */
+	nc4_info->mem.locked = (nc4_info->mem.memio.flags & NC_MEMIO_LOCKED) == NC_MEMIO_LOCKED;
+	/* As a safeguard, if not locked and not read-only,
+	   then we must take control of the incoming memory */
+	if(!nc4_info->mem.locked && !nc4_info->no_write) {
+            memio->memory = NULL; /* take control */
+            memio->size = 0;
+	}
+	retval = NC4_open_image_file(nc4_info);
+	if(retval)
+            BAIL(NC_EHDFERR);
+    }
+    else
+    if(nc4_info->mem.diskless) {   /* Process  NC_DISKLESS */
+	size_t min_incr = 65536; /* Minimum buffer increment */
+	/* Configure FAPL to use the core file driver */
+	if (H5Pset_fapl_core(fapl_id, min_incr, (nc4_info->mem.persist?1:0)) < 0)
+	BAIL(NC_EHDFERR);
+	/* Open the HDF5 file. */
+	if ((h5->hdfid = H5Fopen(path, flags, fapl_id)) < 0)
+            BAIL(NC_EHDFERR);
+    }
+#ifdef ENABLE_BYTERANGE
+    else
+    if(h5->http.iosp) {   /* Arrange to use the byte-range driver */
+	/* Configure FAPL to use the byte-range file driver */
+	if (H5Pset_fapl_http(fapl_id) < 0)
+	    BAIL(NC_EHDFERR);
+	/* Open the HDF5 file. */
+	if ((h5->hdfid = H5Fopen(path, flags, fapl_id)) < 0)
+	    BAIL(NC_EHDFERR);
     }
 #endif
+    else
+    {
+       /* Open the HDF5 file. */
+       if ((h5->hdfid = H5Fopen(path, flags, fapl_id)) < 0)
+          BAIL(NC_EHDFERR);
+    }
 
     /* Now read in all the metadata. Some types and dimscale
      * information may be difficult to resolve here, if, for example, a
      * dataset of user-defined type is encountered before the
      * definition of that type. */
-    if ((stat = rec_read_metadata(h5->root_grp)))
-       BAIL(stat);
+    if ((retval = rec_read_metadata(nc4_info->root_grp)))
+       BAIL(retval);
 
     /* Check for classic model attribute. */
-    if ((stat = check_for_classic_model(h5->root_grp, &is_classic)))
-       BAIL(stat);
+    if ((retval = check_for_classic_model(nc4_info->root_grp, &is_classic)))
+       BAIL(retval);
     if (is_classic)
-       h5->cmode |= NC_CLASSIC_MODEL;
+       nc4_info->cmode |= NC_CLASSIC_MODEL;
 
     /* Set the provenance info for this file */
-    if ((stat = NCZ_read_provenance(h5)))
-       BAIL(stat);
+    if ((retval = NC4_read_provenance(nc4_info)))
+       BAIL(retval);
+
+    /* Now figure out which netCDF dims are indicated by the dimscale
+     * information. */
+    if ((retval = rec_match_dimscales(nc4_info->root_grp)))
+       BAIL(retval);
 
 #ifdef LOGGING
     /* This will print out the names, types, lens, etc of the vars and
        atts in the file, if the logging level is 2 or greater. */
-    log_metadata_nc(h5);
+    log_metadata_nc(nc4_info);
 #endif
+
+    /* Close the property list. */
+    if (H5Pclose(fapl_id) < 0)
+        BAIL(NC_EHDFERR);
 
     return NC_NOERR;
 
 exit:
-    if (h5)
-        nc4_close_ncz_file(h5, 1, 0); /*  treat like abort*/
-    return stat;
+#ifdef USE_PARALLEL4
+    if (comm_duped) MPI_Comm_free(&nc4_info->comm);
+    if (info_duped) MPI_Info_free(&nc4_info->info);
+#endif
+
+    if (fapl_id > 0 && fapl_id != H5P_DEFAULT)
+        H5Pclose(fapl_id);
+    if (nc4_info)
+        nc4_close_hdf5_file(nc4_info, 1, 0); /*  treat like abort*/
+    return retval;
 }
 
 /**
@@ -695,10 +858,10 @@ exit:
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EINVAL Invalid inputs.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
+NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
          void *parameters, const NC_Dispatch *dispatch, NC *nc_file)
 {
     assert(nc_file && path && dispatch && nc_file &&
@@ -714,33 +877,33 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
     if((mode & NC_DISKLESS) && (mode & NC_INMEMORY))
         return NC_EINVAL;
 
-    /* If this is our first file, initialize NCZ. */
-    if (!ncz_initialized) ncz_initialize();
+    /* If this is our first file, initialize HDF5. */
+    if (!nc4_hdf5_initialized)
+        nc4_hdf5_initialize();
 
 #ifdef LOGGING
     /* If nc logging level has changed, see if we need to turn on
-     * NCZ's error messages. */
-    ncz_set_log_level();
+     * HDF5's error messages. */
+    hdf5_set_log_level();
 #endif /* LOGGING */
 
     nc_file->int_ncid = nc_file->ext_ncid;
 
     /* Open the file. */
-    return ncz_open_file(path, mode, parameters, nc_file);
+    return nc4_open_file(path, mode, parameters, nc_file);
 }
 
-#ifdef LOOK
 /**
- * @internal Find out what filters are applied to this ZARR dataset,
+ * @internal Find out what filters are applied to this HDF5 dataset,
  * fletcher32, deflate, and/or shuffle. All other filters are just
  * dumped The possible values of
  *
- * @param propid ID of ZARR var creation properties list.
+ * @param propid ID of HDF5 var creation properties list.
  * @param var Pointer to NC_VAR_INFO_T for this variable.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_ENOMEM Out of memory.
- * @return ::NC_EHDFERR ZARR returned error.
+ * @return ::NC_EHDFERR HDF5 returned error.
  * @author Dennis Heimbigner, Ed Hartnett
  */
 static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
@@ -818,19 +981,17 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
     }
     return NC_NOERR;
 }
-#endif
 
-#ifdef LOOK
 /**
  * @internal Learn if there is a fill value defined for a variable,
  * and, if so, its value.
  *
- * @param propid ID of ZARR var creation properties list.
+ * @param propid ID of HDF5 var creation properties list.
  * @param var Pointer to NC_VAR_INFO_T for this variable.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_ENOMEM Out of memory.
- * @return ::NC_EHDFERR ZARR returned error.
+ * @return ::NC_EHDFERR HDF5 returned error.
  * @author Dennis Heimbigner, Ed Hartnett
  */
 static int get_fill_info(hid_t propid, NC_VAR_INFO_T *var)
@@ -865,8 +1026,8 @@ static int get_fill_info(hid_t propid, NC_VAR_INFO_T *var)
             }
         }
 
-        /* Get the fill value from the ZARR property lust. */
-        if (H5Pget_fill_value(propid, ((NCZ_TYPE_INFO_T *)var->type_info->format_type_info)->native_hdf_typeid,
+        /* Get the fill value from the HDF5 property lust. */
+        if (H5Pget_fill_value(propid, ((NC_HDF5_TYPE_INFO_T *)var->type_info->format_type_info)->native_hdf_typeid,
                               var->fill_value) < 0)
             return NC_EHDFERR;
     }
@@ -875,18 +1036,16 @@ static int get_fill_info(hid_t propid, NC_VAR_INFO_T *var)
 
     return NC_NOERR;
 }
-#endif
 
-#ifdef LOOK
 /**
  * @internal Learn the chunking settings of a var.
  *
- * @param propid ID of ZARR var creation properties list.
+ * @param propid ID of HDF5 var creation properties list.
  * @param var Pointer to NC_VAR_INFO_T for this variable.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_ENOMEM Out of memory.
- * @return ::NC_EHDFERR ZARR returned error.
+ * @return ::NC_EHDFERR HDF5 returned error.
  * @author Dennis Heimbigner, Ed Hartnett
  */
 static int get_chunking_info(hid_t propid, NC_VAR_INFO_T *var)
@@ -914,9 +1073,70 @@ static int get_chunking_info(hid_t propid, NC_VAR_INFO_T *var)
 
     return NC_NOERR;
 }
-#endif
 
-#ifdef LOOK
+/**
+ * @internal This function gets info about the dimscales attached to a
+ * dataset. The info is used later for dimscale matching.
+ *
+ * @param var Pointer to var info struct.
+ * @param hdf5_var Pointer to HDF5 var info struct.
+ * @param ndims Number of dims for this var.
+ * @param datasetid HDF5 datasetid.
+ *
+ * @return ::NC_NOERR No error.
+ * @return ::NC_EBADID Bad ncid.
+ * @return ::NC_ENOMEM Out of memory.
+ * @return ::NC_EHDFERR HDF5 returned error.
+ * @return ::NC_EVARMETA Error with var metadata.
+ * @author Ed Hartnett, Dennis Heimbigner
+ */
+static int
+get_attached_info(NC_VAR_INFO_T *var, NC_HDF5_VAR_INFO_T *hdf5_var, int ndims,
+                  hid_t datasetid)
+{
+    int d;
+    int num_scales = 0;
+
+    LOG((4, "%s ndims %d datasetid %ld", __func__, ndims, datasetid));
+
+    /* Find out how many scales are attached to this
+     * dataset. H5DSget_num_scales returns an error if there are no
+     * scales, so convert a negative return value to zero. */
+    num_scales = H5DSget_num_scales(datasetid, 0);
+    if (num_scales < 0)
+        num_scales = 0;
+    LOG((4, "num_scales %d", num_scales));
+
+    /* If an enddef has already been called, the dimscales will already
+     * be taken care of. */
+    if (num_scales && ndims && !var->dimscale_attached)
+    {
+        /* Allocate space to remember whether the dimscale has been
+         * attached for each dimension, and the HDF5 object IDs of the
+         * scale(s). */
+        assert(!hdf5_var->dimscale_hdf5_objids);
+        if (!(var->dimscale_attached = calloc(ndims, sizeof(nc_bool_t))))
+            return NC_ENOMEM;
+        if (!(hdf5_var->dimscale_hdf5_objids = malloc(ndims *
+                                                      sizeof(struct hdf5_objid))))
+            return NC_ENOMEM;
+
+        /* Store id information allowing us to match hdf5 dimscales to
+         * netcdf dimensions. */
+        for (d = 0; d < var->ndims; d++)
+        {
+            LOG((4, "about to iterate scales for dim %d", d));
+            if (H5DSiterate_scales(hdf5_var->hdf_datasetid, d, NULL, dimscale_visitor,
+                                   &(hdf5_var->dimscale_hdf5_objids[d])) < 0)
+                return NC_EHDFERR;
+            var->dimscale_attached[d] = NC_TRUE;
+            LOG((4, "dimscale attached"));
+        }
+    }
+
+    return NC_NOERR;
+}
+
 /**
  * @internal This function reads scale info for vars, whether they
  * are scales or not.
@@ -925,22 +1145,22 @@ static int get_chunking_info(hid_t propid, NC_VAR_INFO_T *var)
  * @param dim Pointer to dim info struct if this is a scale, NULL
  * otherwise.
  * @param var Pointer to var info struct.
- * @param ncz_var Pointer to ZARR var info struct.
+ * @param hdf5_var Pointer to HDF5 var info struct.
  * @param ndims Number of dims for this var.
- * @param datasetid ZARR datasetid.
+ * @param datasetid HDF5 datasetid.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
  * @return ::NC_ENOMEM Out of memory.
- * @return ::NC_EHDFERR ZARR returned error.
+ * @return ::NC_EHDFERR HDF5 returned error.
  * @return ::NC_EVARMETA Error with var metadata.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 static int
 get_scale_info(NC_GRP_INFO_T *grp, NC_DIM_INFO_T *dim, NC_VAR_INFO_T *var,
-               NCZ_VAR_INFO_T *ncz_var, int ndims, hid_t datasetid)
+               NC_HDF5_VAR_INFO_T *hdf5_var, int ndims, hid_t datasetid)
 {
-    int stat;
+    int retval;
 
     /* If it's a scale, mark it as such. */
     if (dim)
@@ -952,8 +1172,8 @@ get_scale_info(NC_GRP_INFO_T *grp, NC_DIM_INFO_T *dim, NC_VAR_INFO_T *var,
          * dimids must be stored in the hidden coordinates attribute. */
         if (var->ndims > 1)
         {
-            if ((stat = read_coord_dimids(grp, var)))
-                return stat;
+            if ((retval = read_coord_dimids(grp, var)))
+                return retval;
         }
         else
         {
@@ -967,15 +1187,13 @@ get_scale_info(NC_GRP_INFO_T *grp, NC_DIM_INFO_T *dim, NC_VAR_INFO_T *var,
     else /* Not a scale. */
     {
         if (!var->coords_read)
-            if ((stat = get_attached_info(var, ncz_var, ndims, datasetid)))
-                return stat;
+            if ((retval = get_attached_info(var, hdf5_var, ndims, datasetid)))
+                return retval;
     }
 
     return NC_NOERR;
 }
-#endif
 
-#ifdef LOOK
 /**
  * @internal Get the metadata for a variable.
  *
@@ -984,18 +1202,18 @@ get_scale_info(NC_GRP_INFO_T *grp, NC_DIM_INFO_T *dim, NC_VAR_INFO_T *var,
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
  * @return ::NC_ENOMEM Out of memory.
- * @return ::NC_EHDFERR ZARR returned error.
+ * @return ::NC_EHDFERR HDF5 returned error.
  * @return ::NC_EVARMETA Error with var metadata.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-ncz_get_var_meta(NC_VAR_INFO_T *var)
+nc4_get_var_meta(NC_VAR_INFO_T *var)
 {
-    NCZ_VAR_INFO_T *ncz_var;
+    NC_HDF5_VAR_INFO_T *hdf5_var;
     hid_t access_pid = 0;
     hid_t propid = 0;
     double rdcc_w0;
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
 
     assert(var && var->format_var_info);
     LOG((3, "%s: var %s", __func__, var->hdr.name));
@@ -1004,11 +1222,11 @@ ncz_get_var_meta(NC_VAR_INFO_T *var)
     if (var->meta_read)
         return NC_NOERR;
 
-    /* Get pointer to the NCZ-specific var info struct. */
-    ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
+    /* Get pointer to the HDF5-specific var info struct. */
+    hdf5_var = (NC_HDF5_VAR_INFO_T *)var->format_var_info;
 
     /* Get the current chunk cache settings. */
-    if ((access_pid = H5Dget_access_plist(ncz_var->hdf_datasetid)) < 0)
+    if ((access_pid = H5Dget_access_plist(hdf5_var->hdf_datasetid)) < 0)
         BAIL(NC_EVARMETA);
 
     /* Learn about current chunk cache settings. */
@@ -1018,29 +1236,29 @@ ncz_get_var_meta(NC_VAR_INFO_T *var)
     var->chunk_cache_preemption = rdcc_w0;
 
     /* Get the dataset creation properties. */
-    if ((propid = H5Dget_create_plist(ncz_var->hdf_datasetid)) < 0)
+    if ((propid = H5Dget_create_plist(hdf5_var->hdf_datasetid)) < 0)
         BAIL(NC_EHDFERR);
 
     /* Get var chunking info. */
-    if ((stat = get_chunking_info(propid, var)))
-        BAIL(stat);
+    if ((retval = get_chunking_info(propid, var)))
+        BAIL(retval);
 
     /* Get filter info for a var. */
-    if ((stat = get_filter_info(propid, var)))
-        BAIL(stat);
+    if ((retval = get_filter_info(propid, var)))
+        BAIL(retval);
 
     /* Get fill value, if defined. */
-    if ((stat = get_fill_info(propid, var)))
-        BAIL(stat);
+    if ((retval = get_fill_info(propid, var)))
+        BAIL(retval);
 
     /* Is this a deflated variable with a chunksize greater than the
      * current cache size? */
-    if ((stat = ncz_adjust_var_cache(var->container, var)))
-        BAIL(stat);
+    if ((retval = nc4_adjust_var_cache(var->container, var)))
+        BAIL(retval);
 
     if (var->coords_read && !var->dimscale)
-        if ((stat = get_attached_info(var, ncz_var, var->ndims, ncz_var->hdf_datasetid)))
-            return stat;
+        if ((retval = get_attached_info(var, hdf5_var, var->ndims, hdf5_var->hdf_datasetid)))
+            return retval;
 
     /* Remember that we have read the metadata for this var. */
     var->meta_read = NC_TRUE;
@@ -1050,11 +1268,9 @@ exit:
         BAIL2(NC_EHDFERR);
     if (propid > 0 && H5Pclose(propid) < 0)
         BAIL2(NC_EHDFERR);
-    return stat;
+    return retval;
 }
-#endif
 
-#ifdef LOOK
 /**
  * @internal This function is called by read_dataset(), (which is
  * called by rec_read_metadata()) when a netCDF variable is found in
@@ -1063,8 +1279,8 @@ exit:
  * about one of them.
  *
  * @param grp Pointer to group info struct.
- * @param datasetid ZARR dataset ID.
- * @param obj_name Name of the ZARR object to read.
+ * @param datasetid HDF5 dataset ID.
+ * @param obj_name Name of the HDF5 object to read.
  * @param ndims Number of dimensions.
  * @param dim If non-NULL, then this var is a coordinate var for a
  * dimension, and this points to the info for that dimension.
@@ -1072,26 +1288,26 @@ exit:
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
  * @return ::NC_ENOMEM Out of memory.
- * @return ::NC_EHDFERR ZARR returned error.
+ * @return ::NC_EHDFERR HDF5 returned error.
  * @return ::NC_EVARMETA Error with var metadata.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 static int
 read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
          size_t ndims, NC_DIM_INFO_T *dim)
 {
     NC_VAR_INFO_T *var = NULL;
-    NCZ_VAR_INFO_T *ncz_var;
+    NC_HDF5_VAR_INFO_T *hdf5_var;
     int incr_id_rc = 0; /* Whether dataset ID's ref count has been incremented */
     char *finalname = NULL;
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
 
     assert(obj_name && grp);
     LOG((4, "%s: obj_name %s", __func__, obj_name));
 
     /* Check for a weird case: a non-coordinate variable that has the
      * same name as a dimension. It's legal in netcdf, and requires
-     * that the ZARR dataset name be changed. */
+     * that the HDF5 dataset name be changed. */
     if (strlen(obj_name) > strlen(NON_COORD_PREPEND) &&
         !strncmp(obj_name, NON_COORD_PREPEND, strlen(NON_COORD_PREPEND)))
     {
@@ -1104,17 +1320,17 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
         finalname = strdup(obj_name);
 
     /* Add a variable to the end of the group's var list. */
-    if ((stat = ncz_var_list_add(grp, finalname, ndims, &var)))
-        BAIL(stat);
+    if ((retval = nc4_var_list_add(grp, finalname, ndims, &var)))
+        BAIL(retval);
 
-    /* Add storage for NCZ-specific var info. */
-    if (!(var->format_var_info = calloc(1, sizeof(NCZ_VAR_INFO_T))))
+    /* Add storage for HDF5-specific var info. */
+    if (!(var->format_var_info = calloc(1, sizeof(NC_HDF5_VAR_INFO_T))))
         BAIL(NC_ENOMEM);
-    ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
+    hdf5_var = (NC_HDF5_VAR_INFO_T *)var->format_var_info;
 
     /* Fill in what we already know. */
-    ncz_var->hdf_datasetid = datasetid;
-    H5Iinc_ref(ncz_var->hdf_datasetid); /* Increment number of objects using ID */
+    hdf5_var->hdf_datasetid = datasetid;
+    H5Iinc_ref(hdf5_var->hdf_datasetid); /* Increment number of objects using ID */
     incr_id_rc++; /* Indicate that we've incremented the ref. count (for errors) */
     var->created = NC_TRUE;
     var->atts_read = 0;
@@ -1122,21 +1338,21 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
     /* Try and read the dimids from the COORDINATES attribute. If it's
      * not present, we will have to do dimsscale matching to locate the
      * dims for this var. */
-    stat = read_coord_dimids(grp, var);
-    if (stat && stat != NC_ENOTATT)
-        BAIL(stat);
-    stat = NC_NOERR;
+    retval = read_coord_dimids(grp, var);
+    if (retval && retval != NC_ENOTATT)
+        BAIL(retval);
+    retval = NC_NOERR;
 
     /* Handle scale info. */
-    if ((stat = get_scale_info(grp, dim, var, ncz_var, ndims, datasetid)))
-        BAIL(stat);
+    if ((retval = get_scale_info(grp, dim, var, hdf5_var, ndims, datasetid)))
+        BAIL(retval);
 
     /* Learn all about the type of this variable. This will fail for
-     * ZARR reference types, and then the var we just created will be
-     * deleted, thus ignoring ZARR reference type objects. */
-    if ((stat = get_type_info2(var->container->h5, ncz_var->hdf_datasetid,
+     * HDF5 reference types, and then the var we just created will be
+     * deleted, thus ignoring HDF5 reference type objects. */
+    if ((retval = get_type_info2(var->container->nc4_info, hdf5_var->hdf_datasetid,
                                  &var->type_info)))
-        BAIL(stat);
+        BAIL(retval);
 
     /* Indicate that the variable has a pointer to the type */
     var->type_info->rc++;
@@ -1144,33 +1360,31 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
 exit:
     if (finalname)
         free(finalname);
-    if (stat)
+    if (retval)
     {
         /* If there was an error, decrement the dataset ref counter, and
          * delete the var info struct we just created. */
         if (incr_id_rc && H5Idec_ref(datasetid) < 0)
             BAIL2(NC_EHDFERR);
         if (var)
-            ncz_var_list_del(grp, var);
+            nc4_var_list_del(grp, var);
     }
 
-    return stat;
+    return retval;
 }
-#endif
 
-#ifdef LOOK
 /**
- * @internal Given an ZARR type, set a pointer to netcdf type.
+ * @internal Given an HDF5 type, set a pointer to netcdf type.
  *
- * @param h5 Pointer to file info struct.
- * @param native_typeid ZARR type ID.
+ * @param h5 Pointer to HDF5 file info struct.
+ * @param native_typeid HDF5 type ID.
  * @param xtype Pointer that gets netCDF type.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
- * @return ::NC_EHDFERR ZARR returned error.
+ * @return ::NC_EHDFERR HDF5 returned error.
  * @return ::NC_EBADTYPID Type not found.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 get_netcdf_type(NC_FILE_INFO_T *h5, hid_t native_typeid,
@@ -1275,7 +1489,7 @@ get_netcdf_type(NC_FILE_INFO_T *h5, hid_t native_typeid,
 
     /* Maybe we already know about this type. */
     if (!equal)
-        if((type = ncz_rec_find_hdf_type(h5, native_typeid)))
+        if((type = nc4_rec_find_hdf_type(h5, native_typeid)))
         {
             *xtype = type->hdr.id;
             return NC_NOERR;
@@ -1294,15 +1508,15 @@ get_netcdf_type(NC_FILE_INFO_T *h5, hid_t native_typeid,
  * @param att Pointer that gets att info struct.
  *
  * @return ::NC_NOERR No error.
- * @return ::NC_EHDFERR ZARR returned error.
+ * @return ::NC_EHDFERR HDF5 returned error.
  * @return ::NC_EATTMETA Att metadata error.
  * @return ::NC_ENOMEM Out of memory.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
-read_ncz_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
+read_hdf5_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
 {
-    NCZ_ATT_INFO_T *ncz_att;
+    NC_HDF5_ATT_INFO_T *hdf5_att;
     hid_t spaceid = 0, file_typeid = 0;
     hsize_t dims[1] = {0}; /* netcdf attributes always 1-D. */
     size_t type_size;
@@ -1311,33 +1525,33 @@ read_ncz_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
     H5T_class_t att_class;
     int fixed_len_string = 0;
     size_t fixed_size = 0;
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
 
     assert(att && att->hdr.name && att->format_att_info);
     LOG((5, "%s: att->hdr.id %d att->hdr.name %s att->nc_typeid %d att->len %d",
          __func__, att->hdr.id, att->hdr.name, (int)att->nc_typeid, att->len));
 
-    /* Get NCZ-sepecific info stuct for this attribute. */
-    ncz_att = (NCZ_ATT_INFO_T *)att->format_att_info;
+    /* Get HDF5-sepecific info stuct for this attribute. */
+    hdf5_att = (NC_HDF5_ATT_INFO_T *)att->format_att_info;
 
     /* Get type of attribute in file. */
     if ((file_typeid = H5Aget_type(attid)) < 0)
         return NC_EATTMETA;
-    if ((ncz_att->native_hdf_typeid = H5Tget_native_type(file_typeid,
+    if ((hdf5_att->native_hdf_typeid = H5Tget_native_type(file_typeid,
                                                           H5T_DIR_DEFAULT)) < 0)
         BAIL(NC_EHDFERR);
-    if ((att_class = H5Tget_class(ncz_att->native_hdf_typeid)) < 0)
+    if ((att_class = H5Tget_class(hdf5_att->native_hdf_typeid)) < 0)
         BAIL(NC_EATTMETA);
     if (att_class == H5T_STRING &&
-        !H5Tis_variable_str(ncz_att->native_hdf_typeid))
+        !H5Tis_variable_str(hdf5_att->native_hdf_typeid))
     {
         fixed_len_string++;
-        if (!(fixed_size = H5Tget_size(ncz_att->native_hdf_typeid)))
+        if (!(fixed_size = H5Tget_size(hdf5_att->native_hdf_typeid)))
             BAIL(NC_EATTMETA);
     }
-    if ((stat = get_netcdf_type(grp->h5, ncz_att->native_hdf_typeid,
+    if ((retval = get_netcdf_type(grp->nc4_info, hdf5_att->native_hdf_typeid,
                                   &(att->nc_typeid))))
-        BAIL(stat);
+        BAIL(retval);
 
 
     /* Get len. */
@@ -1356,7 +1570,7 @@ read_ncz_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
         dims[0] = att_npoints;
     else if (att->nc_typeid == NC_CHAR)
     {
-        /* NC_CHAR attributes are written as a scalar in NCZ, of type
+        /* NC_CHAR attributes are written as a scalar in HDF5, of type
          * H5T_C_S1, of variable length. */
         if (att_ndims == 0)
         {
@@ -1378,16 +1592,16 @@ read_ncz_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
         if (att_ndims > 1)
             BAIL(NC_EATTMETA);
 
-        /* Check class of ZARR dataspace */
+        /* Check class of HDF5 dataspace */
         if ((space_class = H5Sget_simple_extent_type(spaceid)) < 0)
             BAIL(NC_EATTMETA);
 
-        /* Check for NULL ZARR dataspace class (should be weeded out
+        /* Check for NULL HDF5 dataspace class (should be weeded out
          * earlier) */
         if (H5S_NULL == space_class)
             BAIL(NC_EATTMETA);
 
-        /* check for SCALAR ZARR dataspace class */
+        /* check for SCALAR HDF5 dataspace class */
         if (H5S_SCALAR == space_class)
             dims[0] = 1;
         else /* Must be "simple" dataspace */
@@ -1405,21 +1619,21 @@ read_ncz_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
        attribute. */
     if (dims[0])
     {
-        if ((stat = ncz_get_typelen_mem(grp->h5, att->nc_typeid,
+        if ((retval = nc4_get_typelen_mem(grp->nc4_info, att->nc_typeid,
                                           &type_size)))
-            return stat;
+            return retval;
         if (att_class == H5T_VLEN)
         {
             if (!(att->vldata = malloc((unsigned int)(att->len * sizeof(hvl_t)))))
                 BAIL(NC_ENOMEM);
-            if (H5Aread(attid, ncz_att->native_hdf_typeid, att->vldata) < 0)
+            if (H5Aread(attid, hdf5_att->native_hdf_typeid, att->vldata) < 0)
                 BAIL(NC_EATTMETA);
         }
         else if (att->nc_typeid == NC_STRING)
         {
             if (!(att->stdata = calloc(att->len, sizeof(char *))))
                 BAIL(NC_ENOMEM);
-            /* For a fixed length ZARR string, the read requires
+            /* For a fixed length HDF5 string, the read requires
              * contiguous memory. Meanwhile, the netCDF API requires that
              * nc_free_string be called on string arrays, which would not
              * work if one contiguous memory block were used. So here I
@@ -1440,7 +1654,7 @@ read_ncz_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
                     BAIL(NC_ENOMEM);
 
                 /* Read the fixed-len strings as one big block. */
-                if (H5Aread(attid, ncz_att->native_hdf_typeid, contig_buf) < 0) {
+                if (H5Aread(attid, hdf5_att->native_hdf_typeid, contig_buf) < 0) {
                     free(contig_buf);
                     BAIL(NC_EATTMETA);
                 }
@@ -1465,7 +1679,7 @@ read_ncz_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
             else
             {
                 /* Read variable-length string atts. */
-                if (H5Aread(attid, ncz_att->native_hdf_typeid, att->stdata) < 0)
+                if (H5Aread(attid, hdf5_att->native_hdf_typeid, att->stdata) < 0)
                     BAIL(NC_EATTMETA);
             }
         }
@@ -1473,7 +1687,7 @@ read_ncz_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
         {
             if (!(att->data = malloc((unsigned int)(att->len * type_size))))
                 BAIL(NC_ENOMEM);
-            if (H5Aread(attid, ncz_att->native_hdf_typeid, att->data) < 0)
+            if (H5Aread(attid, hdf5_att->native_hdf_typeid, att->data) < 0)
                 BAIL(NC_EATTMETA);
         }
     }
@@ -1490,11 +1704,11 @@ exit:
         BAIL2(NC_EHDFERR);
     if (spaceid > 0 && H5Sclose(spaceid) < 0)
         BAIL2(NC_EHDFERR);
-    return stat;
+    return retval;
 }
 
 /**
- * @internal Wrap ZARR allocated memory free operations
+ * @internal Wrap HDF5 allocated memory free operations
  *
  * @param memory Pointer to memory to be freed.
  *
@@ -1502,7 +1716,7 @@ exit:
  * @author Dennis Heimbigner
  */
 static void
-nczfree(void* memory)
+hdf5free(void* memory)
 {
 #ifndef JNA
     /* On Windows using the microsoft runtime, it is an error
@@ -1510,40 +1724,38 @@ nczfree(void* memory)
 #ifdef HAVE_H5FREE_MEMORY
     if(memory != NULL) H5free_memory(memory);
 #else
-#ifndef _WIN32
+#ifndef _MSC_VER
     if(memory != NULL) free(memory);
 #endif
 #endif
 #endif
 }
-#endif /*LOOK*/
 
-#ifdef LOOK
 /**
- * @internal Read information about a user defined type from the NCZ
+ * @internal Read information about a user defined type from the HDF5
  * file, and stash it in the group's list of types.
  *
  * @param grp Pointer to group info struct.
- * @param hdf_typeid ZARR type ID.
+ * @param hdf_typeid HDF5 type ID.
  * @param type_name Pointer that gets the type name.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
- * @return ::NC_EHDFERR ZARR returned error.
+ * @return ::NC_EHDFERR HDF5 returned error.
  * @return ::NC_EBADTYPID Type not found.
  * @return ::NC_ENOMEM Out of memory.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static int
 read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
 {
     NC_TYPE_INFO_T *type;
-    NCZ_TYPE_INFO_T *ncz_type;
+    NC_HDF5_TYPE_INFO_T *hdf5_type;
     H5T_class_t class;
     hid_t native_typeid;
     size_t type_size;
     int nmembers;
-    int stat;
+    int retval;
 
     assert(grp && type_name);
 
@@ -1560,23 +1772,23 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
     LOG((5, "type_size %d", type_size));
 
     /* Add to the list for this new type, and get a local pointer to it. */
-    if ((stat = ncz_type_list_add(grp, type_size, type_name, &type)))
-        return stat;
+    if ((retval = nc4_type_list_add(grp, type_size, type_name, &type)))
+        return retval;
 
-    /* Allocate storage for NCZ-specific type info. */
-    if (!(ncz_type = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
+    /* Allocate storage for HDF5-specific type info. */
+    if (!(hdf5_type = calloc(1, sizeof(NC_HDF5_TYPE_INFO_T))))
         return NC_ENOMEM;
-    type->format_type_info = ncz_type;
+    type->format_type_info = hdf5_type;
 
-    /* Remember NCZ-specific type info. */
-    ncz_type->hdf_typeid = hdf_typeid;
-    ncz_type->native_hdf_typeid = native_typeid;
+    /* Remember HDF5-specific type info. */
+    hdf5_type->hdf_typeid = hdf_typeid;
+    hdf5_type->native_hdf_typeid = native_typeid;
 
     /* Remember we have committed this type. */
     type->committed = NC_TRUE;
 
     /* Increment number of objects using ID. */
-    if (H5Iinc_ref(ncz_type->hdf_typeid) < 0)
+    if (H5Iinc_ref(hdf5_type->hdf_typeid) < 0)
         return NC_EHDFERR;
 
     /* What is the class of this type, compound, vlen, etc. */
@@ -1625,7 +1837,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
             /* Get the name of the member.*/
             member_name = H5Tget_member_name(native_typeid, m);
             if (!member_name || strlen(member_name) > NC_MAX_NAME) {
-                stat = NC_EBADNAME;
+                retval = NC_EBADNAME;
                 break;
             }
 #ifdef JNA
@@ -1657,29 +1869,29 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
                     dim_size[d] = dims[d];
 
                 /* What is the netCDF typeid of this member? */
-                if ((stat = get_netcdf_type(grp->h5, H5Tget_super(member_hdf_typeid),
+                if ((retval = get_netcdf_type(grp->nc4_info, H5Tget_super(member_hdf_typeid),
                                               &member_xtype)))
-                    return stat;
+                    return retval;
 
                 /* Add this member to our list of fields in this compound type. */
-                if ((stat = ncz_field_list_add(type, member_name, member_offset,
+                if ((retval = nc4_field_list_add(type, member_name, member_offset,
                                                  member_xtype, ndims, dim_size)))
-                    return stat;
+                    return retval;
             }
             else
             {
                 /* What is the netCDF typeid of this member? */
-                if ((stat = get_netcdf_type(grp->h5, member_native_typeid,
+                if ((retval = get_netcdf_type(grp->nc4_info, member_native_typeid,
                                               &member_xtype)))
-                    return stat;
+                    return retval;
 
                 /* Add this member to our list of fields in this compound type. */
-                if ((stat = ncz_field_list_add(type, member_name, member_offset,
+                if ((retval = nc4_field_list_add(type, member_name, member_offset,
                                                  member_xtype, 0, NULL)))
-                    return stat;
+                    return retval;
             }
 
-            nczfree(member_name);
+            hdf5free(member_name);
         }
     }
     break;
@@ -1713,9 +1925,9 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
                 return NC_EHDFERR;
 
             /* What is the netcdf corresponding type. */
-            if ((stat = get_netcdf_type(grp->h5, base_hdf_typeid,
+            if ((retval = get_netcdf_type(grp->nc4_info, base_hdf_typeid,
                                           &base_nc_type)))
-                return stat;
+                return retval;
             LOG((5, "base_hdf_typeid 0x%x type_size %d base_nc_type %d",
                  base_hdf_typeid, type_size, base_nc_type));
 
@@ -1750,9 +1962,9 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
         if (!(type_size = H5Tget_size(base_hdf_typeid)))
             return NC_EHDFERR;
         /* What is the netcdf corresponding type. */
-        if ((stat = get_netcdf_type(grp->h5, base_hdf_typeid,
+        if ((retval = get_netcdf_type(grp->nc4_info, base_hdf_typeid,
                                       &base_nc_type)))
-            return stat;
+            return retval;
         LOG((5, "base_hdf_typeid 0x%x type_size %d base_nc_type %d",
              base_hdf_typeid, type_size, base_nc_type));
 
@@ -1772,7 +1984,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
         /* Read each name and value defined in the enum. */
         for (i = 0; i < nmembers; i++)
         {
-            /* Get the name and value from NCZ. */
+            /* Get the name and value from HDF5. */
             if (!(member_name = H5Tget_member_name(hdf_typeid, i)))
                 return NC_EHDFERR;
 
@@ -1788,11 +2000,11 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
                 return NC_EHDFERR;
 
             /* Insert new field into this type's list of fields. */
-            if ((stat = ncz_enum_member_add(type, type->size,
+            if ((retval = nc4_enum_member_add(type, type->size,
                                               member_name, value)))
-                return stat;
+                return retval;
 
-            nczfree(member_name);
+            hdf5free(member_name);
         }
         free(value);
     }
@@ -1802,23 +2014,23 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
         LOG((0, "unknown class"));
         return NC_EBADCLASS;
     }
-    return stat;
+    return retval;
 }
 
 /**
  * @internal Callback function for reading attributes. This is used
  * for both global and variable attributes.
  *
- * @param loc_id ZARR attribute ID.
+ * @param loc_id HDF5 attribute ID.
  * @param att_name Name of the attrigute.
- * @param ainfo ZARR info struct for attribute.
+ * @param ainfo HDF5 info struct for attribute.
  * @param att_data Pointer to an att_iter_info struct, which contains
  * pointers to the NC_GRP_INFO_T and (for variable attributes) the
  * NC_VAR_INFO_T. For global atts the var pointer is NULL.
  *
  * @return ::NC_NOERR No error. Iteration continues.
  * @return ::-1 Error. Stop iteration.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 static herr_t
 att_read_callbk(hid_t loc_id, const char *att_name, const H5A_info_t *ainfo,
@@ -1829,7 +2041,7 @@ att_read_callbk(hid_t loc_id, const char *att_name, const H5A_info_t *ainfo,
     NC_ATT_INFO_T *att;
     NCindex *list;
     att_iter_info *att_info = (att_iter_info *)att_data;
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
 
     /* Determin what list is being added to. */
     list = att_info->var ? att_info->var->att : att_info->grp->att;
@@ -1842,7 +2054,7 @@ att_read_callbk(hid_t loc_id, const char *att_name, const H5A_info_t *ainfo,
     {
         /* Only relevant for groups, not vars. */
         if (!att_info->var)
-            att_info->grp->h5->cmode |= NC_CLASSIC_MODEL;
+            att_info->grp->nc4_info->cmode |= NC_CLASSIC_MODEL;
         return NC_NOERR;
     }
 
@@ -1851,11 +2063,11 @@ att_read_callbk(hid_t loc_id, const char *att_name, const H5A_info_t *ainfo,
         return NC_NOERR;
 
     /* Add to the end of the list of atts for this var. */
-    if ((stat = ncz_att_list_add(list, att_name, &att)))
+    if ((retval = nc4_att_list_add(list, att_name, &att)))
         BAIL(-1);
 
-    /* Allocate storage for the ZARR specific att info. */
-    if (!(att->format_att_info = calloc(1, sizeof(NCZ_ATT_INFO_T))))
+    /* Allocate storage for the HDF5 specific att info. */
+    if (!(att->format_att_info = calloc(1, sizeof(NC_HDF5_ATT_INFO_T))))
         BAIL(-1);
 
     /* Open the att by name. */
@@ -1865,30 +2077,29 @@ att_read_callbk(hid_t loc_id, const char *att_name, const H5A_info_t *ainfo,
 
     /* Read the rest of the info about the att,
      * including its values. */
-    if ((stat = read_ncz_att(att_info->grp, attid, att)))
-        BAIL(stat);
+    if ((retval = read_hdf5_att(att_info->grp, attid, att)))
+        BAIL(retval);
 
     if (att)
         att->created = NC_TRUE;
 
 exit:
-    if (stat == NC_EBADTYPID)
+    if (retval == NC_EBADTYPID)
     {
         /* NC_EBADTYPID will be normally converted to NC_NOERR so that
            the parent iterator does not fail. */
-        stat = ncz_att_list_del(list, att);
+        retval = nc4_att_list_del(list, att);
         att = NULL;
     }
     if (attid > 0 && H5Aclose(attid) < 0)
-        stat = -1;
+        retval = -1;
 
-    /* Since this is a ZARR iterator callback, return -1 for any error
+    /* Since this is a HDF5 iterator callback, return -1 for any error
      * to stop iteration. */
-    if (stat)
-        stat = -1;
-    return stat;
+    if (retval)
+        retval = -1;
+    return retval;
 }
-#endif /*LOOK*/
 
 /**
  * @internal This function reads all the attributes of a variable or
@@ -1899,15 +2110,13 @@ exit:
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EATTMETA Some error occured reading attributes.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett
  */
 int
-ncz_read_atts(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
+nc4_read_atts(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 {
     att_iter_info att_info;         /* Custom iteration information */
-#ifdef LOOK
-    hid_t locid; /* location to read atts from. */
-#endif
+    hid_t locid; /* HDF5 location to read atts from. */
 
     /* Check inputs. */
     assert(grp);
@@ -1916,9 +2125,9 @@ ncz_read_atts(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
     att_info.var = var;
     att_info.grp = grp;
 
-    /* Determine where to read from in the ZARR file. */
-    locid = var ? ((NCZ_VAR_INFO_T *)(var->format_var_info))->hdf_datasetid :
-        ((NCZ_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid;
+    /* Determine where to read from in the HDF5 file. */
+    locid = var ? ((NC_HDF5_VAR_INFO_T *)(var->format_var_info))->hdf_datasetid :
+        ((NC_HDF5_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid;
 
     /* Now read all the attributes at this location, ignoring special
      * netCDF hidden attributes. */
@@ -1935,31 +2144,168 @@ ncz_read_atts(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
     return NC_NOERR;
 }
 
-#ifdef LOOK
 /**
- * @internal Read a dataset. This function is called when
- * read_ncz_obj() encounters a  dataset when opening a file.
+ * @internal This function is called by read_dataset() when a
+ * dimension scale dataset is encountered. It reads in the dimension
+ * data (creating a new NC_DIM_INFO_T object), and also checks to see
+ * if this is a dimension without a variable - that is, a coordinate
+ * dimension which does not have any coordinate data.
  *
  * @param grp Pointer to group info struct.
- * @param datasetid ZARR dataset ID.
+ * @param datasetid The HDF5 dataset ID.
+ * @param obj_name The HDF5 object name.
+ * @param statbuf HDF5 status buffer.
+ * @param scale_size Size of dimension scale.
+ * @param max_scale_size Maximum size of dim scale.
+ * @param dim Pointer to pointer that gets new dim info struct.
+ *
+ * @returns ::NC_NOERR No error.
+ * @return ::NC_EHDFERR HDF5 returned error.
+ * @author Ed Hartnett
+ * [Candidate for libsrc4]
+ */
+static int
+read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
+           const H5G_stat_t *statbuf, hsize_t scale_size,
+           hsize_t max_scale_size, NC_DIM_INFO_T **dim)
+{
+    NC_DIM_INFO_T *new_dim; /* Dimension added to group */
+    NC_HDF5_DIM_INFO_T *new_hdf5_dim; /* HDF5-specific dim info. */
+    char dimscale_name_att[NC_MAX_NAME + 1] = "";    /* Dimscale name, for checking if dim without var */
+    htri_t attr_exists = -1; /* Flag indicating hidden attribute exists */
+    hid_t attid = -1; /* ID of hidden attribute (to store dim ID) */
+    int dimscale_created = 0; /* Remember if a dimension was created (for error recovery) */
+    short initial_next_dimid = grp->nc4_info->next_dimid;/* Retain for error recovery */
+    size_t len = 0;
+    int too_long = NC_FALSE;
+    int assigned_id = -1;
+    int retval = NC_NOERR;
+
+    assert(grp && dim);
+
+    /* Does this dataset have a hidden attribute that tells us its
+     * dimid? If so, read it. */
+    if ((attr_exists = H5Aexists(datasetid, NC_DIMID_ATT_NAME)) < 0)
+        BAIL(NC_EHDFERR);
+    if (attr_exists)
+    {
+        if ((attid = H5Aopen_name(datasetid, NC_DIMID_ATT_NAME)) < 0)
+            BAIL(NC_EHDFERR);
+
+        if (H5Aread(attid, H5T_NATIVE_INT, &assigned_id) < 0)
+            BAIL(NC_EHDFERR);
+
+        /* Check if scale's dimid should impact the group's next dimid */
+        if (assigned_id >= grp->nc4_info->next_dimid)
+            grp->nc4_info->next_dimid = assigned_id + 1;
+    }
+
+    /* Get dim size. On machines with a size_t of less than 8 bytes, it
+     * is possible for a dimension to be too long. */
+    if (SIZEOF_SIZE_T < 8 && scale_size > NC_MAX_UINT)
+    {
+        len = NC_MAX_UINT;
+        too_long = NC_TRUE;
+    }
+    else
+        len = scale_size;
+
+    /* Create the dimension for this scale. */
+    if ((retval = nc4_dim_list_add(grp, obj_name, len, assigned_id, &new_dim)))
+        BAIL(retval);
+    new_dim->too_long = too_long;
+
+    /* Create struct for HDF5-specific dim info. */
+    if (!(new_dim->format_dim_info = calloc(1, sizeof(NC_HDF5_DIM_INFO_T))))
+        BAIL(NC_ENOMEM);
+    new_hdf5_dim = (NC_HDF5_DIM_INFO_T *)new_dim->format_dim_info;
+
+    dimscale_created++;
+
+    /* Remember these 4 values to uniquely identify this dataset in the
+     * HDF5 file. */
+    new_hdf5_dim->hdf5_objid.fileno[0] = statbuf->fileno[0];
+    new_hdf5_dim->hdf5_objid.fileno[1] = statbuf->fileno[1];
+    new_hdf5_dim->hdf5_objid.objno[0] = statbuf->objno[0];
+    new_hdf5_dim->hdf5_objid.objno[1] = statbuf->objno[1];
+
+    /* If the dimscale has an unlimited dimension, then this dimension
+     * is unlimited. */
+    if (max_scale_size == H5S_UNLIMITED)
+        new_dim->unlimited = NC_TRUE;
+
+    /* If the scale name is set to DIM_WITHOUT_VARIABLE, then this is a
+     * dimension, but not a variable. (If get_scale_name returns an
+     * error, just move on, there's no NAME.) */
+    if (H5DSget_scale_name(datasetid, dimscale_name_att, NC_MAX_NAME) >= 0)
+    {
+        if (!strncmp(dimscale_name_att, DIM_WITHOUT_VARIABLE,
+                     strlen(DIM_WITHOUT_VARIABLE)))
+        {
+            if (new_dim->unlimited)
+            {
+                size_t len = 0, *lenp = &len;
+
+                /* Find actual length by checking all datasets that use
+                 * this dim. */
+                if ((retval = nc4_find_dim_len(grp, new_dim->hdr.id, &lenp)))
+                    BAIL(retval);
+                new_dim->len = *lenp;
+            }
+
+            /* Hold open the dataset, since the dimension doesn't have a
+             * coordinate variable */
+            new_hdf5_dim->hdf_dimscaleid = datasetid;
+            H5Iinc_ref(new_hdf5_dim->hdf_dimscaleid);        /* Increment number of objects using ID */
+        }
+    }
+
+    /* Set the dimension created. */
+    *dim = new_dim;
+
+exit:
+    /* Close the hidden attribute, if it was opened. */
+    if (attid > 0 && H5Aclose(attid) < 0)
+        BAIL2(NC_EHDFERR);
+
+    /* On error, undo any dimscale creation */
+    if (retval && dimscale_created)
+    {
+        /* free the dimension */
+        if ((retval = nc4_dim_list_del(grp, new_dim)))
+            BAIL2(retval);
+
+        /* Reset the group's information */
+        grp->nc4_info->next_dimid = initial_next_dimid;
+    }
+
+    return retval;
+}
+
+/**
+ * @internal Read a HDF5 dataset. This function is called when
+ * read_hdf5_obj() encounters an HDF5 dataset when opening a file.
+ *
+ * @param grp Pointer to group info struct.
+ * @param datasetid HDF5 dataset ID.
  * @param obj_name Object name.
- * @param statbuf ZARR status buffer.
+ * @param statbuf HDF5 status buffer.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
- * @return ::NC_EHDFERR ZARR returned error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @return ::NC_EHDFERR HDF5 returned error.
+ * @author Ed Hartnett
  */
 static int
 read_dataset(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
              const H5G_stat_t *statbuf)
 {
     NC_DIM_INFO_T *dim = NULL;   /* Dimension created for scales */
-    NCZ_DIM_INFO_T *ncz_dim;
+    NC_HDF5_DIM_INFO_T *hdf5_dim;
     hid_t spaceid = 0;
     int ndims;
     htri_t is_scale;
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
 
     /* Get the dimension information for this dataset. */
     if ((spaceid = H5Dget_space(datasetid)) < 0)
@@ -1980,50 +2326,50 @@ read_dataset(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
             BAIL(NC_EHDFERR);
 
         /* Read the scale information. */
-        if ((stat = read_scale(grp, datasetid, obj_name, statbuf, dims[0],
+        if ((retval = read_scale(grp, datasetid, obj_name, statbuf, dims[0],
                                  max_dims[0], &dim)))
-            BAIL(stat);
-        ncz_dim = (NCZ_DIM_INFO_T *)dim->format_dim_info;
+            BAIL(retval);
+        hdf5_dim = (NC_HDF5_DIM_INFO_T *)dim->format_dim_info;
     }
 
     /* Add a var to the linked list, and get its metadata,
      * unless this is one of those funny dimscales that are a
      * dimension in netCDF but not a variable. (Spooky!) */
-    if (!dim || (dim && !ncz_dim->hdf_dimscaleid))
-        if ((stat = read_var(grp, datasetid, obj_name, ndims, dim)))
-            BAIL(stat);
+    if (!dim || (dim && !hdf5_dim->hdf_dimscaleid))
+        if ((retval = read_var(grp, datasetid, obj_name, ndims, dim)))
+            BAIL(retval);
 
 exit:
     if (spaceid && H5Sclose(spaceid) <0)
-        BAIL2(stat);
+        BAIL2(retval);
 
-    return stat;
+    return retval;
 }
 
 /**
- * @internal Add ZARR object info for a group to a list for later
+ * @internal Add HDF5 object info for a group to a list for later
  * processing. We do this when we encounter groups, so that the parent
  * group can be fully processed before the child groups.
  *
  * @param udata Pointer to the user data, in this case a
  * user_data_t.
- * @param oinfo The ZARR object info.
+ * @param oinfo The HDF5 object info.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_ENOMEM Out of memory.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 static int
-oinfo_list_add(user_data_t *udata, const ncz_obj_info_t *oinfo)
+oinfo_list_add(user_data_t *udata, const hdf5_obj_info_t *oinfo)
 {
-    ncz_obj_info_t *new_oinfo;    /* Pointer to info for object */
+    hdf5_obj_info_t *new_oinfo;    /* Pointer to info for object */
 
     /* Allocate memory for the object's info. */
-    if (!(new_oinfo = calloc(1, sizeof(ncz_obj_info_t))))
+    if (!(new_oinfo = calloc(1, sizeof(hdf5_obj_info_t))))
         return NC_ENOMEM;
 
     /* Make a copy of the object's info. */
-    memcpy(new_oinfo, oinfo, sizeof(ncz_obj_info_t));
+    memcpy(new_oinfo, oinfo, sizeof(hdf5_obj_info_t));
 
     /* Add it to the list for future processing. */
     nclistpush(udata->grps, new_oinfo);
@@ -2032,32 +2378,32 @@ oinfo_list_add(user_data_t *udata, const ncz_obj_info_t *oinfo)
 }
 
 /**
- * @internal Callback function called by H5Literate() for every NCZ
+ * @internal Callback function called by H5Literate() for every HDF5
  * object in the file.
  *
- * @note This function is called by ZARR so does not return a netCDF
+ * @note This function is called by HDF5 so does not return a netCDF
  * error code.
  *
- * @param grpid ZARR group ID.
+ * @param grpid HDF5 group ID.
  * @param name Name of object.
  * @param info Info struct for object.
  * @param _op_data Pointer to user data, a user_data_t. It will
  * contain a pointer to the current group and a list of
- * ncz_obj_info_t. Any child groups will get their ncz_obj_info
+ * hdf5_obj_info_t. Any child groups will get their hdf5_obj_info
  * added to this list.
  *
  * @return H5_ITER_CONT No error, continue iteration.
- * @return H5_ITER_ERROR ZARR error, stop iteration.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @return H5_ITER_ERROR HDF5 error, stop iteration.
+ * @author Ed Hartnett
  */
 static int
-read_ncz_obj(hid_t grpid, const char *name, const H5L_info_t *info,
+read_hdf5_obj(hid_t grpid, const char *name, const H5L_info_t *info,
               void *_op_data)
 {
     /* Pointer to user data for callback */
     user_data_t *udata = (user_data_t *)_op_data;
-    ncz_obj_info_t oinfo;    /* Pointer to info for object */
-    int stat = H5_ITER_CONT;
+    hdf5_obj_info_t oinfo;    /* Pointer to info for object */
+    int retval = H5_ITER_CONT;
 
     /* Open this critter. */
     if ((oinfo.oid = H5Oopen(grpid, name, H5P_DEFAULT)) < 0)
@@ -2087,17 +2433,17 @@ read_ncz_obj(hid_t grpid, const char *name, const H5L_info_t *info,
 
         /* Learn all about this dataset, which may be a dimscale
          * (i.e. dimension metadata), or real data. */
-        if ((stat = read_dataset(udata->grp, oinfo.oid, oinfo.oname,
+        if ((retval = read_dataset(udata->grp, oinfo.oid, oinfo.oname,
                                    &oinfo.statbuf)))
         {
             /* Allow NC_EBADTYPID to transparently skip over datasets
              * which have a datatype that netCDF-4 doesn't undertand
              * (currently), but break out of iteration for other
              * errors. */
-            if (stat != NC_EBADTYPID)
+            if (retval != NC_EBADTYPID)
                 BAIL(H5_ITER_ERROR);
             else
-                stat = H5_ITER_CONT;
+                retval = H5_ITER_CONT;
         }
 
         /* Close the object */
@@ -2123,17 +2469,15 @@ read_ncz_obj(hid_t grpid, const char *name, const H5L_info_t *info,
     }
 
 exit:
-    if (stat)
+    if (retval)
     {
         if (oinfo.oid > 0 && H5Oclose(oinfo.oid) < 0)
             BAIL2(H5_ITER_ERROR);
     }
 
-    return (stat);
+    return (retval);
 }
-#endif /*LOOK*/
 
-#ifef LOOK
 /**
  * @internal This is the main function to recursively read all the
  * metadata for the file. The links in the 'grp' are iterated over and
@@ -2146,70 +2490,71 @@ exit:
  * @param grp Pointer to a group.
  *
  * @return ::NC_NOERR No error.
- * @return ::NC_EHDFERR ZARR error.
+ * @return ::NC_EHDFERR HDF5 error.
  * @return ::NC_ENOMEM Out of memory.
  * @return ::NC_ECANTWRITE File must be opened read-only.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Ed Hartnett, Dennis Heimbigner
  */
 static int
 rec_read_metadata(NC_GRP_INFO_T *grp)
 {
-    NCZ_GRP_INFO_T *ncz_grp;
+    NC_HDF5_GRP_INFO_T *hdf5_grp;
     user_data_t udata;         /* User data for iteration */
-    ncz_obj_info_t *oinfo;    /* Pointer to info for object */
+    hdf5_obj_info_t *oinfo;    /* Pointer to info for object */
     hsize_t idx = 0;
     hid_t pid = -1;
     unsigned crt_order_flags = 0;
     H5_index_t iter_index;
-    int i, stat = NC_NOERR;
+    int i, retval = NC_NOERR;
 
     assert(grp && grp->hdr.name && grp->format_grp_info);
     LOG((3, "%s: grp->hdr.name %s", __func__, grp->hdr.name));
 
-    /* Get NCZ-specific group info. */
-    ncz_grp = (NCZ_GRP_INFO_T*)grp->format_grp_info;
+    /* Get HDF5-specific group info. */
+    hdf5_grp = (NC_HDF5_GRP_INFO_T *)grp->format_grp_info;
 
-    /* Open this ZARR group and retain its grpid. It will remain open
-     * with ZARR until this file is nc_closed. */
-    if (!ncz_grp->hdf_grpid)
+    /* Open this HDF5 group and retain its grpid. It will remain open
+     * with HDF5 until this file is nc_closed. */
+    if (!hdf5_grp->hdf_grpid)
     {
         if (grp->parent)
         {
             /* This is a child group. */
-            NCZ_GRP_INFO_T *parent_ncz_grp;
-            parent_ncz_grp = (NCZ_GRP_INFO_T*)grp->parent->format_grp_info;
+            NC_HDF5_GRP_INFO_T *parent_hdf5_grp;
+            parent_hdf5_grp = (NC_HDF5_GRP_INFO_T *)grp->parent->format_grp_info;
 
-            if ((ncz_grp->hdf_grpid = H5Gopen2(parent_ncz_grp->hdf_grpid,
+            if ((hdf5_grp->hdf_grpid = H5Gopen2(parent_hdf5_grp->hdf_grpid,
                                                 grp->hdr.name, H5P_DEFAULT)) < 0)
                 BAIL(NC_EHDFERR);
         }
         else
         {
             /* This is the root group. */
-            NCZ_FILE_INFO *h5;
-            h5 = (NCZ_FILE_INFO *)grp->h5->format_file_info;
+            NC_HDF5_FILE_INFO_T *hdf5_info;
+            hdf5_info = (NC_HDF5_FILE_INFO_T *)grp->nc4_info->format_file_info;
 
-            if ((ncz_grp->hdf_grpid = H5Gopen2(h5->hdfid, "/",
+            if ((hdf5_grp->hdf_grpid = H5Gopen2(hdf5_info->hdfid, "/",
                                                 H5P_DEFAULT)) < 0)
                 BAIL(NC_EHDFERR);
         }
     }
-    assert(ncz_grp->hdf_grpid > 0);
+    assert(hdf5_grp->hdf_grpid > 0);
 
     /* Get the group creation flags, to check for creation ordering. */
-    if ((pid = H5Gget_create_plist(ncz_grp->hdf_grpid)) < 0)
+    if ((pid = H5Gget_create_plist(hdf5_grp->hdf_grpid)) < 0)
         BAIL(NC_EHDFERR);
     if (H5Pget_link_creation_order(pid, &crt_order_flags) < 0)
         BAIL(NC_EHDFERR);
+
     /* Set the iteration index to use. */
     if (crt_order_flags & H5P_CRT_ORDER_TRACKED)
         iter_index = H5_INDEX_CRT_ORDER;
     else
     {
-        NC_FILE_INFO_T *h5 = grp->h5;
+        NC_FILE_INFO_T *h5 = grp->nc4_info;
 
         /* Without creation ordering, file must be read-only. */
-        if (!zinfo->no_write)
+        if (!h5->no_write)
             BAIL(NC_ECANTWRITE);
 
         iter_index = H5_INDEX_NAME;
@@ -2222,10 +2567,10 @@ rec_read_metadata(NC_GRP_INFO_T *grp)
     /* Iterate over links in this group, building lists for the types,
      * datasets and groups encountered. A pointer to udata will be
      * passed as a parameter to the callback function
-     * read_ncz_obj(). (I have also tried H5Oiterate(), but it is much
+     * read_hdf5_obj(). (I have also tried H5Oiterate(), but it is much
      * slower iterating over the same file - Ed.) */
-    if (H5Literate(ncz_grp->hdf_grpid, iter_index, H5_ITER_INC, &idx,
-                   read_ncz_obj, (void *)&udata) < 0)
+    if (H5Literate(hdf5_grp->hdf_grpid, iter_index, H5_ITER_INC, &idx,
+                   read_hdf5_obj, (void *)&udata) < 0)
         BAIL(NC_EHDFERR);
 
     /* Process the child groups found. (Deferred until now, so that the
@@ -2234,20 +2579,20 @@ rec_read_metadata(NC_GRP_INFO_T *grp)
     for (i = 0; i < nclistlength(udata.grps); i++)
     {
         NC_GRP_INFO_T *child_grp;
-        oinfo = (ncz_obj_info_t*)nclistget(udata.grps, i);
+        oinfo = (hdf5_obj_info_t*)nclistget(udata.grps, i);
 
         /* Add group to file's hierarchy. */
-        if ((stat = ncz_grp_list_add(grp->h5, grp, oinfo->oname,
+        if ((retval = nc4_grp_list_add(grp->nc4_info, grp, oinfo->oname,
                                        &child_grp)))
-            BAIL(stat);
+            BAIL(retval);
 
-        /* Allocate storage for NCZ-specific group info. */
-        if (!(child_grp->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
+        /* Allocate storage for HDF5-specific group info. */
+        if (!(child_grp->format_grp_info = calloc(1, sizeof(NC_HDF5_GRP_INFO_T))))
             return NC_ENOMEM;
 
         /* Recursively read the child group's metadata. */
-        if ((stat = rec_read_metadata(child_grp)))
-            BAIL(stat);
+        if ((retval = rec_read_metadata(child_grp)))
+            BAIL(retval);
     }
 
     /* When reading existing file, mark all variables as written. */
@@ -2261,14 +2606,13 @@ exit:
     /* Clean up list of child groups. */
     for (i = 0; i < nclistlength(udata.grps); i++)
     {
-        oinfo = (ncz_obj_info_t *)nclistget(udata.grps, i);
-        /* Close the open ZARR object. */
+        oinfo = (hdf5_obj_info_t *)nclistget(udata.grps, i);
+        /* Close the open HDF5 object. */
         if (H5Oclose(oinfo->oid) < 0)
             BAIL2(NC_EHDFERR);
         free(oinfo);
     }
     nclistfree(udata.grps);
 
-    return stat;
+    return retval;
 }
-#endif /*LOOK*/

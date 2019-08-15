@@ -1,7 +1,6 @@
 /* Copyright 2003-2018, University Corporation for Atmospheric
  * Research. See COPYRIGHT file for copying and redistribution
  * conditions. */
-
 /**
  * @file
  * @internal This file handles ZARR attributes.
@@ -9,7 +8,8 @@
  * @author Dennis Heimbigner, Ed Hartnett
  */
 
-#include "zincludes.h"
+#include "config.h"
+#include "nczinternal.h"
 
 /**
  * @internal Get the attribute list for either a varid or NC_GLOBAL
@@ -25,19 +25,18 @@
  * [Candidate for moving to libsrc4]
  */
 static int
-getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist)
+getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp,
+           NCindex **attlist)
 {
     int retval;
-    NC_FILE_INFO_T* file = grp->nc4_info;
-    NCZ_FILE_INFO_T* zinfo = file->format_file_info;
 
-    assert(grp && attlist && file && zinfo);
+    assert(grp && attlist);
 
     if (varid == NC_GLOBAL)
     {
         /* Do we need to read the atts? */
         if (!grp->atts_read)
-            if ((retval = NCZ_read_atts(zinfo, (NC_OBJ*)grp)))
+            if ((retval = ncz_read_atts(grp, NULL)))
                 return retval;
 
         if (varp)
@@ -54,7 +53,7 @@ getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlis
 
         /* Do we need to read the atts? */
         if (!var->atts_read)
-            if ((retval = NCZ_read_atts(zinfo, (NC_OBJ*)var)))
+            if ((retval = ncz_read_atts(grp, var)))
                 return retval;
 
         if (varp)
@@ -159,6 +158,7 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
     NC_ATT_INFO_T *att;
     NCindex *list;
     char norm_newname[NC_MAX_NAME + 1], norm_name[NC_MAX_NAME + 1];
+    hid_t datasetid = 0;
     int retval = NC_NOERR;
 
     if (!name || !newname)
@@ -172,7 +172,7 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
         return NC_EMAXNAME;
 
     /* Find info for this file, group, and h5 info. */
-    if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
+    if ((retval = ncz_find_grp_h5(ncid, &grp, &h5)))
         return retval;
     assert(h5 && grp);
 
@@ -181,7 +181,7 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
         return NC_EPERM;
 
     /* Check and normalize the name. */
-    if ((retval = nc4_check_name(newname, norm_newname)))
+    if ((retval = ncz_check_name(newname, norm_newname)))
         return retval;
 
     /* Get the list of attributes. */
@@ -194,7 +194,7 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
         return NC_ENAMEINUSE;
 
     /* Normalize name and find the attribute. */
-    if ((retval = nc4_normalize_name(name, norm_name)))
+    if ((retval = ncz_normalize_name(name, norm_name)))
         return retval;
 
     att = (NC_ATT_INFO_T*)ncindexlookup(list,norm_name);
@@ -212,13 +212,16 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
     {
         if (varid == NC_GLOBAL)
         {
-	    if((retval=NCZ_del_attr(h5, (NC_OBJ*)grp, name)))
-	        goto done;
+            if (H5Adelete(((NCZ_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid,
+                          att->hdr.name) < 0)
+                return NC_EHDFERR;
         }
         else
         {
-	    if((retval=NCZ_del_attr(h5, (NC_OBJ*)var, name)))
-		goto done;
+            if ((retval = ncz_open_var_grp2(grp, varid, &datasetid)))
+                return retval;
+            if (H5Adelete(datasetid, att->hdr.name) < 0)
+                return NC_EHDFERR;
         }
         att->created = NC_FALSE;
     }
@@ -238,7 +241,7 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
     /* Mark attributes on variable dirty, so they get written */
     if(var)
         var->attr_dirty = NC_TRUE;
-done:
+
     return retval;
 }
 
@@ -268,6 +271,7 @@ NCZ_del_att(int ncid, int varid, const char *name)
     NC_FILE_INFO_T *h5;
     NC_ATT_INFO_T *att;
     NCindex* attlist = NULL;
+    hid_t locid = 0;
     int i;
     size_t deletedid;
     int retval;
@@ -279,7 +283,7 @@ NCZ_del_att(int ncid, int varid, const char *name)
     LOG((2, "nc_del_att: ncid 0x%x varid %d name %s", ncid, varid, name));
 
     /* Find info for this file, group, and h5 info. */
-    if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
+    if ((retval = ncz_find_grp_h5(ncid, &grp, &h5)))
         return retval;
     assert(h5 && grp);
 
@@ -301,13 +305,11 @@ NCZ_del_att(int ncid, int varid, const char *name)
     if ((retval = getattlist(grp, varid, &var, &attlist)))
         return retval;
 
-#ifdef LOOK
     /* Determine the location id in the ZARR file. */
     if (varid == NC_GLOBAL)
         locid = ((NCZ_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid;
     else if (var->created)
         locid = ((NCZ_VAR_INFO_T *)(var->format_var_info))->hdf_datasetid;
-#endif
 
     /* Now find the attribute by name. */
     if (!(att = (NC_ATT_INFO_T*)ncindexlookup(attlist, name)))
@@ -316,17 +318,15 @@ NCZ_del_att(int ncid, int varid, const char *name)
     /* Delete it from the ZARR file, if it's been created. */
     if (att->created)
     {
-#ifdef LOOK
         assert(locid);
         if (H5Adelete(locid, att->hdr.name) < 0)
             return NC_EATTMETA;
-#endif
     }
 
     deletedid = att->hdr.id;
 
     /* Remove this attribute in this list */
-    if ((retval = nc4_att_list_del(attlist, att)))
+    if ((retval = ncz_att_list_del(attlist, att)))
         return retval;
 
     /* Renumber all attributes with higher indices. */
@@ -417,7 +417,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
     int ret;
     int ncid;
 
-    h5 = grp->nc4_info;
+    h5 = grp->ncz_info;
     nc = h5->controller;
     assert(nc && grp && h5);
 
@@ -449,7 +449,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
         return NC_EPERM;
 
     /* Check and normalize the name. */
-    if ((retval = nc4_check_name(name, norm_name)))
+    if ((retval = ncz_check_name(name, norm_name)))
         return retval;
 
     /* Check that a reserved att name is not being used improperly */
@@ -498,7 +498,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
         return NC_EBADTYPE;
 
     /* Get information about this type. */
-    if ((retval = nc4_get_typelen_mem(h5, file_type, &type_size)))
+    if ((retval = ncz_get_typelen_mem(h5, file_type, &type_size)))
         return retval;
 
     /* No character conversions are allowed. */
@@ -517,7 +517,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
     if (new_att)
     {
         LOG((3, "adding attribute %s to the list...", norm_name));
-        if ((ret = nc4_att_list_add(attlist, norm_name, &att)))
+        if ((ret = ncz_att_list_add(attlist, norm_name, &att)))
             BAIL(ret);
 
         /* Allocate storage for the ZARR specific att info. */
@@ -567,7 +567,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
             return NC_ELATEFILL;
 
         /* Get the length of the veriable data type. */
-        if ((retval = nc4_get_typelen_mem(grp->nc4_info, var->type_info->hdr.id,
+        if ((retval = ncz_get_typelen_mem(grp->ncz_info, var->type_info->hdr.id,
                                           &type_size)))
             return retval;
 
@@ -610,7 +610,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
 
             /* get the basetype and its size */
             basetype = var->type_info;
-            if ((retval = nc4_get_typelen_mem(grp->nc4_info, basetype->hdr.id, &basetypesize)))
+            if ((retval = ncz_get_typelen_mem(grp->ncz_info, basetype->hdr.id, &basetypesize)))
                 return retval;
             /* shallow clone the content of the vlen; shallow because it has only a temporary existence */
             fv_vlen->len = in_vlen->len;
@@ -645,7 +645,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
         nc_type type_class;    /* Class of attribute's type */
 
         /* Get class for this type. */
-        if ((retval = nc4_get_typeclass(h5, file_type, &type_class)))
+        if ((retval = ncz_get_typeclass(h5, file_type, &type_class)))
             return retval;
 
         assert(data);
@@ -656,11 +656,11 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
             size_t base_typelen;
 
             /* Get the type object for the attribute's type */
-            if ((retval = nc4_find_type(h5, file_type, &vltype)))
+            if ((retval = ncz_find_type(h5, file_type, &vltype)))
                 BAIL(retval);
 
             /* Retrieve the size of the base type */
-            if ((retval = nc4_get_typelen_mem(h5, vltype->u.v.base_nc_typeid, &base_typelen)))
+            if ((retval = ncz_get_typelen_mem(h5, vltype->u.v.base_nc_typeid, &base_typelen)))
                 BAIL(retval);
 
             vldata1 = data;
@@ -715,7 +715,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
             else
             {
                 /* Data types are like religions, in that one can convert.  */
-                if ((retval = nc4_convert_type(data, att->data, mem_type, file_type,
+                if ((retval = ncz_convert_type(data, att->data, mem_type, file_type,
                                                len, &range_error, NULL,
                                                (h5->cmode & NC_CLASSIC_MODEL))))
                     BAIL(retval);
@@ -768,7 +768,7 @@ NCZ_put_att(int ncid, int varid, const char *name, nc_type file_type,
     int ret;
 
     /* Find info for this file, group, and h5 info. */
-    if ((ret = nc4_find_grp_h5(ncid, &grp, &h5)))
+    if ((ret = ncz_find_nc_grp_h5(ncid, NULL, &grp, &h5)))
         return ret;
     assert(grp && h5);
 

@@ -2,7 +2,6 @@
 /* Copyright 2003-2019, University Corporation for Atmospheric
  * Research. See COPYRIGHT file for copying and redistribution
  * conditions.*/
-
 /**
  * @file
  * @internal This file handles the ZARR variable functions.
@@ -10,8 +9,10 @@
  * @author Dennis Heimbigner, Ed Hartnett
  */
 
-#include "zincludes.h"
-
+#include "config.h"
+#ifdef USE_NCZ
+#include <nczinternal.h>
+#endif
 #include <math.h> /* For pow() used below. */
 
 #ifdef LOGGING

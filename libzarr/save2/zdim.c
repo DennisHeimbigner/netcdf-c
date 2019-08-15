@@ -1,7 +1,6 @@
 /* Copyright 2003-2019, University Corporation for Atmospheric
  * Research. See the COPYRIGHT file for copying and redistribution
  * conditions. */
-
 /**
  * @file @internal This file is part of netcdf-4, a netCDF-like
  * interface for NCZ, or a ZARR backend for netCDF, depending on your
@@ -12,7 +11,8 @@
  * @author Dennis Heimbigner, Ed Hartnett
  */
 
-#include "zincludes.h"
+#include "config.h"
+#include "nczinternal.h"
 
 /**
  * @internal Dimensions are defined in attributes attached to the
@@ -45,15 +45,15 @@ NCZ_def_dim(int ncid, const char *name, size_t len, int *idp)
     NC_FILE_INFO_T *h5;
     NC_DIM_INFO_T *dim;
     char norm_name[NC_MAX_NAME + 1];
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
     int i;
 
     LOG((2, "%s: ncid 0x%x name %s len %d", __func__, ncid, name,
          (int)len));
 
     /* Find our global metadata structure. */
-    if ((stat = nc4_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
-        return stat;
+    if ((retval = ncz_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
+        return retval;
     assert(h5 && nc && grp);
 
     /* If the file is read-only, return an error. */
@@ -78,8 +78,8 @@ NCZ_def_dim(int ncid, const char *name, size_t len, int *idp)
     }
 
     /* Make sure this is a valid netcdf name. */
-    if ((stat = nc4_check_name(name, norm_name)))
-        return stat;
+    if ((retval = ncz_check_name(name, norm_name)))
+        return retval;
 
     /* For classic model: dim length has to fit in a 32-bit unsigned
      * int, as permitted for 64-bit offset format. */
@@ -96,13 +96,13 @@ NCZ_def_dim(int ncid, const char *name, size_t len, int *idp)
      * after checking all input data, so we only enter define mode if
      * input is good. */
     if (!(h5->flags & NC_INDEF))
-        if ((stat = NCZ_redef(ncid)))
-            return stat;
+        if ((retval = NCZ_redef(ncid)))
+            return retval;
 
     /* Add a dimension to the list. The ID must come from the file
      * information, since dimids are visible in more than one group. */
-    if ((stat = nc4_dim_list_add(grp, norm_name, len, -1, &dim)))
-        return stat;
+    if ((retval = ncz_dim_list_add(grp, norm_name, len, -1, &dim)))
+        return retval;
 
     /* Create struct for NCZ-specific dim info. */
     if (!(dim->format_dim_info = calloc(1, sizeof(NCZ_DIM_INFO_T))))
@@ -112,7 +112,7 @@ NCZ_def_dim(int ncid, const char *name, size_t len, int *idp)
     if (idp)
         *idp = dim->hdr.id;
 
-    return stat;
+    return retval;
 }
 
 /**
@@ -138,18 +138,18 @@ NCZ_inq_dim(int ncid, int dimid, char *name, size_t *lenp)
     NC_FILE_INFO_T *h5;
     NC_GRP_INFO_T *grp, *dim_grp;
     NC_DIM_INFO_T *dim;
-    int stat = NC_NOERR;
+    int ret = NC_NOERR;
 
     LOG((2, "%s: ncid 0x%x dimid %d", __func__, ncid, dimid));
 
     /* Find our global metadata structure. */
-    if ((stat = nc4_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
-        return stat;
+    if ((ret = ncz_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
+        return ret;
     assert(h5 && nc && grp);
 
     /* Find the dimension and its home group. */
-    if ((stat = nc4_find_dim(grp, dimid, &dim, &dim_grp)))
-        return stat;
+    if ((ret = ncz_find_dim(grp, dimid, &dim, &dim_grp)))
+        return ret;
     assert(dim);
 
     /* Return the dimension name, if the caller wants it. */
@@ -159,7 +159,6 @@ NCZ_inq_dim(int ncid, int dimid, char *name, size_t *lenp)
     /* Return the dimension length, if the caller wants it. */
     if (lenp)
     {
-#ifdef LOOK
         if (dim->unlimited)
         {
             /* Since this is an unlimited dimension, go to the file
@@ -167,15 +166,14 @@ NCZ_inq_dim(int ncid, int dimid, char *name, size_t *lenp)
                of records from all the vars that share this
                dimension. */
             *lenp = 0;
-            if ((stat = ncz_find_dim_len(dim_grp, dimid, &lenp)))
-                return stat;
+            if ((ret = ncz_find_dim_len(dim_grp, dimid, &lenp)))
+                return ret;
         }
         else
-#endif
         {
             if (dim->too_long)
             {
-                stat = NC_EDIMSIZE;
+                ret = NC_EDIMSIZE;
                 *lenp = NC_MAX_UINT;
             }
             else
@@ -183,7 +181,7 @@ NCZ_inq_dim(int ncid, int dimid, char *name, size_t *lenp)
         }
     }
 
-    return stat;
+    return ret;
 }
 
 /**
@@ -215,10 +213,10 @@ NCZ_rename_dim(int ncid, int dimid, const char *name)
 {
     NC_GRP_INFO_T *grp;
     NC_DIM_INFO_T *dim;
-    NCZ_DIM_INFO_T *zdim;
+    NCZ_DIM_INFO_T *ncz_dim;
     NC_FILE_INFO_T *h5;
     char norm_name[NC_MAX_NAME + 1];
-    int stat;
+    int retval;
 
     /* Note: name is new name */
     if (!name)
@@ -228,8 +226,8 @@ NCZ_rename_dim(int ncid, int dimid, const char *name)
          dimid, name));
 
     /* Find info for this file and group, and set pointer to each. */
-    if ((stat = nc4_find_grp_h5(ncid, &grp, &h5)))
-        return stat;
+    if ((retval = ncz_find_grp_h5(ncid, &grp, &h5)))
+        return retval;
     assert(h5 && grp);
 
     /* Trying to write to a read-only file? No way, Jose! */
@@ -237,18 +235,29 @@ NCZ_rename_dim(int ncid, int dimid, const char *name)
         return NC_EPERM;
 
     /* Make sure this is a valid netcdf name. */
-    if ((stat = nc4_check_name(name, norm_name)))
-        return stat;
+    if ((retval = ncz_check_name(name, norm_name)))
+        return retval;
 
     /* Get the original dim. */
-    if ((stat = nc4_find_dim(grp, dimid, &dim, NULL)))
-        return stat;
+    if ((retval = ncz_find_dim(grp, dimid, &dim, NULL)))
+        return retval;
     assert(dim && dim->format_dim_info);
-    zdim = (NCZ_DIM_INFO_T *)dim->format_dim_info;
+    ncz_dim = (NCZ_DIM_INFO_T *)dim->format_dim_info;
 
     /* Check if new name is in use. */
     if (ncindexlookup(grp->dim, norm_name))
         return NC_ENAMEINUSE;
+
+    /* Check for renaming dimension w/o variable. */
+    if (ncz_dim->hdf_dimscaleid)
+    {
+        assert(!dim->coord_var);
+        LOG((3, "dim %s is a dim without variable", dim->hdr.name));
+
+        /* Delete the dimscale-only dataset. */
+        if ((retval = delete_dimscale_dataset(grp, dimid, dim)))
+            return retval;
+    }
 
     /* Give the dimension its new name in metadata. UTF8 normalization
      * has been done. */
@@ -262,6 +271,38 @@ NCZ_rename_dim(int ncid, int dimid, const char *name)
     dim->hdr.hashkey = NC_hashmapkey(dim->hdr.name,strlen(dim->hdr.name));
     if (!ncindexrebuild(grp->dim))
         return NC_EINTERNAL;
+
+    /* Check if dimension was a coordinate variable, but names are
+     * different now. */
+    if (dim->coord_var && strcmp(dim->hdr.name, dim->coord_var->hdr.name))
+    {
+        /* Break up the coordinate variable. */
+        if ((retval = ncz_break_coord_var(grp, dim->coord_var, dim)))
+            return retval;
+    }
+
+    /* Check if dimension should become a coordinate variable. */
+    if (!dim->coord_var)
+    {
+        NC_VAR_INFO_T *var;
+
+        /* Attempt to find a variable with the same name as the
+         * dimension in the current group. */
+        if ((retval = ncz_find_var(grp, dim->hdr.name, &var)))
+            return retval;
+
+        /* Check if we found a variable and the variable has the
+         * dimension in index 0. */
+        if (var && var->dim[0] == dim)
+        {
+            /* Sanity check */
+            assert(var->dimids[0] == dim->hdr.id);
+
+            /* Reform the coordinate variable. */
+            if ((retval = ncz_reform_coord_var(grp, var, dim)))
+                return retval;
+        }
+    }
 
     return NC_NOERR;
 }

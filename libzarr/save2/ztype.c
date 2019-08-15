@@ -1,7 +1,6 @@
 /* Copyright 2005-2018, University Corporation for Atmospheric
  * Research. See the COPYRIGHT file for copying and redistribution
  * conditions. */
-
 /**
  * @file @internal This file is part of netcdf-4, a netCDF-like
  * interface for NCZ, or a ZARR backend for netCDF, depending on your
@@ -13,7 +12,8 @@
  * @author Dennis Heimbigner, Ed Hartnett
  */
 
-#include "zincludes.h"
+#include "config.h"
+#include "nczinternal.h"
 
 /**
  * @internal Determine if two types are equal.

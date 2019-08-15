@@ -20,6 +20,10 @@ const char* nc4_atomic_name[NUM_ATOMIC_TYPES] = {"none", "byte", "char",
                                            "double", "ubyte",
                                            "ushort", "uint",
                                            "int64", "uint64", "string"};
+const int nc4_atomic_size[NUM_ATOMIC_TYPES] = {0, NC_BYTE_LEN, NC_CHAR_LEN, NC_SHORT_LEN,
+                                                      NC_INT_LEN, NC_FLOAT_LEN, NC_DOUBLE_LEN,
+                                                      NC_BYTE_LEN, NC_SHORT_LEN, NC_INT_LEN, NC_INT64_LEN,
+                                                      NC_INT64_LEN, NC_STRING_LEN};
 
 /* The sizes of types may vary from platform to platform, but within
  * netCDF files, type sizes are fixed. */
@@ -99,10 +103,6 @@ NC4_inq_type(int ncid, nc_type typeid1, char *name, size_t *size)
 {
     NC_GRP_INFO_T *grp;
     NC_TYPE_INFO_T *type;
-    static const int atomic_size[NUM_ATOMIC_TYPES] = {0, NC_BYTE_LEN, NC_CHAR_LEN, NC_SHORT_LEN,
-                                                      NC_INT_LEN, NC_FLOAT_LEN, NC_DOUBLE_LEN,
-                                                      NC_BYTE_LEN, NC_SHORT_LEN, NC_INT_LEN, NC_INT64_LEN,
-                                                      NC_INT64_LEN, NC_STRING_LEN};
 
     int retval;
 
@@ -114,7 +114,7 @@ NC4_inq_type(int ncid, nc_type typeid1, char *name, size_t *size)
         if (name)
             strcpy(name, nc4_atomic_name[typeid1]);
         if (size)
-            *size = atomic_size[typeid1];
+            *size = nc4_atomic_size[typeid1];
         return NC_NOERR;
     }
 

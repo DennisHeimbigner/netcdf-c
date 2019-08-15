@@ -1,7 +1,6 @@
 /* Copyright 2018, University Corporation for Atmospheric
  * Research. See COPYRIGHT file for copying and redistribution
  * conditions. */
-
 /**
  * @file @internal The netCDF-4 functions which control NCZ
  * caching. These caching controls allow the user to change the cache
@@ -10,7 +9,14 @@
  * @author Dennis Heimbigner, Ed Hartnett
  */
 
-#include "zincludes.h"
+#include "config.h"
+#include "nczinternal.h"
+
+/* These are the default chunk cache sizes for ZARR files created or
+ * opened with netCDF-4. */
+extern size_t ncz_chunk_cache_size;
+extern size_t ncz_chunk_cache_nelems;
+extern float ncz_chunk_cache_preemption;
 
 /**
  * Set chunk cache size. Only affects files opened/created *after* it

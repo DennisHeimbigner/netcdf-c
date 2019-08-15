@@ -1,6 +1,5 @@
 /* Copyright 2005-2018 University Corporation for Atmospheric
    Research/Unidata. */
-
 /**
  * @file
  * @internal This header file contains prototypes and initialization
@@ -9,7 +8,8 @@
  * @author Dennis Heimbigner, Ed Hartnett
  */
 
-#include "zincludes.h"
+#include "config.h"
+#include "nczinternal.h"
 
 static const NC_Dispatch NCZ_dispatcher = {
 

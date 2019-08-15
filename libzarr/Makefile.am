@@ -39,12 +39,13 @@ zopen.c \
 zprov.c \
 zvar.c \
 \
+zarr.c \
+zcvt.c \
 zodom.c \
 zallchunks.c \
 zchunkio.c \
 zsliceindices.c \
 zfile.c \
-zenddef.c \
 zclose.c \
 zdim.c \
 zmeta.c \
