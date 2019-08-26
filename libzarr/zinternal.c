@@ -55,7 +55,7 @@ set_auto(void* func, void *client_data)
  * @internal Provide a function to do any necessary initialization of
  * the ZARR library.
  */
-void
+int
 NCZ_initialize(void)
 {
 #ifdef LOOK
@@ -64,18 +64,20 @@ NCZ_initialize(void)
     LOG((1, "NCZ error messages have been turned off."));
 #endif
     ncz_initialized = 1;
+    return NC_NOERR;
 }
 
 /**
  * @internal Provide a function to do any necessary finalization of
  * the ZARR library.
  */
-void
+int
 NCZ_finalize(void)
 {
     /* Reclaim global resources */
     NCZ_provenance_finalize();
     ncz_initialized = 0;
+    return NC_NOERR;
 }
 
 /**
@@ -94,10 +96,7 @@ static int
 find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid,
                         size_t *maxlen)
 {
-    hid_t datasetid = 0, spaceid = 0;
     NC_VAR_INFO_T *var;
-    hsize_t *h5dimlen = NULL, *h5dimlenmax = NULL;
-    int d, dataset_ndims = 0;
     int retval = NC_NOERR;
 
     *maxlen = 0;
@@ -115,11 +114,13 @@ find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid,
     else
     {
         /* Get the number of records in the dataset. */
-        if ((retval = ncz_open_var_grp2(grp, var->hdr.id, &datasetid)))
+#ifdef LOOK
+#if 0
+not needed        if ((retval = ncz_open_var_grp2(grp, var->hdr.id, &datasetid)))
             BAIL(retval);
+#endif
         if ((spaceid = H5Dget_space(datasetid)) < 0)
             BAIL(NC_EHDFERR);
-
         /* If it's a scalar dataset, it has length one. */
         if (H5Sget_simple_extent_type(spaceid) == H5S_SCALAR)
         {
@@ -148,13 +149,16 @@ find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid,
                 }
             }
         }
+#endif /*LOOK*/
     }
 
+#ifdef LOOK
 exit:
     if (spaceid > 0 && H5Sclose(spaceid) < 0)
         BAIL2(NC_EHDFERR);
     if (h5dimlen) free(h5dimlen);
     if (h5dimlenmax) free(h5dimlenmax);
+#endif
     return retval;
 }
 
@@ -171,22 +175,16 @@ NC_TYPE_INFO_T *
 ncz_rec_find_hdf_type(NC_FILE_INFO_T *h5, hid_t target_hdf_typeid)
 {
     NC_TYPE_INFO_T *type;
-    htri_t equal;
     int i;
 
     assert(h5);
 
     for (i = 0; i < nclistlength(h5->alltypes); i++)
     {
-        NCZ_TYPE_INFO_T *ncz_type;
-        hid_t hdf_typeid;
-
         type = (NC_TYPE_INFO_T*)nclistget(h5->alltypes, i);
         if(type == NULL) continue;
 
-        /* Get NCZ-specific type info. */
-        ncz_type = (NCZ_TYPE_INFO_T *)type->format_type_info;
-
+#ifdef LOOK
         /* Select the ZARR typeid to use. */
         hdf_typeid = ncz_type->native_hdf_typeid ?
             ncz_type->native_hdf_typeid : ncz_type->hdf_typeid;
@@ -196,6 +194,7 @@ ncz_rec_find_hdf_type(NC_FILE_INFO_T *h5, hid_t target_hdf_typeid)
             return NULL;
         if (equal)
             return type;
+#endif
     }
     /* Can't find it. Fate, why do you mock me? */
     return NULL;
@@ -225,11 +224,11 @@ ncz_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len)
 
     /* If there are any groups, call this function recursively on
      * them. */
-    for (i = 0; i < ncindexsize(grp->children); i++)
+    for (i = 0; i < ncindexsize(grp->children); i++) {
         if ((retval = ncz_find_dim_len((NC_GRP_INFO_T*)ncindexith(grp->children, i),
                                        dimid, len)))
             return retval;
-
+    }
     /* For all variables in this group, find the ones that use this
      * dimension, and remember the max length. */
     for (i = 0; i < ncindexsize(grp->vars); i++)
@@ -249,252 +248,6 @@ ncz_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len)
 }
 
 /**
- * @internal Break a coordinate variable to separate the dimension and
- * the variable.
- *
- * This is called from nc_rename_dim() and nc_rename_var(). In some
- * renames, the coord variable must stay, but it is no longer a coord
- * variable. This function changes a coord var into an ordinary
- * variable.
- *
- * @param grp Pointer to group info struct.
- * @param coord_var Pointer to variable info struct.
- * @param dim Pointer to dimension info struct.
- *
- * @return ::NC_NOERR No error.
- * @return ::NC_ENOMEM Out of memory.
- * @author Quincey Koziol, Dennis Heimbigner, Ed Hartnett
- */
-int
-ncz_break_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *coord_var,
-                    NC_DIM_INFO_T *dim)
-{
-    int retval;
-
-    /* Sanity checks */
-    assert(grp && coord_var && dim && dim->coord_var == coord_var &&
-           coord_var->dim[0] == dim && coord_var->dimids[0] == dim->hdr.id &&
-           !((NCZ_DIM_INFO_T *)(dim->format_dim_info))->hdf_dimscaleid);
-    LOG((3, "%s dim %s was associated with var %s, but now has different name",
-         __func__, dim->hdr.name, coord_var->hdr.name));
-
-    /* If we're replacing an existing dimscale dataset, go to
-     * every var in the file and detach this dimension scale. */
-    if ((retval = rec_detach_scales(grp->ncz_info->root_grp,
-                                    dim->hdr.id,
-                                    ((NCZ_VAR_INFO_T *)(coord_var->format_var_info))->hdf_datasetid)))
-        return retval;
-
-    /* Allow attached dimscales to be tracked on the [former]
-     * coordinate variable */
-    if (coord_var->ndims)
-    {
-        /* Coordinate variables shouldn't have dimscales attached. */
-        assert(!coord_var->dimscale_attached);
-
-        /* Allocate space for tracking them */
-        if (!(coord_var->dimscale_attached = calloc(coord_var->ndims,
-                                                    sizeof(nc_bool_t))))
-            return NC_ENOMEM;
-    }
-
-    /* Detach dimension from variable */
-    coord_var->dimscale = NC_FALSE;
-    dim->coord_var = NULL;
-
-    /* Set state transition indicators */
-    coord_var->was_coord_var = NC_TRUE;
-    coord_var->became_coord_var = NC_FALSE;
-
-    return NC_NOERR;
-}
-
-/**
- * @internal Delete an existing dimscale-only dataset.
- *
- * A dimscale-only ZARR dataset is created when a dim is defined
- * without an accompanying coordinate variable.
- *
- * Sometimes, during renames, or late creation of variables, an
- * existing, dimscale-only dataset must be removed. This means
- * detaching all variables that use the dataset, then closing and
- * unlinking it.
- *
- * @param grp The grp of the dimscale-only dataset to be deleted, or a
- * higher group in the hierarchy (ex. root group).
- * @param dimid id of the dimension
- * @param dim Pointer to the dim with the dimscale-only dataset to be
- * deleted.
- *
- * @return ::NC_NOERR No error.
- * @return ::NC_EHDFERR ZARR error.
- * @author Dennis Heimbigner, Ed Hartnett
- */
-int
-delete_dimscale_dataset(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T *dim)
-{
-    NCZ_DIM_INFO_T *ncz_dim;
-    NCZ_GRP_INFO_T *ncz_grp;
-    int retval;
-
-    assert(grp && grp->format_grp_info && dim && dim->format_dim_info);
-    LOG((2, "%s: deleting dimscale dataset %s dimid %d", __func__, dim->hdr.name,
-         dimid));
-
-    /* Get ZARR specific grp and dim info. */
-    ncz_dim = (NCZ_DIM_INFO_T *)dim->format_dim_info;
-    ncz_grp = (NCZ_GRP_INFO_T *)grp->format_grp_info;
-
-    /* Detach dimscale from any variables using it */
-    if ((retval = rec_detach_scales(grp, dimid, ncz_dim->hdf_dimscaleid)) < 0)
-        return retval;
-
-    /* Close the ZARR dataset */
-    if (H5Dclose(ncz_dim->hdf_dimscaleid) < 0)
-        return NC_EHDFERR;
-    ncz_dim->hdf_dimscaleid = 0;
-
-    /* Now delete the dataset. */
-    if (H5Gunlink(ncz_grp->hdf_grpid, dim->hdr.name) < 0)
-        return NC_EHDFERR;
-
-    return NC_NOERR;
-}
-
-/**
- * @internal Reform a coordinate variable from a dimension and a
- * variable.
- *
- * @param grp Pointer to group info struct.
- * @param var Pointer to variable info struct.
- * @param dim Pointer to dimension info struct.
- *
- * @return ::NC_NOERR No error.
- * @author Quincey Koziol, Dennis Heimbigner, Ed Hartnett
- */
-int
-ncz_reform_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, NC_DIM_INFO_T *dim)
-{
-    NCZ_DIM_INFO_T *ncz_dim;
-    NCZ_GRP_INFO_T *ncz_grp;
-    NCZ_VAR_INFO_T *ncz_var;
-    int need_to_reattach_scales = 0;
-    int retval = NC_NOERR;
-
-    assert(grp && grp->format_grp_info && var && var->format_var_info &&
-           dim && dim->format_dim_info);
-    LOG((3, "%s: dim->hdr.name %s var->hdr.name %s", __func__, dim->hdr.name,
-         var->hdr.name));
-
-    /* Get NCZ-specific dim, group, and var info. */
-    ncz_dim = (NCZ_DIM_INFO_T *)dim->format_dim_info;
-    ncz_grp = (NCZ_GRP_INFO_T *)grp->format_grp_info;
-    ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
-
-    /* Detach dimscales from the [new] coordinate variable. */
-    if (var->dimscale_attached)
-    {
-        int dims_detached = 0;
-        int finished = 0;
-        int d;
-
-        /* Loop over all dimensions for variable. */
-        for (d = 0; d < var->ndims && !finished; d++)
-        {
-            /* Is there a dimscale attached to this axis? */
-            if (var->dimscale_attached[d])
-            {
-                NC_GRP_INFO_T *g;
-                int k;
-
-                for (g = grp; g && !finished; g = g->parent)
-                {
-                    NC_DIM_INFO_T *dim1;
-                    NCZ_DIM_INFO_T *ncz_dim1;
-
-                    for (k = 0; k < ncindexsize(g->dim); k++)
-                    {
-                        dim1 = (NC_DIM_INFO_T *)ncindexith(g->dim, k);
-                        assert(dim1 && dim1->format_dim_info);
-                        ncz_dim1 = (NCZ_DIM_INFO_T *)dim1->format_dim_info;
-
-                        if (var->dimids[d] == dim1->hdr.id)
-                        {
-                            hid_t dim_datasetid;  /* Dataset ID for dimension */
-
-                            /* Find dataset ID for dimension */
-                            if (dim1->coord_var)
-                                dim_datasetid = ((NCZ_VAR_INFO_T *)
-                                                 (dim1->coord_var->format_var_info))->hdf_datasetid;
-                            else
-                                dim_datasetid = ncz_dim1->hdf_dimscaleid;
-
-                            /* dim_datasetid may be 0 in some cases when
-                             * renames of dims and vars are happening. In
-                             * this case, the scale has already been
-                             * detached. */
-                            if (dim_datasetid > 0)
-                            {
-                                LOG((3, "detaching scale from %s", var->hdr.name));
-                                if (H5DSdetach_scale(ncz_var->hdf_datasetid,
-                                                     dim_datasetid, d) < 0)
-                                    BAIL(NC_EHDFERR);
-                            }
-                            var->dimscale_attached[d] = NC_FALSE;
-                            if (dims_detached++ == var->ndims)
-                                finished++;
-                        }
-                    }
-                }
-            }
-        } /* next variable dimension */
-
-        /* Release & reset the array tracking attached dimscales. */
-        free(var->dimscale_attached);
-        var->dimscale_attached = NULL;
-        need_to_reattach_scales++;
-    }
-
-    /* Use variable's dataset ID for the dimscale ID. */
-    if (ncz_dim->hdf_dimscaleid && grp != NULL)
-    {
-        LOG((3, "closing and unlinking dimscale dataset %s", dim->hdr.name));
-        if (H5Dclose(ncz_dim->hdf_dimscaleid) < 0)
-            BAIL(NC_EHDFERR);
-        ncz_dim->hdf_dimscaleid = 0;
-
-        /* Now delete the dimscale's dataset (it will be recreated
-           later, if necessary). */
-        if (H5Gunlink(ncz_grp->hdf_grpid, dim->hdr.name) < 0)
-            return NC_EDIMMETA;
-    }
-
-    /* Attach variable to dimension. */
-    var->dimscale = NC_TRUE;
-    dim->coord_var = var;
-
-    /* Check if this variable used to be a coord. var */
-    if (need_to_reattach_scales || (var->was_coord_var && grp != NULL))
-    {
-        /* Reattach the scale everywhere it is used. (Recall that netCDF
-         * dimscales are always 1-D) */
-        if ((retval = rec_reattach_scales(grp->ncz_info->root_grp,
-                                          var->dimids[0], ncz_var->hdf_datasetid)))
-            return retval;
-
-        /* Set state transition indicator (cancels earlier
-         * transition). */
-        var->was_coord_var = NC_FALSE;
-    }
-
-    /* Set state transition indicator */
-    var->became_coord_var = NC_TRUE;
-
-exit:
-    return retval;
-}
-
-/**
  * @internal Close ZARR resources for global atts in a group.
  *
  * @param grp Pointer to group info struct.
@@ -503,6 +256,7 @@ exit:
  * @return ::NC_EHDFERR ZARR error.
  * @author Dennis Heimbigner, Ed Hartnett
  */
+
 static int
 close_gatts(NC_GRP_INFO_T *grp)
 {
@@ -511,16 +265,15 @@ close_gatts(NC_GRP_INFO_T *grp)
 
     for (a = 0; a < ncindexsize(grp->att); a++)
     {
-        NCZ_ATT_INFO_T *ncz_att;
-
         att = (NC_ATT_INFO_T *)ncindexith(grp->att, a);
         assert(att && att->format_att_info);
-        ncz_att = (NCZ_ATT_INFO_T *)att->format_att_info;
 
+#ifdef LOOK
         /* Close the ZARR typeid. */
         if (ncz_att->native_hdf_typeid &&
             H5Tclose(ncz_att->native_hdf_typeid) < 0)
             return NC_EHDFERR;
+#endif
     }
     return NC_NOERR;
 }
@@ -538,7 +291,6 @@ static int
 close_vars(NC_GRP_INFO_T *grp)
 {
     NC_VAR_INFO_T *var;
-    NCZ_VAR_INFO_T *ncz_var;
     NC_ATT_INFO_T *att;
     int a, i;
 
@@ -546,15 +298,17 @@ close_vars(NC_GRP_INFO_T *grp)
     {
         var = (NC_VAR_INFO_T *)ncindexith(grp->vars, i);
         assert(var && var->format_var_info);
-        ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
 
         /* Close the ZARR dataset associated with this var. */
+#ifdef LOOK
         if (ncz_var->hdf_datasetid)
+#endif
         {
+#ifdef LOOK
             LOG((3, "closing ZARR dataset %lld", ncz_var->hdf_datasetid));
             if (H5Dclose(ncz_var->hdf_datasetid) < 0)
                 return NC_EHDFERR;
-
+#endif
             if (var->fill_value)
             {
                 if (var->type_info)
@@ -567,21 +321,23 @@ close_vars(NC_GRP_INFO_T *grp)
             }
         }
 
+#ifdef LOOK
         /* Delete any ZARR dimscale objid information. */
         if (ncz_var->dimscale_ncz_objids)
             free(ncz_var->dimscale_ncz_objids);
+#endif
 
         for (a = 0; a < ncindexsize(var->att); a++)
         {
-            NCZ_ATT_INFO_T *ncz_att;
             att = (NC_ATT_INFO_T *)ncindexith(var->att, a);
             assert(att && att->format_att_info);
-            ncz_att = (NCZ_ATT_INFO_T *)att->format_att_info;
 
+#ifdef LOOK
             /* Close the ZARR typeid if one is open. */
             if (ncz_att->native_hdf_typeid &&
                 H5Tclose(ncz_att->native_hdf_typeid) < 0)
                 return NC_EHDFERR;
+#endif
         }
     }
 
@@ -605,17 +361,16 @@ close_dims(NC_GRP_INFO_T *grp)
 
     for (i = 0; i < ncindexsize(grp->dim); i++)
     {
-        NCZ_DIM_INFO_T *ncz_dim;
-
         dim = (NC_DIM_INFO_T *)ncindexith(grp->dim, i);
         assert(dim && dim->format_dim_info);
-        ncz_dim = (NCZ_DIM_INFO_T *)dim->format_dim_info;
 
+#ifdef LOOK
         /* If this is a dim without a coordinate variable, then close
          * the ZARR DIM_WITHOUT_VARIABLE dataset associated with this
          * dim. */
         if (ncz_dim->hdf_dimscaleid && H5Dclose(ncz_dim->hdf_dimscaleid) < 0)
             return NC_EHDFERR;
+#endif
     }
 
     return NC_NOERR;
@@ -640,14 +395,11 @@ close_types(NC_GRP_INFO_T *grp)
     for (i = 0; i < ncindexsize(grp->type); i++)
     {
         NC_TYPE_INFO_T *type;
-        NCZ_TYPE_INFO_T *ncz_type;
 
         type = (NC_TYPE_INFO_T *)ncindexith(grp->type, i);
         assert(type && type->format_type_info);
 
-        /* Get NCZ-specific type info. */
-        ncz_type = (NCZ_TYPE_INFO_T *)type->format_type_info;
-
+#ifdef LOOK
         /* Close any open user-defined ZARR typeids. */
         if (ncz_type->hdf_typeid && H5Tclose(ncz_type->hdf_typeid) < 0)
             return NC_EHDFERR;
@@ -656,6 +408,7 @@ close_types(NC_GRP_INFO_T *grp)
             H5Tclose(ncz_type->native_hdf_typeid) < 0)
             return NC_EHDFERR;
         ncz_type->native_hdf_typeid = 0;
+#endif
     }
 
     return NC_NOERR;
@@ -674,14 +427,11 @@ close_types(NC_GRP_INFO_T *grp)
 int
 ncz_rec_grp_NCZ_del(NC_GRP_INFO_T *grp)
 {
-    NCZ_GRP_INFO_T *ncz_grp;
     int i;
     int retval;
 
     assert(grp && grp->format_grp_info);
     LOG((3, "%s: grp->name %s", __func__, grp->hdr.name));
-
-    ncz_grp = (NCZ_GRP_INFO_T *)grp->format_grp_info;
 
     /* Recursively call this function for each child, if any, stopping
      * if there is an error. */
@@ -708,8 +458,10 @@ ncz_rec_grp_NCZ_del(NC_GRP_INFO_T *grp)
 
     /* Close the ZARR group. */
     LOG((4, "%s: closing group %s", __func__, grp->hdr.name));
+#ifdef LOOK
     if (ncz_grp->hdf_grpid && H5Gclose(ncz_grp->hdf_grpid) < 0)
         return NC_EHDFERR;
+#endif
 
     return NC_NOERR;
 }
@@ -740,7 +492,7 @@ ncz_find_grp_h5_var(int ncid, int varid, NC_FILE_INFO_T **h5,
     int retval;
 
     /* Look up file and group metadata. */
-    if ((retval = ncz_find_grp_h5(ncid, &my_grp, &my_h5)))
+    if ((retval = nc4_find_grp_h5(ncid, &my_grp, &my_h5)))
         return retval;
     assert(my_grp && my_h5);
 
@@ -817,7 +569,7 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
     assert(!att || ((use_name && name) || !use_name));
 
     /* Find info for this file, group, and h5 info. */
-    if ((retval = ncz_find_nc_grp_h5(ncid, NULL, &my_grp, &my_h5)))
+    if ((retval = nc4_find_nc_grp_h5(ncid, NULL, &my_grp, &my_h5)))
         return retval;
     assert(my_grp && my_h5);
 
@@ -826,7 +578,7 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
     {
         /* Do we need to read the atts? */
         if (!my_grp->atts_read)
-            if ((retval = ncz_read_atts(my_grp, NULL)))
+            if ((retval = ncz_read_atts(my_h5, (NC_OBJ*)my_grp)))
                 return retval;
 
         attlist = my_grp->att;
@@ -838,7 +590,7 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
 
         /* Do we need to read the var attributes? */
         if (!my_var->atts_read)
-            if ((retval = ncz_read_atts(my_grp, my_var)))
+            if ((retval = ncz_read_atts(my_h5, (NC_OBJ*)my_var)))
                 return retval;
 
         /* Do we need to read var metadata? */
@@ -856,7 +608,7 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
 
     /* Normalize the name. */
     if (use_name)
-        if ((retval = ncz_normalize_name(name, my_norm_name)))
+        if ((retval = nc4_normalize_name(name, my_norm_name)))
             return retval;
 
     /* Now find the attribute by name or number. */
@@ -883,6 +635,87 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
     return NC_NOERR;
 }
 
+/**
+ * @internal What fill value should be used for a variable?
+ *
+ * @param h5 Pointer to file info struct.
+ * @param var Pointer to variable info struct.
+ * @param fillp Pointer that gets pointer to fill value.
+ *
+ * @returns NC_NOERR No error.
+ * @returns NC_ENOMEM Out of memory.
+ * @author Ed Hartnett, Dennis Heimbigner
+ */
+int
+ncz_get_fill_value(NC_FILE_INFO_T *h5, NC_VAR_INFO_T *var, void **fillp)
+{
+    size_t size;
+    int retval;
+
+    /* Find out how much space we need for this type's fill value. */
+    if (var->type_info->nc_type_class == NC_VLEN)
+        size = sizeof(nc_vlen_t);
+    else if (var->type_info->nc_type_class == NC_STRING)
+        size = sizeof(char *);
+    else
+    {
+        if ((retval = nc4_get_typelen_mem(h5, var->type_info->hdr.id, &size)))
+            return retval;
+    }
+    assert(size);
+
+    /* Allocate the space. */
+    if (!((*fillp) = calloc(1, size)))
+        return NC_ENOMEM;
+
+    /* If the user has set a fill_value for this var, use, otherwise
+     * find the default fill value. */
+    if (var->fill_value)
+    {
+        LOG((4, "Found a fill value for var %s", var->hdr.name));
+        if (var->type_info->nc_type_class == NC_VLEN)
+        {
+            nc_vlen_t *in_vlen = (nc_vlen_t *)(var->fill_value), *fv_vlen = (nc_vlen_t *)(*fillp);
+            size_t basetypesize = 0;
+
+            if((retval=nc4_get_typelen_mem(h5, var->type_info->u.v.base_nc_typeid, &basetypesize)))
+                return retval;
+
+            fv_vlen->len = in_vlen->len;
+            if (!(fv_vlen->p = malloc(basetypesize * in_vlen->len)))
+            {
+                free(*fillp);
+                *fillp = NULL;
+                return NC_ENOMEM;
+            }
+            memcpy(fv_vlen->p, in_vlen->p, in_vlen->len * basetypesize);
+        }
+        else if (var->type_info->nc_type_class == NC_STRING)
+        {
+            if (*(char **)var->fill_value)
+                if (!(**(char ***)fillp = strdup(*(char **)var->fill_value)))
+                {
+                    free(*fillp);
+                    *fillp = NULL;
+                    return NC_ENOMEM;
+                }
+        }
+        else
+            memcpy((*fillp), var->fill_value, size);
+    }
+    else
+    {
+        if (nc4_get_default_fill_value(var->type_info, *fillp))
+        {
+            /* Note: release memory, but don't return error on failure */
+            free(*fillp);
+            *fillp = NULL;
+        }
+    }
+
+    return NC_NOERR;
+}
+
 #ifdef LOGGING
 /* We will need to check against nc log level from nc4internal.c. */
 extern int nc_log_level;
@@ -897,20 +730,24 @@ extern int nc_log_level;
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-ncz_set_log_level()
+NCZ_set_log_level()
 {
     /* If the user wants to completely turn off logging, turn off NCZ
        logging too. Now I truely can't think of what to do if this
        fails, so just ignore the return code. */
     if (nc_log_level == NC_TURN_OFF_LOGGING)
     {
+#ifdef LOOK
         set_auto(NULL, NULL);
+#endif
         LOG((1, "NCZ error messages turned off!"));
     }
     else
     {
+#ifdef LOOK
         if (set_auto((H5E_auto_t)&H5Eprint, stderr) < 0)
             LOG((0, "H5Eset_auto failed!"));
+#endif
         LOG((1, "NCZ error messages turned on."));
     }
 

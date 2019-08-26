@@ -32,45 +32,40 @@ static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_DISKLESS|NC_64BIT
  */
 static int
 ncz_create_file(const char *path, int cmode, size_t initialsz,
-                void* parameters, NC *nc)
+                void* parameters, int ncid)
 {
-    hid_t fcpl_id, fapl_id = -1;
-    unsigned flags;
-    FILE *fp;
-    int stat = NC_NOERR;
+    int retval = NC_NOERR;
     NC_FILE_INFO_T* h5 = NULL;
     NCZ_FILE_INFO_T *zinfo;
     NCZ_GRP_INFO_T *zgrp;
 
-    assert(nc && path);
+    assert(path);
     LOG((3, "%s: path %s mode 0x%x", __func__, path, cmode));
 
     /* Add necessary structs to hold netcdf-4 file data. */
-    if ((stat = ncz_nc4f_list_add(nc, path, (NC_WRITE | cmode))))
-        BAIL(stat);
-    h5 = (NC_FILE_INFO_T*)nc->dispatchdata;
+    if ((retval = nc4_file_list_add(ncid, path, (NC_WRITE | cmode), (void**)&h5)))
+        BAIL(retval);
     assert(h5 && h5->root_grp);
     h5->root_grp->atts_read = 1;
 
-    h5->mem.inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
-    h5->mem.diskless = ((mode & NC_DISKLESS) == NC_DISKLESS);
-    h5->mem.persist = ((mode & NC_PERSIST) == NC_PERSIST);
+    h5->mem.inmemory = ((cmode & NC_INMEMORY) == NC_INMEMORY);
+    h5->mem.diskless = ((cmode & NC_DISKLESS) == NC_DISKLESS);
+    h5->mem.persist = ((cmode & NC_PERSIST) == NC_PERSIST);
 
     /* Add struct to hold NCZ-specific file metadata. */
-    if (!(h5->format_file_info = calloc(1, sizeof(NCZ_FILE_INFO_T))))
+    if (!(zinfo = calloc(1, sizeof(NCZ_FILE_INFO_T))))
         BAIL(NC_ENOMEM);
-    zinfo = (NCZ_FILE_INFO_T *)h5->format_file_info;
 
     /* Add struct to hold NCZ-specific group info. */
-    if (!(h5->root_grp->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T)))
-        return NC_ENOMEM;
-    zgrp = (NCZ_GRP_INFO_T *)h5->root_grp->format_grp_info;
+    if (!(zgrp = calloc(1, sizeof(NCZ_GRP_INFO_T))))
+        BAIL(NC_ENOMEM);
+    h5->root_grp->format_grp_info = zgrp;
 
     /* Do format specific setup */
     /* Should check if file already exists, and if NC_NOCLOBBER is specified,
        return an error */
-    if((stat = NCZ_create_dataset(zinfo,zgrp)))
-	BAIL(stat);
+    if((retval = ncz_create_dataset(h5,h5->root_grp)))
+	BAIL(retval);
 
 #ifdef LOOK
     if (H5Pset_cache(fapl_id, 0, ncz_chunk_cache_nelems, ncz_chunk_cache_size,
@@ -97,17 +92,17 @@ ncz_create_file(const char *path, int cmode, size_t initialsz,
     h5->flags |= NC_INDEF;
 
     /* Set provenance. */
-    if ((stat = NCZ_new_provenance(h5)))
-        BAIL(stat);
+    if ((retval = NCZ_new_provenance(h5)))
+        BAIL(retval);
 
     return NC_NOERR;
 
 exit: /*failure exit*/
-    if(!h5) return stat;
+    if(!h5) return retval;
 #ifdef LOOK
     ncz_close_ncz_file(h5, 1, NULL); /* treat like abort */
 #endif
-    return stat;
+    return retval;
 }
 
 /**
@@ -131,31 +126,29 @@ exit: /*failure exit*/
 int
 NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
            size_t *chunksizehintp, void *parameters,
-           const NC_Dispatch *dispatch, NC *nc_file)
+           const NC_Dispatch *dispatch, int ncid)
 {
     int stat = NC_NOERR;
 
-    assert(nc_file && path);
+    assert(path);
 
-    LOG((1, "%s: path %s cmode 0x%x parameters %p",
-         __func__, path, cmode, parameters));
+    LOG((1, "%s: path %s cmode 0x%x parameters %p ncid %d",
+         __func__, path, cmode, parameters,ncid));
 
     /* If this is our first file, initialize */
-    if (!ncz_initialized) ncz_initialize();
+    if (!ncz_initialized) NCZ_initialize();
 
 #ifdef LOGGING
     /* If nc logging level has changed, see if we need to turn on
      * NCZ's error messages. */
-    ncz_set_log_level();
+    NCZ_set_log_level();
 #endif /* LOGGING */
 
     /* Check the cmode for validity. */
     if((cmode & ILLEGAL_CREATE_FLAGS) != 0)
     {stat = NC_EINVAL; goto done;}
 
-    nc_file->int_ncid = nc_file->ext_ncid;
-
-    stat = ncz_create_file(path, cmode, initialsz, parameters, nc_file);
+    stat = ncz_create_file(path, cmode, initialsz, parameters, ncid);
 
 done:
     return stat;

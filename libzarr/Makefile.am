@@ -38,9 +38,11 @@ zinternal.c \
 zopen.c \
 zprov.c \
 zvar.c \
+zprovenance.h \
 \
 zarr.c \
 zcvt.c \
+zsync.c \
 zodom.c \
 zallchunks.c \
 zchunkio.c \

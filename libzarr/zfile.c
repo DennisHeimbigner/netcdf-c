@@ -14,6 +14,8 @@
 
 #include "zincludes.h"
 
+/* Forward */
+static int NCZ_enddef(int ncid);
 
 /**
  * @internal This function will write all changed metadata and flush
@@ -30,7 +32,6 @@ static int
 sync_netcdf4_file(NC_FILE_INFO_T* file)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* ncz_info;
 
     assert(file && file->format_file_info);
     LOG((3, "%s", __func__));
@@ -58,13 +59,18 @@ sync_netcdf4_file(NC_FILE_INFO_T* file)
     /* Write any metadata that has changed. */
     if (!file->no_write)
     {
+#ifdef LOOK
         /* Write any user-defined types. */
-        if ((stat = ncz_rec_write_groups_types(file->root_grp)))
+        if ((stat = ncz_rec_write_groups_types(zinfo,file->root_grp)))
             return stat;
 
         /* Write all the metadata. */
-        if ((stat = ncz_rec_write_metadata(file->root_grp, bad_coord_order)))
+        if ((stat = ncz_rec_write_metadata(zinfo,file->root_grp)))
             return stat;
+#endif
+        /* Write all the metadata. */
+	if((stat = ncz_sync_file(file)))
+	    return stat;
 
         /* Write out provenance*/
         if((stat = NCZ_write_provenance(file)))
@@ -77,9 +83,6 @@ sync_netcdf4_file(NC_FILE_INFO_T* file)
      if (H5Fflush(ncz_info->hdfid, H5F_SCOPE_GLOBAL) < 0)
          return NC_EHDFERR;
 #endif
-
-    /* Flush all changes to the file. */
-    ncz_info = (NCZ_FILE_INFO* )file->format_file_info;
 
     return NC_NOERR;
 }
@@ -103,13 +106,9 @@ int
 ncz_close_netcdf4_file(NC_FILE_INFO_T* file, int abort)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO* ncz_info;
 
     assert(file && file->root_grp && file->format_file_info);
     LOG((3, "%s: file->path %s abort %d", __func__, file->controller->path, abort));
-
-    /* Get ZARR specific info. */
-    ncz_info = (NCZ_FILE_INFO*)file->format_file_info;
 
     /* Free the fileinfo struct, which holds info from the fileinfo
      * hidden attribute. */
@@ -118,7 +117,7 @@ ncz_close_netcdf4_file(NC_FILE_INFO_T* file, int abort)
 #ifdef LOOK
      /* Close hdf file. It may not be open, since this function is also
       * called by NC_create() when a file opening is aborted. */
-     if (ncz_info->hdfid > 0 && H5Fclose(ncz_info->hdfid) < 0)
+     if (zinfo->hdfid > 0 && H5Fclose(zinfo->hdfid) < 0)
      {
          dumpopenobjects(h5);
          return NC_EHDFERR;
@@ -130,7 +129,7 @@ ncz_close_netcdf4_file(NC_FILE_INFO_T* file, int abort)
         free(file->format_file_info);
 
     /* Free the NC_FILE_INFO_T struct. */
-    if ((stat = ncz_nc4f_list_del(file)))
+    if ((stat = nc4_nc4f_list_del(file)))
         return stat;
 
     return NC_NOERR;
@@ -150,7 +149,7 @@ ncz_close_netcdf4_file(NC_FILE_INFO_T* file, int abort)
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-ncz_close_ncz_file(NC_FILE_INFO_T* file, int abort,  NC_memio *memio)
+ncz_close_ncz_file(NC_FILE_INFO_T* file, int abort)
 {
     int stat = NC_NOERR;
 
@@ -173,7 +172,7 @@ ncz_close_ncz_file(NC_FILE_INFO_T* file, int abort,  NC_memio *memio)
 
     /* Release all intarnal lists and metadata associated with this
      * file. All ZARR objects have already been released. */
-    if ((stat = ncz_close_netcdf4_file(file, abort, memio)))
+    if ((stat = ncz_close_netcdf4_file(file, abort)))
         return stat;
 
     return NC_NOERR;
@@ -191,16 +190,16 @@ ncz_close_ncz_file(NC_FILE_INFO_T* file, int abort,  NC_memio *memio)
 static void
 dumpopenobjects(NC_FILE_INFO_T* file)
 {
-    NCZ_FILE_INFO* ncz_info;
+    NCZ_FILE_INFO* zinfo = NULL;
     int nobjs;
 
     assert(file && file->format_file_info);
-    ncz_info = (NCZ_FILE_INFO*)file->format_file_info;
+    zinfo = (NCZ_FILE_INFO*)file->format_file_info;
 
-    if(ncz_info->hdfid <= 0)
+    if(zinfo->hdfid <= 0)
         return; /* File was never opened */
 
-    nobjs = H5Fget_obj_count(ncz_info->hdfid, H5F_OBJ_ALL);
+    nobjs = H5Fget_obj_count(zinfo->hdfid, H5F_OBJ_ALL);
 
     /* Apparently we can get an error even when nobjs == 0 */
     if(nobjs < 0) {
@@ -222,7 +221,7 @@ dumpopenobjects(NC_FILE_INFO_T* file)
         fprintf(stdout,"%s\n",msg);
         logit = 0;
 #endif
-        reportopenobjects(logit,ncz_info->hdfid);
+        reportopenobjects(logit,zinfo->hdfid);
         fflush(stderr);
     }
 
@@ -247,18 +246,18 @@ dumpopenobjects(NC_FILE_INFO_T* file)
 int
 NCZ_set_fill(int ncid, int fillmode, int *old_modep)
 {
-    NC_FILE_INFO_T* ncz_info;
+    NC_FILE_INFO_T* zinfo = NULL;
     int stat = NC_NOERR;
 
     LOG((2, "%s: ncid 0x%x fillmode %d", __func__, ncid, fillmode));
 
     /* Get pointer to file info. */
-    if ((stat = ncz_find_grp_file(ncid, NULL, &ncz_info)))
+    if ((stat = nc4_find_grp_h5(ncid, NULL, &zinfo)))
         return stat;
-    assert(ncz_info);
+    assert(zinfo);
 
     /* Trying to set fill on a read-only file? You sicken me! */
-    if (ncz_info->no_write)
+    if (zinfo->no_write)
         return NC_EPERM;
 
     /* Did you pass me some weird fillmode? */
@@ -267,9 +266,9 @@ NCZ_set_fill(int ncid, int fillmode, int *old_modep)
 
     /* If the user wants to know, tell him what the old mode was. */
     if (old_modep)
-        *old_modep = ncz_info->fill_mode;
+        *old_modep = zinfo->fill_mode;
 
-    ncz_info->fill_mode = fillmode;
+    zinfo->fill_mode = fillmode;
 
     return NC_NOERR;
 }
@@ -286,30 +285,30 @@ NCZ_set_fill(int ncid, int fillmode, int *old_modep)
 int
 NCZ_redef(int ncid)
 {
-    NC_FILE_INFO_T* ncz_info;
+    NC_FILE_INFO_T* zinfo = NULL;
     int stat = NC_NOERR;
 
     LOG((1, "%s: ncid 0x%x", __func__, ncid));
 
     /* Find this file's metadata. */
-    if ((stat = ncz_find_grp_file(ncid, NULL, &ncz_info)))
+    if ((stat = nc4_find_grp_h5(ncid, NULL, &zinfo)))
         return stat;
-    assert(ncz_info);
+    assert(zinfo);
 
     /* If we're already in define mode, return an error. */
-    if (ncz_info->flags & NC_INDEF)
+    if (zinfo->flags & NC_INDEF)
         return NC_EINDEFINE;
 
     /* If the file is read-only, return an error. */
-    if (ncz_info->no_write)
+    if (zinfo->no_write)
         return NC_EPERM;
 
     /* Set define mode. */
-    ncz_info->flags |= NC_INDEF;
+    zinfo->flags |= NC_INDEF;
 
     /* For nc_abort, we need to remember if we're in define mode as a
        redef. */
-    ncz_info->redef = NC_TRUE;
+    zinfo->redef = NC_TRUE;
 
     return NC_NOERR;
 }
@@ -348,7 +347,7 @@ NCZ__enddef(int ncid, size_t h_minfree, size_t v_align,
 static int
 NCZ_enddef(int ncid)
 {
-    NC_FILE_INFO_T* ncz_info;
+    NC_FILE_INFO_T* h5 = NULL;
     NC_GRP_INFO_T *grp;
     NC_VAR_INFO_T *var;
     int i;
@@ -356,8 +355,8 @@ NCZ_enddef(int ncid)
 
     LOG((1, "%s: ncid 0x%x", __func__, ncid));
 
-    /* Find pointer to group and ncz_info. */
-    if ((stat = ncz_find_grp_file(ncid, &grp, &ncz_info)))
+    /* Find pointer to group and zinfo. */
+    if ((stat = nc4_find_grp_h5(ncid, &grp, &h5)))
         return stat;
 
     /* When exiting define mode, mark all variable written. */
@@ -368,7 +367,7 @@ NCZ_enddef(int ncid)
         var->written_to = NC_TRUE;
     }
 
-    return ncz_enddef_netcdf4_file(ncz_info);
+    return ncz_enddef_netcdf4_file(h5);
 }
 
 /**
@@ -385,25 +384,25 @@ NCZ_enddef(int ncid)
 int
 NCZ_sync(int ncid)
 {
-    NC_FILE_INFO_T* ncz_info;
+    NC_FILE_INFO_T* zinfo = NULL;
     int stat = NC_NOERR;
 
     LOG((2, "%s: ncid 0x%x", __func__, ncid));
 
-    if ((stat = ncz_find_grp_file(ncid, NULL, &ncz_info)))
+    if ((stat = nc4_find_grp_h5(ncid, NULL, &zinfo)))
         return stat;
-    assert(ncz_info);
+    assert(zinfo);
 
     /* If we're in define mode, we can't sync. */
-    if (ncz_info->flags & NC_INDEF)
+    if (zinfo->flags & NC_INDEF)
     {
-        if (ncz_info->cmode & NC_CLASSIC_MODEL)
+        if (zinfo->cmode & NC_CLASSIC_MODEL)
             return NC_EINDEFINE;
         if ((stat = NCZ_enddef(ncid)))
             return stat;
     }
 
-    return sync_netcdf4_file(ncz_info);
+    return sync_netcdf4_file(zinfo);
 }
 
 /**
@@ -423,7 +422,7 @@ int
 NCZ_abort(int ncid)
 {
     NC *nc;
-    NC_FILE_INFO_T* ncz_info;
+    NC_FILE_INFO_T* zinfo = NULL;
     int delete_file = 0;
     char path[NC_MAX_NAME + 1];
     int stat = NC_NOERR;
@@ -431,12 +430,12 @@ NCZ_abort(int ncid)
     LOG((2, "%s: ncid 0x%x", __func__, ncid));
 
     /* Find metadata for this file. */
-    if ((stat = ncz_find_nc_grp_file(ncid, &nc, NULL, &ncz_info)))
+    if ((stat = nc4_find_nc_grp_h5(ncid, &nc, NULL, &zinfo)))
         return stat;
-    assert(ncz_info);
+    assert(zinfo);
 
     /* If we're in define mode, but not redefing the file, delete it. */
-    if (ncz_info->flags & NC_INDEF && !ncz_info->redef)
+    if (zinfo->flags & NC_INDEF && !zinfo->redef)
     {
         delete_file++;
         strncpy(path, nc->path, NC_MAX_NAME);
@@ -444,7 +443,7 @@ NCZ_abort(int ncid)
 
     /* Free any resources the netcdf-4 library has for this file's
      * metadata. */
-    if ((stat = ncz_close_ncz_file(ncz_info, 1, NULL)))
+    if ((stat = ncz_close_ncz_file(zinfo, 1)))
         return stat;
 
     /* Delete the file, if we should. */
@@ -468,31 +467,23 @@ int
 NCZ_close(int ncid, void* params)
 {
     NC_GRP_INFO_T *grp;
-    NC_FILE_INFO_T* file;
+    NC_FILE_INFO_T* h5;
     int stat = NC_NOERR;
-    int inmemory;
-    NC_memio* memio = NULL;
 
     LOG((1, "%s: ncid 0x%x", __func__, ncid));
 
     /* Find our metadata for this file. */
-    if ((stat = ncz_find_grp_file(ncid, &grp, &file)))
+    if ((stat = nc4_find_grp_h5(ncid, &grp, &h5)))
         return stat;
 
-    assert(file && grp);
+    assert(h5 && grp);
 
     /* This must be the root group. */
     if (grp->parent)
         return NC_EBADGRPID;
 
-    inmemory = ((file->cmode & NC_INMEMORY) == NC_INMEMORY);
-
-    if(inmemory && params != NULL) {
-        memio = (NC_memio*)params;
-    }
-
     /* Call the nc4 close. */
-    if ((stat = ncz_close_ncz_file(grp->ncz_info, 0, memio)))
+    if ((stat = ncz_close_netcdf4_file(h5, 0)))
         return stat;
 
     return NC_NOERR;
@@ -527,7 +518,7 @@ NCZ_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
     LOG((2, "%s: ncid 0x%x", __func__, ncid));
 
     /* Find file metadata. */
-    if ((stat = ncz_find_nc_grp_file(ncid, &nc, &grp, &file)))
+    if ((stat = nc4_find_nc_grp_h5(ncid, &nc, &grp, &file)))
         return stat;
 
     assert(file && grp && nc);
@@ -546,7 +537,7 @@ NCZ_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
     {
         /* Do we need to read the atts? */
         if (!grp->atts_read)
-            if ((stat = ncz_read_atts(grp, NULL)))
+            if ((stat = ncz_read_atts(file,(NC_OBJ*)grp)))
                 return stat;
 
         *nattsp = ncindexcount(grp->att);

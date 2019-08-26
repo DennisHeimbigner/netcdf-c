@@ -65,10 +65,17 @@ EXTERNL int NCZ_inq_attid(int ncid, int varid, const char *name, int *idp);
 
 EXTERNL int NCZ_inq_attname(int ncid, int varid, int attnum, char *name);
 
+EXTERNL int NCZ_rename_att(int ncid, int varid, const char *name, const char *newname);
+
+EXTERNL int NCZ_del_att(int ncid, int varid, const char *name);
+
+
 /* End _att */
 /* Begin {put,get}_att */
 
 EXTERNL int NCZ_get_att(int ncid, int varid, const char *name, void *value, nc_type);
+
+EXTERNL int NCZ_put_att(int ncid, int varid, const char *name, nc_type file_type, size_t len, const void *data, nc_type mem_type);
 
 /* End {put,get}_att */
 /* Begin _var */
@@ -162,8 +169,6 @@ EXTERNL int NCZ_def_var_fill(int, int, int, const void *);
 EXTERNL int NCZ_def_var_endian(int, int, int);
 
 EXTERNL int NCZ_def_var_filter(int, int, unsigned int, size_t, const unsigned int*);
-
-EXTERNL int NCZ_get_var_chunk_cache(int, int, size_t *, size_t *, float *);
 
 EXTERNL int NCZ_inq_unlimdims(int, int *, int *);
 

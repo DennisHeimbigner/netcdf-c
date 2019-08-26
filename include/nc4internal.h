@@ -235,6 +235,8 @@ typedef struct NC_GRP_INFO
     NCindex* type;               /* NCindex<NC_TYPE_INFO_T> * */
     /* Note that this is the list of vars with position == varid */
     NCindex* vars;               /* NCindex<NC_VAR_INFO_T> * */
+    /* Track the endianness of the variable */
+    int endianness;              /* What endianness for the type? */
 } NC_GRP_INFO_T;
 
 /* These constants apply to the cmode parameter in the
@@ -296,7 +298,10 @@ typedef struct {
     void *p;    /* Pointer to VL data */
 } nc_hvl_t;
 
-extern const char* nc4_atomic_name[NC_MAX_ATOMIC_TYPE+1];
+/* Misc functions */
+int NC4_inq_atomic_type(nc_type typeid1, char *name, size_t *size);
+int NC4_lookup_atomic_type(const char *name, nc_type* idp, size_t *sizep);
+int NC4_inq_typeid(int ncid, const char *name, nc_type *typeidp);
 
 /* These functions convert between netcdf and HDF5 types. */
 int nc4_get_typelen_mem(NC_FILE_INFO_T *h5, nc_type xtype, size_t *len);

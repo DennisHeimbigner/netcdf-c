@@ -24,8 +24,8 @@
  * @author Dennis Heimbigner, Ed Hartnett
  * [Candidate for moving to libsrc4]
  */
-static int
-getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist)
+int
+ncz_getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist)
 {
     int retval;
     NC_FILE_INFO_T* file = grp->nc4_info;
@@ -37,7 +37,7 @@ getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlis
     {
         /* Do we need to read the atts? */
         if (!grp->atts_read)
-            if ((retval = NCZ_read_atts(zinfo, (NC_OBJ*)grp)))
+            if ((retval = ncz_read_atts(file, (NC_OBJ*)grp)))
                 return retval;
 
         if (varp)
@@ -54,7 +54,7 @@ getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlis
 
         /* Do we need to read the atts? */
         if (!var->atts_read)
-            if ((retval = NCZ_read_atts(zinfo, (NC_OBJ*)var)))
+            if ((retval = ncz_read_atts(file, (NC_OBJ*)var)))
                 return retval;
 
         if (varp)
@@ -185,7 +185,7 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
         return retval;
 
     /* Get the list of attributes. */
-    if ((retval = getattlist(grp, varid, &var, &list)))
+    if ((retval = ncz_getattlist(grp, varid, &var, &list)))
         return retval;
 
     /* Is new name in use? */
@@ -207,22 +207,6 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
         (h5->cmode & NC_CLASSIC_MODEL))
         return NC_ENOTINDEFINE;
 
-    /* Delete the original attribute, if it exists in the ZARR file. */
-    if (att->created)
-    {
-        if (varid == NC_GLOBAL)
-        {
-	    if((retval=NCZ_del_attr(h5, (NC_OBJ*)grp, name)))
-	        goto done;
-        }
-        else
-        {
-	    if((retval=NCZ_del_attr(h5, (NC_OBJ*)var, name)))
-		goto done;
-        }
-        att->created = NC_FALSE;
-    }
-
     /* Copy the new name into our metadata. */
     if(att->hdr.name) free(att->hdr.name);
     if (!(att->hdr.name = strdup(norm_newname)))
@@ -238,7 +222,6 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
     /* Mark attributes on variable dirty, so they get written */
     if(var)
         var->attr_dirty = NC_TRUE;
-done:
     return retval;
 }
 
@@ -298,7 +281,7 @@ NCZ_del_att(int ncid, int varid, const char *name)
     }
 
     /* Get either the global or a variable attribute list. */
-    if ((retval = getattlist(grp, varid, &var, &attlist)))
+    if ((retval = ncz_getattlist(grp, varid, &var, &attlist)))
         return retval;
 
 #ifdef LOOK
@@ -425,7 +408,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
 
     /* Find att, if it exists. (Must check varid first or nc_test will
      * break.) This also does lazy att reads if needed. */
-    if ((ret = getattlist(grp, varid, &var, &attlist)))
+    if ((ret = ncz_getattlist(grp, varid, &var, &attlist)))
         return ret;
 
     /* The length needs to be positive (cast needed for braindead
@@ -816,7 +799,7 @@ NCZ_inq_att(int ncid, int varid, const char *name, nc_type *xtypep,
                                        NULL);
     }
 
-    return ncz_get_att_ptrs(h5, grp, var, norm_name, xtypep, NC_NAT,
+    return nc4_get_att_ptrs(h5, grp, var, norm_name, xtypep, NC_NAT,
                             lenp, NULL, NULL);
 }
 
@@ -857,7 +840,7 @@ NCZ_inq_attid(int ncid, int varid, const char *name, int *attnump)
                                        NULL);
     }
 
-    return ncz_get_att_ptrs(h5, grp, var, norm_name, NULL, NC_NAT,
+    return nc4_get_att_ptrs(h5, grp, var, norm_name, NULL, NC_NAT,
                             NULL, attnump, NULL);
 }
 
@@ -936,6 +919,46 @@ NCZ_get_att(int ncid, int varid, const char *name, void *value,
                                        value);
     }
 
-    return ncz_get_att_ptrs(h5, grp, var, norm_name, NULL, memtype,
+    return nc4_get_att_ptrs(h5, grp, var, norm_name, NULL, memtype,
                             NULL, NULL, value);
 }
+
+#if 0
+static int
+ncz_del_attr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name)
+{
+    int i,stat = NC_NOERR;
+
+    ZTRACE();
+
+    if(container->sort == NCGRP)
+	stat = ncz_getattlist((NC_GRP_INFO_T*)container,NC_GLOBAL,NULL,&attlist);
+    else
+	stat = ncz_getattlist((NC_VAR_INFO_T*)container,NC_GLOBAL,NULL,&attlist);
+
+	goto done;
+
+    /* Iterate over the attributes to locate the matching attribute */
+    for(i=0;i<nclistlength(jattrs->dict);i+=2) {
+	NCjson* key = nclistget(jattrs->dict,i);
+	assert(key->sort == NCJ_STRING);
+	if(strcmp(key->value,name)==0) {
+	    /* Remove and reclaim */
+	    NCjson* value = nclistget(jattrs->dict,i+1);
+	    nclistremove(jattrs->dict,i);
+	    nclistremove(jattrs->dict,i+1);
+	    NCJreclaim(key);
+	    NCJreclaim(value);
+	    break;
+	}    
+    }
+    /* Write the json back out */
+    if((stat = ncz_unload_jatts(zinfo->map, container, jattrs, jtypes)))
+	goto done;
+
+done:
+    NCJreclaim(jattrs);
+    NCJreclaim(jtypes);
+    return stat;
+}
+#endif

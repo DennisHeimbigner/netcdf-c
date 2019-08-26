@@ -161,6 +161,12 @@ nczmap_writemeta(NCZMAP* map, const char* key, off64_t count, const char* conten
     return map->api->writemeta(map, key, count, content);
 }
 
+int
+nczmap_search(NCZMAP* map, const char* prefix, NClist* matches)
+{
+    return map->api->search(map, prefix, matches);
+}
+
 /**************************************************/
 /* Utilities */
 

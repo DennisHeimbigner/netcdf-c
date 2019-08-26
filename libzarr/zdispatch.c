@@ -98,7 +98,7 @@ static const NC_Dispatch NCZ_dispatcher = {
     NCZ_def_var_endian,
     NCZ_def_var_filter,
     NCZ_set_var_chunk_cache,
-    NCZ_get_var_chunk_cache,
+    NC4_get_var_chunk_cache,
 
 };
 
@@ -115,7 +115,7 @@ NCZ_initialize(void)
 {
     NCZ_dispatch_table = &NCZ_dispatcher;
     if (!ncz_initialized)
-        ncz_initialize();
+        NCZ_initialize();
     return NCZ_provenance_init();
 }
 
@@ -128,6 +128,6 @@ NCZ_initialize(void)
 int
 NCZ_finalize(void)
 {
-    (void)ncz_finalize();
+    NCZ_provenance_finalize();
     return NC_NOERR;
 }

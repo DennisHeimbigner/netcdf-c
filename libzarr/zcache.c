@@ -25,7 +25,7 @@
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-nc_set_chunk_cache(size_t size, size_t nelems, float preemption)
+NCZ_set_chunk_cache(size_t size, size_t nelems, float preemption)
 {
     if (preemption < 0 || preemption > 1)
         return NC_EINVAL;
@@ -47,7 +47,7 @@ nc_set_chunk_cache(size_t size, size_t nelems, float preemption)
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-nc_get_chunk_cache(size_t *sizep, size_t *nelemsp, float *preemptionp)
+NCZ_get_chunk_cache(size_t *sizep, size_t *nelemsp, float *preemptionp)
 {
     if (sizep)
         *sizep = ncz_chunk_cache_size;
@@ -72,7 +72,7 @@ nc_get_chunk_cache(size_t *sizep, size_t *nelemsp, float *preemptionp)
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-nc_set_chunk_cache_ints(int size, int nelems, int preemption)
+ncz_set_chunk_cache_ints(int size, int nelems, int preemption)
 {
     if (size <= 0 || nelems <= 0 || preemption < 0 || preemption > 100)
         return NC_EINVAL;
@@ -94,7 +94,7 @@ nc_set_chunk_cache_ints(int size, int nelems, int preemption)
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-nc_get_chunk_cache_ints(int *sizep, int *nelemsp, int *preemptionp)
+ncz_get_chunk_cache_ints(int *sizep, int *nelemsp, int *preemptionp)
 {
     if (sizep)
         *sizep = (int)ncz_chunk_cache_size;

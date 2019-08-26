@@ -125,7 +125,7 @@ am_libzarr_la_OBJECTS = libzarr_la-zattr.lo libzarr_la-zcache.lo \
 	libzarr_la-zdispatch.lo libzarr_la-zfile.lo libzarr_la-zgrp.lo \
 	libzarr_la-zinternal.lo libzarr_la-zopen.lo \
 	libzarr_la-zprov.lo libzarr_la-zvar.lo libzarr_la-zarr.lo \
-	libzarr_la-zcvt.lo libzarr_la-zodom.lo \
+	libzarr_la-zcvt.lo libzarr_la-zsync.lo libzarr_la-zodom.lo \
 	libzarr_la-zallchunks.lo libzarr_la-zchunkio.lo \
 	libzarr_la-zsliceindices.lo libzarr_la-zfile.lo \
 	libzarr_la-zclose.lo libzarr_la-zdim.lo libzarr_la-zmeta.lo \
@@ -437,9 +437,11 @@ zinternal.c \
 zopen.c \
 zprov.c \
 zvar.c \
+zprovenance.h \
 \
 zarr.c \
 zcvt.c \
+zsync.c \
 zodom.c \
 zallchunks.c \
 zchunkio.c \
@@ -544,6 +546,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zopen.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zprov.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zsliceindices.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zsync.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zutil.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zvar.Plo@am__quote@
 
@@ -661,6 +664,13 @@ libzarr_la-zcvt.lo: zcvt.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='zcvt.c' object='libzarr_la-zcvt.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zcvt.lo `test -f 'zcvt.c' || echo '$(srcdir)/'`zcvt.c
+
+libzarr_la-zsync.lo: zsync.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zsync.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zsync.Tpo -c -o libzarr_la-zsync.lo `test -f 'zsync.c' || echo '$(srcdir)/'`zsync.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzarr_la-zsync.Tpo $(DEPDIR)/libzarr_la-zsync.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='zsync.c' object='libzarr_la-zsync.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zsync.lo `test -f 'zsync.c' || echo '$(srcdir)/'`zsync.c
 
 libzarr_la-zodom.lo: zodom.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zodom.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zodom.Tpo -c -o libzarr_la-zodom.lo `test -f 'zodom.c' || echo '$(srcdir)/'`zodom.c

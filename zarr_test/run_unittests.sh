@@ -39,7 +39,8 @@ $CMD write # depends on writemeta2
 ncdump ./testmapnc4.nc >./ut_mapnc4_write.cdl
 diff -wb ${srcdir}/ref_ut_mapnc4_write.cdl ./ut_mapnc4_write.cdl
 $CMD read # depends on writemeta2
-$CMD misc
+
+$CMD search
 ;;
 
 proj)

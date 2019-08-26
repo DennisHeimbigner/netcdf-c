@@ -378,6 +378,60 @@ done:
     return THROW(stat);
 }
 
+/*
+Return a list of keys whose prefix matches the specified prefix string.
+In theory, the returned list should be sorted in lexical order.
+*/
+int
+znc4search(NCZMAP* map, const char* prefix, NClist* matches)
+{
+    int stat = NC_NOERR;
+    Z4MAP* z4map = (Z4MAP*)map;
+    NClist* segments = nclistnew();
+    int grpid;
+    int ngrps;
+    int* subgrps = NULL;
+    int i;
+    int prefixcount = 0;
+    NClist* queue = nclistnew(); /* To do the breadth first walk */
+
+    if((stat=nczm_split(prefix,segments)))
+	goto done;    
+    /* Get grpid of the group for the prefix */
+    if((stat = zlookupgroup(z4map,segments,0,&grpid)))
+	goto done;
+    /* Fill the queue in breadth first order */
+    /* Start by pushing the prefix group */
+    nclistinsert(queue,0,(uintptr_t)grpid);
+    while(nclistlength(queue) > 0) {
+	int g = (int)(uintptr_t)nclistremove(queue,0);
+	char* fullpath = NULL;
+	int* subgroups = NULL;
+	int ngrps;
+
+	/* Construct and save the path of g */
+	if((stat = NCZ_grppath(g,&fullpath))) goto done;
+	nclistpush(matches,fullpath); /* save it */
+	fullpath = NULL;
+        /* get subgroup ids */
+        if((stat = nc_inq_grps(grpid,&ngrps,NULL)))
+	    goto done;
+        if((subgrps = calloc(1,sizeof(int)*ngrps)) == NULL)
+	    {stat = NC_ENOMEM; goto done;}
+        if((stat = nc_inq_grps(grpid,&ngrps,subgrps)))
+	    goto done;
+	/* Push (reverse order) onto the front of queue */
+	for(i=ngrps-1;i>=0;i--)
+	    nclistinsert(queue,i,subgrps[i]);
+	/* repeat
+    }
+
+done:
+    nclistfree(queue);
+    return stat;
+}
+
+#if 0
 /* Return a list of keys for all child nodes of the parent;
    It is up to the caller to figure out the type of the node.
    Assume that parentkey refers to a group; fail otherwise.
@@ -427,6 +481,7 @@ znc4children(NCZMAP* map, const char* parentkey, NClist* children)
 done:
     return stat;
 }
+#endif
 
 /**************************************************/
 /* Utilities */
@@ -622,5 +677,6 @@ static NCZMAP_API zapi = {
     znc4write,
     znc4readmeta,
     znc4writemeta,
-    znc4close
+    znc4close,
+    znc4search,
 };

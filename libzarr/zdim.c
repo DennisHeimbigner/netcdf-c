@@ -215,7 +215,6 @@ NCZ_rename_dim(int ncid, int dimid, const char *name)
 {
     NC_GRP_INFO_T *grp;
     NC_DIM_INFO_T *dim;
-    NCZ_DIM_INFO_T *zdim;
     NC_FILE_INFO_T *h5;
     char norm_name[NC_MAX_NAME + 1];
     int stat;
@@ -244,7 +243,6 @@ NCZ_rename_dim(int ncid, int dimid, const char *name)
     if ((stat = nc4_find_dim(grp, dimid, &dim, NULL)))
         return stat;
     assert(dim && dim->format_dim_info);
-    zdim = (NCZ_DIM_INFO_T *)dim->format_dim_info;
 
     /* Check if new name is in use. */
     if (ncindexlookup(grp->dim, norm_name))

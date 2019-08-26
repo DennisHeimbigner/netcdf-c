@@ -44,11 +44,11 @@ NCZ_def_grp(int parent_ncid, const char *name, int *new_ncid)
     assert(h5);
 
     /* Check and normalize the name. */
-    if ((stat = ncz_check_name(name, norm_name)))
+    if ((stat = nc4_check_name(name, norm_name)))
         return stat;
 
     /* Check that this name is not in use as a var, grp, or type. */
-    if ((stat = ncz_check_dup_name(grp, norm_name)))
+    if ((stat = nc4_check_dup_name(grp, norm_name)))
         return stat;
 
     /* No groups in netcdf-3! */
@@ -73,7 +73,7 @@ NCZ_def_grp(int parent_ncid, const char *name, int *new_ncid)
 
     /* Return the ncid to the user. */
     if (new_ncid)
-        *new_ncid = grp->ncz_info->controller->ext_ncid | g->hdr.id;
+        *new_ncid = grp->nc4_info->controller->ext_ncid | g->hdr.id;
 
     return NC_NOERR;
 }
@@ -97,7 +97,6 @@ int
 NCZ_rename_grp(int grpid, const char *name)
 {
     NC_GRP_INFO_T *grp;
-    NCZ_GRP_INFO_T *zgrp;
     NC_FILE_INFO_T *h5;
     char norm_name[NC_MAX_NAME + 1];
     int stat;
@@ -108,9 +107,6 @@ NCZ_rename_grp(int grpid, const char *name)
     if ((stat = nc4_find_grp_h5(grpid, &grp, &h5)))
         return stat;
     assert(h5 && grp && grp->format_grp_info);
-
-    /* Get NCZ-specific group info. */
-    zgrp = (NCZ_GRP_INFO_T *)grp->format_grp_info;
 
     if (h5->no_write)
         return NC_EPERM; /* attempt to write to a read-only file */

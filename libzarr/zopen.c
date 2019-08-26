@@ -1,7 +1,6 @@
 /* Copyright 2003-2018, University Corporation for Atmospheric
  * Research. See COPYRIGHT file for copying and redistribution
  * conditions. */
-
 /**
  * @file
  * @internal This file contains functions that are used in file
@@ -26,8 +25,7 @@ static hid_t h5_native_type_constant_g[NUM_TYPES];
 /** @internal These flags may not be set for open mode. */
 static const int ILLEGAL_OPEN_FLAGS = (NC_MMAP|NC_DISKLESS|NC_64BIT_OFFSET|NC_CDF5);
 
-/* Defined later in this file. */
-static int rec_read_metadata(NC_GRP_INFO_T *grp);
+/* Forward */
 
 #ifdef LOOK
 /**
@@ -61,6 +59,7 @@ typedef struct {
 } att_iter_info;
 #endif /*LOOK*/
 
+#ifdef LOOK
 /**
  * @internal Given an ZARR type, set a pointer to netcdf type_info
  * struct, either an existing one (for user-defined types) or a newly
@@ -87,7 +86,7 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
     int t;
 
     assert(h5 && type_info);
-
+#ifde
     /* Because these N5T_NATIVE_* constants are actually function calls
      * (!) in H5Tpublic.h, I can't initialize this array in the usual
      * way, because at least some C compilers (like Irix) complain
@@ -107,6 +106,7 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
         h5_native_type_constant_g[9] = H5T_NATIVE_LLONG;
         h5_native_type_constant_g[10] = H5T_NATIVE_ULLONG;
     }
+
 
     /* Get the ZARR typeid - we'll need it later. */
     if ((hdf_typeid = H5Dget_type(datasetid)) < 0)
@@ -213,122 +213,8 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
 
     return NC_EBADTYPID;
 }
-
-/**
- * @internal This function reads the coordinates attribute used for
- * multi-dimensional coordinates. It then sets var->dimids[], and
- * attempts to find a pointer to the dims and sets var->dim[] as well.
- *
- * @param grp Group info pointer.
- * @param var Var info pointer.
- *
- * @return ::NC_NOERR No error.
- * @return ::NC_ENOTATT Attribute does not exist.
- * @return ::NC_EATTMETA Attribute metadata error.
- * @return ::NC_EHDFERR ZARR error.
- * @author Dennis Heimbigner, Ed Hartnett
- */
-static int
-read_coord_dimids(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
-{
-    NCZ_VAR_INFO_T *ncz_var;
-    hid_t coord_att_typeid = -1, coord_attid = -1, spaceid = -1;
-    hssize_t npoints;
-    htri_t attr_exists;
-    int d;
-    int stat = NC_NOERR;
-
-    assert(grp && var && var->format_var_info);
-    LOG((3, "%s: var->hdr.name %s", __func__, var->hdr.name));
-
-    /* Have we already read the coordinates hidden att for this var? */
-    if (var->coords_read)
-        return NC_NOERR;
-
-    /* Get NCZ-sepecific var info. */
-    ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
-
-    /* Does the COORDINATES att exist? */
-    if ((attr_exists = H5Aexists(ncz_var->hdf_datasetid, COORDINATES)) < 0)
-        return NC_EHDFERR;
-    if (!attr_exists)
-        return NC_ENOTATT;
-
-    /* There is a hidden attribute telling us the ids of the
-     * dimensions that apply to this multi-dimensional coordinate
-     * variable. Read it. */
-    if ((coord_attid = H5Aopen_name(ncz_var->hdf_datasetid, COORDINATES)) < 0)
-        BAIL(NC_EATTMETA);
-
-    if ((coord_att_typeid = H5Aget_type(coord_attid)) < 0)
-        BAIL(NC_EATTMETA);
-
-    /* How many dimensions are there? */
-    if ((spaceid = H5Aget_space(coord_attid)) < 0)
-        BAIL(NC_EATTMETA);
-    if ((npoints = H5Sget_simple_extent_npoints(spaceid)) < 0)
-        BAIL(NC_EATTMETA);
-
-    /* Check that the number of points is the same as the number of
-     * dimensions for the variable. */
-    if (npoints != var->ndims)
-        BAIL(NC_EATTMETA);
-
-    /* Read the dimids for this var. */
-    if (H5Aread(coord_attid, coord_att_typeid, var->dimids) < 0)
-        BAIL(NC_EATTMETA);
-    LOG((4, "read dimids for this var"));
-
-    /* Update var->dim field based on the var->dimids. Ok if does not
-     * find a dim at this time, but if found set it. */
-    for (d = 0; d < var->ndims; d++)
-        ncz_find_dim(grp, var->dimids[d], &var->dim[d], NULL);
-
-    /* Remember that we have read the coordinates hidden attribute. */
-    var->coords_read = NC_TRUE;
-
-exit:
-    if (spaceid >= 0 && H5Sclose(spaceid) < 0)
-        BAIL2(NC_EHDFERR);
-    if (coord_att_typeid >= 0 && H5Tclose(coord_att_typeid) < 0)
-        BAIL2(NC_EHDFERR);
-    if (coord_attid >= 0 && H5Aclose(coord_attid) < 0)
-        BAIL2(NC_EHDFERR);
-    return stat;
-}
-
-/**
- * @internal This function is called when reading a file's metadata
- * for each dimension scale attached to a variable.
- *
- * @param did ZARR ID for dimscale.
- * @param dim
- * @param dsid
- * @param dimscale_ncz_objids
- *
- * @return 0 for success, -1 for error.
- * @author Dennis Heimbigner, Ed Hartnett
- */
-static herr_t
-dimscale_visitor(hid_t did, unsigned dim, hid_t dsid,
-                 void *dimscale_ncz_objids)
-{
-    H5G_stat_t statbuf;
-
-    LOG((4, "%s", __func__));
-
-    /* Get more info on the dimscale object.*/
-    if (H5Gget_objinfo(dsid, ".", 1, &statbuf) < 0)
-        return -1;
-
-    /* Pass this information back to caller. */
-    (*(NCZ_OBJID_T *)dimscale_ncz_objids).fileno[0] = statbuf.fileno[0];
-    (*(NCZ_OBJID_T *)dimscale_ncz_objids).fileno[1] = statbuf.fileno[1];
-    (*(NCZ_OBJID_T *)dimscale_ncz_objids).objno[0] = statbuf.objno[0];
-    (*(NCZ_OBJID_T *)dimscale_ncz_objids).objno[1] = statbuf.objno[1];
-    return 0;
-}
-
+#endif
+#ifdef LOOK
 /**
  * @internal For files without any netCDF-4 dimensions defined, create phony
  * dimension to match the available datasets.
@@ -553,6 +439,7 @@ rec_match_dimscales(NC_GRP_INFO_T *grp)
 
     return stat;
 }
+#endif /*LOOK*/
 
 /**
  * @internal Check for the attribute that indicates that netcdf
@@ -568,13 +455,12 @@ rec_match_dimscales(NC_GRP_INFO_T *grp)
 static int
 check_for_classic_model(NC_GRP_INFO_T *root_grp, int *is_classic)
 {
-    htri_t attr_exists;
-    hid_t grpid;
-
+    int attr_exists = 0;
     /* Check inputs. */
     assert(root_grp && root_grp->format_grp_info && !root_grp->parent
            && is_classic);
 
+#ifdef LOOK
     /* Get the ZARR group id. */
     grpid = ((NCZ_GRP_INFO_T *)(root_grp->format_grp_info))->hdf_grpid;
 
@@ -582,6 +468,7 @@ check_for_classic_model(NC_GRP_INFO_T *root_grp, int *is_classic)
      * is in effect. */
     if ((attr_exists = H5Aexists(grpid, NC3_STRICT_ATT_NAME)) < 0)
         return NC_EHDFERR;
+#endif
     *is_classic = attr_exists ? 1 : 0;
 
     return NC_NOERR;
@@ -607,32 +494,36 @@ check_for_classic_model(NC_GRP_INFO_T *root_grp, int *is_classic)
  * @author Dennis Heimbigner, Ed Hartnett
  */
 static int
-ncz_open_file(const char *path, int mode, void* parameters, NC *nc)
+ncz_open_file(const char *path, int mode, void* parameters, int ncid)
 {
     int stat;
-    unsigned flags;
     NC_FILE_INFO_T *h5 = NULL;
     int is_classic;
-    NCZ_FILE_INFO *zinfo = NULL;
+    NC* nc = NULL;
 
     LOG((3, "%s: path %s mode %d", __func__, path, mode));
     assert(path && nc);
 
-    /* Add necessary structs to hold netcdf-4 file data. */
+    /* Find pointer to NC. */
+    if ((stat = NC_check_id(ncid, &nc)))
+        return stat;
+    assert(nc && nc->model->impl == NC_FORMATX_NC4);
+
+    /* Add necessary structs to hold netcdf-4 file data;
+       will define the NC_FILE_INFO_T for the file
+       and the NC_GRP_INFO_T for the root group. */
     if ((stat = nc4_nc4f_list_add(nc, path, mode)))
-        BAIL(stat);
+        goto exit;
     h5 = (NC_FILE_INFO_T*)nc->dispatchdata;
     assert(h5 && h5->root_grp);
 
     /* Add struct to hold NCZ-specific file metadata. */
-    if (!(h5->format_file_info = calloc(1, sizeof(NCZ_FILE_INFO))))
-        BAIL(NC_ENOMEM);
+    if (!(h5->format_file_info = calloc(1, sizeof(NCZ_FILE_INFO_T))))
+        {stat = (NC_ENOMEM); goto exit;}
 
     /* Add struct to hold NCZ-specific group info. */
-    if (!(h5->root_grp->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO))))
-        BAIL(NC_ENOMEM);
-
-    zinfo = (NCZ_FILE_INFO*)h5->format_file_info;
+    if (!(h5->root_grp->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
+        {stat = (NC_ENOMEM); goto exit;}
 
     h5->mem.inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
     h5->mem.diskless = ((mode & NC_DISKLESS) == NC_DISKLESS);
@@ -646,26 +537,26 @@ ncz_open_file(const char *path, int mode, void* parameters, NC *nc)
     {
        /* Open the ZARR file. */
        if ((zinfo->hdfid = H5Fopen(path, flags, fapl_id)) < 0)
-          BAIL(NC_EHDFERR);
+          {stat = (NC_EHDFERR); goto exit;}
     }
 #endif
 
-    /* Now read in all the metadata. Some types and dimscale
+    /* Now read in all the metadata. Some types
      * information may be difficult to resolve here, if, for example, a
      * dataset of user-defined type is encountered before the
      * definition of that type. */
-    if ((stat = rec_read_metadata(h5->root_grp)))
-       BAIL(stat);
+    if((stat = ncz_read_file(h5)))
+       goto exit;
 
     /* Check for classic model attribute. */
     if ((stat = check_for_classic_model(h5->root_grp, &is_classic)))
-       BAIL(stat);
+       goto exit;
     if (is_classic)
        h5->cmode |= NC_CLASSIC_MODEL;
 
     /* Set the provenance info for this file */
     if ((stat = NCZ_read_provenance(h5)))
-       BAIL(stat);
+       goto exit;
 
 #ifdef LOGGING
     /* This will print out the names, types, lens, etc of the vars and
@@ -677,7 +568,7 @@ ncz_open_file(const char *path, int mode, void* parameters, NC *nc)
 
 exit:
     if (h5)
-        nc4_close_ncz_file(h5, 1, 0); /*  treat like abort*/
+	ncz_close_ncz_file(h5, 1); /*  treat like abort*/
     return stat;
 }
 
@@ -699,10 +590,9 @@ exit:
  */
 int
 NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
-         void *parameters, const NC_Dispatch *dispatch, NC *nc_file)
+         void *parameters, const NC_Dispatch *dispatch, int ncid)
 {
-    assert(nc_file && path && dispatch && nc_file &&
-           nc_file->model->impl == NC_FORMATX_NC4);
+    assert(path && dispatch);
 
     LOG((1, "%s: path %s mode %d params %x",
          __func__, path, mode, parameters));
@@ -715,18 +605,16 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
         return NC_EINVAL;
 
     /* If this is our first file, initialize NCZ. */
-    if (!ncz_initialized) ncz_initialize();
+    if (!ncz_initialized) NCZ_initialize();
 
 #ifdef LOGGING
     /* If nc logging level has changed, see if we need to turn on
      * NCZ's error messages. */
-    ncz_set_log_level();
+    NCZ_set_log_level();
 #endif /* LOGGING */
 
-    nc_file->int_ncid = nc_file->ext_ncid;
-
     /* Open the file. */
-    return ncz_open_file(path, mode, parameters, nc_file);
+    return ncz_open_file(path, mode, parameters, ncid);
 }
 
 #ifdef LOOK
@@ -1890,51 +1778,6 @@ exit:
 }
 #endif /*LOOK*/
 
-/**
- * @internal This function reads all the attributes of a variable or
- * the global attributes of a group.
- *
- * @param grp Pointer to the group info.
- * @param var Pointer to the var info. NULL for global att reads.
- *
- * @return ::NC_NOERR No error.
- * @return ::NC_EATTMETA Some error occured reading attributes.
- * @author Dennis Heimbigner, Ed Hartnett
- */
-int
-ncz_read_atts(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
-{
-    att_iter_info att_info;         /* Custom iteration information */
-#ifdef LOOK
-    hid_t locid; /* location to read atts from. */
-#endif
-
-    /* Check inputs. */
-    assert(grp);
-
-    /* Assign var and grp in struct. (var may be NULL). */
-    att_info.var = var;
-    att_info.grp = grp;
-
-    /* Determine where to read from in the ZARR file. */
-    locid = var ? ((NCZ_VAR_INFO_T *)(var->format_var_info))->hdf_datasetid :
-        ((NCZ_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid;
-
-    /* Now read all the attributes at this location, ignoring special
-     * netCDF hidden attributes. */
-    if ((H5Aiterate2(locid, H5_INDEX_CRT_ORDER, H5_ITER_INC, NULL,
-                     att_read_callbk, &att_info)) < 0)
-        return NC_EATTMETA;
-
-    /* Remember that we have read the atts for this var or group. */
-    if (var)
-        var->atts_read = 1;
-    else
-        grp->atts_read = 1;
-
-    return NC_NOERR;
-}
-
 #ifdef LOOK
 /**
  * @internal Read a dataset. This function is called when
@@ -2133,7 +1976,102 @@ exit:
 }
 #endif /*LOOK*/
 
-#ifef LOOK
+#if 0
+/**
+ * @internal This is the main function to recursively read and
+ * define all the group metadata, but not their content
+ * @param file Pointer to a containing dataset
+ * @param grp Pointer to a group.
+ *
+ * @return ::NC_NOERR No error.
+ * @return ::NC_EHDFERR ZARR error.
+ * @return ::NC_ENOMEM Out of memory.
+ * @return ::NC_ECANTWRITE File must be opened read-only.
+ * @author Dennis Heimbigner
+ */
+static int
+rec_read_groups(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
+{
+    int i, stat = NC_NOERR;
+
+    assert(grp && grp->hdr.name && grp->format_grp_info);
+    LOG((3, "%s: grp->hdr.name %s", __func__, grp->hdr.name));
+
+    /* create all subgroups of grp */
+    for(i=0;i<ncindexsize(grp->children);i++) {
+	NC_GRP_INFO_T* subg = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
+	/* Create the corresponding .zgroup object */
+	if((stat=ncz_sync_grp_meta(file,subg)))
+	    goto done;
+    }    
+    /* Recurse down */
+    for(i=0;i<ncindexsize(grp->children);i++) {
+	NC_GRP_INFO_T* subg = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
+	if((stat = rec_read_groups(file,subg)))
+	    goto done;
+    }
+
+done:
+    return stat;
+}
+
+/**
+ * @internal This is the main function to recursively walk al
+ * groups and sync their metadata content: dims, types, vars.
+ * The info comes from the map.
+ * @param file Pointer to a containing dataset
+ * @param grp Pointer to a group.
+ *
+ * @return ::NC_NOERR No error.
+ * @return ::NC_EHDFERR ZARR error.
+ * @return ::NC_ENOMEM Out of memory.
+ * @return ::NC_ECANTWRITE File must be opened read-only.
+ * @author Dennis Heimbigner
+ */
+static int
+rec_read_group_content(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
+{
+    int i, stat = NC_NOERR;
+
+    assert(grp && grp->hdr.name && grp->format_grp_info);
+    LOG((3, "%s: grp->hdr.name %s", __func__, grp->hdr.name));
+
+    /* Fill in this group's content */
+
+    /* Dimensions */
+    if((stat = ncz_read_dims(file,grp)))
+	goto done;
+
+    /* Types */
+    /* NO-OP for now */
+
+    /* Group level attributes */
+
+    if((stat = ncz_read_atts(file,(NC_OBJ*)grp)))
+	goto done;
+
+    /* Variables */
+    if((stat = ncz_read_vars(file,grp)))
+	goto done;
+
+    /* Iterate to read variable attributes */
+    for(i=0;i<ncindexsize(grp->vars);i++) {
+	NC_VAR_INFO_T* v = (NC_VAR_INFO_T*)ncindexith(grp->vars,i);
+        if((stat = ncz_read_atts(file,(NC_OBJ*)v)))
+	    goto done;
+    }
+
+    /* Recurse to walk all sub groups breadth first */
+    for(i=0;i<ncindexsize(grp->children);i++) {
+	NC_GRP_INFO_T* subg = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
+	if((stat = rec_read_group_content(file,subg)))
+	    goto done;
+    }
+
+done:
+    return stat;
+}
+
 /**
  * @internal This is the main function to recursively read all the
  * metadata for the file. The links in the 'grp' are iterated over and
@@ -2143,88 +2081,36 @@ exit:
  * are guaranteed to have types that they use in a parent group in
  * place).
  *
- * @param grp Pointer to a group.
+ * @param grp Pointer to a file
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EHDFERR ZARR error.
  * @return ::NC_ENOMEM Out of memory.
  * @return ::NC_ECANTWRITE File must be opened read-only.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Dennis Heimbigner
  */
 static int
-rec_read_metadata(NC_GRP_INFO_T *grp)
+rec_read_metadata(NC_FILE_INFO_T* file)
 {
-    NCZ_GRP_INFO_T *ncz_grp;
-    user_data_t udata;         /* User data for iteration */
-    ncz_obj_info_t *oinfo;    /* Pointer to info for object */
-    hsize_t idx = 0;
-    hid_t pid = -1;
-    unsigned crt_order_flags = 0;
-    H5_index_t iter_index;
     int i, stat = NC_NOERR;
 
-    assert(grp && grp->hdr.name && grp->format_grp_info);
-    LOG((3, "%s: grp->hdr.name %s", __func__, grp->hdr.name));
+    assert(file && file->format_file_info);
+    LOG((3, "%s: file->controller->path %s", __func__, file->controller->path));
 
-    /* Get NCZ-specific group info. */
-    ncz_grp = (NCZ_GRP_INFO_T*)grp->format_grp_info;
+    /* Step1: define all user-defined types. Since user-defined types
+       are not yet implemented, this is a no-op.
+    */
 
-    /* Open this ZARR group and retain its grpid. It will remain open
-     * with ZARR until this file is nc_closed. */
-    if (!ncz_grp->hdf_grpid)
-    {
-        if (grp->parent)
-        {
-            /* This is a child group. */
-            NCZ_GRP_INFO_T *parent_ncz_grp;
-            parent_ncz_grp = (NCZ_GRP_INFO_T*)grp->parent->format_grp_info;
+    /* Step 2: Walk depth-first all the groups to define
+       dimensions and attributes and variables */
 
-            if ((ncz_grp->hdf_grpid = H5Gopen2(parent_ncz_grp->hdf_grpid,
-                                                grp->hdr.name, H5P_DEFAULT)) < 0)
-                BAIL(NC_EHDFERR);
-        }
-        else
-        {
-            /* This is the root group. */
-            NCZ_FILE_INFO *h5;
-            h5 = (NCZ_FILE_INFO *)grp->h5->format_file_info;
-
-            if ((ncz_grp->hdf_grpid = H5Gopen2(h5->hdfid, "/",
-                                                H5P_DEFAULT)) < 0)
-                BAIL(NC_EHDFERR);
-        }
-    }
-    assert(ncz_grp->hdf_grpid > 0);
-
-    /* Get the group creation flags, to check for creation ordering. */
-    if ((pid = H5Gget_create_plist(ncz_grp->hdf_grpid)) < 0)
-        BAIL(NC_EHDFERR);
-    if (H5Pget_link_creation_order(pid, &crt_order_flags) < 0)
-        BAIL(NC_EHDFERR);
-    /* Set the iteration index to use. */
-    if (crt_order_flags & H5P_CRT_ORDER_TRACKED)
-        iter_index = H5_INDEX_CRT_ORDER;
-    else
-    {
-        NC_FILE_INFO_T *h5 = grp->h5;
-
-        /* Without creation ordering, file must be read-only. */
-        if (!zinfo->no_write)
-            BAIL(NC_ECANTWRITE);
-
-        iter_index = H5_INDEX_NAME;
-    }
-
-    /* Set user data for iteration over any child groups. */
-    udata.grp = grp;
-    udata.grps = nclistnew();
-
+#ifdef LOOK
     /* Iterate over links in this group, building lists for the types,
      * datasets and groups encountered. A pointer to udata will be
      * passed as a parameter to the callback function
      * read_ncz_obj(). (I have also tried H5Oiterate(), but it is much
      * slower iterating over the same file - Ed.) */
-    if (H5Literate(ncz_grp->hdf_grpid, iter_index, H5_ITER_INC, &idx,
+    if (H5Literate(zgrp->hdf_grpid, iter_index, H5_ITER_INC, &idx,
                    read_ncz_obj, (void *)&udata) < 0)
         BAIL(NC_EHDFERR);
 
@@ -2237,18 +2123,19 @@ rec_read_metadata(NC_GRP_INFO_T *grp)
         oinfo = (ncz_obj_info_t*)nclistget(udata.grps, i);
 
         /* Add group to file's hierarchy. */
-        if ((stat = ncz_grp_list_add(grp->h5, grp, oinfo->oname,
+        if ((stat = zgrp_list_add(grp->h5, grp, oinfo->oname,
                                        &child_grp)))
             BAIL(stat);
 
         /* Allocate storage for NCZ-specific group info. */
-        if (!(child_grp->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
+        if (!(child_grp->format_grp_info = calloc(1, sizeof(ZGRP_INFO_T))))
             return NC_ENOMEM;
 
         /* Recursively read the child group's metadata. */
         if ((stat = rec_read_metadata(child_grp)))
             BAIL(stat);
     }
+#endif /*LOOK*/
 
     /* When reading existing file, mark all variables as written. */
     for (i = 0; i < ncindexsize(grp->vars); i++)
@@ -2271,4 +2158,5 @@ exit:
 
     return stat;
 }
-#endif /*LOOK*/
+#endif /*0*/
+

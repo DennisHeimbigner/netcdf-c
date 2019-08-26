@@ -10,8 +10,9 @@
  */
 
 #include "config.h"
+#include "nc4internal.h"
 #ifdef USE_HDF5
-#include <hdf5internal.h>
+#include "hdf5internal.h"
 #endif
 #include <math.h> /* For pow() used below. */
 
@@ -401,13 +402,16 @@ NC4_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     if (xtype <= NC_STRING)
     {
         size_t len;
+	char name[NC_MAX_NAME];
 
         /* Get type length. */
         if ((retval = nc4_get_typelen_mem(h5, xtype, &len)))
             BAIL(retval);
 
         /* Create new NC_TYPE_INFO_T struct for this atomic type. */
-        if ((retval = nc4_type_new(len, nc4_atomic_name[xtype], xtype, &type)))
+	if((retval=NC4_inq_atomic_type(xtype,name,NULL)))
+	    BAIL(retval);
+        if ((retval = nc4_type_new(len, name, xtype, &type)))
             BAIL(retval);
         type->endianness = NC_ENDIAN_NATIVE;
         type->size = len;
