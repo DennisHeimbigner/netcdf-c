@@ -103,7 +103,7 @@ struct NCZMAP_API {
 	int (*writemeta)(NCZMAP* map, const char* key, off64_t count, const char* content);
         int (*close)(NCZMAP* map, int delete);
 	/* Search for keys with specified prefix */
-        int (*search)(const char* prefix, NClist* matches);
+        int (*search)(NCZMAP* map, const char* prefix, NClist* matches);
 };
 
 /* Define the Dataset level API */

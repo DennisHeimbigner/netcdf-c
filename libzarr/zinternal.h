@@ -49,13 +49,13 @@
    but NCZARRVERSION => ZARRVERSION */
 #define NCZARRVERSION "1.1"
 
-#define ZMETAROOT "/.nczarr"
-#define NCZCONTENT ".nczcontent"
+#define ZMETAROOT "/_nczarr"
+#define NCZCONTENT "_nczcontent"
+#define ZDIMREFS "_nczdimrefs"
 #define ZGROUP ".zgroup"
 #define ZATTRS ".zattrs"
 #define ZATTRTYPES ".zattrtypes"
 #define ZARRAY ".zarray"
-#define ZDIMREFS ".nczdimrefs"
 
 /**************************************************/
 /* Forward */
@@ -117,6 +117,7 @@ typedef struct NCZ_GRP_INFO {
 /* Struct to hold ZARR-specific info for a variable. */
 typedef struct NCZ_VAR_INFO {
     NCZcommon common;
+    int order; /* 1=>column major, 0=>row major (default); not currently enforced */
 } NCZ_VAR_INFO_T;
 
 /* Struct to hold ZARR-specific info for a field. */
@@ -156,6 +157,10 @@ extern int ncz_initialized; /**< True if initialization has happened. */
 /* Forward */
 struct NC_FILTER_INFO;
 
+/* Internal init */
+int NCZ_initialize_internal(void);
+int NCZ_finalize_internal(void);
+
 /* Adjust the cache. */
 int ncz_adjust_var_cache(NC_GRP_INFO_T* grp, NC_VAR_INFO_T* var);
 
@@ -177,9 +182,6 @@ int ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
 /* Find var, doing lazy var metadata read if needed. */
 int ncz_find_grp_file_var(int ncid, int varid, NC_FILE_INFO_T** file,
                              NC_GRP_INFO_T** grp, NC_VAR_INFO_T** var);
-
-/* Perform lazy read of the rest of the metadata for a var.*/
-int ncz_get_var_meta(NC_VAR_INFO_T* var);
 
 /* This is like nc_set_log_level(), but will also turn on
  * ZARR internal logging, in addition to netCDF logging.*/
@@ -206,6 +208,11 @@ int ncz_close_netcdf4_file(NC_FILE_INFO_T* file, int abort);
 int ncz_close_ncz_file(NC_FILE_INFO_T* file, int abort);
 
 int ncz_getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist);
+
+int ncz_gettype(int xtype, NC_TYPE_INFO_T** typep);
+
+int NCZ_inq_format_extended(int ncid, int *formatp, int *modep);
+
 
 #endif /* ZINTERNAL_H */
 

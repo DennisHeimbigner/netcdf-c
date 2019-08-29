@@ -351,7 +351,7 @@ done:
 /* Debugging */
 
 void
-ncprintprovenance(NC4_Provenance* info)
+nczprintprovenance(NC4_Provenance* info)
 {
     fprintf(stderr,"[%p] version=%d superblockversion=%d ncproperties=|%s|\n",
 	info,

@@ -102,7 +102,6 @@ NCZ_get_vars(int ncid, int varid, const size_t *start, const size_t *count, cons
 /* End _var */
 
 /* netCDF4 API only */
-EXTERNL int NCZ_var_par_access(int, int, int);
 
 EXTERNL int NCZ_inq_ncid(int, const char *, int *);
 
@@ -171,8 +170,6 @@ EXTERNL int NCZ_def_var_endian(int, int, int);
 EXTERNL int NCZ_def_var_filter(int, int, unsigned int, size_t, const unsigned int*);
 
 EXTERNL int NCZ_inq_unlimdims(int, int *, int *);
-
-EXTERNL int NCZ_show_metadata(int);
 
 #if defined(__cplusplus)
 }

@@ -107,7 +107,7 @@ static struct IOSPS {
 {"dap2",NC_IOSP_DAP2},
 {"dap4",NC_IOSP_DAP4},
 {"bytes",NC_IOSP_HTTP},
-{"zarr",NC_IOSP_ZARR},
+{"zarr",NC_IOSP_ZARR_S3},
 {NULL,0}
 };
 
@@ -151,7 +151,8 @@ static struct IospRead {
 {NC_IOSP_MEMORY,1},
 {NC_IOSP_UDF,0},
 {NC_IOSP_HTTP,1},
-{NC_IOSP_ZARR,0},
+{NC_IOSP_ZARR_NC4,0},
+{NC_IOSP_ZARR_S3,0},
 {0,0},
 };
 
@@ -242,7 +243,7 @@ extractiosp(NClist* modeargs, int cmode, NCmodel* model)
     int stat = NC_NOERR;
     struct IOSPS* io = iosps;
 
-    assert(model->iosp == 0);
+    if(model->iosp != 0) return NC_NOERR; /* Already defined */
     for(;io->tag;io++) {
 	int i;
 	for(i=0;i<nclistlength(modeargs);i++) {
@@ -258,7 +259,6 @@ done:
 	model->iosp = (fIsSet(cmode,NC_INMEMORY) ? NC_IOSP_MEMORY:NC_IOSP_FILE);
     return stat;
 }
-
 /* Given a mode= argument, fill in the matching part of the model; except IOSP */
 static int
 processmodearg(const char* arg, NCmodel* model)
@@ -508,7 +508,11 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
     isuri = (uri != NULL);
 
     /* Phase 1: compute the IOSP */
+
+    /* try modeargs */
     if((stat = extractiosp(modeargs,omode,model))) goto done;
+
+    /* Better have something */
     assert(model->iosp != 0);
 
     /* Phase 2: Process the non-iosp mode arguments */

@@ -11,6 +11,11 @@
 
 #include "zincludes.h"
 
+/* Forward */
+static int NCZ_var_par_access(int ncid, int varid, int par_access);
+static int NCZ_show_metadata(int ncid);
+
+
 static const NC_Dispatch NCZ_dispatcher = {
 
     NC_FORMATX_ZARR,
@@ -26,28 +31,28 @@ static const NC_Dispatch NCZ_dispatcher = {
     NCZ_set_fill,
     NC_NOTNC3_inq_base_pe,
     NC_NOTNC3_set_base_pe,
-    NCZ_inq_format,
+    NC4_inq_format,
     NCZ_inq_format_extended,
 
     NCZ_inq,
-    NCZ_inq_type,
+    NC4_inq_type,
 
     NCZ_def_dim,
-    NCZ_inq_dimid,
-    NCZ_inq_dim,
-    NCZ_inq_unlimdim,
+    NC4_inq_dimid,
+    NC4_inq_dim,
+    NC4_inq_unlimdim,
     NCZ_rename_dim,
 
-    NCZ_inq_att,
-    NCZ_inq_attid,
-    NCZ_inq_attname,
+    NC4_inq_att,
+    NC4_inq_attid,
+    NC4_inq_attname,
     NCZ_rename_att,
     NCZ_del_att,
     NCZ_get_att,
     NCZ_put_att,
 
     NCZ_def_var,
-    NCZ_inq_varid,
+    NC4_inq_varid,
     NCZ_rename_var,
     NCZ_get_vara,
     NCZ_put_vara,
@@ -56,7 +61,7 @@ static const NC_Dispatch NCZ_dispatcher = {
     NCDEFAULT_get_varm,
     NCDEFAULT_put_varm,
 
-    NCZ_inq_var_all,
+    NC4_inq_var_all,
 
     NCZ_var_par_access,
     NCZ_def_var_fill,
@@ -64,39 +69,39 @@ static const NC_Dispatch NCZ_dispatcher = {
     NCZ_show_metadata,
     NCZ_inq_unlimdims,
 
-    NCZ_inq_ncid,
-    NCZ_inq_grps,
-    NCZ_inq_grpname,
-    NCZ_inq_grpname_full,
-    NCZ_inq_grp_parent,
-    NCZ_inq_grp_full_ncid,
-    NCZ_inq_varids,
-    NCZ_inq_dimids,
-    NCZ_inq_typeids,
+    NC4_inq_ncid,
+    NC4_inq_grps,
+    NC4_inq_grpname,
+    NC4_inq_grpname_full,
+    NC4_inq_grp_parent,
+    NC4_inq_grp_full_ncid,
+    NC4_inq_varids,
+    NC4_inq_dimids,
+    NC4_inq_typeids,
     NCZ_inq_type_equal,
     NCZ_def_grp,
     NCZ_rename_grp,
-    NCZ_inq_user_type,
-    NCZ_inq_typeid,
+    NC4_inq_user_type,
+    NC4_inq_typeid,
 
-    NCZ_def_compound,
-    NCZ_insert_compound,
-    NCZ_insert_array_compound,
-    NCZ_inq_compound_field,
-    NCZ_inq_compound_fieldindex,
-    NCZ_def_vlen,
-    NCZ_put_vlen_element,
-    NCZ_get_vlen_element,
-    NCZ_def_enum,
-    NCZ_insert_enum,
-    NCZ_inq_enum_member,
-    NCZ_inq_enum_ident,
-    NCZ_def_opaque,
-    NCZ_def_var_deflate,
-    NCZ_def_var_fletcher32,
+    NC_NOTNC4_def_compound,
+    NC_NOTNC4_insert_compound,
+    NC_NOTNC4_insert_array_compound,
+    NC_NOTNC4_inq_compound_field,
+    NC_NOTNC4_inq_compound_fieldindex,
+    NC_NOTNC4_def_vlen,
+    NC_NOTNC4_put_vlen_element,
+    NC_NOTNC4_get_vlen_element,
+    NC_NOTNC4_def_enum,
+    NC_NOTNC4_insert_enum,
+    NC_NOTNC4_inq_enum_member,
+    NC_NOTNC4_inq_enum_ident,
+    NC_NOTNC4_def_opaque,
+    NC_NOTNC4_def_var_deflate,
+    NC_NOTNC4_def_var_fletcher32,
     NCZ_def_var_chunking,
     NCZ_def_var_endian,
-    NCZ_def_var_filter,
+    NC_NOTNC4_def_var_filter,
     NCZ_set_var_chunk_cache,
     NC4_get_var_chunk_cache,
 
@@ -115,7 +120,7 @@ NCZ_initialize(void)
 {
     NCZ_dispatch_table = &NCZ_dispatcher;
     if (!ncz_initialized)
-        NCZ_initialize();
+        NCZ_initialize_internal();
     return NCZ_provenance_init();
 }
 
@@ -128,6 +133,20 @@ NCZ_initialize(void)
 int
 NCZ_finalize(void)
 {
+    NCZ_finalize_internal();
     NCZ_provenance_finalize();
     return NC_NOERR;
 }
+
+static int
+NCZ_var_par_access(int ncid, int varid, int par_access)
+{
+    return NC_NOERR; /* no-op */
+}
+
+static int
+NCZ_show_metadata(int ncid)
+{
+    return NC_NOERR;
+}
+

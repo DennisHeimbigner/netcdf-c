@@ -15,13 +15,14 @@
    datasets or for implementations where the implementation
    multiplexes more than one IOSP in a single dispatcher.
 */
-#define NC_IOSP_FILE	(1)
-#define NC_IOSP_MEMORY	(2)
-#define NC_IOSP_DAP2	(3)
-#define NC_IOSP_DAP4	(4)
-#define NC_IOSP_UDF	(5) /*Placeholder since we do not know IOSP for UDF*/
-#define NC_IOSP_HTTP	(6)
-#define NC_IOSP_ZARR	(7)
+#define NC_IOSP_FILE	 (1)
+#define NC_IOSP_MEMORY	 (2)
+#define NC_IOSP_DAP2	 (3)
+#define NC_IOSP_DAP4	 (4)
+#define NC_IOSP_UDF	 (5) /*Placeholder since we do not know IOSP for UDF*/
+#define NC_IOSP_HTTP	 (6)
+#define NC_IOSP_ZARR_NC4 (7)
+#define NC_IOSP_ZARR_S3  (8)
 
 /* Track the information hat will help us
    infer how to access the data defined by

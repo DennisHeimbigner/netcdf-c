@@ -8,7 +8,8 @@ set -x
 
 # Control which test sets are executed
 # possible sets: mapnc4 proj
-TESTS="mapnc4 proj"
+#TESTS="mapnc4 proj"
+TESTS="mapnc4"
 
 echo ""
 echo "*** Unit Testing"
@@ -20,27 +21,28 @@ mapnc4)
 echo ""; echo "*** Test zmap_nc4"
 CMD="${execdir}/ut_mapnc4 -c"
 $CMD create
-ncdump ./testmapnc4.nc >./ut_mapnc4_create.cdl
+ncdump ./testmapnc4.ncz >./ut_mapnc4_create.cdl
 diff -wb ${srcdir}/ref_ut_mapnc4_create.cdl ./ut_mapnc4_create.cdl
 $CMD delete
-if test -f testmapnc4.nc; then
-    echo "delete did not delete testmapnc4.nc"
+if test -f testmapnc4.ncz; then
+    echo "delete did not delete testmapnc4.ncz"
     exit 1
 fi
 $CMD writemeta
-ncdump ./testmapnc4.nc >./ut_mapnc4_wmeta.cdl
+ncdump ./testmapnc4.ncz >./ut_mapnc4_wmeta.cdl
 diff -wb ${srcdir}/ref_ut_mapnc4_wmeta.cdl ./ut_mapnc4_wmeta.cdl
 $CMD writemeta2 # depends on writemeta
-ncdump ./testmapnc4.nc >./ut_mapnc4_wmeta2.cdl
+ncdump ./testmapnc4.ncz >./ut_mapnc4_wmeta2.cdl
 diff -wb ${srcdir}/ref_ut_mapnc4_wmeta2.cdl ./ut_mapnc4_wmeta2.cdl
 $CMD readmeta > ut_mapnc4_rmeta.txt # depends on writemeta2
 diff -wb ${srcdir}/ref_ut_mapnc4_rmeta.txt ./ut_mapnc4_rmeta.txt
 $CMD write # depends on writemeta2
-ncdump ./testmapnc4.nc >./ut_mapnc4_write.cdl
+ncdump ./testmapnc4.ncz >./ut_mapnc4_write.cdl
 diff -wb ${srcdir}/ref_ut_mapnc4_write.cdl ./ut_mapnc4_write.cdl
 $CMD read # depends on writemeta2
 
-$CMD search
+$CMD search > ut_mapnc4_search.txt
+diff -wb ${srcdir}/ref_ut_mapnc4_search.txt ./ut_mapnc4_search.txt
 ;;
 
 proj)

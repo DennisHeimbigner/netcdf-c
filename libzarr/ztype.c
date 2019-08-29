@@ -67,15 +67,16 @@ NCZ_inq_type_equal(int ncid1, nc_type typeid1, int ncid2,
     }
 
     /* Not atomic types - so find type1 and type2 information. */
-    if ((retval = ncz_find_ncz_grp(ncid1, &grpone)))
+    if ((retval = nc4_find_nc4_grp(ncid1, &grpone)))
         return retval;
-    if (!(type1 = nclistget(grpone->ncz_info->alltypes, typeid1)))
+    if (!(type1 = nclistget(grpone->nc4_info->alltypes, typeid1)))
         return NC_EBADTYPE;
-    if ((retval = ncz_find_ncz_grp(ncid2, &grptwo)))
+    if ((retval = nc4_find_nc4_grp(ncid2, &grptwo)))
         return retval;
-    if (!(type2 = nclistget(grptwo->ncz_info->alltypes, typeid2)))
+    if (!(type2 = nclistget(grptwo->nc4_info->alltypes, typeid2)))
         return NC_EBADTYPE;
 
+#ifdef LOOK
     /* Are the two types equal? */
     {
         hid_t hid1, hid2;
@@ -90,6 +91,9 @@ NCZ_inq_type_equal(int ncid1, nc_type typeid1, int ncid2,
             return NC_EHDFERR;
         *equalp = 1 ? retval : 0;
     }
+#else
+    *equalp = 0;
+#endif
 
     return NC_NOERR;
 }
@@ -108,70 +112,32 @@ NCZ_inq_type_equal(int ncid1, nc_type typeid1, int ncid2,
  * @return ::NC_EBADTYPE Type not found.
  * @author Dennis Heimbigner, Ed Hartnett
  */
-extern int
+int
 NCZ_inq_typeid(int ncid, const char *name, nc_type *typeidp)
 {
-    NC_GRP_INFO_T *grp;
-    NC_GRP_INFO_T *grptwo;
-    NC_FILE_INFO_T *h5;
-    NC_TYPE_INFO_T *type = NULL;
-    char *norm_name;
-    int i, retval;
+    return NC4_inq_typeid(ncid,name,typeidp);
+}
 
-    /* Handle atomic types. */
-    for (i = 0; i < NUM_ATOMIC_TYPES; i++)
-        if (!strcmp(name, ncz_atomic_name[i]))
-        {
-            if (typeidp)
-                *typeidp = i;
-            return NC_NOERR;
-        }
-
-    /* Find info for this file and group, and set pointer to each. */
-    if ((retval = ncz_find_grp_h5(ncid, &grp, &h5)))
-        return retval;
-    assert(h5 && grp);
-
-    /* If the first char is a /, this is a fully-qualified
-     * name. Otherwise, this had better be a local name (i.e. no / in
-     * the middle). */
-    if (name[0] != '/' && strstr(name, "/"))
-        return NC_EINVAL;
-
-    /* Normalize name. */
-    if (!(norm_name = (char*)malloc(strlen(name) + 1)))
-        return NC_ENOMEM;
-    if ((retval = ncz_normalize_name(name, norm_name))) {
-        free(norm_name);
-        return retval;
-    }
-    /* Is the type in this group? If not, search parents. */
-    for (grptwo = grp; grptwo; grptwo = grptwo->parent) {
-        type = (NC_TYPE_INFO_T*)ncindexlookup(grptwo->type,norm_name);
-        if(type)
-        {
-            if (typeidp)
-                *typeidp = type->hdr.id;
-            break;
-        }
-    }
-
-    /* Still didn't find type? Search file recursively, starting at the
-     * root group. */
-    if (!type)
-        if ((type = ncz_rec_find_named_type(grp->ncz_info->root_grp, norm_name)))
-            if (typeidp)
-                *typeidp = type->hdr.id;
-
-    free(norm_name);
-
-    /* OK, I give up already! */
-    if (!type)
-        return NC_EBADTYPE;
-
+/**
+ * @internal Get the # and ids of user defined types
+ *
+ * @param ncid File and group ID.
+ * @param ntypes Pointer to store # user defined groups
+ * @param typeids Pointer to store ids of user defined groups
+ *
+ * @return ::NC_NOERR No error.
+ * @return ::NC_ENOTNC4 User types in netCDF-4 files only.
+ * @return ::NC_EBADTYPE Type not found.
+ * @author Dennis Heimbigner, Ed Hartnett
+ */
+int
+NCZ_inq_typeids(int ncid, int *ntypes, int *typeids)
+{
+    if(ntypes) *ntypes = 0;
     return NC_NOERR;
 }
 
+#ifdef LOOK
 /**
  * @internal This internal function adds a new user defined type to
  * the metadata of a group of an open file.
@@ -547,3 +513,5 @@ NCZ_get_vlen_element(int ncid, int typeid1, const void *vlen_element,
     memcpy(data, tmp->p, tmp->len * type_size);
     return NC_NOERR;
 }
+
+#endif /*LOOK*/

@@ -56,13 +56,8 @@ set_auto(void* func, void *client_data)
  * the ZARR library.
  */
 int
-NCZ_initialize(void)
+NCZ_initialize_internal(void)
 {
-#ifdef LOOK
-    if (set_auto(NULL, NULL) < 0)
-        LOG((0, "Couldn't turn off ZARR error messages!"));
-    LOG((1, "NCZ error messages have been turned off."));
-#endif
     ncz_initialized = 1;
     return NC_NOERR;
 }
@@ -72,10 +67,9 @@ NCZ_initialize(void)
  * the ZARR library.
  */
 int
-NCZ_finalize(void)
+NCZ_finalize_internal(void)
 {
     /* Reclaim global resources */
-    NCZ_provenance_finalize();
     ncz_initialized = 0;
     return NC_NOERR;
 }
@@ -503,7 +497,7 @@ ncz_find_grp_h5_var(int ncid, int varid, NC_FILE_INFO_T **h5,
 
     /* Do we need to read var metadata? */
     if (!my_var->meta_read && my_var->created)
-        if ((retval = ncz_get_var_meta(my_var)))
+        if ((retval = ncz_get_var_meta(my_h5, my_var)))
             return retval;
 
     /* Return pointers that caller wants. */
@@ -595,7 +589,7 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
 
         /* Do we need to read var metadata? */
         if (!my_var->meta_read && my_var->created)
-            if ((retval = ncz_get_var_meta(my_var)))
+            if ((retval = ncz_get_var_meta(my_h5, my_var)))
                 return retval;
 
         attlist = my_var->att;
@@ -754,3 +748,39 @@ NCZ_set_log_level()
     return NC_NOERR;
 }
 #endif /* LOGGING */
+
+/**
+ * @internal Return the extended format (i.e. the dispatch model),
+ * plus the mode associated with an open file.
+ *
+ * @param ncid File ID (ignored).
+ * @param formatp a pointer that gets the extended format. Note that
+ * this is not the same as the format provided by nc_inq_format(). The
+ * extended foramt indicates the dispatch layer model. NetCDF-4 files
+ * will always get NC_FORMATX_NC4.
+ * @param modep a pointer that gets the open/create mode associated with
+ * this file. Ignored if NULL.
+
+ * @return ::NC_NOERR No error.
+ * @return ::NC_EBADID Bad ncid.
+ * @author Dennis Heimbigner
+ */
+int
+NCZ_inq_format_extended(int ncid, int *formatp, int *modep)
+{
+    NC *nc;
+    int retval;
+
+    LOG((2, "%s: ncid 0x%x", __func__, ncid));
+
+    if ((retval = nc4_find_nc_grp_h5(ncid, &nc, NULL, NULL)))
+        return NC_EBADID;
+
+    if(modep)
+        *modep = nc->mode|NC_NETCDF4;
+
+    if (formatp)
+        *formatp = NC_FORMATX_ZARR;
+
+    return NC_NOERR;
+}

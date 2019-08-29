@@ -12,6 +12,12 @@
 
 #include "zincludes.h"
 
+/* These are the default chunk cache sizes for ZARR files created or
+ * opened with netCDF-4. */
+size_t ncz_chunk_cache_size = 0;
+size_t ncz_chunk_cache_nelems = 0;
+float ncz_chunk_cache_preemption = 0;
+
 /**
  * Set chunk cache size. Only affects files opened/created *after* it
  * is called.
@@ -103,5 +109,11 @@ ncz_get_chunk_cache_ints(int *sizep, int *nelemsp, int *preemptionp)
     if (preemptionp)
         *preemptionp = (int)(ncz_chunk_cache_preemption * 100);
 
+    return NC_NOERR;
+}
+
+int
+ncz_adjust_var_cache(NC_GRP_INFO_T* grp, NC_VAR_INFO_T* var)
+{
     return NC_NOERR;
 }

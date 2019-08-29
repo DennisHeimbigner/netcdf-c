@@ -10,7 +10,6 @@
  */
 
 #include "zincludes.h"
-
 #include <math.h> /* For pow() used below. */
 
 #ifdef LOGGING
@@ -317,7 +316,6 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     NC_DIM_INFO_T *dim;
     NC_FILE_INFO_T *h5;
     NC_TYPE_INFO_T *type = NULL;
-    NCZ_TYPE_INFO_T *ncz_type;
 
     char norm_name[NC_MAX_NAME + 1];
     int d;
@@ -392,74 +390,8 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     /* If this is a user-defined type, there is a type struct with
      * all the type information. For atomic types, fake up a type
      * struct. */
-    if (xtype <= NC_STRING)
-    {
-        size_t len;
-	char name[NC_MAX_NAME];
-
-        /* Get type name and length. */
-        if((retval = NC4_inq_atomic_type(xtype,name,&len)))
-            BAIL(retval);
-
-        /* Create new NC_TYPE_INFO_T struct for this atomic type. */
-        if ((retval = nc4_type_new(len, name, xtype, &type)))
-            BAIL(retval);
-        type->endianness = NC_ENDIAN_NATIVE;
-        type->size = len;
-
-        /* Allocate storage for NCZ-specific type info. */
-        if (!(ncz_type = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
-            BAIL(NC_ENOMEM);
-        type->format_type_info = ncz_type;
-
-#ifdef LOOK
-        /* Get ZARR typeids. */
-        if ((retval = ncz_get_hdf_typeid(h5, xtype, &ncz_type->hdf_typeid,
-                                         type->endianness)))
-            BAIL(retval);
-
-        /* Get the native ZARR typeid. */
-        if ((ncz_type->native_hdf_typeid = H5Tget_native_type(ncz_type->hdf_typeid,
-                                                               H5T_DIR_DEFAULT)) < 0)
-            BAIL(NC_EHDFERR);
-#endif
-
-        /* Set the "class" of the type */
-        if (xtype == NC_CHAR)
-            type->nc_type_class = NC_CHAR;
-        else
-        {
-#ifdef LOOK
-            H5T_class_t class;
-
-            if ((class = H5Tget_class(ncz_type->hdf_typeid)) < 0)
-                BAIL(NC_EHDFERR);
-            switch(class)
-            {
-            case H5T_STRING:
-                type->nc_type_class = NC_STRING;
-                break;
-
-            case H5T_INTEGER:
-                type->nc_type_class = NC_INT;
-                break;
-
-            case H5T_FLOAT:
-                type->nc_type_class = NC_FLOAT;
-                break;
-
-            default:
-                BAIL(NC_EBADTYPID);
-            }
-#endif /*LOOK*/
-        }
-    }
-    else
-    {
-        /* If this is a user defined type, find it. */
-        if (nc4_find_type(grp->nc4_info, xtype, &type))
-            BAIL(NC_EBADTYPE);
-    }
+    if((retval = ncz_gettype(xtype,&type)))
+	BAIL(retval);
 
     /* Create a new var and fill in some ZARR cache setting values. */
     if ((retval = nc4_var_list_add(grp, norm_name, ndims, &var)))
@@ -619,7 +551,7 @@ exit:
  * @author Dennis Heimbigner, Ed Hartnett
  */
 static int
-nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
+ncz_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
                  int *deflate_level, int *fletcher32, int *contiguous,
                  const size_t *chunksizes, int *no_fill,
                  const void *fill_value, int *endianness)
@@ -826,7 +758,7 @@ int
 NCZ_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
                     int deflate_level)
 {
-    return nc_def_var_extra(ncid, varid, &shuffle, &deflate,
+    return ncz_def_var_extra(ncid, varid, &shuffle, &deflate,
                             &deflate_level, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
@@ -851,7 +783,7 @@ NCZ_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
 int
 NCZ_def_var_fletcher32(int ncid, int varid, int fletcher32)
 {
-    return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, &fletcher32,
+    return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, &fletcher32,
                             NULL, NULL, NULL, NULL, NULL);
 }
 
@@ -880,7 +812,7 @@ NCZ_def_var_fletcher32(int ncid, int varid, int fletcher32)
 int
 NCZ_def_var_chunking(int ncid, int varid, int contiguous, const size_t *chunksizesp)
 {
-    return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
+    return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
                             &contiguous, chunksizesp, NULL, NULL, NULL);
 }
 
@@ -905,7 +837,7 @@ NCZ_def_var_chunking(int ncid, int varid, int contiguous, const size_t *chunksiz
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-nc_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
+ncz_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
 {
     NC_VAR_INFO_T *var;
     size_t *cs;
@@ -925,7 +857,7 @@ nc_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
     for (i = 0; i < var->ndims; i++)
         cs[i] = chunksizesp[i];
 
-    retval = nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
+    retval = ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
                               &contiguous, cs, NULL, NULL, NULL);
 
     if (var->ndims)
@@ -959,7 +891,7 @@ nc_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
 int
 NCZ_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
 {
-    return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
+    return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
                             NULL, &no_fill, fill_value, NULL);
 }
 
@@ -988,7 +920,7 @@ NCZ_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
 int
 NCZ_def_var_endian(int ncid, int varid, int endianness)
 {
-    return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
+    return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
                             NULL, NULL, NULL, &endianness);
 }
 
@@ -2155,6 +2087,7 @@ exit:
             BAIL2(NC_EHDFERR);
     if (xfer_plistid > 0)
         if (H5Pclose(xfer_plistid) < 0)
+
             BAIL2(NC_EHDFERR);
 #endif
     if (need_to_convert && bufr)
@@ -2307,7 +2240,7 @@ NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems,
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-nc_set_var_chunk_cache_ints(int ncid, int varid, int size, int nelems,
+ncz_set_var_chunk_cache_ints(int ncid, int varid, int size, int nelems,
                             int preemption)
 {
     size_t real_size = H5D_CHUNK_CACHE_NBYTES_DEFAULT;
@@ -2327,3 +2260,65 @@ nc_set_var_chunk_cache_ints(int ncid, int varid, int size, int nelems,
                                         real_preemption);
 }
 
+int
+ncz_gettype(int xtype, NC_TYPE_INFO_T** typep)
+{
+    int retval = NC_NOERR;
+    NC_TYPE_INFO_T* type = NULL;
+    NCZ_TYPE_INFO_T* ztype = NULL;
+
+    /* If this is a user-defined type, there is a type struct with
+     * all the type information. For atomic types, fake up a type
+     * struct. */
+    if (xtype <= NC_STRING)
+    {
+        size_t len;
+	char name[NC_MAX_NAME];
+
+        /* Get type name and length. */
+        if((retval = NC4_inq_atomic_type(xtype,name,&len)))
+            BAIL(retval);
+
+        /* Create new NC_TYPE_INFO_T struct for this atomic type. */
+        if ((retval = nc4_type_new(len, name, xtype, &type)))
+            BAIL(retval);
+        type->endianness = NC_ENDIAN_NATIVE; /* for now */
+        type->size = len;
+
+        /* Allocate storage for NCZ-specific type info. */
+        if (!(ztype = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
+            BAIL(NC_ENOMEM);
+        type->format_type_info = ztype;
+
+        /* Set the "class" of the type */
+        if (xtype == NC_CHAR)
+            type->nc_type_class = NC_CHAR;
+        else
+        {
+	    if(xtype == NC_FLOAT || xtype == NC_DOUBLE)
+		type->nc_type_class = NC_FLOAT;
+	    else if(xtype < NC_STRING)
+		type->nc_type_class = NC_INT;
+	    else
+		type->nc_type_class = NC_STRING;
+        }
+    }
+    else
+    {
+#ifdef LOOK
+        /* If this is a user defined type, find it. */
+        if (nc4_find_type(grp->nc4_info, xtype, &type))
+#endif
+            BAIL(NC_EBADTYPE);
+    }
+
+    if(typep) {*typep = type; type = NULL;}
+    return NC_NOERR;
+
+exit:
+    if (type)
+        retval = nc4_type_free(type);
+    return retval;
+}
+	
+    

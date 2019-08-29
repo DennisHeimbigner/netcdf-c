@@ -263,3 +263,11 @@ NCZ_rename_dim(int ncid, int dimid, const char *name)
 
     return NC_NOERR;
 }
+
+int
+NCZ_inq_unlimdims(int ncid, int *ndimsp, int *unlimdimidsp)
+{
+    if(ndimsp) *ndimsp = 0;
+    return NC_NOERR;
+}
+

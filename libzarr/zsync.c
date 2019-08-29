@@ -19,8 +19,10 @@ static int define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varname
 static int define_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames);
 static int searchvars(NC_FILE_INFO_T*, NC_GRP_INFO_T*, NClist*);
 static int searchsubgrps(NC_FILE_INFO_T*, NC_GRP_INFO_T*, NClist*);
-static int simulatedimrefs(NC_FILE_INFO_T* file, NCjson* jarray, NClist* dimrefs);
 static int locategroup(NC_FILE_INFO_T* file, size_t nsegs, NClist* segments, NC_GRP_INFO_T** grpp);
+static int parsedimrefs(NC_FILE_INFO_T*, NClist* dimrefs, NC_DIM_INFO_T** dims);
+static int simulatedimrefs(NC_FILE_INFO_T* file, int rank, size64_t* shapes, NC_DIM_INFO_T** dims);
+static int decodeints(NCjson* jshape, size64_t* shapes);
 
 /**************************************************/
 /**************************************************/
@@ -1082,7 +1084,9 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     NClist* segments = nclistnew();
     NCjson* jvar = NULL;
     NCjson* jdimrefs = NULL;
-    NClist* dimrefs = NULL;
+    NCjson* jvalue = NULL;
+    NClist* dimrefs = nclistnew();
+    int nodimrefs = 0;
 
     zinfo = file->format_file_info;
     map = zinfo->map;
@@ -1093,12 +1097,21 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 
     /* Load each var in turn */
     for(i = 0; i < nclistlength(varnames); i++) {
+	int j;
 	NC_VAR_INFO_T* var;
         const char* varname = nclistget(varnames,i);
+
+	/* Clean up from last cycle */
+	for(j=0;j<nclistlength(dimrefs);j++)
+	    nullfree((char*)nclistget(dimrefs,j));
 
 	/* Create the NC_VAR_INFO_T object */
         if((stat = nc4_var_list_add2(grp, varname, &var)))
 	    goto done;
+
+        /* And its annotation */
+	if((var->format_var_info = calloc(1,sizeof(NCZ_VAR_INFO_T)))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
 
 	/* Construct the path to the zarray object */
         if((stat = nczm_suffix(fullpath,ZARRAY,&key)))
@@ -1120,50 +1133,16 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	        const char* dimpath = nclistget(jdimrefs->array,i);
 		nclistpush(dimrefs,strdup(dimpath));
 	    }
+	    nodimrefs = 0;
 	    break;
-	case NC_EACCESS: /* simulate it */
-	    if((stat = simulatedimrefs(file,jvar,dimrefs))) goto done;
+	case NC_EACCESS: /* simulate it from the shape of the variable */
+	    nodimrefs = 1;
 	    break;
 	default: goto done;
  	}
         nullfree(key); key = NULL;
-	/* Set the rank of the variable */
-        if((stat = nc4_var_set_ndims(var, nclistlength(dimrefs))))
-	    goto done;
-	/* Collect the set of dimrefs */
-	for(i=0;i<nclistlength(dimrefs);i++) {
-	    NC_GRP_INFO_T* g = NULL;
-	    NC_DIM_INFO_T* d = NULL;
-	    int j;
-	    const char* dimpath = nclistget(dimrefs,i);
-	    const char* dimname = NULL;
-	    /* Locate the corresponding NC_DIM_INFO_T* object */
-	    /* Clear the list */
-	    for(j=0;j<nclistlength(segments);j++)
-		nullfree((char*)nclistget(segments,j));
-	    if((stat = ncz_splitpath(dimpath,segments)))
-		goto done;
-	    if((stat=locategroup(file,nclistlength(segments)-1,segments,&g)))
-		goto done;
-	    /* Lookup the dimension */
-	    dimname = nclistget(segments,nclistlength(segments)-1);
-	    d = NULL;
-	    for(j=0;j<ncindexsize(g->dim);j++) {
-	        d = (NC_DIM_INFO_T*)ncindexith(g->dim,j);
-		if(strcmp(d->hdr.name,dimname)==0) {
-		    var->dimids[i] = j;/* match */
-		    break;
-		}
-        }
-	/* Use jvar to set up the rest of the NC_VAR_INFO_T object */
-dtype
-order
-shape
-chunks
-fill_value
-compressor
-filters
 
+	/* Use jvar to set up the rest of the NC_VAR_INFO_T object */
 	/* Verify the format */
 	{
 	    int version;
@@ -1172,9 +1151,91 @@ filters
 	    if(version != zinfo->zarr.zarr_version)
 		{stat = NC_EZARR; goto done;}
 	}
-	/* Set the type of the variable */
-	var->	
-
+	/* Set the type and endianness of the variable */
+	{
+	    nc_type vtype;
+	    int endianness;
+	    if((stat = NCJdictget(jvar,"dtype",&jvalue))) goto done;
+	    /* Convert dtype to nc_type + endianness */
+	    if((stat = NCZ_dtype2typeinfo(jvalue->value,&vtype,&endianness)))
+		goto done;
+	    if(vtype > NC_NAT && vtype < NC_STRING) {
+	        /* Locate the NC_TYPE_INFO_T object */
+		if((stat = ncz_gettype(vtype,&var->type_info)))
+		    goto done;
+	    } else {stat = NC_EBADTYPE; goto done;}
+	    if(endianness == NC_ENDIAN_LITTLE || endianness == NC_ENDIAN_BIG) {
+		var->endianness = endianness;
+	    } else {stat = NC_EBADTYPE; goto done;}
+	    var->type_info->endianness = var->endianness; /* Propagate */
+        }
+	/* shape */
+	{
+	    int rank;
+	    if((stat = NCJdictget(jvar,"shape",&jvalue))) goto done;
+	    if(jvalue->sort != NCJ_ARRAY) {stat = NC_EZARR; goto done;}
+	    /* Verify the rank */
+	    rank = nclistlength(jvalue->array);
+	    if(!nodimrefs) { /* verify rank consistency */
+		if(nclistlength(dimrefs) != rank)
+		    {stat = NC_EZARR; goto done;}
+	    }
+	    /* Set the rank of the variable */
+            if((stat = nc4_var_set_ndims(var, rank))) goto done;
+	    if(nodimrefs) {
+		if((stat = parsedimrefs(file,dimrefs, var->dim)))
+		    goto done;
+	    } else { /* simulate the dimrefs */
+		size64_t shapes[NC_MAX_VAR_DIMS];
+		if((stat = decodeints(jvalue, shapes))) goto done;
+		if((stat = simulatedimrefs(file, rank, shapes, var->dim)))
+		    goto done;
+	    }
+	    /* fill in the dimids */
+	    for(j=0;j<rank;j++)
+		var->dimids[j] = var->dim[j]->hdr.id;
+	}
+	/* chunks */
+	{
+	    int rank;
+	    size64_t chunks[NC_MAX_VAR_DIMS];
+	    if((stat = NCJdictget(jvar,"chunks",&jvalue))) goto done;
+	    if(jvalue->sort != NCJ_ARRAY) {stat = NC_EZARR; goto done;}
+	    /* Verify the rank */
+	    rank = nclistlength(jvalue->array);
+	    if(var->ndims != rank)
+	        {stat = NC_EZARR; goto done;}
+  	    if((stat = decodeints(jvalue, chunks))) goto done;
+	    /* validate the chunk sizes */
+	    for(j=0;j<rank;j++) {
+		NC_DIM_INFO_T* d = var->dim[j]; /* matching dim */
+	        if(chunks[j] == 0 || chunks[j] > d->len)
+		    {stat = NC_EZARR; goto done;}
+		var->chunksizes[j] = (size_t)chunks[j];
+	    }
+	}
+	/* fill_value */
+	{
+	    if((stat = NCJdictget(jvar,"fill_value",&jvalue))) goto done;
+	    /* ignore */
+	}
+	/* Capture row vs column major; currently, column major not used*/
+	{
+	    if((stat = NCJdictget(jvar,"order",&jvalue))) goto done;
+	    if(strcmp(jvalue->value,"C")==1)
+		((NCZ_VAR_INFO_T*)var->format_var_info)->order = 1;
+	    else ((NCZ_VAR_INFO_T*)var->format_var_info)->order = 0;
+	}
+	/* compressor ignored */
+	{
+	    if((stat = NCJdictget(jvar,"compressor",&jvalue))) goto done;
+	    /* ignore */
+	}
+	/* filters ignored */
+	{
+	    if((stat = NCJdictget(jvar,"filters",&jvalue))) goto done;
+	    /* ignore */
+	}
     }
 done:
     nullfree(fullpath);
@@ -1200,19 +1261,14 @@ static int
 define_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames)
 {
     int i,stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = NULL;
-    NCZMAP* map = NULL;
-
-    zinfo = file->format_file_info;
-    map = zinfo->map;
 
     /* Load each subgroup name in turn */
     for(i = 0; i < nclistlength(subgrpnames); i++) {
 	NC_GRP_INFO_T* g = NULL;
-        const char* gname = ncindexith(subgrpnames,i);
+        const char* gname = nclistget(subgrpnames,i);
 	char norm_name[NC_MAX_NAME];
         /* Check and normalize the name. */
-        if((stat = nc4_check_name(name, norm_name)))
+        if((stat = nc4_check_name(gname, norm_name)))
 	    goto done;
 	if((stat = nc4_grp_list_add(file, grp, norm_name, &g)))
 	    goto done;
@@ -1231,7 +1287,7 @@ done:
     return stat;
 }
 
-/**************************************************
+/**************************************************/
 /* Utilities */
 
 static int
@@ -1253,6 +1309,7 @@ static int
 parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist* subgrps)
 {
     int i,stat = NC_NOERR;
+    NCjson* jvalue = NULL;
 
     if((stat=NCJdictget(jcontent,"dims",&jvalue))) goto done;
     if(jvalue->sort != NCJ_DICT) {stat = NC_EZARR; goto done;}
@@ -1270,7 +1327,7 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
 	sscanf(jlen->value,"%lld",&len);
 	if(len <= 0)
 	    {stat = NC_EDIMSIZE; goto done;}		
-	nclistpush(dimdefs,strcpy(norm_name));
+	nclistpush(dimdefs,strdup(norm_name));
 	nclistpush(dimdefs,jlen->value);
     }
 
@@ -1282,7 +1339,7 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
 	/* Verify name legality */
         if((stat = nc4_check_name(jname->value, norm_name)))
 	    {stat = NC_EBADNAME; goto done;}
-	nclistpush(vars,strcpy(norm_name));
+	nclistpush(varnames,strdup(norm_name));
     }
 
     /* Extract the subgroup names in this group */
@@ -1293,7 +1350,7 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
 	/* Verify name legality */
         if((stat = nc4_check_name(jname->value, norm_name)))
 	    {stat = NC_EBADNAME; goto done;}
-	nclistpush(groups,strcpy(norm_name));
+	nclistpush(subgrps,strdup(norm_name));
     }
 
 done:
@@ -1312,10 +1369,57 @@ searchsubgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames)
     return NC_NOERR;
 }
 
+/* Convert a list of integer strings to integers */
 static int
-simulatedimrefs(NC_FILE_INFO_T* file, NCjson* jarray, NClist* dimrefs)
+decodeints(NCjson* jshape, size64_t* shapes)
 {
-    return NC_NOERR;
+    int i, stat = NC_NOERR;
+
+    for(i=0;i<nclistlength(jshape->array);i++) {
+	long long v;
+	NCjson* jv = nclistget(jshape->array,i);
+	if((stat = NCZ_convert1(jv,NC_INT64,(char*)&v))) goto done;
+	if(v < 0) {stat = NC_EZARR; goto done;}
+	shapes[i] = (size64_t)v;
+    }
+
+done:
+    return stat;
+}
+
+static int
+simulatedimrefs(NC_FILE_INFO_T* file, int rank, size64_t* shapes, NC_DIM_INFO_T** dims)
+{
+    int i, j, stat = NC_NOERR;
+    NC_GRP_INFO_T* root = file->root_grp;
+    NC_DIM_INFO_T* thed = NULL;
+    int match = 0;
+
+    for(i=0;i<rank;i++) {
+	size64_t dimlen = shapes[i];
+	char shapename[NC_MAX_NAME];
+	match = 0;
+	/* See if there is a dimension named "_dim<dimlen>", if not create */
+	snprintf(shapename,sizeof(shapename),"_dim%llu",dimlen);
+	for(j=0;j<ncindexsize(root->dim);j++) {
+	    thed = (NC_DIM_INFO_T*)ncindexith(root->dim,j);
+	    if(strcmp(thed->hdr.name,shapename)==0) {
+		if(dimlen != (size64_t)thed->len)
+		    {stat = NC_EZARR; goto done;} /* we have a problem */
+		match = 1;
+		break;
+	    }
+	}
+	if(!match) { /* create the dimension */
+	    if((stat = nc4_dim_list_add(root,shapename,(size_t)dimlen, -1, &thed)))
+		goto done;
+	}
+	/* Save the id */
+	dims[i] = thed;
+    }
+
+done:
+    return stat;
 }
 
 /*
@@ -1342,7 +1446,7 @@ locategroup(NC_FILE_INFO_T* file, size_t nsegs, NClist* segments, NC_GRP_INFO_T*
 		break;
 	    }
 	}
-	if(!found) {stat = NC_EBADGRP; goto done;}	
+	if(!found) {stat = NC_ENOGRP; goto done;}	
     }
     /* grp should be group of interest */
     if(grpp) *grpp = grp;
@@ -1350,3 +1454,107 @@ locategroup(NC_FILE_INFO_T* file, size_t nsegs, NClist* segments, NC_GRP_INFO_T*
 done:
     return stat;
 }
+
+static int
+parsedimrefs(NC_FILE_INFO_T* file, NClist* dimrefs, NC_DIM_INFO_T** dims)
+{
+    int i, stat = NC_NOERR;
+    NClist* segments = nclistnew();
+
+    for(i=0;i<nclistlength(dimrefs);i++) {
+	NC_GRP_INFO_T* g = NULL;
+	NC_DIM_INFO_T* d = NULL;
+	int j;
+	const char* dimpath = nclistget(dimrefs,i);
+	const char* dimname = NULL;
+	/* Locate the corresponding NC_DIM_INFO_T* object */
+	/* Clear the list */
+	for(j=0;j<nclistlength(segments);j++)
+	    nullfree((char*)nclistget(segments,j));
+	if((stat = ncz_splitpath(dimpath,segments)))
+	    goto done;
+	if((stat=locategroup(file,nclistlength(segments)-1,segments,&g)))
+	    goto done;
+	/* Lookup the dimension */
+	dimname = nclistget(segments,nclistlength(segments)-1);
+	d = NULL;
+	for(j=0;j<ncindexsize(g->dim);j++) {
+	    d = (NC_DIM_INFO_T*)ncindexith(g->dim,j);
+	    if(strcmp(d->hdr.name,dimname)==0) {
+		dims[i] = d;/* match */
+		break;
+	    }
+        }
+    }
+done:
+    nclistfreeall(segments);
+    return stat;
+}
+
+/**
+ * @internal Get the metadata for a variable.
+ *
+ * @param var Pointer to var info struct.
+ *
+ * @return ::NC_NOERR No error.
+ * @return ::NC_EBADID Bad ncid.
+ * @return ::NC_ENOMEM Out of memory.
+ * @return ::NC_EHDFERR HDF5 returned error.
+ * @return ::NC_EVARMETA Error with var metadata.
+ * @author Ed Hartnett
+ */
+int
+ncz_get_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
+{
+    int retval = NC_NOERR;
+
+    assert(file && var && var->format_var_info);
+    LOG((3, "%s: var %s", __func__, var->hdr.name));
+
+    /* Have we already read the var metadata? */
+    if (var->meta_read)
+        return NC_NOERR;
+
+#ifdef LOOK
+    /* Get the current chunk cache settings. */
+    if ((access_pid = H5Dget_access_plist(hdf5_var->hdf_datasetid)) < 0)
+        BAIL(NC_EVARMETA);
+
+    /* Learn about current chunk cache settings. */
+    if ((H5Pget_chunk_cache(access_pid, &(var->chunk_cache_nelems),
+                            &(var->chunk_cache_size), &rdcc_w0)) < 0)
+        BAIL(NC_EHDFERR);
+    var->chunk_cache_preemption = rdcc_w0;
+
+    /* Get the dataset creation properties. */
+    if ((propid = H5Dget_create_plist(hdf5_var->hdf_datasetid)) < 0)
+        BAIL(NC_EHDFERR);
+
+    /* Get var chunking info. */
+    if ((retval = get_chunking_info(propid, var)))
+        BAIL(retval);
+
+    /* Get filter info for a var. */
+    if ((retval = get_filter_info(propid, var)))
+        BAIL(retval);
+
+    /* Get fill value, if defined. */
+    if ((retval = get_fill_info(propid, var)))
+        BAIL(retval);
+
+    /* Is this a deflated variable with a chunksize greater than the
+     * current cache size? */
+    if ((retval = nc4_adjust_var_cache(var->container, var)))
+        BAIL(retval);
+
+    if (var->coords_read && !var->dimscale)
+        if ((retval = get_attached_info(var, hdf5_var, var->ndims, hdf5_var->hdf_datasetid)))
+            return retval;
+#endif
+
+    /* Remember that we have read the metadata for this var. */
+    var->meta_read = NC_TRUE;
+
+    return retval;
+}
+

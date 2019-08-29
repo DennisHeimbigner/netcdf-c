@@ -124,13 +124,12 @@ am_libzarr_la_OBJECTS = libzarr_la-zattr.lo libzarr_la-zcache.lo \
 	libzarr_la-zcreate.lo libzarr_la-zdim.lo \
 	libzarr_la-zdispatch.lo libzarr_la-zfile.lo libzarr_la-zgrp.lo \
 	libzarr_la-zinternal.lo libzarr_la-zopen.lo \
-	libzarr_la-zprov.lo libzarr_la-zvar.lo libzarr_la-zarr.lo \
-	libzarr_la-zcvt.lo libzarr_la-zsync.lo libzarr_la-zodom.lo \
+	libzarr_la-zprov.lo libzarr_la-zvar.lo libzarr_la-ztype.lo \
+	libzarr_la-zodom.lo libzarr_la-zsliceindices.lo \
+	libzarr_la-zarr.lo libzarr_la-zcvt.lo libzarr_la-zsync.lo \
 	libzarr_la-zallchunks.lo libzarr_la-zchunkio.lo \
-	libzarr_la-zsliceindices.lo libzarr_la-zfile.lo \
-	libzarr_la-zclose.lo libzarr_la-zdim.lo libzarr_la-zmeta.lo \
-	libzarr_la-zjson.lo libzarr_la-zutil.lo libzarr_la-zmap.lo \
-	libzarr_la-zmap_nc4.lo libzarr_la-zdebug.lo
+	libzarr_la-zclose.lo libzarr_la-zjson.lo libzarr_la-zutil.lo \
+	libzarr_la-zmap.lo libzarr_la-zmap_nc4.lo libzarr_la-zdebug.lo
 libzarr_la_OBJECTS = $(am_libzarr_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -424,8 +423,6 @@ noinst_LTLIBRARIES = libzarr.la
 
 # The source files.
 libzarr_la_SOURCES = \
-zdispatch.h \
-zinternal.h \
 zattr.c \
 zcache.c \
 zcreate.c \
@@ -437,19 +434,16 @@ zinternal.c \
 zopen.c \
 zprov.c \
 zvar.c \
-zprovenance.h \
-\
+ztype.c \
+zodom.c \
+zsliceindices.c \
+ \
 zarr.c \
 zcvt.c \
 zsync.c \
-zodom.c \
 zallchunks.c \
 zchunkio.c \
-zsliceindices.c \
-zfile.c \
 zclose.c \
-zdim.c \
-zmeta.c \
 zjson.c \
 zutil.c \
 zmap.c \
@@ -457,6 +451,8 @@ zmap_nc4.c \
 zdebug.c
 
 HDRS = \
+zdispatch.h \
+zinternal.h \
 nczdispatch.h \
 ncz.h \
 zchunking.h \
@@ -464,6 +460,7 @@ zjson.h \
 ztypes.h \
 zincludes.h \
 zmap.h \
+zprovenance.h \
 zdebug.h
 
 
@@ -541,12 +538,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zjson.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zmap.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zmap_nc4.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zmeta.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zodom.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zopen.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zprov.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zsliceindices.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zsync.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-ztype.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zutil.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzarr_la-zvar.Plo@am__quote@
 
@@ -651,6 +648,27 @@ libzarr_la-zvar.lo: zvar.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zvar.lo `test -f 'zvar.c' || echo '$(srcdir)/'`zvar.c
 
+libzarr_la-ztype.lo: ztype.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-ztype.lo -MD -MP -MF $(DEPDIR)/libzarr_la-ztype.Tpo -c -o libzarr_la-ztype.lo `test -f 'ztype.c' || echo '$(srcdir)/'`ztype.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzarr_la-ztype.Tpo $(DEPDIR)/libzarr_la-ztype.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ztype.c' object='libzarr_la-ztype.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-ztype.lo `test -f 'ztype.c' || echo '$(srcdir)/'`ztype.c
+
+libzarr_la-zodom.lo: zodom.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zodom.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zodom.Tpo -c -o libzarr_la-zodom.lo `test -f 'zodom.c' || echo '$(srcdir)/'`zodom.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzarr_la-zodom.Tpo $(DEPDIR)/libzarr_la-zodom.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='zodom.c' object='libzarr_la-zodom.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zodom.lo `test -f 'zodom.c' || echo '$(srcdir)/'`zodom.c
+
+libzarr_la-zsliceindices.lo: zsliceindices.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zsliceindices.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zsliceindices.Tpo -c -o libzarr_la-zsliceindices.lo `test -f 'zsliceindices.c' || echo '$(srcdir)/'`zsliceindices.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzarr_la-zsliceindices.Tpo $(DEPDIR)/libzarr_la-zsliceindices.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='zsliceindices.c' object='libzarr_la-zsliceindices.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zsliceindices.lo `test -f 'zsliceindices.c' || echo '$(srcdir)/'`zsliceindices.c
+
 libzarr_la-zarr.lo: zarr.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zarr.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zarr.Tpo -c -o libzarr_la-zarr.lo `test -f 'zarr.c' || echo '$(srcdir)/'`zarr.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzarr_la-zarr.Tpo $(DEPDIR)/libzarr_la-zarr.Plo
@@ -672,13 +690,6 @@ libzarr_la-zsync.lo: zsync.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zsync.lo `test -f 'zsync.c' || echo '$(srcdir)/'`zsync.c
 
-libzarr_la-zodom.lo: zodom.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zodom.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zodom.Tpo -c -o libzarr_la-zodom.lo `test -f 'zodom.c' || echo '$(srcdir)/'`zodom.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzarr_la-zodom.Tpo $(DEPDIR)/libzarr_la-zodom.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='zodom.c' object='libzarr_la-zodom.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zodom.lo `test -f 'zodom.c' || echo '$(srcdir)/'`zodom.c
-
 libzarr_la-zallchunks.lo: zallchunks.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zallchunks.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zallchunks.Tpo -c -o libzarr_la-zallchunks.lo `test -f 'zallchunks.c' || echo '$(srcdir)/'`zallchunks.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzarr_la-zallchunks.Tpo $(DEPDIR)/libzarr_la-zallchunks.Plo
@@ -693,26 +704,12 @@ libzarr_la-zchunkio.lo: zchunkio.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zchunkio.lo `test -f 'zchunkio.c' || echo '$(srcdir)/'`zchunkio.c
 
-libzarr_la-zsliceindices.lo: zsliceindices.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zsliceindices.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zsliceindices.Tpo -c -o libzarr_la-zsliceindices.lo `test -f 'zsliceindices.c' || echo '$(srcdir)/'`zsliceindices.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzarr_la-zsliceindices.Tpo $(DEPDIR)/libzarr_la-zsliceindices.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='zsliceindices.c' object='libzarr_la-zsliceindices.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zsliceindices.lo `test -f 'zsliceindices.c' || echo '$(srcdir)/'`zsliceindices.c
-
 libzarr_la-zclose.lo: zclose.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zclose.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zclose.Tpo -c -o libzarr_la-zclose.lo `test -f 'zclose.c' || echo '$(srcdir)/'`zclose.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzarr_la-zclose.Tpo $(DEPDIR)/libzarr_la-zclose.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='zclose.c' object='libzarr_la-zclose.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zclose.lo `test -f 'zclose.c' || echo '$(srcdir)/'`zclose.c
-
-libzarr_la-zmeta.lo: zmeta.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zmeta.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zmeta.Tpo -c -o libzarr_la-zmeta.lo `test -f 'zmeta.c' || echo '$(srcdir)/'`zmeta.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzarr_la-zmeta.Tpo $(DEPDIR)/libzarr_la-zmeta.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='zmeta.c' object='libzarr_la-zmeta.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzarr_la-zmeta.lo `test -f 'zmeta.c' || echo '$(srcdir)/'`zmeta.c
 
 libzarr_la-zjson.lo: zjson.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzarr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzarr_la-zjson.lo -MD -MP -MF $(DEPDIR)/libzarr_la-zjson.Tpo -c -o libzarr_la-zjson.lo `test -f 'zjson.c' || echo '$(srcdir)/'`zjson.c

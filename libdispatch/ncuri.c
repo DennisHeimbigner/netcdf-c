@@ -242,18 +242,23 @@ ncuriparse(const char* uri0, NCURI** durip)
        the format: file:/path.
        We also simplify things by assuming the host part is always empty.
        which means we can have file:///path, but not file://..../path.
-       Note in all cases, the leading '/' is considered part of the path,
+       Note also in all cases, the leading '/' is considered part of the path,
        which is then assumed to be an absolute path. But also note that
        the windows drive letter has to be taken into account. Our rule is that
        if the path looks like D:...,
        where D is a single alphabetic letter (a-z or A-Z),
        then it is a windows path and can be use in place of a /path.
+       Note also that it is desirable to support relative paths even
+       though the RFC technically does not allow this. This will occur
+       if the form is file://path where path does not start with '/'.
        The rules implemented here (for file:) are then as follows
        1. file:D:... : assume D: is a windows drive letter and treat D:... as the path
        2. file:/X, where X does not start with a slash: treat /X as the path.
        3. file://D:... : assume D: is a windows drive letter and treat as the path
        4. file:///X, where X does not start with a slash: treat /X as the path.
-       All other cases are disallowed: specifically including file://X.
+       5. file://X, where X does not start with a slash: treat X as the
+          relative path.
+       All other cases are disallowed.
     */
 
     isfile = (strcmp(tmp.protocol,"file")==0);
@@ -268,6 +273,8 @@ ncuriparse(const char* uri0, NCURI** durip)
 		&& p[3] == ':' && strchr(DRIVELETTERS,p[2]) != NULL) { /* case 3 */
 	    p = p+2; /* points to the start of the windows path */
         } else if(l >= 4 && p[0] == '/' && p[1] == '/' && p[2] == '/' && p[3] != '/') { /* case 4 */
+	    p += 2; /* points to the start of the path */
+        } else if(l >= 4 && p[0] == '/' && p[1] == '/' && p[2] != '/') { /* case 5 */
 	    p += 2; /* points to the start of the path */
         } else /* everything else is illegal */
 	    {THROW(NC_EACCESS);}

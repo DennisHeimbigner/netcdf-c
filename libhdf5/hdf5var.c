@@ -484,6 +484,9 @@ NC4_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     var->type_info->rc++;
     type = NULL;
 
+    /* Propagate the endianness */
+    var->endianness = var->type_info->endianness;
+
     /* Set variables no_fill to match the database default unless the
      * variable type is variable length (NC_STRING or NC_VLEN) or is
      * user-defined type. */
@@ -799,8 +802,11 @@ reportchunking(dfalt?"extra: default: ":"extra: user: ",var);
     }
 
     /* Is the user setting the endianness? */
-    if (endianness)
+    if (endianness) {
         var->type_info->endianness = *endianness;
+	/* Propagate */
+	var->endianness = *endianness;
+    }
 
     return NC_NOERR;
 }

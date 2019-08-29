@@ -17,6 +17,8 @@ For the object API, the mapping is as follows:
    a ubyte typed variable with the chunk name.
 */
 
+#undef DEBUG
+
 #define NCZM_NC4_V1 1
 
 /* the zarr meta prefix tag */
@@ -93,8 +95,8 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
     /* Use the path to create the netcdf4 dataset */
     /* ignore incoming mode */
     mode = NC_NETCDF4 | NC_CLOBBER | NC_WRITE;
-    if((stat=nc_create(path,mode,&ncid)))
-	goto done; /* could not open */
+    stat=nc_create(path,mode,&ncid);
+    if(stat) goto done; /* could not open */
     
     /* Build the z4 state */
     if((z4map = calloc(1,sizeof(Z4MAP))) == NULL)
@@ -380,7 +382,9 @@ done:
 
 /*
 Return a list of keys whose prefix matches the specified prefix string.
-In theory, the returned list should be sorted in lexical order.
+In theory, the returned list should be sorted in lexical order,
+but breadth first will approximate this.
+First element of the list is the prefix itself.
 */
 int
 znc4search(NCZMAP* map, const char* prefix, NClist* matches)
@@ -389,28 +393,57 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
     Z4MAP* z4map = (Z4MAP*)map;
     NClist* segments = nclistnew();
     int grpid;
-    int ngrps;
     int* subgrps = NULL;
     int i;
-    int prefixcount = 0;
     NClist* queue = nclistnew(); /* To do the breadth first walk */
 
     if((stat=nczm_split(prefix,segments)))
 	goto done;    
+    if(nclistlength(segments) > 0) {
+        /* Fix the last name */
+        size_t pos = nclistlength(segments)-1;
+        char* name = nclistget(segments,pos);
+        char zname[NC_MAX_NAME];
+        zify(name,zname);
+        nclistset(segments,pos,strdup(zname));
+        nullfree(name);
+    }
+#ifdef DEBUG
+  {
+  int i;
+  fprintf(stderr,"segments: %d: ",nclistlength(segments));
+  for(i=0;i<nclistlength(segments);i++)
+	fprintf(stderr," |%s|",(char*)nclistget(segments,i));
+  }
+  fprintf(stderr,"\n");
+#endif
+
     /* Get grpid of the group for the prefix */
     if((stat = zlookupgroup(z4map,segments,0,&grpid)))
 	goto done;
     /* Fill the queue in breadth first order */
     /* Start by pushing the prefix group */
-    nclistinsert(queue,0,(uintptr_t)grpid);
+    nclistinsert(queue,0,(void*)(uintptr_t)grpid);
     while(nclistlength(queue) > 0) {
-	int g = (int)(uintptr_t)nclistremove(queue,0);
+	int g;
 	char* fullpath = NULL;
-	int* subgroups = NULL;
 	int ngrps;
-
+#ifdef DEBUG
+  {
+  int i;
+  fprintf(stderr,"queue: %d: ",nclistlength(queue));
+  for(i=0;i<nclistlength(queue);i++) {
+	int subg = (uintptr_t)nclistget(queue,i);
+	char sgname[NC_MAX_NAME];
+	nc_inq_grpname(subg,sgname);
+	fprintf(stderr," (%d)|%s|",subg,sgname);
+  }
+  fprintf(stderr,"\n");
+  }
+#endif
+	g = (int)(uintptr_t)nclistremove(queue,0);
 	/* Construct and save the path of g */
-	if((stat = NCZ_grppath(g,&fullpath))) goto done;
+	if((stat = NCZ_grpname_full(g,&fullpath))) goto done;
 	nclistpush(matches,fullpath); /* save it */
 	fullpath = NULL;
         /* get subgroup ids */
@@ -418,12 +451,11 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
 	    goto done;
         if((subgrps = calloc(1,sizeof(int)*ngrps)) == NULL)
 	    {stat = NC_ENOMEM; goto done;}
-        if((stat = nc_inq_grps(grpid,&ngrps,subgrps)))
+        if((stat = nc_inq_grps(g,&ngrps,subgrps)))
 	    goto done;
-	/* Push (reverse order) onto the front of queue */
-	for(i=ngrps-1;i>=0;i--)
-	    nclistinsert(queue,i,subgrps[i]);
-	/* repeat
+	/* Push onto end of the queue => breadth first */
+	for(i=0;i<ngrps;i++) nclistpush(queue,(void*)(uintptr_t)subgrps[i]);
+	/* repeat */
     }
 
 done:
@@ -672,7 +704,6 @@ static NCZMAP_API zapi = {
     znc4exists,
     znc4len,
     znc4define,
-    znc4children,
     znc4read,
     znc4write,
     znc4readmeta,
