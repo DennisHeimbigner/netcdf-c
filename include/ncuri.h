@@ -66,6 +66,9 @@ extern int ncurisetprotocol(NCURI*,const char* newprotocol);
 /* Replace the constraints */
 EXTERNL int ncurisetquery(NCURI*,const char* query);
 
+/* Replace the fragment list */
+extern int ncurisetfragments(NCURI*, const char* fragments);
+
 /* Construct a complete NC URI; caller frees returned string */
 EXTERNL char* ncuribuild(NCURI*,const char* prefix, const char* suffix, int flags);
 

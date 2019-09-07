@@ -2,11 +2,11 @@ netcdf testmapnc4 {
 dimensions:
 	dim100 = 100 ;
 
-group: _zarr {
+group: _nczarr {
 
   // group attributes:
   		:data = "" ;
-  } // group _zarr
+  } // group _nczarr
 
 group: meta1 {
 

@@ -23,6 +23,8 @@ extern size_t ncz_chunk_cache_size;
 extern size_t ncz_chunk_cache_nelems;
 extern float ncz_chunk_cache_preemption;
 
+/* Forward */
+
 #ifdef LOGGING
 /* This is the severity level of messages which will be logged. Use
    severity 0 for errors, 1 for important log messages, 2 for less
@@ -241,6 +243,7 @@ ncz_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len)
     return NC_NOERR;
 }
 
+#if 0
 /**
  * @internal Close ZARR resources for global atts in a group.
  *
@@ -271,7 +274,9 @@ close_gatts(NC_GRP_INFO_T *grp)
     }
     return NC_NOERR;
 }
+#endif /*0*/
 
+#if 0
 /**
  * @internal Close ZARR resources for vars in a group.
  *
@@ -337,7 +342,9 @@ close_vars(NC_GRP_INFO_T *grp)
 
     return NC_NOERR;
 }
+#endif /*0*/
 
+#if 0
 /**
  * @internal Close ZARR resources for dims in a group.
  *
@@ -369,7 +376,9 @@ close_dims(NC_GRP_INFO_T *grp)
 
     return NC_NOERR;
 }
+#endif /*0*/
 
+#if 0
 /**
  * @internal Close ZARR resources for types in a group.  Set values to
  * 0 after closing types. Because of type reference counters, these
@@ -407,7 +416,9 @@ close_types(NC_GRP_INFO_T *grp)
 
     return NC_NOERR;
 }
+#endif /*0*/
 
+#if 0
 /**
  * @internal Recursively free ZARR objects for a group (and everything
  * it contains).
@@ -418,7 +429,7 @@ close_types(NC_GRP_INFO_T *grp)
  * @return ::NC_EHDFERR ZARR error.
  * @author Dennis Heimbigner, Ed Hartnett
  */
-int
+static int
 ncz_rec_grp_NCZ_del(NC_GRP_INFO_T *grp)
 {
     int i;
@@ -459,6 +470,7 @@ ncz_rec_grp_NCZ_del(NC_GRP_INFO_T *grp)
 
     return NC_NOERR;
 }
+#endif /*0*/
 
 /**
  * @internal Given an ncid and varid, get pointers to the group and var

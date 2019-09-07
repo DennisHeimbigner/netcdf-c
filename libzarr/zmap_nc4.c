@@ -78,7 +78,7 @@ znc4verify(const char *path, int mode, size64_t flags, void* parameters)
 
 done:
     nullfree(filepath);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -121,7 +121,7 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
 done:
     nullfree(filepath);
     if(stat) znc4close((NCZMAP*)z4map,1);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -157,7 +157,7 @@ znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** 
 done:
     nullfree(filepath);
     if(stat) znc4close((NCZMAP*)z4map,0);
-    return THROW(stat);
+    return (stat);
 }
 
 /**************************************************/
@@ -177,7 +177,7 @@ znc4exists(NCZMAP* map, const char* key)
 	goto done;
 done:
     nclistfreeall(segments);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -212,7 +212,7 @@ znc4len(NCZMAP* map, const char* key, off64_t* lenp)
 
 done:
     nclistfreeall(segments);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -236,7 +236,7 @@ znc4define(NCZMAP* map, const char* key, off64_t len)
 
 done:
     nclistfree(segments);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -265,7 +265,7 @@ znc4read(NCZMAP* map, const char* key, off64_t start, off64_t count, void* conte
 
 done:
     nclistfree(segments);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -294,7 +294,7 @@ znc4write(NCZMAP* map, const char* key, off64_t start, off64_t count, const void
 
 done:
     nclistfree(segments);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -326,7 +326,7 @@ znc4readmeta(NCZMAP* map, const char* key, off64_t avail, char* content)
 
 done:
     nclistfree(segments);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -344,7 +344,7 @@ znc4writemeta(NCZMAP* map, const char* key, off64_t count, const char* content)
 	goto done;    
 
     /* Test the objects existence */
-    if((stat = zlookupobj(z4map,segments,&grpid) == NC_ENOTVAR))
+    if((stat = zlookupobj(z4map,segments,&grpid)))
 	    goto done;	    
 
     if((stat = nc_put_att_text(grpid,NC_GLOBAL,ZCONTENT,(size_t)count,content)))
@@ -352,7 +352,7 @@ znc4writemeta(NCZMAP* map, const char* key, off64_t count, const char* content)
 
 done:
     nclistfree(segments);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -377,7 +377,7 @@ done:
     nczm_clear(map);
     nullfree(z4map->path);
     free(z4map);
-    return THROW(stat);
+    return (stat);
 }
 
 /*
@@ -542,7 +542,7 @@ zlookupgroup(Z4MAP* z4map, NClist* segments, int nskip, int* grpidp)
     if(grpidp) *grpidp = grpid;
 
 done:
-    return THROW(stat);
+    return (stat);
 }
 
 /* Lookup an object */
@@ -559,7 +559,7 @@ zlookupobj(Z4MAP* z4map, NClist* segments, int* grpidp)
     if(grpidp) *grpidp = grpid;
 
 done:
-    return THROW(stat);    
+    return (stat);    
 }
 
 /* Create a group; assume all intermediate groups exist
@@ -598,7 +598,7 @@ zcreategroup(Z4MAP* z4map, NClist* segments, int nskip, int* grpidp)
     if(grpidp) *grpidp = grpid;
 
 done:
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -617,26 +617,36 @@ zcreatedim(Z4MAP* z4map, off64_t dimsize, int* dimidp)
     if(dimidp) *dimidp = dimid;
 
 done:
-    return THROW(stat);
+    return (stat);
 }
 
-/* Create an object group */
+/* Create an object group corresponding to a key; create any
+   necessary intermediates.
+ */
 static int
 zcreateobj(Z4MAP* z4map, NClist* segments, off64_t len, int* grpidp)
 {
-    int stat = NC_NOERR;
+    int skip,stat = NC_NOERR;
     int grpid, vid;
     int dimids[1];
-    unsigned char content[1] = {0};
 
-    if((stat = zcreategroup(z4map,segments,/*skip*/0,&grpid)))
+    /* Create the whole path */
+    skip = nclistlength(segments);
+    for(skip--;skip >= 0; skip--) {
+        if((stat = zcreategroup(z4map,segments,skip,&grpid)))
 	goto done;
+    }
+    /* Last grpid should be one we want */
     if(grpidp) *grpidp = grpid;
 
     if(len == 0) { /* meta */
-	/* create the attribute as empty */
+	/* do not create the data attribute: let writemeta do that */
+#if 0
+	{unsigned char content[1] = {0};
         if((stat = nc_put_att_text(grpid,NC_GLOBAL,ZCONTENT,(size_t)0,content)))
 	    goto done;
+	}
+#endif
     } else {
         /* Create the dimension */
 	if((stat = zcreatedim(z4map,len,&dimids[0])))
@@ -647,7 +657,7 @@ zcreateobj(Z4MAP* z4map, NClist* segments, off64_t len, int* grpidp)
     }
 
 done:
-    return THROW(stat);    
+    return (stat);    
 }
 
 static int

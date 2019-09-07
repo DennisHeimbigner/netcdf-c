@@ -502,12 +502,12 @@ ncz_open_file(const char *path, int mode, void* parameters, int ncid)
     NC* nc = NULL;
 
     LOG((3, "%s: path %s mode %d", __func__, path, mode));
-    assert(path && nc);
+    assert(path);
 
     /* Find pointer to NC. */
     if ((stat = NC_check_id(ncid, &nc)))
         return stat;
-    assert(nc && nc->model->impl == NC_FORMATX_NC4);
+    assert(nc && nc->model->impl == NC_FORMATX_ZARR);
 
     /* Add necessary structs to hold netcdf-4 file data;
        will define the NC_FILE_INFO_T for the file
@@ -517,14 +517,6 @@ ncz_open_file(const char *path, int mode, void* parameters, int ncid)
     h5 = (NC_FILE_INFO_T*)nc->dispatchdata;
     assert(h5 && h5->root_grp);
 
-    /* Add struct to hold NCZ-specific file metadata. */
-    if (!(h5->format_file_info = calloc(1, sizeof(NCZ_FILE_INFO_T))))
-        {stat = (NC_ENOMEM); goto exit;}
-
-    /* Add struct to hold NCZ-specific group info. */
-    if (!(h5->root_grp->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
-        {stat = (NC_ENOMEM); goto exit;}
-
     h5->mem.inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
     h5->mem.diskless = ((mode & NC_DISKLESS) == NC_DISKLESS);
     h5->mem.persist = ((mode & NC_PERSIST) == NC_PERSIST);
@@ -533,13 +525,9 @@ ncz_open_file(const char *path, int mode, void* parameters, int ncid)
     if ((mode & NC_WRITE) == 0)
 	h5->no_write = NC_TRUE;
 
-#ifdef LOOK
-    {
-       /* Open the ZARR file. */
-       if ((zinfo->hdfid = H5Fopen(path, flags, fapl_id)) < 0)
-          {stat = (NC_EHDFERR); goto exit;}
-    }
-#endif
+    /* Setup zarr state */
+    if((stat = ncz_open_dataset(h5,h5->root_grp)))
+	goto exit;
 
     /* Now read in all the metadata. Some types
      * information may be difficult to resolve here, if, for example, a
@@ -568,7 +556,7 @@ ncz_open_file(const char *path, int mode, void* parameters, int ncid)
 
 exit:
     if (h5)
-	ncz_close_ncz_file(h5, 1); /*  treat like abort*/
+	ncz_close_file(h5, 1); /*  treat like abort*/
     return stat;
 }
 
@@ -592,6 +580,9 @@ int
 NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
          void *parameters, const NC_Dispatch *dispatch, int ncid)
 {
+    NCURI* uri = NULL;
+    NClist* allparams = nclistnew();
+
     assert(path && dispatch);
 
     LOG((1, "%s: path %s mode %d params %x",
@@ -613,8 +604,25 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
     NCZ_set_log_level();
 #endif /* LOGGING */
 
+    /* collect all parameters */
+    if(parameters != NULL) {
+	/* Extract any parameters and add to allparams */
+    }
+    ncuriparse(path,&uri);
+    if(uri != NULL) {
+	const char** frags = ncurifragmentparams(uri);
+	if(frags != NULL) {
+	    for(;*frags;frags+=2) {
+		nclistpush(allparams,strdup(frags[0]));
+		nclistpush(allparams,strdup(frags[1]));
+	    }
+	}
+    }
+    /* Rebuild the path without any fragment parameters */
+    path = ncuribuild(uri,NULL,NULL,NCURISVC);
+
     /* Open the file. */
-    return ncz_open_file(path, mode, parameters, ncid);
+    return ncz_open_file(path, mode, allparams, ncid);
 }
 
 #ifdef LOOK

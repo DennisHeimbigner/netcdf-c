@@ -84,24 +84,37 @@ format: zarr | tiledb
 */
 
 int
-nczmap_open(const char *path0, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
+nczmap_open(NCZM_IMPL impl, const char *path0, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
+    NCURI* uri = NULL;
+    const char* filepath = NULL; /* if path indicates a local file */
 
     if(path0 == NULL || strlen(path0) == 0)
 	{stat = NC_EINVAL; goto done;}
 
     if(mapp) *mapp = NULL;
 
-    /* Walk thru the implementations to find valid format */
-    if((stat = zmap_nc4.verify(path0,mode,flags,parameters)) == NC_NOERR) {
-        if((stat = zmap_nc4.open(path0,mode,flags,parameters,&map)))
-	    goto done;
-    } else
-	{stat = NC_ENOTBUILT; goto done;} /* unknown format */
+    /* See if this is a local file */
+    if(ncuriparse(path0,&uri))
+	filepath = path0;
+    else if(strcmp(uri->protocol,"file")==0)
+	filepath = uri->path;
+
+    switch (impl) {
+    case NCZM_NC4:
+	if(filepath == NULL)
+	     {stat = NC_ENOTNC; goto done;}
+        stat = zmap_nc4.open(filepath, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
+    default:
+	{stat = NC_ENOTBUILT; goto done;}
+    }
 
 done:
+    ncurifree(uri);
     if(!stat) {
         if(mapp) *mapp = map;
     }
@@ -112,7 +125,8 @@ int
 nczmap_close(NCZMAP* map, int delete)
 {
     int stat = NC_NOERR;
-    stat = map->api->close(map,delete);
+    if(map && map->api)
+        stat = map->api->close(map,delete);
     return THROW(stat);
 }
 

@@ -32,12 +32,10 @@ static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_DISKLESS|NC_64BIT
  */
 static int
 ncz_create_file(const char *path, int cmode, size_t initialsz,
-                void* parameters, int ncid)
+                NClist* parameters, int ncid)
 {
     int retval = NC_NOERR;
     NC_FILE_INFO_T* h5 = NULL;
-    NCZ_FILE_INFO_T *zinfo;
-    NCZ_GRP_INFO_T *zgrp;
 
     assert(path);
     LOG((3, "%s: path %s mode 0x%x", __func__, path, cmode));
@@ -51,15 +49,6 @@ ncz_create_file(const char *path, int cmode, size_t initialsz,
     h5->mem.inmemory = ((cmode & NC_INMEMORY) == NC_INMEMORY);
     h5->mem.diskless = ((cmode & NC_DISKLESS) == NC_DISKLESS);
     h5->mem.persist = ((cmode & NC_PERSIST) == NC_PERSIST);
-
-    /* Add struct to hold NCZ-specific file metadata. */
-    if (!(zinfo = calloc(1, sizeof(NCZ_FILE_INFO_T))))
-        BAIL(NC_ENOMEM);
-
-    /* Add struct to hold NCZ-specific group info. */
-    if (!(zgrp = calloc(1, sizeof(NCZ_GRP_INFO_T))))
-        BAIL(NC_ENOMEM);
-    h5->root_grp->format_grp_info = zgrp;
 
     /* Do format specific setup */
     /* Should check if file already exists, and if NC_NOCLOBBER is specified,
@@ -129,6 +118,8 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
            const NC_Dispatch *dispatch, int ncid)
 {
     int stat = NC_NOERR;
+    NClist* allparams = nclistnew();
+    NCURI* uri = NULL;
 
     assert(path);
 
@@ -148,8 +139,26 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
     if((cmode & ILLEGAL_CREATE_FLAGS) != 0)
     {stat = NC_EINVAL; goto done;}
 
-    stat = ncz_create_file(path, cmode, initialsz, parameters, ncid);
+    /* collect all parameters */
+    if(parameters != NULL) {
+	/* Extract any parameters and add to allparams */
+    }
+    ncuriparse(path,&uri);
+    if(uri != NULL) {
+	const char** frags = ncurifragmentparams(uri);
+	if(frags != NULL) {
+	    for(;*frags;frags+=2) {
+		nclistpush(allparams,strdup(frags[0]));
+		nclistpush(allparams,strdup(frags[1]));
+	    }
+	}
+    }
+    /* Rebuild the path without any fragment parameters */
+    path = ncuribuild(uri,NULL,NULL,NCURISVC);
+    stat = ncz_create_file(path, cmode, initialsz, allparams, ncid);
 
 done:
+    ncurifree(uri);
+    nclistfreeall(allparams);
     return stat;
 }

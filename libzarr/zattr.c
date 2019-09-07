@@ -455,6 +455,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
         /* If this is a new att, require define mode. */
         if (!(h5->flags & NC_INDEF))
         {
+
             if (h5->cmode & NC_CLASSIC_MODEL)
                 return NC_ENOTINDEFINE;
             if ((retval = NCZ_redef(ncid)))

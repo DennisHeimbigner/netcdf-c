@@ -12,8 +12,11 @@
 #ifndef ZINTERNAL_H
 #define ZINTERNAL_H
 
-/* This version is not currently well defined */
-#define NCZ_ZARR_VERSION "2.0.0"
+#define ZARRVERSION 2
+
+/* NCZARRVERSION is ndependent of Zarr version,
+   but NCZARRVERSION => ZARRVERSION */
+#define NCZARRVERSION "1.0.0"
 
 /* These have to do with creating chuncked datasets in ZARR. */
 #define NCZ_CHUNKSIZE_FACTOR (10)
@@ -44,23 +47,21 @@
 #  endif
 #endif
 
-#define ZARRVERSION 2
-/* NCZARRVERSION is ndependent of Zarr version,
-   but NCZARRVERSION => ZARRVERSION */
-#define NCZARRVERSION "1.1"
+#define NCZMETAROOT "/_nczarr"
+#define NCZGROUP "_nczgroup"
+#define NCZVAR "_nczvar"
+#define NCZATTR "_nczattr"
 
-#define ZMETAROOT "/_nczarr"
-#define NCZCONTENT "_nczcontent"
-#define ZDIMREFS "_nczdimrefs"
 #define ZGROUP ".zgroup"
 #define ZATTRS ".zattrs"
-#define ZATTRTYPES ".zattrtypes"
 #define ZARRAY ".zarray"
 
 /**************************************************/
 /* Forward */
 
 struct NCjson;
+struct NCauth;
+struct NCZMAP;
 
 /**************************************************/
 /* Define annotation data for NCZ objects */
@@ -76,7 +77,7 @@ typedef struct NCZ_FILE_INFO {
     NC_FILE_INFO_T* dataset; /* root of the dataset tree */
     struct NCZMAP* map; /* implementation */
     NClist* controls;
-    NCauth auth;
+    struct NCauth* auth;
     struct nczarr {
 	int zarr_version;
 	struct {
@@ -157,62 +158,37 @@ extern int ncz_initialized; /**< True if initialization has happened. */
 /* Forward */
 struct NC_FILTER_INFO;
 
-/* Internal init */
+/* zinternal.c */
 int NCZ_initialize_internal(void);
 int NCZ_finalize_internal(void);
-
-/* Adjust the cache. */
-int ncz_adjust_var_cache(NC_GRP_INFO_T* grp, NC_VAR_INFO_T* var);
-
-/* Enddef and closing files. */
-int ncz_close_zarr_file(NC_FILE_INFO_T* file, int abort);
-int ncz_rec_grp_del(NC_GRP_INFO_T* grp);
-int ncz_enddef_file(NC_FILE_INFO_T* file);
-int ncz_enddef_netcdf4_file(NC_FILE_INFO_T *h5);
-
-/* Get the fill value for a var. */
 int ncz_get_fill_value(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, void **fillp);
-
-/* Find file, group, var, and att info, doing lazy reads if needed. */
 int ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
                               int use_name, char *norm_name, NC_FILE_INFO_T** file,
                               NC_GRP_INFO_T** grp, NC_VAR_INFO_T** var,
                               NC_ATT_INFO_T** att);
+int NCZ_set_log_level();
 
+/* zcache.c */
+int ncz_adjust_var_cache(NC_GRP_INFO_T* grp, NC_VAR_INFO_T* var);
+int NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems, float preemption);
+
+/* zfile.c */
+int ncz_enddef_netcdf4_file(NC_FILE_INFO_T*);
+int ncz_closeorabort(NC_FILE_INFO_T*, void* params, int abort);
+
+/* zclose.c */
+int ncz_close_ncz_file(NC_FILE_INFO_T* file, int abort);
+
+/* zattr.c */
+int ncz_getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist);
+
+/* zvar.c */
+int ncz_gettype(int xtype, NC_TYPE_INFO_T** typep);
+
+/* Undefined */
 /* Find var, doing lazy var metadata read if needed. */
 int ncz_find_grp_file_var(int ncid, int varid, NC_FILE_INFO_T** file,
                              NC_GRP_INFO_T** grp, NC_VAR_INFO_T** var);
-
-/* This is like nc_set_log_level(), but will also turn on
- * ZARR internal logging, in addition to netCDF logging.*/
-int NCZ_set_log_level();
-
-/*
-Given an ncid, varid, and attribute name, return
-normalized name and pointers to the file, group, var, and att info
-*/
-int ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
-                          int use_name, char *norm_name, NC_FILE_INFO_T **h5,
-                          NC_GRP_INFO_T **grp, NC_VAR_INFO_T **var,
-                          NC_ATT_INFO_T **att);
-
-
-/* Cache management */
-int NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems, float preemption);
-
-int ncz_rec_grp_NCZ_del(NC_GRP_INFO_T *grp);
-
-int ncz_get_fill_value(NC_FILE_INFO_T *h5, NC_VAR_INFO_T *var, void **fillp);
-
-int ncz_close_netcdf4_file(NC_FILE_INFO_T* file, int abort);
-int ncz_close_ncz_file(NC_FILE_INFO_T* file, int abort);
-
-int ncz_getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist);
-
-int ncz_gettype(int xtype, NC_TYPE_INFO_T** typep);
-
-int NCZ_inq_format_extended(int ncid, int *formatp, int *modep);
-
 
 #endif /* ZINTERNAL_H */
 

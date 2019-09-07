@@ -479,6 +479,29 @@ done:
     return ret;
 }
 
+/* Replace the fragments*/
+int
+ncurisetfragments(NCURI* duri,const char* fragments)
+{
+    int ret = NC_NOERR;
+    freestringvec(duri->fraglist);
+    nullfree(duri->fragment);
+    duri->fragment = NULL;
+    duri->fraglist = NULL;
+    if(fragments != NULL && strlen(fragments) > 0) {
+	NClist* params = nclistnew();
+	duri->fragment = strdup(fragments);
+	ret = parselist(duri->fragment,params);
+	if(ret != NC_NOERR)
+	    {THROW(NC_EURL);}
+	nclistpush(params,NULL);
+	duri->fraglist = nclistextract(params);
+	nclistfree(params);
+    }
+done:
+    return ret;
+}
+
 #if 0
 /* Replace the constraints */
 int

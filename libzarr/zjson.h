@@ -60,8 +60,7 @@ extern int NCJdictith(NCjson* object, size_t i, const char** keyp, NCjson** valu
 /* Get value for key from dict */
 extern int NCJdictget(NCjson* object, const char* key, NCjson** valuep);
 
-/* Append value to an array object.
-*/
+/* Append value to an array or dict object. */
 extern int NCJappend(NCjson* object, NCjson* value);
 
 /* Get ith element from array */

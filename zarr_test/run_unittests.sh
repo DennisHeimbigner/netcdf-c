@@ -7,9 +7,9 @@ set -e
 set -x
 
 # Control which test sets are executed
-# possible sets: mapnc4 proj
-#TESTS="mapnc4 proj"
-TESTS="mapnc4"
+# possible sets: mapnc4 json proj
+#TESTS="mapnc4 json proj"
+TESTS="mapnc4 json proj"
 
 echo ""
 echo "*** Unit Testing"
@@ -43,6 +43,15 @@ $CMD read # depends on writemeta2
 
 $CMD search > ut_mapnc4_search.txt
 diff -wb ${srcdir}/ref_ut_mapnc4_search.txt ./ut_mapnc4_search.txt
+;;
+
+json)
+echo ""; echo "*** Test zjson"
+CMD="${execdir}/ut_json -c"
+$CMD build > ut_json_build.txt
+diff -wb ${srcdir}/ref_ut_json_build.txt ./ut_json_build.txt
+$CMD parse > ut_json_parse.txt
+diff -wb ${srcdir}/ref_ut_json_parse.txt ./ut_json_parse.txt
 ;;
 
 proj)

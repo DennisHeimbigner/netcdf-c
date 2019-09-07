@@ -93,7 +93,7 @@ struct NCZMAP_API {
     /* Object Operations */
 	int (*exists)(NCZMAP* map, const char* key);
 	int (*len)(NCZMAP* map, const char* key, off64_t* lenp);
-	/* Define an object */
+	/* Define an object; do nothing if already exists */
 	int (*def)(NCZMAP* map, const char* key, off64_t len);
 	/* Read/write data */
 	int (*read)(NCZMAP* map, const char* key, off64_t start, off64_t count, void* content);
@@ -127,7 +127,7 @@ extern int nczmap_search(NCZMAP* map, const char* prefix, NClist* matches);
 
 /* Create/open and control a dataset using a specific implementation */
 extern int nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
-extern int nczmap_open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
+extern int nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
 
 /* Utility functions */
 extern int nczm_split(const char* path, NClist* segments);

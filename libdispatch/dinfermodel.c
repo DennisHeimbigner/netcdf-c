@@ -107,7 +107,7 @@ static struct IOSPS {
 {"dap2",NC_IOSP_DAP2},
 {"dap4",NC_IOSP_DAP4},
 {"bytes",NC_IOSP_HTTP},
-{"zarr",NC_IOSP_ZARR_S3},
+{"zarr",NC_IOSP_ZARR},
 {NULL,0}
 };
 
@@ -137,11 +137,6 @@ static struct FORMATMODES {
 {NULL,0,0},
 };
 
-/* Define the legal singleton mode tags */
-static const char* modesingles[] = {
-    "dap2", "dap4", "bytes", "zarr", NULL,
-};
-
 /* Map IOSP to readability to get magic number */
 static struct IospRead {
     int iosp;
@@ -151,8 +146,7 @@ static struct IospRead {
 {NC_IOSP_MEMORY,1},
 {NC_IOSP_UDF,0},
 {NC_IOSP_HTTP,1},
-{NC_IOSP_ZARR_NC4,0},
-{NC_IOSP_ZARR_S3,0},
+{NC_IOSP_ZARR,0},
 {0,0},
 };
 
@@ -160,24 +154,24 @@ static struct IospRead {
 static struct NCPROTOCOLLIST {
     const char* protocol;
     const char* substitute;
-    const char* mode;
+    const char* modeargs; /* add this to mode */
 } ncprotolist[] = {
     {"http",NULL,NULL},
     {"https",NULL,NULL},
     {"file",NULL,NULL},
     {"dods","http","dap2"},
     {"dap4","http","dap4"},
-    {"s3","https","zarr"},
+    {"s3","https","zarr,s3"},
     {NULL,NULL,NULL} /* Terminate search */
 };
 
 /* Forward */
 static int NC_omodeinfer(int omode, NCmodel*);
 static int NC_implinfer(int useparallel, NCmodel* model);
-static int NC_dapinfer(NClist*, NCmodel* model);
 static int check_file_type(const char *path, int flags, int use_parallel, void *parameters, NCmodel* model, NCURI* uri);
 static int processuri(const char* path, NCURI** urip, char** newpathp, NClist* modeargs);
-static int extractiosp(NClist* modeargs, int mode, NCmodel* model);
+static int replacemode(NCURI* uri, NClist* modeargs);
+static int extractiosp(NClist* modeargs, NCmodel* model);
 
 static int openmagic(struct MagicFile* file);
 static int readmagic(struct MagicFile* file, long pos, char* magic);
@@ -205,9 +199,9 @@ conflictfail(enum mfield f, int dst, int src)
     return NC_EINVAL;
 }
 
-/* Parse a mode string at the commas and convert to envv form */
+/* Parse a mode string at the commas; avoid duplicates */
 static int
-parseurlmode(const char* modestr, NClist* list)
+parsemodelist(const char* modestr, NClist* list)
 {
     int stat = NC_NOERR;
     const char* p = NULL;
@@ -226,6 +220,8 @@ parseurlmode(const char* modestr, NClist* list)
 	if((s = malloc(slen+1)) == NULL) {stat = NC_ENOMEM; goto done;}
 	memcpy(s,p,slen);
 	s[slen] = '\0';
+	if(nclistmatch(list,s,0))
+	    nullfree(s); /* ignore duplicate */
 	nclistpush(list,s);
 	if(*endp == '\0') break;
 	p = endp+1;
@@ -235,10 +231,9 @@ done:
     return check(stat);
 }
 
-/* Given a mode= argument, and the mode flags,
-   infer the iosp part of the model */
+/* Given a mode= argument, infer the iosp part of the model */
 static int
-extractiosp(NClist* modeargs, int cmode, NCmodel* model)
+extractiosp(NClist* modeargs, NCmodel* model)
 {
     int stat = NC_NOERR;
     struct IOSPS* io = iosps;
@@ -255,11 +250,10 @@ extractiosp(NClist* modeargs, int cmode, NCmodel* model)
 	}
     }
 done:
-    if(model->iosp == 0)
-	model->iosp = (fIsSet(cmode,NC_INMEMORY) ? NC_IOSP_MEMORY:NC_IOSP_FILE);
     return stat;
 }
-/* Given a mode= argument, fill in the matching part of the model; except IOSP */
+/* Given a mode= argument, fill in the matching part of the model;
+   except IOSP */
 static int
 processmodearg(const char* arg, NCmodel* model)
 {
@@ -275,20 +269,10 @@ done:
     return check(stat);
 }
 
-/* Search singleton list */
+#if 0
+/* If we have a url, see if we can determine more info */
 static int
-issingleton(const char* tag)
-{
-    const char** p;
-    for(p=modesingles;*p;p++) {
-	if(strcmp(*p,tag)==0) return 1;
-    }
-    return 0;
-}
-
-/* If we have a url, see if we can determine DAP */
-static int
-NC_dapinfer(NClist* modeargs, NCmodel* model)
+NC_uriinfer(NClist* modeargs, NCmodel* model)
 {
     int stat = NC_NOERR;
     int i;
@@ -296,12 +280,12 @@ NC_dapinfer(NClist* modeargs, NCmodel* model)
     /* 1. search modeargs for indicators */
     for(i=0;i<nclistlength(modeargs);i++) {
 	const char* arg = nclistget(modeargs,i);
-	if(strcasecmp(arg,"bytes")==0
-	   || strcasecmp(arg,"zarr")==0) {
-	    /* Ok, we know this is not DAP, so give up */
-	    return stat;
-	}
-	if(strcasecmp(arg,"dap2")==0) {
+	if(strcasecmp(arg,"bytes")==0) {
+	    return stat; /* no more info */
+	} else if(strcasecmp(arg,"zarr")==0) {
+	    model->format = NC_FORMAT_NETCDF4;
+	    model->impl = NC_FORMATX_DAP2;
+	} else if(strcasecmp(arg,"dap2")==0) {
 	    model->format = NC_FORMAT_NC3;
 	    model->iosp = NC_IOSP_DAP2;
 	    model->impl = NC_FORMATX_DAP2;
@@ -319,6 +303,7 @@ NC_dapinfer(NClist* modeargs, NCmodel* model)
     }
     return stat;
 }
+#endif /*0*/
 
 /*
 Infer from the mode
@@ -436,31 +421,27 @@ processuri(const char* path, NCURI** urip, char** newpathp, NClist* modeargs)
     if(!found)
 	{stat = NC_EINVAL; goto done;} /* unrecognized URL form */
 
-    /* process the corresponding mode arg */
-    if(protolist->mode != NULL)
-	nclistpush(modeargs,strdup(protolist->mode));
+    /* process the mode args */
+    if(protolist->modeargs != NULL) {
+        if((stat=parsemodelist(protolist->modeargs,modeargs))) goto done;
+    }
 
     /* Substitute the protocol in any case */
     if(protolist->substitute) ncurisetprotocol(uri,protolist->substitute);
 
-    /* Iterate over the url fragment parameters */
+    /* Extract mode from the url fragment parameters */
     for(fragp=ncurifragmentparams(uri);fragp && *fragp;fragp+=2) {
 	const char* name = fragp[0];
 	const char* value = fragp[1];
-	if(strcmp(name,"protocol")==0) {
-	    nclistpush(modeargs,strdup(value));
-	} else
 	if(strcmp(name,"mode")==0) {
-	    if((stat = parseurlmode(value,modeargs))) goto done;
-	} else
-	if(issingleton(name) && (value == NULL || strlen(value)==0)) {
-	    nclistpush(modeargs,strdup(name));
+	    if((stat = parsemodelist(value,modeargs))) goto done;
         } /*else ignore*/
     }
 
-    /* At this point modeargs should contain all mode args from the URL */
+    /* At this point modeargs should contain all mode args */
+    if((stat = replacemode(uri,modeargs))) goto done;
 
-    /* Rebuild the path (including fragment)*/
+    /* Rebuild the path (including possibly modified fragment)*/
     if(newpathp)
         *newpathp = ncuribuild(uri,NULL,NULL,NCURIALL);
     if(urip) {
@@ -470,6 +451,40 @@ processuri(const char* path, NCURI** urip, char** newpathp, NClist* modeargs)
 done:
     if(uri != NULL) ncurifree(uri);
     return check(stat);
+}
+
+static int
+replacemode(NCURI* uri, NClist* modeargs)
+{
+    int i;
+    NCbytes* buf = ncbytesnew();
+    char** fragp = NULL;
+
+    /* Convert mode args into a single commified value */
+    for(i=0;i<nclistlength(modeargs);i++) {
+	if(i > 0) ncbytescat(buf,",");
+	ncbytescat(buf,(const char*)nclistget(modeargs,i));
+    }
+    /* Replace mode= in the fragment list of uri */
+    for(fragp=(char**)ncurifragmentparams(uri);fragp && *fragp;fragp+=2) {
+	if(strcasecmp(fragp[0],"mode")==0) {
+	    nullfree(fragp[1]);
+	    fragp[1] = ncbytesextract(buf);
+        } /*else ignore*/
+    }
+    /* Now, stringify the fragment list */
+    ncbytesclear(buf);
+    for(i=0,fragp=(char**)ncurifragmentparams(uri);fragp && *fragp;fragp+=2,i++) {
+	if(i > 0) ncbytescat(buf,"&");
+	ncbytescat(buf,fragp[0]);
+	ncbytescat(buf,"=");
+	ncbytescat(buf,fragp[1]);
+    }
+    /* Replace the fragments in the uri */
+    ncurisetfragments(uri,ncbytescontents(buf));
+
+    ncbytesfree(buf);
+    return NC_NOERR;
 }
 
 /**************************************************/
@@ -504,42 +519,41 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
     int isuri = 0;
     NClist* modeargs = nclistnew();
 
+    /* Phase 1: Process the url.
+       This will convert specialized protocols to mode args.
+       It will also convert the path to either http or https.
+    */
     if((stat = processuri(path, &uri, &newpath, modeargs))) goto done;
     isuri = (uri != NULL);
 
-    /* Phase 1: compute the IOSP */
-
-    /* try modeargs */
-    if((stat = extractiosp(modeargs,omode,model))) goto done;
-
-    /* Better have something */
-    assert(model->iosp != 0);
-
-    /* Phase 2: Process the non-iosp mode arguments */
-    if(!modelcomplete(model) && isuri) {
-	    int i;
-	    for(i=0;i<nclistlength(modeargs);i++) {
-		const char* arg = nclistget(modeargs,i);
-		if((stat=processmodearg(arg,model))) goto done;
-	    }
+    /* Phase 2: process the iosp specifying mode args */
+    if((stat = extractiosp(modeargs,model))) goto done;
+    if(model->iosp == 0) {
+	/* Use the mode to choose an iosp */
+        model->iosp = (fIsSet(omode,NC_INMEMORY) ? NC_IOSP_MEMORY:NC_IOSP_FILE);
     }
 
-    /* Phase 3: See if we can infer ZARR */
+    /* Phase 3: Process the mode arguments to try to get format and impl */
     if(!modelcomplete(model) && isuri) {
-            if((stat = NC_dapinfer(modeargs,model))) goto done;
+	int i;
+	for(i=0;i<nclistlength(modeargs);i++) {
+	    const char* arg = nclistget(modeargs,i);
+	    if((stat=processmodearg(arg,model))) goto done;
+	}
+	/* If we did not get a format and impl from the URI,
+	   then assume dap2 */
+	if(model->format == 0 && model->impl == 0) {
+	    model->format = NC_FORMAT_CLASSIC;
+	    model->impl = NC_FORMATX_DAP2;
+	}
     }
 
-    /* Phase 4: See if we can infer DAP */
-    if(!modelcomplete(model) && isuri) {
-            if((stat = NC_dapinfer(modeargs,model))) goto done;
-    }
-
-    /* Phase 5: mode inference */
+    /* Phase 4: mode inference */
     if(!modelcomplete(model)) {
         if((stat = NC_omodeinfer(omode,model))) goto done;
     }
 
-    /* Phase 6: Infer from file content, if possible;
+    /* Phase 5: Infer from file content, if possible;
        this has highest precedence, so it may override
        previous decisions.
     */
@@ -548,7 +562,7 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
 	if((stat = check_file_type(path, omode, useparallel, params, model, uri))) goto done;
     }
 
-    /* Phase 7: Infer impl from format */
+    /* Phase 6: Infer impl from format */
     if(!modelcomplete(model)) {
         if((stat = NC_implinfer(useparallel, model))) goto done;
     }

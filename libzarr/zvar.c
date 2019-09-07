@@ -2312,6 +2312,9 @@ ncz_gettype(int xtype, NC_TYPE_INFO_T** typep)
             BAIL(NC_EBADTYPE);
     }
 
+    /* increment its ref. count */
+    type->rc++;
+
     if(typep) {*typep = type; type = NULL;}
     return NC_NOERR;
 

@@ -40,8 +40,11 @@ extern void* nclisttop(NClist*);
 /* Duplicate and return the content (null terminate) */
 extern void** nclistdup(NClist*);
 
-/* Look for value match */
+/* Look for pointer match */
 extern int nclistcontains(NClist*, void*);
+
+/* Look for value match as string */
+extern int nclistmatch(NClist*, const char*, int casesensistive);
 
 /* Remove element by value; only removes first encountered */
 extern int nclistelemremove(NClist* l, void* elem);
