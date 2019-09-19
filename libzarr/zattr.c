@@ -963,3 +963,63 @@ done:
     return stat;
 }
 #endif
+
+/* If we do not have a _FillValue, then go ahead and create it */
+int
+ncz_create_fillvalue(NC_VAR_INFO_T* var)
+{
+    int stat = NC_NOERR;
+    int i;
+    NC_ATT_INFO_T* fv = NULL;
+
+    /* Have the var's attributes been read? */
+    if(!var->atts_read) goto done; /* above my pay grade */
+
+    /* Is FillValue warranted? */
+    if(!var->no_fill && var->fill_value != NULL) {
+        /* Make sure _FillValue does not exist */
+	for(i=0;i<ncindexsize(var->att);i++) {
+	    fv = (NC_ATT_INFO_T*)ncindexith(var->att,i);
+	    if(strcmp(fv->hdr.name,_FillValue)==0) break;
+	    fv = NULL;
+        }
+	if(fv == NULL) {
+	    /* Create it */
+	    if((stat = ncz_makeattr((NC_OBJ*)var,var->att,_FillValue,var->type_info->hdr.id,1,var->fill_value,&fv)))
+	    goto done;
+	}
+    }
+done:
+    return THROW(stat);
+}
+
+/* Create an attribute; This is an abbreviated form
+   of ncz_put_att above */
+int
+ncz_makeattr(NC_OBJ* container, NCindex* attlist, const char* name, nc_type typeid, size_t len, void* values, NC_ATT_INFO_T** attp)
+{
+    int stat = NC_NOERR;
+    NC_ATT_INFO_T* att = NULL;
+    NCZ_ATT_INFO_T* zatt = NULL;
+
+    if((stat=nc4_att_list_add(attlist,name,&att)))
+	goto done;
+    if((zatt = calloc(1,sizeof(NCZ_ATT_INFO_T))) == NULL)
+	{stat = NC_ENOMEM; goto done;}
+    att->container = container;
+    att->format_att_info = zatt;
+    /* Fill in the attribute's type and value  */
+    att->nc_typeid = typeid;
+    att->len = len;
+    att->data = values;
+    att->dirty = NC_TRUE;
+    if(attp) {*attp = att; att = NULL;}
+
+done:
+    if(stat) {
+	if(att) nc4_att_list_del(attlist,att);
+	nullfree(zatt);
+    }
+    return THROW(stat);
+}
+

@@ -86,6 +86,7 @@ typedef struct NCZ_FILE_INFO {
 	    unsigned long release;
 	} nczarr_version;
     } zarr;
+    int created; /* 1=> created 0=>open */
 } NCZ_FILE_INFO_T;
 
 /* This is a struct to handle the dim metadata. */
@@ -181,6 +182,8 @@ int ncz_close_ncz_file(NC_FILE_INFO_T* file, int abort);
 
 /* zattr.c */
 int ncz_getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist);
+int ncz_create_fillvalue(NC_VAR_INFO_T* var);
+int ncz_makeattr(NC_OBJ*, NCindex* attlist, const char* name, nc_type typeid, size_t len, void* values, NC_ATT_INFO_T**);
 
 /* zvar.c */
 int ncz_gettype(int xtype, NC_TYPE_INFO_T** typep);

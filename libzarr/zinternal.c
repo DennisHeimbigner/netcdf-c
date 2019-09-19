@@ -489,7 +489,7 @@ ncz_rec_grp_NCZ_del(NC_GRP_INFO_T *grp)
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-ncz_find_grp_h5_var(int ncid, int varid, NC_FILE_INFO_T **h5,
+ncz_find_grp_file_var(int ncid, int varid, NC_FILE_INFO_T **h5,
                          NC_GRP_INFO_T **grp, NC_VAR_INFO_T **var)
 {
     NC_FILE_INFO_T *my_h5;
@@ -525,9 +525,9 @@ ncz_find_grp_h5_var(int ncid, int varid, NC_FILE_INFO_T **h5,
 
 /**
  * @internal Given an ncid, varid, and attribute name, return
- * normalized name and pointers to the file, group, var, and att info
- * structs. Lazy reads of attributes and variable metadata are done as
- * needed.
+ * normalized name and (optionally) pointers to the file, group,
+ * var, and att info structs.
+ * Lazy reads of attributes and variable metadata are done as needed.
  *
  * @param ncid File/group ID.
  * @param varid Variable ID.
@@ -579,33 +579,9 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
         return retval;
     assert(my_grp && my_h5);
 
-    /* Get either the global or a variable attribute list. */
-    if (varid == NC_GLOBAL)
-    {
-        /* Do we need to read the atts? */
-        if (!my_grp->atts_read)
-            if ((retval = ncz_read_atts(my_h5, (NC_OBJ*)my_grp)))
-                return retval;
-
-        attlist = my_grp->att;
-    }
-    else
-    {
-        if (!(my_var = (NC_VAR_INFO_T *)ncindexith(my_grp->vars, varid)))
-            return NC_ENOTVAR;
-
-        /* Do we need to read the var attributes? */
-        if (!my_var->atts_read)
-            if ((retval = ncz_read_atts(my_h5, (NC_OBJ*)my_var)))
-                return retval;
-
-        /* Do we need to read var metadata? */
-        if (!my_var->meta_read && my_var->created)
-            if ((retval = ncz_get_var_meta(my_h5, my_var)))
-                return retval;
-
-        attlist = my_var->att;
-    }
+    /* Get the attributes */
+    if((retval = ncz_getattlist(my_grp, varid, &my_var, &attlist)))
+	return retval;
     assert(attlist);
 
     /* Need a name if use_name is true. */

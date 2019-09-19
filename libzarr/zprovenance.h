@@ -52,8 +52,11 @@ extern int NCZ_provenance_init(void);
 /* Finalize the provenance global state */
 extern int NCZ_provenance_finalize(void);
 
-/* Read and store the provenance from an existing file */
-extern int NCZ_read_provenance(struct NC_FILE_INFO* file);
+/* Read and store the provenance from an existing file;
+   Note: signature differs from libhdf5 because
+   this will get called when the root group attributes are read
+*/
+extern int NCZ_read_provenance(struct NC_FILE_INFO* file, const char* name, const char* value);
 
 /* Write the provenance into a newly created file */
 extern int NCZ_write_provenance(struct NC_FILE_INFO* file);

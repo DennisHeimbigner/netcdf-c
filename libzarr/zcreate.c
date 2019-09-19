@@ -20,7 +20,6 @@ static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_DISKLESS|NC_64BIT
  * @param path The file name of the new file.
  * @param cmode The creation mode flag.
  * @param initialsz The proposed initial file size (advisory)
- * @param parameters extra parameter info (like  MPI communicator)
  * @param nc Pointer to an instance of NC.
  *
  * @return ::NC_NOERR No error.
@@ -31,8 +30,7 @@ static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_DISKLESS|NC_64BIT
  * @author Dennis Heimbigner, Ed Hartnett
  */
 static int
-ncz_create_file(const char *path, int cmode, size_t initialsz,
-                NClist* parameters, int ncid)
+ncz_create_file(const char *path, int cmode, size_t initialsz, int ncid)
 {
     int retval = NC_NOERR;
     NC_FILE_INFO_T* h5 = NULL;
@@ -55,27 +53,6 @@ ncz_create_file(const char *path, int cmode, size_t initialsz,
        return an error */
     if((retval = ncz_create_dataset(h5,h5->root_grp)))
 	BAIL(retval);
-
-#ifdef LOOK
-    if (H5Pset_cache(fapl_id, 0, ncz_chunk_cache_nelems, ncz_chunk_cache_size,
-                     ncz_chunk_cache_preemption) < 0)
-        BAIL(NC_EHDFERR);
-    LOG((4, "%s: set HDF raw chunk cache to size %d nelems %d preemption %f",
-         __func__, ncz_chunk_cache_size, ncz_chunk_cache_nelems,
-         ncz_chunk_cache_preemption));
-#endif
-
-#ifdef LOOK
-        {
-            /* Create the ZARR file. */
-            if ((h5->hdfid = H5Fcreate(path, flags, fcpl_id, fapl_id)) < 0)
-                BAIL(EACCES);
-        }
-
-    /* Open the root group. */
-    if ((ncz_grp->hdf_grpid = H5Gopen2(h5->hdfid, "/", H5P_DEFAULT)) < 0)
-        BAIL(NC_EFILEMETA);
-#endif
 
     /* Define mode gets turned on automatically on create. */
     h5->flags |= NC_INDEF;
@@ -118,13 +95,14 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
            const NC_Dispatch *dispatch, int ncid)
 {
     int stat = NC_NOERR;
-    NClist* allparams = nclistnew();
     NCURI* uri = NULL;
+
+    NC_UNUSED(parameters);
 
     assert(path);
 
-    LOG((1, "%s: path %s cmode 0x%x parameters %p ncid %d",
-         __func__, path, cmode, parameters,ncid));
+    LOG((1, "%s: path %s cmode 0x%x ncid %d",
+         __func__, path, cmode ,ncid));
 
     /* If this is our first file, initialize */
     if (!ncz_initialized) NCZ_initialize();
@@ -139,26 +117,16 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
     if((cmode & ILLEGAL_CREATE_FLAGS) != 0)
     {stat = NC_EINVAL; goto done;}
 
-    /* collect all parameters */
-    if(parameters != NULL) {
-	/* Extract any parameters and add to allparams */
-    }
     ncuriparse(path,&uri);
-    if(uri != NULL) {
-	const char** frags = ncurifragmentparams(uri);
-	if(frags != NULL) {
-	    for(;*frags;frags+=2) {
-		nclistpush(allparams,strdup(frags[0]));
-		nclistpush(allparams,strdup(frags[1]));
-	    }
-	}
+    if(uri) {
+        /* Rebuild the path without any fragment parameters */
+        path = ncuribuild(uri,NULL,NULL,NCURISVC);
     }
-    /* Rebuild the path without any fragment parameters */
-    path = ncuribuild(uri,NULL,NULL,NCURISVC);
-    stat = ncz_create_file(path, cmode, initialsz, allparams, ncid);
+ 
+    /* Create the file */
+    stat = ncz_create_file(path, cmode, initialsz, ncid);
 
 done:
     ncurifree(uri);
-    nclistfreeall(allparams);
     return stat;
 }

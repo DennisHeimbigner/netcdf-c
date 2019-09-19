@@ -29,8 +29,6 @@ static const NC_Dispatch NCZ_dispatcher = {
     NCZ_abort,
     NCZ_close,
     NCZ_set_fill,
-    NC_NOTNC3_inq_base_pe,
-    NC_NOTNC3_set_base_pe,
     NC4_inq_format,
     NCZ_inq_format_extended,
 
@@ -43,8 +41,8 @@ static const NC_Dispatch NCZ_dispatcher = {
     NC4_inq_unlimdim,
     NCZ_rename_dim,
 
-    NC4_inq_att,
-    NC4_inq_attid,
+    NCZ_inq_att,
+    NCZ_inq_attid,
     NC4_inq_attname,
     NCZ_rename_att,
     NCZ_del_att,
@@ -61,7 +59,7 @@ static const NC_Dispatch NCZ_dispatcher = {
     NCDEFAULT_get_varm,
     NCDEFAULT_put_varm,
 
-    NC4_inq_var_all,
+    NCZ_inq_var_all,
 
     NCZ_var_par_access,
     NCZ_def_var_fill,

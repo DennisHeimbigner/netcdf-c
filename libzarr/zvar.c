@@ -432,35 +432,6 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
             BAIL(retval);
         assert(dim && dim->format_dim_info);
 
-#ifdef LOOK
-        /* Check for dim index 0 having the same name, in the same group */
-        if (d == 0 && dim_grp == grp && strcmp(dim->hdr.name, norm_name) == 0)
-        {
-            var->dimscale = NC_TRUE;
-            dim->coord_var = var;
-
-            /* Use variable's dataset ID for the dimscale ID. So delete
-             * the ZARR DIM_WITHOUT_VARIABLE dataset that was created for
-             * this dim. */
-            if (ncz_dim->hdf_dimscaleid)
-            {
-                /* Detach dimscale from any variables using it */
-                if ((retval = rec_detach_scales(grp, dimidsp[d],
-                                                ncz_dim->hdf_dimscaleid)) < 0)
-                    BAIL(retval);
-
-                /* Close the ZARR DIM_WITHOUT_VARIABLE dataset. */
-                if (H5Dclose(ncz_dim->hdf_dimscaleid) < 0)
-                    BAIL(NC_EHDFERR);
-                ncz_dim->hdf_dimscaleid = 0;
-
-                /* Now delete the DIM_WITHOUT_VARIABLE dataset (it will be
-                 * recreated later, if necessary). */
-                if (H5Gunlink(ncz_grp->hdf_grpid, dim->hdr.name) < 0)
-                    BAIL(NC_EDIMMETA);
-            }
-        }
-#endif
         /* Check for unlimited dimension and turn off contiguous storage. */
         if (dim->unlimited)
             var->contiguous = NC_FALSE;
@@ -485,26 +456,6 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
      * cache size? */
     if ((retval = ncz_adjust_var_cache(grp, var)))
         BAIL(retval);
-
-#ifdef LOOK
-    /* If the user names this variable the same as a dimension, but
-     * doesn't use that dimension first in its list of dimension ids,
-     * is not a coordinate variable. I need to change its ZARR name,
-     * because the dimension will cause a ZARR dataset to be created,
-     * and this var has the same name. */
-    dim = (NC_DIM_INFO_T*)ncindexlookup(grp->dim,norm_name);
-    if (dim && (!var->ndims || dimidsp[0] != dim->hdr.id))
-        if ((retval = give_var_secret_name(var, var->hdr.name)))
-            BAIL(retval);
-
-    /* If this is a coordinate var, it is marked as a ZARR dimension
-     * scale. (We found dim above.) Otherwise, allocate space to
-     * remember whether dimension scales have been attached to each
-     * dimension. */
-    if (!var->dimscale && ndims)
-        if (!(var->dimscale_attached = calloc(ndims, sizeof(nc_bool_t))))
-            BAIL(NC_ENOMEM);
-#endif
 
     /* Return the varid. */
     if (varidp)
@@ -638,10 +589,10 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
     {
         if (var->deflate || var->fletcher32 || var->shuffle)
             return NC_EINVAL;
-
-        for (d = 0; d < var->ndims; d++)
+        for (d = 0; d < var->ndims; d++) {
             if (var->dim[d]->unlimited)
                 return NC_EINVAL;
+	}
         var->contiguous = NC_TRUE;
     }
 
@@ -2151,26 +2102,34 @@ NCZ_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
                      int *no_fill, void *fill_valuep, int *endiannessp,
                      unsigned int *idp, size_t *nparamsp, unsigned int *params)
 {
+    int stat = NC_NOERR;
     NC_FILE_INFO_T *h5;
     NC_GRP_INFO_T *grp;
     NC_VAR_INFO_T *var = NULL;
-    int retval;
+    NCindex* attlist = NULL;
 
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
-    /* Find the file, group, and var info, and do lazy att read if
-     * needed. */
-    if ((retval = ncz_find_grp_var_att(ncid, varid, NULL, 0, 0, NULL,
-                                            &h5, &grp, &var, NULL)))
-        return retval;
+    /* Find the file, group, and var info */
+    if ((stat = ncz_find_grp_file_var(ncid, varid, &h5, &grp, &var)))
+        goto done;
     assert(grp && h5);
 
+    /* Read the attributes for this var, if any */
+    switch (stat = ncz_getattlist(grp, varid, NULL, &attlist)) {
+    case NC_NOERR: assert(attlist); break;
+    case NC_EACCESS: attlist = NULL; break; /* variable has no attributes */
+    default: goto done; /* significant error */
+    }
+
     /* Now that lazy atts have been read, use the libsrc4 function to
-     * get the answers. */
-    return NCZ_inq_var_all(ncid, varid, name, xtypep, ndimsp, dimidsp, nattsp,
+     * get most of the answers. */
+    if((stat = NC4_inq_var_all(ncid, varid, name, xtypep, ndimsp, dimidsp, nattsp,
                            shufflep, deflatep, deflate_levelp, fletcher32p,
                            contiguousp, chunksizesp, no_fill, fill_valuep,
-                           endiannessp, idp, nparamsp, params);
+                           endiannessp, idp, nparamsp, params))) goto done;
+done:
+    return stat;
 }
 
 /**

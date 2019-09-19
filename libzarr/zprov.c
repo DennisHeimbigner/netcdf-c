@@ -30,7 +30,7 @@
 /** @internal Check ZARR return code. */
 #define HCHECK(expr) {if((expr)<0) {ncstat = NC_EHDFERR; goto done;}}
 
-static int NCZ_read_ncproperties(NC_FILE_INFO_T* h5, char** propstring);
+static int NCZ_read_ncproperties(NC_FILE_INFO_T* h5, const char* value, char** propstring);
 static int NCZ_write_ncproperties(NC_FILE_INFO_T* h5);
 
 static int globalpropinitialized = 0;
@@ -177,7 +177,7 @@ done:
  * @author Dennis Heimbigner
  */
 int
-NCZ_read_provenance(NC_FILE_INFO_T* file)
+NCZ_read_provenance(NC_FILE_INFO_T* file, const char* name, const char* value)
 {
     int stat = NC_NOERR;
     NC4_Provenance* provenance = NULL;
@@ -195,10 +195,12 @@ NCZ_read_provenance(NC_FILE_INFO_T* file)
     if((stat = NCZ_get_superblock(file,&superblock))) goto done;
     provenance->superblockversion = superblock;
 
-    /* Read the _NCProperties value from the file */
-    if((stat = NCZ_read_ncproperties(file,&propstring))) goto done;
-    provenance->ncproperties = propstring;
-    propstring = NULL;
+    /* Process the _NCProperties value */
+    if(strcmp(name,NCPROPS)==0) {
+        if((stat = NCZ_read_ncproperties(file,value,&propstring))) goto done;
+        provenance->ncproperties = propstring;
+        propstring = NULL;
+    }
 
 done:
     nullfree(propstring);
@@ -231,43 +233,23 @@ done:
 
 /* ZARR Specific attribute read/write of _NCProperties */
 static int
-NCZ_read_ncproperties(NC_FILE_INFO_T* h5, char** propstring)
+NCZ_read_ncproperties(NC_FILE_INFO_T* h5, const char* value, char** propstring)
 {
-    int i,stat = NC_NOERR;
+    int stat = NC_NOERR;
     char* text = NULL;
-    NCindex* attlist = NULL;
-    NC_ATT_INFO_T* ncprops = NULL;
+    size_t len;
 
     LOG((5, "%s", __func__));
 
-    /* Load the root group attributes */
-    if((stat = ncz_getattlist(h5->root_grp,NC_GLOBAL,NULL,&attlist)))
-	goto done;
-
-    /* Look for _NCProperties */
-    for(i=0; i<ncindexsize(attlist); i++) {
-	NC_ATT_INFO_T* att = (NC_ATT_INFO_T*)ncindexith(attlist,i);
-	if(strcmp(NCPROPS,att->hdr.name)==0) {
-	    ncprops = att;
-	    break;	
-	}
-    }
-    if(ncprops == NULL) goto done; /* Not defined */
-
     /* NCPROPS Attribute exists, make sure it is legitimate */
-    /* Verify atype and size */
-    if(ncprops->nc_typeid != NC_CHAR)
-        {stat = NC_EINVAL; goto done;}
-    if(ncprops->len == 0)
+    if(value == NULL || strlen(value) == 0)
 	{stat = NC_EINVAL; goto done;}
-    if(ncprops->data == NULL)
-	{stat = NC_EINVAL; goto done;}
-    text = (char*)malloc(1+(size_t)ncprops->len);
-    if(text == NULL)
-	{stat = NC_ENOMEM; goto done;}
-    memcpy(text,ncprops->data,ncprops->len);
+    len = strlen(value);
+    text = (char*)malloc(1+len);
+    if(text == NULL) {stat = NC_ENOMEM; goto done;}
+    memcpy(text,value,len);
     /* Make sure its null terminated */
-    text[(size_t)ncprops->len] = '\0';
+    text[len] = '\0';
     if(propstring) {*propstring = text; text = NULL;}
 
 done:

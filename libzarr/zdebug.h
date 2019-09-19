@@ -12,10 +12,12 @@
 
 #ifdef ZCATCH
 /* Place breakpoint on zbreakpoint to catch errors close to where they occur*/
-#define THROW(e) zthrow(e,__FILE__,__LINE__)
+#define THROW(e) zthrow((e),__FILE__,__LINE__)
+#define ZCHECK(e) if((e)) {THROW(stat); goto done;} else {}
 extern int zbreakpoint(int err);
 extern int zthrow(int err, const char* fname, int line);
 #else
+#define ZCHECK(e) {if((e)) {goto done;}}
 #define THROW(e) (e)
 #endif
 

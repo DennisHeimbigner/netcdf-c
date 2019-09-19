@@ -26,7 +26,7 @@ set(PACKAGE "netCDF" CACHE STRING "")
 
 SET(NC_VERSION_MAJOR 4)
 SET(NC_VERSION_MINOR 7)
-SET(NC_VERSION_PATCH 1)
+SET(NC_VERSION_PATCH 2)
 SET(NC_VERSION_NOTE "-development")
 SET(netCDF_VERSION ${NC_VERSION_MAJOR}.${NC_VERSION_MINOR}.${NC_VERSION_PATCH}${NC_VERSION_NOTE})
 SET(VERSION ${netCDF_VERSION})
@@ -942,6 +942,13 @@ IF(ENABLE_TESTS)
   OPTION(ENABLE_FAILING_TESTS "Run tests which are known to fail, check to see if any have been fixed." OFF)
 
   ###
+  # Option to turn on unit testing. See https://github.com/Unidata/netcdf-c/pull/1472 for more information.
+  # Currently (August 21, 2019): Will not work with Visual Studio
+  ###
+  IF(NOT MSVC)
+    OPTION(ENABLE_UNIT_TESTS "Run Unit Tests." ON)
+  ENDIF(NOT MSVC)
+  ###
   # End known-failures.
   ###
   MARK_AS_ADVANCED(ENABLE_FAILING_TESTS)
@@ -1011,15 +1018,9 @@ IF(ENABLE_PARALLEL4 AND ENABLE_NETCDF_4)
     SET(STATUS_PARALLEL "ON")
     configure_file("${netCDF_SOURCE_DIR}/nc_test4/run_par_test.sh.in"
       "${netCDF_BINARY_DIR}/tmp/run_par_test.sh" @ONLY NEWLINE_STYLE LF)
-    #configure_file("${netCDF_SOURCE_DIR}/nc_test4/run_par_test2.sh.in"
-    #  "${netCDF_BINARY_DIR}/tmp/run_par_test2.sh" @ONLY NEWLINE_STYLE LF)
     FILE(COPY "${netCDF_BINARY_DIR}/tmp/run_par_test.sh"
       DESTINATION ${netCDF_BINARY_DIR}/nc_test4
       FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-    #FILE(COPY "${netCDF_BINARY_DIR}/tmp/run_par_test2.sh"
-    #  DESTINATION ${netCDF_BINARY_DIR}/nc_test4
-    #  FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-
   ENDIF()
 ENDIF()
 
@@ -1641,6 +1642,7 @@ MACRO(print_conf_summary)
     MESSAGE(STATUS "Parallel Tests:    ${ENABLE_PARALLEL_TESTS}")
     MESSAGE(STATUS "Large File Tests:  ${ENABLE_LARGE_FILE_TESTS}")
     MESSAGE(STATUS "Extreme Numbers:   ${ENABLE_EXTREME_NUMBERS}")
+    MESSAGE(STATUS "Unit Tests:        ${ENABLE_UNIT_TESTS}")
   ENDIF()
 
   MESSAGE("")
@@ -1821,6 +1823,9 @@ IF(ENABLE_TESTS)
   IF(ENABLE_EXAMPLES)
     ADD_SUBDIRECTORY(examples)
   ENDIF()
+  IF(ENABLE_UNIT_TESTS)
+    ADD_SUBDIRECTORY(unit_test)
+  ENDIF(ENABLE_UNIT_TESTS)
 ENDIF()
 
 # Code to generate an export header
