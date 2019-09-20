@@ -32,7 +32,7 @@ buildchunkkey(int R, size_t* chunkindices, char** keyp)
 	char index[64];
         if(r > 0) ncbytesappend(key,'.');
 	/* Print as decimal with no leading zeros */
-	snprintf(index,sizeof(index),"%d",chunkindices[r]);	
+	snprintf(index,sizeof(index),"%lu",(unsigned long)chunkindices[r]);	
     }
     ncbytesnull(key);
     if(keyp) *keyp = ncbytesextract(key);

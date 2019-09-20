@@ -51,7 +51,6 @@ NCZ_provenance_init(void)
     int stat = NC_NOERR;
     char* name = NULL;
     char* value = NULL;
-    unsigned long major,minor,release;
     NCbytes* buffer = NULL; /* for constructing the global _NCProperties */
     char printbuf[1024];
     const char* p = NULL;
@@ -103,7 +102,6 @@ NCZ_provenance_init(void)
     ncbytesnull(buffer);
     globalprovenance.ncproperties = ncbytesextract(buffer);
 
-done:
     ncbytesfree(buffer);
     if(name != NULL) free(name);
     if(value != NULL) free(value);

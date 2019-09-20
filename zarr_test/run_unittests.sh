@@ -60,9 +60,9 @@ ${execdir}/ut_projections -r 1 -d 4 -c 2 -s "[0:4:1]" > ut_proj1.txt
 diff -wb ${srcdir}/ref_ut_proj1.txt ./ut_proj1.txt
 ;;
 
-*) echo "Unknown test set: $T"; exit ;;
+*) echo "Unknown test set: $T"; exit 1 ;;
 
 esac
 done
 
-exit
+exit 0
