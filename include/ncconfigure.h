@@ -10,6 +10,10 @@
 #ifndef NCCONFIGURE_H
 #define NCCONFIGURE_H 1
 
+#ifndef HAVE_OFF64_T
+typedef long long off64_t;
+#endif
+
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -102,10 +106,6 @@ typedef unsigned short ushort;
 
 #ifndef HAVE_UINT
 typedef unsigned int uint;
-#endif
-
-#ifndef HAVE_OFF64_T
-typedef long long off64_t;
 #endif
 
 #ifndef HAVE_SIZE64_T
