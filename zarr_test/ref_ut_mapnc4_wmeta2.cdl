@@ -1,9 +1,6 @@
 netcdf testmapnc4 {
 
 group: _nczarr {
-
-  // group attributes:
-  		:data = "" ;
   } // group _nczarr
 
 group: meta1 {

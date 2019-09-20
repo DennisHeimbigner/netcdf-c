@@ -20,13 +20,13 @@ meta)
 echo ""; echo "*** Test meta-data write/read"
 CMD="${execdir}/t_meta -c"
 $CMD create
-ncdump ./testmapnc4.ncz >./t_meta_create.cdl
+ncdump ./testmeta.ncz >./t_meta_create.cdl
 diff -wb ${srcdir}/ref_t_meta_create.cdl ./t_meta_create.cdl
 $CMD dim1
-ncdump ./testmapnc4.ncz >./t_meta_dim1.cdl
+ncdump ./testmeta.ncz >./t_meta_dim1.cdl
 diff -wb ${srcdir}/ref_t_meta_dim1.cdl ./t_meta_dim1.cdl
 $CMD var1
-ncdump ./testmapnc4.ncz >./t_meta_var1.cdl
+ncdump ./testmeta.ncz >./t_meta_var1.cdl
 diff -wb ${srcdir}/ref_t_meta_var1.cdl ./t_meta_var1.cdl
 ;;
 

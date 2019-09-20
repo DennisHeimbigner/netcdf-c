@@ -80,6 +80,8 @@ NCZ_provenance_init(void)
     ncbytescat(buffer,"=");
     ncbytescat(buffer,PACKAGE_VERSION);
 
+#if 0
+    /* This should be redundant since netcdf version => zarr format */
     /* Insert the ZARR as underlying storage format library */
     ncbytesappend(buffer,NCPROPSSEP2);
     ncbytescat(buffer,NCPNCZLIB);
@@ -87,13 +89,16 @@ NCZ_provenance_init(void)
     if((stat = NCZ_get_libversion(&major,&minor,&release))) goto done;
     snprintf(printbuf,sizeof(printbuf),"%lu.%lu.%lu",major,minor,release);
     ncbytescat(buffer,printbuf);
+#endif
 
 #ifdef NCPROPERTIES_EXTRA
     /* Add any extra fields */
     p = NCPROPERTIES_EXTRA;
-    if(p[0] == NCPROPSSEP2) p++; /* If leading separator */
-    ncbytesappend(buffer,NCPROPSSEP2);
-    ncbytescat(buffer,p);
+    if(p != NULL && strlen(p) > 0) {
+        if(p[0] == NCPROPSSEP2) p++; /* If leading separator */
+        ncbytesappend(buffer,NCPROPSSEP2);
+        ncbytescat(buffer,p);
+    }
 #endif
     ncbytesnull(buffer);
     globalprovenance.ncproperties = ncbytesextract(buffer);
@@ -452,6 +457,26 @@ escapify(NCbytes* buffer, const char* s)
 }
 
 /**
+ * @internal
+ *
+ * Clear and Free the NC4_Provenance object
+ * @param prov Pointer to provenance object
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
+ */
+static int
+NCZ_free_provenance(NC4_Provenance* prov)
+{
+    LOG((5, "%s", __func__));
+
+    if(prov == NULL) return NC_NOERR;
+    NCZ_clear_provenance(prov);
+    free(prov);
+    return NC_NOERR;
+}
+
+/**
  * @internal Build _NCProperties attribute value.
  *
  * Convert a NCPROPINFO instance to a single string.
@@ -488,7 +513,7 @@ build_propstring(int version, NClist* list, char** spropp)
     ncbytescat(buffer,NCPVERSION);
     ncbytesappend(buffer,'=');
     /* Use current version */
-    snprintf(sversion,sizeof(sversion),"%d",NCPROPS_VERSION);
+    snprintf(sversion,sizeof(sversion),"%d",version);
     ncbytescat(buffer,sversion);
 
     for(i=0;i<nclistlength(list);i+=2) {
@@ -598,26 +623,6 @@ done:
     if(name != NULL) free(name);
     if(value != NULL) free(value);
     return stat;
-}
-
-/**
- * @internal
- *
- * Clear and Free the NC4_Provenance object
- * @param prov Pointer to provenance object
- *
- * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner
- */
-static int
-NCZ_free_provenance(NC4_Provenance* prov)
-{
-    LOG((5, "%s", __func__));
-
-    if(prov == NULL) return NC_NOERR;
-    NCZ_clear_provenance(prov);
-    free(prov);
-    return NC_NOERR;
 }
 
 /* Utility to copy contents of the dfalt into an NCPROPINFO object */

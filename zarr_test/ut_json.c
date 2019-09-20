@@ -3,34 +3,10 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-#include "zincludes.h"
-#ifdef HAVE_UNISTD_H
-#include "unistd.h"
-#endif
-#ifdef HAVE_GETOPT_H
-#include <getopt.h>
-#endif
-
-#ifdef _MSC_VER
-#include "XGetopt.h"
-int opterr;
-int optind;
-#endif
+#include "ztest.h"
 
 #define SETUP
 #define DEBUG
-
-typedef enum Cmds {
-    cmd_none = 0,
-    cmd_build = 1,
-    cmd_parse = 2,
-} Cmds;
-
-/* Arguments from command line */
-struct Options {
-    int debug;
-    Cmds cmd;
-} options;
 
 /* Forward */
 static int testbuild(void);
@@ -40,14 +16,10 @@ static void dump(NCjson* json);
 static void dumpR(NCjson* json, int depth);
 static char* sortname(int sort);
 
-struct Test {
-    const char* option;
-    Cmds cmd;
-    int (*test)(void);
-} tests[] = {
-{"build", cmd_build, testbuild},
-{"parse", cmd_parse, testparse},
-{NULL, cmd_none, NULL}
+struct Test tests[] = {
+{"build", testbuild},
+{"parse", testparse},
+{NULL, NULL}
 };
 
 typedef struct NCJ {
@@ -62,60 +34,14 @@ typedef struct NCJ {
     NCjson* ncj_dict2;
 } NCJ;
 
-
-
-#ifdef SETUP
-#define NCCHECK(expr) nccheck((expr),__LINE__)
-void nccheck(int stat, int line)
-{
-    if(stat) {
-	fprintf(stderr,"%d: %s\n",line,nc_strerror(stat));
-	fflush(stderr);
-	exit(1);
-    }
-}
-#endif
-
 int
 main(int argc, char** argv)
 {
     int stat = NC_NOERR;
-    int c;
     struct Test* test = NULL;
 
-    memset((void*)&options,0,sizeof(options));
-    while ((c = getopt(argc, argv, "dc:")) != EOF) {
-	struct Test* t;
-	switch(c) {
-	case 'd': 
-	    options.debug = 1;	    
-	    break;
-	case 'c':
-	    if(test != NULL) {
-		fprintf(stderr,"error: multiple tests specified\n");
-		stat = NC_EINVAL;
-		goto done;
-	    }
-	    for(t=tests;t->option;t++) {
-		if(strcmp(optarg,t->option)==0) {test = t;}
-	    }		    
-	    if(test == NULL) {
-		fprintf(stderr,"unknown command: %s\n",optarg);
-		stat = NC_EINVAL;
-		goto done;
-	    };
-	    break;
-	case '?':
-	   fprintf(stderr,"unknown option\n");
-	   stat = NC_EINVAL;
-	   goto done;
-	}
-    }
-    if(test == NULL) {
-	fprintf(stderr,"no command specified\n");
-	stat = NC_EINVAL;
-	goto done;
-    }
+    if((stat = setup(argc,argv))) goto done;
+    if((stat = findtest(options.cmd,tests,&test))) goto done;
 
     /* Execute */
     test->test();

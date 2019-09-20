@@ -36,11 +36,10 @@ ncdump ./testmapnc4.ncz >./ut_mapnc4_wmeta2.cdl
 diff -wb ${srcdir}/ref_ut_mapnc4_wmeta2.cdl ./ut_mapnc4_wmeta2.cdl
 $CMD readmeta > ut_mapnc4_rmeta.txt # depends on writemeta2
 diff -wb ${srcdir}/ref_ut_mapnc4_rmeta.txt ./ut_mapnc4_rmeta.txt
-$CMD write # depends on writemeta2
+$CMD writedata # depends on writemeta2
 ncdump ./testmapnc4.ncz >./ut_mapnc4_write.cdl
 diff -wb ${srcdir}/ref_ut_mapnc4_write.cdl ./ut_mapnc4_write.cdl
-$CMD read # depends on writemeta2
-
+$CMD readdata # depends on writemeta2
 $CMD search > ut_mapnc4_search.txt
 diff -wb ${srcdir}/ref_ut_mapnc4_search.txt ./ut_mapnc4_search.txt
 ;;

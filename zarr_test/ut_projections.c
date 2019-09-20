@@ -3,16 +3,7 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-#include "zincludes.h"
-#ifdef HAVE_GETOPT_H
-#include <getopt.h>
-#endif
-
-#ifdef _MSC_VER
-#include "XGetopt.h"
-int opterr;
-int optind;
-#endif
+#include "ztest.h"
 
 typedef struct ProjTest {
     size_t R;
@@ -25,7 +16,6 @@ ProjTest projtests[] = {
 {1, {4}, {2}, {{0,4,1}}},
 {0, {0}, {0}, {{0}}}
 };
-
 
 static char* printtest(ProjTest* test);
 static void printslices(int len, NCZSlice* slices, NCbytes* buf);
