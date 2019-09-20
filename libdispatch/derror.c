@@ -7,6 +7,7 @@ Copyright 2018 University Corporation for Atmospheric
 Research/Unidata. See COPYRIGHT file for more info.
 */
 
+#include "config.h"
 #include "ncdispatch.h"
 #ifdef USE_PNETCDF
 #include <pnetcdf.h>  /* for ncmpi_strerror() */

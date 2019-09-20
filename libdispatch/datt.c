@@ -5,6 +5,7 @@ Research/Unidata. See \ref copyright file for more info.
 These functions read and write attributes.
 */
 
+#include "config.h"
 #include "ncdispatch.h"
 
 /** \defgroup attributes Attributes
