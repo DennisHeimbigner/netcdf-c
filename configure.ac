@@ -926,7 +926,7 @@ AC_FUNC_ALLOCA
 AC_CHECK_DECLS([isnan, isinf, isfinite],,,[#include <math.h>])
 AC_STRUCT_ST_BLKSIZE
 UD_CHECK_IEEE
-AC_CHECK_TYPES([size_t, ssize_t, schar, uchar, longlong, ushort, uint, int64, uint64 off64_t size64_t])
+AC_CHECK_TYPES([size_t, ssize_t, schar, uchar, longlong, ushort, uint, int64, uint64, off64_t, size64_t])
 AC_TYPE_OFF_T
 AC_TYPE_UINTPTR_T
 AC_C_CHAR_UNSIGNED
