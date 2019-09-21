@@ -10,15 +10,15 @@
 #ifndef NCCONFIGURE_H
 #define NCCONFIGURE_H 1
 
-#ifndef HAVE_OFF64_T
-typedef long long off64_t;
-#endif
-
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 #ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
+
+#ifndef HAVE_OFF64_T
+typedef long long off64_t;
 #endif
 
 /*
