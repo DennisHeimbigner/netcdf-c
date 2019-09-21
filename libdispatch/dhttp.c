@@ -130,7 +130,7 @@ Assume URL etc has already been set.
 */
 
 int
-nc_http_read(CURL* curl, const char* objecturl, off64_t start, off64_t count, NCbytes* buf)
+nc_http_read(CURL* curl, const char* objecturl, size64_t start, size64_t count, NCbytes* buf)
 {
     int stat = NC_NOERR;
     char range[64];
