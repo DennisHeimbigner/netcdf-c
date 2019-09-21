@@ -17,10 +17,8 @@
 #include <stdio.h>
 #endif
 
-#ifndef HAVE_OFF64_T
-#ifndef HAVE___OFF64_T
-typedef long long off64_t;
-#endif
+#ifndef HAVE_SSIZE64_T
+typedef long long ssize64_t;
 #endif
 
 /*

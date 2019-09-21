@@ -177,7 +177,7 @@ readmeta(void)
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
     char* path = NULL;
-    off64_t olen;
+    ssize64_t olen;
     char* content = NULL;
 
 #ifdef SETUP
@@ -222,7 +222,7 @@ writedata(void)
     char* path = NULL;
     int data1[DATA1LEN];
     int i;
-    off64_t totallen;
+    ssize64_t totallen;
     char* data1p = (char*)&data1[0]; /* byte level version of data1 */
 
     /* Take output of writemeta2 */
@@ -247,7 +247,7 @@ writedata(void)
 
     /* Write in 3 slices */
     for(i=0;i<3;i++) {
-        off64_t start, count, third, last;
+        ssize64_t start, count, third, last;
 	third = (totallen+2) / 3; /* round up */
         start = i * third;
 	last = start + third;
@@ -275,7 +275,7 @@ readdata(void)
     char* path = NULL;
     int data1[DATA1LEN];
     int i;
-    off64_t chunklen, totallen;
+    ssize64_t chunklen, totallen;
     char* data1p = NULL; /* byte level pointer into data1 */
 
     /* Take output of writedata */
@@ -301,7 +301,7 @@ readdata(void)
     /* Read in 3 chunks */
     memset(data1,0,sizeof(data1));
     for(i=0;i<3;i++) {
-        off64_t start, count, last;
+        ssize64_t start, count, last;
         start = i * chunklen;
 	last = start + chunklen;
 	if(last > totallen) 

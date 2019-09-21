@@ -1781,11 +1781,11 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
             /* Check for out of bound requests. */
 #ifdef RELAX_COORD_BOUND
             /* Allow start to equal dim size if count is zero. */
-            if (start[d2] > (off64_t)ulen ||
-                (start[d2] == (off64_t)ulen && count[d2] > 0))
+            if (start[d2] > (ssize64_t)ulen ||
+                (start[d2] == (ssize64_t)ulen && count[d2] > 0))
                 BAIL_QUIET(NC_EINVALCOORDS);
 #else
-            if (start[d2] >= (off64_t)ulen && ulen > 0)
+            if (start[d2] >= (ssize64_t)ulen && ulen > 0)
                 BAIL_QUIET(NC_EINVALCOORDS);
 #endif
             if (count[d2] && endindex >= ulen)
@@ -1796,7 +1796,7 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
                current length in an unlimited dimension, we'll
                later need to return the fill value for the
                variable. */
-            if (start[d2] >= (off64_t)fdims[d2])
+            if (start[d2] >= (ssize64_t)fdims[d2])
                 fill_value_size[d2] = count[d2];
             else if (endindex >= fdims[d2])
                 fill_value_size[d2] = count[d2] - ((fdims[d2] - start[d2])/stride[d2]);
@@ -1811,11 +1811,11 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
             /* Check for out of bound requests. */
 #ifdef RELAX_COORD_BOUND
             /* Allow start to equal dim size if count is zero. */
-            if (start[d2] > (off64_t)fdims[d2] ||
-                (start[d2] == (off64_t)fdims[d2] && count[d2] > 0))
+            if (start[d2] > (ssize64_t)fdims[d2] ||
+                (start[d2] == (ssize64_t)fdims[d2] && count[d2] > 0))
                 BAIL_QUIET(NC_EINVALCOORDS);
 #else
-            if (start[d2] >= (off64_t)fdims[d2])
+            if (start[d2] >= (ssize64_t)fdims[d2])
                 BAIL_QUIET(NC_EINVALCOORDS);
 #endif
             if (count[d2] && endindex >= fdims[d2])

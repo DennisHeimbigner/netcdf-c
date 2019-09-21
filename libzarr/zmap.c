@@ -140,37 +140,37 @@ nczmap_exists(NCZMAP* map, const char* key)
 }
 
 int
-nczmap_len(NCZMAP* map, const char* key, off64_t* lenp)
+nczmap_len(NCZMAP* map, const char* key, ssize64_t* lenp)
 {
     return map->api->len(map, key, lenp);
 }
 
 int
-nczmap_def(NCZMAP* map, const char* key, off64_t len)
+nczmap_def(NCZMAP* map, const char* key, ssize64_t len)
 {
     return map->api->def(map, key, len);
 }
 
 int
-nczmap_read(NCZMAP* map, const char* key, off64_t start, off64_t count, void* content)
+nczmap_read(NCZMAP* map, const char* key, ssize64_t start, ssize64_t count, void* content)
 {
     return map->api->read(map, key, start, count, content);
 }
 
 int
-nczmap_write(NCZMAP* map, const char* key, off64_t start, off64_t count, const void* content)
+nczmap_write(NCZMAP* map, const char* key, ssize64_t start, ssize64_t count, const void* content)
 {
     return map->api->write(map, key, start, count, content);
 }
 
 int
-nczmap_readmeta(NCZMAP* map, const char* key, off64_t count, char* content)
+nczmap_readmeta(NCZMAP* map, const char* key, ssize64_t count, char* content)
 {
     return map->api->readmeta(map, key, count, content);
 }
 
 int
-nczmap_writemeta(NCZMAP* map, const char* key, off64_t count, const char* content)
+nczmap_writemeta(NCZMAP* map, const char* key, ssize64_t count, const char* content)
 {
     return map->api->writemeta(map, key, count, content);
 }

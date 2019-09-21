@@ -43,7 +43,7 @@ struct MagicFile {
     const char* path;
     struct NCURI* uri;
     NCmodel* model;
-    off64_t filelen;
+    ssize64_t filelen;
     int use_parallel;
     void* parameters; /* !NULL if inmemory && !diskless */
     FILE* fp;
@@ -895,8 +895,8 @@ readmagic(struct MagicFile* file, long pos, char* magic)
 #ifdef ENABLE_BYTERANGE
     case NC_IOSP_HTTP: {
 	NCbytes* buf = ncbytesnew();
-	off64_t start = (size_t)pos;
-	off64_t count = MAGIC_NUMBER_LEN;
+	ssize64_t start = (size_t)pos;
+	ssize64_t count = MAGIC_NUMBER_LEN;
 	status = nc_http_read(file->curl,file->curlurl,start,count,buf);
 	if(status == NC_NOERR) {
 	    if(ncbyteslength(buf) != count)

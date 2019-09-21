@@ -254,7 +254,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     NCjson* jncvar = NULL;
     NCjson* jdimrefs = NULL;
     NCjson* jtmp = NULL;
-    off64_t shape[NC_MAX_VAR_DIMS];
+    ssize64_t shape[NC_MAX_VAR_DIMS];
 
     LOG((3, "%s: dims: %s", __func__, key));
 
@@ -277,7 +277,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     /* Collect the shape vector */
     for(i=0;i<var->ndims;i++) {
 	NC_DIM_INFO_T* dim = var->dim[i];
-	shape[i] = (off64_t)dim->len;
+	shape[i] = (ssize64_t)dim->len;
     }
 
     /* shape key */
@@ -316,7 +316,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     /* Create the list */
     if((stat = NCJnew(NCJ_ARRAY,&jtmp))) goto done;
     for(i=0;i<var->ndims;i++) {
-	off64_t len = (var->contiguous?shape[i]:(off64_t)var->chunksizes[i]);
+	ssize64_t len = (var->contiguous?shape[i]:(ssize64_t)var->chunksizes[i]);
 	snprintf(number,sizeof(number),"%lld",len);
 	NCJaddstring(jtmp,NCJ_INT,number);
     }
@@ -992,7 +992,7 @@ define_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* diminfo)
     /* Reify each dim in turn */
     for(i = 0; i < nclistlength(diminfo); i+=2) {
         NC_DIM_INFO_T* dim = NULL;
-        off64_t len = 0;
+        ssize64_t len = 0;
         const char* name = nclistget(diminfo,i);
         const char* value = nclistget(diminfo,i+1);
 
@@ -1280,7 +1280,7 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
             NCjson* jname = nclistget(jvalue->dict,i);
             NCjson* jlen = nclistget(jvalue->dict,i+1);
             char norm_name[NC_MAX_NAME + 1];
-            off64_t len;
+            ssize64_t len;
             /* Verify name legality */
             if((stat = nc4_check_name(jname->value, norm_name)))
                 {stat = NC_EBADNAME; goto done;}
