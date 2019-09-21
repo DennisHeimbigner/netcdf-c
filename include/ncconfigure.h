@@ -18,7 +18,9 @@
 #endif
 
 #ifndef HAVE_OFF64_T
+#ifndef HAVE___OFF64_T
 typedef long long off64_t;
+#endif
 #endif
 
 /*
