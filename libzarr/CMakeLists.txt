@@ -1,22 +1,20 @@
 ## This is a CMake file, part of Unidata's netCDF package.
 # Copyright 2018, see the COPYRIGHT file for more information.
 #
-# This builds the HDF5 dispatch layer.
+# This builds the libzarr dispatch layer.
 #
-# Ed Hartnett
+# Dennis Heimbigner
 
 # The source files for the HDF5 dispatch layer.
-SET(libnchdf5_SOURCES nc4hdf.c nc4info.c hdf5file.c hdf5attr.c
-hdf5dim.c hdf5grp.c hdf5type.c hdf5internal.c hdf5create.c hdf5open.c
-hdf5var.c nc4mem.c nc4memcb.c hdf5cache.c hdf5dispatch.c)
+SET(libzarr_SOURCES zattr.c zcache.c zcreate.c zdim.c zdispatch.c 
+zfile.c zgrp.c zinternal.c zopen.c zprov.c zvar.c ztype.c zodom.c zsliceindices.c 
+zarr.c zcvt.c zsync.c zallchunks.c zchunkio.c zclose.c zjson.c zutil.c 
+zmap.c zmap_nc4.c zdebug.c)
 
-IF(ENABLE_BYTERANGE)
-SET(libnchdf5_SOURCES ${libnchdf5_SOURCES} H5FDhttp.c)
-ENDIF()
-
-# Build the HDF4 dispatch layer as a library that will be included in
+# Build the Zarr dispatch layer as a library that will be included in
 # the netCDF library.
-add_library(netcdfhdf5 OBJECT ${libnchdf5_SOURCES})
+add_library(zarr OBJECT ${libzarr_SOURCES})
 
 # Remember to package this file for CMake builds.
-ADD_EXTRA_DIST(${libnchdf5_SOURCES} CMakeLists.txt)
+ADD_EXTRA_DIST(${libzarr_SOURCES} CMakeLists.txt)
+

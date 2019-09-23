@@ -18,7 +18,7 @@ case "$T" in
 
 meta)
 echo ""; echo "*** Test meta-data write/read"
-CMD="${execdir}/t_meta -c"
+CMD="${execdir}/t_meta${ext} -c"
 $CMD create
 ncdump ./testmeta.ncz >./t_meta_create.cdl
 diff -wb ${srcdir}/ref_t_meta_create.cdl ./t_meta_create.cdl
@@ -34,5 +34,3 @@ diff -wb ${srcdir}/ref_t_meta_var1.cdl ./t_meta_var1.cdl
 
 esac
 done
-
-exit
