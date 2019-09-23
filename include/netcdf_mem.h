@@ -27,7 +27,7 @@
 #define EXTERNL MSC_EXTRA extern /**< Needed for DLL build. */
 
 typedef struct NC_memio {
-    size_t size;
+    size_t size; 
     void* memory;
     int flags;
 #define NC_MEMIO_LOCKED 1    /* Do not try to realloc or free provided memory */
