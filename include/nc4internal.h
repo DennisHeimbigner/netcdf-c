@@ -58,7 +58,7 @@ typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP} NC_SORT;
 #define X_SCHAR_MIN     (-128)          /**< Minimum signed char value. */
 #define X_SCHAR_MAX     127             /**< Maximum signed char value. */
 #define X_UCHAR_MAX     255U            /**< Maximum unsigned char value. */
-#define X_SHORT_MIN     (-32768)        /**< Minumum short value. */
+#define X_SHORT_MIN     (-32768)        /**< Minimum short value. */
 #define X_SHRT_MIN      X_SHORT_MIN     /**< This alias is compatible with limits.h. */
 #define X_SHORT_MAX     32767           /**< Maximum short value. */
 #define X_SHRT_MAX      X_SHORT_MAX     /**< This alias is compatible with limits.h. */
@@ -385,6 +385,7 @@ int nc4_file_list_add(int ncid, const char *path, int mode,
 int nc4_file_list_get(int ncid, char **path, int *mode,
                       void **dispatchdata);
 int nc4_file_list_del(int ncid);
+int nc4_file_change_ncid(int ncid, unsigned short new_ncid_index);
 int nc4_var_list_add(NC_GRP_INFO_T* grp, const char* name, int ndims,
                      NC_VAR_INFO_T **var);
 int nc4_var_list_add2(NC_GRP_INFO_T* grp, const char* name,
