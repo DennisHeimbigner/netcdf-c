@@ -32,6 +32,10 @@ IF(ENABLE_DAP4)
   SET(liblib_LIBS ${liblib_LIBS} dap4)
 ENDIF()
 
+IF(ENABLE_ZARR)
+  SET(liblib_LIBS ${liblib_LIBS} zarr)
+ENDIF()
+
 FOREACH(LIBS ${liblib_LIBS})
   SET(LARGS ${LARGS} $<TARGET_OBJECTS:${LIBS}>)
 ENDFOREACH()
