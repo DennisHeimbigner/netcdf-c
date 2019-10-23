@@ -347,6 +347,28 @@ done:
     return stat;
 }
 
+static struct FilterSpec*
+filterspecforvar(const char* ofqn)
+{
+  int i;	 
+  struct FilterSpec* star = NULL;
+  struct FilterSpec* match = NULL;
+  /* See if any output filter spec is defined for this output variable */
+  /* Name specific overrides '*' */
+  for(i=0;i<listlength(filterspecs);i++) {
+      struct FilterSpec* spec = listget(filterspecs,i);
+      if(strcmp(spec->fqn,"*")==0)
+          star = spec; /* save */
+      if(strcmp(spec->fqn,ofqn)==0) {
+          match = spec;
+	  break;;
+      }
+  }
+  if(match) return match;
+  if(star) return star;
+  return NULL;
+}
+
 
 /* Return size of chunk in bytes for a variable varid in a group igrp, or 0 if
  * layout is contiguous */
@@ -721,7 +743,6 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
     struct FilterSpec inspec;
     struct FilterSpec nospec;
     struct FilterSpec* actualspec = NULL;
-    int i;
     char* ofqn = NULL;
     int inputdefined, outputdefined, unfiltered;
     int innc4 = (inkind == NC_FORMAT_NETCDF4 || inkind == NC_FORMAT_NETCDF4_CLASSIC);
@@ -745,14 +766,9 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
     /* Only bother to look if output is netcdf-4 variant */
     if(outnc4) {
       /* See if any output filter spec is defined for this output variable */
-      for(i=0;i<listlength(filterspecs);i++) {
-	  struct FilterSpec* spec = listget(filterspecs,i);
-          if(strcmp(spec->fqn,"*")==0 || strcmp(spec->fqn,ofqn)==0) {
-             ospec = spec;
-             outputdefined = 1;
-             break;
-	  }
-      }
+      ospec = filterspecforvar(ofqn);
+      if(ospec != NULL)
+          outputdefined = 1;
     }
 
     /* Is there a filter on the input variable */
@@ -762,26 +778,26 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
       stat=nc_inq_var_filter(vid.grpid,vid.varid,&inspec.filterid,&inspec.nparams,NULL);
       if(stat && stat != NC_EFILTER)
 	    goto done; /* true error */
-      if(stat == NC_NOERR) {/* input has a filter */
+      if(stat == NC_NOERR && inspec.filterid > 0) {/* input has a filter */
   	    inspec.params = (unsigned int*)malloc(sizeof(unsigned int)*inspec.nparams);
 	    if((stat=nc_inq_var_filter(vid.grpid,vid.varid,&inspec.filterid,&inspec.nparams,inspec.params)))
-          goto done;
+	          goto done;
 	    inputdefined = 1;
       }
     }
 
     /* Rules for choosing output filter are as follows:
 
-	global		output		input	Actual Output
-	suppress	filter		filter	filter
-	-----------------------------------------------
-	true		undefined	NA	  unfiltered
-	true		'none'		NA	  unfiltered
-	true		defined		NA	  use output filter
-	false		undefined	defined	  use input filter
-	false		'none'		NA	  unfiltered
-	false		defined		NA	  use output filter
-	false		undefined	undefined unfiltered
+	   global	output		input	Actual Output
+	   suppress	filter		filter	filter
+	-----------------------------------------------------------
+	1  true		undefined	NA	  unfiltered
+	2  true		'none'		NA	  unfiltered
+	3  true		defined		NA	  use output filter
+	4  false	undefined	defined	  use input filter
+	5  false	'none'		NA	  unfiltered
+	6  false	defined		NA	  use output filter
+	7  false	undefined	undefined unfiltered
     */
 
     unfiltered = 0;
@@ -799,7 +815,7 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
     else if(!suppressfilters && outputdefined) /* row 6 */
       actualspec = ospec;
     else if(!suppressfilters && !outputdefined && !inputdefined) /* row 7 */
-      actualspec = &nospec;
+      unfiltered = 1;
 
     /* Apply actual filter spec if any */
     if(!unfiltered) {
@@ -820,12 +836,16 @@ done:
 
 /* Propagate chunking from input to output taking -c flags into account. */
 /* Subsumes old set_var_chunked */
+/* Must make sure we do not override the default chunking when input is classic */
 static int
 copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkind, int outkind)
 {
     int stat = NC_NOERR;
     int innc4 = (inkind == NC_FORMAT_NETCDF4 || inkind == NC_FORMAT_NETCDF4_CLASSIC);
     int outnc4 = (outkind == NC_FORMAT_NETCDF4 || outkind == NC_FORMAT_NETCDF4_CLASSIC);
+    VarID ovid;
+    char* ofqn = NULL;
+    int nochunkspec = 1 ; /* 1 => no -c option applies to this variable */
 
     /* First, check the file kinds */
     if(!outnc4)
@@ -850,7 +870,8 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
 	goto done;
     }
 
-    { /* Try dim-specific chunking */
+    /* See about dim-specific chunking */
+    {
 	int idim;
 	/* size of a chunk: product of dimension chunksizes and size of value */
 	size_t csprod;
@@ -862,11 +883,11 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
 	int icontig = 1;
 	int ocontig = 1; /* until proven otherwise */
 
-	/* See if chunking was suppressed */
+	/* See if dim-specific chunking was suppressed */
 	if(dimchunkspec_omit())
-	    goto done; /* do nothing */
+	    goto next2;
 
-	/* Setup for chunking */
+	/* Setup for output chunking */
 	typesize = val_size(ogrp, o_varid);
 	csprod = typesize;
 	memset(&dimids,0,sizeof(dimids));
@@ -874,7 +895,14 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
 	memset(&ochunkp,0,sizeof(ochunkp));
 
 	/* Get the chunking, if any, on the current input variable */
-	NC_CHECK(nc_inq_var_chunking(igrp, i_varid, &icontig, ichunkp));
+        if(innc4) {
+  	    NC_CHECK(nc_inq_var_chunking(igrp, i_varid, &icontig, ichunkp));
+	    /* pretend that this is same as a -c option */
+            nochunkspec = 0;
+	} else {
+	    icontig = 1;
+	    ichunkp[0] = 0;	    	
+	}
 	if(!icontig)
 	    ocontig = 0; /* If input is chunked, then so is output */
 
@@ -903,6 +931,7 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
             if(chunksize > 0) { /* found in chunkspec */
                 ochunkp[idim] = chunksize;
                 ocontig = 0; /* cannot use contiguous */
+		nochunkspec = 0; /* form of explicit chunking */
                 goto next;
             }
 
@@ -915,7 +944,7 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
 		goto next;
 	    }
 
-            /* If input is netcdf-4 then use the input size as the chunk size;
+	    /* If input is not netcdf-4 then use the input size as the chunk size;
 		but do not force chunking.
              */
             if(!innc4) {
@@ -942,15 +971,51 @@ next:
 	    ocontig = 1; /* Force contiguous */
         }
 
-	/* Apply the chunking, if any */
+next2:
+	/* If any kind of output filter was specified, then not contiguous */
+	ovid.grpid = ogrp;
+        ovid.varid = o_varid;
+	if((stat=computeFQN(ovid,&ofqn))) goto done;
+	if(option_deflate_level >= 0 || filterspecforvar(ofqn) != NULL)
+	    ocontig = 0;
 
-	if(ocontig) { /* We can use contiguous output */
-	    NC_CHECK(nc_def_var_chunking(ogrp, o_varid, NC_CONTIGUOUS, NULL));
-	} else {
-	    NC_CHECK(nc_def_var_chunking(ogrp, o_varid, NC_CHUNKED, ochunkp));
-	}
+	/* Apply the chunking, if any */
+	if(!nochunkspec) {/* explicitly set chunking */
+	    if(ocontig) { /* We can use contiguous output */
+	        NC_CHECK(nc_def_var_chunking(ogrp, o_varid, NC_CONTIGUOUS, NULL));
+	    } else {
+	        NC_CHECK(nc_def_var_chunking(ogrp, o_varid, NC_CHUNKED, ochunkp));
+	    }
+	} /* else no chunk spec at all, let defaults set at nc_def_var() be used */
     }
+
+#ifdef USE_NETCDF4
+#ifdef DEBUGFILTER
+    { int d;
+	size_t chunksizes[NC_MAX_VAR_DIMS];
+	char name[NC_MAX_NAME];
+	int contig = 0;
+	unsigned long long totalsize = 1;
+	NC_CHECK(nc_inq_var(ogrp,o_varid,name,NULL,NULL,NULL,NULL));
+        NC_CHECK(nc_inq_var_chunking(ogrp, o_varid, &contig, chunksizes));
+        fprintf(stderr,"xxx: chunk sizes: %s[",name);
+	if(contig) {
+	    fprintf(stderr,"contig]\n");
+	} else {
+	    for(d=0;d<ndims;d++) {
+	        totalsize *= chunksizes[d];
+	        if(d > 0) fprintf(stderr,",");
+	        fprintf(stderr,"%lu",(unsigned long)chunksizes[d]);
+	    }
+            fprintf(stderr,"]=%llu\n",totalsize);
+	}
+        fflush(stderr);
+    }
+#endif /*DEBUGFILTER*/
+#endif /*USE_NETCDF4*/
+ 
 done:
+    if(ofqn) free(ofqn);
     return stat;
 }
 
@@ -2219,8 +2284,6 @@ main(int argc, char**argv)
 		option_min_chunk_bytes = 0;
 	    else
 	        option_min_chunk_bytes = atol(optarg);
-	    if(option_min_chunk_bytes < 0)
-		error("-M value must be non-negative integer");
 	    break;
 #else
 	    error("-M requires netcdf-4");

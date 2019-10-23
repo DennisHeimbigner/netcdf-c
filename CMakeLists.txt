@@ -26,7 +26,7 @@ set(PACKAGE "netCDF" CACHE STRING "")
 
 SET(NC_VERSION_MAJOR 4)
 SET(NC_VERSION_MINOR 7)
-SET(NC_VERSION_PATCH 1)
+SET(NC_VERSION_PATCH 3)
 SET(NC_VERSION_NOTE "-development")
 SET(netCDF_VERSION ${NC_VERSION_MAJOR}.${NC_VERSION_MINOR}.${NC_VERSION_PATCH}${NC_VERSION_NOTE})
 SET(VERSION ${netCDF_VERSION})
@@ -615,7 +615,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     #####
     IF(MSVC)
       SET(SEARCH_PACKAGE_NAME ${HDF5_PACKAGE_NAME})
-      FIND_PACKAGE(HDF5 NAMES ${SEARCH_PACKAGE_NAME} COMPONENTS C HL NO_MODULES REQUIRED ${NC_HDF5_LINK_TYPE})
+      FIND_PACKAGE(HDF5 NAMES ${SEARCH_PACKAGE_NAME} COMPONENTS C HL CONFIG REQUIRED ${NC_HDF5_LINK_TYPE})
     ELSE(MSVC)
       FIND_PACKAGE(HDF5 COMPONENTS C HL REQUIRED)
     ENDIF(MSVC)
@@ -699,28 +699,23 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     SET(HDF5_C_LIBRARY_hdf5 "${HDF5_C_LIBRARY}")
   ENDIF()
 
-  ###
-  # The following options are not used in Windows currently.
-  ###
-  IF(NOT MSVC)
-    # Find out if HDF5 was built with parallel support.
-    # Do that by checking for the targets H5Pget_fapl_mpiposx and
-    # H5Pget_fapl_mpio in ${HDF5_LIB}.
+  # Find out if HDF5 was built with parallel support.
+  # Do that by checking for the targets H5Pget_fapl_mpiposx and
+  # H5Pget_fapl_mpio in ${HDF5_LIB}.
 
-    # H5Pset_fapl_mpiposix and H5Pget_fapl_mpiposix have been removed since HDF5 1.8.12.
-    # Use H5Pset_fapl_mpio and H5Pget_fapl_mpio, instead.
-    # CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5Pget_fapl_mpiposix "" HDF5_IS_PARALLEL_MPIPOSIX)
+  # H5Pset_fapl_mpiposix and H5Pget_fapl_mpiposix have been removed since HDF5 1.8.12.
+  # Use H5Pset_fapl_mpio and H5Pget_fapl_mpio, instead.
+  # CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5Pget_fapl_mpiposix "" HDF5_IS_PARALLEL_MPIPOSIX)
 
-    CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5Pget_fapl_mpio "" HDF5_IS_PARALLEL_MPIO)
-    IF(HDF5_IS_PARALLEL_MPIO)
-      SET(HDF5_PARALLEL ON)
-    ELSE()
-      SET(HDF5_PARALLEL OFF)
-    ENDIF()
+  CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5Pget_fapl_mpio "" HDF5_IS_PARALLEL_MPIO)
+  IF(HDF5_IS_PARALLEL_MPIO)
+    SET(HDF5_PARALLEL ON)
+  ELSE()
+    SET(HDF5_PARALLEL OFF)
+  ENDIF()
 
-    #Check to see if HDF5 library has collective metadata APIs, (HDF5 >= 1.10.0)
-    CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5Pset_all_coll_metadata_ops "" HDF5_HAS_COLL_METADATA_OPS)
-  ENDIF(NOT MSVC)
+  #Check to see if HDF5 library has collective metadata APIs, (HDF5 >= 1.10.0)
+  CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5Pset_all_coll_metadata_ops "" HDF5_HAS_COLL_METADATA_OPS)
 
   #Check to see if H5Z_SZIP exists in HDF5_Libraries. If so, we must use szip.
   CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5Z_SZIP "" USE_SZIP)
@@ -924,7 +919,7 @@ IF(ENABLE_TESTS)
   # same thing as an 'expected failure'. Rather, these
   # are tests that will need to be fixed eventually.
   #
-  # By placing them here, we can occasionaly turn this
+  # By placing them here, we can occasionally turn this
   # flag on and see if any known failures have been
   # fixed in the course of code improvement/other bug
   # fixes.
@@ -935,6 +930,13 @@ IF(ENABLE_TESTS)
 
   OPTION(ENABLE_FAILING_TESTS "Run tests which are known to fail, check to see if any have been fixed." OFF)
 
+  ###
+  # Option to turn on unit testing. See https://github.com/Unidata/netcdf-c/pull/1472 for more information.
+  # Currently (August 21, 2019): Will not work with Visual Studio
+  ###
+  IF(NOT MSVC)
+    OPTION(ENABLE_UNIT_TESTS "Run Unit Tests." ON)
+  ENDIF(NOT MSVC)
   ###
   # End known-failures.
   ###
@@ -999,21 +1001,19 @@ IF(ENABLE_PARALLEL4 AND ENABLE_NETCDF_4)
     SET(USE_PARALLEL OFF CACHE BOOL "")
     MESSAGE(STATUS "Cannot find HDF5 library built with parallel support. Disabling parallel build.")
   ELSE()
+    IF(MSVC)
+      FIND_PACKAGE(MPI REQUIRED)
+      INCLUDE_DIRECTORIES(${MPI_C_INCLUDE_PATH})
+    ENDIF()
     SET(HDF5_PARALLEL ON CACHE BOOL "")
     SET(USE_PARALLEL ON CACHE BOOL "")
     SET(USE_PARALLEL4 ON CACHE BOOL "")
     SET(STATUS_PARALLEL "ON")
     configure_file("${netCDF_SOURCE_DIR}/nc_test4/run_par_test.sh.in"
       "${netCDF_BINARY_DIR}/tmp/run_par_test.sh" @ONLY NEWLINE_STYLE LF)
-    #configure_file("${netCDF_SOURCE_DIR}/nc_test4/run_par_test2.sh.in"
-    #  "${netCDF_BINARY_DIR}/tmp/run_par_test2.sh" @ONLY NEWLINE_STYLE LF)
     FILE(COPY "${netCDF_BINARY_DIR}/tmp/run_par_test.sh"
       DESTINATION ${netCDF_BINARY_DIR}/nc_test4
       FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-    #FILE(COPY "${netCDF_BINARY_DIR}/tmp/run_par_test2.sh"
-    #  DESTINATION ${netCDF_BINARY_DIR}/nc_test4
-    #  FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-
   ENDIF()
 ENDIF()
 
@@ -1633,6 +1633,7 @@ MACRO(print_conf_summary)
     MESSAGE(STATUS "Parallel Tests:    ${ENABLE_PARALLEL_TESTS}")
     MESSAGE(STATUS "Large File Tests:  ${ENABLE_LARGE_FILE_TESTS}")
     MESSAGE(STATUS "Extreme Numbers:   ${ENABLE_EXTREME_NUMBERS}")
+    MESSAGE(STATUS "Unit Tests:        ${ENABLE_UNIT_TESTS}")
   ENDIF()
 
   MESSAGE("")
@@ -1806,6 +1807,9 @@ IF(ENABLE_TESTS)
   IF(ENABLE_EXAMPLES)
     ADD_SUBDIRECTORY(examples)
   ENDIF()
+  IF(ENABLE_UNIT_TESTS)
+    ADD_SUBDIRECTORY(unit_test)
+  ENDIF(ENABLE_UNIT_TESTS)
 ENDIF()
 
 # Code to generate an export header

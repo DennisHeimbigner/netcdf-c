@@ -31,10 +31,9 @@ libdispatch_la_SOURCES += utf8proc.c utf8proc.h
 libdispatch_la_SOURCES += drc.c
 
 # Add functions only found in netCDF-4.
-if USE_NETCDF4
+# They are always defined, even if they just return an error
 libdispatch_la_SOURCES += dgroup.c dvlen.c dcompound.c dtype.c denum.c	\
 dopaque.c dfilter.c
-endif # USE_NETCDF4
 
 # Add V2 API convenience library if needed.
 if BUILD_V2
@@ -68,9 +67,3 @@ ncsettings.c: $(top_srcdir)/libnetcdf.settings ncsettings.hdr
 	sed -e 's/\(.*\)/\"\1\\n\"/' | \
 	cat >> ncsettings.c
 	echo ';' >> ncsettings.c
-
-# Unit tests
-test_ncuri_SOURCES = test_ncuri.c ncuri.c ncbytes.c nclist.c
-test_pathcvt_SOURCES = test_pathcvt.c dwinpath.c
-check_PROGRAMS = test_ncuri test_pathcvt
-TESTS = test_ncuri test_pathcvt

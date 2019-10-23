@@ -28,8 +28,6 @@ static const NC_Dispatch HDF5_dispatcher = {
     NC4_abort,
     NC4_close,
     NC4_set_fill,
-    NC_NOTNC3_inq_base_pe,
-    NC_NOTNC3_set_base_pe,
     NC4_inq_format,
     NC4_inq_format_extended,
 
@@ -65,7 +63,6 @@ static const NC_Dispatch HDF5_dispatcher = {
     NC4_var_par_access,
     NC4_def_var_fill,
 
-#ifdef USE_NETCDF4
     NC4_show_metadata,
     NC4_inq_unlimdims,
 
@@ -104,7 +101,6 @@ static const NC_Dispatch HDF5_dispatcher = {
     NC4_def_var_filter,
     NC4_HDF5_set_var_chunk_cache,
     NC4_get_var_chunk_cache,
-#endif
 
 };
 
@@ -125,7 +121,7 @@ NC_HDF5_initialize(void)
 
 #ifdef ENABLE_BYTERANGE
     (void)H5FD_http_init();
-#endif  
+#endif
     return NC4_provenance_init();
 }
 

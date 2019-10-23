@@ -87,14 +87,8 @@ check_inq_format(int ncid, int expected_format, int expected_extended_format, in
 
    /* Nothing to do with inq_format, but let's check the base_pe
     * functions. */
-   if (expected_format == NC_FORMAT_CLASSIC || expected_format == NC_FORMAT_64BIT_OFFSET ||
-       expected_format == NC_FORMAT_CDF5) {
-      if (nc_set_base_pe(ncid, 0)) ERR;
-      if (nc_inq_base_pe(ncid, NULL)) ERR;
-   } else {
-      if (nc_set_base_pe(ncid, 0) != NC_ENOTNC3) ERR;
-      if (nc_inq_base_pe(ncid, NULL) != NC_ENOTNC3) ERR;
-   }
+   if (nc_set_base_pe(ncid, 0)) ERR;
+   if (nc_inq_base_pe(ncid, NULL)) ERR;
 
    return 0;
 }
@@ -297,6 +291,15 @@ main(int argc, char **argv)
                if (nc_close(ncid)) ERR;
             }
 
+         }
+         SUMMARIZE_ERR;
+         printf("*** testing bad name for nc_open/nc_create with format %d... ", format[f]);
+         {
+             int ncid;
+             if (nc_set_default_format(format[f], NULL)) ERR;
+             if (nc_create(NULL, 0, &ncid) != NC_EINVAL) ERR;
+             if (nc_open(NULL, NC_NOWRITE, &ncid) != NC_EINVAL) ERR;
+             if (nc_delete(NULL) != NC_EINVAL) ERR;
          }
          SUMMARIZE_ERR;
       } /* next format */

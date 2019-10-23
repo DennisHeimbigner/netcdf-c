@@ -10,7 +10,7 @@
 AC_PREREQ([2.59])
 
 # Initialize with name, version, and support email address.
-AC_INIT([netCDF], [4.7.1-development], [support-netcdf@unidata.ucar.edu], [netcdf-c])
+AC_INIT([netCDF], [4.7.3-development], [support-netcdf@unidata.ucar.edu], [netcdf-c])
 
 ##
 # Prefer an empty CFLAGS variable instead of the default -g -O2.
@@ -21,7 +21,7 @@ AC_INIT([netCDF], [4.7.1-development], [support-netcdf@unidata.ucar.edu], [netcd
 
 AC_SUBST([NC_VERSION_MAJOR]) NC_VERSION_MAJOR=4
 AC_SUBST([NC_VERSION_MINOR]) NC_VERSION_MINOR=7
-AC_SUBST([NC_VERSION_PATCH]) NC_VERSION_PATCH=1
+AC_SUBST([NC_VERSION_PATCH]) NC_VERSION_PATCH=3
 AC_SUBST([NC_VERSION_NOTE]) NC_VERSION_NOTE="-development"
 
 #####
@@ -183,6 +183,14 @@ AC_MSG_RESULT($enable_jna)
 if test "x$enable_jna" = xyes ; then
 AC_DEFINE([JNA], [1], [if true, include jna bug workaround code])
 fi
+
+# Does the user want to turn off unit tests (useful for test coverage
+# analysis).
+AC_ARG_ENABLE([unit-tests],
+  [AS_HELP_STRING([--disable-unit-tests],
+    [Disable tests in unit_test directory. Other tests still run.])])
+test "x$enable_unit_tests" = xno || enable_unit_tests=yes
+AM_CONDITIONAL([BUILD_UNIT_TESTS], [test "x$enable_unit_tests" = xyes])
 
 # Does the user want to build netcdf-4?
 AC_MSG_CHECKING([whether we should build netCDF-4])
@@ -819,7 +827,7 @@ AC_CHECK_HEADERS([sys/resource.h])
 AC_CHECK_HEADERS([ftw.h])
 
 # Check for these functions...
-AC_CHECK_FUNCS([strlcat snprintf \
+AC_CHECK_FUNCS([strlcat snprintf strcasecmp fileno \
                 strdup strtoll strtoull \
 		mkstemp mktemp random \
 		getrlimit gettimeofday fsync MPI_Comm_f2c])
@@ -912,7 +920,7 @@ AC_ARG_ENABLE([byterange],
 test "x$enable_byterange" = xyes || enable_byterange=no
 AC_MSG_RESULT($enable_byterange)
 # Need curl for byte ranges
-if test "x$found_curl" = xno ; then
+if test "x$found_curl" = xno && test "x$enable_byterange" = xyes ; then
   AC_MSG_ERROR([curl required for byte range support. Install curl or build without --enable-byterange.])
   enable_byterange=no
 fi
@@ -1074,7 +1082,7 @@ if test "x$enable_hdf5" = xyes; then
 
    # Check to see if we need to search for and link against szlib.
    if test "x$ac_cv_func_H5Z_SZIP" = xyes; then
-      AC_SEARCH_LIBS([SZ_Compress], [szip sz], [],
+      AC_SEARCH_LIBS([SZ_BufftoBuffCompress], [szip sz], [],
       [AC_MSG_ERROR([libhdf5 installed with szip support, but cannot find or link to the szip library.])])
    fi
 
@@ -1251,8 +1259,10 @@ if test "x$enable_pnetcdf" = xyes; then
       AC_MSG_ERROR([PNetCDF must be built with relax-coord-bound])
    fi
 else
-   # default setting
-   enable_erange_fill=no
+   if test "x$enable_erange_fill" = xauto; then
+      # if --enable-erange-fill is not used, default setting is no
+      enable_erange_fill=no
+   fi
 fi
 
 if test "x$enable_zero_length_coord_bound" = xyes; then
@@ -1425,6 +1435,11 @@ AC_MSG_RESULT($enable_filter_testing)
 
 if test "x$enable_netcdf_4" = xno ; then
 AC_MSG_WARN([netCDF-4 disabled => --disable-filter-testing])
+enable_filter_testing=no
+fi
+
+if test "x$enable_hdf5" = xno ; then
+AC_MSG_WARN([HDF5 disabled => --disable-filter-testing])
 enable_filter_testing=no
 fi
 
@@ -1619,6 +1634,7 @@ AC_CONFIG_FILES([Makefile
                  ncdump/expected/Makefile
                  docs/Makefile
                  docs/images/Makefile
+                 unit_test/Makefile
                  nctest/Makefile
                  nc_test4/Makefile
                  nc_perf/Makefile

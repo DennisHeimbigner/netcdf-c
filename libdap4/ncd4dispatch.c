@@ -61,7 +61,6 @@ NCD4_initialize(void)
 int
 NCD4_finalize(void)
 {
-    curl_global_cleanup();
     return THROW(NC_NOERR);
 }
 
@@ -86,7 +85,7 @@ NCD4_sync(int ncid)
 static int
 NCD4_create(const char *path, int cmode,
            size_t initialsz, int basepe, size_t *chunksizehintp,
-           void* mpidata, const NC_Dispatch *dispatch, NC *ncp)
+           void* mpidata, const NC_Dispatch *dispatch, int ncid)
 {
    return THROW(NC_EPERM);
 }
@@ -114,12 +113,6 @@ Force dap4 access to be read-only
 */
 static int
 NCD4_set_fill(int ncid, int fillmode, int* old_modep)
-{
-    return (NC_EPERM);
-}
-
-static int
-NCD4_set_base_pe(int ncid, int pe)
 {
     return (NC_EPERM);
 }
@@ -253,18 +246,6 @@ NCD4_set_var_chunk_cache(int ncid, int p2, size_t p3, size_t p4, float p5)
 Following functions basically return the netcdf-4 value WRT to the nc4id.
 However, it is necessary to modify the grpid(ncid) to point to the substrate.
 */
-
-static int
-NCD4_inq_base_pe(int ncid, int* pe)
-{
-    NC* ncp;
-    int ret = NC_NOERR;
-    int substrateid;
-    if((ret = NC_check_id(ncid, (NC**)&ncp)) != NC_NOERR) return (ret);
-    substrateid = makenc4id(ncp,ncid);
-    ret = nc_inq_base_pe(substrateid, pe);
-    return (ret);
-}
 
 static int
 NCD4_inq_format(int ncid, int* formatp)
@@ -464,8 +445,6 @@ NCD4_var_par_access(int ncid, int p2, int p3)
     return (NC_ENOPAR);
 }
 
-
-#ifdef USE_NETCDF4
 
 static int
 NCD4_inq_ncid(int ncid, const char* name, int* grp_ncid)
@@ -728,8 +707,6 @@ NCD4_get_var_chunk_cache(int ncid, int p2, size_t* p3, size_t* p4, float* p5)
     return (ret);
 }
 
-#endif /*USE_NETCDF4*/
-
 /**************************************************/
 /*
 Following functions are overridden to handle 
@@ -793,13 +770,6 @@ static int
 globalinit(void)
 {
     int stat = NC_NOERR;
-    {
-	CURLcode cstat = curl_global_init(CURL_GLOBAL_DEFAULT);
-	if(cstat != CURLE_OK)
-	    fprintf(stderr,"curl_global_init failed!\n");
-    }
-
-
     return stat;
 }
 
@@ -818,8 +788,6 @@ NCD4_sync,
 NCD4_abort,
 NCD4_close,
 NCD4_set_fill,
-NCD4_inq_base_pe,
-NCD4_set_base_pe,
 NCD4_inq_format,
 NCD4_inq_format_extended, /*inq_format_extended*/
 
@@ -855,7 +823,6 @@ NCD4_inq_var_all,
 NCD4_var_par_access,
 NCD4_def_var_fill,
 
-#ifdef USE_NETCDF4
 NCD4_show_metadata,
 NCD4_inq_unlimdims,
 NCD4_inq_ncid,
@@ -893,8 +860,6 @@ NCD4_def_var_endian,
 NCD4_def_var_filter,
 NCD4_set_var_chunk_cache,
 NCD4_get_var_chunk_cache,
-
-#endif /*USE_NETCDF4*/
 
 };
 

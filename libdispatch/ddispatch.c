@@ -22,11 +22,14 @@ See LICENSE.txt for license information.
 #define getcwd _getcwd
 #endif
 
+#if defined(ENABLE_BYTERANGE) || defined(ENABLE_DAP) || defined(ENABLE_DAP4)
+#include <curl/curl.h>
+#endif
 
 /* Define vectors of zeros and ones for use with various nc_get_varX function*/
-const size_t NC_coord_zero[NC_MAX_VAR_DIMS];
-const size_t NC_coord_one[NC_MAX_VAR_DIMS];
-const ptrdiff_t NC_stride_one[NC_MAX_VAR_DIMS];
+size_t NC_coord_zero[NC_MAX_VAR_DIMS] = {0};
+size_t NC_coord_one[NC_MAX_VAR_DIMS] = {1};
+ptrdiff_t NC_stride_one[NC_MAX_VAR_DIMS] = {1};
 
 NCRCglobalstate ncrc_globalstate;
 
@@ -122,6 +125,14 @@ NCDISPATCH_initialize(void)
     /* Compute type alignments */
     NC_compute_alignments();
 
+    /* Initialize curl if it is being used */
+#if defined(ENABLE_BYTERANGE) || defined(ENABLE_DAP) || defined(ENABLE_DAP4)
+    {
+        CURLcode cstat = curl_global_init(CURL_GLOBAL_ALL);
+	if(cstat != CURLE_OK)
+	    status = NC_ECURL;
+    }
+#endif
     return status;
 }
 
@@ -130,6 +141,8 @@ NCDISPATCH_finalize(void)
 {
     int status = NC_NOERR;
     ncrc_freeglobalstate();
+#if defined(ENABLE_BYTERANGE) || defined(ENABLE_DAP) || defined(ENABLE_DAP4)
+    curl_global_cleanup();
+#endif
     return status;
 }
-

@@ -5,7 +5,24 @@ Release Notes       {#RELEASE_NOTES}
 
 This file contains a high-level description of this package's evolution. Releases are in reverse chronological order (most recent first). Note that, as of netcdf 4.2, the `netcdf-c++` and `netcdf-fortran` libraries have been separated into their own libraries.
 
-## 4.7.1 - TBD
+## 4.7.3 - TBD
+
+## 4.7.2 - October 22, 2019
+
+* [Bug Fix][Enhancement] Various bug fixes and enhancements.
+* [Bug Fix][Enhancement] Corrected an issue where protected memory was being written to with some pointer slight-of-hand.  This has been in the code for a while, but appears to be caught by the compiler on OSX, under circumstances yet to be completely nailed down.  See [GitHub #1486](https://github.com/Unidata/netcdf-c/issues/1486) for more information.  
+* [Enhancement] [Parallel IO] Added support for parallel functions in MSVC. See [Github #1492](https://github.com/Unidata/netcdf-c/pull/1492) for more information.
+* [Enhancement] Added a function for changing the ncid of an open file.  This function should only be used if you know what you are doing, and is meant to be used primarily with PIO integration. See [GitHub #1483](https://github.com/Unidata/netcdf-c/pull/1483) and [GitHub #1487](https://github.com/Unidata/netcdf-c/pull/1487) for more information.
+
+## 4.7.1 - August 27, 2019
+
+* [Enhancement] Added unit_test directory, which contains unit tests for the libdispatch and libsrc4 code (and any other directories that want to put unit tests there). Use --disable-unit-tests to run without unit tests (ex. for code coverage analysis). See [GitHub #1458](https://github.com/Unidata/netcdf-c/issues/1458).
+
+* [Bug Fix] Remove obsolete _CRAYMPP and LOCKNUMREC macros from code. Also brought documentation up to date in man page. These macros were used in ancient times, before modern parallel I/O systems were developed. Programmers interested in parallel I/O should see nc_open_par() and nc_create_par(). See [GitHub #1459](https://github.com/Unidata/netcdf-c/issues/1459).
+
+* [Enhancement] Remove obsolete and deprecated functions nc_set_base_pe() and nc_inq_base_pe() from the dispatch table. (Both functions are still supported in the library, this is an internal change only.) See [GitHub #1468](https://github.com/Unidata/netcdf-c/issues/1468).
+
+* [Bug Fix] Reverted nccopy behavior so that if no -c parameters are given, then any default chunking is left to the netcdf-c library to decide. See [GitHub #1436](https://github.com/Unidata/netcdf-c/issues/1436).
 
 ## 4.7.0 - April 29, 2019
 
@@ -16,7 +33,7 @@ read-only access to, for example, Amazon S3 objects and also Thredds Server
 datasets via the HTTPService access method.
 See [GitHub #1251](https://github.com/Unidata/netcdf-c/issues/1251).
 
-* Update the license from the home-brewed NetCDF license to the standard 3-Clause BSD License.  This change does not result in any new restrictions; it is merely the adoption of a standard, well-known and well-understood license in place of the historic NetCDF license written at Unidata.  This is part of a broader push by Unidata to adopt modern, standardized licensing.  
+* Update the license from the home-brewed NetCDF license to the standard 3-Clause BSD License.  This change does not result in any new restrictions; it is merely the adoption of a standard, well-known and well-understood license in place of the historic NetCDF license written at Unidata.  This is part of a broader push by Unidata to adopt modern, standardized licensing.
 
 ## 4.6.3 - February 28, 2019
 
@@ -25,7 +42,7 @@ See [GitHub #1251](https://github.com/Unidata/netcdf-c/issues/1251).
 * Some fixes for rename, including fix for renumbering of varids after a rename (#1307), renaming var to dim without coordinate var. See [Github #1297](https://github.com/Unidata/netcdf-c/issues/1297).
 * Fix of NULL parameter causing segfaults in put_vars functions. See [Github #1265](https://github.com/Unidata/netcdf-c/issues/1265) for more information.
 * Fix of --enable-benchmark benchmark tests [Github #1211](https://github.com/Unidata/netcdf-c/issues/1211)
-* Update the license from the home-brewed NetCDF license to the standard 3-Clause BSD License.  This change does not result in any new restrictions; it is merely the adoption of a standard, well-known and well-understood license in place of the historic NetCDF license written at Unidata.  This is part of a broader push by Unidata to adopt modern, standardized licensing.  
+* Update the license from the home-brewed NetCDF license to the standard 3-Clause BSD License.  This change does not result in any new restrictions; it is merely the adoption of a standard, well-known and well-understood license in place of the historic NetCDF license written at Unidata.  This is part of a broader push by Unidata to adopt modern, standardized licensing.
 * [BugFix] Corrected DAP-releated issues on big-endian machines. See [Github #1321](https://github.com/Unidata/netcdf-c/issues/1321), [Github #1302](https://github.com/Unidata/netcdf-c/issues/1302) for more information.
 * [BugFix][Enhancement]  Various and sundry bugfixes and performance enhancements, thanks to \@edhartnett, \@gsjaardema, \@t-b, \@wkliao, and all of our other contributors.
 * [Enhancement] Extended `nccopy -F` syntax to support multiple variables with a single invocation. See [Github #1311](https://github.com/Unidata/netcdf-c/issues/1311) for more information.
@@ -101,7 +118,7 @@ See [GitHub #1251](https://github.com/Unidata/netcdf-c/issues/1251).
 (2) appending "#protocol=dap4" to the end of the url, or
 (3) appending "#dap4" to the end of the url
 Note that dap4 is enabled by default but remote-testing is
-disbled until the testserver situation is resolved.
+disabled until the testserver situation is resolved.
 * [Enhancement] The remote testing server can now be specified with the `--with-testserver` option to ./configure.
 * [Enhancement] Modified netCDF4 to use ASCII for NC_CHAR.  See [Github Pull request #316](https://github.com/Unidata/netcdf-c/pull/316) for more information.
 * [Bug Fix] Corrected an error with how dimsizes might be read. See [Github #410](https://github.com/unidata/netcdf-c/issues/410) for more information.
@@ -436,7 +453,7 @@ More details may be found at the Unidata JIRA Dashboard.  [NCF-316](https://bugt
 
 * Refactored how types are used for attributes, variables, and committed types, clarifying and categorizing fields in structs, and eliminating duplicated type information between variables and types they use.
 
-* Made type structure sharable by committed datatypes and variables that use it.
+* Made type structure shareable by committed datatypes and variables that use it.
 
 * Handled string datatypes correctly, particularly for fill value attributes. Expanded testing for string fill values.
 
@@ -1317,7 +1334,7 @@ variables.
 * Fixed ncgen to properly handle CDL input that uses Windows line endings
 ("\r\n"), instead of getting a syntax error.
 
-* Added "-s" option to ncdump to display performance characterisitics of
+* Added "-s" option to ncdump to display performance characteristics of
 netCDF-4 files as special virtual attributes, such as \_Chunking,
 \_DeflateLevel, \_Format, and \_Endianness.
 

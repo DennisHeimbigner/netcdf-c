@@ -43,7 +43,11 @@ fi
 FLAGS=
 
 if test "x$VS" != x -a "x$INSTALL" != x ; then
+<<<<<<< HEAD
+FLAGS="-DCMAKE_PREFIX_PATH=${NCC}"
+=======
 FLAGS="$FLAGS -DCMAKE_PREFIX_PATH=${NCC}"
+>>>>>>> master
 fi
 FLAGS="$FLAGS -DCMAKE_INSTALL_PREFIX=/tmp/netcdf"
 
@@ -53,7 +57,8 @@ fi
 if test "x$NC4" = x ; then
 FLAGS="$FLAGS -DENABLE_NETCDF_4=false"
 else
-FLAGS="-DHDF5_C_LIBRARY=${NCC}/lib/hdf5 -DHDF5_HL_LIBRARY=${NCC}/lib/hdf5_hl -DHDF5_INCLUDE_DIR=${NCC}/include"
+ignore=1
+#FLAGS="-DHDF5_C_LIBRARY=${NCC}/lib/hdf5 -DHDF5_HL_LIBRARY=${NCC}/lib/hdf5_hl -DHDF5_INCLUDE_DIR=${NCC}/include"
 fi
 if test "x$CDF5" != x ; then
 FLAGS="$FLAGS -DENABLE_CDF5=true"
@@ -98,7 +103,8 @@ export PATH="${NCLIB}:${PATH}"
 #G=
 cmake ${TR} "$G" -DCMAKE_BUILD_TYPE=${CFG} $FLAGS ..
 if test "x$NOBUILD" = x ; then
-cmake ${TR} --build . --config ${CFG} --target ZERO_CHECK
+#cmake ${TR} --build . --config ${CFG} --target ZERO_CHECK
+cmake ${TR} --build . --config ${CFG} --target ALL_BUILD
 if test "x$NOTEST" = x ; then
 cmake ${TR} --build . --config ${CFG} --target RUN_TESTS
 fi

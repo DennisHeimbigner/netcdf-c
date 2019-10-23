@@ -18,7 +18,8 @@ Research/Unidata. See \ref copyright file for more info.  */
 #include <fcntl.h>
 #endif
 
-#ifdef _WIN32
+#ifdef _MSC_VER
+#define snprintf _snprintf
 #include "XGetopt.h"
 int opterr;
 int optind;
@@ -770,7 +771,7 @@ pr_att(
     if (ncid == getrootid(ncid)
         && varid == NC_GLOBAL
         && strcmp(att.name,NCPROPS)==0)
-	return; /* will be printed elsewere */
+	return; /* will be printed elsewhere */
 #endif
     NC_CHECK( nc_inq_att(ncid, varid, att.name, &att.type, &att.len) );
     att.tinfo = get_typeinfo(att.type);

@@ -38,17 +38,22 @@ static const char* checkseps = "+,:;";
 int
 NCD4_open(const char * path, int mode,
           int basepe, size_t *chunksizehintp,
-          void *mpidata, const NC_Dispatch *dispatch, NC *nc)
+          void *mpidata, const NC_Dispatch *dispatch, int ncid)
 {
     int ret = NC_NOERR;
     NCD4INFO* d4info = NULL;
     const char* value;
     NCD4meta* meta;
+    NC* nc;
 
     if(path == NULL)
 	return THROW(NC_EDAPURL);
 
     assert(dispatch != NULL);
+
+    /* Find pointer to NC struct for this file. */
+    ret = NC_check_id(ncid,&nc);
+    if(ret != NC_NOERR) {goto done;}
 
     /* Setup our NC and NCDAPCOMMON state*/
 
@@ -60,7 +65,7 @@ NCD4_open(const char * path, int mode,
     d4info->controller = (NC*)nc;
 
     /* Parse url and params */
-    if(ncuriparse(nc->path,&d4info->uri) != NCU_OK)
+    if(ncuriparse(nc->path,&d4info->uri))
 	{ret = NC_EDAPURL; goto done;}
 
     /* Load auth info from rc file */

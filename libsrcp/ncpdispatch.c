@@ -45,10 +45,15 @@ NCP_create(const char *path,
            size_t *chunksizehintp,
            void *mpidata,
            const struct NC_Dispatch *table,
-           NC *nc)
+           int ncid)
 {
     int status;
     NCP_INFO *nc5;
+    NC *nc;
+
+    /* Find pointer to NC for this file. */
+    status = NC_check_id(ncid, &nc);
+    if (status != NC_NOERR) return status;
 
     /* Check the cmode for only valid flags */
     if (cmode & ~LEGAL_CREATE_FLAGS) return NC_EINVAL;
@@ -82,10 +87,15 @@ NCP_open(const char *path,
          size_t *chunksizehintp,
          void *mpidata,
          const struct NC_Dispatch *table,
-         NC *nc)
+         int ncid)
 {
     int status;
     NCP_INFO *nc5;
+    NC *nc;
+
+    /* Find pointer to NC for this file. */
+    status = NC_check_id(ncid, &nc);
+    if (status != NC_NOERR) return status;
 
     /* Check the omode for only valid flags */
     if (omode & ~LEGAL_OPEN_FLAGS) return NC_EINVAL;
@@ -226,19 +236,6 @@ NCP_set_fill(int ncid, int fillmode, int *old_mode_ptr)
 #else
     return NC_EPNETCDF;
 #endif
-}
-
-static int
-NCP_inq_base_pe(int ncid, int *pep)
-{
-    if (pep) *pep = 0;
-    return NC_NOERR;
-}
-
-static int
-NCP_set_base_pe(int ncid, int pe)
-{
-    return NC_NOERR;
 }
 
 static int
@@ -1201,8 +1198,6 @@ NCP_var_par_access(int ncid, int varid, int par_access)
     return NC_NOERR;
 }
 
-#ifdef USE_NETCDF4
-
 static int
 NCP_show_metadata(int ncid)
 {
@@ -1375,8 +1370,6 @@ NCP_inq_user_type(int ncid, nc_type typeid, char *name, size_t *size,
     return NC_ENOTNC4;
 }
 
-#endif /*USE_NETCDF4*/
-
 /**************************************************/
 /* Pnetcdf Dispatch table */
 
@@ -1393,8 +1386,6 @@ NCP_sync,
 NCP_abort,
 NCP_close,
 NCP_set_fill,
-NCP_inq_base_pe,
-NCP_set_base_pe,
 NCP_inq_format,
 NCP_inq_format_extended,
 
@@ -1430,7 +1421,6 @@ NCP_inq_var_all,
 NCP_var_par_access,
 NCP_def_var_fill,
 
-#ifdef USE_NETCDF4
 NCP_show_metadata,
 NCP_inq_unlimdims,
 
@@ -1469,7 +1459,6 @@ NC_NOTNC4_def_var_endian,
 NC_NOTNC4_def_var_filter,
 NC_NOTNC4_set_var_chunk_cache,
 NC_NOTNC4_get_var_chunk_cache,
-#endif /*USE_NETCDF4*/
 
 };
 

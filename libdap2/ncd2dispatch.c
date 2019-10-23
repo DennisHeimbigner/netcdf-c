@@ -63,7 +63,7 @@ static NCerror applyclientparams(NCDAPCOMMON*);
 static int
 NCD2_create(const char *path, int cmode,
            size_t initialsz, int basepe, size_t *chunksizehintp,
-           void* mpidata, const struct NC_Dispatch*,NC* ncp);
+           void* mpidata, const struct NC_Dispatch*,int);
 
 static int NCD2_redef(int ncid);
 static int NCD2__enddef(int ncid, size_t h_minfree, size_t v_align, size_t v_minfree, size_t r_align);
@@ -101,8 +101,6 @@ NCD2_sync,
 NCD2_abort,
 NCD2_close,
 NCD2_set_fill,
-NCD2_inq_base_pe,
-NCD2_set_base_pe,
 NCD2_inq_format,
 NCD2_inq_format_extended, /*inq_format_extended*/
 
@@ -138,7 +136,6 @@ NCD2_inq_var_all,
 NCD2_var_par_access,
 NCD2_def_var_fill,
 
-#ifdef USE_NETCDF4
 NCD2_show_metadata,
 NCD2_inq_unlimdims,
 NCD2_inq_ncid,
@@ -177,8 +174,6 @@ NCD2_def_var_filter,
 NCD2_set_var_chunk_cache,
 NCD2_get_var_chunk_cache,
 
-#endif /*USE_NETCDF4*/
-
 };
 
 const NC_Dispatch* NCD2_dispatch_table = NULL; /* moved here from ddispatch.c */
@@ -200,7 +195,6 @@ NCD2_initialize(void)
 int
 NCD2_finalize(void)
 {
-    curl_global_cleanup();
     return NC_NOERR;
 }
 
@@ -231,7 +225,7 @@ NCD2_abort(int ncid)
 static int
 NCD2_create(const char *path, int cmode,
            size_t initialsz, int basepe, size_t *chunksizehintp,
-           void* mpidata, const NC_Dispatch* dispatch, NC* ncp)
+           void* mpidata, const NC_Dispatch* dispatch, int ncid)
 {
    return NC_EPERM;
 }
@@ -275,13 +269,18 @@ NCD2_get_vars(int ncid, int varid,
 /* See ncd2dispatch.c for other version */
 int
 NCD2_open(const char* path, int mode, int basepe, size_t *chunksizehintp,
-          void* mpidata, const NC_Dispatch* dispatch, NC* drno)
+          void* mpidata, const NC_Dispatch* dispatch, int ncid)
 {
     NCerror ncstat = NC_NOERR;
     OCerror ocstat = OC_NOERR;
     NCDAPCOMMON* dapcomm = NULL;
+    NC* drno;
     const char* value;
     int nc3id = -1;
+
+    /* Find pointer to NC struct for this file. */
+    ncstat = NC_check_id(ncid,&drno);
+    if(ncstat != NC_NOERR) {goto done;}
 
     if(path == NULL)
 	{ncstat = NC_EDAPURL; goto done;}
@@ -323,7 +322,7 @@ NCD2_open(const char* path, int mode, int basepe, size_t *chunksizehintp,
     dapcomm->oc.rawurltext = strdup(path);
 #endif
 
-    if(ncuriparse(dapcomm->oc.rawurltext,&dapcomm->oc.url) != NCU_OK)
+    if(ncuriparse(dapcomm->oc.rawurltext,&dapcomm->oc.url))
 	{ncstat = NC_EURL; goto done;}
 
     if(!constrainable(dapcomm->oc.url))
@@ -2237,7 +2236,7 @@ applyclientparamcontrols(NCDAPCOMMON* dapcomm)
     if(dapparamcheck(dapcomm,"show","fetch"))
 	SETFLAG(dapcomm->controls,NCF_SHOWFETCH);
 
-    /* enable/disable _FillValue/Variable Mis-match */
+    /* enable/disable _FillValue/Variable Mismatch */
     if(dapparamcheck(dapcomm,"fillmismatch",NULL))
 	SETFLAG(dapcomm->controls,NCF_FILLMISMATCH);
     else if(dapparamcheck(dapcomm,"nofillmismatch",NULL))
@@ -2252,12 +2251,6 @@ Force dap2 access to be read-only
 */
 int
 NCD2_set_fill(int ncid, int fillmode, int* old_modep)
-{
-    return THROW(NC_EPERM);
-}
-
-int
-NCD2_set_base_pe(int ncid, int pe)
 {
     return THROW(NC_EPERM);
 }
@@ -2285,16 +2278,6 @@ NCD2_def_var(int ncid, const char *name,
 /*
 Following functions basically return the netcdf-3 value WRT to the nc3id.
 */
-
-int
-NCD2_inq_base_pe(int ncid, int* pe)
-{
-    NC* drno;
-    int ret;
-    if((ret = NC_check_id(ncid, (NC**)&drno)) != NC_NOERR) return THROW(ret);
-    ret = nc_inq_base_pe(getnc3id(drno), pe);
-    return THROW(ret);
-}
 
 int
 NCD2_inq_format(int ncid, int* formatp)
@@ -2484,8 +2467,6 @@ NCD2_def_var_fill(int ncid, int p2, int p3, const void* p4)
     ret = nc_def_var_fill(getnc3id(drno), p2, p3, p4);
     return THROW(ret);
 }
-
-#ifdef USE_NETCDF4
 
 int
 NCD2_inq_ncid(int ncid, const char* name, int* grp_ncid)
@@ -2853,4 +2834,3 @@ NCD2_get_var_chunk_cache(int ncid, int p2, size_t* p3, size_t* p4, float* p5)
     return THROW(ret);
 }
 
-#endif /* USE_NETCDF4 */

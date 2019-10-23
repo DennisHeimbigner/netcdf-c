@@ -12,6 +12,7 @@
 #include "err_macros.h"
 #include "netcdf.h"
 #include "nc4dispatch.h"
+#include "netcdf_dispatch.h"
 
 #define FILE_NAME "tst_udf.nc"
 
@@ -25,7 +26,7 @@ NC4_show_metadata(int ncid)
 
 int
 tst_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
-             void *parameters, NC_Dispatch *dispatch, NC *nc_file)
+             void *parameters, const NC_Dispatch *dispatch, int ncid)
 {
    return NC_NOERR;
 }
@@ -76,8 +77,6 @@ NC_RO_sync,
 tst_abort,
 tst_close,
 NC_RO_set_fill,
-NC_NOTNC3_inq_base_pe,
-NC_NOTNC3_set_base_pe,
 tst_inq_format,
 tst_inq_format_extended,
 
