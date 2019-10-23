@@ -11,8 +11,6 @@
 
 #include "ncdispatch.h"
 
-extern void nc_finalize(void);
-
 extern int NC3_initialize(void);
 extern int NC3_finalize(void);
 
@@ -56,6 +54,15 @@ extern int NC_HDF4_finalize(void);
 int NC_initialized = 0;
 int NC_finalized = 1;
 
+#ifdef ENABLE_ATEXIT_FINALIZE
+/* atexit() requires a function returning void */
+static void finalize_atexit(void)
+{
+    (void)nc_finalize();
+}
+#endif
+
+
 /**
 This procedure invokes all defined
 initializers, and there is an initializer
@@ -98,9 +105,9 @@ nc_initialize()
     if((stat = NC_HDF4_initialize())) goto done;
 #endif
 
-#ifdef HAVE_ATEXIT
-    /* If we have atexit(), then use it to invoke nc_finalize */
-    if(atexit(nc_finalize))
+#ifdef ENABLE_ATEXIT_FINALIZE
+    /* Use atexit() to invoke nc_finalize */
+    if(atexit(finalize_atexit))
 	fprintf(stderr,"atexit failed\n");
 #endif
 
@@ -117,10 +124,11 @@ then you need to fix it everywhere.
 It also finalizes appropriate external libraries.
 */
 
-void
+int
 nc_finalize(void)
 {
     int stat = NC_NOERR;
+    int failed = NC_NOERR;
 
     if(NC_finalized) goto done;
     NC_initialized = 0;
@@ -129,34 +137,34 @@ nc_finalize(void)
     /* Finalize each active protocol */
 
 #ifdef ENABLE_DAP2
-    if((stat = NCD2_finalize())) goto done;
+    if((stat = NCD2_finalize())) failed = stat;
 #endif
 #ifdef ENABLE_DAP4
-    if((stat = NCD4_finalize())) goto done;
+    if((stat = NCD4_finalize())) failed = stat;
 #endif
 
 #ifdef USE_PNETCDF
-    if((stat = NCP_finalize())) goto done;
+    if((stat = NCP_finalize())) failed = stat;
 #endif
 
 #ifdef USE_HDF4
-    if((stat = NC_HDF4_finalize())) return stat;
+    if((stat = NC_HDF4_finalize())) failed = stat;
 #endif /* USE_HDF4 */
 
 #ifdef USE_NETCDF4
-    if((stat = NC4_finalize())) goto done;
+    if((stat = NC4_finalize())) failed = stat;
 #endif /* USE_NETCDF4 */
 
 #ifdef USE_HDF5
-    if((stat = NC_HDF5_finalize())) return stat;
+    if((stat = NC_HDF5_finalize())) failed = stat;
 #endif
 
-    if((stat = NC3_finalize())) return stat;
+    if((stat = NC3_finalize())) failed = stat;
 
     /* Do general finalization */
-    if((stat = NCDISPATCH_finalize())) goto done;
+    if((stat = NCDISPATCH_finalize())) failed = stat;
 
 done:
-    if(stat) fprintf(stderr,"nc_finalize failed\n");
-    return;
+    if(failed) fprintf(stderr,"nc_finalize failed: %d\n",failed);
+    return failed;
 }

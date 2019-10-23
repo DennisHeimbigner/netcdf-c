@@ -830,34 +830,7 @@ AC_CHECK_HEADERS([ftw.h])
 AC_CHECK_FUNCS([strlcat snprintf strcasecmp fileno \
                 strdup strtoll strtoull \
 		mkstemp mktemp random \
-		getrlimit gettimeofday fsync MPI_Comm_f2c])
-
-# Does the user want to enable atexit?
-AC_MSG_CHECKING([whether nc_finalize should be invoked at exit])
-AC_ARG_ENABLE([library-finalize],
-              [AS_HELP_STRING([--enable-library-finalize],
-                              [enable invoking nc_finalize at exit])])
-test "x$enable_library_finalize" = xyes || enable_library_finalize=no
-AC_MSG_RESULT($enable_library_finalize)
-
-if test "x$enable_library_finalize" = xyes ; then
-# Check for atexit
-AC_CHECK_FUNCS([atexit])
-fi
-
-# Does the user want to use NC_DISKLESS?
-AC_MSG_CHECKING([whether in-memory files are enabled])
-AC_ARG_ENABLE([diskless],
-              [AS_HELP_STRING([--disable-diskless],
-                              [disable support for in-memory (NC_DISKLESS) files])])
-test "x$enable_diskless" = xno || enable_diskless=yes
-AC_MSG_RESULT($enable_diskless)
-
-# If DAP enabled and diskless not enabled, then warn of consequences
-if test "x$enable_dap" = "xyes" -a "x$enable_diskless" = xno  ; then
-AC_MSG_NOTICE([Warning: DAP support is enabled but diskless support is disabled.])
-AC_MSG_NOTICE([=> temporary files will be created + reclaimed when using DAP.])
-fi
+		getrlimit gettimeofday fsync MPI_Comm_f2c MPI_Info_f2c])
 
 # disable dap4 if netcdf-4 is disabled
 #if test "x$enable_netcdf_4" = "xno" ; then
@@ -927,6 +900,29 @@ fi
 
 if test "x$enable_byterange" = xyes; then
     AC_DEFINE([ENABLE_BYTERANGE], [1], [if true, support byte-range read of remote datasets.])
+fi
+
+# Does the user want to enable atexit?
+AC_MSG_CHECKING([whether nc_finalize should be invoked at exit])
+AC_ARG_ENABLE([atexit-finalize],
+               [AS_HELP_STRING([--enable-atexit-finalize],
+                               [enable invoking nc_finalize at exit])])
+test "x$enable_atexit_finalize" = xyes || enable_atexit_finalize=no
+AC_MSG_RESULT($enable_atexit_finalize)
+ 
+# Check for atexit
+AC_CHECK_FUNCS([atexit])
+
+# If no atexit, then disable atexit finalize
+if test "x$enable_atexit_finalize" = xyes ; then
+if test "x$ac_cv_func_function" = xno ; then
+  enable_atexit_finalize=no
+  AC_MSG_ERROR([atexit() required for enable-atexit-finalize.])
+fi
+fi
+
+if test "x$enable_atexit_finalize" = xyes ; then
+  AC_DEFINE([ENABLE_ATEXIT_FINALIZE], [1], [If true, enable nc_finalize via atexit()])
 fi
 
 AC_FUNC_ALLOCA
@@ -1321,11 +1317,8 @@ AM_CONDITIONAL(USE_DISPATCH, [test x$enable_dispatch = xyes])
 AM_CONDITIONAL(BUILD_MMAP, [test x$enable_mmap = xyes])
 AM_CONDITIONAL(BUILD_DOCS, [test x$enable_doxygen = xyes])
 AM_CONDITIONAL(SHOW_DOXYGEN_TAG_LIST, [test x$enable_doxygen_tasks = xyes])
-<<<<<<< HEAD
-=======
 AM_CONDITIONAL(ENABLE_METADATA_PERF, [test x$enable_metadata_perf = xyes])
 AM_CONDITIONAL(ENABLE_BYTERANGE, [test "x$enable_byterange" = xyes])
->>>>>>> master
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
@@ -1413,18 +1406,6 @@ if test "x$enable_jna" = xyes ; then
 AC_DEFINE([JNA], [1], [if true, include JNA bug fix])
 fi
 
-<<<<<<< HEAD
-# Control large metadata performance test
-AC_MSG_CHECKING([whether large metadata performance testing should be run])
-AC_ARG_ENABLE([metadata-perf],
-              [AS_HELP_STRING([--enable-metadata-perf],
-                              [Test performance of nc_create and nc_open on large metadata])])
-test "x$enable_metadata_perf" = xyes || enable_metadata_perf=no
-AC_MSG_RESULT($enable_metadata_perf)
-AM_CONDITIONAL(ENABLE_METADATA_PERF, [test x$enable_metadata_perf = xyes])
-
-=======
->>>>>>> master
 # Control filter test/example
 AC_MSG_CHECKING([whether filter testing should be run])
 AC_ARG_ENABLE([filter-testing],
@@ -1468,11 +1449,8 @@ AC_SUBST(HAS_MMAP,[$enable_mmap])
 AC_SUBST(HAS_JNA,[$enable_jna])
 AC_SUBST(RELAX_COORD_BOUND,[$enable_zero_length_coord_bound])
 AC_SUBST(HAS_ERANGE_FILL,[$enable_erange_fill])
-<<<<<<< HEAD
-AC_SUBST(HAS_FINALIZE_SUPPORT,[$enable_library_finalize])
-=======
 AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
->>>>>>> master
+AC_SUBST(HAS_ATEXIT_FINALIZE_SUPPORT,[$enable_atexit_finalize])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],
@@ -1540,52 +1518,8 @@ AX_SET_META([NC_HAS_PARALLEL],[$enable_parallel],[yes])
 AX_SET_META([NC_HAS_PARALLEL4],[$enable_parallel4],[yes])
 AX_SET_META([NC_HAS_CDF5],[$enable_cdf5],[yes])
 AX_SET_META([NC_HAS_ERANGE_FILL], [$enable_erange_fill],[yes])
-<<<<<<< HEAD
-
-
-# Automake says that this is always run in top_builddir
-# and that srcdir is defined (== top_srcdir)
-abs_top_builddir=`pwd`
-cd $srcdir
-abs_top_srcdir=`pwd`
-cd $abs_top_builddir
-
-# test_common.sh setup
-AC_CONFIG_FILES(test_common.sh:test_common.in)
-#rm -f ${abs_top_builddir}/test_common.sh
-#sed -e "s|@TOPSRCDIR@|${abs_top_srcdir}|" -e "s|@TOPBUILDDIR@|${abs_top_builddir}|" <${abs_top_srcdir}/test_common.in >${abs_top_builddir}/test_common.sh
-
-# nc_test4/findplugin.sh setup
-AC_SUBST([ISCMAKE], [])
-AC_SUBST([MSVC], [])
-AC_CONFIG_FILES(nc_test4/findplugin.sh:nc_test4/findplugin.in)
-AC_CONFIG_FILES(examples/C/findplugin.sh:nc_test4/findplugin.in)
-
-if test "x$enable_filter_testing" = xyes ; then
-if test "x$nc_build_examples" = xyes ; then
-AC_MSG_NOTICE([copying filter plugin building files])
-# Must be a simpler way; all my attempts to use some kind of wildcard failed,
-# so falling back on enumeration
-# WARNING: This enumeration must be kept consistent with the
-# HDF5PLUGINSRC list in nc_test4/hdf5plugins/Makefile.am
-AC_CONFIG_LINKS([examples/C/hdf5plugins/bzlib.h:nc_test4/hdf5plugins/bzlib.h])
-AC_CONFIG_LINKS([examples/C/hdf5plugins/bzlib_private.h:nc_test4/hdf5plugins/bzlib_private.h])
-AC_CONFIG_LINKS([examples/C/hdf5plugins/blocksort.c:nc_test4/hdf5plugins/blocksort.c])
-AC_CONFIG_LINKS([examples/C/hdf5plugins/huffman.c:nc_test4/hdf5plugins/huffman.c])
-AC_CONFIG_LINKS([examples/C/hdf5plugins/crctable.c:nc_test4/hdf5plugins/crctable.c])
-AC_CONFIG_LINKS([examples/C/hdf5plugins/randtable.c:nc_test4/hdf5plugins/randtable.c])
-AC_CONFIG_LINKS([examples/C/hdf5plugins/compress.c:nc_test4/hdf5plugins/compress.c])
-AC_CONFIG_LINKS([examples/C/hdf5plugins/decompress.c:nc_test4/hdf5plugins/decompress.c])
-AC_CONFIG_LINKS([examples/C/hdf5plugins/bzlib.c:nc_test4/hdf5plugins/bzlib.c])
-AC_CONFIG_LINKS([examples/C/hdf5plugins/H5Zbzip2.c:nc_test4/hdf5plugins/H5Zbzip2.c])
-AC_CONFIG_LINKS([examples/C/hdf5plugins/h5bzip2.h:nc_test4/hdf5plugins/h5bzip2.h])
-fi
-fi
-
-=======
 AX_SET_META([NC_RELAX_COORD_BOUND], [$enable_zero_length_coord_bound],[yes])
 AX_SET_META([NC_HAS_BYTERANGE],[$enable_byterange],[yes])
->>>>>>> master
 #####
 # End netcdf_meta.h definitions.
 #####

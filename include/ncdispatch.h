@@ -199,7 +199,7 @@ const char* (*nc_strerror)(int);
 int (*nc_delete)(const char*path);
 int (*nc_delete_mp)(const char*path,intbasepe);
 int (*nc_initialize)();
-void (*nc_finalize)();
+int (*nc_finalize)();
 #endif /*NONDISPATCH*/
 
 /* Define the common fields for NC and NC_FILE_INFO_T etc */
