@@ -329,7 +329,7 @@ rccompile(const char* path)
             *rtag = '\0';
             /* compile the url and pull out the host */
             if(uri) ncurifree(uri);
-            if(ncuriparse(url,&uri) != NC_NOERR) {
+            if(ncuriparse(url,&uri)) {
                 nclog(NCLOGERR, "Malformed [url] in %s entry: %s",path,line);
                 free(triple);
 		continue;
@@ -415,7 +415,6 @@ rclocate(const char* key, const char* hostport)
 
 /**
  * Locate rc file by searching in directory prefix.
- * Prefix must end in '/'
  */
 static
 int
@@ -423,7 +422,7 @@ rcsearch(const char* prefix, const char* rcname, char** pathp)
 {
     char* path = NULL;
     FILE* f = NULL;
-    size_t plen = strlen(prefix);
+    size_t plen = (prefix?strlen(prefix):0);
     size_t rclen = strlen(rcname);
     int ret = NC_NOERR;
 

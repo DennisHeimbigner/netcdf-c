@@ -88,7 +88,7 @@ static void freestringlist(NClist* list);
 static void freestringvec(char** list);
 static int ncfind(char** params, const char* key);
 static char* nclocate(char* p, const char* charlist);
-static int parselist(char* ptext, NClist* list);
+static int parselist(const char* ptext, NClist* list);
 
 /**************************************************/
 /*
@@ -130,6 +130,9 @@ ncuriparse(const char* uri0, NCURI** durip)
     NClist* querylist = nclistnew();
     size_t len0;
     int pathchar;
+
+    tmp.fraglist = NULL;
+    tmp.querylist = NULL;
 
     if(uri0 == NULL)
 	{THROW(NC_EURL);}
@@ -401,8 +404,11 @@ done:
 
     freestringlist(params);
     freestringlist(querylist);
-    freestringvec(tmp.fraglist);
-    freestringvec(tmp.querylist);
+    if(tmp.fraglist)
+      freestringvec(tmp.fraglist);
+    if(tmp.querylist)
+      freestringvec(tmp.querylist);
+
     return ret;
 }
 
@@ -978,10 +984,12 @@ done:
 }
 
 static int
-parselist(char* ptext, NClist* list)
+parselist(const char* text, NClist* list)
 {
     int ret = NC_NOERR;
+    char* ptext = NULL;
     char* p;
+    ptext = strdup(text); /* We need to modify */
     p = ptext; /* start of next parameter */
     for(;;) {
 	char* sp = p;
@@ -1011,5 +1019,6 @@ parselist(char* ptext, NClist* list)
 	if(ep == NULL)
 	    break;
     }
+    nullfree(ptext);
     return ret;
 }

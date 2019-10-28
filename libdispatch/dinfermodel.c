@@ -2,7 +2,7 @@
  * @file
  *
  * Infer as much as possible from the omode + path.
- * Possibly rewrite the path.
+ * Rewrite the path to a canonical form.
  *
  * Copyright 2018 University Corporation for Atmospheric
  * Research/Unidata. See COPYRIGHT file for more info.
@@ -42,8 +42,9 @@ file when searching for magic numbers
 struct MagicFile {
     const char* path;
     struct NCURI* uri;
+    int omode;
     NCmodel* model;
-    ssize64_t filelen;
+    fileoffset_t filelen;
     int use_parallel;
     void* parameters; /* !NULL if inmemory && !diskless */
     FILE* fp;
@@ -60,8 +61,9 @@ struct MagicFile {
  * H5Fis_hdf5, use the complete HDF5 magic number */
 static char HDF5_SIGNATURE[MAGIC_NUMBER_LEN] = "\211HDF\r\n\032\n";
 
-#ifdef DEBUG
+#define modelcomplete(model) ((model)->impl != 0)
 
+#ifdef DEBUG
 static void dbgflush(void)
 {
     fflush(stdout);
@@ -85,68 +87,48 @@ check(int err)
 #define check(err) (err)
 #endif
 
-#define modelcomplete(model) ((model)->format != 0 && (model)->iosp != 0 && (model)->impl != 0)
-
-enum mfield {MF, MI, MIO, MV};
-
-/* Wrap model field assignment to fail if the
-   existing value is not zero and not same as src value
-*/
-#define conflictset(f,dst,src) do {if((dst) != 0 && (src) != (dst)) {stat=conflictfail(f,(dst),(src)); goto done;} else {(dst) = (src);} } while(0)
-
 /*
-Define a table of iosp string values for "mode=".
-Includes cases where the impl or format implies the
-iosp. Does not includes cases where NC_IOSP_FILE is
-the inferred iosp.
-*/
-static struct IOSPS {
-    const char* tag;
-    const int iosp; /* NC_IOSP_XXX value */
-} iosps[] = {
-{"dap2",NC_IOSP_DAP2},
-{"dap4",NC_IOSP_DAP4},
-{"bytes",NC_IOSP_HTTP},
-{"zarr",NC_IOSP_ZARR},
-{NULL,0}
-};
-
-/*
-Define a table of "mode=" string values.
+Define a table of "mode=" string values
+from which the implementation can be inferred.
 Note that only cases that can currently
 take URLs are included.
 */
 static struct FORMATMODES {
     const char* tag;
-    const int format; /* NC_FORMAT_XXX value */
     const int impl; /* NC_FORMATX_XXX value */
 } formatmodes[] = {
-{"dap2",NC_FORMAT_CLASSIC,NC_FORMATX_DAP2},
-{"dap4",NC_FORMAT_NETCDF4,NC_FORMATX_DAP4},
-{"netcdf-3",NC_FORMAT_CLASSIC,NC_FORMATX_NC3},
-{"classic",NC_FORMAT_CLASSIC,NC_FORMATX_NC3},
-{"netcdf-4",NC_FORMAT_NETCDF4,NC_FORMATX_NC4},
-{"enhanced",NC_FORMAT_NETCDF4,NC_FORMATX_NC4},
-{"64bitoffset",NC_FORMAT_64BIT_OFFSET,0},
-{"64bitdata",NC_FORMAT_64BIT_DATA,0},
-{"cdf5",NC_FORMAT_64BIT_DATA,0}, /*alias*/
-{"zarr",NC_FORMAT_NETCDF4,NC_FORMATX_ZARR},
-#if 0
-{"hdf4",NC_FORMAT_HDF4,NC_FORMATX_NC4},
-#endif
-{NULL,0,0},
+{"dap2",NC_FORMATX_DAP2},
+{"dap4",NC_FORMATX_DAP4},
+{"netcdf-3",NC_FORMATX_NC3},
+{"classic",NC_FORMATX_NC3},
+{"netcdf-4",NC_FORMATX_NC4},
+{"enhanced",NC_FORMATX_NC4},
+{"udf0",NC_FORMATX_UDF0},
+{"udf1",NC_FORMATX_UDF1},
+{"zarr",NC_FORMATX_ZARR},
+{NULL,0},
 };
 
-/* Map IOSP to readability to get magic number */
-static struct IospRead {
-    int iosp;
+/* Define the legal singleton mode tags;
+   thse should also appear in the above mode table. */
+static const char* modesingles[] = {
+    "dap2", "dap4", "bytes", "zarr", NULL
+};
+
+/* Map FORMATX to readability to get magic number */
+static struct Readable {
+    int impl;
     int readable;
 } readable[] = {
-{NC_IOSP_FILE,1},
-{NC_IOSP_MEMORY,1},
-{NC_IOSP_UDF,0},
-{NC_IOSP_HTTP,1},
-{NC_IOSP_ZARR,0},
+{NC_FORMATX_NC3,1},
+{NC_FORMATX_NC_HDF5,1},
+{NC_FORMATX_NC_HDF4,1},
+{NC_FORMATX_PNETCDF,1},
+{NC_FORMATX_DAP2,0},
+{NC_FORMATX_DAP4,0},
+{NC_FORMATX_UDF0,0},
+{NC_FORMATX_UDF1,0},
+{NC_FORMATX_ZARR,0},
 {0,0},
 };
 
@@ -154,24 +136,25 @@ static struct IospRead {
 static struct NCPROTOCOLLIST {
     const char* protocol;
     const char* substitute;
-    const char* modeargs; /* add this to mode */
+    const char* mode;
 } ncprotolist[] = {
     {"http",NULL,NULL},
     {"https",NULL,NULL},
     {"file",NULL,NULL},
     {"dods","http","dap2"},
     {"dap4","http","dap4"},
-    {"s3","https","zarr,s3"},
     {NULL,NULL,NULL} /* Terminate search */
 };
 
 /* Forward */
-static int NC_omodeinfer(int omode, NCmodel*);
-static int NC_implinfer(int useparallel, NCmodel* model);
-static int check_file_type(const char *path, int flags, int use_parallel, void *parameters, NCmodel* model, NCURI* uri);
+static int NC_omodeinfer(int useparallel, int omode, NCmodel*);
+static int check_file_type(const char *path, int omode, int use_parallel, void *parameters, NCmodel* model, NCURI* uri);
+static int parseurlmode(const char* modestr, NClist* list);
 static int processuri(const char* path, NCURI** urip, char** newpathp, NClist* modeargs);
-static int replacemode(NCURI* uri, NClist* modeargs);
-static int extractiosp(NClist* modeargs, NCmodel* model);
+static char* list2string(NClist* modelist);
+static char* envv2string(NClist* envv);
+static int issingleton(const char* tag);;
+static void set_default_mode(int* cmodep);
 
 static int openmagic(struct MagicFile* file);
 static int readmagic(struct MagicFile* file, long pos, char* magic);
@@ -180,28 +163,124 @@ static int NC_interpret_magic_number(char* magic, NCmodel* model);
 #ifdef DEBUG
 static void printmagic(const char* tag, char* magic,struct MagicFile*);
 #endif
-static int isreadable(int iosp);
+static int isreadable(NCmodel*);
 
-/* Report a conflicting model field assignment;
-   see the conflictset macro above */
+
+/*
+If the path looks like a URL, then parse it, reformat it,
+and compute the mode= flags. Then return it and the the reformatted path.
+*/
 static int
-conflictfail(enum mfield f, int dst, int src)
+processuri(const char* path, NCURI** urip, char** newpathp, NClist* modeargs)
 {
-    const char* sf = NULL;
-    switch (f) {
-    case MF: sf = "format"; break;
-    case MI: sf = "impl"; break;
-    case MIO: sf = "iosp"; break;
-    case MV: sf = "version"; break;
-    default: sf = "?"; break;
+    int i,j,stat = NC_NOERR;
+    int found = 0;
+    const char** fragp = NULL;
+    NClist* fraglist = NULL;
+    struct NCPROTOCOLLIST* protolist;
+    NCURI* uri = NULL;
+    size_t pathlen = strlen(path);
+    char* str = NULL;
+
+    if(path == NULL || pathlen == 0) {stat = NC_EURL; goto done;}
+
+    /* Defaults */
+    if(newpathp) *newpathp = NULL;
+    if(urip) *urip = NULL;
+
+    if(ncuriparse(path,&uri)) goto done; /* not url */
+
+    /* Look up the protocol */
+    for(found=0,protolist=ncprotolist;protolist->protocol;protolist++) {
+        if(strcmp(uri->protocol,protolist->protocol) == 0) {
+	    found = 1;
+	    break;
+	}
     }
-    nclog(NCLOGERR,"Model inference conflict: field=%s dst=%d src=%d", sf,dst,src);
-    return NC_EINVAL;
+    if(!found)
+	{stat = NC_EINVAL; goto done;} /* unrecognized URL form */
+
+    /* process the corresponding mode arg */
+    if(protolist->mode != NULL)
+	nclistpush(modeargs,strdup(protolist->mode));
+
+    /* Substitute the protocol in any case */
+    if(protolist->substitute) ncurisetprotocol(uri,protolist->substitute);
+
+    /* Iterate over the url fragment parameters and collect,
+       but remove mode= proto= and protocol= */
+    fraglist = nclistnew();
+    for(fragp=ncurifragmentparams(uri);fragp && *fragp;fragp+=2) {
+	int elide = 0;
+	const char* name = fragp[0];
+	const char* value = fragp[1];
+	if(strcmp(name,"protocol")==0
+	   || strcmp(name,"proto")==0) { /* for back compatibility */
+	    nclistpush(modeargs,strdup(value));
+	    elide = 1;
+	} else if(strcmp(name,"mode")==0) {
+	    /* Capture the list of mode arguments */
+	    if((stat = parseurlmode(value,modeargs))) goto done;
+	    elide = 1;
+	} else if(issingleton(name) && (value == NULL || strlen(value)==0)) {
+	    nclistpush(modeargs,strdup(name));
+	    elide = 1;
+        } /*else ignore*/
+	if(!elide) {
+	    /* Copy over */
+	    nclistpush(fraglist,strdup(name));
+	    if(value == NULL) value = "";
+	    nclistpush(fraglist,strdup(value));
+	}
+    }
+
+    /* At this point modeargs should contain all mode-like args from the URL */
+    
+    /* Remove duplicates */
+    for(i=nclistlength(modeargs)-1;i>=0;i--) {
+	const char* mode = nclistget(modeargs,i);
+	for(j=0;j<i;j++) {
+	    const char* other = nclistget(modeargs,i);
+	    if(strcasecmp(mode,other)==0) {
+		nclistremove(modeargs,i); /* duplicate */
+		break;
+	    }
+	}
+    }
+    
+    /* Convert the modelist to a new mode= fragment */
+    if(nclistlength(modeargs) > 0) {
+        str = list2string(modeargs);    
+        /* Re-insert mode into fraglist */
+        nclistinsert(fraglist,0,str);
+        nclistinsert(fraglist,0,strdup("mode"));
+    }
+
+    /* Convert frag list to a string */
+    str = envv2string(fraglist);
+    ncurisetfragments(uri,str);
+
+    /* Rebuild the path (including fragment)*/
+    if(newpathp)
+        *newpathp = ncuribuild(uri,NULL,NULL,NCURIALL);
+    if(urip) {
+	*urip = uri;
+	uri = NULL;
+    }
+#ifdef DEBUG
+    fprintf(stderr,"newpath=|%s|\n",*newpathp); fflush(stderr);
+#endif    
+
+done:
+    nclistfreeall(fraglist);
+    nullfree(str);
+    if(uri != NULL) ncurifree(uri);
+    return check(stat);
 }
 
-/* Parse a mode string at the commas; avoid duplicates */
+/* Parse a mode string at the commas */
 static int
-parsemodelist(const char* modestr, NClist* list)
+parseurlmode(const char* modestr, NClist* list)
 {
     int stat = NC_NOERR;
     const char* p = NULL;
@@ -220,8 +299,6 @@ parsemodelist(const char* modestr, NClist* list)
 	if((s = malloc(slen+1)) == NULL) {stat = NC_ENOMEM; goto done;}
 	memcpy(s,p,slen);
 	s[slen] = '\0';
-	if(nclistmatch(list,s,0))
-	    nullfree(s); /* ignore duplicate */
 	nclistpush(list,s);
 	if(*endp == '\0') break;
 	p = endp+1;
@@ -231,29 +308,53 @@ done:
     return check(stat);
 }
 
-/* Given a mode= argument, infer the iosp part of the model */
-static int
-extractiosp(NClist* modeargs, NCmodel* model)
+/* Convert an envv into a comma'd string*/
+static char*
+envv2string(NClist* envv)
 {
-    int stat = NC_NOERR;
-    struct IOSPS* io = iosps;
+    int i;
+    NCbytes* buf = NULL;
+    char* result = NULL;
 
-    if(model->iosp != 0) return NC_NOERR; /* Already defined */
-    for(;io->tag;io++) {
-	int i;
-	for(i=0;i<nclistlength(modeargs);i++) {
-	    const char* p = nclistget(modeargs,i);
-	    if(strcmp(p,io->tag)==0) {
-		conflictset(MIO,model->iosp,io->iosp);
-		goto done;
-	    }
-	}
+    if(envv == NULL || nclistlength(envv) == 0) return NULL;
+    buf = ncbytesnew();
+    for(i=0;i<nclistlength(envv);i+=2) {
+	const char* key = nclistget(envv,i);
+	const char* val = nclistget(envv,i+1);
+	if(key == NULL || strlen(key) == 0) continue;
+	if(val == NULL) val = "";
+	if(i > 0) ncbytescat(buf,"&");
+	ncbytescat(buf,key);
+	ncbytescat(buf,"=");
+	ncbytescat(buf,val);
     }
-done:
-    return stat;
+    result = ncbytesextract(buf);
+    ncbytesfree(buf);
+    return result;
 }
-/* Given a mode= argument, fill in the matching part of the model;
-   except IOSP */
+
+/* Convert a list into a comma'd string */
+static char*
+list2string(NClist* modelist)
+{
+    int i;
+    NCbytes* buf = NULL;
+    char* result = NULL;
+
+    if(modelist == NULL || nclistlength(modelist)==0) return NULL;
+    buf = ncbytesnew();
+    for(i=0;i<nclistlength(modelist);i++) {
+	const char* m = nclistget(modelist,i);
+	if(m == NULL || strlen(m) == 0) continue;
+	if(i > 0) ncbytescat(buf,",");
+	ncbytescat(buf,m);
+    }
+    result = ncbytesextract(buf);
+    ncbytesfree(buf);
+    return result;
+}
+
+/* Given a mode= argument, fill in the impl and possibly mode flags */
 static int
 processmodearg(const char* arg, NCmodel* model)
 {
@@ -261,243 +362,111 @@ processmodearg(const char* arg, NCmodel* model)
     struct FORMATMODES* format = formatmodes;
     for(;format->tag;format++) {
 	if(strcmp(format->tag,arg)==0) {
-	    conflictset(MF,model->format,format->format);
-	    conflictset(MI,model->impl,format->impl);
+	    model->impl = format->impl;
 	}
     }
-done:
+
     return check(stat);
 }
 
-#if 0
-/* If we have a url, see if we can determine more info */
+/* Search singleton list */
 static int
-NC_uriinfer(NClist* modeargs, NCmodel* model)
+issingleton(const char* tag)
 {
-    int stat = NC_NOERR;
-    int i;
-
-    /* 1. search modeargs for indicators */
-    for(i=0;i<nclistlength(modeargs);i++) {
-	const char* arg = nclistget(modeargs,i);
-	if(strcasecmp(arg,"bytes")==0) {
-	    return stat; /* no more info */
-	} else if(strcasecmp(arg,"zarr")==0) {
-	    model->format = NC_FORMAT_NETCDF4;
-	    model->impl = NC_FORMATX_DAP2;
-	} else if(strcasecmp(arg,"dap2")==0) {
-	    model->format = NC_FORMAT_NC3;
-	    model->iosp = NC_IOSP_DAP2;
-	    model->impl = NC_FORMATX_DAP2;
-	} else if(strcasecmp(arg,"dap4")==0) {
-	    model->format = NC_FORMAT_NETCDF4;
-	    model->iosp = NC_IOSP_DAP4;
-	    model->impl = NC_FORMATX_DAP4;
-	}
+    const char** p;
+    for(p=modesingles;*p;p++) {
+	if(strcmp(*p,tag)==0) return 1;
     }
-    /* Ok, we have a URL, but no tags to tell us what it is, so assume DAP2 */
-    if(model->impl == 0) {
-	model->format = NC_FORMAT_NC3;
-	model->iosp = NC_IOSP_DAP2;
-	model->impl = NC_FORMATX_DAP2;
-    }
-    return stat;
+    return 0;
 }
-#endif /*0*/
 
 /*
-Infer from the mode
+Infer from the mode + useparallel
 only call if iscreate or file is not easily readable.
 */
 static int
-NC_omodeinfer(int cmode, NCmodel* model)
+NC_omodeinfer(int useparallel, int cmode, NCmodel* model)
 {
     int stat = NC_NOERR;
 
     /* If no format flags are set, then use default */
     if(!fIsSet(cmode,NC_FORMAT_ALL))
-	conflictset(MF,model->format,nc_get_default_format());
+	set_default_mode(&cmode);
 
     /* Process the cmode; may override some already set flags */
+
     if(fIsSet(cmode,NC_64BIT_OFFSET)) {
-	conflictset(MF,model->format,NC_FORMAT_64BIT_OFFSET);
+	model->impl = NC_FORMATX_NC3;
+	model->format = NC_FORMAT_64BIT_OFFSET;
+        goto done;
     }
+
     if(fIsSet(cmode,NC_64BIT_DATA)) {
-	conflictset(MF,model->format,NC_FORMAT_64BIT_DATA);
+	model->impl = NC_FORMATX_NC3;
+	model->format = NC_FORMAT_64BIT_DATA;
+        goto done;
     }
+
     if(fIsSet(cmode,NC_NETCDF4)) {
-	conflictset(MF,model->format,NC_FORMAT_NETCDF4);
+	model->impl = NC_FORMATX_NC4;
+        if(fIsSet(cmode,NC_CLASSIC_MODEL))
+	    model->format = NC_FORMAT_NETCDF4_CLASSIC;
+	else
+	    model->format = NC_FORMAT_NETCDF4;
+        goto done;
     }
+
     if(fIsSet(cmode,(NC_UDF0|NC_UDF1))) {
-	conflictset(MF,model->format,NC_FORMAT_NETCDF4);
-	/* For user formats, we must back out some previous decisions */
-	model->iosp = NC_IOSP_UDF; /* Do not know anything about this */
+	model->format = NC_FORMAT_NETCDF4;
         if(fIsSet(cmode,NC_UDF0)) {
-	    conflictset(MI,model->impl,NC_FORMATX_UDF0);
+	    model->impl = NC_FORMATX_UDF0;
 	} else {
-	    conflictset(MI,model->impl,NC_FORMATX_UDF1);
+	    model->impl = NC_FORMATX_UDF1;
 	}
+	goto done;
     }
-    /* Ignore following flags for now */
-#if 0 /* keep lgtm happy */
-    if(fIsSet(cmode,NC_CLASSIC_MODEL)) {}
-    if(fIsSet(cmode,NC_DISKLESS)) {}
-#endif
+
+    /* Default to classic model */
+    model->format = NC_FORMAT_CLASSIC;
+    model->impl = NC_FORMATX_NC3;
 
 done:
+    /* Apply parallel flag */
+    if(useparallel) {
+        if(model->impl == NC_FORMATX_NC3)
+	    model->impl = NC_FORMATX_PNETCDF;
+    }
     return check(stat);
 }
 
-/* Infer the implementation/dispatcher from format*/
-static int
-NC_implinfer(int useparallel, NCmodel* model)
+/*
+If the mode flags do not necessarily specify the
+format, then default it by adding in appropriate flags.
+*/
+
+static void
+set_default_mode(int* modep)
 {
-    int stat = NC_NOERR;
+    int mode = *modep;
+    int dfaltformat;
 
-    /* If we do not have a format, then use default format */
-    if(model->format == 0)
-	conflictset(MF,model->format,nc_get_default_format());
-
-    /* Try to infer impl based on format; may modify mode flags */
-    if(model->impl == 0) {
-        switch (model->format) {
-        case NC_FORMAT_NETCDF4:
-             conflictset(MI,model->impl,NC_FORMATX_NC4);
-             break;
-        case NC_FORMAT_NETCDF4_CLASSIC:
-             conflictset(MI,model->impl,NC_FORMATX_NC4);
-             break;
-        case NC_FORMAT_CDF5:
-             conflictset(MI,model->impl,NC_FORMATX_NC3);
-             break;
-        case NC_FORMAT_64BIT_OFFSET:
-             conflictset(MI,model->impl,NC_FORMATX_NC3);
-             break;
-        case NC_FORMAT_CLASSIC:
-             conflictset(MI,model->impl,NC_FORMATX_NC3);
-             break;
-        default: break;
-        }
-        /* default dispatcher if above did not infer an implementation */
-        if (model->impl == 0)
-            conflictset(MI,model->impl,NC_FORMATX_NC3); /* Final choice */
-        /* Check for using PNETCDF */
-        if (model->impl== NC_FORMATX_NC3
-		&& useparallel
-		&& model->iosp == NC_IOSP_FILE)
-            model->impl = NC_FORMATX_PNETCDF; /* Use this instead */
-    }
-
-    assert(model->impl != 0);
-done:
-    return check(stat);
-}
-
-static int
-processuri(const char* path, NCURI** urip, char** newpathp, NClist* modeargs)
-{
-    int stat = NC_NOERR;
-    int found = 0;
-    const char** fragp = NULL;
-    struct NCPROTOCOLLIST* protolist;
-    NCURI* uri = NULL;
-    size_t pathlen = strlen(path);
-
-    if(path == NULL || pathlen == 0) {stat = NC_EURL; goto done;}
-
-    /* Defaults */
-    if(newpathp) *newpathp = NULL;
-    if(urip) *urip = NULL;
-
-    if(ncuriparse(path,&uri) != NC_NOERR) goto done; /* not url */
-
-    /* Look up the protocol */
-    for(found=0,protolist=ncprotolist;protolist->protocol;protolist++) {
-        if(strcmp(uri->protocol,protolist->protocol) == 0) {
-	    found = 1;
-	    break;
-	}
-    }
-    if(!found)
-	{stat = NC_EINVAL; goto done;} /* unrecognized URL form */
-
-    /* process the mode args */
-    if(protolist->modeargs != NULL) {
-        if((stat=parsemodelist(protolist->modeargs,modeargs))) goto done;
-    }
-
-    /* Substitute the protocol in any case */
-    if(protolist->substitute) ncurisetprotocol(uri,protolist->substitute);
-
-    /* Extract mode from the url fragment parameters */
-    for(fragp=ncurifragmentparams(uri);fragp && *fragp;fragp+=2) {
-	const char* name = fragp[0];
-	const char* value = fragp[1];
-	if(strcmp(name,"mode")==0) {
-	    if((stat = parsemodelist(value,modeargs))) goto done;
-        } /*else ignore*/
-    }
-
-    /* At this point modeargs should contain all mode args */
-    if((stat = replacemode(uri,modeargs))) goto done;
-
-    /* Rebuild the path (including possibly modified fragment)*/
-    if(newpathp)
-        *newpathp = ncuribuild(uri,NULL,NULL,NCURIALL);
-    if(urip) {
-	*urip = uri;
-	uri = NULL;
-    }
-done:
-    if(uri != NULL) ncurifree(uri);
-    return check(stat);
-}
-
-static int
-replacemode(NCURI* uri, NClist* modeargs)
-{
-    int i;
-    NCbytes* buf = ncbytesnew();
-    char** fragp = NULL;
-
-    /* Convert mode args into a single commified value */
-    for(i=0;i<nclistlength(modeargs);i++) {
-	if(i > 0) ncbytescat(buf,",");
-	ncbytescat(buf,(const char*)nclistget(modeargs,i));
-    }
-    /* Replace mode= in the fragment list of uri */
-    for(fragp=(char**)ncurifragmentparams(uri);fragp && *fragp;fragp+=2) {
-	if(strcasecmp(fragp[0],"mode")==0) {
-	    nullfree(fragp[1]);
-	    fragp[1] = ncbytesextract(buf);
-        } /*else ignore*/
-    }
-    /* Now, stringify the fragment list */
-    ncbytesclear(buf);
-    for(i=0,fragp=(char**)ncurifragmentparams(uri);fragp && *fragp;fragp+=2,i++) {
-	if(i > 0) ncbytescat(buf,"&");
-	ncbytescat(buf,fragp[0]);
-	ncbytescat(buf,"=");
-	ncbytescat(buf,fragp[1]);
-    }
-    /* Replace the fragments in the uri */
-    ncurisetfragments(uri,ncbytescontents(buf));
-
-    ncbytesfree(buf);
-    return NC_NOERR;
+    dfaltformat = nc_get_default_format();
+    switch (dfaltformat) {
+    case NC_FORMAT_64BIT_OFFSET: mode |= NC_64BIT_OFFSET; break;
+    case NC_FORMAT_64BIT_DATA: mode |= NC_64BIT_DATA; break;
+    case NC_FORMAT_NETCDF4: mode |= NC_NETCDF4; break;
+    case NC_FORMAT_NETCDF4_CLASSIC: mode |= (NC_NETCDF4|NC_CLASSIC_MODEL); break;
+    case NC_FORMAT_CLASSIC: /* fall thru */
+    default: break; /* default to classic */
+    }    
+    *modep = mode; /* final result */
 }
 
 /**************************************************/
 /*
    Infer model for this dataset using some
    combination of cmode, path, and reading the dataset.
-
-   The precedence order is:
-   1. file contents -- highest precedence
-   2. path
-   2. isurl -- check for DAP
-   3. mode
-   4. default format -- lowest precedence
+   See the documentation in docs/internal.dox.
 
 @param path
 @param omode
@@ -512,77 +481,63 @@ replacemode(NCURI* uri, NClist* modeargs)
 int
 NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void* params, NCmodel* model, char** newpathp)
 {
-    int stat = NC_NOERR;
+    int i,stat = NC_NOERR;
     char* newpath = NULL;
     NCURI* uri = NULL;
     int omode = *omodep;
-    int isuri = 0;
     NClist* modeargs = nclistnew();
 
-    /* Phase 1: Process the url.
-       This will convert specialized protocols to mode args.
-       It will also convert the path to either http or https.
-    */
+    /* Phase 1: Reformat the uri to canonical form; store canonical form
+       into newpath. Return the "mode=" list in modeargs */
     if((stat = processuri(path, &uri, &newpath, modeargs))) goto done;
-    isuri = (uri != NULL);
+    if(newpath == NULL) newpath = strdup(path); /* No change */
 
-    /* Phase 2: process the iosp specifying mode args */
-    if((stat = extractiosp(modeargs,model))) goto done;
-    if(model->iosp == 0) {
-	/* Use the mode to choose an iosp */
-        model->iosp = (fIsSet(omode,NC_INMEMORY) ? NC_IOSP_MEMORY:NC_IOSP_FILE);
+    /* Phase 2: Process the modeargs list to see if we can tell the formatx */
+    /* Note that if the path was not a URL, then modeargs will be empty list*/
+    for(i=0;i<nclistlength(modeargs);i++) {
+	const char* arg = nclistget(modeargs,i);
+	if((stat=processmodearg(arg,model))) goto done;
     }
 
-    /* Phase 3: Process the mode arguments to try to get format and impl */
-    if(!modelcomplete(model) && isuri) {
-	int i;
-	for(i=0;i<nclistlength(modeargs);i++) {
-	    const char* arg = nclistget(modeargs,i);
-	    if((stat=processmodearg(arg,model))) goto done;
-	}
-	/* If we did not get a format and impl from the URI,
-	   then assume dap2 */
-	if(model->format == 0 && model->impl == 0) {
-	    model->format = NC_FORMAT_CLASSIC;
-	    model->impl = NC_FORMATX_DAP2;
-	}
+    /* Phase 2.5: Special case: if this is a URL, and there are no mode args
+       and model.impl is still not defined, default to DAP2 */
+    if(uri != NULL && nclistlength(modeargs) == 0 && !modelcomplete(model)) {
+	model->impl = NC_FORMATX_DAP2;
+	model->format = NC_FORMAT_NC3;
     }
 
-    /* Phase 4: mode inference */
+    /* Phase 3: mode inference from mode flags */
+    /* The modeargs did not give us a model (probably not a URL).
+       So look at the combination of mode flags and the useparallel flag */
     if(!modelcomplete(model)) {
-        if((stat = NC_omodeinfer(omode,model))) goto done;
+        if((stat = NC_omodeinfer(useparallel,omode,model))) goto done;
     }
 
-    /* Phase 5: Infer from file content, if possible;
+    /* Phase 4: Infer from file content, if possible;
        this has highest precedence, so it may override
-       previous decisions.
+       previous decisions. Note that we do this last
+       because we need previously determined model info
+       to guess if this file is readable.
     */
-    if(!iscreate && isreadable(model->iosp)) {
+    if(!iscreate && isreadable(model)) {
 	/* Ok, we need to try to read the file */
 	if((stat = check_file_type(path, omode, useparallel, params, model, uri))) goto done;
     }
 
-    /* Phase 6: Infer impl from format */
-    if(!modelcomplete(model)) {
-        if((stat = NC_implinfer(useparallel, model))) goto done;
-    }
+    /* Need a decision */
+    if(!modelcomplete(model))
+	{stat = NC_ENOTNC; goto done;}
 
-    assert(modelcomplete(model));
-
-    /* Force flag consistency */
+	    /* Force flag consistency */
     switch (model->impl) {
     case NC_FORMATX_NC4:
     case NC_FORMATX_NC_HDF4:
     case NC_FORMATX_DAP4:
-    case NC_FORMATX_ZARR:
     case NC_FORMATX_UDF0:
     case NC_FORMATX_UDF1:
 	omode |= NC_NETCDF4;
 	if(model->format == NC_FORMAT_NETCDF4_CLASSIC)
 	    omode |= NC_CLASSIC_MODEL;
-	break;
-    case NC_FORMATX_DAP2:
-	omode &= ~(NC_NETCDF4|NC_64BIT_OFFSET|NC_64BIT_DATA);
 	break;
     case NC_FORMATX_NC3:
 	omode &= ~NC_NETCDF4; /* must be netcdf-3 (CDF-1, CDF-2, CDF-5) */
@@ -593,6 +548,9 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
 	omode &= ~NC_NETCDF4; /* must be netcdf-3 (CDF-1, CDF-2, CDF-5) */
 	if(model->format == NC_FORMAT_64BIT_OFFSET) omode |= NC_64BIT_OFFSET;
 	else if(model->format == NC_FORMAT_64BIT_DATA) omode |= NC_64BIT_DATA;
+	break;
+    case NC_FORMATX_DAP2:
+	omode &= ~(NC_NETCDF4|NC_64BIT_OFFSET|NC_64BIT_DATA|NC_CLASSIC_MODEL);
 	break;
     default:
 	{stat = NC_ENOTNC; goto done;}
@@ -608,12 +566,12 @@ done:
 }
 
 static int
-isreadable(int iosp)
+isreadable(NCmodel* model)
 {
-    struct IospRead* r;
+    struct Readable* r;
     /* Look up the protocol */
-    for(r=readable;r->iosp;r++) {
-	if(iosp == r->iosp) return r->readable;
+    for(r=readable;r->impl;r++) {
+	if(model->impl == r->impl) return r->readable;
     }
     return 0;
 }
@@ -661,7 +619,7 @@ nc__testurl(const char* path, char** basenamep)
 {
     NCURI* uri;
     int ok = 0;
-    if(ncuriparse(path,&uri) == NC_NOERR) {
+    if(!ncuriparse(path,&uri)) {
 	char* slash = (uri->path == NULL ? NULL : strrchr(uri->path, '/'));
 	char* dot;
 	if(slash == NULL) slash = (char*)path; else slash++;
@@ -681,6 +639,8 @@ nc__testurl(const char* path, char** basenamep)
     return ok;
 }
 
+
+
 /**************************************************/
 /**
  * @internal Given an existing file, figure out its format and return
@@ -698,7 +658,7 @@ nc__testurl(const char* path, char** basenamep)
  * @author Dennis Heimbigner
 */
 static int
-check_file_type(const char *path, int flags, int use_parallel,
+check_file_type(const char *path, int omode, int use_parallel,
 		   void *parameters, NCmodel* model, NCURI* uri)
 {
     char magic[NC_MAX_MAGIC_NUMBER_LEN];
@@ -708,6 +668,7 @@ check_file_type(const char *path, int flags, int use_parallel,
     memset((void*)&magicinfo,0,sizeof(magicinfo));
     magicinfo.path = path; /* do not free */
     magicinfo.uri = uri; /* do not free */
+    magicinfo.omode = omode;
     magicinfo.model = model; /* do not free */
     magicinfo.parameters = parameters; /* do not free */
 #ifdef USE_STDIO
@@ -766,14 +727,19 @@ openmagic(struct MagicFile* file)
 {
     int status = NC_NOERR;
 
-    switch (file->model->iosp) {
-    case NC_IOSP_MEMORY: {
+    if(fIsSet(file->omode,NC_INMEMORY)) {
 	/* Get its length */
 	NC_memio* meminfo = (NC_memio*)file->parameters;
         assert(meminfo != NULL);
 	file->filelen = (long long)meminfo->size;
-	} break;
-    case NC_IOSP_FILE: {
+#ifdef ENABLE_BYTERANGE
+    } else if(file->uri != NULL) {
+	/* Construct a URL minus any fragment */
+        file->curlurl = ncuribuild(file->uri,NULL,NULL,NCURISVC);
+	/* Open the curl handle */
+	if((status=nc_http_open(file->curlurl,&file->curl,&file->filelen))) goto done;
+#endif
+    } else {
 #ifdef USE_PARALLEL
         if (file->use_parallel) {
 	    int retval;
@@ -832,20 +798,7 @@ openmagic(struct MagicFile* file)
 	    }
 	    rewind(file->fp);
 	  }
-	} break;
-
-#ifdef ENABLE_BYTERANGE
-    case NC_IOSP_HTTP: {
-	/* Construct a URL minus any fragment */
-        file->curlurl = ncuribuild(file->uri,NULL,NULL,NCURISVC);
-	/* Open the curl handle */
-	if((status=nc_http_open(file->curlurl,&file->curl,&file->filelen))) goto done;
-	} break;
-#endif
-
-    default: assert(0);
     }
-
 done:
     return check(status);
 }
@@ -855,8 +808,7 @@ readmagic(struct MagicFile* file, long pos, char* magic)
 {
     int status = NC_NOERR;
     memset(magic,0,MAGIC_NUMBER_LEN);
-    switch (file->model->iosp) {
-    case NC_IOSP_MEMORY: {
+    if(fIsSet(file->omode,NC_INMEMORY)) {
 	char* mempos;
 	NC_memio* meminfo = (NC_memio*)file->parameters;
 	if((pos + MAGIC_NUMBER_LEN) > meminfo->size)
@@ -866,9 +818,21 @@ readmagic(struct MagicFile* file, long pos, char* magic)
 #ifdef DEBUG
 	printmagic("XXX: readmagic",magic,file);
 #endif
-    } break;
-
-    case NC_IOSP_FILE:
+#ifdef ENABLE_BYTERANGE
+    } else if(file->uri != NULL) {
+	NCbytes* buf = ncbytesnew();
+	fileoffset_t start = (size_t)pos;
+	fileoffset_t count = MAGIC_NUMBER_LEN;
+	status = nc_http_read(file->curl,file->curlurl,start,count,buf);
+	if(status == NC_NOERR) {
+	    if(ncbyteslength(buf) != count)
+	        status = NC_EINVAL;
+	    else
+	        memcpy(magic,ncbytescontents(buf),count);
+	}
+	ncbytesfree(buf);
+#endif
+    } else {
 #ifdef USE_PARALLEL
         if (file->use_parallel) {
 	    MPI_Status mstatus;
@@ -890,25 +854,6 @@ readmagic(struct MagicFile* file, long pos, char* magic)
 	        i += count;
 	    }
 	}
-	break;
-
-#ifdef ENABLE_BYTERANGE
-    case NC_IOSP_HTTP: {
-	NCbytes* buf = ncbytesnew();
-	ssize64_t start = (size_t)pos;
-	ssize64_t count = MAGIC_NUMBER_LEN;
-	status = nc_http_read(file->curl,file->curlurl,start,count,buf);
-	if(status == NC_NOERR) {
-	    if(ncbyteslength(buf) != count)
-	        status = NC_EINVAL;
-	    else
-	        memcpy(magic,ncbytescontents(buf),count);
-	}
-	ncbytesfree(buf);
-        } break;
-#endif
-
-    default: assert(0);
     }
 
 done:
@@ -929,11 +874,14 @@ static int
 closemagic(struct MagicFile* file)
 {
     int status = NC_NOERR;
-    switch (file->model->iosp) {
-    case NC_IOSP_MEMORY:
-	break; /* noop */
-
-    case NC_IOSP_FILE:
+    if(fIsSet(file->omode,NC_INMEMORY)) {
+	/* noop */
+#ifdef ENABLE_BYTERANGE
+    } else if(file->uri != NULL) {
+	status = nc_http_close(file->curl);
+	nullfree(file->curlurl);
+#endif
+    } else {
 #ifdef USE_PARALLEL
         if (file->use_parallel) {
 	    int retval;
@@ -944,18 +892,7 @@ closemagic(struct MagicFile* file)
         {
 	    if(file->fp) fclose(file->fp);
         }
-	break;
-
-#ifdef ENABLE_BYTERANGE
-     case NC_IOSP_HTTP:
-	status = nc_http_close(file->curl);
-	nullfree(file->curlurl);
-	break;
-#endif
-
-    default: assert(0);
     }
-
     return status;
 }
 
