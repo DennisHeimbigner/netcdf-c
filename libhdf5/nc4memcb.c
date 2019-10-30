@@ -131,8 +131,6 @@ static void tracefail(const char* fcn);
 #define TRACEFAIL(fcn)
 #endif
 
-#define DEFAULT_CREATE_MEMSIZE ((size_t)1<<16)
-
 #ifndef H5LT_FILE_IMAGE_DONT_COPY
 
 /* Flag definitions for H5LTopen_file_image() */
@@ -721,7 +719,7 @@ NC4_image_init(NC_FILE_INFO_T* h5)
     unsigned            file_open_flags = 0;/* Flags for hdf5 open */
     char                file_name[64];	/* Filename buffer */
     size_t              alloc_incr;     /* Buffer allocation increment */
-    size_t              min_incr = 65536; /* Minimum buffer increment */
+    size_t              min_incr = INMEMORY_INCR; /* Minimum buffer increment */
     double              buf_prcnt = 0.1f;  /* Percentage of buffer size to set
                                              as increment */
     unsigned imageflags;
@@ -738,7 +736,8 @@ NC4_image_init(NC_FILE_INFO_T* h5)
     /* check arguments */
     if (h5->mem.memio.memory == NULL) {
 	if(create) {
-	    if(h5->mem.memio.size == 0) h5->mem.memio.size = DEFAULT_CREATE_MEMSIZE;
+	    if(h5->mem.memio.size == 0)
+		h5->mem.memio.size = INMEMORY_INITIAL;
 	    h5->mem.memio.memory = malloc(h5->mem.memio.size);
 	}  else
 	    goto out; /* open requires an input buffer */

@@ -57,6 +57,11 @@
 #define FILTER_UNREG 2
 #define FILTER_INQ   3
 
+/** Define the min/initial allocation size for in-memory files */
+#define INMEMORY_INITIAL (1<<13)
+#define INMEMORY_INCR (1<<12)
+
+
 /** Struct to hold HDF5-specific info for the file. */
 typedef struct NC_HDF5_FILE_INFO {
    hid_t hdfid;

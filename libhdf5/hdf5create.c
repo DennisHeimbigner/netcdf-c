@@ -201,7 +201,7 @@ nc4_create_file(const char *path, int cmode, size_t initialsz,
     else
         if(nc4_info->mem.diskless) {
             size_t alloc_incr;     /* Buffer allocation increment */
-            size_t min_incr = 65536; /* Minimum buffer increment */
+            size_t min_incr = INMEMORY_INCR; /* Minimum buffer increment */
             double buf_prcnt = 0.1f;  /* Percentage of buffer size to set as increment */
             /* set allocation increment to a percentage of the supplied buffer size, or
              * a pre-defined minimum increment value, whichever is larger
@@ -302,3 +302,4 @@ NC4_create(const char* path, int cmode, size_t initialsz, int basepe,
 
     return res;
 }
+

@@ -777,7 +777,7 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
     }
     else
         if(nc4_info->mem.diskless) {   /* Process  NC_DISKLESS */
-            size_t min_incr = 65536; /* Minimum buffer increment */
+            size_t min_incr = INMEMORY_INCR; /* Minimum buffer increment */
             /* Configure FAPL to use the core file driver */
             if (H5Pset_fapl_core(fapl_id, min_incr, (nc4_info->mem.persist?1:0)) < 0)
                 BAIL(NC_EHDFERR);
