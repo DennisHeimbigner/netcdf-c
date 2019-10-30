@@ -62,20 +62,15 @@ done:
 }
 
 int
-NC4_create_image_file(NC_FILE_INFO_T* h5)
+NC4_create_image_file(NC_FILE_INFO_T* h5, size_t initialsz)
 {
     int stat = NC_NOERR;
     hid_t hdfid;
 
     /* Create the file but using our version of H5LTopen_file_image */
     h5->mem.created = 1;
+    h5->mem.initialsize = initialsz;
     h5->mem.imageflags |= H5LT_FILE_IMAGE_OPEN_RW;
-    if(h5->mem.initialsize == 0)
-        h5->mem.initialsize = INMEMORY_INITIAL; 
-    if(h5->mem.incrsize == 0)
-        h5->mem.incrsize = INMEMORY_INCR;
-    if(h5->mem.initialsize == 0 || h5->mem.incrsize == 0)
-	return NC_EINMEMORY;
     hdfid = NC4_image_init(h5);
     if(hdfid < 0)
 	{stat = NC_EHDFERR; goto done;}

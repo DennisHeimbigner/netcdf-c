@@ -2191,7 +2191,7 @@ main(int argc, char *argv[])
 				 * provide different name than derived from
 				 * file name
 				 */
-	  formatting_specs.name = strdup(optarg);
+	  formatting_specs.name = optarg;
 	  nameopt = 1;
 	  break;
 	case 'b':		/* brief comments in data section */
@@ -2392,7 +2392,6 @@ main(int argc, char *argv[])
 	    NC_CHECK( nc_close(ncid) );
     }
     if(path) {free(path); path = NULL;}
-    if(formatting_specs.name != NULL) {free(formatting_specs.name); formatting_specs.name = NULL;}
     exit(EXIT_SUCCESS);
 
 fail: /* ncstat failures */
@@ -2402,6 +2401,5 @@ fail: /* ncstat failures */
     if(strlen(errmsg) > 0)
 	error("%s: %s", path, errmsg);
     if(path) free(path);
-    if(formatting_specs.name != NULL) {free(formatting_specs.name); formatting_specs.name = NULL;}
     exit(EXIT_FAILURE);
 }
