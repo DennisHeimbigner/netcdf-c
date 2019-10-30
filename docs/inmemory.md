@@ -29,9 +29,9 @@ system functionality to access a file.
 
 The first two capabilities are intertwined in the sense that the
 *diskless* capability makes use internally of the *inmemory*
-capability (for netcdf classic only). But, the *inmemory*
-capability can be used independently of the *diskless*
-capability.
+capability -- for netcdf classic only, not for netcdf
+enhanced. But, the *inmemory* capability can be used
+independently of the *diskless* capability.
 
 The *mmap()* capability provides a capability similar to *diskless* but
 using special capabilities of the underlying operating system.
@@ -105,11 +105,8 @@ and also some relevant flags that define how to manage the memory.
 
 Current only one flag is defined -- *NC_MEMIO_LOCKED*.
 This tells the netcdf library that it should never try to
-*realloc()* the memory nor to *free()* the memory. Note
-that this does not mean that the memory cannot be modified, but
-only that the modifications will be within the confines of the provided
-memory. If doing such modifications is impossible without
-reallocating the memory, then the modification will fail.
+*realloc()* the memory nor to *free()* the memory.
+To all intents and purposes, this means that the file is read-only.
 
 ### In-Memory API
 
@@ -145,13 +142,10 @@ make no attempt to reallocate or free the provided memory.
 If the caller invokes the *nc_close_memio()* function to retrieve the
 final memory block, it should be the same
 memory block as was provided when *nc_open_memio* was called.
-Note that it is still possible to modify the in-memory file if the NC_WRITE
-mode flag was set. However, failures can occur if an operation
-cannot complete because the memory needs to be expanded.
 2. If the *NC_MEMIO_LOCKED* flag is <b>not</b> set, then
 the netcdf library will take control of the incoming memory.
 This means that the user should not make any attempt to free
-or even read the incoming memory block in this case.
+or even read its originally supplied memory block in this case.
 The newcdf library is free to reallocate the incoming
 memory block to obtain a larger block when an attempt to modify
 the in-memory file requires more space. Note that implicit in this
@@ -182,23 +176,6 @@ Its second argument is a pointer to an *NC_memio* object
 into which the final memory and size are stored. WARNING,
 the returned memory is owned by the caller and so the caller
 is responsible for calling *free()* on that returned memory.
-
-### Support for Writing with *NC_MEMIO_LOCKED*
-
-When the NC_MEMIO_LOCKED flag is set in the *NC_memio* object
-passed to *nc_open_memio()*, it is still possible to modify
-the opened in-memory file (using the NC_WRITE mode flag).
-
-The big problem is that any changes must fit into the memory provided
-by the caller via the *NC_memio* object. This problem can be
-mitigated, however, by using the "trick" of overallocating
-the caller supplied memory. That is, if the original file is, say, 300 bytes,
-then it is possible to allocate, say, 65000 bytes and copy the original file
-into the first 300 bytes of the larger memory block. This will allow
-the netcdf-c library to add to the file up to that 65000 byte limit.
-In this way, it is possible to avoid memory reallocation while still
-allowing modifications to the file. You will still need to call
-*nc_close_memio()* to obtain the size of the final, modified, file.
 
 Enabling MMAP File Access {#Enable_MMAP}
 --------------

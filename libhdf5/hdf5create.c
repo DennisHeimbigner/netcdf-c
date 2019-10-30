@@ -20,7 +20,7 @@ extern float nc4_chunk_cache_preemption;
 static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_64BIT_OFFSET|NC_CDF5);
 
 /* From nc4mem.c */
-extern int NC4_create_image_file(NC_FILE_INFO_T* h5, size_t);
+extern int NC4_create_image_file(NC_FILE_INFO_T* h5);
 
 /**
  * @internal Create a netCDF-4/HDF5 file.
@@ -83,7 +83,8 @@ nc4_create_file(const char *path, int cmode, size_t initialsz,
     nc4_info->mem.diskless = (cmode & NC_DISKLESS) == NC_DISKLESS;
     nc4_info->mem.persist =  (cmode & NC_PERSIST) == NC_PERSIST;
     nc4_info->mem.created = 1;
-    nc4_info->mem.initialsize = initialsz;
+    nc4_info->mem.initialsize = initialsz; /* might be zero */
+    nc4_info->mem.incrsize = initialsz; /* might be zero */
 
     /* diskless => !inmemory */
     if(nc4_info->mem.inmemory && nc4_info->mem.diskless)
@@ -194,7 +195,7 @@ nc4_create_file(const char *path, int cmode, size_t initialsz,
 #endif
 
     if(nc4_info->mem.inmemory) {
-        retval = NC4_create_image_file(nc4_info,initialsz);
+        retval = NC4_create_image_file(nc4_info);
         if(retval)
             BAIL(retval);
     }

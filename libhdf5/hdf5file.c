@@ -268,6 +268,14 @@ nc4_close_netcdf4_file(NC_FILE_INFO_T *h5, int abort, NC_memio *memio)
      * hidden attribute. */
     NC4_clear_provenance(&h5->provenance);
 
+    /* If inmemory is used and user wants the final memory block,
+       then capture and return the final memory block else free it */
+    if (h5->mem.inmemory)
+    {
+        /* Pull out the final memory */
+        (void)NC4_extract_file_image(h5);
+    }
+
     /* Close hdf file. It may not be open, since this function is also
      * called by NC_create() when a file opening is aborted. */
     if (hdf5_info->hdfid > 0 && H5Fclose(hdf5_info->hdfid) < 0)
@@ -276,24 +284,10 @@ nc4_close_netcdf4_file(NC_FILE_INFO_T *h5, int abort, NC_memio *memio)
         return NC_EHDFERR;
     }
 
-    /* If inmemory is used and user wants the final memory block,
-       then capture and return the final memory block else free it */
-    if (h5->mem.inmemory)
-    {
-	hsize_t size = 0;
-	haddr_t eoa = NULL;
-        /* Get the eoa of the file */
-	if(H5Fget_eoa(hdf5_info->hdfid,&eoa) < 0)
-	    eoa = NULL;
-	/* Get the used size of the file */
-        if(H5Fget_filesize(hdf5_info->hdfid, &size ) < 0)
-	    size = 0; /* if we cannot get it */	    
-        /* Pull out the final memory */
-        (void)NC4_extract_file_image(h5);
-        if (!abort && memio != NULL)
+    if (h5->mem.inmemory) {
+	if(!abort && memio != NULL)
         {
             *memio = h5->mem.memio; /* capture it */
-	    if(size > 0) memio->size = (size_t)size; /* override if defined */
             h5->mem.memio.memory = NULL; /* avoid duplicate free */
         }
         /* If needed, reclaim extraneous memory */

@@ -61,7 +61,6 @@
 #define INMEMORY_INITIAL (1<<13)
 #define INMEMORY_INCR (1<<12)
 
-
 /** Struct to hold HDF5-specific info for the file. */
 typedef struct NC_HDF5_FILE_INFO {
    hid_t hdfid;

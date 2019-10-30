@@ -329,6 +329,7 @@ typedef struct  NC_FILE_INFO
         int created;    /**< 1 => create, 0 => open. */
         unsigned int imageflags; /**< for H5LTopen_file_image. */
         size_t initialsize;      /**< Initial size. */
+        size_t incrsize;      /**< Increment size. */
         void *udata;    /**< Extra memory allocated in NC4_image_init. */
     } mem;
 } NC_FILE_INFO_T;

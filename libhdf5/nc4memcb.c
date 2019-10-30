@@ -82,7 +82,9 @@
 #include <hdf5.h>
 #include <hdf5_hl.h>
 
+#include "netcdf.h"
 #include "nc4internal.h"
+#include "hdf5internal.h"
 
 #ifndef HDrealloc
 #define HDrealloc(x,y) realloc(x,y)
@@ -719,7 +721,7 @@ NC4_image_init(NC_FILE_INFO_T* h5)
     unsigned            file_open_flags = 0;/* Flags for hdf5 open */
     char                file_name[64];	/* Filename buffer */
     size_t              alloc_incr;     /* Buffer allocation increment */
-    size_t              min_incr = INMEMORY_INCR; /* Minimum buffer increment */
+    size_t              min_incr;       /* Minimum buffer increment */
     double              buf_prcnt = 0.1f;  /* Percentage of buffer size to set
                                              as increment */
     unsigned imageflags;
@@ -737,12 +739,14 @@ NC4_image_init(NC_FILE_INFO_T* h5)
     if (h5->mem.memio.memory == NULL) {
 	if(create) {
 	    if(h5->mem.memio.size == 0)
-		h5->mem.memio.size = INMEMORY_INITIAL;
+		h5->mem.memio.size = h5->mem.initialsize;
 	    h5->mem.memio.memory = malloc(h5->mem.memio.size);
 	}  else
 	    goto out; /* open requires an input buffer */
     } else if(h5->mem.memio.size == 0)
 	goto out;
+
+    min_incr = h5->mem.incrsize;
 
     /* Create FAPL to transmit file image */
     if ((fapl = H5Pcreate(H5P_FILE_ACCESS)) < 0)
@@ -851,23 +855,62 @@ NC4_image_finalize(void* _udata)
     }
 }
 
+static int
+get_memory_sizes(NC_FILE_INFO_T* h5, uintptr_t* eoap, size_t* eofp)
+{
+    int stat = NC_NOERR;
+    herr_t err;
+    hid_t file_id;
+    hsize_t size = 0;
+
+    file_id = ((NC_HDF5_FILE_INFO_T*)h5->format_file_info)->hdfid;
+    if((err = H5Fget_filesize(file_id,&size))) {
+	stat = NC_EINVAL;
+	goto done;
+    }
+#if 0
+Fails because core driver is not SWMR enabled
+    {
+    haddr_t eoa = 0;
+    if((err = H5Fget_eoa(file_id, &eoa)) < 0) {
+	stat = NC_EINVAL;
+	goto done;
+    }
+    if(eoap) *eoap = (uintptr_t)eoa;
+    }
+#endif
+    if(eofp) *eofp = (size_t)size;
+
+done:
+    return stat;
+
+}
+
 int
 NC4_extract_file_image(NC_FILE_INFO_T* h5)
 {
     int stat = NC_NOERR;
     H5LT_file_image_ud_t *udata;
+    size_t eof = 0;
 
     udata = (H5LT_file_image_ud_t *)h5->mem.udata;
     assert(udata != NULL);
 
+    /* Get the eoa of the file */
+    if((stat = get_memory_sizes(h5,NULL,&eof))) goto done;    
+
     /* Fill in h5->mem.memio from udata */
     h5->mem.memio.memory = udata->vfd_image_ptr;
-    h5->mem.memio.size = udata->vfd_image_size;
+    if(udata->vfd_image_size < eof)
+        h5->mem.memio.size = udata->vfd_image_size;
+    else
+        h5->mem.memio.size = eof;
 
     /* Move control */
     udata->vfd_image_ptr = NULL;
     udata->vfd_image_size = 0;
     
+done:
     return stat;
 }
 
