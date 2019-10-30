@@ -274,17 +274,6 @@ nc4_close_netcdf4_file(NC_FILE_INFO_T *h5, int abort, NC_memio *memio)
     {
         /* Pull out the final memory */
         (void)NC4_extract_file_image(h5);
-    }
-
-    /* Close hdf file. It may not be open, since this function is also
-     * called by NC_create() when a file opening is aborted. */
-    if (hdf5_info->hdfid > 0 && H5Fclose(hdf5_info->hdfid) < 0)
-    {
-        dumpopenobjects(h5);
-        return NC_EHDFERR;
-    }
-
-    if (h5->mem.inmemory) {
 	if(!abort && memio != NULL)
         {
             *memio = h5->mem.memio; /* capture it */
@@ -301,6 +290,14 @@ nc4_close_netcdf4_file(NC_FILE_INFO_T *h5, int abort, NC_memio *memio)
         h5->mem.memio.memory = NULL;
         h5->mem.memio.size = 0;
         NC4_image_finalize(h5->mem.udata);
+    }
+
+    /* Close hdf file. It may not be open, since this function is also
+     * called by NC_create() when a file opening is aborted. */
+    if (hdf5_info->hdfid > 0 && H5Fclose(hdf5_info->hdfid) < 0)
+    {
+        dumpopenobjects(h5);
+        return NC_EHDFERR;
     }
 
     /* Free the HDF5-specific info. */
