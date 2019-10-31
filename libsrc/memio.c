@@ -339,6 +339,9 @@ memio_open(const char* path,
 
     memset(&meminfo,0,sizeof(meminfo));
 
+    if(inmemory) /* inmemory => read-only */
+        fClr(ioflags,NC_WRITE);
+	
     if(inmemory) { /* parameters provide the memory chunk */
 	NC_memio* memparams = (NC_memio*)parameters;
         meminfo = *memparams;

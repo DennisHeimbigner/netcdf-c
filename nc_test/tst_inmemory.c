@@ -363,6 +363,7 @@ done:
     return stat;
 }
 
+#if 0 /* unused */
 /* Use this to force significant file size increase */
 static int
 modify_file_extra(int ncid)
@@ -388,6 +389,7 @@ modify_file_extra(int ncid)
 done:
     return stat;
 }
+#endif
 
 /* Verify the content of a file */
 static int
@@ -547,9 +549,9 @@ test_open(const char* path, NC_memio* filedata, int mode)
     if(finaldata.memory != duplicate.memory) CHECK(NC_EINVAL);
     memiofree(&finaldata,&original);
 
+#if 0 /*No longer supported */
     fprintf(stderr,"\n\t***Test open 3: nc_open_memio(): read-write, copy, no size increase\n");
     fprintf(stderr,"\t*** Not testable\n");
-#if 0
     {
 	fprintf(stderr,"\n\t***Test open 3: nc_open_memio(): read-write, copy, no size increase\n");
 	xmode |= NC_WRITE; /* allow file to be modified */
@@ -566,7 +568,6 @@ test_open(const char* path, NC_memio* filedata, int mode)
 	/* As a safeguard, the memory in duplicate should have been set to NULL*/
 	memiofree(&finaldata,&original);
     }
-#endif
 
     fprintf(stderr,"\n\t***Test open 4: nc_open_memio(): read-write, copy, size increase\n");
     xmode |= NC_WRITE; /* allow file to be modified */
@@ -602,6 +603,8 @@ test_open(const char* path, NC_memio* filedata, int mode)
        actual used final size should not exceed the original */
     if(finaldata.size > duplicate.size) CHECK(NC_EINVAL);
     if(finaldata.memory != duplicate.memory) CHECK(NC_EINVAL);
+#endif
+
     memiofree(&finaldata,&original);
     return stat;
 }
@@ -686,13 +689,8 @@ test_xfail(const char* path, int mode, NC_memio* filedata)
     CHECK(nc_abort(ncid));
     memiofree(&duplicate,&original);
 
-    fprintf(stderr,"\n\t***Test xfail 2: nc_open_memio(): modify without overallocating\n");
-    if((mode & NC_NETCDF4)) {
-        fprintf(stderr,"\t*** Suppressed because of HDF5 library bug\n");
-    } else {
-      /* With HDF5 1.8.20, and possibly other versions,
-         this tests causes a seg fault in the HDF5 Library.
-         So until it is fixed, just leave well enough alone */
+    fprintf(stderr,"\n\t***Test xfail 2: nc_open_memio(): modify\n");
+    {
 	NC_memio finaldata;
 	memset(&finaldata,0,sizeof(finaldata));
 	CHECK(duplicatememory(filedata,&duplicate,0,&original));

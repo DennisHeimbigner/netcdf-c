@@ -148,7 +148,9 @@ int nc4_reform_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *coord_var, NC_DIM_IN
 
 /* In-memory functions */
 extern hid_t NC4_image_init(NC_FILE_INFO_T* h5);
-extern void NC4_image_finalize(void*);
+extern void NC4_image_finalize(void*,int);
+extern int NC4_capture_file_image(NC_FILE_INFO_T* h5); /* In nc4memcb.c */
+
 
 /* Create HDF5 dataset for dim without a coord var. */
 extern int nc4_create_dim_wo_var(NC_DIM_INFO_T *dim);

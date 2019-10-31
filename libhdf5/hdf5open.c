@@ -695,6 +695,10 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
     if ((mode & NC_WRITE) == 0)
         nc4_info->no_write = NC_TRUE;
 
+    /* Opening with inmemory => read-only */
+    if(nc4_info->mem.inmemory)
+        nc4_info->no_write = NC_TRUE;
+
     if(nc4_info->mem.inmemory && nc4_info->mem.diskless)
         BAIL(NC_EINTERNAL);
 
