@@ -10,7 +10,7 @@
 AC_PREREQ([2.59])
 
 # Initialize with name, version, and support email address.
-AC_INIT([netCDF], [4.7.3-development], [support-netcdf@unidata.ucar.edu], [netcdf-c])
+AC_INIT([netCDF], [4.7.4-development], [support-netcdf@unidata.ucar.edu], [netcdf-c])
 
 ##
 # Prefer an empty CFLAGS variable instead of the default -g -O2.
@@ -21,7 +21,7 @@ AC_INIT([netCDF], [4.7.3-development], [support-netcdf@unidata.ucar.edu], [netcd
 
 AC_SUBST([NC_VERSION_MAJOR]) NC_VERSION_MAJOR=4
 AC_SUBST([NC_VERSION_MINOR]) NC_VERSION_MINOR=7
-AC_SUBST([NC_VERSION_PATCH]) NC_VERSION_PATCH=3
+AC_SUBST([NC_VERSION_PATCH]) NC_VERSION_PATCH=4
 AC_SUBST([NC_VERSION_NOTE]) NC_VERSION_NOTE="-development"
 
 #####
@@ -1213,13 +1213,6 @@ AC_ARG_ENABLE([erange_fill],
    [enable_erange_fill=${enableval}], [enable_erange_fill=auto]
 )
 
-dnl Always build with relaxed coord bound checking, to prevent API
-dnl incompatibilities between different installs of netCDF.
-AC_ARG_ENABLE([zero-length-coord-bound],
-   [AS_HELP_STRING([--disable-zero-length-coord-bound],
-                   [Disable relaxed boundary error check. Deprecated. Using this can cause API incompatibilities. This option will be removed in the next release of netCDF.])])
-test "x$enable_zero_length_coord_bound" = xno || enable_zero_length_coord_bound=yes
-
 # check PnetCDF's settings on enable_erange_fill and relax_coord_bound
 if test "x$enable_pnetcdf" = xyes; then
    UD_CHECK_HEADER_PATH([pnetcdf.h])
@@ -1256,10 +1249,6 @@ else
       # if --enable-erange-fill is not used, default setting is no
       enable_erange_fill=no
    fi
-fi
-
-if test "x$enable_zero_length_coord_bound" = xyes; then
-   AC_DEFINE([RELAX_COORD_BOUND], [1], [if true, NC_EINVALCOORDS check is more relaxed])
 fi
 
 if test "x$enable_erange_fill" = xyes ; then
@@ -1432,7 +1421,6 @@ AC_SUBST(HAS_PARALLEL4,[$enable_parallel4])
 AC_SUBST(HAS_DISKLESS,[yes])
 AC_SUBST(HAS_MMAP,[$enable_mmap])
 AC_SUBST(HAS_JNA,[$enable_jna])
-AC_SUBST(RELAX_COORD_BOUND,[$enable_zero_length_coord_bound])
 AC_SUBST(HAS_ERANGE_FILL,[$enable_erange_fill])
 AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
 AC_SUBST(HAS_ZARR,[$enable_zarr])
@@ -1503,9 +1491,9 @@ AX_SET_META([NC_HAS_PARALLEL],[$enable_parallel],[yes])
 AX_SET_META([NC_HAS_PARALLEL4],[$enable_parallel4],[yes])
 AX_SET_META([NC_HAS_CDF5],[$enable_cdf5],[yes])
 AX_SET_META([NC_HAS_ERANGE_FILL], [$enable_erange_fill],[yes])
-AX_SET_META([NC_RELAX_COORD_BOUND], [$enable_zero_length_coord_bound],[yes])
 AX_SET_META([NC_HAS_BYTERANGE],[$enable_byterange],[yes])
 AX_SET_META([NC_HAS_ZARR],[$enable_zarr],[yes])
+AC_SUBST([NC_DISPATCH_VERSION], [1])
 #####
 # End netcdf_meta.h definitions.
 #####

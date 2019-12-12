@@ -26,7 +26,7 @@ set(PACKAGE "netCDF" CACHE STRING "")
 
 SET(NC_VERSION_MAJOR 4)
 SET(NC_VERSION_MINOR 7)
-SET(NC_VERSION_PATCH 3)
+SET(NC_VERSION_PATCH 4)
 SET(NC_VERSION_NOTE "-development")
 SET(netCDF_VERSION ${NC_VERSION_MAJOR}.${NC_VERSION_MINOR}.${NC_VERSION_PATCH}${NC_VERSION_NOTE})
 SET(VERSION ${netCDF_VERSION})
@@ -34,6 +34,9 @@ SET(NC_VERSION ${netCDF_VERSION})
 SET(netCDF_LIB_VERSION 15)
 SET(netCDF_SO_VERSION 15)
 SET(PACKAGE_VERSION ${VERSION})
+
+# Version of the dispatch table, in case we change it.
+SET(NC_DISPATCH_VERSION 1)
 
 # Get system configuration, Use it to determine osname, os release, cpu. These
 # will be used when committing to CDash.
@@ -165,7 +168,7 @@ ENABLE_TESTING()
 INCLUDE(CTest)
 
 # Copy the CTest customization file into binary directory, as required.
-FILE(COPY ${CMAKE_SOURCE_DIR}/CTestCustom.cmake DESTINATION ${CMAKE_BINARY_DIR})
+FILE(COPY ${CMAKE_CURRENT_SOURCE_DIR}/CTestCustom.cmake DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Set Memory test program for non-MSVC based builds.
 # Assume valgrind for now.
@@ -258,10 +261,10 @@ ENDIF()
 #####
 # System inspection checks
 #####
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/oc2)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libsrc)
-SET(CMAKE_REQUIRED_INCLUDES ${CMAKE_SOURCE_DIR}/libsrc)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/oc2)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/libsrc)
+SET(CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/libsrc)
 
 ################################
 # End Compiler Configuration
@@ -897,9 +900,9 @@ IF(ENABLE_TESTS)
 
   # Options for CTest-based tests, dashboards.
   SET(NC_CTEST_PROJECT_NAME "netcdf-c" CACHE STRING "Project Name for CTest-based testing purposes.")
-  SET(NC_CTEST_DROP_SITE "cdash.unidata.ucar.edu" CACHE STRING "Dashboard location for CTest-based testing purposes.")
+  SET(NC_CTEST_DROP_SITE "cdash.unidata.ucar.edu:443" CACHE STRING "Dashboard location for CTest-based testing purposes.")
   SET(NC_CTEST_DROP_LOC_PREFIX "" CACHE STRING "Prefix for Dashboard location on remote server when using CTest-based testing.")
-
+  SET(SUBMIT_URL "https://cdash.unidata.ucar.edu:443")
   FIND_PROGRAM(HOSTNAME_CMD NAMES hostname)
   IF(NOT MSVC)
     SET(HOSTNAME_ARG "-s")
@@ -915,7 +918,7 @@ IF(ENABLE_TESTS)
 
   # Create a CTestConfig file from the template.
   CONFIGURE_FILE("${netCDF_SOURCE_DIR}/CTestConfig.cmake.in"
-    "${netCDF_SOURCE_DIR}/CTestConfig.cmake"
+    "${netCDF_BINARY_DIR}/CTestConfig.cmake"
     @ONLY
     )
 
@@ -1081,21 +1084,8 @@ IF(ENABLE_ERANGE_FILL) # enable or auto
 ENDIF(ENABLE_ERANGE_FILL)
 # Now ENABLE_ERANGE_FILL is either AUTO, ON, or OFF
 
-# Options to use a more relaxed coordinate argument boundary check
-SET(ENABLE_ZERO_LENGTH_COORD_BOUND AUTO CACHE STRING "AUTO")
-OPTION(ENABLE_ZERO_LENGTH_COORD_BOUND "Enable a more relaxed boundary error check NC_EINVALCOORDS to allow coordinate start argument equal to dimension size when argument count is zero." OFF)
-IF(ENABLE_ZERO_LENGTH_COORD_BOUND) # enable or auto
-   STRING(TOUPPER ${ENABLE_ZERO_LENGTH_COORD_BOUND} ENABLE_ZERO_LENGTH_COORD_BOUND)
-   IF(ENABLE_ZERO_LENGTH_COORD_BOUND AND NOT ENABLE_ZERO_LENGTH_COORD_BOUND STREQUAL "AUTO")
-      # explicitly enabled
-      SET(ENABLE_ZERO_LENGTH_COORD_BOUND ON)
-   ELSE()
-      IF(NOT ENABLE_ZERO_LENGTH_COORD_BOUND STREQUAL "AUTO")
-         SET(ENABLE_ZERO_LENGTH_COORD_BOUND OFF)
-      ENDIF()
-   ENDIF()
-ENDIF(ENABLE_ZERO_LENGTH_COORD_BOUND)
-# Now ENABLE_ZERO_LENGTH_COORD_BOUND is either AUTO, ON, or OFF
+# More relaxed coordinate check is now mandatory for all builds.
+SET(ENABLE_ZERO_LENGTH_COORD_BOUND ON)
 
 # check and conform with PnetCDF settings on ERANGE_FILL and RELAX_COORD_BOUND
 IF(STATUS_PNETCDF)
@@ -1126,17 +1116,9 @@ IF(STATUS_PNETCDF)
   ELSE()
      SET(relax_coord_bound_pnetcdf "OFF")
   ENDIF()
-  IF(ENABLE_ZERO_LENGTH_COORD_BOUND STREQUAL "AUTO") # not set on command line
-     SET(ENABLE_ZERO_LENGTH_COORD_BOUND "${relax_coord_bound_pnetcdf}")
-  ELSE()
-     # user explicitly set this option on command line
-     IF(NOT ENABLE_ZERO_LENGTH_COORD_BOUND STREQUAL "${relax_coord_bound_pnetcdf}")
-        IF(ENABLE_ZERO_LENGTH_COORD_BOUND)
-           MESSAGE(FATAL_ERROR "Enabling relax-coord-bound conflicts with PnetCDF setting")
-        ELSE()
-           MESSAGE(FATAL_ERROR "Disabling relax-coord-bound conflicts with PnetCDF setting")
-        ENDIF()
-     ENDIF()
+  # pnetcdf must have relaxed coord bounds to build with netCDF-4
+  IF(NOT ENABLE_ZERO_LENGTH_COORD_BOUND STREQUAL "${relax_coord_bound_pnetcdf}")
+     MESSAGE(FATAL_ERROR "Pnetcdf must be built with relax-coord-bound enabled")
   ENDIF()
 ENDIF()
 
@@ -1531,7 +1513,7 @@ MACRO(add_bin_env_test prefix F)
       )
   ENDIF()
 
-  ADD_TEST(${prefix}_${F} bash "-c" "TOPSRCDIR=${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/${prefix}_${F}")
+  ADD_TEST(${prefix}_${F} bash "-c" "TOPSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/${prefix}_${F}")
   IF(MSVC)
     SET_PROPERTY(TARGET ${prefix}_${F} PROPERTY FOLDER "tests")
   ENDIF()
@@ -1961,8 +1943,8 @@ ENABLE_MAKEDIST(README.md COPYRIGHT RELEASE_NOTES.md INSTALL INSTALL.cmake test_
 SET(host_cpu "${cpu}")
 SET(host_vendor "${osname}")
 SET(host_os "${osrel}")
-SET(abs_top_builddir "${CMAKE_BINARY_DIR}")
-SET(abs_top_srcdir "${CMAKE_SOURCE_DIR}")
+SET(abs_top_builddir "${CMAKE_CURRENT_BINARY_DIR}")
+SET(abs_top_srcdir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 SET(CC_VERSION "${CMAKE_C_COMPILER}")
 
@@ -2029,26 +2011,26 @@ FILE(COPY ${netCDF_SOURCE_DIR}/include/netcdf_meta.h
 #####
 # Build test_common.sh
 #####
-SET(EXTRA_DIST ${EXTRA_DIST} ${CMAKE_SOURCE_DIR}/test_common.in)
-SET(TOPSRCDIR "${CMAKE_SOURCE_DIR}")
-SET(TOPBUILDDIR "${CMAKE_BINARY_DIR}")
-configure_file(${CMAKE_SOURCE_DIR}/test_common.in ${CMAKE_BINARY_DIR}/test_common.sh @ONLY NEWLINE_STYLE LF)
+SET(EXTRA_DIST ${EXTRA_DIST} ${CMAKE_CURRENT_SOURCE_DIR}/test_common.in)
+SET(TOPSRCDIR "${CMAKE_CURRENT_SOURCE_DIR}")
+SET(TOPBUILDDIR "${CMAKE_CURRENT_BINARY_DIR}")
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/test_common.in ${CMAKE_CURRENT_BINARY_DIR}/test_common.sh @ONLY NEWLINE_STYLE LF)
 
 #####
 # Build nc_test4/findplugin.sh
 #####
 SET(ISCMAKE "1")
-configure_file(${CMAKE_SOURCE_DIR}/nc_test4/findplugin.in ${CMAKE_BINARY_DIR}/nc_test4/findplugin.sh @ONLY NEWLINE_STYLE LF)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/nc_test4/findplugin.in ${CMAKE_CURRENT_BINARY_DIR}/nc_test4/findplugin.sh @ONLY NEWLINE_STYLE LF)
 
 IF(ENABLE_EXAMPLES)
-configure_file(${CMAKE_SOURCE_DIR}/nc_test4/findplugin.in ${CMAKE_BINARY_DIR}/examples/C/findplugin.sh @ONLY NEWLINE_STYLE LF)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/nc_test4/findplugin.in ${CMAKE_CURRENT_BINARY_DIR}/examples/C/findplugin.sh @ONLY NEWLINE_STYLE LF)
 ENDIF()
 
 #####
 # Build ncdap_test|dap4_test/findtestserver[4].c
 #####
-configure_file(${CMAKE_SOURCE_DIR}/ncdap_test/findtestserver.c.in ${CMAKE_SOURCE_DIR}/ncdap_test/findtestserver.c @ONLY NEWLINE_STYLE LF)
-configure_file(${CMAKE_SOURCE_DIR}/ncdap_test/findtestserver.c.in ${CMAKE_SOURCE_DIR}/dap4_test/findtestserver4.c @ONLY NEWLINE_STYLE LF)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/findtestserver.c.in ${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/findtestserver.c @ONLY NEWLINE_STYLE LF)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/findtestserver.c.in ${CMAKE_CURRENT_SOURCE_DIR}/dap4_test/findtestserver4.c @ONLY NEWLINE_STYLE LF)
 
 ####
 # Export files
@@ -2062,6 +2044,7 @@ set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/cmake/netCDF)
 install(EXPORT netCDFTargets
   DESTINATION ${ConfigPackageLocation}
   COMPONENT headers
+  NAMESPACE netCDF::
   )
 
 include(CMakePackageConfigHelpers)
@@ -2081,6 +2064,13 @@ INSTALL(
   DESTINATION "${ConfigPackageLocation}"
   COMPONENT headers
   )
+
+add_library(netCDF::netcdf ALIAS netcdf)
+target_include_directories(netcdf
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 
 # Create export configuration
 write_basic_package_version_file(

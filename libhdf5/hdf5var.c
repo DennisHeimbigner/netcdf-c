@@ -1,4 +1,3 @@
-
 /* Copyright 2003-2019, University Corporation for Atmospheric
  * Research. See COPYRIGHT file for copying and redistribution
  * conditions.*/
@@ -16,9 +15,24 @@
 #endif
 #include <math.h> /* For pow() used below. */
 
+/** @internal Default size for unlimited dim chunksize. */
+#define DEFAULT_1D_UNLIM_SIZE (4096)
+
+/** @internal Temp name used when renaming vars to preserve varid
+ * order. */
+#define NC_TEMP_NAME "_netcdf4_temporary_variable_name_for_rename"
+
 #ifdef LOGGING
+/**
+ * Report the chunksizes selected for a variable.
+ *
+ * @param title A text title for the report.
+ * @param var Pointer to the var of interest.
+ *
+ * @author Dennis Heimbigner
+ */
 static void
-reportchunking(const char* title, NC_VAR_INFO_T* var)
+reportchunking(const char *title, NC_VAR_INFO_T *var)
 {
     int i;
     char buf[8192];
@@ -34,16 +48,9 @@ reportchunking(const char* title, NC_VAR_INFO_T* var)
         snprintf(digits,sizeof(digits),"%ld",(unsigned long)var->chunksizes[i]);
 	strlcat(buf,digits,sizeof(buf));
     }
-    LOG((1,"%s",buf));
-}    
+    LOG((3,"%s",buf));
+}
 #endif
-
-/** @internal Default size for unlimited dim chunksize. */
-#define DEFAULT_1D_UNLIM_SIZE (4096)
-
-/** @internal Temp name used when renaming vars to preserve varid
- * order. */
-#define NC_TEMP_NAME "_netcdf4_temporary_variable_name_for_rename"
 
 /**
  * @internal If the HDF5 dataset for this variable is open, then close
@@ -248,7 +255,7 @@ nc4_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
     }
 
 #ifdef LOGGING
-reportchunking("find_default: ",var);
+    reportchunking("find_default: ",var);
 #endif
     return NC_NOERR;
 }
@@ -760,9 +767,10 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
     }
 
 #ifdef LOGGING
-{int dfalt=(chunksizes == NULL);
-reportchunking(dfalt?"extra: default: ":"extra: user: ",var);
-}
+    {
+        int dfalt = (chunksizes == NULL);
+        reportchunking(dfalt ? "extra: default: " : "extra: user: ", var);
+    }
 #endif
 
     /* Are we setting a fill modes? */
@@ -802,7 +810,26 @@ reportchunking(dfalt?"extra: default: ":"extra: user: ",var);
     }
 
     /* Is the user setting the endianness? */
-    if (endianness) {
+    if (endianness)
+    {
+        /* Setting endianness is only premitted on atomic integer and
+         * atomic float types. */
+        switch (var->type_info->hdr.id)
+        {
+        case NC_BYTE:
+        case NC_SHORT:
+        case NC_INT:
+        case NC_FLOAT:
+        case NC_DOUBLE:
+        case NC_UBYTE:
+        case NC_USHORT:
+        case NC_UINT:
+        case NC_INT64:
+        case NC_UINT64:
+            break;
+        default:
+            return NC_EINVAL;
+        }
         var->type_info->endianness = *endianness;
 	/* Propagate */
 	var->endianness = *endianness;
@@ -1567,19 +1594,12 @@ NC4_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
             endindex = start[d2]; /* fixup for zero read count */
         if (!dim->unlimited)
         {
-#ifdef RELAX_COORD_BOUND
             /* Allow start to equal dim size if count is zero. */
             if (start[d2] > (hssize_t)fdims[d2] ||
                 (start[d2] == (hssize_t)fdims[d2] && count[d2] > 0))
                 BAIL_QUIET(NC_EINVALCOORDS);
             if (!zero_count && endindex >= fdims[d2])
                 BAIL_QUIET(NC_EEDGE);
-#else
-            if (start[d2] >= (hssize_t)fdims[d2])
-                BAIL_QUIET(NC_EINVALCOORDS);
-            if (endindex >= fdims[d2])
-                BAIL_QUIET(NC_EEDGE);
-#endif
         }
     }
 
@@ -1663,7 +1683,7 @@ NC4_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 #endif
                 if (!zero_count && endindex >= fdims[d2])
                 {
-                    xtend_size[d2] = (long long unsigned)(endindex+1);
+                    xtend_size[d2] = (long long unsigned)(endindex + 1);
                     need_to_extend++;
                 }
                 else
@@ -1671,7 +1691,7 @@ NC4_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 
                 if (!zero_count && endindex >= dim->len)
                 {
-                    dim->len = endindex+1;
+                    dim->len = endindex + 1;
                     dim->extended = NC_TRUE;
                 }
             }
@@ -1901,15 +1921,10 @@ NC4_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
                 BAIL(retval);
 
             /* Check for out of bound requests. */
-#ifdef RELAX_COORD_BOUND
             /* Allow start to equal dim size if count is zero. */
             if (start[d2] > (hssize_t)ulen ||
                 (start[d2] == (hssize_t)ulen && count[d2] > 0))
                 BAIL_QUIET(NC_EINVALCOORDS);
-#else
-            if (start[d2] >= (hssize_t)ulen && ulen > 0)
-                BAIL_QUIET(NC_EINVALCOORDS);
-#endif
             if (count[d2] && endindex >= ulen)
                 BAIL_QUIET(NC_EEDGE);
 
@@ -1931,15 +1946,10 @@ NC4_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
         else /* Dim is not unlimited. */
         {
             /* Check for out of bound requests. */
-#ifdef RELAX_COORD_BOUND
             /* Allow start to equal dim size if count is zero. */
             if (start[d2] > (hssize_t)fdims[d2] ||
                 (start[d2] == (hssize_t)fdims[d2] && count[d2] > 0))
                 BAIL_QUIET(NC_EINVALCOORDS);
-#else
-            if (start[d2] >= (hssize_t)fdims[d2])
-                BAIL_QUIET(NC_EINVALCOORDS);
-#endif
             if (count[d2] && endindex >= fdims[d2])
                 BAIL_QUIET(NC_EEDGE);
 

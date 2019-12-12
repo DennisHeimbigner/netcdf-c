@@ -512,7 +512,6 @@ put_att_grpa(NC_GRP_INFO_T *grp, int varid, NC_ATT_INFO_T *att)
     hid_t existing_att_typeid = 0, existing_attid = 0, existing_spaceid = 0;
     hsize_t dims[1]; /* netcdf attributes always 1-D. */
     htri_t attr_exists;
-    int reuse_att = 0; /* Will be true if we can re-use an existing att. */
     void *data;
     int phoney_data = 99;
     int retval = NC_NOERR;
@@ -617,26 +616,49 @@ put_att_grpa(NC_GRP_INFO_T *grp, int varid, NC_ATT_INFO_T *att)
         if ((npoints = H5Sget_simple_extent_npoints(existing_spaceid)) < 0)
             BAIL(NC_EATTMETA);
 
-        /* Delete the attribute. */
-        if (file_typeid != existing_att_typeid || npoints != att->len)
+        /* For text attributes the size is specified in the datatype
+           and it is enough to compare types using H5Tequal(). */
+        if (!H5Tequal(file_typeid, existing_att_typeid) ||
+            (att->nc_typeid != NC_CHAR && npoints != att->len))
         {
+            /* The attribute exists but we cannot re-use it. */
+
+            /* Delete the attribute. */
             if (H5Adelete(locid, att->hdr.name) < 0)
                 BAIL(NC_EHDFERR);
+
+            /* Re-create the attribute with the type and length
+               reflecting the new value (or values). */
+            if ((attid = H5Acreate(locid, att->hdr.name, file_typeid, spaceid,
+                                   H5P_DEFAULT)) < 0)
+                BAIL(NC_EATTMETA);
+
+            /* Write the values, (even if length is zero). */
+            if (H5Awrite(attid, file_typeid, data) < 0)
+                BAIL(NC_EATTMETA);
         }
         else
         {
-            reuse_att++;
+            /* The attribute exists and we can re-use it. */
+
+            /* Write the values, re-using the existing attribute. */
+            if (H5Awrite(existing_attid, file_typeid, data) < 0)
+                BAIL(NC_EATTMETA);
         }
     }
+    else
+    {
+        /* The attribute does not exist yet. */
 
-    /* Create the attribute. */
-    if ((attid = H5Acreate(locid, att->hdr.name, file_typeid, spaceid,
-                           H5P_DEFAULT)) < 0)
-        BAIL(NC_EATTMETA);
+        /* Create the attribute. */
+        if ((attid = H5Acreate(locid, att->hdr.name, file_typeid, spaceid,
+                               H5P_DEFAULT)) < 0)
+            BAIL(NC_EATTMETA);
 
-    /* Write the values, (even if length is zero). */
-    if (H5Awrite(attid, file_typeid, data) < 0)
-        BAIL(NC_EATTMETA);
+        /* Write the values, (even if length is zero). */
+        if (H5Awrite(attid, file_typeid, data) < 0)
+            BAIL(NC_EATTMETA);
+    }
 
 exit:
     if (file_typeid && H5Tclose(file_typeid))
@@ -1841,10 +1863,10 @@ write_dim(NC_DIM_INFO_T *dim, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
         NC_VAR_INFO_T *v1 = NULL;
 
         assert(dim->unlimited);
-        /* If this is a dimension without a variable, then update
-         * the secret length information at the end of the NAME
-         * attribute. */
-        v1 = (NC_VAR_INFO_T *)ncindexlookup(grp->vars, dim->hdr.name);
+
+        /* If this is a dimension with an associated coordinate var,
+         * then update the length of that coord var. */
+        v1 = dim->coord_var;
         if (v1)
         {
             NC_HDF5_VAR_INFO_T *hdf5_v1;
