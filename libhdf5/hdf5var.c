@@ -22,6 +22,9 @@
  * order. */
 #define NC_TEMP_NAME "_netcdf4_temporary_variable_name_for_rename"
 
+/** Number of bytes in 64 KB. */
+#define SIXTY_FOUR_KB (65536)
+
 #ifdef LOGGING
 /**
  * Report the chunksizes selected for a variable.
@@ -713,41 +716,65 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
         var->contiguous = NC_FALSE;
     }
 
-    /* Does the user want a contiguous dataset? Not so fast! Make sure
-     * that there are no unlimited dimensions, and no filters in use
-     * for this data. */
-    if (contiguous && *contiguous)
+    /* Handle storage settings. */
+    if (contiguous)
     {
-        if (var->deflate || var->fletcher32 || var->shuffle)
-            return NC_EINVAL;
-
-        for (d = 0; d < var->ndims; d++)
-            if (var->dim[d]->unlimited)
-                return NC_EINVAL;
-        var->contiguous = NC_TRUE;
-    }
-
-    /* Chunksizes anyone? */
-    if (contiguous && *contiguous == NC_CHUNKED)
-    {
-        var->contiguous = NC_FALSE;
-
-        /* If the user provided chunksizes, check that they are not too
-         * big, and that their total size of chunk is less than 4 GB. */
-        if (chunksizes)
+        /* Does the user want a contiguous or compact dataset? Not so
+         * fast! Make sure that there are no unlimited dimensions, and
+         * no filters in use for this data. */
+        if (*contiguous)
         {
+            if (var->deflate || var->fletcher32 || var->shuffle)
+                return NC_EINVAL;
 
-            if ((retval = check_chunksizes(grp, var, chunksizes)))
-                return retval;
-
-            /* Ensure chunksize is smaller than dimension size */
             for (d = 0; d < var->ndims; d++)
-                if(!var->dim[d]->unlimited && var->dim[d]->len > 0 && chunksizes[d] > var->dim[d]->len)
-                    return NC_EBADCHUNK;
+                if (var->dim[d]->unlimited)
+                    return NC_EINVAL;
+        }
 
-            /* Set the chunksizes for this variable. */
+        /* Handle chunked storage settings. */
+        if (*contiguous == NC_CHUNKED)
+        {
+            var->contiguous = NC_FALSE;
+
+            /* If the user provided chunksizes, check that they are not too
+             * big, and that their total size of chunk is less than 4 GB. */
+            if (chunksizes)
+            {
+                /* Check the chunksizes for validity. */
+                if ((retval = check_chunksizes(grp, var, chunksizes)))
+                    return retval;
+
+                /* Ensure chunksize is smaller than dimension size */
+                for (d = 0; d < var->ndims; d++)
+                    if (!var->dim[d]->unlimited && var->dim[d]->len > 0 &&
+                        chunksizes[d] > var->dim[d]->len)
+                        return NC_EBADCHUNK;
+
+                /* Set the chunksizes for this variable. */
+                for (d = 0; d < var->ndims; d++)
+                    var->chunksizes[d] = chunksizes[d];
+            }
+        }
+        else if (*contiguous == NC_CONTIGUOUS)
+        {
+            var->contiguous = NC_TRUE;
+        }
+        else if (*contiguous == NC_COMPACT)
+        {
+            size_t ndata = 1;
+
+            /* Find the number of elements in the data. */
             for (d = 0; d < var->ndims; d++)
-                var->chunksizes[d] = chunksizes[d];
+                ndata *= var->dim[d]->len;
+
+            /* Ensure var is small enough to fit in compact
+             * storage. It must be <= 64 KB. */
+            if (ndata * var->type_info->size > SIXTY_FOUR_KB)
+                return NC_EVARSIZE;
+
+            var->contiguous = NC_FALSE;
+            var->compact = NC_TRUE;
         }
     }
 
@@ -1903,7 +1930,8 @@ NC4_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 #endif
 
     /* Check dimension bounds. Remember that unlimited dimensions can
-     * put data beyond their current length. */
+     * get data beyond the length of the dataset, but within the
+     * lengths of the unlimited dimension(s). */
     for (d2 = 0; d2 < var->ndims; d2++)
     {
         hsize_t endindex = start[d2] + stride[d2] * (count[d2] - 1); /* last index read */
@@ -1928,20 +1956,26 @@ NC4_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
             if (count[d2] && endindex >= ulen)
                 BAIL_QUIET(NC_EEDGE);
 
-            /* Things get a little tricky here. If we're getting
-               a GET request beyond the end of this var's
-               current length in an unlimited dimension, we'll
-               later need to return the fill value for the
-               variable. */
-            if (start[d2] >= (hssize_t)fdims[d2])
-                fill_value_size[d2] = count[d2];
-            else if (endindex >= fdims[d2])
-                fill_value_size[d2] = count[d2] - ((fdims[d2] - start[d2])/stride[d2]);
+            /* Things get a little tricky here. If we're getting a GET
+               request beyond the end of this var's current length in
+               an unlimited dimension, we'll later need to return the
+               fill value for the variable. */
+            if (!no_read)
+            {
+                if (start[d2] >= (hssize_t)fdims[d2])
+                    fill_value_size[d2] = count[d2];
+                else if (endindex >= fdims[d2])
+                    fill_value_size[d2] = count[d2] - ((fdims[d2] - start[d2])/stride[d2]);
+                else
+                    fill_value_size[d2] = 0;
+                count[d2] -= fill_value_size[d2];
+                if (count[d2] == 0)
+                    no_read++;
+                if (fill_value_size[d2])
+                    provide_fill++;
+            }
             else
-                fill_value_size[d2] = 0;
-            count[d2] -= fill_value_size[d2];
-            if (fill_value_size[d2])
-                provide_fill++;
+                fill_value_size[d2] = count[d2];
         }
         else /* Dim is not unlimited. */
         {

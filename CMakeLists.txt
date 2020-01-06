@@ -319,7 +319,6 @@ SET(MAX_DEFAULT_CACHE_SIZE 67108864 CACHE STRING "Default maximum cache size.")
 SET(NETCDF_LIB_NAME "" CACHE STRING "Default name of the netcdf library.")
 SET(TEMP_LARGE "." CACHE STRING "Where to put large temp files if large file tests are run.")
 SET(NCPROPERTIES_EXTRA "" CACHE STRING "Specify extra pairs for _NCProperties.")
-SET(MPIEXEC "mpiexec" CACHE STRING "Command to run MPI programs if parallel tests are run.")
 
 IF(NOT NETCDF_LIB_NAME STREQUAL "")
   SET(MOD_NETCDF_NAME ON)
@@ -916,12 +915,6 @@ IF(ENABLE_TESTS)
     SET(SITE "${NC_CTEST_SITE}" CACHE STRING "")
   ENDIF()
 
-  # Create a CTestConfig file from the template.
-  CONFIGURE_FILE("${netCDF_SOURCE_DIR}/CTestConfig.cmake.in"
-    "${netCDF_BINARY_DIR}/CTestConfig.cmake"
-    @ONLY
-    )
-
   ###
   # This option dictates whether or not to turn on
   # tests which are known to fail.  This is not the
@@ -1010,10 +1003,7 @@ IF(ENABLE_PARALLEL4 AND ENABLE_NETCDF_4)
     SET(USE_PARALLEL OFF CACHE BOOL "")
     MESSAGE(STATUS "Cannot find HDF5 library built with parallel support. Disabling parallel build.")
   ELSE()
-    IF(MSVC)
-      FIND_PACKAGE(MPI REQUIRED)
-      INCLUDE_DIRECTORIES(${MPI_C_INCLUDE_PATH})
-    ENDIF()
+    FIND_PACKAGE(MPI REQUIRED)
     SET(HDF5_PARALLEL ON CACHE BOOL "")
     SET(USE_PARALLEL ON CACHE BOOL "")
     SET(USE_PARALLEL4 ON CACHE BOOL "")
@@ -2016,6 +2006,7 @@ SET(TOPSRCDIR "${CMAKE_CURRENT_SOURCE_DIR}")
 SET(TOPBUILDDIR "${CMAKE_CURRENT_BINARY_DIR}")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/test_common.in ${CMAKE_CURRENT_BINARY_DIR}/test_common.sh @ONLY NEWLINE_STYLE LF)
 
+
 #####
 # Build nc_test4/findplugin.sh
 #####
@@ -2031,6 +2022,11 @@ ENDIF()
 #####
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/findtestserver.c.in ${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/findtestserver.c @ONLY NEWLINE_STYLE LF)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/findtestserver.c.in ${CMAKE_CURRENT_SOURCE_DIR}/dap4_test/findtestserver4.c @ONLY NEWLINE_STYLE LF)
+
+#####
+# Build dap4_test/pingurl4.c
+#####
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/pingurl.c ${CMAKE_CURRENT_SOURCE_DIR}/dap4_test/pingurl4.c @ONLY NEWLINE_STYLE LF)
 
 ####
 # Export files
