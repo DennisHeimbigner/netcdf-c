@@ -1379,6 +1379,9 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
     /* Indicate that the variable has a pointer to the type */
     var->type_info->rc++;
 
+    /* Transfer endianness */
+    var->endianness = var->type_info->endianness; 
+
 exit:
     if (finalname)
         free(finalname);
