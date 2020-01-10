@@ -95,7 +95,7 @@ nc_initialize()
 #ifdef USE_HDF4
     if((stat = NC_HDF4_initialize())) goto done;
 #endif
-#ifdef ENABLE_ZARR
+#ifdef ENABLE_NCZARR
     if((stat = NCZ_initialize())) goto done;
 #endif
 
@@ -146,7 +146,7 @@ nc_finalize(void)
     if((stat = NC_HDF5_finalize())) return stat;
 #endif
 
-#ifdef ENABLE_ZARR
+#ifdef ENABLE_NCZARR
     if((stat = NCZ_finalize())) return stat;
 #endif
 

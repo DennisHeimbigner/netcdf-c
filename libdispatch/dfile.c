@@ -1886,7 +1886,7 @@ NC_create(const char *path0, int cmode, size_t initialsz,
         dispatcher = UDF1_dispatch_table;
         break;
 #endif /* USE_NETCDF4 */
-#ifdef ENABLE_ZARR
+#ifdef ENABLE_NCZARR
     case NC_FORMATX_ZARR:
         dispatcher = NCZ_dispatch_table;
 	break;
@@ -2029,7 +2029,7 @@ NC_open(const char *path0, int omode, int basepe, size_t *chunksizehintp,
 #ifdef ENABLE_CDF5
 	cdf5built = 1;
 #endif
-#ifdef ENABLE_ZARR
+#ifdef ENABLE_NCZARR
 	zarrbuilt = 1;
 #endif
         if(UDF0_dispatch_table != NULL)

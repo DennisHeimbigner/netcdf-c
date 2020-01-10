@@ -429,24 +429,24 @@ AC_MSG_RESULT([$enable_dap_long_tests])
 AM_CONDITIONAL(INTERNAL_OCLIB,[test "x" = "x"])
 
 # Control zarr storage
-AC_MSG_CHECKING([whether zarr storage should be enabled])
-AC_ARG_ENABLE([zarr],
-              [AS_HELP_STRING([--enable-zarr],
-                              [enable zarr storage support; requires netCDF-4 and libcurl])])
-test "x$enable_zarr" = xyes || enable_zarr=no
-AC_MSG_RESULT($enable_zarr)
+AC_MSG_CHECKING([whether netcdf zarr storage format should be enabled])
+AC_ARG_ENABLE([nczarr],
+              [AS_HELP_STRING([--enable-nczarr],
+                              [enable netcdf zarr storage support; requires netCDF-4 and libcurl])])
+test "x$enable_nczarr" = xyes || enable_nczarr=no
+AC_MSG_RESULT($enable_nczarr)
 if test "x$enable_netcdf_4" = xno ; then
-AC_MSG_ERROR([netCDF-4 disabled => --disable-zarr])
-enable_zarr=no
+AC_MSG_ERROR([netCDF-4 disabled => --disable-nczarr])
+enable_nczarr=no
 fi
 if test "x$havecurloption" = xno ; then
-  AC_MSG_ERROR([zarr support requires libcurl. Install curl or build without --enable-zarr.])
-  enable_zarr=no
+  AC_MSG_ERROR([nczarr support requires libcurl. Install curl or build without --enable-zarr.])
+  enable_nczarr=no
 fi
-if test "x$enable_zarr" = xyes; then
-   AC_DEFINE([ENABLE_ZARR], [1], [if true, build Zarr Client])
+if test "x$enable_nczarr" = xyes; then
+   AC_DEFINE([ENABLE_NCZARR], [1], [if true, build NCZarr Client])
 fi
-AM_CONDITIONAL(ENABLE_ZARR, [test x$enable_zarr = xyes])
+AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
@@ -1306,7 +1306,7 @@ AM_CONDITIONAL(BUILD_DOCS, [test x$enable_doxygen = xyes])
 AM_CONDITIONAL(SHOW_DOXYGEN_TAG_LIST, [test x$enable_doxygen_tasks = xyes])
 AM_CONDITIONAL(ENABLE_METADATA_PERF, [test x$enable_metadata_perf = xyes])
 AM_CONDITIONAL(ENABLE_BYTERANGE, [test "x$enable_byterange" = xyes])
-AM_CONDITIONAL(ENABLE_ZARR, [test "x$enable_zarr" = xyes])
+AM_CONDITIONAL(ENABLE_NCZARR, [test "x$enable_nczarr" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
@@ -1424,7 +1424,7 @@ AC_SUBST(HAS_MMAP,[$enable_mmap])
 AC_SUBST(HAS_JNA,[$enable_jna])
 AC_SUBST(HAS_ERANGE_FILL,[$enable_erange_fill])
 AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
-AC_SUBST(HAS_ZARR,[$enable_zarr])
+AC_SUBST(HAS_NCZARR,[$enable_nczarr])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],
@@ -1493,7 +1493,7 @@ AX_SET_META([NC_HAS_PARALLEL4],[$enable_parallel4],[yes])
 AX_SET_META([NC_HAS_CDF5],[$enable_cdf5],[yes])
 AX_SET_META([NC_HAS_ERANGE_FILL], [$enable_erange_fill],[yes])
 AX_SET_META([NC_HAS_BYTERANGE],[$enable_byterange],[yes])
-AX_SET_META([NC_HAS_ZARR],[$enable_zarr],[yes])
+AX_SET_META([NC_HAS_NCZARR],[$enable_nczarr],[yes])
 AC_SUBST([NC_DISPATCH_VERSION], [1])
 #####
 # End netcdf_meta.h definitions.
@@ -1538,7 +1538,7 @@ AC_CONFIG_FILES([Makefile
                  libdap2/Makefile
                  libdap4/Makefile
                  libhdf4/Makefile
-                 libzarr/Makefile
+                 libnczarr/Makefile
                  libdispatch/Makefile
                  liblib/Makefile
                  ncdump/cdl/Makefile
@@ -1556,7 +1556,7 @@ AC_CONFIG_FILES([Makefile
                  ncdap_test/expectremote3/Makefile
                  dap4_test/Makefile
                  plugins/Makefile
-		 zarr_test/Makefile
+		 nczarr_test/Makefile
                  ])
 AC_OUTPUT()
 

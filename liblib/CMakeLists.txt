@@ -32,8 +32,8 @@ IF(ENABLE_DAP4)
   SET(liblib_LIBS ${liblib_LIBS} dap4)
 ENDIF()
 
-IF(ENABLE_ZARR)
-  SET(liblib_LIBS ${liblib_LIBS} zarr)
+IF(ENABLE_NCZARR)
+  SET(liblib_LIBS ${liblib_LIBS} nczarr)
 ENDIF()
 
 FOREACH(LIBS ${liblib_LIBS})

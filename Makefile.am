@@ -79,9 +79,9 @@ LIBHDF4 = libhdf4
 endif
 
 # Build Cloud Storage if desired.
-if ENABLE_ZARR
-ZARR_TEST_DIR = zarr_test
-ZARR = libzarr
+if ENABLE_NCZARR
+ZARR_TEST_DIR = nczarr_test
+ZARR = libnczarr
 endif
 
 # Optionally build plugins

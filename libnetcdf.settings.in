@@ -40,4 +40,4 @@ JNA Support:		@HAS_JNA@
 CDF5 Support:		@HAS_CDF5@
 ERANGE Fill Support:	@HAS_ERANGE_FILL@
 Relaxed Boundary Check:	yes
-Zarr Support:		@HAS_ZARR@
+NCZarr Support:		@HAS_NCZARR@

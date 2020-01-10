@@ -826,10 +826,10 @@ ELSE()
   SET(ENABLE_DAP4 OFF)
 ENDIF()
 
-# Option to Build Zarr Clients
-OPTION(ENABLE_ZARR "Enable ZARR Client." OFF)
+# Option to Build NCZarr Clients
+OPTION(ENABLE_NCZARR "Enable NCZARR storage format." OFF)
 IF(NOT ENABLE_NETCDF_4)
-  SET(ENABLE_ZARR OFF CACHE BOOL "")
+  SET(ENABLE_NCZARR OFF CACHE BOOL "")
 ENDIF(ENABLE_NETCDF_4)
 
 # Option to support byte-range reading of remote datasets
@@ -840,7 +840,7 @@ IF(NOT CURL_LIBRARY)
     MESSAGE(FATAL_ERROR "Byte-range support specified, CURL libraries are not found.")
   ENDIF()
 
-  IF(ENABLE_DAP2 OR ENABLE_DAP4 OR ENABLE_ZARR)
+  IF(ENABLE_DAP2 OR ENABLE_DAP4 OR ENABLE_NCZARR)
     MESSAGE(FATAL_ERROR "DAP support specified, CURL libraries are not found.")
   ENDIF()
 ENDIF()
@@ -1148,13 +1148,6 @@ ENDIF()
 IF(NOT BUILD_SHARED_LIBS)
   MESSAGE(WARNING "ENABLE_FILTER_TESTING requires shared libraries. Disabling.")
   SET(ENABLE_FILTER_TESTING OFF)
-ENDIF()
-
-# Enable special filter test; experimental when using cmake.
-OPTION(ENABLE_CLOUD "Enable cloud storage support. Ignored if netcdf4 is not enabled" OFF)
-IF(NOT ENABLE_NETCDF4)
-  MESSAGE(WARNING "ENABLE_CLOUD requires netCDF-4 => Disabling Cloud Storage.")
-  SET(ENABLE_CLOUD OFF CACHE BOOL "")
 ENDIF()
 
 # Determine whether or not to generate documentation.
@@ -1595,7 +1588,7 @@ MACRO(print_conf_summary)
   MESSAGE(STATUS "Building DAP2 Support:         ${ENABLE_DAP2}")
   MESSAGE(STATUS "Building DAP4 Support:         ${ENABLE_DAP4}")
   MESSAGE(STATUS "Building Byte-range Support:   ${ENABLE_BYTERANGE}")
-  MESSAGE(STATUS "Building ZARR Support:         ${ENABLE_ZARR}")
+  MESSAGE(STATUS "Building NCZARR Support:       ${ENABLE_NCZARR}")
   MESSAGE(STATUS "Building Utilities:            ${BUILD_UTILITIES}")
   IF(CMAKE_PREFIX_PATH)
     MESSAGE(STATUS "CMake Prefix Path:             ${CMAKE_PREFIX_PATH}")
@@ -1748,8 +1741,8 @@ IF(ENABLE_DAP4)
   ADD_SUBDIRECTORY(libdap4)
 ENDIF()
 
-IF(ENABLE_ZARR)
-add_subdirectory(libzarr)
+IF(ENABLE_NCZARR)
+add_subdirectory(libnczarr)
 ENDIF()
 
 add_subdirectory(liblib)
@@ -1792,8 +1785,8 @@ IF(ENABLE_TESTS)
   IF(ENABLE_DAP4)
     ADD_SUBDIRECTORY(dap4_test)
   ENDIF()
-  IF(ENABLE_ZARR)
-    ADD_SUBDIRECTORY(zarr_test)
+  IF(ENABLE_NCZARR)
+    ADD_SUBDIRECTORY(nczarr_test)
   ENDIF()
   IF(ENABLE_EXAMPLES)
     ADD_SUBDIRECTORY(examples)
@@ -1968,7 +1961,7 @@ is_enabled(JNA HAS_JNA)
 is_enabled(ENABLE_ZERO_LENGTH_COORD_BOUND RELAX_COORD_BOUND)
 is_enabled(USE_CDF5 HAS_CDF5)
 is_enabled(ENABLE_ERANGE_FILL HAS_ERANGE_FILL)
-is_enabled(ENABLE_ZARR HAS_ZARR)
+is_enabled(ENABLE_NCZARR HAS_NCZARR)
 
 # Generate file from template.
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/libnetcdf.settings.in"
