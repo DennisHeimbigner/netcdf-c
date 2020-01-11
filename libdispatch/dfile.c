@@ -1887,7 +1887,7 @@ NC_create(const char *path0, int cmode, size_t initialsz,
         break;
 #endif /* USE_NETCDF4 */
 #ifdef ENABLE_NCZARR
-    case NC_FORMATX_ZARR:
+    case NC_FORMATX_NCZARR:
         dispatcher = NCZ_dispatch_table;
 	break;
 #endif
@@ -2019,7 +2019,7 @@ NC_open(const char *path0, int omode, int basepe, size_t *chunksizehintp,
 	int cdf5built = 0;
 	int udf0built = 0;
 	int udf1built = 0;
-	int zarrbuilt = 0;
+	int nczarrbuilt = 0;
 #ifdef USE_NETCDF4
 	hdf5built = 1;
 #ifdef USE_HDF4
@@ -2030,7 +2030,7 @@ NC_open(const char *path0, int omode, int basepe, size_t *chunksizehintp,
 	cdf5built = 1;
 #endif
 #ifdef ENABLE_NCZARR
-	zarrbuilt = 1;
+	nczarrbuilt = 1;
 #endif
         if(UDF0_dispatch_table != NULL)
 	    udf0built = 1;
@@ -2043,7 +2043,7 @@ NC_open(const char *path0, int omode, int basepe, size_t *chunksizehintp,
   	    {stat = NC_ENOTBUILT; goto done;}
 	if(!cdf5built && model.impl == NC_FORMATX_NC3 && model.format == NC_FORMAT_CDF5)
   	    {stat = NC_ENOTBUILT; goto done;}
-	if(!zarrbuilt && model.impl == NC_FORMATX_ZARR)
+	if(!nczarrbuilt && model.impl == NC_FORMATX_NCZARR)
   	    {stat = NC_ENOTBUILT; goto done;}
 	if(!udf0built && model.impl == NC_FORMATX_UDF0)
   	    {stat = NC_ENOTBUILT; goto done;}
@@ -2063,8 +2063,8 @@ NC_open(const char *path0, int omode, int basepe, size_t *chunksizehintp,
 	    dispatcher = NCD4_dispatch_table;
 	    break;
 #endif
-#ifdef ENABLE_DAP4
-	case NC_FORMATX_ZARR:
+#ifdef ENABLE_NCZARR
+	case NC_FORMATX_NCZARR:
 	    dispatcher = NCZ_dispatch_table;
 	    break;
 #endif

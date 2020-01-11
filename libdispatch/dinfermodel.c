@@ -105,7 +105,7 @@ static struct FORMATMODES {
 {"enhanced",NC_FORMATX_NC4},
 {"udf0",NC_FORMATX_UDF0},
 {"udf1",NC_FORMATX_UDF1},
-{"zarr",NC_FORMATX_ZARR},
+{"nczarr",NC_FORMATX_NCZARR},
 {NULL,0},
 };
 
@@ -128,7 +128,7 @@ static struct Readable {
 {NC_FORMATX_DAP4,0},
 {NC_FORMATX_UDF0,0},
 {NC_FORMATX_UDF1,0},
-{NC_FORMATX_ZARR,0},
+{NC_FORMATX_NCZARR,0}, /* eventually make readable */
 {0,0},
 };
 

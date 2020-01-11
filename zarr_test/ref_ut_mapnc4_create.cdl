@@ -1,5 +1,0 @@
-netcdf testmapnc4 {
-
-group: _nczarr {
-  } // group _nczarr
-}

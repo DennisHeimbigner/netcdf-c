@@ -8,8 +8,8 @@
 # Get AM_CPPFLAGS.
 include $(top_srcdir)/lib_flags.am
 AM_CPPFLAGS += -I$(top_srcdir)/libsrc4
-libzarr_la_CPPFLAGS = ${AM_CPPFLAGS}
-libzarr_la_LIBADD =
+libnczarr_la_CPPFLAGS = ${AM_CPPFLAGS}
+libnczarr_la_LIBADD =
 
 # Remember ENABLE_NCZARR implies USE_NETCDF4
 
@@ -21,10 +21,10 @@ EXTRA_DIST =
 LDADD=
 
 # This is our output. The ZARR convenience library.
-noinst_LTLIBRARIES = libzarr.la
+noinst_LTLIBRARIES = libnczarr.la
 
 # The source files.
-libzarr_la_SOURCES = \
+libnczarr_la_SOURCES = \
 zattr.c \
 zcache.c \
 zcreate.c \

@@ -13,7 +13,7 @@ include $(top_srcdir)/lib_flags.am
 #LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #TESTS_ENVIRONMENT = export SETX=1;
 
-AM_CPPFLAGS += -I${top_builddir}/libzarr
+AM_CPPFLAGS += -I${top_builddir}/libnczarr
 AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
 LDADD = ${top_builddir}/liblib/libnetcdf.la
 
