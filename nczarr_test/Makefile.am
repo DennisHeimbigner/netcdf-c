@@ -38,7 +38,7 @@ EXTRA_DIST = run_unittests.sh run_tests.sh \
 	ref_ut_mapnc4_create.cdl ref_ut_mapnc4_meta.cdl \
 	ref_ut_mapnc4_wmeta.cdl ref_ut_mapnc4_wmeta2.cdl \
 	ref_ut_mapnc4_write.cdl ref_ut_mapnc4_rmeta.txt \
-	ref_ut_mapnc4_search.txt ref_ut_mapnc4_proj1.txt \
+	ref_ut_mapnc4_search.txt ref_ut_proj1.txt \
 	ref_ut_json_build.txt ref_ut_json_parse.txt
 
 CLEANFILES = *.exe
