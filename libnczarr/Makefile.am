@@ -55,11 +55,8 @@ zdebug.c
 HDRS= \
 zdispatch.h \
 zinternal.h \
-nczdispatch.h \
-ncz.h \
 zchunking.h \
 zjson.h \
-ztypes.h \
 zincludes.h \
 zmap.h \
 zprovenance.h \
