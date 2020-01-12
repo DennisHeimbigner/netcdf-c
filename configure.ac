@@ -435,9 +435,11 @@ AC_ARG_ENABLE([nczarr],
                               [enable netcdf zarr storage support; requires netCDF-4 and libcurl])])
 test "x$enable_nczarr" = xyes || enable_nczarr=no
 AC_MSG_RESULT($enable_nczarr)
+if test "x$enable_nczarr" = xyes ; then
 if test "x$enable_netcdf_4" = xno ; then
-AC_MSG_ERROR([netCDF-4 disabled => --disable-nczarr])
+AC_MSG_ERROR([netCDF-4 disabled, so you must not enable nczarr])
 enable_nczarr=no
+fi
 fi
 if test "x$havecurloption" = xno ; then
   AC_MSG_ERROR([nczarr support requires libcurl. Install curl or build without --enable-zarr.])
