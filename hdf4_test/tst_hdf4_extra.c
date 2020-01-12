@@ -117,7 +117,7 @@ main(int argc, char **argv)
 //      if (nc_open(FILE_NAME, NC_MMAP, &ncid) != NC_EINVAL) ERR;
 {int r;
 r=nc_open(FILE_NAME, NC_64BIT_OFFSET, &ncid);
-printf("%d\n",r);
+fprintf(stderr,"XXX=%d\n",r);
 }
       if (nc_open(FILE_NAME, NC_64BIT_OFFSET, &ncid) != NC_EINVAL) ERR;
       if (nc_open(FILE_NAME, NC_DISKLESS, &ncid) != NC_EINVAL) ERR;
