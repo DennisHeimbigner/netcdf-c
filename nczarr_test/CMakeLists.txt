@@ -34,7 +34,7 @@ IF(ENABLE_TESTS)
 
   IF(BUILD_UTILITIES)
     add_sh_test(nczarr_test run_unittests)
-    add_sh_test(nczarr_test run_tests)
+    add_sh_test(nczarr_test run_meta_tests)
   ENDIF(BUILD_UTILITIES)
 
 ENDIF(ENABLE_TESTS)

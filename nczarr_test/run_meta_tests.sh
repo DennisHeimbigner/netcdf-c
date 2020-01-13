@@ -5,6 +5,9 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
+NCZDUMP=../ncdump/ncdump
+NCZGEN=../ncgen/ncgen
+
 echo ""
 echo "*** Integration Testing: Demo use of ncdump and ncgen"
 
@@ -37,7 +40,10 @@ ${NCDUMP} ./testmeta.ncz >./t_meta_var1.cdl
 cleanncprops t_meta_var1.cdl tmp_meta_var1.cdl
 diff -wb ${srcdir}/ref_t_meta_var1.cdl ./tmp_meta_var1.cdl
 rm -f tmp_meta_var1.cdl
-# Use ncgen to create an ncz file
-${NCGEN} 
 
-done
+# Use zarr enabled ncgen to create an ncz file
+${NCZGEN} -4 -o '[mode=nczarr]file://t_ncgen.ncz' ${srcdir}/ref_t_ncgen.cdl
+# Use zarr enabled ncdump
+${NCZDUMP} -n t_ncgen '[mode=nczarr]file://t_ncgen.ncz' > t_ncgen.cdl
+# compare
+diff -wb ${srcdir}/ref_t_ncgen.cdl ./t_ncgen.cdl

@@ -29,17 +29,18 @@ TESTS += run_unittests.sh
 
 # Integration Tests
 check_PROGRAMS += t_meta
-TESTS += run_tests.sh
+TESTS += run_meta_tests.sh
 
 noinst_PROGRAMS = z4dump
 z4dump_SOURCES = z4dump.c
 
-EXTRA_DIST = run_unittests.sh run_tests.sh \
+EXTRA_DIST = run_unittests.sh run_meta_tests.sh \
 	ref_ut_mapnc4_create.cdl ref_ut_mapnc4_meta.cdl \
 	ref_ut_mapnc4_wmeta.cdl ref_ut_mapnc4_wmeta2.cdl \
 	ref_ut_mapnc4_write.cdl ref_ut_mapnc4_rmeta.txt \
 	ref_ut_mapnc4_search.txt ref_ut_proj1.txt \
-	ref_ut_json_build.txt ref_ut_json_parse.txt
+	ref_ut_json_build.txt ref_ut_json_parse.txt \
+	ref_t_ncgen.cdl
 
 CLEANFILES = *.exe
 CLEANFILES += testnc4.nc
@@ -48,6 +49,7 @@ CLEANFILES += ut_mapnc4_create.cdl ut_mapnc4_meta.cdl \
 	ut_mapnc4_write.cdl ut_mapnc4_rmeta.txt \
 	ut_mapnc4_search.txt ut_proj1.txt \
 	ut_json_build.txt ut_json_parse.txt
+CLEANFILES += t_ncgen.cdl
 
 # This should only be left behind if using parallel io
 CLEANFILES += tmp_*
