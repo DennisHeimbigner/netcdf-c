@@ -91,7 +91,7 @@ NC4_provenance_init(void)
 
 #ifdef NCPROPERTIES_EXTRA
     {
-    char* p =NUll;
+    char* p =NULL;
     /* Add any extra fields */
     p = NCPROPERTIES_EXTRA;
     if(p[0] == NCPROPSSEP2) p++; /* If leading separator */
