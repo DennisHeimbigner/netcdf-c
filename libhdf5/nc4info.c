@@ -56,7 +56,6 @@ NC4_provenance_init(void)
     unsigned major,minor,release;
     NCbytes* buffer = NULL; /* for constructing the global _NCProperties */
     char printbuf[1024];
-    const char* p = NULL;
 
     if(globalpropinitialized)
         return stat;

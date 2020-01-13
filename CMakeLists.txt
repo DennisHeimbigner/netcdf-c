@@ -830,7 +830,7 @@ ENDIF()
 OPTION(ENABLE_NCZARR "Enable NCZARR storage format." OFF)
 IF(NOT ENABLE_NETCDF_4)
   SET(ENABLE_NCZARR OFF CACHE BOOL "")
-ENDIF(ENABLE_NETCDF_4)
+ENDIF(NOT ENABLE_NETCDF_4)
 
 # Option to support byte-range reading of remote datasets
 OPTION(ENABLE_BYTERANGE "Enable byte-range access to remote datasets.." OFF)

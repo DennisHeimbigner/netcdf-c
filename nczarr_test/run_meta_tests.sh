@@ -44,6 +44,6 @@ rm -f tmp_meta_var1.cdl
 # Use zarr enabled ncgen to create an ncz file
 ${NCZGEN} -4 -o '[mode=nczarr]file://t_ncgen.ncz' ${srcdir}/ref_t_ncgen.cdl
 # Use zarr enabled ncdump
-${NCZDUMP} -n t_ncgen '[mode=nczarr]file://t_ncgen.ncz' > t_ncgen.cdl
+${NCZDUMP} -h -n t_ncgen '[mode=nczarr]file://t_ncgen.ncz' > t_ncgen.cdl
 # compare
 diff -wb ${srcdir}/ref_t_ncgen.cdl ./t_ncgen.cdl

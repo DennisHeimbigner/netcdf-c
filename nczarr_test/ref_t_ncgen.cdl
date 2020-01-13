@@ -3,7 +3,4 @@ dimensions:
 	dim1 = 1 ;
 variables:
 	int var1 ;
-data:
-
- var1 = 0 ;
 }
