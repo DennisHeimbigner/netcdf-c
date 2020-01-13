@@ -90,11 +90,14 @@ NC4_provenance_init(void)
     ncbytescat(buffer,printbuf);
 
 #ifdef NCPROPERTIES_EXTRA
+    {
+    char* p =NUll;
     /* Add any extra fields */
     p = NCPROPERTIES_EXTRA;
     if(p[0] == NCPROPSSEP2) p++; /* If leading separator */
     ncbytesappend(buffer,NCPROPSSEP2);
     ncbytescat(buffer,p);
+    }
 #endif
     ncbytesnull(buffer);
     globalprovenance.ncproperties = ncbytesextract(buffer);
