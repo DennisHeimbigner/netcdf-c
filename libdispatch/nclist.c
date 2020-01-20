@@ -6,6 +6,10 @@
 
 #include "nclist.h"
 
+#ifdef _WIN32
+#define strcasecmp _stricmp
+#endif
+
 int nclistnull(void* e) {return e == NULL;}
 
 #ifndef TRUE
