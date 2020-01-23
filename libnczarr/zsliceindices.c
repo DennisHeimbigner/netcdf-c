@@ -22,6 +22,22 @@ ncz_compute_all_slice_projections(
 	const size_t* chunklen, /* the chunk length corresponding to the dimensions */
         NCZSliceIndex** results)
 {
+}
+
+
+/* Goal:create a vector of SliceIndex instances: one for each
+    slice in the top-level input. For each slice, compute a set
+    of projections from it wrt a dimension and a chunk size
+    associated with that dimension.
+*/
+int
+ncz_compute_all_slice_projections(
+	size_t R, /* variable rank */
+        const NCZSlice* slices, /* the complete set of slices |slices| == R*/
+	const size_t* dimlen, /* the dimension lengths associated with a variable */
+	const size_t* chunklen, /* the chunk length corresponding to the dimensions */
+        NCZSliceIndex** results)
+{
     int stat = NC_NOERR;
     size_t r;
     NCZSliceIndex* sliceindices = NULL;

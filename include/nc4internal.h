@@ -275,9 +275,7 @@ typedef struct NC_GRP_INFO
     NCindex* att;                /**< NCindex<NC_ATT_INFO_T> * */
     NCindex* type;               /**< NCindex<NC_TYPE_INFO_T> * */
     /* Note that this is the list of vars with position == varid */
-    NCindex* vars;               /* NCindex<NC_VAR_INFO_T> * */
-    /* Track the endianness of the variable */
-    int endianness;              /* What endianness for the type? */
+    NCindex* vars;               /*< NCindex<NC_VAR_INFO_T> * */
 } NC_GRP_INFO_T;
 
 /* These constants apply to the cmode parameter in the

@@ -41,13 +41,13 @@ can be evaluated to provide the output data.
 @param file Controlling file
 @param var Controlling variable
 @param slices Slices being applied to variable
-@param output
+@param memory
 @param typesize Size of type being written
 */
 
 int
 ncz_evaluateslices(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
-		  NCZSlice* slices, void* output, size_t typesize)
+		  NCZSlice* slices, void* memory, size_t typesize)
 {
     int stat = NC_NOERR;
     int i;
@@ -70,7 +70,7 @@ ncz_evaluateslices(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
 	common.dimlen[i] = var->dim[i]->len;
 	common.chunklen[i] = var->chunksizes[i];
     }
-    common.output = output;
+    common.memory = memory;
     common.typesize = typesize;
     /* Fill in shape below */
     if((common.shape = calloc(var->ndims,sizeof(size_t))) == NULL)
