@@ -73,11 +73,11 @@ typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP} NC_SORT;
 #define X_INT64_MIN     (-9223372036854775807LL-1LL)  /**< Minimum int64 value. */
 #define X_INT64_MAX     9223372036854775807LL /**< Maximum int64 value. */
 #define X_UINT64_MAX    18446744073709551615ULL /**< Maximum unsigned int64 value. */
-#ifdef WIN32 /* Windows, of course, has to be a *little* different. */
+#ifdef _WIN32 /* Windows, of course, has to be a *little* different. */
 #define X_FLOAT_MAX     3.402823466e+38f
 #else
 #define X_FLOAT_MAX     3.40282347e+38f /**< Maximum float value. */
-#endif /* WIN32 */
+#endif /* _WIN32 */
 #define X_FLOAT_MIN     (-X_FLOAT_MAX)  /**< Minimum float value. */
 #define X_DOUBLE_MAX    1.7976931348623157e+308 /**< Maximum double value. */
 #define X_DOUBLE_MIN    (-X_DOUBLE_MAX)         /**< Minimum double value. */
@@ -202,10 +202,13 @@ typedef struct NC_VAR_INFO
     nc_bool_t dimscale;          /**< True if var is a dimscale */
     nc_bool_t *dimscale_attached;  /**< Array of flags that are true if dimscale is attached for that dim index */
     nc_bool_t deflate;           /**< True if var has deflate filter applied */
-    int deflate_level;
-    nc_bool_t shuffle;           /* True if var has shuffle filter applied */
-    nc_bool_t fletcher32;        /* True if var has fletcher32 filter applied */
+    int deflate_level;           /**< If deflate is true, this is the deflate level, between 0 and 9. */
+    nc_bool_t shuffle;           /**< True if var has shuffle filter applied */
+    nc_bool_t fletcher32;        /**< True if var has fletcher32 filter applied */
     int endianness;              /* What endianness for the var? */
+    nc_bool_t szip;              /**< True if szip filter is in use. */
+    int options_mask;            /**< Setting for szip filter, NC_SZIP_EC or NC_SZIP_NN. */
+    int pixels_per_block;        /**< Setting for szip filter, even and <= 32. */
     size_t chunk_cache_size, chunk_cache_nelems;
     float chunk_cache_preemption;
     void *format_var_info;       /**< Pointer to any binary format info. */
@@ -275,7 +278,7 @@ typedef struct NC_GRP_INFO
     NCindex* att;                /**< NCindex<NC_ATT_INFO_T> * */
     NCindex* type;               /**< NCindex<NC_TYPE_INFO_T> * */
     /* Note that this is the list of vars with position == varid */
-    NCindex* vars;               /*< NCindex<NC_VAR_INFO_T> * */
+    NCindex* vars;               /**< NCindex<NC_VAR_INFO_T> * */
 } NC_GRP_INFO_T;
 
 /* These constants apply to the cmode parameter in the
