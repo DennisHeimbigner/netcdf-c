@@ -6,12 +6,13 @@
 #ifndef ZCHUNKING_H
 #define ZCHUNKING_H
 
-/* Define the position of a chunk WRT a dimension
-   in terms of absolute position */
-typedef struct NCZChunkOffset {
-    size64_t start;
+/* Define the intersecting set of chunks for a slice
+   in terms of chunk indices (not absolute positions)
+*/
+typedef struct NCZChunkRange {
+    size64_t start; /* index, not absolute */
     size64_t stop;
-} NCZChunkPos;
+} NCZChunkRange;
 
 /* Complete Chunk position as cross product of the per-dimension positions */
 typedef struct NCZChunkPos {
@@ -22,7 +23,7 @@ typedef struct NCZChunkPos {
 /* A per-dimension slice for the incoming hyperslab */
 typedef struct NCZSlice {
     size64_t start;
-    size64_t stop;
+    size64_t stop; /* start + (count*stride) */
     size64_t stride;
 } NCZSlice;
 
@@ -32,15 +33,26 @@ typedef struct NCZChunkPos {
     NCZSlice slices[NC_MAX_VAR_DIM];
 } NCZChunkPos;
 
+/* Positions here are all absolute */
 typedef struct NCProjection {
-    size64_t start;  /* first position to be touched in the chunk */
+    size64_t chunkindex; /* which chunk are we projecting
+    size64_t start;  /* first position to be touched in this chunk */
     size64_t last;   /* position of last value touched */
-    size64_t limit;  /* last accessible position in the chunk aka stop*/
     size64_t len;    /* Not last place touched, but the offset of last place
                         that could be touched aka limit*/
     size64_t iopos;  /* start point in the data memory to access the data */
     NCZSlice slice; /* slice relative to this chunk */
 } NCZProjection;
+
+/* Set of Projections for a slice */
+typedef struct NCZSliceProjections {
+    size64_t chunkindex0; /* First chunk for slice */
+    size64_t offset; /* first position to be touched in chunk0 */
+    NClist* projections; /* List<NCZProjection*> Vector of projections
+                                derived from the original slice when
+				intersected across the chunk
+                             */
+} NCZSliceProjections;
 
 /* Track the set of chunks touched by the current hyperslab */
 /* This will be iterated over to construct a set of proections
@@ -51,19 +63,8 @@ typedef struct NCZChunkSeq {
     NCZChunkpos* chunks; /* Chunks touched by this hyperslab */
 } struct NCZChunkSeq;
 
-/* Set of Projections of each slice for a given Chunk */
-typedef struct NCZProjectionSet {
-    size64_t chunkindex; /* Which chunk is this for? */
-    NCZProjection* projections; /* Vector of projections
-                                derived from the original slice when
-				intersected across the chunk
-                                |projections| == R
-                             */
-    size64_t count;   /*total number of io items defined by this slice index */
-} NCZProjectionSet;
-
 typedef struct NCZOdometer {
-  size64_t R; // rank
+  size64_t rank; // rank
   size64_t start[NC_MAX_VAR_DIMS];
   size64_t stop[NC_MAX_VAR_DIMS];
   size64_t stride[NC_MAX_VAR_DIMS];
