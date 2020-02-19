@@ -914,21 +914,28 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
      * has specified a filter, it will be applied here. */
     if (var->deflate)
     {
-        /* Turn on zlib compression. */
-       if (H5Pset_deflate(plistid, var->deflate_level) < 0)
-           BAIL(NC_EHDFERR);
-    }
-    else if (var->szip)
-    {
-        /* Turn on szip compression. */
-        if (H5Pset_szip(plistid, var->options_mask, var->pixels_per_block) < 0)
-            BAIL(NC_EFILTER);
+        /* Turn on zlip compression. */
+        if (H5Pset_deflate(plistid, var->deflate_level) < 0)
+            BAIL(NC_EHDFERR);
     }
     else if(var->filterid)
     {
-        herr_t code = H5Pset_filter(plistid, var->filterid, H5Z_FLAG_MANDATORY, var->nparams, var->params);
-        if(code < 0)
-            BAIL(NC_EFILTER);
+        /* Since szip is a built-in filter for HDF5, it is activated
+         * with a special function. */
+        if (var->filterid == H5Z_FILTER_SZIP)
+        {
+            if (var->nparams != 2)
+                BAIL(NC_EFILTER);
+            if (H5Pset_szip(plistid, (int)var->params[0], (int)var->params[1]) < 0)
+                BAIL(NC_EFILTER);
+        }
+        else
+        {
+            /* There is a filter that is not szip. Apply it. */
+            if (H5Pset_filter(plistid, var->filterid, H5Z_FLAG_MANDATORY, var->nparams,
+                              var->params) < 0)
+                BAIL(NC_EFILTER);
+        }
     }
 
     /* If the user wants to fletcher error correction, set that up now. */
@@ -955,7 +962,7 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
         /* If there are no unlimited dims, and no filters, and the user
          * has not specified chunksizes, use contiguous variable for
          * better performance. */
-        if (!var->shuffle && !var->deflate && !var->szip && !var->fletcher32 &&
+        if (!var->shuffle && !var->deflate && !var->filterid && !var->fletcher32 &&
             (var->chunksizes == NULL || !var->chunksizes[0]) && !unlimdim)
             var->contiguous = NC_TRUE;
 

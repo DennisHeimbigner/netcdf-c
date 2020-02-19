@@ -7,12 +7,16 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.7.4 - TBD
 
+* [Enhancement] Now nc_inq_var_szip retuns 0 for parameter values if szip is not in use for var. See [https://github.com/Unidata/netcdf-c/issues/1618].
+* [Enhancement] Now allow parallel I/O with filters, for HDF5-1.10.3 and later. See [https://github.com/Unidata/netcdf-c/issues/1473].
 * [Enhancement] Increased default size of cache buffer to 16 MB, from 4 MB. Increased number of slots to 4133. See [https://github.com/Unidata/netcdf-c/issues/1541].
--* [Enhancement] Allow zlib compression to be used with parallel I/O writes, if HDF5 version is 1.10.3 or greater. See [https://github.com/Unidata/netcdf-c/issues/1580].
--* [Enhancement] Restore use of szip compression when writing data (including writing in parallel if HDF5 version is 1.10.3 or greater). See [https://github.com/Unidata/netcdf-c/issues/1546].
+* [Enhancement] Allow zlib compression to be used with parallel I/O writes, if HDF5 version is 1.10.3 or greater. See [https://github.com/Unidata/netcdf-c/issues/1580].
+* [Enhancement] Restore use of szip compression when writing data (including writing in parallel if HDF5 version is 1.10.3 or greater). See [https://github.com/Unidata/netcdf-c/issues/1546].
 * [Enhancement] Enable use of compact storage option for small vars in netCDF/HDF5 files. See [https://github.com/Unidata/netcdf-c/issues/1570].
 * [Enhancement] Updated benchmarking program bm_file.c to better handle very large files. See [https://github.com/Unidata/netcdf-c/issues/1555].
- 
+* [Bug Fix] Fixed problem of growing memory when netCDF-4 files were opened and closed. See [https://github.com/Unidata/netcdf-c/issues/1575 and https://github.com/Unidata/netcdf-c/issues/1571].
+* [Enhancement] Increased size of maximum allowed name in HDF4 files to NC_MAX_NAME. See [https://github.com/Unidata/netcdf-c/issues/1631].
+
 ## 4.7.3 - November 20, 2019
 
 * [Bug Fix]Fixed an issue where installs from tarballs will not properly compile in parallel environments.

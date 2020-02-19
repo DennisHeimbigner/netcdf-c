@@ -20,6 +20,9 @@
 #define NC_SZIP_NN 32 /**< Selects nearest neighbor coding method for szip. */
 #endif
 
+#define NC_SZIP_EC 4  /**< Selects entropy coding method for szip. */
+#define NC_SZIP_NN 32 /**< Selects nearest neighbor coding method for szip. */
+
 /* Define the known filter formats */
 #define NC_FILTER_FORMAT_HDF5 1 /* Use the H5Z_class2_t format */
 

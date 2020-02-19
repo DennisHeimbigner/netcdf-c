@@ -28,8 +28,9 @@
 /** Number of parameters needed when turning on szip filter. */
 #define NUM_SZIP_PARAM 2
 
-/** The HDF5 ID for the szip filter. */
-#define HDF5_FILTER_SZIP 4
+/** The maximum allowed setting for pixels_per_block when calling
+ * nc_def_var_szip(). */
+#define NC_MAX_PIXELS_PER_BLOCK 32
 
 #ifdef LOGGING
 /**
@@ -55,7 +56,7 @@ reportchunking(const char *title, NC_VAR_INFO_T *var)
         char digits[64];
         if(i > 0) strlcat(buf,",",sizeof(buf));
         snprintf(digits,sizeof(digits),"%ld",(unsigned long)var->chunksizes[i]);
-	strlcat(buf,digits,sizeof(buf));
+        strlcat(buf,digits,sizeof(buf));
     }
     LOG((3,"%s",buf));
 }
@@ -650,6 +651,7 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
     NC_GRP_INFO_T *grp;
     NC_FILE_INFO_T *h5;
     NC_VAR_INFO_T *var;
+    int option_mask;
     int d;
     int retval;
 
@@ -673,8 +675,9 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
         return NC_ENOTVAR;
     assert(var && var->hdr.id == varid);
 
+
     /* Can't turn on parallel and deflate/fletcher32/szip/shuffle
-     * before HDF5 1.10.2. */
+     * before HDF5 1.10.3. */
 #ifndef HDF5_SUPPORTS_PAR_FILTERS
     if (h5->parallel == NC_TRUE)
         if (deflate || fletcher32 || shuffle)
@@ -702,6 +705,12 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
         if (!var->ndims)
             return NC_NOERR;
 
+        /* If szip is in use, return an error. */
+        if ((retval = nc_inq_var_szip(ncid, varid, &option_mask, NULL)))
+            return retval;
+        if (option_mask)
+            return NC_EINVAL;
+
         /* Set the deflate settings. */
         var->contiguous = NC_FALSE;
         var->deflate = *deflate;
@@ -725,10 +734,10 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
     }
 
 #ifdef USE_PARALLEL
-        /* If deflate, shuffle, or fletcher32 was turned on with
-         * parallel I/O writes, then switch to collective access. HDF5
-         * requires collevtive access for filter use with parallel
-         * I/O. */
+    /* If deflate, shuffle, or fletcher32 was turned on with
+     * parallel I/O writes, then switch to collective access. HDF5
+     * requires collevtive access for filter use with parallel
+     * I/O. */
     if (deflate || shuffle || fletcher32)
     {
         if (h5->parallel && (var->deflate || var->shuffle || var->fletcher32))
@@ -886,7 +895,6 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
 }
 
 /**
- /**
  * @internal Set zlib compression settings on a variable. This is
  * called by nc_def_var_deflate().
  *
@@ -1190,7 +1198,7 @@ NC4_def_var_endian(int ncid, int varid, int endianness)
  * @returns ::NC_ELATEDEF Too late to change settings for this variable.
  * @returns ::NC_EFILTER Filter error.
  * @returns ::NC_EINVAL Invalid input
- * @author Dennis Heimbigner
+ * @author Dennis Heimbigner, Ed Hartnett
  */
 int
 NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
@@ -1221,19 +1229,38 @@ NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
     if (var->created)
         return NC_ELATEDEF;
 
-    /* Can't turn on parallel and filter (for now). */
+    /* Can't turn on parallel and szip before HDF5 1.10.3. */
+#ifdef USE_PARALLEL
+#ifndef HDF5_SUPPORTS_PAR_FILTERS
     if (h5->parallel == NC_TRUE)
         return NC_EINVAL;
+#endif /* HDF5_SUPPORTS_PAR_FILTERS */
+
+    /* Switch to collective access. HDF5 requires collevtive access
+     * for filter use with parallel I/O. */
+    if (h5->parallel)
+        var->parallel_access = NC_COLLECTIVE;
+#endif /* USE_PARALLEL */
 
 #ifdef HAVE_H5Z_SZIP
-    if(id == H5Z_FILTER_SZIP) {
-        if(nparams != 2)
+    /* We have special handling for the szip filter. */
+    if (id == H5Z_FILTER_SZIP)
+    {
+        if (nparams != 2)
             return NC_EFILTER; /* incorrect no. of parameters */
+
+        /* If zlib compression is already applied, return error. */
+        if (var->deflate)
+            return NC_EINVAL;
+
+        /* Pixels per block must be an even number, < 32. */
+        if (parms[1] % 2 || parms[1] > NC_MAX_PIXELS_PER_BLOCK)
+            return NC_EINVAL;
     }
 #else /*!HAVE_H5Z_SZIP*/
-    if(id == H5Z_FILTER_SZIP)
-        return NC_EFILTER; /* Not allowed */
-#endif
+    if (id == H5Z_FILTER_SZIP)
+        return NC_EFILTER; /* HDF5 was not built with szip. */
+#endif /*!HAVE_H5Z_SZIP*/
 
 #if 0
     {
@@ -1247,6 +1274,37 @@ NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
     }
 #endif /*0*/
 
+    /* Filters can only be applied to chunked datasets in HDF5. */
+    var->contiguous = NC_FALSE;
+
+    /* Determine default chunksizes for this variable unless already specified */
+    if(var->chunksizes && !var->chunksizes[0]) {
+        if((retval = nc4_find_default_chunksizes2(grp, var)))
+            return retval;
+        /* Adjust the cache. */
+        if ((retval = nc4_adjust_var_cache(grp, var)))
+            return retval;
+    }
+
+#ifdef HAVE_H5Z_SZIP
+    /* For szip, the pixels_per_block parameter must not be greater
+     * than the number of elements in a chunk of data. */
+    if (id == H5Z_FILTER_SZIP)
+    {
+        size_t num_elem = 1;
+        int d;
+
+        for (d = 0; d < var->ndims; d++)
+            num_elem *= var->dim[d]->len;
+
+        /* Pixels per block must be <= number of elements. */
+        if (parms[1] > num_elem)
+            return NC_EINVAL;
+    }
+#endif /*!HAVE_H5Z_SZIP*/
+
+    /* Remember the filter info for later. It will be applied when the
+     * dataset for this variable is created. */
     var->filterid = id;
     var->nparams = nparams;
     var->params = NULL;
@@ -1255,16 +1313,7 @@ NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
         if(var->params == NULL) return NC_ENOMEM;
         memcpy(var->params,parms,sizeof(unsigned int)*var->nparams);
     }
-    /* Filter => chunking */
-    var->contiguous = NC_FALSE;
-    /* Determine default chunksizes for this variable unless already specified */
-    if(var->chunksizes && !var->chunksizes[0]) {
-        if((retval = nc4_find_default_chunksizes2(grp, var)))
-	    return retval;
-        /* Adjust the cache. */
-        if ((retval = nc4_adjust_var_cache(grp, var)))
-            return retval;
-    }
+
 
     return NC_NOERR;
 }
