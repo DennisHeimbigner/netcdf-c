@@ -32,7 +32,7 @@ main(int argc, char** argv)
     if((stat = NCZ_compute_chunk_ranges(test.rank,test.slices,test.chunklen,ncrv)))
 	goto done;
 
-    printf("ChunkRanges(%d):\n",test.rank);
+    printf("ChunkRanges(%u):\n",(unsigned)test.rank);
     for(r=0;r<test.rank;r++) {
         printf("[%d] %s\n",r,nczprint_chunkrange(ncrv[r]));
     }
