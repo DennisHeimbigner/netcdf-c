@@ -6,7 +6,7 @@
 #include "zprojtest.h"
 
 /**
-Test computation of applying a slice to a sequence of chunks
+Test computation of applying slices to chunk ranges
 */
 
 int
@@ -25,18 +25,15 @@ main(int argc, char** argv)
 
     if((stat = ut_proj_init(argc, argv, &test))) goto done;
     
-    assert(test.rank == 1);
-
     if((stat = NCZ_compute_chunk_ranges(test.rank,test.slices,test.chunklen,ncrv)))
 	goto done;
 
-    printf("ChunkRanges(%d):\n",test.rank);
+    printf("ChunkRanges(%u):\n",(unsigned)test.rank);
     for(r=0;r<test.rank;r++) {
         printf("[%d] %s\n",r,nczprint_chunkrange(ncrv[r]));
     }
 
     for(r=0;r<test.rank;r++) {
-
 	NCZChunkRange* ncr = &ncrv[r];
         listv[r] = nclistnew();
         for(i=ncr->start;i<ncr->stop;i++) {
@@ -50,8 +47,8 @@ main(int argc, char** argv)
     for(r=0;r<test.rank;r++) {
 	NCZChunkRange* ncr = &ncrv[r];
         NClist* listr = listv[r];
-        printf("|listv[%d]: %lu\n",r,(unsigned long)nclistlength(listv[r]));
-        printf("%s %s\n",nczprint_chunkrange(ncr[r]), nczprint_slice(test.slices[r]));
+        printf("|listv[%d]|: %lu\n",r,(unsigned long)nclistlength(listv[r]));
+        printf("%s %s\n",nczprint_chunkrange(*ncr), nczprint_slice(test.slices[r]));
         for(i=0;i<nclistlength(listr);i++) {
             NCZProjection* proj = (NCZProjection*)nclistget(listr,i);
             printf("[%d] %s\n",i,nczprint_projection(*proj));
