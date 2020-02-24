@@ -36,8 +36,14 @@ ncz_close_file(NC_FILE_INFO_T* file, int abort)
 	goto done;
 
     zinfo = file->format_file_info;
+
     if((stat = nczmap_close(zinfo->map,(abort && zinfo->created)?1:0)))
 	goto done;
+    nclistfreeall(zinfo->controls);
+    NCZ_free_chunk_cache(zinfo->cache);
+    NC_authclear(zinfo->auth);
+    nullfree(zinfo->auth);
+    nullfree(zinfo);
 
 done:
     return stat;

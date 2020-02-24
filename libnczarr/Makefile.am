@@ -5,7 +5,7 @@
 
 # Dennis Heimbigner
 
-# Get AM_CPPFLAGS.
+# Get AM_CPPFLAGS and AM_LDFLAGS
 include $(top_srcdir)/lib_flags.am
 AM_CPPFLAGS += -I$(top_srcdir)/libsrc4
 libnczarr_la_CPPFLAGS = ${AM_CPPFLAGS}
@@ -38,13 +38,12 @@ zprov.c \
 zvar.c \
 ztype.c \
 zodom.c \
-zsliceindices.c \
+zchunking.c \
  \
 zarr.c \
 zcvt.c \
 zsync.c \
 zallchunks.c \
-zchunkio.c \
 zclose.c \
 zjson.c \
 zutil.c \
@@ -68,8 +67,18 @@ IGNORED=ztype.c
 # Package this for cmake build.
 EXTRA_DIST += CMakeLists.txt
 
+##################################################
+# Temporary unit tests
 
+LDADD += ${top_builddir}/liblib/libnetcdf.la
 
+check_PROGRAMS =
+TESTS =
 
+# Unit Tests
+ut_range_SOURCES = ut_range.c ut_util.c ../nczarr_test/ztest_util.c
+check_PROGRAMS += ut_range
+
+TESTS += ut.sh
 
 

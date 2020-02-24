@@ -3,7 +3,7 @@
  * conditions. */
 
 /**
- * @file @internal The netCDF-4 functions which control NCZ
+ * @file @internal The functions which control NCZ
  * caching. These caching controls allow the user to change the cache
  * sizes of ZARR before opening files.
  *
@@ -11,109 +11,310 @@
  */
 
 #include "zincludes.h"
+#include "zcache.h"
 
-/* These are the default chunk cache sizes for ZARR files created or
- * opened with netCDF-4. */
-size_t ncz_chunk_cache_size = 0;
-size_t ncz_chunk_cache_nelems = 0;
-float ncz_chunk_cache_preemption = 0;
+#define VERIFY 1
+#define FLUSH 1
+
+/* Forward */
+static int buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp);
+static int get_chunk(const NC_FILE_INFO_T* file, const char* chunkkey, size64_t datalen, void* data);
+static int put_chunk(const NC_FILE_INFO_T* file, const char* chunkkey, size64_t datalen, const void* data);
 
 /**
- * Set chunk cache size. Only affects files opened/created *after* it
- * is called.
+ * Create a chunk cache object
  *
  * @param size Size in bytes to set cache.
  * @param nelems Number of elements to hold in cache.
- * @param preemption Premption stragety (between 0 and 1).
+ * @param preemption Premption strategy (between 0 and 1).
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EINVAL Bad preemption.
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-NCZ_set_chunk_cache(size_t size, size_t nelems, float preemption)
+NCZ_create_chunk_cache(NC_FILE_INFO_T* file, size_t maxsize, NCZChunkCache** cachep)
 {
-    if (preemption < 0 || preemption > 1)
-        return NC_EINVAL;
-    ncz_chunk_cache_size = size;
-    ncz_chunk_cache_nelems = nelems;
-    ncz_chunk_cache_preemption = preemption;
-    return NC_NOERR;
+    int stat = NC_NOERR;
+    NCZChunkCache* cache = NULL;
+
+    if((cache = calloc(1,sizeof(NCZChunkCache))) == NULL)
+	{stat = NC_ENOMEM; goto done;}
+    cache->file = file;
+    cache->maxsize = maxsize;
+    if((cache->entries = NC_hashmapnew(0)) == NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if(cachep) {*cachep = cache; cache = NULL;}
+done:
+    nullfree(cache);
+    return stat;
+}
+
+int
+NCZ_read_cache_chunk(NCZChunkCache* cache, const NC_VAR_INFO_T* var, const size64_t* indices, size64_t* datalenp, void** datap)
+{
+    int stat = NC_NOERR;
+    char* key = NULL;
+    NCZCacheEntry* entry = NULL;
+    size_t rank = var->ndims;
+
+    /* Create the key for this cache */
+    if((stat=buildchunkkey(rank, indices, &key))) goto done;
+    /* See if already in cache */
+    if(!NC_hashmapget(cache->entries, key, strlen(key), (uintptr_t*)entry)) { /* !found */
+	/* Create a new entry */
+	if((entry = calloc(1,sizeof(NCZCacheEntry)))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	entry->var = var;
+	memcpy(entry->indices,indices,rank*sizeof(size64_t));
+	/* Read the object in toto */
+	if((stat=get_chunk(cache->file,key,entry->size,&entry->data)))
+	    goto done;
+#ifdef VERIFY
+        /* Verify chunksize */
+	{
+	    size64_t chunksize = 1;
+	    size_t r;
+	    for(r=0;r<rank;r++) chunksize *= var->dim[r]->len;
+	    if(chunksize != entry->size)
+	        {stat = NC_EINTERNAL; goto done;}
+	}
+#endif
+    }
+#ifdef VERIFY
+    if(entry->var != var) {stat = NC_EINTERNAL; goto done;}
+#endif
+    if(datalenp) *datalenp = entry->size;	
+    if(datap) *datap = entry->data;
+
+done:
+    nullfree(key);
+    return stat;
+}
+
+#if 0
+int
+NCZ_write_cache_chunk(NCZChunkCache* cache, const NC_VAR_INFO_T* var, const size64_t* indices, size64_t datalen, void* data)
+{
+    int stat = NC_NOERR;
+    char* key = NULL;
+    NCZCacheEntry* entry = NULL;
+    size_t rank = var->ndims;
+
+    /* Create the key for this cache */
+    if((stat=buildchunkkey(rank, indices, &key))) goto done;
+    /* See if already in cache */
+    if(!NC_hashmapget(cache->entries, key, strlen(key), (uintptr_t*)entry)) { /* !found */
+	/* Create a new entry */
+	if((entry = calloc(1,sizeof(NCZCacheEntry)))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	entry->var = var;
+	memcpy(entry->indices,indices,rank*sizeof(size64_t));
+	/* Store the data */
+	entry->size = datalen;
+	if((entry->data = malloc(entry->size))== NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	memcpy(entry->data,data,entry->size);
+#ifdef VERIFY
+        /* Verify chunksize */
+	{
+	    size64_t chunksize = 1;
+	    size_t r;
+	    for(r=0;r<rank;r++) chunksize *= var->dim[r]->len;
+	    if(chunksize != entry->size)
+	        {stat = NC_EINTERNAL; goto done;}
+	}
+#endif
+    }
+#ifdef VERIFY
+    if(entry->var != var) {stat = NC_EINTERNAL; goto done;}
+#endif
+
+done:
+    nullfree(key);
+    return stat;
+}
+#endif
+
+int
+NCZ_flush_cache_chunk(NCZChunkCache* cache)
+{
+    int stat = NC_NOERR;
+    size_t i;
+
+    /* Iterate over the entries in hashmap */
+    for(i=0;;i++) {
+        NCZCacheEntry* entry = NULL;
+        uintptr_t data = 0;
+	const char* key;
+	/* get ith entry key */
+	if(NC_hashmapith(cache->entries,i,NULL,&key) == NC_EINVAL) break;
+	if(key != NULL) {
+	    /* It exists  */
+	    (void)NC_hashmapget(cache->entries,key,strlen(key),&data);
+	    entry = (NCZCacheEntry*)data;
+	    if(entry->modified) {
+	        /* Write out this chunk in toto*/
+  	        if((stat=put_chunk(cache->file,key,entry->size,entry->data)))
+	            goto done;
+	    }
+	    entry->modified = 0;
+	}
+    }
+
+done:
+    return stat;
+}
+
+int
+ncz_chunk_cache_modified(NCZChunkCache* cache, const NC_VAR_INFO_T* var, const size64_t* indices)
+{
+    int stat = NC_NOERR;
+    char* key = NULL;
+    NCZCacheEntry* entry = NULL;
+    size_t rank = var->ndims;
+
+    /* Create the key for this cache */
+    if((stat=buildchunkkey(rank, indices, &key))) goto done;
+
+    /* See if already in cache */
+    if(NC_hashmapget(cache->entries, key, strlen(key), (uintptr_t*)entry)) { /* found */
+	entry->modified = 1;
+#ifdef FLUSH
+	if((stat=put_chunk(cache->file,key,entry->size,entry->data)))
+	            goto done;
+	entry->modified = 0;
+#endif	
+    }
+
+done:
+    nullfree(key);
+    return stat;
+}
+
+/**************************************************/
+/*
+From Zarr V2 Specification:
+"The compressed sequence of bytes for each chunk is stored under
+a key formed from the index of the chunk within the grid of
+chunks representing the array.  To form a string key for a
+chunk, the indices are converted to strings and concatenated
+with the period character (".") separating each index. For
+example, given an array with shape (10000, 10000) and chunk
+shape (1000, 1000) there will be 100 chunks laid out in a 10 by
+10 grid. The chunk with indices (0, 0) provides data for rows
+0-1000 and columns 0-1000 and is stored under the key "0.0"; the
+chunk with indices (2, 4) provides data for rows 2000-3000 and
+columns 4000-5000 and is stored under the key "2.4"; etc."
+*/
+
+/**
+ * @param R Rank
+ * @param chunkindices The chunk indices
+ * @param keyp Return the chunk key string
+ */
+static int
+buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp)
+{
+    int stat = NC_NOERR;
+    int r;
+    NCbytes* key = ncbytesnew();
+
+    if(keyp) *keyp = NULL;
+    
+    for(r=0;r<R;r++) {
+	char index[64];
+        if(r > 0) ncbytesappend(key,'.');
+	/* Print as decimal with no leading zeros */
+	snprintf(index,sizeof(index),"%lu",(unsigned long)chunkindices[r]);	
+    }
+    ncbytesnull(key);
+    if(keyp) *keyp = ncbytesextract(key);
+
+    ncbytesfree(key);
+    return stat;
 }
 
 /**
- * Get chunk cache size. Only affects files opened/created *after* it
- * is called.
+ * @internal Push data to chunk of a file.
+ * If chunk does not exist, create it
  *
- * @param sizep Pointer that gets size in bytes to set cache.
- * @param nelemsp Pointer that gets number of elements to hold in cache.
- * @param preemptionp Pointer that gets premption stragety (between 0 and 1).
+ * @param file Pointer to file info struct.
+ * @param proj Chunk projection
+ * @param datalen size of data
+ * @param data Buffer containing the chunk data to write
  *
  * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @author Dennis Heimbigner
  */
-int
-NCZ_get_chunk_cache(size_t *sizep, size_t *nelemsp, float *preemptionp)
+static int
+put_chunk(const NC_FILE_INFO_T* file, const char* chunkkey, size64_t datalen, const void* data)
 {
-    if (sizep)
-        *sizep = ncz_chunk_cache_size;
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zinfo = NULL;
+    NCZMAP* map = NULL;
 
-    if (nelemsp)
-        *nelemsp = ncz_chunk_cache_nelems;
+    LOG((3, "%s: file: %p", __func__, file));
 
-    if (preemptionp)
-        *preemptionp = ncz_chunk_cache_preemption;
-    return NC_NOERR;
+    zinfo = file->format_file_info;
+    map = zinfo->map;
+
+    if((stat = nczmap_write(map,chunkkey,0,datalen,data) != NC_NOERR))
+	    goto done;
+
+done:
+    return stat;
 }
 
 /**
- * @internal Set the chunk cache. Required for fortran to avoid size_t
- * issues.
+ * @internal Push data from memory to file.
+ * If chunk does not exist, create it.
+ * Currently caching is not used.
  *
- * @param size Cache size.
- * @param nelems Number of elements.
- * @param preemption Preemption * 100.
+ * @param file Pointer to file info struct.
+ * @param proj Chunk projection
+ * @param datalen size of data
+ * @param data Buffer containing the chunk data to write
  *
- * @return NC_NOERR No error.
- * @author Dennis Heimbigner, Ed Hartnett
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
  */
-int
-ncz_set_chunk_cache_ints(int size, int nelems, int preemption)
+static int
+get_chunk(const NC_FILE_INFO_T* file, const char* chunkkey, size64_t datalen, void* data)
 {
-    if (size <= 0 || nelems <= 0 || preemption < 0 || preemption > 100)
-        return NC_EINVAL;
-    ncz_chunk_cache_size = size;
-    ncz_chunk_cache_nelems = nelems;
-    ncz_chunk_cache_preemption = (float)preemption / 100;
-    return NC_NOERR;
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zinfo = NULL;
+    NCZMAP* map = NULL;
+
+    LOG((3, "%s: file: %p", __func__, file));
+
+    zinfo = file->format_file_info;
+    map = zinfo->map;
+
+    if((stat = nczmap_read(map,chunkkey,0,datalen,(char*)data) != NC_NOERR))
+	    goto done;
+
+done:
+    return stat;
 }
 
-/**
- * @internal Get the chunk cache settings. Required for fortran to
- * avoid size_t issues.
- *
- * @param sizep Pointer that gets cache size.
- * @param nelemsp Pointer that gets number of elements.
- * @param preemptionp Pointer that gets preemption * 100.
- *
- * @return NC_NOERR No error.
- * @author Dennis Heimbigner, Ed Hartnett
- */
-int
-ncz_get_chunk_cache_ints(int *sizep, int *nelemsp, int *preemptionp)
+void
+NCZ_free_chunk_cache(NCZChunkCache* cache)
 {
-    if (sizep)
-        *sizep = (int)ncz_chunk_cache_size;
-    if (nelemsp)
-        *nelemsp = (int)ncz_chunk_cache_nelems;
-    if (preemptionp)
-        *preemptionp = (int)(ncz_chunk_cache_preemption * 100);
+    size_t i;
 
-    return NC_NOERR;
-}
-
-int
-ncz_adjust_var_cache(NC_GRP_INFO_T* grp, NC_VAR_INFO_T* var)
-{
-    return NC_NOERR;
+    /* Iterate over the entries in hashmap */
+    for(i=0;;i++) {
+        NCZCacheEntry* entry = NULL;
+        uintptr_t data = 0;
+	const char* key;
+	/* get ith entry key */
+	if(NC_hashmapith(cache->entries,i,&data,&key) == NC_EINVAL) break;
+	if(key != NULL) {
+	    /* It exists; reclaim entry  */
+	    entry = (NCZCacheEntry*)data;
+	    nullfree(entry->data);
+	    nullfree(entry);
+	}
+    }
 }

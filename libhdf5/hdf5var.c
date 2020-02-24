@@ -923,6 +923,7 @@ NC4_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
                             &deflate_level, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
+#if 0
 /**
  * Set szip compression settings on a variable. Szip is an
  * implementation of the extended-Rice lossless compression
@@ -1018,6 +1019,7 @@ nc_def_var_szip(int ncid, int varid, int options_mask, int pixels_per_block)
 
     return NC_NOERR;
 }
+#endif
 
 /**
  * @internal Set checksum on a variable. This is called by

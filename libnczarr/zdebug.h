@@ -31,10 +31,11 @@ extern int zthrow(int err, const char* fname, int line);
 #endif
 
 /* printers */
-extern char* nczprint_slice(NCZSlice slice);
-extern char* nczprint_odom(NCZOdometer odom);
-extern char* nczprint_projection(NCZProjection proj);
-extern char* nczprint_sliceindex(NCZSliceIndex si);
+extern char* nczprint_slice(NCZSlice);
+extern char* nczprint_odom(NCZOdometer);
+extern char* nczprint_chunkrange(NCZChunkRange);
+extern char* nczprint_projection(NCZProjection);
+extern char* nczprint_sliceprojections(NCZSliceProjections);
 
 #endif /*ZDEBUG_H*/
 

@@ -59,33 +59,33 @@ nczprint_odom(NCZOdometer odom)
     char value[128];
     int r;
 
-    snprintf(value,sizeof(value),"Odometer{R=%lu,",(unsigned long)odom.R);
+    snprintf(value,sizeof(value),"Odometer{rank=%lu,",(unsigned long)odom.rank);
     ncbytescat(buf,value);
 
     ncbytescat(buf,"start=[");
-    for(r=0;r<odom.R;r++) {
+    for(r=0;r<odom.rank;r++) {
 	if(r > 0) ncbytescat(buf,",");
-        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.start[r]);
+        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.slices[r].start);
         ncbytescat(buf,value);
     }
     ncbytescat(buf,"]");
     ncbytescat(buf," stop=[");
-    for(r=0;r<odom.R;r++) {
+    for(r=0;r<odom.rank;r++) {
 	if(r > 0) ncbytescat(buf,",");
-        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.stop[r]);
+        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.slices[r].stop);
         ncbytescat(buf,value);
     }
     ncbytescat(buf,"]");
     ncbytescat(buf," stride=[");
-    for(r=0;r<odom.R;r++) {
+    for(r=0;r<odom.rank;r++) {
 	if(r > 0) ncbytescat(buf,",");
-        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.stride[r]);
+        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.slices[r].stride);
         ncbytescat(buf,value);
     }
     ncbytescat(buf,"]");
 
     ncbytescat(buf," index=[");
-    for(r=0;r<odom.R;r++) {
+    for(r=0;r<odom.rank;r++) {
 	if(r > 0) ncbytescat(buf,",");
         snprintf(value,sizeof(value),"%lu",(unsigned long)odom.index[r]);
         ncbytescat(buf,value);
@@ -108,17 +108,19 @@ nczprint_projection(NCZProjection proj)
     ncbytescat(buf,"Projection{");
     snprintf(value,sizeof(value),"chunkindex=%lu",(unsigned long)proj.chunkindex);
     ncbytescat(buf,value);
-    snprintf(value,sizeof(value),",offset=%lu",(unsigned long)proj.offset);
-    ncbytescat(buf,value);
-    snprintf(value,sizeof(value),",limit=%lu",(unsigned long)proj.limit);
+    snprintf(value,sizeof(value),",first=%lu",(unsigned long)proj.first);
     ncbytescat(buf,value);
     snprintf(value,sizeof(value),",last=%lu",(unsigned long)proj.last);
     ncbytescat(buf,value);
     snprintf(value,sizeof(value),",len=%lu",(unsigned long)proj.len);
     ncbytescat(buf,value);
-    snprintf(value,sizeof(value),",outpos=%lu",(unsigned long)proj.outpos);
+    snprintf(value,sizeof(value),",limit=%lu",(unsigned long)proj.limit);
     ncbytescat(buf,value);
-    ncbytescat(buf,",slices={");
+    snprintf(value,sizeof(value),",iopos=%lu",(unsigned long)proj.iopos);
+    ncbytescat(buf,value);
+    snprintf(value,sizeof(value),",iocount=%lu",(unsigned long)proj.iocount);
+    ncbytescat(buf,value);
+    ncbytescat(buf,",slice={");
     result = nczprint_slice(proj.slice);
     ncbytescat(buf,result);
     result = NULL;
@@ -130,23 +132,20 @@ nczprint_projection(NCZProjection proj)
 }
 
 char*
-nczprint_sliceindex(NCZSliceIndex si)
+nczprint_sliceprojections(NCZSliceProjections slp)
 {
     char* result = NULL;
     NCbytes* buf = ncbytesnew();
-    char value[128];
     int i;
 
-    ncbytescat(buf,"SliceIndex{");
-    snprintf(value,sizeof(value),"chunk0=%lu",(unsigned long)si.chunk0);
-    ncbytescat(buf,value);
-    snprintf(value,sizeof(value),",nchunks=%lu",(unsigned long)si.nchunks);
-    ncbytescat(buf,value);
-    snprintf(value,sizeof(value),",count=%lu",(unsigned long)si.count);
-    ncbytescat(buf,value);
+    ncbytescat(buf,"SliceProjection{range=");
+    result = nczprint_chunkrange(slp.range);
+    ncbytescat(buf,result);
     ncbytescat(buf,",projections=[");
-    for(i=0;i<si.nchunks;i++) {
-        result = nczprint_projection(si.projections[i]);
+    for(i=0;i<nclistlength(slp.projections);i++) {
+	NCZProjection* p = (NCZProjection*)nclistget(slp.projections,i);
+	if(i > 0) ncbytescat(buf," ");
+        result = nczprint_projection(*p);
         ncbytescat(buf,result);
     }
     result = NULL;
@@ -157,3 +156,21 @@ nczprint_sliceindex(NCZSliceIndex si)
     return result;
 }
 
+char*
+nczprint_chunkrange(NCZChunkRange range)
+{
+    char* result = NULL;
+    NCbytes* buf = ncbytesnew();
+    char digits[64];
+
+    ncbytescat(buf,"ChunkRange{start=");
+    snprintf(digits,sizeof(digits),"%llu",range.start);
+    ncbytescat(buf,digits);
+    ncbytescat(buf," stop=");
+    snprintf(digits,sizeof(digits),"%llu",range.stop);
+    ncbytescat(buf,digits);
+    ncbytescat(buf,"}");
+    result = ncbytesextract(buf);
+    ncbytesfree(buf);
+    return result;
+}

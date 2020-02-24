@@ -49,19 +49,12 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
         {stat = NC_ENOMEM; goto done;}
     root->format_grp_info = zgrp;
 
-    /* Parse url and params */
-    if(ncuriparse(nc->path,&uri))
-	{stat = NC_EDAPURL; goto done;}
-
-    /* Get the "mode=" arg */
-    if((smode = ncurilookup(uri,"mode")) != NULL) {
-	modeargs = nclistnew();
-	if((stat = NCZ_comma_parse(smode,modeargs)));
-    }
-
-    /* Figure out the map implementation */
-    if((mapimpl = computemapimpl(modeargs,nc->mode)) == NCZM_UNDEF)
-	mapimpl = NCZM_DEFAULT;
+    /* Fill in NCZ_FILE_INFO_T */
+    zinfo->common.exists = 0;
+    zinfo->created = 1;
+    zinfo->file = file;
+    zinfo->controls = nclistnew();
+    if((stat = NCZ_create_chunk_cache(file,0,&zinfo->cache))) goto done;
 
     /* fill in some of the zinfo and zroot fields */
     zinfo->zarr.zarr_version = ZARRVERSION;
@@ -70,10 +63,27 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
 	   &zinfo->zarr.nczarr_version.minor,
 	   &zinfo->zarr.nczarr_version.release);
 
-    zinfo->created = 1;
+    /* Figure out the map implementation */
+
+    /* Get the "mode=" arg */
+    /* Parse url and params */
+    if(ncuriparse(nc->path,&uri))
+	{stat = NC_EDAPURL; goto done;}
+    if((smode = ncurilookup(uri,"mode")) != NULL) {
+	if((stat = NCZ_comma_parse(smode,zinfo->controls)));
+    }
+
+    if((mapimpl = computemapimpl(modeargs,nc->mode)) == NCZM_UNDEF)
+	mapimpl = NCZM_DEFAULT;
 
     /* initialize map handle*/
     if((stat = nczmap_create(mapimpl,nc->path,nc->mode,0,NULL,&zinfo->map)))
+	goto done;
+
+    /* Load auth info from rc file */
+    if((zinfo->auth = calloc(1,sizeof(NCauth)))==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if((stat = NC_authsetup(zinfo->auth, uri)))
 	goto done;
 
 done:
@@ -117,9 +127,6 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
     root = file->root_grp;
     assert(root != NULL && root->hdr.sort == NCGRP);
 
-    if(ncuriparse(path,&uri))
-	{stat = NC_EURL; goto done;}
-
     /* Add struct to hold NCZ-specific file metadata. */
     if (!(file->format_file_info = calloc(1, sizeof(NCZ_FILE_INFO_T))))
         {stat = NC_ENOMEM; goto done;}
@@ -129,17 +136,28 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
     if (!(root->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
         {stat = NC_ENOMEM; goto done;}
 
+    /* Fill in NCZ_FILE_INFO_T */
+    zinfo->common.exists = 0;
+    zinfo->created = 0;
+    zinfo->file = file;
+    zinfo->controls = nclistnew();
+    if((stat = NCZ_create_chunk_cache(file,0,&zinfo->cache))) goto done;
+
+    /* Figure out the map implementation */
+
+    if(ncuriparse(path,&uri))
+	{stat = NC_EURL; goto done;}
+
+
     /* Get the "mode=" from uri*/
     {
 	const char* modes = ncurilookup(uri,"mode");
 	if(modes != NULL) {
-  	    modeargs = nclistnew();
-	    if((stat = NCZ_comma_parse(modes,modeargs)));
+	    if((stat = NCZ_comma_parse(modes,zinfo->controls)));
 	}
     }
 
-    /* Figure out the map implementation */
-    if((mapimpl = computemapimpl(modeargs,mode)) == NCZM_UNDEF)
+    if((mapimpl = computemapimpl(zinfo->controls,mode)) == NCZM_UNDEF)
 	mapimpl = NCZM_DEFAULT;
 
     /* initialize map handle*/
@@ -162,6 +180,12 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
 		&zinfo->zarr.nczarr_version.release);
 	}
     }
+
+    /* Load auth info from rc file */
+    if((zinfo->auth = calloc(1,sizeof(NCauth)))==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if((stat = NC_authsetup(zinfo->auth, uri)))
+	goto done;
 
 done:
     nclistfreeall(modeargs);

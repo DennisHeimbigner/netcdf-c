@@ -90,12 +90,14 @@ NCZ_provenance_init(void)
 #endif
 
 #ifdef NCPROPERTIES_EXTRA
+    {
     /* Add any extra fields */
-    p = NCPROPERTIES_EXTRA;
+    const char* p = NCPROPERTIES_EXTRA;
     if(p != NULL && strlen(p) > 0) {
         if(p[0] == NCPROPSSEP2) p++; /* If leading separator */
         ncbytesappend(buffer,NCPROPSSEP2);
         ncbytescat(buffer,p);
+    }
     }
 #endif
     ncbytesnull(buffer);

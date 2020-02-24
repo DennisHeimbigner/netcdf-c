@@ -5,16 +5,19 @@
 #include "zincludes.h"
 
 NCZOdometer*
-nczodom_new(size_t R, const size_t* start, const size_t* stop, const size_t* stride)
+nczodom_new(size_t rank, const size_t* start, const size_t* stop, const size_t* stride)
 {
+    int i;
     NCZOdometer* odom = NULL;
     if((odom = calloc(1,sizeof(NCZOdometer))) == NULL)
 	goto done;   
-    odom->R = R;
-    memcpy(odom->start,start,sizeof(size_t)*R);
-    memcpy(odom->stop,stop,sizeof(size_t)*R);
-    memcpy(odom->stride,stride,sizeof(size_t)*R);
-    memset(odom->index,0,sizeof(size_t)*R);
+    odom->rank = rank;
+    for(i=0;i<rank;i++) { 
+	odom->slices[i].start = (size64_t)start[i];
+	odom->slices[i].stop = (size64_t)stop[i];
+	odom->slices[i].stride = (size64_t)stride[i];
+    }
+    memset(odom->index,0,sizeof(size_t)*rank);
 done:
     return odom;
 }
@@ -27,11 +30,9 @@ nczodom_fromslices(size_t rank, const NCZSlice* slices)
 
     if((odom = calloc(1,sizeof(NCZOdometer))) == NULL)
 	goto done;   
-    odom->R = rank;
+    odom->rank = rank;
     for(i=0;i<rank;i++) {    
-	odom->start[i] = slices[i].start;
-	odom->stop[i] = slices[i].stop;
-	odom->stride[i] = slices[i].stride;
+	odom->slices[i] = slices[i];
     }
     memset(odom->index,0,sizeof(size_t)*rank);
 done:
@@ -41,24 +42,24 @@ done:
 int
 nczodom_more(NCZOdometer* odom)
 {
-    return (odom->index[0] < odom->stop[0]);
+    return (odom->index[0] < odom->slices[0].stop);
 }
   
 int
 nczodom_next(NCZOdometer* odom)
 {
     size_t i;
-    for(i=odom->R-1;i>=0;i--) {
-	odom->index[i] += odom->stride[i];
-        if(odom->index[i] < odom->stop[i]) break;
+    for(i=odom->rank-1;i>=0;i--) {
+	odom->index[i] += odom->slices[i].stride;
+        if(odom->index[i] < odom->slices[i].stop) break;
         if(i == 0) return 0; /* leave the 0th entry if it overflows */
-        odom->index[i] = odom->start[i]; /* reset this position */
+        odom->index[i] = odom->slices[i].start; /* reset this position */
     }
     return 1;
 }
   
 /* Get the value of the odometer */
-size_t*
+size64_t*
 nczodom_indices(NCZOdometer* odom)
 {
     return odom->index;

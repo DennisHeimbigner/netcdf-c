@@ -20,6 +20,7 @@
 #include <string.h>
 #include <malloc.h>
 #include <stddef.h> /* size_t, ptrdiff_t */
+#include <assert.h>
 
 #include "netcdf.h"
 #include "ncdispatch.h"
@@ -37,6 +38,7 @@
 #include "zprovenance.h"
 #include "zmap.h"
 #include "zchunking.h"
+#include "zcache.h"
 #include "zjson.h"
 #include "zarr.h"
 #include "zdebug.h"

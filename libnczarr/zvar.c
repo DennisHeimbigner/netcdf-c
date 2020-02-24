@@ -458,10 +458,12 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     if ((retval = ncz_find_default_chunksizes2(grp, var)))
         BAIL(retval);
 
+#if 0
     /* Is this a variable with a chunksize greater than the current
      * cache size? */
     if ((retval = ncz_adjust_var_cache(grp, var)))
         BAIL(retval);
+#endif
 
     /* Return the varid. */
     if (varidp)
@@ -638,9 +640,11 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
             if ((retval = ncz_find_default_chunksizes2(grp, var)))
                 return retval;
 
+#if 0
         /* Adjust the cache. */
         if ((retval = ncz_adjust_var_cache(grp, var)))
             return retval;
+#endif
     }
 
 #ifdef LOGGING
@@ -971,9 +975,11 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
     if(var->chunksizes && !var->chunksizes[0]) {
         if((retval = ncz_find_default_chunksizes2(grp, var)))
 	    return retval;
+#if 0
         /* Adjust the cache. */
         if ((retval = ncz_adjust_var_cache(grp, var)))
             return retval;
+#endif
     }
 
     return NC_NOERR;
@@ -1372,11 +1378,9 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 #ifdef LOOK
     hid_t file_spaceid = 0, mem_spaceid = 0, xfer_plistid = 0;
 #endif
-    long long unsigned xtend_size[NC_MAX_VAR_DIMS];
     size64_t fdims[NC_MAX_VAR_DIMS], fmaxdims[NC_MAX_VAR_DIMS];
     size64_t start[NC_MAX_VAR_DIMS], count[NC_MAX_VAR_DIMS];
     size64_t stride[NC_MAX_VAR_DIMS];
-    int need_to_extend = 0;
 #ifdef USE_PARALLEL4
     int extend_possible = 0;
 #endif
@@ -1398,6 +1402,8 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 
     /* Get the ZARR-specific var info. */
     ncz_var = (NCZ_VAR_INFO_T *)var->format_var_info;
+
+    NC_UNUSED(ncz_var);
 
     if (mem_nc_type >= NC_FIRSTUSERTYPEID)
 	return THROW(NC_EINVAL);
@@ -1493,7 +1499,7 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
        except enum). */
     if (mem_nc_type != var->type_info->hdr.id &&
         mem_nc_type != NC_COMPOUND && mem_nc_type != NC_OPAQUE
-        mem_nc_type != NC_VLEN)
+        && mem_nc_type != NC_VLEN)
     {
         size_t file_type_size;
 
@@ -1537,6 +1543,7 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
        do no harm to reextend it to that size. */
     if (var->ndims)
     {
+#ifdef UNLIMITED
         for (d2 = 0; d2 < var->ndims; d2++)
         {
             size64_t endindex = start[d2] + stride[d2] * (count[d2] - 1); /* last index written */
@@ -1544,7 +1551,6 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
                 endindex = start[d2];
             dim = var->dim[d2];
             assert(dim && dim->hdr.id == var->dimids[d2]);
-#ifdef UNLIMITED
             if (dim->unlimited)
             {
 #ifdef USE_PARALLEL4
@@ -1565,11 +1571,11 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
                 }
             }
             else
-#endif
             {
                 xtend_size[d2] = (size64_t)dim->len;
             }
         }
+#endif
 
 #ifdef LOOK
 #ifdef USE_PARALLEL4
@@ -1632,10 +1638,10 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
             BAIL(retval);
     }
 
+#ifdef LOOK
     /* Write the data. At last! */
     LOG((4, "about to write datasetid 0x%x mem_spaceid 0x%x "
          "file_spaceid 0x%x", ncz_var->hdf_datasetid, mem_spaceid, file_spaceid));
-#ifdef LOOK
     if (H5Dwrite(ncz_var->hdf_datasetid,
                  ((NCZ_TYPE_INFO_T *)var->type_info->format_type_info)->hdf_typeid,
                  mem_spaceid, file_spaceid, xfer_plistid, bufr) < 0)

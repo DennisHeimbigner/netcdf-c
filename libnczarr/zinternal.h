@@ -62,6 +62,7 @@
 struct NCjson;
 struct NCauth;
 struct NCZMAP;
+struct NCZChunkCache;
 
 /**************************************************/
 /* Define annotation data for NCZ objects */
@@ -74,9 +75,10 @@ typedef struct NCZcommon {
 /** Struct to hold ZARR-specific info for the file. */
 typedef struct NCZ_FILE_INFO {
     NCZcommon common;
-    NC_FILE_INFO_T* dataset; /* root of the dataset tree */
+    NC_FILE_INFO_T* file; /* root of the dataset tree */
     struct NCZMAP* map; /* implementation */
     NClist* controls;
+    struct NCZChunkCache* cache;
     struct NCauth* auth;
     struct nczarr {
 	int zarr_version;
@@ -149,10 +151,6 @@ typedef struct NCZCONTENT{
 #endif
 
 /**************************************************/
-/* From libsrc4, these are the netcdf-4 cache sizes. */
-extern size_t ncz_chunk_cache_size;
-extern size_t ncz_chunk_cache_nelems;
-extern float ncz_chunk_cache_preemption;
 
 extern int ncz_initialized; /**< True if initialization has happened. */
 
