@@ -101,7 +101,6 @@ extern int NCZ_compute_chunk_ranges(size64_t, const NCZSlice*, const size64_t*, 
 extern int NCZ_compute_projection(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, NClist* projections);
 extern int NCZ_compute_per_slice_projections(const NCZSlice* slice, const NCZChunkRange* range, size64_t dimlen, size64_t chunklen, NCZSliceProjections* slp);
 extern int NCZ_compute_all_slice_projections(size64_t rank, const NCZSlice* slices, const size64_t* dimlen, const size64_t* chunklen, NCZSliceProjections* results);
-extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, void (*printer)(size_t rank, size64_t* indices));
-
+extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, NCZOdometer** odomp);
 
 #endif /*ZCHUNKING_H*/

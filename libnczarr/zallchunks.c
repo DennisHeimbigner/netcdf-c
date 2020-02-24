@@ -217,9 +217,9 @@ computelinearoffset(size_t R, const size64_t* indices, const size64_t* dimlens)
 /* Unit test entry points */
 
 /* Construct the odometer for walking all the chunk indices */
+
 int
-NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges,
-                   void (*printer)(size_t rank, size64_t* indices))
+NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, NCZOdometer** odomp)
 {
     int stat = NC_NOERR;
     int r;
@@ -234,11 +234,7 @@ NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges,
 
     if((odom = nczodom_new(rank, start, stop, NC_coord_one))==NULL)
 	{stat = NC_ENOMEM; goto done;}
-    while(nczodom_more(odom)) {
-	size64_t* indices = nczodom_indices(odom);
-	printer(rank,indices);
-	nczodom_next(odom);
-    }
+    if(odomp) *odomp = odom;
 
 done:
     return stat;

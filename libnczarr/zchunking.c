@@ -108,7 +108,10 @@ NCZ_compute_projection(size64_t dimlen, size64_t chunklen, size64_t chunkindex, 
 
     /* compute the I/O position: the "location" in the memory
        array to read/write items */
-    projection->iopos = ceildiv(offset - slice->start, slice->stride);
+    if(n == 0)
+        projection->iopos = 0;
+    else 
+        projection->iopos = ceildiv(offset - slice->start, slice->stride);
     /* And number of I/O items */
     projection->iocount = count;
 

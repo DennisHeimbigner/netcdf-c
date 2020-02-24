@@ -5,8 +5,6 @@
 
 #include "zprojtest.h"
 
-static void odomprinter(size_t rank, size64_t* indices);
-
 /**
 Test walking all combinations of chunks covered by a slice.
 */
@@ -20,6 +18,7 @@ main(int argc, char** argv)
     NClist* listv[NC_MAX_VAR_DIMS];
     NCZChunkRange ncrv[NC_MAX_VAR_DIMS];
     NCZSliceProjections slpv[NC_MAX_VAR_DIMS];
+    NCZOdometer* odom = NULL;
 
     /* Initialize */
     memset(&test,0,sizeof(test));
@@ -36,22 +35,20 @@ main(int argc, char** argv)
     for(r=0;r<test.rank;r++) {
         printf("[%d] %s\n",r,nczprint_chunkrange(ncrv[r]));
     }
-
-    if((stat = NCZ_chunkindexodom(test.rank, ncrv, odomprinter)))
+    if((stat = NCZ_chunkindexodom(test.rank, ncrv, &odom)))
 	goto done;
+
+    while(nczodom_more(odom)) {
+	size64_t* indices = nczodom_indices(odom);
+        printf("[");
+        for(r=0;r<test.rank;r++)
+            printf("%s%llu",(r==0?"":","),indices[r]);
+        printf("]\n");
+	nczodom_next(odom);
+    }
 
 done:
     if(stat)
 	nc_strerror(stat);
     return (stat ? 1 : 0);    
-}
-
-static void
-odomprinter(size_t rank, size64_t* indices)
-{
-    int r;
-    printf("[");
-    for(r=0;r<rank;r++)
-        printf("%s%llu",(r==0?"":","),indices[r]);
-    printf("]\n");
 }

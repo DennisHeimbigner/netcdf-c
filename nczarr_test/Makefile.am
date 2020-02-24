@@ -31,8 +31,8 @@ TESTS += run_unittests.sh
 check_PROGRAMS += t_meta
 TESTS += run_meta_tests.sh
 
-noinst_PROGRAMS = z4dump
-z4dump_SOURCES = z4dump.c
+#noinst_PROGRAMS = z4dump
+#z4dump_SOURCES = z4dump.c
 
 EXTRA_DIST = run_unittests.sh run_meta_tests.sh \
 	ref_ut_mapnc4_create.cdl ref_ut_mapnc4_meta.cdl \
