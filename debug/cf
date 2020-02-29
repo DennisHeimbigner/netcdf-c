@@ -1,10 +1,10 @@
 #!/bin/bash
 #NB=1
-DB=1
+#DB=1
 #X=-x
 
 #ANSI=1
-#MEM=1
+#MEM=1 # export NC_VLEN_NOTEST=1
 #NOTUIL=1
 #FAST=1
 #PROF=1
@@ -17,10 +17,7 @@ HDF5=1
 #PNETCDF=1
 #PAR4=1
 
-#TESTSERVERS="149.165.169.123:8080,remotetest.unidata.ucar.edu"
 #TESTSERVERS="localhost:8080,149.165.169.123:8080"
-#TESTSERVERS="149.165.169.123:8080"
-#TESTSERVERS="remotetest.unidata.ucar.edu"
 
 if test $# != 0 ; then
 cmds=$@
@@ -39,7 +36,8 @@ CFLAGS="-Wall -Wno-unused-parameter -Wno-char-subscripts -Wno-pointer-sign ${CFL
 #CFLAGS="-Wall -Wunused-parameter -Wno-char-subscripts -Wno-pointer-sign ${CFLAGS}"
 
 if test "x$MEM" = x1 ; then
-CFLAGS="-fsanitize=address ${CFLAGS}"
+  export NC_VLEN_NOTEST=1
+  CFLAGS="-fsanitize=address ${CFLAGS}"
 fi
 
 if test "x$ANSI" = x1 ; then
@@ -135,6 +133,7 @@ FLAGS="$FLAGS --enable-byterange"
 #FLAGS="$FLAGS --disable-silent-rules"
 #FLAGS="$FLAGS --disable-filter-testing"
 #FLAGS="$FLAGS --enable-metadata-perf"
+#FLAGS="$FLAGS --enable-extra-tests"
 #FLAGS="$FLAGS --with-ncproperties-extra=key1=value1,key2=value2"
 #FLAGS="$FLAGS --enable-valgrind"
 
