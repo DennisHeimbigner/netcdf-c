@@ -1515,8 +1515,9 @@ AX_SET_META([NC_HAS_CDF5],[$enable_cdf5],[yes])
 AX_SET_META([NC_HAS_ERANGE_FILL], [$enable_erange_fill],[yes])
 AX_SET_META([NC_HAS_PAR_FILTERS], [$hdf5_supports_par_filters],[yes])
 AX_SET_META([NC_HAS_BYTERANGE],[$enable_byterange],[yes])
+AC_SUBST([NC_DISPATCH_VERSION], [2])
 AX_SET_META([NC_HAS_NCZARR],[$enable_nczarr],[yes])
-AC_SUBST([NC_DISPATCH_VERSION], [1])
+
 #####
 # End netcdf_meta.h definitions.
 #####

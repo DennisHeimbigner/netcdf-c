@@ -93,15 +93,15 @@ struct NCZMAP_API {
 
     /* Object Operations */
 	int (*exists)(NCZMAP* map, const char* key);
-	int (*len)(NCZMAP* map, const char* key, ssize64_t* lenp);
+	int (*len)(NCZMAP* map, const char* key, size64_t* lenp);
 	/* Define an object; do nothing if already exists */
-	int (*def)(NCZMAP* map, const char* key, ssize64_t len);
+	int (*def)(NCZMAP* map, const char* key, size64_t len);
 	/* Read/write data */
-	int (*read)(NCZMAP* map, const char* key, ssize64_t start, ssize64_t count, void* content);
-	int (*write)(NCZMAP* map, const char* key, ssize64_t start, ssize64_t count, const void* content);
+	int (*read)(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
+	int (*write)(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
 	/* Read/write metadata (e.g. Json)*/
-	int (*readmeta)(NCZMAP* map, const char* key, ssize64_t count, char* content);
-	int (*writemeta)(NCZMAP* map, const char* key, ssize64_t count, const char* content);
+	int (*readmeta)(NCZMAP* map, const char* key, size64_t count, char* content);
+	int (*writemeta)(NCZMAP* map, const char* key, size64_t count, const char* content);
         int (*close)(NCZMAP* map, int delete);
 	/* Search for keys with specified prefix */
         int (*search)(NCZMAP* map, const char* prefix, NClist* matches);
@@ -117,12 +117,12 @@ typedef struct NCZMAP_DS_API {
 
 /* Object API Wrappers */
 extern int nczmap_exists(NCZMAP* map, const char* key);
-extern int nczmap_len(NCZMAP* map, const char* key, ssize64_t* lenp);
-extern int nczmap_def(NCZMAP* map, const char* key, ssize64_t lenp);
-extern int nczmap_read(NCZMAP* map, const char* key, ssize64_t start, ssize64_t count, void* content);
-extern int nczmap_write(NCZMAP* map, const char* key, ssize64_t start, ssize64_t count, const void* content);
-extern int nczmap_readmeta(NCZMAP* map, const char* key, ssize64_t count, char* content);
-extern int nczmap_writemeta(NCZMAP* map, const char* key, ssize64_t count, const char* content);
+extern int nczmap_len(NCZMAP* map, const char* key, size64_t* lenp);
+extern int nczmap_def(NCZMAP* map, const char* key, size64_t lenp);
+extern int nczmap_read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
+extern int nczmap_write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
+extern int nczmap_readmeta(NCZMAP* map, const char* key, size64_t count, char* content);
+extern int nczmap_writemeta(NCZMAP* map, const char* key, size64_t count, const char* content);
 extern int nczmap_close(NCZMAP* map, int delete);
 extern int nczmap_search(NCZMAP* map, const char* prefix, NClist* matches);
 

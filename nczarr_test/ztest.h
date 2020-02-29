@@ -9,7 +9,7 @@
 /* Arguments from command line */
 struct Options {
     int debug;
-    char* cmd;
+    const char* cmd;
 };
 
 struct Test {

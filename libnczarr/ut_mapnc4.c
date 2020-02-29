@@ -3,19 +3,9 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
+#include "config.h"
 #include "zincludes.h"
-#ifdef HAVE_UNISTD_H
-#include "unistd.h"
-#endif
-#ifdef HAVE_GETOPT_H
-#include <getopt.h>
-#endif
-
-#ifdef _MSC_VER
-#include "XGetopt.h"
-int opterr;
-int optind;
-#endif
+#include "ztest.h"
 
 #undef SETUP
 #undef DEBUG
@@ -33,23 +23,6 @@ static const char* metadata1 = "{\n\"foo\": 42,\n\"bar\": \"apples\",\n\"baz\": 
 
 static const char* metadata2 = "{\n\"foo\": 42,\n\"bar\": \"apples\",\n\"baz\": [1, 2, 3, 4],\n\"extra\": 137}";
 
-typedef enum Cmds {
-    cmd_none = 0,
-    cmd_create = 1,
-    cmd_delete = 2,
-    cmd_writemeta = 3,
-    cmd_writemeta2 = 4,
-    cmd_readmeta = 5,
-    cmd_write = 6,
-    cmd_read = 7,
-    cmd_search = 8,
-} Cmds;
-
-struct Options {
-    int debug;
-    Cmds cmd;
-} options;
-
 /* Forward */
 static int simplecreate(void);
 static int simpledelete(void);
@@ -60,65 +33,36 @@ static int writedata(void);
 static int readdata(void);
 static int search(void);
 
-#ifdef SETUP
-#define NCCHECK(expr) nccheck((expr),__LINE__)
-void nccheck(int stat, int line)
-{
-    if(stat) {
-	fprintf(stderr,"%d: %s\n",line,nc_strerror(stat));
-	fflush(stderr);
-	exit(1);
-    }
-}
-#endif
-
 int
 main(int argc, char** argv)
 {
     int stat = NC_NOERR;
-    int c;
+    struct Test test;
 
-    memset((void*)&options,0,sizeof(options));
-    while ((c = getopt(argc, argv, "dc:")) != EOF) {
-	switch(c) {
-	case 'd': 
-	    options.debug = 1;	    
-	    break;
-	case 'c':
-	    if(strcmp(optarg,"create")==0) {options.cmd = cmd_create;}
-	    else if(strcmp(optarg,"delete")==0) {options.cmd = cmd_delete;}
-	    else if(strcmp(optarg,"writemeta")==0) {options.cmd = cmd_writemeta;}
-	    else if(strcmp(optarg,"writemeta2")==0) {options.cmd = cmd_writemeta2;}
-	    else if(strcmp(optarg,"readmeta")==0) {options.cmd = cmd_readmeta;}
-	    else if(strcmp(optarg,"write")==0) {options.cmd = cmd_write;}
-	    else if(strcmp(optarg,"read")==0) {options.cmd = cmd_read;}
-	    else if(strcmp(optarg,"search")==0) {options.cmd = cmd_search;}
-	    else {
-		fprintf(stderr,"unknown command: %s\n",optarg);
-		stat = NC_EINVAL;
-		goto done;
-	    };
-	    break;
-	case '?':
-	   fprintf(stderr,"unknown option\n");
-	   stat = NC_EINVAL;
-	   goto done;
-	}
-    }
+    memset(&test,0,sizeof(test));
+    if((stat = ut_init(argc, argv, &test))) goto done;
 
-    switch (options.cmd) {
-    case cmd_create: if((stat = simplecreate())) goto done; break;
-    case cmd_delete: if((stat = simpledelete())) goto done; break;
-    case cmd_writemeta: if((stat = writemeta())) goto done; break;
-    case cmd_writemeta2: if((stat = writemeta2())) goto done; break;
-    case cmd_readmeta: if((stat = readmeta())) goto done; break;
-    case cmd_write: if((stat = writedata())) goto done; break;
-    case cmd_read: if((stat = readdata())) goto done; break;
-    case cmd_search: if((stat = search())) goto done; break;
-    default:
-	fprintf(stderr,"no command specified\n");
+    if(strcmp(test.cmd,"create")==0)
+	stat=simplecreate();
+    else if(strcmp(test.cmd,"delete")==0)
+	stat=simpledelete();
+    else if(strcmp(test.cmd,"writemeta")==0)
+	stat = writemeta();
+    else if(strcmp(test.cmd,"writemeta2")==0)
+	stat = writemeta2();
+    else if(strcmp(test.cmd,"readmeta")==0)
+	stat = readmeta();
+    else if(strcmp(test.cmd,"writedata")==0)
+	stat = writedata();
+    else if(strcmp(test.cmd,"readdata")==0)
+	stat = readdata();
+    else if(strcmp(test.cmd,"search")==0)
+	stat = search();
+    else {
+	fprintf(stderr,"unknown command specified\n");
 	exit(1);
     }
+
 done:
     if(stat)
 	nc_strerror(stat);
@@ -161,7 +105,7 @@ simpledelete(void)
     NCCHECK(simplecreate());
 #endif
 
-    if((stat = nczmap_open(URL1,0,0,NULL,&map)))
+    if((stat = nczmap_open(NCZM_NC4,URL1,0,0,NULL,&map)))
 	goto done;
     if((stat = nczmap_close(map,1)))
 	goto done;
@@ -214,7 +158,7 @@ writemeta2(void)
     NCCHECK(writemeta());
 #endif
  
-    if((stat = nczmap_open(URL1,NC_WRITE,0,NULL,&map)))
+    if((stat = nczmap_open(NCZM_NC4,URL1,NC_WRITE,0,NULL,&map)))
 	goto done;
 
     if((stat=nczm_suffix(NULL,META2,&path)))
@@ -240,14 +184,14 @@ readmeta(void)
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
     char* path = NULL;
-    ssize64_t olen;
+    size64_t olen;
     char* content = NULL;
 
 #ifdef SETUP
     NCCHECK(writemeta2());
 #endif
 
-    if((stat = nczmap_open(URL1,0,0,NULL,&map)))
+    if((stat = nczmap_open(NCZM_NC4,URL1,0,0,NULL,&map)))
 	goto done;
 
     if((stat=nczm_suffix(NULL,META1,&path)))
@@ -285,7 +229,7 @@ writedata(void)
     char* path = NULL;
     int data1[DATA1LEN];
     int i;
-    ssize64_t totallen;
+    size64_t totallen;
     char* data1p = (char*)&data1[0]; /* byte level version of data1 */
 
     /* Take output of writemeta2 */
@@ -298,7 +242,7 @@ writedata(void)
 	data1[i] = i;
     totallen = sizeof(int)*DATA1LEN;
 
-    if((stat = nczmap_open(URL1,NC_WRITE,0,NULL,&map)))
+    if((stat = nczmap_open(NCZM_NC4,URL1,NC_WRITE,0,NULL,&map)))
 	goto done;
 
     /* ensure object */
@@ -310,7 +254,7 @@ writedata(void)
 
     /* Write in 3 slices */
     for(i=0;i<3;i++) {
-        ssize64_t start, count, third, last;
+        size64_t start, count, third, last;
 	third = (totallen+2) / 3; /* round up */
         start = i * third;
 	last = start + third;
@@ -338,7 +282,7 @@ readdata(void)
     char* path = NULL;
     int data1[DATA1LEN];
     int i;
-    ssize64_t chunklen, totallen;
+    size64_t chunklen, totallen;
     char* data1p = NULL; /* byte level pointer into data1 */
 
     /* Take output of writedata */
@@ -346,7 +290,7 @@ readdata(void)
     NCCHECK(writedata());
 #endif
 
-    if((stat = nczmap_open(URL1,0,0,NULL,&map)))
+    if((stat = nczmap_open(NCZM_NC4,URL1,0,0,NULL,&map)))
 	goto done;
 
     /* ensure object */
@@ -364,7 +308,7 @@ readdata(void)
     /* Read in 3 chunks */
     memset(data1,0,sizeof(data1));
     for(i=0;i<3;i++) {
-        ssize64_t start, count, last;
+        size64_t start, count, last;
         start = i * chunklen;
 	last = start + chunklen;
 	if(last > totallen) 
@@ -404,7 +348,7 @@ search(void)
     NCCHECK(writedata());
 #endif
 
-    if((stat = nczmap_open(URL1,0,0,NULL,&map)))
+    if((stat = nczmap_open(NCZM_NC4,URL1,0,0,NULL,&map)))
 	goto done;
 
     /* Do a search on root to get all objects */

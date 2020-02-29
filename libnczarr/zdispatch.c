@@ -19,6 +19,7 @@ static int NCZ_show_metadata(int ncid);
 static const NC_Dispatch NCZ_dispatcher = {
 
     NC_FORMATX_NCZARR,
+    NC_DISPATCH_VERSION,
 
     NCZ_create,
     NCZ_open,

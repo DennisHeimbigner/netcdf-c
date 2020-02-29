@@ -141,12 +141,13 @@ nczprint_sliceprojections(NCZSliceProjections slp)
     ncbytescat(buf,"SliceProjection{range=");
     result = nczprint_chunkrange(slp.range);
     ncbytescat(buf,result);
-    ncbytescat(buf,",projections=[");
+    ncbytescat(buf,",projections=[\n");
     for(i=0;i<nclistlength(slp.projections);i++) {
 	NCZProjection* p = (NCZProjection*)nclistget(slp.projections,i);
-	if(i > 0) ncbytescat(buf," ");
+	ncbytescat(buf,"\t");
         result = nczprint_projection(*p);
         ncbytescat(buf,result);
+	ncbytescat(buf,"\n");
     }
     result = NULL;
     ncbytescat(buf,"]");

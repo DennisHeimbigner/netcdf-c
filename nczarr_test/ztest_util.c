@@ -1,5 +1,5 @@
 /*
- *	Copyright 2018, University Corporation for Atmospheric Research
+ *      Copyright 2018, University Corporation for Atmospheric Research
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
@@ -25,13 +25,42 @@ int optind;
 char* url = NULL;
 struct Options options;
 
+int
+ut_init(int argc, char** argv, struct Options* options)
+{
+    int stat = NC_NOERR;
+    int c;
+
+    nc_initialize();
+
+    if(options != NULL) {
+        while ((c = getopt(argc, argv, "dc:")) != EOF) {
+            switch(c) {
+            case 'd':  
+                options->debug = 1;     
+                break;
+            case 'x':
+		options->cmd = optarg;
+                break;
+            case '?':
+               fprintf(stderr,"unknown option: '%c'\n",c);
+               stat = NC_EINVAL;
+               goto done;
+            }
+        }
+    }
+
+done:
+    return stat;
+}
+
 void
 nccheck(int stat, int line)
 {
     if(stat) {
-	fprintf(stderr,"%d: %s\n",line,nc_strerror(stat));
-	fflush(stderr);
-	exit(1);
+        fprintf(stderr,"%d: %s\n",line,nc_strerror(stat));
+        fflush(stderr);
+        exit(1);
     }
 }
 
@@ -59,33 +88,33 @@ setup(int argc, char** argv)
     int c;
     memset((void*)&options,0,sizeof(options));
     while ((c = getopt(argc, argv, "dc:")) != EOF) {
-	switch(c) {
-	case 'd': 
-	    options.debug = 1;	    
-	    break;
-	case 'c':
-	    if(options.cmd != NULL) {
-		fprintf(stderr,"error: multiple commands specified\n");
-		stat = NC_EINVAL;
-		goto done;
-	    }
-	    if(optarg == NULL || strlen(optarg) == 0) {
-		fprintf(stderr,"error: bad command\n");
-		stat = NC_EINVAL;
-		goto done;
-	    }
-	    options.cmd = strdup(optarg);
-	    break;
-	case '?':
-	   fprintf(stderr,"unknown option\n");
-	   stat = NC_EINVAL;
-	   goto done;
-	}
+        switch(c) {
+        case 'd': 
+            options.debug = 1;      
+            break;
+        case 'c':
+            if(options.cmd != NULL) {
+                fprintf(stderr,"error: multiple commands specified\n");
+                stat = NC_EINVAL;
+                goto done;
+            }
+            if(optarg == NULL || strlen(optarg) == 0) {
+                fprintf(stderr,"error: bad command\n");
+                stat = NC_EINVAL;
+                goto done;
+            }
+            options.cmd = strdup(optarg);
+            break;
+        case '?':
+           fprintf(stderr,"unknown option\n");
+           stat = NC_EINVAL;
+           goto done;
+        }
     }
     if(options.cmd == NULL) {
-	fprintf(stderr,"no command specified\n");
-	stat = NC_EINVAL;
-	goto done;
+        fprintf(stderr,"no command specified\n");
+        stat = NC_EINVAL;
+        goto done;
     }
 done:
     return stat;
@@ -98,7 +127,7 @@ findtest(const char* cmd, struct Test* tests, struct Test** thetest)
     struct Test* t = NULL;
     *thetest = NULL;
     for(t=tests;t->cmd;t++) {
-	if(strcasecmp(t->cmd,cmd)==0) {*thetest = t; break;}
+        if(strcasecmp(t->cmd,cmd)==0) {*thetest = t; break;}
     }
     if(*thetest == NULL) {stat = NC_EINVAL; goto done;}
 done:

@@ -40,6 +40,8 @@ ut_proj_init(int argc, char** argv, ProjTest* test)
     int count,c;
     int optcount = 0;
 
+    ut_init(argc,argv,NULL);
+
     buf = ncbytesnew();
 
     while ((c = getopt(argc, argv, "r:d:c:s:R:")) != EOF) {
@@ -211,3 +213,4 @@ printslices(int rank, NCZSlice* slices)
     ncbytesfree(buf);
     return result;
 }
+

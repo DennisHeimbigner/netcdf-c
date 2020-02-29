@@ -32,10 +32,18 @@
 #define GETCMD 0
 #define HEADCMD 1
 
+struct HeadInfo {
+    NClist* headers;
+    const char** which; /* which headers to capture */
+};
+
+static const char* LENGTH_ACCEPT[] = {"content-length","accept-ranges",NULL};
+static const char* CONTENTLENGTH[] = {"content-length",NULL};
+
 /* Forward */
 static int setupconn(CURL* curl, const char* objecturl, NCbytes* buf);
 static int execute(CURL* curl, int headcmd, long* httpcodep);
-static int headerson(CURL* curl, NClist* list);
+static int headerson(CURL* curl, NClist* list, const char** which);
 static void headersoff(CURL* curl);
 
 #ifdef TRACE
@@ -49,7 +57,7 @@ static void
 Trace(const char* fcn)
 {
     fprintf(stdout,"xxx: %s\n",fcn);
-    dbgflush();
+dbgflush();
 }
 #else
 #define dbgflush()
@@ -83,7 +91,7 @@ nc_http_open(const char* objecturl, void** curlp, size64_t* filelenp)
         /* Attempt to get the file length using HEAD */
 	list = nclistnew();
 	if((stat = setupconn(curl,objecturl,NULL))) goto done;
-	if((stat = headerson(curl,list))) goto done;
+	if((stat = headerson(curl,list,LENGTH_ACCEPT))) goto done;
 	if((stat = execute(curl,HEADCMD,NULL))) goto done;
 	headersoff(curl);
 	for(i=0;i<nclistlength(list);i+=2) {
@@ -163,6 +171,50 @@ fail:
     goto done;
 }
 
+/**
+Return length of an object.
+Assume URL etc has already been set.
+@param curl curl handle
+*/
+
+int
+nc_http_size(CURL* curl, const char* objecturl, size64_t* sizep)
+{
+    int i,stat = NC_NOERR;
+    long httpcode = 200;
+    NClist* list = nclistnew();
+
+    Trace("size");
+	goto done; /* do not attempt to read */
+
+    if((stat = setupconn(curl,objecturl,NULL)))
+	goto done;
+    /* Make sure we get headers */
+    if((stat = headerson(curl,list,CONTENTLENGTH))) goto done;
+
+    if((stat = execute(curl,HEADCMD,&httpcode)))
+	goto done;
+    headersoff(curl);
+
+    if(nclistlength(list) == 0)
+	{stat = NC_EACCESS; goto done;}
+
+    /* Get the content length header */
+    for(i=0;i<nclistlength(list);i+=2) {
+	char* s = nclistget(list,i);
+	if(strcasecmp(s,"content-length")==0) {
+	    s = nclistget(list,i+1);
+	    sscanf(s,"%llu",sizep);
+    	    break;
+	}
+    }
+
+done:
+dbgflush();
+    return stat;
+}
+
+/**************************************************/
 static size_t
 WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *data)
 {
@@ -208,13 +260,15 @@ trim(char* s)
 static size_t
 HeaderCallback(char *buffer, size_t size, size_t nitems, void *data)
 {
-    NClist* list = data;
     size_t realsize = size * nitems;
     char* name = NULL;
     char* value = NULL;
     char* p = NULL;
     size_t i;
     int havecolon;
+    struct HeadInfo* hi = data;
+    const char** hdr = NULL;
+    int match;
 
     Trace("HeaderCallback");
     if(realsize == 0)
@@ -228,6 +282,13 @@ HeaderCallback(char *buffer, size_t size, size_t nitems, void *data)
     name = malloc(i+1);
     memcpy(name,buffer,i);
     name[i] = '\0';
+    if(hi->which != NULL) {
+        for(match=0,hdr=hi->which;*hdr;hdr++) {
+	    if(strcasecmp(*hdr,name)==0) {match = 1; break;}        
+        }
+        if(!match) goto done;
+    }
+    /* Capture this header */
     value = NULL;
     if(havecolon) {
 	size_t vlen = (realsize - i);
@@ -237,11 +298,12 @@ HeaderCallback(char *buffer, size_t size, size_t nitems, void *data)
         value[vlen] = '\0';
         trim(value);
     }
-    nclistpush(list,name);
+    nclistpush(hi->headers,name);
     name = NULL;
     if(value == NULL) value = strdup("");
-    nclistpush(list,value);
+    nclistpush(hi->headers,value);
     value = NULL;
+done:
     return realsize;    
 }
 
@@ -319,14 +381,18 @@ fail:
 }
 
 static int
-headerson(CURL* curl, NClist* list)
+headerson(CURL* curl, NClist* list, const char** which)
 {
     int stat = NC_NOERR;
     CURLcode cstat = CURLE_OK;
+    struct HeadInfo hi;
+
+    hi.headers = list;
+    hi.which = which;
 
     cstat = CURLERR(curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, HeaderCallback));
     if(cstat != CURLE_OK) goto fail;
-    cstat = CURLERR(curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void*)list));
+    cstat = CURLERR(curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void*)&hi));
     if (cstat != CURLE_OK) goto fail;
 
 done:

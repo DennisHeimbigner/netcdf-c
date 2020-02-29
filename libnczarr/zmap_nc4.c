@@ -47,8 +47,8 @@ static int znc4close(NCZMAP* map, int delete);
 static int zlookupgroup(Z4MAP*, NClist* segments, int nskip, int* grpidp);
 static int zlookupobj(Z4MAP*, NClist* segments, int* objidp);
 static int zcreategroup(Z4MAP* z4map, NClist* segments, int nskip, int* grpidp);
-static int zcreateobj(Z4MAP*, NClist* segments, ssize64_t, int* objidp);
-static int zcreatedim(Z4MAP*, ssize64_t dimsize, int* dimidp);
+static int zcreateobj(Z4MAP*, NClist* segments, size64_t, int* objidp);
+static int zcreatedim(Z4MAP*, size64_t dimsize, int* dimidp);
 static int getpath(const char* path0, char** pathp);
 static void nc4ify(const char* zname, char* nc4name);
 static void zify(const char* nc4name, char* zname);
@@ -181,7 +181,7 @@ done:
 }
 
 static int
-znc4len(NCZMAP* map, const char* key, ssize64_t* lenp)
+znc4len(NCZMAP* map, const char* key, size64_t* lenp)
 {
     int stat = NC_NOERR;
     Z4MAP* z4map = (Z4MAP*)map;
@@ -204,9 +204,9 @@ znc4len(NCZMAP* map, const char* key, ssize64_t* lenp)
         /* Get size of the one and only dim */
         if((stat = nc_inq_dimlen(z4map->ncid,dimids[0],&dimlen)))
 	    goto done;
-        if(lenp) *lenp = (ssize64_t)dimlen;
+        if(lenp) *lenp = (size64_t)dimlen;
     } else if((stat = nc_inq_att(grpid,NC_GLOBAL,ZCONTENT,NULL,&attlen)) == NC_NOERR) {
-        if(lenp) *lenp = (ssize64_t)attlen;	
+        if(lenp) *lenp = (size64_t)attlen;	
     } else /* Use NC_EACCESS to indicate not found */
 	{stat = NC_EACCESS; goto done;}
 
@@ -216,7 +216,7 @@ done:
 }
 
 static int
-znc4define(NCZMAP* map, const char* key, ssize64_t len)
+znc4define(NCZMAP* map, const char* key, size64_t len)
 {
     int stat = NC_NOERR;
     int grpid;
@@ -240,7 +240,7 @@ done:
 }
 
 static int
-znc4read(NCZMAP* map, const char* key, ssize64_t start, ssize64_t count, void* content)
+znc4read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content)
 {
     int stat = NC_NOERR;
     int grpid,vid;
@@ -269,7 +269,7 @@ done:
 }
 
 static int
-znc4write(NCZMAP* map, const char* key, ssize64_t start, ssize64_t count, const void* content)
+znc4write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content)
 {
     int stat = NC_NOERR;
     int grpid,vid;
@@ -298,7 +298,7 @@ done:
 }
 
 static int
-znc4readmeta(NCZMAP* map, const char* key, ssize64_t avail, char* content)
+znc4readmeta(NCZMAP* map, const char* key, size64_t avail, char* content)
 {
     int stat = NC_NOERR;
     int grpid;
@@ -317,7 +317,7 @@ znc4readmeta(NCZMAP* map, const char* key, ssize64_t avail, char* content)
 	goto done;
 
     /* Do some validation checks */
-    if(avail < (ssize64_t)alen) {
+    if(avail < (size64_t)alen) {
 	stat = NC_EVARSIZE; /* the content arg is too short */
 	goto done;
     }
@@ -330,7 +330,7 @@ done:
 }
 
 static int
-znc4writemeta(NCZMAP* map, const char* key, ssize64_t count, const char* content)
+znc4writemeta(NCZMAP* map, const char* key, size64_t count, const char* content)
 {
     int stat = NC_NOERR;
     int grpid;
@@ -602,7 +602,7 @@ done:
 }
 
 static int
-zcreatedim(Z4MAP* z4map, ssize64_t dimsize, int* dimidp)
+zcreatedim(Z4MAP* z4map, size64_t dimsize, int* dimidp)
 {
     int stat = NC_NOERR;
     char name[NC_MAX_NAME];
@@ -624,7 +624,7 @@ done:
    necessary intermediates.
  */
 static int
-zcreateobj(Z4MAP* z4map, NClist* segments, ssize64_t len, int* grpidp)
+zcreateobj(Z4MAP* z4map, NClist* segments, size64_t len, int* grpidp)
 {
     int skip,stat = NC_NOERR;
     int grpid, vid;

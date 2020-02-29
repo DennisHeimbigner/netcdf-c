@@ -143,6 +143,7 @@ NCZ_compute_per_slice_projections(
     if(slicecount < 0) slicecount = 0;
 
     /* Iterate over each chunk that intersects slice to produce projection */
+    nsplist = nclistnew();
     for(index=range->start;index<range->stop;index++) {
 	NCZProjection* projection = NULL;
 	if((projection = calloc(1,sizeof(NCZProjection)))==NULL)

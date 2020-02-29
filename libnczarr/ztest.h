@@ -22,6 +22,8 @@ extern struct Options options;
 
 #define NCCHECK(expr) nccheck((expr),__LINE__)
 
+extern int ut_init(int argc, char** argv, struct Test* test);
+
 extern void nccheck(int stat, int line);
 extern void makeurl(const char* file);
 extern int setup(int argc, char** argv);
