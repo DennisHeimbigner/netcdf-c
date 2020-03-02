@@ -8,7 +8,6 @@
 
 typedef struct NCZCacheEntry {
     int modified;
-    const NC_VAR_INFO_T* var; /* backlink */
     size64_t* offset;
     size64_t indices[NC_MAX_VAR_DIMS];
     size64_t size; /* |data| */
@@ -16,17 +15,17 @@ typedef struct NCZCacheEntry {
 } NCZCacheEntry;
 
 typedef struct NCZChunkCache {
-    NC_FILE_INFO_T* file; /* back link */
+    const NC_VAR_INFO_T* var; /* backlink */
     size_t maxsize;
     NC_hashmap* entries; /* NC_hashmap<NCZCacheEntry*>*/
 } NCZChunkCache;
 
 /**************************************************/
 
-extern int NCZ_create_chunk_cache(NC_FILE_INFO_T* file, size_t maxsize, NCZChunkCache** cachep);
+extern int NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size_t maxsize, NCZChunkCache** cachep);
 extern void NCZ_free_chunk_cache(NCZChunkCache* cache);
-extern int NCZ_read_cache_chunk(NCZChunkCache* cache, const NC_VAR_INFO_T* var, const size64_t* indices, size64_t* datalenp, void** datap);
+extern int NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, size64_t* datalenp, void** datap);
 extern int ncz_flush_chunk_cache(NCZChunkCache* cache);
-extern int ncz_chunk_cache_modified(NCZChunkCache* cache, const NC_VAR_INFO_T* var, const size64_t* indices);
+extern int ncz_chunk_cache_modified(NCZChunkCache* cache, const size64_t* indices);
 
 #endif /*ZCACHE_H*/

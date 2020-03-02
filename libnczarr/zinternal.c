@@ -579,10 +579,12 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
         return retval;
     assert(my_grp && my_h5);
 
-    /* Get the attributes */
-    if((retval = ncz_getattlist(my_grp, varid, &my_var, &attlist)))
-	return retval;
-    assert(attlist);
+    /* Read the attributes for this var, if any */
+    switch (retval = ncz_getattlist(my_grp, varid, &my_var, &attlist)) {
+    case NC_NOERR: assert(attlist); break;
+    case NC_EACCESS: retval = NC_NOERR; attlist = NULL; break; /* variable has no attributes */
+    default: return retval; /* significant error */
+    }
 
     /* Need a name if use_name is true. */
     if (use_name && !name)
@@ -614,7 +616,7 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
     if (att)
         *att = my_att;
 
-    return NC_NOERR;
+    return retval;
 }
 
 /**

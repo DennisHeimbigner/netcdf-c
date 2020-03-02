@@ -443,6 +443,9 @@ extern void nc4_hdf5_finalize(void);
 int log_metadata_nc(NC_FILE_INFO_T *h5);
 #endif
 
+/** @internal Names of atomic types. */
+extern const char* nc4_atomic_name[NUM_ATOMIC_TYPES];
+
 /* Binary searcher for reserved attributes */
 extern const NC_reservedatt* NC_findreserved(const char* name);
 

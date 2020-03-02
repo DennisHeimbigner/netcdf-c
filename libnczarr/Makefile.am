@@ -25,31 +25,31 @@ noinst_LTLIBRARIES = libnczarr.la
 
 # The source files.
 libnczarr_la_SOURCES = \
+zarr.c \
 zattr.c \
 zcache.c \
+zchunking.c \
+zclose.c \
 zcreate.c \
+zcvt.c \
+zdebug.c \
 zdim.c \
 zdispatch.c \
 zfile.c \
+zfilter.c \
 zgrp.c \
 zinternal.c \
-zopen.c \
-zprov.c \
-zvar.c \
-ztype.c \
-zodom.c \
-zchunking.c \
- \
-zarr.c \
-zcvt.c \
-zsync.c \
-zallchunks.c \
-zclose.c \
 zjson.c \
-zutil.c \
 zmap.c \
 zmap_nc4.c \
-zdebug.c
+zodom.c \
+zopen.c \
+zprov.c \
+zsync.c \
+ztype.c \
+zutil.c \
+zvar.c \
+zwalk.c
 
 HDRS= \
 zdispatch.h \

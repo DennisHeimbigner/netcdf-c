@@ -136,11 +136,12 @@ nczprint_sliceprojections(NCZSliceProjections slp)
 {
     char* result = NULL;
     NCbytes* buf = ncbytesnew();
+    char digits[64];
     int i;
 
-    ncbytescat(buf,"SliceProjection{range=");
-    result = nczprint_chunkrange(slp.range);
-    ncbytescat(buf,result);
+    ncbytescat(buf,"SliceProjection{r=");
+    snprintf(digits,sizeof(digits),"%lu",(unsigned long)slp.r);
+    ncbytescat(buf,digits);
     ncbytescat(buf,",projections=[\n");
     for(i=0;i<nclistlength(slp.projections);i++) {
 	NCZProjection* p = (NCZProjection*)nclistget(slp.projections,i);

@@ -39,6 +39,12 @@ done:
     return odom;
 }
   
+void
+nczodom_free(NCZOdometer* odom)
+{
+    nullfree(odom);
+}
+
 int
 nczodom_more(NCZOdometer* odom)
 {

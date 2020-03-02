@@ -27,7 +27,7 @@ static size64_t computelinearoffset(size_t, const size64_t*, const size64_t*);
 
 /**************************************************/
 int
-ncchunking_init(void)
+ncz_chunking_init(void)
 {
     initialized = 1;
     return NC_NOERR;
@@ -40,33 +40,37 @@ Goal: Given the slices being applied to the variable, create
 and walk all possible combinations of projection vectors that
 can be evaluated to provide the output data.
 
-In following code:
-- R is the rank of var
-
 @param file Controlling file
 @param var Controlling variable
 @param slices Slices being applied to variable
-@param memory
+@param memory target or source of data
 @param typesize Size of type being written
 */
 
-static int
-transferslice(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int reading,
+int
+NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 		  NCZSlice* slices, void* memory, size_t typesize)
 {
     int stat = NC_NOERR;
     int i;
+    NC_FILE_INFO_T* file = (var->container)->nc4_info;
     struct Common common;
     NCZOdometer* odom = NULL;
-    size_t nchunks[NC_MAX_VAR_DIMS];
     NCZSliceProjections allprojections[NC_MAX_VAR_DIMS];
+    NCZChunkRange range[NC_MAX_VAR_DIMS];
+    size_t start[NC_MAX_VAR_DIMS];
+    size_t stop[NC_MAX_VAR_DIMS];
+#if 0
+    size_t nchunks[NC_MAX_VAR_DIMS];
+#endif
 
-    if(!initialized) ncchunking_init();
+    if(!initialized) ncz_chunking_init();
 
+    memset(&common,0,sizeof(common));
     memset(allprojections,0,sizeof(allprojections));
+    memset(ranges,0,sizeof(ranges));
 
     /* Package common arguments */
-    memset(&common,0,sizeof(common));
     common.file = file;
     common.var = var;
     common.reading = reading;
@@ -80,17 +84,19 @@ transferslice(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int reading,
     common.memory = memory;
     common.typesize = typesize;
 
-    /* Compute the slice index vector */
-    if((stat=NCZ_compute_all_slice_projections(common.rank,slices,common.dimlens,common.chunklens,allprojections)))
+    /* Compute the chunk ranges for each chunk in a given dim */
+    if((stat = NCZ_compute_chunk_ranges(test.rank,test.slices,test.chunklen,ranges)))
 	goto done;
 
-    /* Compute the nchunks and shape vectors */
+    /* Compute the slice index vector */
+    if((stat=NCZ_compute_all_slice_projections(common.rank,slices,common.dimlens,common.chunklens,ranges,allprojections)))
+	goto done;
+
+    /* Compute the shape vector */
     for(i=0;i<common.rank;i++) {
 	int j;
 	size64_t iocount = 0;
 	NClist* projections = allprojections[i].projections;
-	NCZChunkRange* range = &allprojections[i].range;
-	nchunks[i] = (range->stop - range->start);
 	for(j=0;j<nclistlength(projections);j++) {
 	    NCZProjection* proj = (NCZProjection*)nclistget(projections,j);
 	    iocount += proj->iocount;
@@ -98,21 +104,67 @@ transferslice(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int reading,
 	common.shape[i] = iocount;
     }
 
-    /* Create an odometer to walk nchunk combinations */
-    /* iterate each "wheel[i]" over 0..nchunk[i] with R wheels */
-    if((odom = nczodom_new(common.rank,NC_coord_zero,nchunks,NC_coord_one)) == NULL)
+#if 0
+    /* Compute the nchunks vector */
+    for(i=0;i<common.rank;i++) {
+	NCZChunkRange* range = &ranges[i];
+	nchunks[i] = (range->stop - range->start);
+    }
+#endif
+
+    /* Create an odometer to walk all the range combinations */
+    for(i=0;i<rank;i++) {
+	start[i] = ranges[i].start; 
+	stop[i] = ranges[i].stop;
+    }	
+
+    if((odom = nczodom_new(common.rank,start,stop,NC_coord_one)) == NULL)
 	{stat = NC_ENOMEM; goto done;}
 
     /* iterate over the odometer: all combination of chunk
        indices in the projections */
     for(;nczodom_more(odom);nczodom_next(odom)) {
-	size64_t* projindices = nczodom_indices(odom);
-	if((walkchunkindices(projindices,allprojections,common)))
-	    goto done;
+	int r;
+	size64_t* projindices = NULL;
+        NCZOdometer* slpodom = NULL;
+        NCZSlice slpslices[NC_MAX_VAR_DIM];
+        NCZProjection* proj[NC_MAX_VAR_DIMS];
+	projindices = nczodom_indices(odom);
+	for(r=0;r<rank;r++) {
+	    NCList* projlist = allprojections.projections[r];
+  	    /* use projindices[r] to find the corresponding projection slice */
+	    proj[r] = nclistget(projlist,projindices[r]); /* note the 2 level indexing */
+	}
+	for(r=0;r<rank;r++) {
+	    slpslices[r] = proj[r].slice;
+	}
+	slpodom = nczodom_fromslices(rank,slpslices);
+	/* This is the key action: walk this set of slices and transfer data */
+	if((stat = NCZ_walk(proj,slpodom,common);
     }
 
 done:
     return stat;
+}
+
+int
+NCZ_walk(NCProjection** projv, NCZOdometer slpodom, const struct Common common);
+{
+    int stat = NC_NOERR;
+    size64_t iopos = 0;
+    int r;
+    /* compute the iopos vector */
+    for(r=0;r<rank;r++) {
+	NCZProjection* proj = projv[r];
+	
+    }
+    while(nczodom_more(slpodom)) {
+	size64_t* indices = nczodom_indices(slpodom);
+	/* Convert the indices to a linear offset WRT to common.memory */
+	nczodom_next(slpodom);
+    }
+done:
+    return stat;    
 }
 
 /* Goal: given a vector of chunk indices from projections,
@@ -129,11 +181,11 @@ walkchunkindices(const size64_t* projindices, const NCZSliceProjections* allproj
     size64_t iopos[NC_MAX_VAR_DIMS];
     size64_t chunkindices[NC_MAX_VAR_DIMS]; /* global chunk indices */
     size64_t iostart;
-    NCZ_FILE_INFO_T* zfile = NULL;
+    NCZ_VAR_INFO_T* zvar = NULL;
     void* data = NULL;
     size64_t datalen;
 
-    zfile = (NCZ_FILE_INFO_T *)common.file->format_file_info;
+    zvar = (NCZ_VAR_INFO_T *)common.var->format_var_info;
 
     /* This is complicated. We need to construct a vector (of size R)
        of slices where the ith slice is determined from a projection
@@ -151,12 +203,12 @@ walkchunkindices(const size64_t* projindices, const NCZSliceProjections* allproj
     /* Compute where the extracted data will go in the I/O vector */
     iostart = computelinearoffset(common.rank,iopos,common.shape);  
     /* read the chunk */
-    if((stat=NCZ_read_cache_chunk(zfile->cache,common.var,chunkindices,&datalen,&data)))
+    if((stat=NCZ_read_cache_chunk(zvar->cache,chunkindices,&datalen,&data)))
 	goto done;
     /* Transfer the relevant data */
     if((stat=transferdata(slices,iostart,datalen,data,common))) goto done;
     if(!common.reading) { /* Mark chunk modified */
-        if((stat=ncz_chunk_cache_modified(zfile->cache,common.var,chunkindices)))
+        if((stat=ncz_chunk_cache_modified(zvar->cache,chunkindices)))
    	    goto done;
     }
 
@@ -217,6 +269,7 @@ computelinearoffset(size_t R, const size64_t* indices, const size64_t* dimlens)
 /* Unit test entry points */
 
 /* Construct the odometer for walking all the chunk indices */
+NCZ_UT_PRINTER* nczprinter = NULL;
 
 int
 NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, NCZOdometer** odomp)
@@ -234,8 +287,16 @@ NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, NCZOdometer** odomp
 
     if((odom = nczodom_new(rank, start, stop, NC_coord_one))==NULL)
 	{stat = NC_ENOMEM; goto done;}
-    if(odomp) *odomp = odom;
+    if(nczprinter) {
+        while(nczodom_more(odom)) {
+	    size64_t* indices = nczodom_indices(odom);
+	    nczprinter->printer(rank,indices);
+	    nczodom_next(odom);
+	}
+    }
+    if(odomp) {*odomp = odom; odom = NULL;}
 
 done:
+    nczodom_free(odom);
     return stat;
 }

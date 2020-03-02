@@ -18,12 +18,13 @@
 
 /* Forward */
 static int buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp);
-static int get_chunk(const NC_FILE_INFO_T* file, const char* chunkkey, size64_t datalen, void* data);
-static int put_chunk(const NC_FILE_INFO_T* file, const char* chunkkey, size64_t datalen, const void* data);
+static int get_chunk(const NC_VAR_INFO_T* var, const char* chunkkey, size64_t datalen, void* data);
+static int put_chunk(const NC_VAR_INFO_T* var, const char* chunkkey, size64_t datalen, const void* data);
 
 /**
  * Create a chunk cache object
  *
+ * @param var containing var
  * @param size Size in bytes to set cache.
  * @param nelems Number of elements to hold in cache.
  * @param preemption Premption strategy (between 0 and 1).
@@ -33,14 +34,14 @@ static int put_chunk(const NC_FILE_INFO_T* file, const char* chunkkey, size64_t 
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-NCZ_create_chunk_cache(NC_FILE_INFO_T* file, size_t maxsize, NCZChunkCache** cachep)
+NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size_t maxsize, NCZChunkCache** cachep)
 {
     int stat = NC_NOERR;
     NCZChunkCache* cache = NULL;
 
     if((cache = calloc(1,sizeof(NCZChunkCache))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
-    cache->file = file;
+    cache->var = var;
     cache->maxsize = maxsize;
     if((cache->entries = NC_hashmapnew(0)) == NULL)
 	{stat = NC_ENOMEM; goto done;}
@@ -51,12 +52,12 @@ done:
 }
 
 int
-NCZ_read_cache_chunk(NCZChunkCache* cache, const NC_VAR_INFO_T* var, const size64_t* indices, size64_t* datalenp, void** datap)
+NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, size64_t* datalenp, void** datap)
 {
     int stat = NC_NOERR;
     char* key = NULL;
     NCZCacheEntry* entry = NULL;
-    size_t rank = var->ndims;
+    size_t rank = cache->var->ndims;
 
     /* Create the key for this cache */
     if((stat=buildchunkkey(rank, indices, &key))) goto done;
@@ -65,25 +66,21 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const NC_VAR_INFO_T* var, const size6
 	/* Create a new entry */
 	if((entry = calloc(1,sizeof(NCZCacheEntry)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	entry->var = var;
 	memcpy(entry->indices,indices,rank*sizeof(size64_t));
 	/* Read the object in toto */
-	if((stat=get_chunk(cache->file,key,entry->size,&entry->data)))
+	if((stat=get_chunk(cache->var,key,entry->size,&entry->data)))
 	    goto done;
 #ifdef VERIFY
         /* Verify chunksize */
 	{
 	    size64_t chunksize = 1;
 	    size_t r;
-	    for(r=0;r<rank;r++) chunksize *= var->dim[r]->len;
+	    for(r=0;r<rank;r++) chunksize *= cache->var->dim[r]->len;
 	    if(chunksize != entry->size)
 	        {stat = NC_EINTERNAL; goto done;}
 	}
 #endif
     }
-#ifdef VERIFY
-    if(entry->var != var) {stat = NC_EINTERNAL; goto done;}
-#endif
     if(datalenp) *datalenp = entry->size;	
     if(datap) *datap = entry->data;
 
@@ -155,7 +152,7 @@ NCZ_flush_cache_chunk(NCZChunkCache* cache)
 	    entry = (NCZCacheEntry*)data;
 	    if(entry->modified) {
 	        /* Write out this chunk in toto*/
-  	        if((stat=put_chunk(cache->file,key,entry->size,entry->data)))
+  	        if((stat=put_chunk(cache->var,key,entry->size,entry->data)))
 	            goto done;
 	    }
 	    entry->modified = 0;
@@ -167,12 +164,12 @@ done:
 }
 
 int
-ncz_chunk_cache_modified(NCZChunkCache* cache, const NC_VAR_INFO_T* var, const size64_t* indices)
+ncz_chunk_cache_modified(NCZChunkCache* cache, const size64_t* indices)
 {
     int stat = NC_NOERR;
     char* key = NULL;
     NCZCacheEntry* entry = NULL;
-    size_t rank = var->ndims;
+    size_t rank = cache->var->ndims;
 
     /* Create the key for this cache */
     if((stat=buildchunkkey(rank, indices, &key))) goto done;
@@ -181,7 +178,7 @@ ncz_chunk_cache_modified(NCZChunkCache* cache, const NC_VAR_INFO_T* var, const s
     if(NC_hashmapget(cache->entries, key, strlen(key), (uintptr_t*)entry)) { /* found */
 	entry->modified = 1;
 #ifdef FLUSH
-	if((stat=put_chunk(cache->file,key,entry->size,entry->data)))
+	if((stat=put_chunk(cache->var,key,entry->size,entry->data)))
 	            goto done;
 	entry->modified = 0;
 #endif	
@@ -248,16 +245,16 @@ buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp)
  * @author Dennis Heimbigner
  */
 static int
-put_chunk(const NC_FILE_INFO_T* file, const char* chunkkey, size64_t datalen, const void* data)
+put_chunk(const NC_VAR_INFO_T* var, const char* chunkkey, size64_t datalen, const void* data)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = NULL;
+    NCZ_FILE_INFO_T* zfile = NULL;
     NCZMAP* map = NULL;
 
-    LOG((3, "%s: file: %p", __func__, file));
+    LOG((3, "%s: var: %p", __func__, var));
 
-    zinfo = file->format_file_info;
-    map = zinfo->map;
+    zfile = ((var->container)->nc4_info)->format_file_info;
+    map = zfile->map;
 
     if((stat = nczmap_write(map,chunkkey,0,datalen,data) != NC_NOERR))
 	    goto done;
@@ -280,16 +277,18 @@ done:
  * @author Dennis Heimbigner
  */
 static int
-get_chunk(const NC_FILE_INFO_T* file, const char* chunkkey, size64_t datalen, void* data)
+get_chunk(const NC_VAR_INFO_T* var, const char* chunkkey, size64_t datalen, void* data)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = NULL;
     NCZMAP* map = NULL;
+    NC_FILE_INFO_T* file = NULL;
+    NCZ_FILE_INFO_T* zfile = NULL;
 
     LOG((3, "%s: file: %p", __func__, file));
 
-    zinfo = file->format_file_info;
-    map = zinfo->map;
+    file = (var->container)->nc4_info;
+    zfile = file->format_file_info;
+    map = zfile->map;
 
     if((stat = nczmap_read(map,chunkkey,0,datalen,(char*)data) != NC_NOERR))
 	    goto done;

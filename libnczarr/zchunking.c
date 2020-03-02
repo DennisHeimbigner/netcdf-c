@@ -127,6 +127,7 @@ Create a vector of projections wrt a slice and a sequence of chunks.
 
 int
 NCZ_compute_per_slice_projections(
+	size_t rank, /* which dimension are we projecting? */
         const NCZSlice* slice, /* the slice for which projections are computed */
 	const NCZChunkRange* range, /* range */
 	size64_t dimlen, /* the dimension length for r'th dimension */
@@ -145,17 +146,13 @@ NCZ_compute_per_slice_projections(
     /* Iterate over each chunk that intersects slice to produce projection */
     nsplist = nclistnew();
     for(index=range->start;index<range->stop;index++) {
-	NCZProjection* projection = NULL;
-	if((projection = calloc(1,sizeof(NCZProjection)))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	nclistpush(nsplist,projection);
 	if((stat = NCZ_compute_projection(dimlen, chunklen, index, slice, nsplist)))
 	    goto done;
     }
 
     if(slp) {
 	/* Fill in the Slice Projections to return */
-	slp->range = *range;
+	slp->r = rank;
 	slp->projections = nsplist;
 	nsplist = NULL;
     }    
@@ -176,21 +173,17 @@ NCZ_compute_all_slice_projections(
         const NCZSlice* slices, /* the complete set of slices |slices| == R*/
 	const size64_t* dimlen, /* the dimension lengths associated with a variable */
 	const size64_t* chunklen, /* the chunk length corresponding to the dimensions */
+        const NCZChunkRange* ranges,
         NCZSliceProjections* results)
 {
     int stat = NC_NOERR;
     size64_t r; 
-    NCZChunkRange ranges[NC_MAX_VAR_DIMS];
-
-    /* Compute the chunk ranges for each chunk in a given dim */
-    memset(ranges,0,sizeof(ranges));
-    if((stat = NCZ_compute_chunk_ranges(rank,slices,chunklen,ranges)))
-	goto done;
 
     for(r=0;r<rank;r++) {
 	/* Compute each of the rank SliceProjections instances */
 	NCZSliceProjections* slp = &results[r];
         if((stat=NCZ_compute_per_slice_projections(
+					r,
 					&slices[r],
 					&ranges[r],
 					dimlen[r],

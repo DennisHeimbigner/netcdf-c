@@ -6,7 +6,33 @@
 # Dennis Heimbigner
 
 # The source files for the HDF5 dispatch layer.
-SET(libnczarr_SOURCES zattr.c zcache.c zcreate.c zdim.c zdispatch.c zfile.c zgrp.c zinternal.c zopen.c zprov.c zvar.c ztype.c zodom.c zchunking.c zarr.c zcvt.c zsync.c zallchunks.c zclose.c zjson.c zutil.c zmap.c zmap_nc4.c zdebug.c)
+SET(libnczarr_SOURCES
+zarr.c
+zattr.c
+zcache.c
+zchunking.c
+zclose.c
+zcreate.c
+zcvt.c
+zdebug.c
+zdim.c
+zdispatch.c
+zfile.c
+zfilter.c
+zgrp.c
+zinternal.c
+zjson.c
+zmap.c
+zmap_nc4.c
+zodom.c
+zopen.c
+zprov.c
+zsync.c
+ztype.c
+zutil.c
+zvar.c
+zwalk.c
+)
 
 # Build the Zarr dispatch layer as a library that will be included in
 # the netCDF library.

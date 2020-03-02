@@ -40,7 +40,6 @@ ncz_close_file(NC_FILE_INFO_T* file, int abort)
     if((stat = nczmap_close(zinfo->map,(abort && zinfo->created)?1:0)))
 	goto done;
     nclistfreeall(zinfo->controls);
-    NCZ_free_chunk_cache(zinfo->cache);
     NC_authclear(zinfo->auth);
     nullfree(zinfo->auth);
     nullfree(zinfo);
@@ -156,6 +155,7 @@ zclose_vars(NC_GRP_INFO_T* grp)
 	    nullfree(zatt);
 	    att->format_att_info = NULL; /* avoid memory errors */
         }
+        NCZ_free_chunk_cache(zvar->cache);
 	nullfree(zvar);
 	var->format_var_info = NULL; /* avoid memory errors */
     }

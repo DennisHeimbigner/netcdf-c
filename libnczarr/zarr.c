@@ -54,7 +54,6 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
     zinfo->created = 1;
     zinfo->file = file;
     zinfo->controls = nclistnew();
-    if((stat = NCZ_create_chunk_cache(file,0,&zinfo->cache))) goto done;
 
     /* fill in some of the zinfo and zroot fields */
     zinfo->zarr.zarr_version = ZARRVERSION;
@@ -141,7 +140,6 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
     zinfo->created = 0;
     zinfo->file = file;
     zinfo->controls = nclistnew();
-    if((stat = NCZ_create_chunk_cache(file,0,&zinfo->cache))) goto done;
 
     /* Figure out the map implementation */
 

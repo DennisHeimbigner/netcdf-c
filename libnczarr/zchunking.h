@@ -6,7 +6,6 @@
 #ifndef ZCHUNKING_H
 #define ZCHUNKING_H
 
-
 /* Define the intersecting set of chunks for a slice
    in terms of chunk indices (not absolute positions)
 */
@@ -50,7 +49,7 @@ typedef struct NCProjection {
 
 /* Set of Projections for a slice */
 typedef struct NCZSliceProjections {
-    NCZChunkRange range;
+    size64_t r; /* 0<=r<rank */
     NClist* projections; /* List<NCZProjection*> Vector of projections
                                 derived from the original slice when
 				intersected across the chunk
@@ -75,13 +74,11 @@ typedef struct NCZOdometer {
 } NCZOdometer;
 
 /**************************************************/
-/* From zsliceindices.c */
-extern int NCZ_compute_all_slice_projections(
-	size64_t rank,
-        const NCZSlice* slices,
-	const size64_t* dimlen,
-	const size64_t* chunklen,
-        NCZSliceProjections* results);
+/* From zchunking.c */
+extern int NCZ_compute_chunk_ranges(size64_t, const NCZSlice*, const size64_t*, NCZChunkRange* ncr);
+extern int NCZ_compute_projection(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, NClist* projections);
+extern int NCZ_compute_per_slice_projections(size_t rank, const NCZSlice*, const NCZChunkRange*, size64_t dimlen, size64_t chunklen, NCZSliceProjections* slp);
+extern int NCZ_compute_all_slice_projections(size64_t rank, const NCZSlice* slices, const size64_t* dimlen, const size64_t* chunklen, const NCZChunkRange*, NCZSliceProjections*);
 
 /* From zodom.c */
 extern NCZOdometer* nczodom_new(size_t, const size_t*, const size_t*, const size_t*);
@@ -89,18 +86,18 @@ extern NCZOdometer* nczodom_fromslices(size_t rank, const NCZSlice* slices);
 extern int nczodom_more(NCZOdometer*);
 extern int nczodom_next(NCZOdometer*);
 extern size64_t* nczodom_indices(NCZOdometer*);
+extern void nczodom_free(NCZOdometer*);
 
-#if 0
-/* From allchunks.c */
-extern int nczhunking_init(void);
-extern int ncz_evaluateslices(NC_FILE_INFO_T*, NC_VAR_INFO_T*, NCZSlice*, void*, size64_t);
-#endif
+/* From zwalk.c */
+extern int ncz_chunking_init(void);
+extern int NCZ_transferslice(NC_VAR_INFO_T* var, int reading, NCZSlice* slices, void* memory, size_t typesize);
 
 /* Expose functions for unit tests */
-extern int NCZ_compute_chunk_ranges(size64_t, const NCZSlice*, const size64_t*, NCZChunkRange*);
-extern int NCZ_compute_projection(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, NClist* projections);
-extern int NCZ_compute_per_slice_projections(const NCZSlice* slice, const NCZChunkRange* range, size64_t dimlen, size64_t chunklen, NCZSliceProjections* slp);
-extern int NCZ_compute_all_slice_projections(size64_t rank, const NCZSlice* slices, const size64_t* dimlen, const size64_t* chunklen, NCZSliceProjections* results);
-extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, NCZOdometer** odomp);
+typedef struct NCZ_UT_PRINTER {
+    void (*printer)(int rank,void*);
+} NCZ_UT_PRINTER;
+
+extern NCZ_UT_PRINTER* nczprinter;
+extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, NCZOdometer** odom);
 
 #endif /*ZCHUNKING_H*/
