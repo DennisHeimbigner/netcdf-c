@@ -44,7 +44,7 @@ ut_proj_init(int argc, char** argv, ProjTest* test)
 
     buf = ncbytesnew();
 
-    while ((c = getopt(argc, argv, "r:d:c:s:R:")) != EOF) {
+    while ((c = getopt(argc, argv, "r:d:c:s:R:t:")) != EOF) {
 	switch(c) {
 	case 'r': /* rank */
 	    if(optcount > 0) {
@@ -73,6 +73,9 @@ ut_proj_init(int argc, char** argv, ProjTest* test)
 	    test->range.start = r[0];
 	    test->range.stop = r[1];
 	    } break;
+	case 't': /* typesize */
+	    test->typesize = (unsigned)atoi(optarg);
+	    break;
 	case '?':
 	   fprintf(stderr,"unknown option\n");
 	   stat = NC_EINVAL;

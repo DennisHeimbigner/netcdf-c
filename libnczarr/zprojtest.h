@@ -15,6 +15,7 @@ typedef struct ProjTest {
     size64_t chunklen[NC_MAX_VAR_DIMS];
     NCZSlice slices[NC_MAX_VAR_DIMS];
     NCZChunkRange range;
+    unsigned int typesize;
 }  ProjTest;
 
 extern NCbytes* buf;

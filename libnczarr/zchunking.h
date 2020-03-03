@@ -92,12 +92,12 @@ extern void nczodom_free(NCZOdometer*);
 extern int ncz_chunking_init(void);
 extern int NCZ_transferslice(NC_VAR_INFO_T* var, int reading, NCZSlice* slices, void* memory, size_t typesize);
 
-/* Expose functions for unit tests */
-typedef struct NCZ_UT_PRINTER {
-    void (*printer)(int rank,void*);
-} NCZ_UT_PRINTER;
-
-extern NCZ_UT_PRINTER* nczprinter;
+/* Special entry points for unit testing */
 extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, NCZOdometer** odom);
+extern int NCZ_projectslice(size_t rank, int reading,
+		  size64_t* dimlens,
+		  size64_t* chunklens,
+		  NCZSlice* slices,
+		  void* memory, size_t typesize);
 
 #endif /*ZCHUNKING_H*/

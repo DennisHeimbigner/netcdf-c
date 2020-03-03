@@ -9,7 +9,7 @@
 Test walking all combinations of chunks covered by a slice.
 */
 
-void rangeodomprinter(int rank, void* indices);
+void rangeprinter(NCZ_UT_PRINTER*);
 
 int
 main(int argc, char** argv)
@@ -20,7 +20,6 @@ main(int argc, char** argv)
     NClist* listv[NC_MAX_VAR_DIMS];
     NCZChunkRange ncrv[NC_MAX_VAR_DIMS];
     NCZSliceProjections slpv[NC_MAX_VAR_DIMS];
-    NCZ_UT_PRINTER printer;
 
     /* Initialize */
     memset(&test,0,sizeof(test));
@@ -37,7 +36,8 @@ main(int argc, char** argv)
     for(r=0;r<test.rank;r++) {
         printf("[%d] %s\n",r,nczprint_chunkrange(ncrv[r]));
     }
-    printer.printer = rangeodomprinter;
+    memset(&printer,0,sizeof(printer));
+    printer.printer = rangeprinter;
     nczprinter = &printer;
     if((stat = NCZ_chunkindexodom(test.rank, ncrv, NULL)))
 	goto done;
@@ -49,12 +49,16 @@ done:
 }
 
 void
-rangeodomprinter(int rank, void* data)
+rangeprinter(NCZ_UT_PRINTER* printer)
 {
-	int r;
-        size64_t* indices = data;
+    int r;
+    switch (printer->printsort) {
+    default: abort();
+    case PRINTSORT_RANGE:
         printf("[");
-        for(r=0;r<rank;r++)
+        for(r=0;r<printer->rank;r++)
             printf("%s%llu",(r==0?"":","),indices[r]);
         printf("]\n");
+	break;
+    }
 }

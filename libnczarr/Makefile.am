@@ -76,7 +76,7 @@ check_PROGRAMS =
 TESTS =
 
 # Unit Tests
-ut_range_SOURCES = ut_range.c ut_util.c ../nczarr_test/ztest_util.c
+ut_range_SOURCES = ut_range.c ut_util.c ../nczarr_test/ztest.c
 check_PROGRAMS += ut_range
 
 TESTS += ut.sh

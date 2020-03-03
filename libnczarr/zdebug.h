@@ -37,5 +37,22 @@ extern char* nczprint_chunkrange(NCZChunkRange);
 extern char* nczprint_projection(NCZProjection);
 extern char* nczprint_sliceprojections(NCZSliceProjections);
 
+/* Expose functions for unit tests */
+typedef struct NCZ_UT_PRINTER {
+    int printsort;
+#define PRINTSORT_RANGE 1
+#define PRINTSORT_WALK1 2
+#define PRINTSORT_WALK2 3
+    void (*printer)(struct NCZ_UT_PRINTER*);
+    /* Union of all fields */
+    size_t rank;
+    size64_t count;
+    size64_t* indices;
+    size64_t* vector;
+    void* pvector;
+} NCZ_UT_PRINTER;
+
+extern NCZ_UT_PRINTER* nczprinter;
+
 #endif /*ZDEBUG_H*/
 
