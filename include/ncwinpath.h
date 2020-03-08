@@ -38,6 +38,9 @@
 /* Path Converter */
 EXTERNL char* NCpathcvt(const char* path);
 
+/* Fix path in case it was escaped by shell */
+EXTERNL char* NCdeescape(const char* name);
+
 #ifdef WINPATH
 /* path converter wrappers*/
 EXTERNL FILE* NCfopen(const char* path, const char* flags);

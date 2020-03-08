@@ -107,9 +107,17 @@ NCZ_enddef(int ncid)
     /* When exiting define mode, mark all variable written. */
     for (i = 0; i < ncindexsize(grp->vars); i++)
     {
+	NCZ_VAR_INFO_T* zvar = NULL;
         var = (NC_VAR_INFO_T *)ncindexith(grp->vars, i);
         assert(var);
         var->written_to = NC_TRUE;
+
+	/* Create a cache for it */
+	zvar = var->format_var_info;
+	if(zvar->cache == NULL) {
+            if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,&zvar->cache)))
+		return stat;
+	}
     }
     return ncz_enddef_netcdf4_file(h5);
 }

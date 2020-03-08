@@ -24,6 +24,7 @@
 #include "dimmap.h"
 #include "nccomps.h"
 #include "list.h"
+#include "ncwinpath.h"
 
 #undef DEBUGFILTER
 
@@ -70,6 +71,8 @@ struct FilterSpec {
 
 static List* filterspecs = NULL;
 static int suppressfilters = 0; /* 1 => do not apply any output filters unless specified */
+
+extern int nc__testurl(const char*,char**);
 
 /* Forward declaration, because copy_type, copy_vlen_type call each other */
 static int copy_type(int igrp, nc_type typeid, int ogrp);
@@ -152,7 +155,6 @@ static char** option_lvars = 0;		/* list of variable names specified with -v
 static bool_t option_varstruct = false;	  /* if -v set, copy structure for non-selected vars */
 static int option_compute_chunkcaches = 0; /* default, don't try still flaky estimate of
 					    * chunk cache for each variable */
-
 /* get group id in output corresponding to group igrp in input,
  * given parent group id (or root group id) parid in output. */
 static int
@@ -2176,7 +2178,7 @@ main(int argc, char**argv)
        usage();
     }
 
-    while ((c = getopt(argc, argv, "k:3467d:sum:c:h:e:rwxg:G:v:V:F:L:M:")) != -1) {
+    while ((c = getopt(argc, argv, "k:3467d:sum:c:h:e:rwxg:G:v:V:F:L:M:E")) != -1) {
 	switch(c) {
         case 'k': /* for specifying variant of netCDF format to be generated
                      Format names:
@@ -2341,8 +2343,9 @@ main(int argc, char**argv)
     if (argc != 2) {
 	error("one input file and one output file required");
     }
-    inputfile = argv[0];
-    outputfile = argv[1];
+    /* Escape the file names in case bash escaped them */
+    inputfile = NCdeescape(argv[0]);
+    outputfile = NCdeescape(argv[1]);
 
     if(strcmp(inputfile, outputfile) == 0) {
 	error("output would overwrite input");

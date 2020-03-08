@@ -211,6 +211,7 @@ add_user_type(int ncid, size_t size, const char *name, nc_type base_typeid,
     if (!(ncz_type = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
         return NC_ENOMEM;
     type->format_type_info = ncz_type;
+    ncz_type->common.file = h5;
 
     /* Remember info about this type. */
     type->nc_type_class = type_class;

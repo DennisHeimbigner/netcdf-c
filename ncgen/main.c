@@ -216,7 +216,6 @@ main(
 #ifdef __hpux
     setlocale(LC_CTYPE,"");
 #endif
-
     init_netcdf();
 
     opterr = 1;			/* print error message if bad option */
@@ -244,13 +243,17 @@ main(
 #endif
     memset(&globalspecials,0,sizeof(GlobalSpecialData));
 
-    while ((c = getopt(argc, argv, "134567bB:cdD:fhHk:l:M:no:Pv:xL:N:")) != EOF)
+    while ((c = getopt(argc, argv, "134567bB:cdD:fhHk:l:M:no:Pv:xL:N:E")) != EOF)
       switch(c) {
-	case 'd':
-	  debug = 1;
+	case 'b': /* for binary netcdf output, ".nc" extension */
+	  if(l_flag != 0) {
+	    fprintf(stderr,"Please specify only one language\n");
+	    return 1;
+	  }
+	  l_flag = L_BINARY;
 	  break;
-	case 'D':
-	  debug = atoi(optarg);
+	case 'B':
+	  nciterbuffersize = atoi(optarg);
 	  break;
 	case 'c': /* for c output, old version of "-lc" */
 	  if(l_flag != 0) {
@@ -260,6 +263,12 @@ main(
 	  l_flag = L_C;
 	  fprintf(stderr,"-c is deprecated: please use -lc\n");
 	  break;
+	case 'd':
+	  debug = 1;
+	  break;
+	case 'D':
+	  debug = atoi(optarg);
+	  break;
 	case 'f': /* for f77 output, old version of "-lf" */
 	  if(l_flag != 0) {
 	    fprintf(stderr,"Please specify only one language\n");
@@ -268,70 +277,11 @@ main(
 	  l_flag = L_F77;
 	  fprintf(stderr,"-f is deprecated: please use -lf77\n");
 	  break;
-	case 'b': /* for binary netcdf output, ".nc" extension */
-	  if(l_flag != 0) {
-	    fprintf(stderr,"Please specify only one language\n");
-	    return 1;
-	  }
-	  l_flag = L_BINARY;
-	  break;
-	case 'H':
-	  header_only = 1;
-	  break;
 	case 'h':
 	  usage();
 	  goto done;
-        case 'l': /* specify language, instead of using -c or -f or -b */
-	{
-            char* lang_name = NULL;
-	    if(l_flag != 0) {
-              fprintf(stderr,"Please specify only one language\n");
-              return 1;
-	    }
-            if(!optarg) {
-              derror("%s: output language is null", progname);
-              return(1);
-            }
-#if 0
-            lang_name = estrdup(optarg);
-#endif
-            lang_name = (char*) emalloc(strlen(optarg)+1);
-            (void)strcpy(lang_name, optarg);
-
-            for(langs=legallanguages;langs->name != NULL;langs++) {
-              if(strcmp(lang_name,langs->name)==0) {
-                l_flag = langs->flag;
-                break;
-              }
-            }
-	    if(langs->name == NULL) {
-              derror("%s: output language %s not implemented",progname, lang_name);
-              nullfree(lang_name);
-              return(1);
-	    }
-            nullfree(lang_name);
-	}; break;
-	case 'L':
-	    ncloglevel = atoi(optarg);
-	    break;
-	case 'n':		/* old version of -b, uses ".cdf" extension */
-	  if(l_flag != 0) {
-	    fprintf(stderr,"Please specify only one language\n");
-	    return 1;
-	  }
-	  l_flag = L_BINARY;
-          binary_ext = ".cdf";
-	  break;
-	case 'o':		/* to explicitly specify output name */
-	  if(netcdf_name) efree(netcdf_name);
-	  netcdf_name = nulldup(optarg);
-	  break;
-	case 'N':		/* to explicitly specify dataset name */
-	  if(datasetname) efree(datasetname);
-	  datasetname = nulldup(optarg);
-	  break;
-	case 'x': /* set nofill mode to speed up creation of large files */
-	  nofill_flag = 1;
+	case 'H':
+	  header_only = 1;
 	  break;
         case 'v': /* a deprecated alias for "kind" option */
 	    /*FALLTHRU*/
@@ -367,6 +317,64 @@ main(
                 return 2;
             }
 	} break;
+        case 'l': /* specify language, instead of using -c or -f or -b */
+	{
+            char* lang_name = NULL;
+	    if(l_flag != 0) {
+              fprintf(stderr,"Please specify only one language\n");
+              return 1;
+	    }
+            if(!optarg) {
+              derror("%s: output language is null", progname);
+              return(1);
+            }
+#if 0
+            lang_name = estrdup(optarg);
+#endif
+            lang_name = (char*) emalloc(strlen(optarg)+1);
+            (void)strcpy(lang_name, optarg);
+
+            for(langs=legallanguages;langs->name != NULL;langs++) {
+              if(strcmp(lang_name,langs->name)==0) {
+                l_flag = langs->flag;
+                break;
+              }
+            }
+	    if(langs->name == NULL) {
+              derror("%s: output language %s not implemented",progname, lang_name);
+              nullfree(lang_name);
+              return(1);
+	    }
+            nullfree(lang_name);
+	}; break;
+	case 'L':
+	    ncloglevel = atoi(optarg);
+	    break;
+	case 'M': /* Determine the name for the main function */
+	    mainname = nulldup(optarg);
+	    break;
+	case 'n':		/* old version of -b, uses ".cdf" extension */
+	  if(l_flag != 0) {
+	    fprintf(stderr,"Please specify only one language\n");
+	    return 1;
+	  }
+	  l_flag = L_BINARY;
+          binary_ext = ".cdf";
+	  break;
+	case 'N':		/* to explicitly specify dataset name */
+	  if(datasetname) efree(datasetname);
+	  datasetname = nulldup(optarg);
+	  break;
+	case 'o':		/* to explicitly specify output name */
+	  if(netcdf_name) efree(netcdf_name);
+	  netcdf_name = NCdeescape(optarg);
+	  break;
+	case 'P': /* diskless with persistence */
+	  diskless = 1;
+	  break;
+	case 'x': /* set nofill mode to speed up creation of large files */
+	  nofill_flag = 1;
+	  break;
 	case '3':		/* output format is classic (netCDF-3) */
 	    k_flag = NC_FORMAT_CLASSIC;
 	    break;
@@ -382,15 +390,6 @@ main(
 	case '7':		/* output format is netCDF-4 (restricted to classic model)*/
 	    k_flag = NC_FORMAT_NETCDF4_CLASSIC;
 	    break;
-	case 'M': /* Determine the name for the main function */
-	    mainname = nulldup(optarg);
-	    break;
-	case 'B':
-	  nciterbuffersize = atoi(optarg);
-	  break;
-	case 'P': /* diskless with persistence */
-	  diskless = 1;
-	  break;
 	case '?':
 	  usage();
 	  return(8);

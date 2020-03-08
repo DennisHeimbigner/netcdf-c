@@ -67,6 +67,7 @@ NCZ_def_grp(int parent_ncid, const char *name, int *new_ncid)
         return stat;
     if (!(g->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
         return NC_ENOMEM;
+    ((NCZ_GRP_INFO_T*)g->format_grp_info)->common.file = h5;
 
     /* For new groups, there are no atts to read from file. */
     g->atts_read = 1;

@@ -107,6 +107,7 @@ NCZ_def_dim(int ncid, const char *name, size_t len, int *idp)
     /* Create struct for NCZ-specific dim info. */
     if (!(dim->format_dim_info = calloc(1, sizeof(NCZ_DIM_INFO_T))))
         return NC_ENOMEM;
+    ((NCZ_DIM_INFO_T*)dim->format_dim_info)->common.file = h5;
 
     /* Pass back the dimid. */
     if (idp)

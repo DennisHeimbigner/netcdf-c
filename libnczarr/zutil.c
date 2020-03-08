@@ -499,15 +499,17 @@ NCZ_subobjects(NCZMAP* map, const char* prefix, const char* tag, NClist* objlist
     NClist* matches = nclistnew();
     size_t prelen = strlen(prefix);
     size_t taglen = strlen(tag);
+    NCbytes* path = ncbytesnew();
 
-    /* Get the path list */
+    /* Get the list of object keys just below prefix */
     if((stat = nczmap_search(map,prefix,matches))) goto done;
     for(i=0;i<nclistlength(matches);i++) {
-	const char* path = nclistget(matches,i);
-	const char* p0;
-	const char* p;
-	/*point past the prefix (including any trailing '/') */
-	p0 = path+prelen;
+	const char* key = nclistget(matches,i);
+	/* Ignore keys that start with .z or .nc or a potential chunk name */
+        /* Capture the fullpath */	
+	ncbytescat(path,prefix);
+	ncbytescat(path,"/");
+	ncbytescat(path,key);
 	p = strchr(p0,NCZM_SEP[0]); /* point where tag should start */
 	if(p == NULL) continue; /* There is no possible tag */
 	if(strlen(p) != taglen+1) continue; /* tag is too long */
@@ -650,4 +652,69 @@ NCZ_comma_parse(const char* s, NClist* list)
 
 done:
     return stat;
+}
+
+/**************************************************/
+/* Endianness support */
+/* signature: void swapinline16(void* ip) */
+#define swapinline16(ip) \
+{ \
+    union {char b[2]; unsigned short i;} u; \
+    char* src = (char*)(ip); \
+    u.b[0] = src[1]; \
+    u.b[1] = src[0]; \
+    *((unsigned short*)ip) = u.i; \
+}
+
+/* signature: void swapinline32(void* ip) */
+#define swapinline32(ip) \
+{ \
+    union {char b[4]; unsigned int i;} u; \
+    char* src = (char*)(ip); \
+    u.b[0] = src[3]; \
+    u.b[1] = src[2]; \
+    u.b[2] = src[1]; \
+    u.b[3] = src[0]; \
+    *((unsigned int*)ip) = u.i; \
+}
+
+/* signature: void swapinline64(void* ip) */
+#define swapinline64(ip) \
+{ \
+    union {char b[8]; unsigned long long i;} u; \
+    char* src = (char*)(ip); \
+    u.b[0] = src[7]; \
+    u.b[1] = src[6]; \
+    u.b[2] = src[5]; \
+    u.b[3] = src[4]; \
+    u.b[4] = src[3]; \
+    u.b[5] = src[2]; \
+    u.b[6] = src[1]; \
+    u.b[7] = src[0]; \
+    *((unsigned long long*)ip) = u.i; \
+}
+
+int
+NCZ_swapatomicdata(size_t datalen, void* data, int typesize)
+{
+    int stat = NC_NOERR;
+    int i;
+
+    assert(datalen % typesize == 0);
+
+    if(typesize == 1) goto done;
+
+    /*(typesize > 1)*/
+    for(i=0;i<datalen;) {
+	char* p = data + i;
+        switch (typesize) {
+        case 2: swapinline16(p); break;
+        case 4: swapinline32(p); break;
+        case 8: swapinline64(p); break;
+        default: break;
+	}
+	i += typesize;
+    }
+done:
+    return THROW(stat);
 }

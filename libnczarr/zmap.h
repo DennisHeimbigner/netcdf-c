@@ -34,6 +34,13 @@ Obviously, this path structure imposes a tree structure on the set
 of objects where one object is "contained" (possibly transitively)
 by another if one path is a prefix (in the string sense) of the other.
 
+Notes:
+1. Implementing the search function is optional. It has two purposes:
+   a. Support reading of pure zarr datasets (because they do not explicitly
+      track their contents).
+   b. Debugging to allow raw examination of the storage. See zdump
+      for example.
+
 Issues:
 1. S3 limits key lengths to 1024 bytes. Some deeply nested netcdf files
 will almost certainly exceed this limit.
@@ -103,7 +110,7 @@ struct NCZMAP_API {
 	int (*readmeta)(NCZMAP* map, const char* key, size64_t count, char* content);
 	int (*writemeta)(NCZMAP* map, const char* key, size64_t count, const char* content);
         int (*close)(NCZMAP* map, int delete);
-	/* Search for keys with specified prefix */
+	/* Return the set of keys immediately "below" a specified prefix */
         int (*search)(NCZMAP* map, const char* prefix, NClist* matches);
 };
 

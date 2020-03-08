@@ -55,6 +55,25 @@ nczprint_slice(NCZSlice slice)
 }
 
 char*
+nczprint_slices(size_t rank, NCZSlice* slices)
+{
+    int i;
+    char* result = NULL;
+    NCbytes* buf = ncbytesnew();
+
+    for(i=0;i<rank;i++) {
+	char* ssl;
+        ncbytescat(buf,"[");
+	ssl = nczprint_slice(slices[i]);
+	ncbytescat(buf,ssl);
+        ncbytescat(buf,"]");
+    }
+    result = ncbytesextract(buf);
+    ncbytesfree(buf);
+    return result;
+}
+
+char*
 nczprint_odom(NCZOdometer odom)
 {
     char* result = NULL;
@@ -109,6 +128,8 @@ nczprint_projection(NCZProjection proj)
     char value[128];
 
     ncbytescat(buf,"Projection{");
+    snprintf(value,sizeof(value),"id=%d,",proj.id);
+    ncbytescat(buf,value);
     snprintf(value,sizeof(value),"chunkindex=%lu",(unsigned long)proj.chunkindex);
     ncbytescat(buf,value);
     snprintf(value,sizeof(value),",first=%lu",(unsigned long)proj.first);
@@ -175,6 +196,26 @@ nczprint_chunkrange(NCZChunkRange range)
     snprintf(digits,sizeof(digits),"%llu",range.stop);
     ncbytescat(buf,digits);
     ncbytescat(buf,"}");
+    result = ncbytesextract(buf);
+    ncbytesfree(buf);
+    return result;
+}
+
+char*
+nczprint_vector(size_t len, size64_t* vec)
+{
+    char* result = NULL;
+    int i;
+    char value[128];
+    NCbytes* buf = ncbytesnew();
+
+    ncbytescat(buf,"(");
+    for(i=0;i<len;i++) {
+        if(i > 0) ncbytescat(buf,",");
+        snprintf(value,sizeof(value),"%lu",(unsigned long)vec[i]);	
+	ncbytescat(buf,value);
+    }
+    ncbytescat(buf,")");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
     return result;

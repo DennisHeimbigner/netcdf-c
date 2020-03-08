@@ -4,6 +4,14 @@
  *********************************************************************/
 #include "zincludes.h"
 
+void
+nczodom_reset(NCZOdometer* odom)
+{
+    int r;
+    for(r=0;r<odom->rank;r++)
+        odom->index[r] = odom->slices[r].start;
+}
+
 NCZOdometer*
 nczodom_new(size_t rank, const size_t* start, const size_t* stop, const size_t* stride)
 {
@@ -17,7 +25,7 @@ nczodom_new(size_t rank, const size_t* start, const size_t* stop, const size_t* 
 	odom->slices[i].stop = (size64_t)stop[i];
 	odom->slices[i].stride = (size64_t)stride[i];
     }
-    memset(odom->index,0,sizeof(size_t)*rank);
+    nczodom_reset(odom);
 done:
     return odom;
 }
@@ -34,7 +42,7 @@ nczodom_fromslices(size_t rank, const NCZSlice* slices)
     for(i=0;i<rank;i++) {    
 	odom->slices[i] = slices[i];
     }
-    memset(odom->index,0,sizeof(size_t)*rank);
+    nczodom_reset(odom);
 done:
     return odom;
 }

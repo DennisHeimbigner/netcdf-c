@@ -245,6 +245,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 {
     int i,stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = NULL;
+    NCZ_VAR_INFO_T* zvar = NULL;
     char number[1024];
     NCZMAP* map = NULL;
     char* fullpath = NULL;
@@ -259,6 +260,8 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     LOG((3, "%s: dims: %s", __func__, key));
 
     zinfo = file->format_file_info;
+    zvar = var->format_var_info;
+
     map = zinfo->map;
 
     /* Construct var path */
@@ -397,11 +400,15 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 	    goto done;
 	jdimrefs = NULL; /* Avoid memory problems */
 
-	/* Add the contiguous flag */
-	if((stat = NCJnewstring(NCJ_BOOLEAN,
-		(var->contiguous?"true":"false"),
-		&jtmp))) goto done;
-	if((stat = NCJinsert(jncvar,"contiguous",jtmp))) goto done;
+	/* Add the _Storage flag */
+        if(var->contiguous) {
+	     if((stat = NCJnewstring(NCJ_STRING,"contiguous",&jtmp)))goto done;
+        } else if(var->compact) {
+	     if((stat = NCJnewstring(NCJ_STRING,"compact",&jtmp)))goto done;
+	} else {/* chunked */
+	     if((stat = NCJnewstring(NCJ_STRING,"chunked",&jtmp)))goto done;
+	}	
+	if((stat = NCJinsert(jncvar,"storage",jtmp))) goto done;
 	jtmp = NULL;
 
 	/* Write out NCZVAR */
@@ -416,6 +423,12 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     assert(var->att);
     if((stat = ncz_sync_atts(file,(NC_OBJ*)var, var->att)))
 	goto done;
+
+    /* Flush the chunk cache */
+    if(NCZ_cache_size(zvar->cache) > 0) {
+        if((stat = NCZ_flush_chunk_cache(zvar->cache)))
+	    goto done;
+    }
 
 done:
     nullfree(fullpath);
@@ -1003,6 +1016,7 @@ define_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* diminfo)
             goto done;
         if((dim->format_dim_info = calloc(1,sizeof(NCZ_DIM_INFO_T))) == NULL)
             {stat = NC_ENOMEM; goto done;}
+	((NCZ_DIM_INFO_T*)dim->format_dim_info)->common.file = file;
     }
 
 done:
@@ -1027,6 +1041,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     char* varpath = NULL;
     char* key = NULL;
     NCZ_FILE_INFO_T* zinfo = NULL;
+    NCZ_VAR_INFO_T* zvar = NULL;
     NCZMAP* map = NULL;
     NClist* segments = nclistnew();
     NCjson* jvar = NULL;
@@ -1035,7 +1050,6 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     NCjson* jvalue = NULL;
     NClist* dimrefs = NULL;
     int hasdimrefs;
-    int contiguous = 0;
 
     zinfo = file->format_file_info;
     map = zinfo->map;
@@ -1054,8 +1068,10 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
             goto done;
 
         /* And its annotation */
-        if((var->format_var_info = calloc(1,sizeof(NCZ_VAR_INFO_T)))==NULL)
+        if((zvar = calloc(1,sizeof(NCZ_VAR_INFO_T)))==NULL)
             {stat = NC_ENOMEM; goto done;}
+	var->format_var_info = zvar;
+	zvar->common.file = file;
 
         /* Construct var path */
         if((stat = NCZ_varpath(var,&varpath)))
@@ -1075,11 +1091,21 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
         nullfree(key); key = NULL;
         assert((jncvar->sort == NCJ_DICT));
 
-        /* Extract contiguous flag */
-        contiguous = 0;
-        if((stat = NCJdictget(jncvar,"contiguous",&jvalue)) == NC_NOERR
-           && jvalue != NULL && strcmp(jvalue->value,"true") == 0)
-            contiguous = 1;
+        /* Extract storage flag */
+        if((stat = NCJdictget(jncvar,"storage",&jvalue)))
+	    goto done;
+        if(jvalue != NULL) {
+	    if(strcmp(jvalue->value,"chunked") == 0) {
+                var->contiguous = NC_FALSE;
+                var->compact = NC_FALSE;
+	    } else if(strcmp(jvalue->value,"compact") == 0) {
+                var->contiguous = NC_FALSE;
+                var->compact = NC_TRUE;
+	    } else { /*storage = NC_CONTIGUOUS;*/
+                var->contiguous = NC_TRUE;
+                var->compact = NC_FALSE;
+	    }
+	}	    
 
         /* Extract dimrefs list  */
         switch ((stat = NCJdictget(jncvar,"dimrefs",&jdimrefs))) {
@@ -1120,7 +1146,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
                 goto done;
             if(vtype > NC_NAT && vtype < NC_STRING) {
                 /* Locate the NC_TYPE_INFO_T object */
-                if((stat = ncz_gettype(vtype,&var->type_info)))
+                if((stat = ncz_gettype(grp,vtype,&var->type_info)))
                     goto done;
             } else {stat = NC_EBADTYPE; goto done;}
             if(endianness == NC_ENDIAN_LITTLE || endianness == NC_ENDIAN_BIG) {
@@ -1163,22 +1189,25 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
                 {stat = THROW(NC_ENCZARR); goto done;}
             /* Verify the rank */
             rank = nclistlength(jvalue->array);
-            var->contiguous = (rank == 0) || contiguous;
             if(rank > 0) {
+		var->contiguous = (var->compact = NC_FALSE);
                 if(var->ndims != rank)
                     {stat = THROW(NC_ENCZARR); goto done;}
                 if((var->chunksizes = malloc(sizeof(size_t)*rank)) == NULL)
                     {stat = NC_ENOMEM; goto done;}
                 if((stat = decodeints(jvalue, chunks))) goto done;
                 /* validate the chunk sizes */
+	        zvar->chunkproduct = 1;
                 for(j=0;j<rank;j++) {
                     NC_DIM_INFO_T* d = var->dim[j]; /* matching dim */
                     if(chunks[j] == 0 || chunks[j] > d->len)
                         {stat = THROW(NC_ENCZARR); goto done;}
                     var->chunksizes[j] = (size_t)chunks[j];
-                    if(var->contiguous && var->chunksizes[j] != d->len)
-                        {stat = THROW(NC_ENCZARR); goto done;}
+		    zvar->chunkproduct *= chunks[j];
                 }
+	        /* Create the cache */
+		if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,&zvar->cache)))
+		    goto done;
             }
         }
         /* fill_value */
@@ -1251,6 +1280,7 @@ define_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames)
             goto done;
         if(!(g->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
             {stat = NC_ENOMEM; goto done;}
+	((NCZ_GRP_INFO_T*)g->format_grp_info)->common.file = file;
     }
 
     /* Recurse to fill in subgroups */

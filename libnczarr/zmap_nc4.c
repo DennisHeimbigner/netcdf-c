@@ -68,7 +68,7 @@ znc4verify(const char *path, int mode, size64_t flags, void* parameters)
     /* Attempt to open the file to see if it is nc4 */
     mode = NC_NETCDF4 | mode; /* make sure */
     if((stat=nc_open(filepath,mode,&ncid)))
-	{stat = NC_EINVAL; goto done;}
+	{stat = NC_ENOTFOUND; goto done;}
 #if 0
     /* check for the group ".zarr" */
     nc4ify(Z4METAROOT,nc4name);
@@ -95,8 +95,8 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
     /* Use the path to create the netcdf4 dataset */
     /* ignore incoming mode */
     mode = NC_NETCDF4 | NC_CLOBBER | NC_WRITE;
-    stat=nc_create(path,mode,&ncid);
-    if(stat) goto done; /* could not open */
+    if((stat=nc_create(path,mode,&ncid)))
+        {stat = NC_ENOTFOUND; goto done;} /* could not open */
     
     /* Build the z4 state */
     if((z4map = calloc(1,sizeof(Z4MAP))) == NULL)
@@ -138,7 +138,7 @@ znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** 
     /* Use the path to open the netcdf4 dataset */
     mode = NC_NETCDF4 | mode;
     if((stat=nc_open(filepath,mode,&ncid)))
-	goto done; /* could not open */
+	{stat = NC_ENOTFOUND; goto done;} /* could not open */
     
     /* Build the z4 state */
     if((z4map = calloc(1,sizeof(Z4MAP))) == NULL)
@@ -381,10 +381,9 @@ done:
 }
 
 /*
-Return a list of keys whose prefix matches the specified prefix string.
+Return a list of keys immediately "below" a specified prefix.
 In theory, the returned list should be sorted in lexical order,
-but breadth first will approximate this.
-First element of the list is the prefix itself.
+but it is not.
 */
 int
 znc4search(NCZMAP* map, const char* prefix, NClist* matches)
@@ -392,11 +391,11 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
     int stat = NC_NOERR;
     Z4MAP* z4map = (Z4MAP*)map;
     NClist* segments = nclistnew();
-    int grpid;
+    int grpid, ngrps, nvars;
     int* subgrps = NULL;
+    int* vars = NULL;
     int i;
-    NClist* queue = nclistnew(); /* To do the breadth first walk */
-
+	
     if((stat=nczm_split(prefix,segments)))
 	goto done;    
     if(nclistlength(segments) > 0) {
@@ -421,45 +420,40 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
     /* Get grpid of the group for the prefix */
     if((stat = zlookupgroup(z4map,segments,0,&grpid)))
 	goto done;
-    /* Fill the queue in breadth first order */
-    /* Start by pushing the prefix group */
-    nclistinsert(queue,0,(void*)(uintptr_t)grpid);
-    while(nclistlength(queue) > 0) {
-	int g;
-	char* fullpath = NULL;
-	int ngrps;
-#ifdef DEBUG
-  {
-  int i;
-  fprintf(stderr,"queue: %d: ",nclistlength(queue));
-  for(i=0;i<nclistlength(queue);i++) {
-	int subg = (uintptr_t)nclistget(queue,i);
-	char sgname[NC_MAX_NAME];
-	nc_inq_grpname(subg,sgname);
-	fprintf(stderr," (%d)|%s|",subg,sgname);
-  }
-  fprintf(stderr,"\n");
-  }
-#endif
-	g = (int)(uintptr_t)nclistremove(queue,0);
-	/* Construct and save the path of g */
-	if((stat = NCZ_grpname_full(g,&fullpath))) goto done;
-	nclistpush(matches,fullpath); /* save it */
-	fullpath = NULL;
-        /* get subgroup ids */
-        if((stat = nc_inq_grps(grpid,&ngrps,NULL)))
-	    goto done;
-        if((subgrps = calloc(1,sizeof(int)*ngrps)) == NULL)
-	    {stat = NC_ENOMEM; goto done;}
-        if((stat = nc_inq_grps(g,&ngrps,subgrps)))
-	    goto done;
-	/* Push onto end of the queue => breadth first */
-	for(i=0;i<ngrps;i++) nclistpush(queue,(void*)(uintptr_t)subgrps[i]);
-	/* repeat */
+    /* get subgroup ids */
+    if((stat = nc_inq_grps(grpid,&ngrps,NULL)))
+	goto done;
+    if((subgrps = calloc(1,sizeof(int)*ngrps)) == NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if((stat = nc_inq_grps(grpid,&ngrps,subgrps)))
+	goto done;
+    /* 1. Add the group names to the list of matches (zified) */
+    for(i=0;i<ngrps;i++) {
+	char gname[NC_MAX_NAME];
+	char zname[NC_MAX_NAME];
+	if((stat = nc_inq_grpname(subgrps[i],gname))) goto done;
+	zify(gname,zname);
+	nclistpush(matches,strdup(zname));	
     }
-
+    /* 2. Add any variables in the group */
+    if((stat = nc_inq_varids(grpid,&nvars,NULL)))
+	goto done;
+    if((vars = calloc(1,sizeof(int)*nvars)) == NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if((stat = nc_inq_varids(grpid,&nvars,vars)))
+	goto done;
+    /* 1. Add the var names to the list of matches */
+    for(i=0;i<nvars;i++) {
+	char vname[NC_MAX_NAME];
+	char zname[NC_MAX_NAME];
+	if((stat = nc_inq_varname(grpid,vars[i],vname))) goto done;
+	zify(vname,zname);
+	nclistpush(matches,strdup(zname));	
+    }
+    
 done:
-    nclistfree(queue);
+    nullfree(vars);
+    nullfree(subgrps);
     return stat;
 }
 

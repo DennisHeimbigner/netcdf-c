@@ -69,13 +69,12 @@ struct NCZChunkCache;
 
 /* Common fields for all annotations */
 typedef struct NCZcommon {
-    int exists; /* Is this object already materialized? */
+    NC_FILE_INFO_T* file; /* root of the dataset tree */
 } NCZcommon;
 
 /** Struct to hold ZARR-specific info for the file. */
 typedef struct NCZ_FILE_INFO {
     NCZcommon common;
-    NC_FILE_INFO_T* file; /* root of the dataset tree */
     struct NCZMAP* map; /* implementation */
     NClist* controls;
     struct NCauth* auth;
@@ -88,6 +87,7 @@ typedef struct NCZ_FILE_INFO {
 	} nczarr_version;
     } zarr;
     int created; /* 1=> created 0=>open */
+    int native_endianness; /* NC_ENDIAN_LITTLE | NC_ENDIAN_BIG */
 } NCZ_FILE_INFO_T;
 
 /* This is a struct to handle the dim metadata. */
@@ -120,6 +120,7 @@ typedef struct NCZ_GRP_INFO {
 /* Struct to hold ZARR-specific info for a variable. */
 typedef struct NCZ_VAR_INFO {
     NCZcommon common;
+    size64_t chunkproduct; /* product of chunksizes */
     int order; /* 1=>column major, 0=>row major (default); not currently enforced */
     struct NCZChunkCache* cache;
 } NCZ_VAR_INFO_T;
@@ -184,7 +185,7 @@ int ncz_create_fillvalue(NC_VAR_INFO_T* var);
 int ncz_makeattr(NC_OBJ*, NCindex* attlist, const char* name, nc_type typeid, size_t len, void* values, NC_ATT_INFO_T**);
 
 /* zvar.c */
-int ncz_gettype(int xtype, NC_TYPE_INFO_T** typep);
+int ncz_gettype(NC_GRP_INFO_T*, int xtype, NC_TYPE_INFO_T** typep);
 int ncz_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 
 /* zfilter.c */

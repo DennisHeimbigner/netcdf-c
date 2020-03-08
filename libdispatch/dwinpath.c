@@ -168,6 +168,34 @@ makeabsolute(const char* relpath)
     return path;    
 }
 
+/* Fix up a path in case extra escapes were added by shell */
+EXTERNL
+char*
+NCdeescape(const char* name)
+{
+    char* ename = NULL;
+    const char* p;
+    char* q;
+
+    if(name == NULL) return NULL;
+    ename = strdup(name);
+    if(ename == NULL) return NULL;
+    for(p=name,q=ename;*p;) {
+	switch (*p) {
+	case '\0': break;
+	case '\\':
+	    if(p[1] == '#') {
+	        p++;
+		break;
+	    }
+	    /* fall thru */
+        default: *q++ = *p++; break;
+	}
+    }
+    *q++ = '\0';
+    return ename;
+}
+
 #ifdef WINPATH
 
 /*

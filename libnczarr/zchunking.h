@@ -36,6 +36,7 @@ typedef struct NCZChunkPos {
 #endif
 
 typedef struct NCProjection {
+    int id;
     size64_t chunkindex; /* which chunk are we projecting */
     size64_t first;  /* absolute first position to be touched in this chunk */
     size64_t last;   /* absolute position of last value touched */
@@ -86,18 +87,22 @@ extern NCZOdometer* nczodom_fromslices(size_t rank, const NCZSlice* slices);
 extern int nczodom_more(NCZOdometer*);
 extern int nczodom_next(NCZOdometer*);
 extern size64_t* nczodom_indices(NCZOdometer*);
+extern void nczodom_reset(NCZOdometer* odom);
 extern void nczodom_free(NCZOdometer*);
 
 /* From zwalk.c */
 extern int ncz_chunking_init(void);
-extern int NCZ_transferslice(NC_VAR_INFO_T* var, int reading, NCZSlice* slices, void* memory, size_t typesize);
+extern int NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
+		  size64_t* start, size64_t* count, size64_t* stride,
+		  void* memory, size_t typesize);
+extern size64_t NCZ_computelinearoffset(size_t, const size64_t*, const size64_t*);
 
 /* Special entry points for unit testing */
+struct Common;
 extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, NCZOdometer** odom);
-extern int NCZ_projectslice(size_t rank, int reading,
-		  size64_t* dimlens,
+extern int NCZ_projectslices(size64_t* dimlens,
 		  size64_t* chunklens,
 		  NCZSlice* slices,
-		  void* memory, size_t typesize);
+		  struct Common*, NCZOdometer**);
 
 #endif /*ZCHUNKING_H*/

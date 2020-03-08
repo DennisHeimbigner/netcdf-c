@@ -10,22 +10,23 @@ typedef struct NCZCacheEntry {
     int modified;
     size64_t* offset;
     size64_t indices[NC_MAX_VAR_DIMS];
-    size64_t size; /* |data| */
     void* data;
 } NCZCacheEntry;
 
 typedef struct NCZChunkCache {
     const NC_VAR_INFO_T* var; /* backlink */
-    size_t maxsize;
+    size64_t entrysize; /* all entries assumed to have same size */
     NC_hashmap* entries; /* NC_hashmap<NCZCacheEntry*>*/
 } NCZChunkCache;
 
 /**************************************************/
 
-extern int NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size_t maxsize, NCZChunkCache** cachep);
+extern int NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t, NCZChunkCache** cachep);
 extern void NCZ_free_chunk_cache(NCZChunkCache* cache);
-extern int NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, size64_t* datalenp, void** datap);
-extern int ncz_flush_chunk_cache(NCZChunkCache* cache);
-extern int ncz_chunk_cache_modified(NCZChunkCache* cache, const size64_t* indices);
+extern int NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap);
+extern int NCZ_flush_chunk_cache(NCZChunkCache* cache);
+extern int NCZ_chunk_cache_modified(NCZChunkCache* cache, const size64_t* indices);
+extern size64_t NCZ_cache_entrysize(NCZChunkCache* cache);
+extern size64_t NCZ_cache_size(NCZChunkCache* cache);
 
 #endif /*ZCACHE_H*/

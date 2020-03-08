@@ -57,9 +57,7 @@ int optind;
 #include "nc4internal.h" /* to get name of the special properties file */
 #endif
 
-#ifdef USE_DAP
 extern int nc__testurl(const char*,char**);
-#endif
 
 #define XML_VERSION "1.0"
 
@@ -2206,7 +2204,7 @@ main(int argc, char *argv[])
        exit(EXIT_SUCCESS);
     }
 
-    while ((c = getopt(argc, argv, "b:cd:f:g:hikl:n:p:stv:xwKL:X:")) != EOF)
+    while ((c = getopt(argc, argv, "b:cd:f:g:hikl:n:p:stv:xwKL:X:E")) != EOF)
       switch(c) {
 	case 'h':		/* dump header only, no data */
 	  formatting_specs.header_only = true;
@@ -2351,25 +2349,28 @@ main(int argc, char *argv[])
 
     init_epsilons();
 
-    path = strdup(argv[i]);
+    /* Deescape the user name */
+    path = NCdeescape(argv[i]);
     if(!path) {
 	snprintf(errmsg,sizeof(errmsg),"out of memory copying argument %s", argv[i]);
 	goto fail;
     }
+
     if (!nameopt)
         formatting_specs.name = name_path(path);
     if (argc > 0) {
         int ncid;
-	/* If path is a URL, prefix with client-side directive to
-         * make ncdump reasonably efficient */
+	/* If path is a URL, do some fixups */
+	if(nc__testurl(path, NULL)) {/* See if this is a url */
+	    /*  Prefix with client-side directive to
+             * make ncdump reasonably efficient */
 #ifdef USE_DAP
 	    if(formatting_specs.with_cache) { /* by default, don't use cache directive */
-		if(nc__testurl(path, NULL)) /* See if this is a url */
-		    adapt_url_for_cache(&path);
-		/* else fall thru and treat like a file path */
+	        adapt_url_for_cache(&path);
 	    }
-#endif /*USE_DAP*/
-	    if(formatting_specs.xopt_inmemory) {
+#endif
+	} /* else fall thru and treat like a file path */
+        if(formatting_specs.xopt_inmemory) {
 #if 0
 		size_t size = 0;
 		void* mem = NULL;

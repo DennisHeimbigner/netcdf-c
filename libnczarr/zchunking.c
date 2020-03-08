@@ -4,6 +4,8 @@
  *********************************************************************/
 #include "zincludes.h"
 
+static int pcounter = 0;
+
 /* Forward */
 static int compute_intersection(const NCZSlice* slice, const size64_t chunklen, NCZChunkRange* range);
 static size64_t floordiv(size64_t x, size64_t y);
@@ -67,6 +69,7 @@ NCZ_compute_projection(size64_t dimlen, size64_t chunklen, size64_t chunkindex, 
 
     if((projection = calloc(1,sizeof(NCZProjection))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
+    projection->id = ++pcounter;
 
     projection->chunkindex = chunkindex;
     offset = chunklen * chunkindex;
@@ -100,7 +103,8 @@ NCZ_compute_projection(size64_t dimlen, size64_t chunklen, size64_t chunkindex, 
     /* Compute the slice relative to this chunk.
        Recall the possibility that start+stride >= projection->limit */
     projection->slice.start = (projection->first - offset);
-    projection->slice.stop = projection->slice.start + (slice->stride * count) + 1;
+    projection->slice.stop = projection->slice.start + (slice->stride * count);
+//+1
     if(slice->stop > projection->limit) {
         projection->slice.stop = projection->len;
     }
@@ -127,7 +131,7 @@ Create a vector of projections wrt a slice and a sequence of chunks.
 
 int
 NCZ_compute_per_slice_projections(
-	size_t rank, /* which dimension are we projecting? */
+	size_t r, /* which dimension are we projecting? */
         const NCZSlice* slice, /* the slice for which projections are computed */
 	const NCZChunkRange* range, /* range */
 	size64_t dimlen, /* the dimension length for r'th dimension */
@@ -152,7 +156,7 @@ NCZ_compute_per_slice_projections(
 
     if(slp) {
 	/* Fill in the Slice Projections to return */
-	slp->r = rank;
+	slp->r = r;
 	slp->projections = nsplist;
 	nsplist = NULL;
     }    

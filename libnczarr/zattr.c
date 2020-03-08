@@ -1006,6 +1006,12 @@ ncz_makeattr(NC_OBJ* container, NCindex* attlist, const char* name, nc_type type
 	goto done;
     if((zatt = calloc(1,sizeof(NCZ_ATT_INFO_T))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
+    if(container->sort == NCGRP) {
+        zatt->common.file = ((NC_GRP_INFO_T*)container)->nc4_info;
+    } else if(container->sort == NCVAR) {
+        zatt->common.file = ((NC_VAR_INFO_T*)container)->container->nc4_info;
+    } else
+	abort();
     att->container = container;
     att->format_att_info = zatt;
     /* Fill in the attribute's type and value  */

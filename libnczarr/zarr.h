@@ -59,5 +59,6 @@ extern int NCZ_subobjects(NCZMAP* map, const char* prefix, const char* tag, NCli
 extern int NCZ_grpname_full(int gid, char** pathp);
 extern int ncz_get_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
 extern int NCZ_comma_parse(const char* s, NClist* list);
+extern int NCZ_swapatomicdata(size_t datalen, void* data, int typesize);
 
 #endif /*ZARR_H*/

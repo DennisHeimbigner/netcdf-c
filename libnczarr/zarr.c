@@ -43,16 +43,17 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
     if (!(zinfo = calloc(1, sizeof(NCZ_FILE_INFO_T))))
         {stat = NC_ENOMEM; goto done;}
     file->format_file_info = zinfo;
+    zinfo->common.file = file;
 
     /* Add struct to hold NCZ-specific group info. */
     if (!(zgrp = calloc(1, sizeof(NCZ_GRP_INFO_T))))
         {stat = NC_ENOMEM; goto done;}
     root->format_grp_info = zgrp;
+    zgrp->common.file = file;
 
     /* Fill in NCZ_FILE_INFO_T */
-    zinfo->common.exists = 0;
     zinfo->created = 1;
-    zinfo->file = file;
+    zinfo->common.file = file;
     zinfo->controls = nclistnew();
 
     /* fill in some of the zinfo and zroot fields */
@@ -131,15 +132,16 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
         {stat = NC_ENOMEM; goto done;}
     zinfo = file->format_file_info;
 
+    /* Fill in NCZ_FILE_INFO_T */
+    zinfo->created = 0;
+    zinfo->common.file = file;
+    zinfo->controls = nclistnew();
+    zinfo->native_endianness = (NCZ_isLittleEndian() ? NC_ENDIAN_LITTLE : NC_ENDIAN_BIG);
+
     /* Add struct to hold NCZ-specific group info. */
     if (!(root->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
         {stat = NC_ENOMEM; goto done;}
-
-    /* Fill in NCZ_FILE_INFO_T */
-    zinfo->common.exists = 0;
-    zinfo->created = 0;
-    zinfo->file = file;
-    zinfo->controls = nclistnew();
+    ((NCZ_GRP_INFO_T*)root->format_grp_info)->common.file = file;
 
     /* Figure out the map implementation */
 

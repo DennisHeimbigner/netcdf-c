@@ -311,6 +311,7 @@ NCZ_write_ncproperties(NC_FILE_INFO_T* h5)
 	ncprops->dirty = 1;
 	if((ncprops->format_att_info = calloc(1,sizeof(NCZ_ATT_INFO_T)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
+	((NCZ_ATT_INFO_T*)ncprops->format_att_info)->common.file = h5;
     }
 
 done:
