@@ -9,6 +9,7 @@
 /* Forwards */
 
 static NCZM_IMPL computemapimpl(NClist*, int cmode);
+static int computefeatures(NClist*, NClist* features);
 
 /***************************************************/
 /* API */
@@ -33,7 +34,7 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
     NCjson* json = NULL;
     char* key = NULL;
     const char* smode = NULL;
-    NClist* modeargs = NULL;
+    NClist* features = NULL;
 
     ZTRACE();
 
@@ -73,8 +74,15 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
 	if((stat = NCZ_comma_parse(smode,zinfo->controls)));
     }
 
-    if((mapimpl = computemapimpl(modeargs,nc->mode)) == NCZM_UNDEF)
+    if((mapimpl = computemapimpl(zinfo->controls,nc->mode)) == NCZM_UNDEF)
 	mapimpl = NCZM_DEFAULT;
+
+    /* Check for other features */
+    features = nclistnew();
+    if((stat=computefeatures(zinfo->controls,features)))
+	goto done;
+    if(nclistmatch(features,PUREZARR,0))
+	zinfo->purezarr = 1;
 
     /* initialize map handle*/
     if((stat = nczmap_create(mapimpl,nc->path,nc->mode,0,NULL,&zinfo->map)))
@@ -87,7 +95,7 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
 	goto done;
 
 done:
-    nclistfree(modeargs);
+    nclistfree(features);
     NCJreclaim(json);
     nullfree(key);
     return stat;
@@ -96,7 +104,6 @@ done:
 /**
 @internal Open the topmost dataset object.
 @param file - [in] the file struct
-@param root - [in] the root group
 @param fraglist - [in] the fragment list in envv form from uri
 @return NC_NOERR
 @author Dennis Heimbigner
@@ -147,7 +154,6 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
 
     if(ncuriparse(path,&uri))
 	{stat = NC_EURL; goto done;}
-
 
     /* Get the "mode=" from uri*/
     {
@@ -373,18 +379,36 @@ done:
 }
 
 static NCZM_IMPL
-computemapimpl(NClist* modeargs, int cmode)
+computemapimpl(NClist* controls, int cmode)
 {
     int i;
 
-    if(modeargs == NULL) return NCZM_DEFAULT;
+    NC_UNUSED(cmode);
+
+    if(controls == NULL) return NCZM_DEFAULT;
+
+    for(i=0;i<nclistlength(controls);i++) {
+	const char* mode = nclistget(controls,i);
+	if(strcasecmp(mode,"s3")==0) return NCZM_S3;
+	if(strcasecmp(mode,"ncz")==0) return NCZM_NC4;
+	if(strcasecmp(mode,"nczfile")==0) return NCZM_FILE;
+    }
+    return NCZM_DEFAULT; /* could not determine map impl */
+}
+
+/* Extract list of mode feature flags */
+static int
+computefeatures(NClist* modeargs, NClist* features)
+{
+    int i;
+
+    if(modeargs == NULL) return NC_NOERR;
 
     for(i=0;i<nclistlength(modeargs);i++) {
 	const char* mode = nclistget(modeargs,i);
-	if(strcasecmp(mode,"s3")==0) return NCZM_S3;
-	if(strcasecmp(mode,"ncz")==0) return NCZM_NC4;
+	if(strcasecmp(mode,PUREZARR)==0) nclistpush(features,mode);
     }
-    return NCZM_DEFAULT; /* could not determine map impl */
+    return NC_NOERR;
 }
 
 

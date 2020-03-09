@@ -15,7 +15,7 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef _MSC_VER
+#ifdef _WIN32
 #include <io.h>
 #endif
 
@@ -135,14 +135,14 @@ slashtrans:
 	if(*p == '/') {*p = '\\';}
     }
 #ifdef PATHFORMAT
-#ifndef _MSC_VER
+#ifndef _WIN32
 	p = outpath;
         /* Convert '\' back to '/' */
         for(;*p;p++) {
             if(*p == '\\') {*p = '/';}
 	}
     }
-#endif /*!_MSC_VER*/
+#endif /*!_WIN32*/
 #endif /*PATHFORMAT*/
 
 done:
@@ -245,7 +245,7 @@ NCaccess(const char* path, int mode)
     int status = 0;
     char* cvtname = NCpathcvt(path);
     if(cvtname == NULL) return -1;
-#ifdef _MSC_VER
+#ifdef _WIN32
     status = _access(cvtname,mode);
 #else
     status = access(cvtname,mode);

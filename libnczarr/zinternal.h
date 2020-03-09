@@ -56,6 +56,8 @@
 #define ZATTRS ".zattrs"
 #define ZARRAY ".zarray"
 
+#define PUREZARR "zarr"
+
 /**************************************************/
 /* Forward */
 
@@ -88,6 +90,7 @@ typedef struct NCZ_FILE_INFO {
     } zarr;
     int created; /* 1=> created 0=>open */
     int native_endianness; /* NC_ENDIAN_LITTLE | NC_ENDIAN_BIG */
+    int purezarr; /* read/write to match standard zarr format */
 } NCZ_FILE_INFO_T;
 
 /* This is a struct to handle the dim metadata. */

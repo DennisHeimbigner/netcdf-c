@@ -119,7 +119,7 @@ check_chunksizes(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, const size_t *chunksize
     for (d = 0; d < var->ndims; d++)
         dprod *= (double)chunksizes[d];
 
-    if (dprod > (double) NC_MAX_UINT)
+    if (dprod > (double) NC_MAX_UINT || dprod == 0)
         return NC_EBADCHUNK;
 
     return NC_NOERR;
@@ -656,8 +656,8 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
             var->contiguous = NC_FALSE;
             var->compact = NC_FALSE;
 
-            /* If the user provided chunksizes, check that they are not too
-             * big, and that their total size of chunk is less than 4 GB. */
+            /* If the user provided chunksizes, check that they are valid
+             * and that their total size of chunk is less than 4 GB. */
             if (chunksizes)
             {
                 /* Check the chunksizes for validity. */

@@ -64,7 +64,6 @@ NCZM_UNDEF=0, /* In-memory implementation */
 NCZM_S3=1,    /* Amazon S3 implementation */
 NCZM_NC4=2,   /* Netcdf-4 file based implementation */
 NCZM_FILE=3,  /* File system directory-based implementation */
-NCZM_ZIP=4,  /* Zip-file implementation */
 } NCZM_IMPL;
 
 /* Define the default map implementation */

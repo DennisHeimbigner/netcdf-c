@@ -195,6 +195,7 @@ nclistcontains(NClist* l, void* elem)
     return 0;
 }
 
+/* Return 1/0 */
 int
 nclistmatch(NClist* l, const char* elem, int casesensitive)
 {

@@ -497,29 +497,37 @@ NCZ_subobjects(NCZMAP* map, const char* prefix, const char* tag, NClist* objlist
 {
     int i,stat=NC_NOERR;
     NClist* matches = nclistnew();
-    size_t prelen = strlen(prefix);
-    size_t taglen = strlen(tag);
     NCbytes* path = ncbytesnew();
 
     /* Get the list of object keys just below prefix */
     if((stat = nczmap_search(map,prefix,matches))) goto done;
     for(i=0;i<nclistlength(matches);i++) {
+	const char* p;
 	const char* key = nclistget(matches,i);
+	size_t keylen = strlen(key);	
 	/* Ignore keys that start with .z or .nc or a potential chunk name */
-        /* Capture the fullpath */	
+	if(keylen >= 3 && key[0] == '.' && key[1] == 'n' && key[2] == 'c')
+	    continue;
+	if(keylen >= 2 && key[0] == '.' && key[1] == 'z')
+	    continue;
+	for(p=key;*p;p++) {
+	    if(*p != '.' && strchr("0123456789",*p) == NULL) break;
+	}
+	if(*p == '\0') continue; /* looks like a chunk name */
+	/* Create <prefix>/<key>/<tag> and see if it exists */
+	ncbytesclear(path);
 	ncbytescat(path,prefix);
 	ncbytescat(path,"/");
 	ncbytescat(path,key);
-	p = strchr(p0,NCZM_SEP[0]); /* point where tag should start */
-	if(p == NULL) continue; /* There is no possible tag */
-	if(strlen(p) != taglen+1) continue; /* tag is too long */
-	if(memcmp(p+1,tag,taglen)==0) {
-	    nclistpush(objlist,strdup(path)); /* save match */
-	}			
+	ncbytescat(path,tag);
+	/* See if this object exists */
+        if((stat = nczmap_exists(map,ncbytescontents(path))) == NC_NOERR)
+	    nclistpush(objlist,key);
     }
 
 done:
     nclistfreeall(matches);
+    ncbytesfree(path);
     return stat;
 }
 

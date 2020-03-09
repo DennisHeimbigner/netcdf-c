@@ -23,7 +23,7 @@
 #endif
 
 /* Define wrapper constants for use with NCaccess */
-#ifdef _MSC_VER
+#ifdef _WIN32
 #define ACCESS_MODE_EXISTS 0
 #define ACCESS_MODE_R 4
 #define ACCESS_MODE_W 2

@@ -38,7 +38,7 @@ object is defined by the common prefix model.
 /* Import the current implementations */
 
 extern NCZMAP_DS_API zmap_nc4;
-extern NCZMAP_DS_API zmap_s3;
+extern NCZMAP_DS_API zmap_file;
 
 /**************************************************/
 

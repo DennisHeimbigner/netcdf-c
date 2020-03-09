@@ -380,7 +380,8 @@ zwalkprint(int sort,...)
 	nczprinter->odom = odom;
 	nczprinter->vector = vector;
 	break;
-    default: abort();
+    default:
+	assert(!NC_EINTERNAL);
     }
     va_end(vl);
 }
