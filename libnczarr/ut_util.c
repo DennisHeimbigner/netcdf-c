@@ -126,7 +126,7 @@ parsevardefs(const char* s0, struct VarDef** varsp, size_t ndims, struct DimDef*
 
     /* First, compute number of vardefs */
     for(s=s0,ndefs=1;*s;s++) {
-	if(*s == ',') ndefs++;
+	if(*s == ';') ndefs++;
     }
     if((vdefs = calloc(ndefs,sizeof(struct VarDef)))==NULL)
 	return -1;
@@ -213,7 +213,7 @@ parsestringvector(const char* s0, int stopchar, char*** namesp)
 	    q[len] = '\0';
 	    names[i] = q;
 	}
-	s = p;
+	s = p+1;
     }
     if(namesp) *namesp = names;
     return nelems;
