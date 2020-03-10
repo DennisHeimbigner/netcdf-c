@@ -14,8 +14,9 @@ main(int argc, char** argv)
 {
     int stat = NC_NOERR;
     int i,r;
+    size_t n[NC_MAX_VAR_DIMS];
     ProjTest test;
-    NClist* listv[NC_MAX_VAR_DIMS];
+    NCZProjection* listv[NC_MAX_VAR_DIMS];
     NCZChunkRange ncrv[NC_MAX_VAR_DIMS];
 
     /* Initialize */
@@ -35,22 +36,22 @@ main(int argc, char** argv)
 
     for(r=0;r<test.rank;r++) {
 	NCZChunkRange* ncr = &ncrv[r];
-        listv[r] = nclistnew();
-        for(i=ncr->start;i<ncr->stop;i++) {
-            if((stat = NCZ_compute_projection(test.dimlen[r], test.chunklen[r],i, &test.slices[r], listv[r])))
+	n[r] = (ncr->stop - ncr->start);
+        listv[r] = calloc(n[r],sizeof(NCZProjection));
+        for(i=0;i<n[r];i++) {
+            if((stat = NCZ_compute_projections(test.dimlen[r], test.chunklen[r],i+ncr->start, &test.slices[r], i, listv[r])))
 	    goto done;
 	}
-        assert((ncr->stop - ncr->start) == nclistlength(listv[r]));
     }
 
     /* Dump Results */
     for(r=0;r<test.rank;r++) {
 	NCZChunkRange* ncr = &ncrv[r];
-        NClist* listr = listv[r];
-        printf("|listv[%d]|: %lu\n",r,(unsigned long)nclistlength(listv[r]));
+        NCZProjection* listr = listv[r];
+        printf("|listv[%d]|: %lu\n",r,(unsigned long)n[r]);
         printf("%s %s\n",nczprint_chunkrange(*ncr), nczprint_slice(test.slices[r]));
-        for(i=0;i<nclistlength(listr);i++) {
-            NCZProjection* proj = (NCZProjection*)nclistget(listr,i);
+        for(i=0;i<n[r];i++) {
+            NCZProjection* proj = &listr[i];
             printf("[%d] %s\n",i,nczprint_projection(*proj));
 	}
     }

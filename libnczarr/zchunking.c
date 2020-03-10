@@ -58,47 +58,45 @@ projection may be offset by some value in the range of
 0..(slice.stride-1).
 */
 int
-NCZ_compute_projection(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, NClist* projections)
+NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, size_t n, NCZProjection* projections)
 {
     int stat = NC_NOERR;
-    int n;
-    size64_t offset,count;
+    size64_t offset,count,avail;
     NCZProjection* projection;
     
-    n = nclistlength(projections); /* Which projection */
+    projection = &projections[n];
 
-    if((projection = calloc(1,sizeof(NCZProjection))) == NULL)
-	{stat = NC_ENOMEM; goto done;}
     projection->id = ++pcounter;
-
     projection->chunkindex = chunkindex;
-    offset = chunklen * chunkindex;
+
+    offset = chunklen * chunkindex; /* with respect to dimension (WRD) */
 
     /* Actual limit of the n'th touched chunk, taking
        dimlen and stride->stop into account. */
-    projection->limit = (chunkindex + 1) * chunklen;
+    projection->limit = (chunkindex + 1) * chunklen; /* WRD */
     if(projection->limit > dimlen) projection->limit = dimlen;
     if(projection->limit > slice->stop) projection->limit = slice->stop;
 
-    /* Len is not last place touched,
-       but the last place that could be touched */
+    /* Len is no. of touched indices along this dimension */
     projection->len = projection->limit - offset;
 
     if(n == 0) {
 	/*initial case: original slice start is in 1st projection */
-	projection->first = slice->start + offset; /* absolute */
+	projection->first = slice->start; /* WRD */
     } else { /* n > 0 */
-	NCZProjection* prev = nclistget(projections,n-1);
+	NCZProjection* prev = &projections[n-1];
 	/* prevunused is the amount unused at end of the previous chunk.
 	   => we need to skip (slice->stride-prevunused) in this chunk */
         /* Compute limit of previous chunk */
 	size64_t prevunused = prev->limit - prev->last;
-	projection->first = offset + (slice->stride - prevunused); /* absolute */
+	projection->first = offset + (slice->stride - prevunused); /* WRD */
     }
     /* Compute number of places touched in this chunk */
-    count  = ceildiv((projection->limit - projection->first), slice->stride);
+    avail = projection->limit - projection->first; /*WRD*/
+    count  = ceildiv(avail, slice->stride);
+
     /* Last place to be touched */
-    projection->last = projection->first + (slice->stride * (count - 1));
+    projection->last = projection->first + ((slice->stride * count) - 1); /*WRD*/
 
     /* Compute the slice relative to this chunk.
        Recall the possibility that start+stride >= projection->limit */
@@ -119,9 +117,6 @@ NCZ_compute_projection(size64_t dimlen, size64_t chunklen, size64_t chunkindex, 
     /* And number of I/O items */
     projection->iocount = count;
 
-    nclistpush(projections,projection);
-    projection = NULL;
-done:
     return stat;
 }
 
@@ -140,7 +135,14 @@ NCZ_compute_per_slice_projections(
 {
     int stat = NC_NOERR;
     size64_t index,slicecount;
-    NClist* nsplist = NULL; /* List<NCZSliceProjection>*/
+    size_t n;
+
+    /* Part fill the Slice Projections */
+    slp->r = r;
+    slp->range = *range;
+    slp->count = range->stop - range->start;
+    if((slp->projections = calloc(slp->count,sizeof(NCZProjection))) == NULL)
+	{stat = NC_ENOMEM; goto done;}
 
     /* Compute the total number of output items defined by this slice
            (equivalent to count as used by nc_get_vars) */
@@ -148,21 +150,12 @@ NCZ_compute_per_slice_projections(
     if(slicecount < 0) slicecount = 0;
 
     /* Iterate over each chunk that intersects slice to produce projection */
-    nsplist = nclistnew();
-    for(index=range->start;index<range->stop;index++) {
-	if((stat = NCZ_compute_projection(dimlen, chunklen, index, slice, nsplist)))
+    for(n=0,index=range->start;index<range->stop;index++,n++) {
+	if((stat = NCZ_compute_projections(dimlen, chunklen, index, slice, n, slp->projections)))
 	    goto done;
     }
 
-    if(slp) {
-	/* Fill in the Slice Projections to return */
-	slp->r = r;
-	slp->projections = nsplist;
-	nsplist = NULL;
-    }    
-
 done:
-    nclistfreeall(nsplist);
     return stat;
 }
 

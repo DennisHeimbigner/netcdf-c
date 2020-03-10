@@ -51,10 +51,11 @@ typedef struct NCProjection {
 /* Set of Projections for a slice */
 typedef struct NCZSliceProjections {
     size64_t r; /* 0<=r<rank */
-    NClist* projections; /* List<NCZProjection*> Vector of projections
-                                derived from the original slice when
-				intersected across the chunk
-                             */
+    NCZChunkRange range; /* Chunk ranges covered by this set of projections */
+    size_t count; /* |projections| == (range.stop - range.start) */
+    NCZProjection* projections; /* Vector of projections derived from the
+                                   original slice when intersected across
+				   the chunk */
 } NCZSliceProjections;
 
 #if 0
@@ -74,10 +75,26 @@ typedef struct NCZOdometer {
   size64_t index[NC_MAX_VAR_DIMS]; /* current value of the odometer*/
 } NCZOdometer;
 
+/* Combine some values to simplify internal argument lists */
+struct Common {
+    NC_FILE_INFO_T* file;
+    NC_VAR_INFO_T* var;
+    int reading; /* 1=> read, 0 => write */
+    size_t rank;
+    size64_t dimlens[NC_MAX_VAR_DIMS];
+    size64_t chunklens[NC_MAX_VAR_DIMS];
+    void* memory;
+    size_t typesize;
+    int swap; /* var->format_info_file->native_endianness == var->endianness */
+    size64_t shape[NC_MAX_VAR_DIMS]; /* shape of the output hyperslab */
+    size64_t chunkcount; /* cross product of the chunk counts */
+    NCZSliceProjections* allprojections;
+};
+
 /**************************************************/
 /* From zchunking.c */
 extern int NCZ_compute_chunk_ranges(size64_t, const NCZSlice*, const size64_t*, NCZChunkRange* ncr);
-extern int NCZ_compute_projection(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, NClist* projections);
+extern int NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, size_t n, NCZProjection* projections);
 extern int NCZ_compute_per_slice_projections(size_t rank, const NCZSlice*, const NCZChunkRange*, size64_t dimlen, size64_t chunklen, NCZSliceProjections* slp);
 extern int NCZ_compute_all_slice_projections(size64_t rank, const NCZSlice* slices, const size64_t* dimlen, const size64_t* chunklen, const NCZChunkRange*, NCZSliceProjections*);
 

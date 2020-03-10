@@ -6,22 +6,6 @@
 
 static int initialized = 0;
 
-/* Combine some values to simplify internal argument lists */
-struct Common {
-    NC_FILE_INFO_T* file;
-    NC_VAR_INFO_T* var;
-    int reading; /* 1=> read, 0 => write */
-    size_t rank;
-    size64_t dimlens[NC_MAX_VAR_DIMS];
-    size64_t chunklens[NC_MAX_VAR_DIMS];
-    void* memory;
-    size_t typesize;
-    int swap; /* var->format_info_file->native_endianness == var->endianness */
-    size64_t shape[NC_MAX_VAR_DIMS]; /* shape of the output hyperslab */
-    size64_t chunkcount; /* cross product of the chunk counts */
-    NCZSliceProjections* allprojections;
-};
-
 /* Forward */
 static int NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* common, void* chunkdata);
 static int rangecount(NCZChunkRange range);
@@ -90,7 +74,9 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     if((stat = NCZ_projectslices(dimlens, chunklens, slices,
 		  &common, &chunkodom)))
 	goto done;
-
+#ifdef ZDEBUG
+    zdumpcommon(&common);
+#endif
     /* iterate over the odometer: all combination of chunk
        indices in the projections */
     for(;nczodom_more(chunkodom);nczodom_next(chunkodom)) {
@@ -117,9 +103,16 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 	default: goto done;
 	}
 	for(r=0;r<common.rank;r++) {
-	    NClist* projlist = common.allprojections[r].projections;
+	    NCZSliceProjections* slp = &common.allprojections[r];
+	    NCZProjection* projlist = slp->projections;
+	    size64_t indexr = chunkindices[r];
   	    /* use chunkindices[r] to find the corresponding projection slice */
-	    proj[r] = nclistget(projlist,chunkindices[r]); /* note the 2 level indexing */
+	    /* We must take into account that the chunkindex of projlist[r]
+               may be greater than zero */
+	    /* note the 2 level indexing */
+	    indexr -= slp->range.start;
+	    NCZProjection* pr = &projlist[indexr];
+	    proj[r] = pr;
 	}
 	for(r=0;r<common.rank;r++) {
 	    slpslices[r] = proj[r]->slice;
@@ -175,16 +168,16 @@ NCZ_projectslices(size64_t* dimlens,
 
     /* Verify */
     for(r=0;r<common->rank;r++) {
-	assert(rangecount(ranges[r]) == nclistlength(allprojections[r].projections));
+	assert(rangecount(ranges[r]) == allprojections[r].count);
     }
 
     /* Compute the shape vector */
     for(r=0;r<common->rank;r++) {
 	int j;
 	size64_t iocount = 0;
-	NClist* projections = allprojections[r].projections;
-	for(j=0;j<nclistlength(projections);j++) {
-	    NCZProjection* proj = (NCZProjection*)nclistget(projections,j);
+	NCZProjection* projections = allprojections[r].projections;
+	for(j=0;j<allprojections[r].count;j++) {
+	    NCZProjection* proj = &projections[j];
 	    iocount += proj->iocount;
 	}
 	common->shape[r] = iocount;

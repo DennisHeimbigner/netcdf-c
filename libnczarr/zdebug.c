@@ -167,8 +167,8 @@ nczprint_sliceprojections(NCZSliceProjections slp)
     snprintf(digits,sizeof(digits),"%lu",(unsigned long)slp.r);
     ncbytescat(buf,digits);
     ncbytescat(buf,",projections=[\n");
-    for(i=0;i<nclistlength(slp.projections);i++) {
-	NCZProjection* p = (NCZProjection*)nclistget(slp.projections,i);
+    for(i=0;i<slp.count;i++) {
+	NCZProjection* p = (NCZProjection*)&slp.projections[i];
 	ncbytescat(buf,"\t");
         result = nczprint_projection(*p);
         ncbytescat(buf,result);
@@ -220,3 +220,27 @@ nczprint_vector(size_t len, size64_t* vec)
     ncbytesfree(buf);
     return result;
 }
+
+#ifdef ZDEBUG
+void
+zdumpcommon(struct Common* c)
+{
+    int r;
+    fprintf(stderr,"Common:\n");
+    fprintf(stderr,"\tfile: %s\n",c->file->controller->path);
+    fprintf(stderr,"\tvar: %s\n",c->var->hdr.name);
+    fprintf(stderr,"\treading=%d\n",c->reading);
+    fprintf(stderr,"\trank=%d\n",c->rank);
+    fprintf(stderr,"\tdimlens=%s\n",nczprint_vector(c->rank,c->dimlens));
+    fprintf(stderr,"\tchunklens=%s\n",nczprint_vector(c->rank,c->chunklens));
+    fprintf(stderr,"\tmemory=%p\n",c->memory);
+    fprintf(stderr,"\ttypesize=%d\n",c->typesize);
+    fprintf(stderr,"\tswap=%d\n",c->swap);
+    fprintf(stderr,"\tchunkcount=%llu\n",c->chunkcount);
+    fprintf(stderr,"\tshape=%s\n",nczprint_vector(c->rank,c->shape));
+    fprintf(stderr,"\tallprojections:\n");
+    for(r=0;r<c->rank;r++)
+        fprintf(stderr,"\t\t[%d] %s\n",r,nczprint_sliceprojections(c->allprojections[r]));
+    fflush(stderr);
+}
+#endif

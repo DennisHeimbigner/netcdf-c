@@ -41,6 +41,10 @@ extern char* nczprint_projection(NCZProjection);
 extern char* nczprint_sliceprojections(NCZSliceProjections);
 extern char* nczprint_vector(size_t,size64_t*);
 
+#ifdef ZDEBUG
+extern void zdumpcommon(struct Common*);
+#endif
+
 #ifdef ZUT
 /* Expose functions for unit tests */
 typedef struct NCZ_UT_PRINTER {

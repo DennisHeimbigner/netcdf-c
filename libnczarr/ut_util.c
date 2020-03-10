@@ -126,7 +126,7 @@ parsevardefs(const char* s0, struct VarDef** varsp, size_t ndims, struct DimDef*
 
     /* First, compute number of vardefs */
     for(s=s0,ndefs=1;*s;s++) {
-	if(*s == ',') ndefs++;
+	if(*s == ';') ndefs++;
     }
     if((vdefs = calloc(ndefs,sizeof(struct VarDef)))==NULL)
 	return -1;
@@ -213,7 +213,7 @@ parsestringvector(const char* s0, int stopchar, char*** namesp)
 	    q[len] = '\0';
 	    names[i] = q;
 	}
-	s = p;
+	s = p+1;
     }
     if(namesp) *namesp = names;
     return nelems;
@@ -326,11 +326,11 @@ ut_proj_init(int argc, char** argv, ProjTest* test)
 	    if(test->rank <= 0) {stat = NC_EINVAL; goto done;}
 	    break;
 	case 'd': /* dimlens */
-	    count = parseintvector(optarg,4,(void**)&test->dimlen);
+	    count = parseintvector(optarg,8,(void**)&test->dimlen);
 	    ranktest(test->rank,c,count);
 	    break;
 	case 'c': /* chunklens */
-	    count = parseintvector(optarg,4,(void**)&test->chunklen);
+	    count = parseintvector(optarg,8,(void**)&test->chunklen);
 	    ranktest(test->rank,c,count);
 	    break;
 	case 's': /* slices */
@@ -339,7 +339,7 @@ ut_proj_init(int argc, char** argv, ProjTest* test)
 	    break;
 	case 'R': {/* chunk range */
 	    size64_t* r;
-	    count = parseintvector(optarg,4,(void**)&r);
+	    count = parseintvector(optarg,8,(void**)&r);
 	    if(count != 2) {stat = NC_EINVAL; goto done;}
 	    test->range.start = r[0];
 	    test->range.stop = r[1];

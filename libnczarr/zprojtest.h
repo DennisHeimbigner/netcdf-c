@@ -11,8 +11,8 @@
 
 typedef struct ProjTest {
     size_t rank;
-    size64_t dimlen[NC_MAX_VAR_DIMS];
-    size64_t chunklen[NC_MAX_VAR_DIMS];
+    size64_t* dimlen;
+    size64_t* chunklen;
     NCZSlice* slices;
     NCZChunkRange range;
     unsigned int typesize;
