@@ -7,7 +7,7 @@
 static int initialized = 0;
 
 /* Forward */
-static int NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* common, void* chunkdata, size64_t*);
+static int NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* common, void* chunkdata, NCZOdometer*);
 static int rangecount(NCZChunkRange range);
 static int NCZ_fillchunk(size64_t chunklen, void* chunkdata, struct Common*);
 
@@ -51,7 +51,6 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     NCZOdometer* chunkodom = NULL;
     struct Common common;
     NCZ_FILE_INFO_T* zfile = NULL;
-    size64_t memoffset;
 
     memset(&common,0,sizeof(common));
 
@@ -72,15 +71,49 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     common.rank = var->ndims;
     common.swap = (zfile->native_endianness == var->endianness ? 0 : 1);
 
+    /*
+     We will need three sets of odometers.
+     1. Chunk odometer to walk the chunk ranges to get all possible
+        combinations of chunkranges over all dimensions.
+     2. For each chunk odometer set of indices, we need a projection
+        odometer that walks the set of projection slices for a given
+        set of chunk ranges over all dimensions.
+     3. A memory odometer that walks the memory data to specify
+        the locations in memory for read/write
+    */     
+
     if((stat = NCZ_projectslices(dimlens, chunklens, slices,
 		  &common, &chunkodom)))
 	goto done;
 #ifdef ZDEBUG
     zdumpcommon(&common);
 #endif
+
+     /* Create a memory walking odometer based on the slices for 
+        the projections for this set of chunks */
+     NCZOdometer* memodom = NULL;
+     {
+	size_t start[NC_MAX_VAR_DIMS];
+	size_t stop[NC_MAX_VAR_DIMS];
+	size_t stride[NC_MAX_VAR_DIMS];
+	/* Walk all the projections */
+	int pos = 0;
+        for(r=0;r<common.rank;r++) {
+	    int j;
+	    NCZProjection* projections = common.allprojections[r].projections;
+	    for(j=0;j<common.allprojections[r].count;j++) {
+		NCZProjection* proj = &projections[j];
+		start[pos] = 0;
+		stride[pos] = 1;
+		stop[pos] = proj->iocount;
+		pos++;		
+	    }
+	}
+        memodom = nczodom_new(pos,start,stop,stride);
+     }
+
     /* iterate over the odometer: all combination of chunk
        indices in the projections */
-    memoffset = 0;
     for(;nczodom_more(chunkodom);nczodom_next(chunkodom)) {
 	int r;
 	size64_t* chunkindices = NULL;
@@ -104,6 +137,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 	case NC_NOERR: break;
 	default: goto done;
 	}
+
 	for(r=0;r<common.rank;r++) {
 	    NCZSliceProjections* slp = &common.allprojections[r];
 	    NCZProjection* projlist = slp->projections;
@@ -124,7 +158,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 	zwalkprint(PRINTSORT_WALK1, common.rank, proj, chunkindices);
 #endif
 	/* This is the key action: walk this set of slices and transfer data */
-	if((stat = NCZ_walk(proj,slpodom,&common,chunkdata,&memoffset))) goto done;
+	if((stat = NCZ_walk(proj,slpodom,&common,chunkdata,memodom))) goto done;
     }
 
 done:
@@ -202,28 +236,27 @@ done:
 }
 
 static int
-NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* common, void* chunkdata, size64_t* memoffsetp)
+NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* common, void* chunkdata, NCZOdometer* memodom)
 {
-    int r,stat = NC_NOERR;
-    size64_t memoffset = 0;
-    size64_t iopos;
-
-    memoffset = *memoffsetp;
+    int stat = NC_NOERR;
 
 #ifdef ZUT
     if(nczprinter) nczprinter->used = 0;
-    zwalkprint(PRINTSORT_WALK2, common->rank, memoffset, ioposv, common->shape);
+    zwalkprint(PRINTSORT_WALK2, common->rank, nczodom_offset(memodom), ioposv, common->shape);
 #endif
     while(nczodom_more(slpodom)) {
 	size64_t* indices = nczodom_indices(slpodom);
+fprintf(stderr,"memindices=%s\n",nczprint_vector(memodom->rank,memodom->index));
+fflush(stderr);
 	/* Convert the indices to a linear offset WRT to chunk */
 	size64_t chunkoffset = NCZ_computelinearoffset(common->rank,indices,common->chunklens);
 #ifdef ZUT
-	zwalkprint(PRINTSORT_WALK3, common->rank, chunkoffset, memoffset, slpodom);
+	zwalkprint(PRINTSORT_WALK3, common->rank, chunkoffset, nczodom_offsett(memodom), slpodom);
 #endif
 	/* transfer data */
 	if(common->reading) {
             size_t chunkpos = chunkoffset * common->typesize;
+	    size64_t memoffset = nczodom_offset(memodom);
 	    unsigned char* memdst = ((unsigned char*)common->memory)+(memoffset*common->typesize);
 	    unsigned char* chunksrc = ((unsigned char*)chunkdata)+chunkpos;
 	    memcpy(memdst,chunksrc,common->typesize);
@@ -231,19 +264,19 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* commo
 		NCZ_swapatomicdata(common->typesize,chunksrc,common->typesize);
 	} else {
             size_t chunkpos = chunkoffset * common->typesize;
+	    size64_t memoffset = nczodom_offset(memodom);
 	    unsigned char* memsrc = ((unsigned char*)common->memory)+(memoffset*common->typesize);
 	    unsigned char* chunkdst = ((unsigned char*)chunkdata)+chunkpos;
 	    memcpy(chunkdst,memsrc,common->typesize);
 	    if(common->swap)
 		NCZ_swapatomicdata(common->typesize,chunkdst,common->typesize);
  	}
-        memoffset++;
+        nczodom_next(memodom);
 	nczodom_next(slpodom);
     }
 #ifdef ZUT
     if(nczprinter) nczprinter->used = (size_t)memoffset;
 #endif
-    *memoffsetp = memoffset;
     return stat;    
 }
 

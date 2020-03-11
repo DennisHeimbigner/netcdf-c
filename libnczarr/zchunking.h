@@ -104,8 +104,10 @@ extern NCZOdometer* nczodom_fromslices(size_t rank, const NCZSlice* slices);
 extern int nczodom_more(NCZOdometer*);
 extern int nczodom_next(NCZOdometer*);
 extern size64_t* nczodom_indices(NCZOdometer*);
+extern size64_t nczodom_offset(NCZOdometer*);
 extern void nczodom_reset(NCZOdometer* odom);
 extern void nczodom_free(NCZOdometer*);
+
 
 /* From zwalk.c */
 extern int ncz_chunking_init(void);

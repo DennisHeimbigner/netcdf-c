@@ -4,8 +4,10 @@
  *********************************************************************/
 #include "zincludes.h"
 
+#ifdef ZUT
 /* Unit Test Printer */
 NCZ_UT_PRINTER* nczprinter = NULL;
+#endif
 
 #ifdef ZCATCH
 /* Place breakpoint here to catch errors close to where they occur*/

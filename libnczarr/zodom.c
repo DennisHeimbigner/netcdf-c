@@ -78,3 +78,17 @@ nczodom_indices(NCZOdometer* odom)
 {
     return odom->index;
 }
+
+size64_t
+nczodom_offset(NCZOdometer* odom)
+{
+    size64_t offset;
+    int i;
+
+    offset = 0;
+    for(i=0;i<odom->rank;i++) {
+        offset *= odom->slices[i].stop;
+        offset += odom->index[i];
+    } 
+    return offset;
+}
