@@ -5,7 +5,7 @@
 #ifndef ZDEBUG_H
 #define ZDEBUG_H
 
-#define ZUT /* unit test support is enabled */
+#undef ZUT /* unit test support is enabled */
 
 #undef ZDEBUG /* general debug */
 

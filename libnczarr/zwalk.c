@@ -7,7 +7,7 @@
 static int initialized = 0;
 
 /* Forward */
-static int NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* common, void* chunkdata);
+static int NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* common, void* chunkdata, size64_t*);
 static int rangecount(NCZChunkRange range);
 static int NCZ_fillchunk(size64_t chunklen, void* chunkdata, struct Common*);
 
@@ -51,6 +51,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     NCZOdometer* chunkodom = NULL;
     struct Common common;
     NCZ_FILE_INFO_T* zfile = NULL;
+    size64_t memoffset;
 
     memset(&common,0,sizeof(common));
 
@@ -79,6 +80,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 #endif
     /* iterate over the odometer: all combination of chunk
        indices in the projections */
+    memoffset = 0;
     for(;nczodom_more(chunkodom);nczodom_next(chunkodom)) {
 	int r;
 	size64_t* chunkindices = NULL;
@@ -122,7 +124,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 	zwalkprint(PRINTSORT_WALK1, common.rank, proj, chunkindices);
 #endif
 	/* This is the key action: walk this set of slices and transfer data */
-	if((stat = NCZ_walk(proj,slpodom,&common,chunkdata))) goto done;
+	if((stat = NCZ_walk(proj,slpodom,&common,chunkdata,&memoffset))) goto done;
     }
 
 done:
@@ -200,20 +202,13 @@ done:
 }
 
 static int
-NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* common, void* chunkdata)
+NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* common, void* chunkdata, size64_t* memoffsetp)
 {
     int r,stat = NC_NOERR;
-    size64_t ioposv[NC_MAX_VAR_DIMS];
     size64_t memoffset = 0;
+    size64_t iopos;
 
-    /* compute the iopos vector */
-    for(r=0;r<common->rank;r++) {
-	NCZProjection* proj = projv[r];
-	ioposv[r] = proj->iopos;	
-    }
-
-    /* Warning; memoffset is in units of common->typesize, not absolute */
-    memoffset = NCZ_computelinearoffset(common->rank,ioposv,common->shape);
+    memoffset = *memoffsetp;
 
 #ifdef ZUT
     if(nczprinter) nczprinter->used = 0;
@@ -248,6 +243,7 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* slpodom, const struct Common* commo
 #ifdef ZUT
     if(nczprinter) nczprinter->used = (size_t)memoffset;
 #endif
+    *memoffsetp = memoffset;
     return stat;    
 }
 

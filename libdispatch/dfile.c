@@ -1848,12 +1848,18 @@ NC_create(const char *path0, int cmode, size_t initialsz,
         if ((stat = nc_initialize()))
             return stat;
     }
+
+    {
+        /* Skip past any leading whitespace in path */
+        const char* p;
+        for(p=(char*)path0;*p;p++) {if(*p > ' ') break;}
 #ifdef WINPATH
-    /* Need to do path conversion */
-    path = NCpathcvt(path0);
+        /* Need to do path conversion */
+        path = NCpathcvt(p);
 #else
-    path = nulldup(path0);
+        path = nulldup(p);
 #endif
+    }
 
     memset(&model,0,sizeof(model));
     if((stat = NC_infermodel(path,&cmode,1,useparallel,NULL,&model,&newpath)))
@@ -1996,12 +2002,17 @@ NC_open(const char *path0, int omode, int basepe, size_t *chunksizehintp,
        repeated in protocol code (e.g. libdap2, libdap4, etc).
     */
 
+    {
+        /* Skip past any leading whitespace in path */
+        const char* p;
+        for(p=(char*)path0;*p;p++) {if(*p > ' ') break;}
 #ifdef WINPATH
-    /* Need to do path conversion */
-    path = NCpathcvt(path0);
+        /* Need to do path conversion */
+        path = NCpathcvt(p);
 #else
-    path = nulldup(path0);
+        path = nulldup(p);
 #endif
+    }
 
     memset(&model,0,sizeof(model));
     /* Infer model implementation and format, possibly by reading the file */
