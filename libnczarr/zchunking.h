@@ -19,6 +19,7 @@ typedef struct NCZSlice {
     size64_t start;
     size64_t stop; /* start + (count*stride) */
     size64_t stride;
+    size64_t len; /* full dimension length */
 } NCZSlice;
 
 #if 0
@@ -72,6 +73,7 @@ typedef struct NCZChunkSeq {
 typedef struct NCZOdometer {
   size64_t rank; /*rank */
   NCZSlice slices[NC_MAX_VAR_DIMS];
+  size64_t max[NC_MAX_VAR_DIMS]; /* max size of ith index */
   size64_t index[NC_MAX_VAR_DIMS]; /* current value of the odometer*/
 } NCZOdometer;
 
@@ -87,7 +89,6 @@ struct Common {
     size_t typesize;
     int swap; /* var->format_info_file->native_endianness == var->endianness */
     size64_t shape[NC_MAX_VAR_DIMS]; /* shape of the output hyperslab */
-    size64_t chunkcount; /* cross product of the chunk counts */
     NCZSliceProjections* allprojections;
 };
 
@@ -99,7 +100,7 @@ extern int NCZ_compute_per_slice_projections(size_t rank, const NCZSlice*, const
 extern int NCZ_compute_all_slice_projections(size64_t rank, const NCZSlice* slices, const size64_t* dimlen, const size64_t* chunklen, const NCZChunkRange*, NCZSliceProjections*);
 
 /* From zodom.c */
-extern NCZOdometer* nczodom_new(size_t, const size_t*, const size_t*, const size_t*);
+extern NCZOdometer* nczodom_new(size_t, const size64_t*, const size64_t*, const size64_t*, const size64_t*);
 extern NCZOdometer* nczodom_fromslices(size_t rank, const NCZSlice* slices);
 extern int nczodom_more(NCZOdometer*);
 extern int nczodom_next(NCZOdometer*);
@@ -118,10 +119,14 @@ extern size64_t NCZ_computelinearoffset(size_t, const size64_t*, const size64_t*
 
 /* Special entry points for unit testing */
 struct Common;
-extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, NCZOdometer** odom);
+extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, size64_t*, NCZOdometer** odom);
 extern int NCZ_projectslices(size64_t* dimlens,
 		  size64_t* chunklens,
 		  NCZSlice* slices,
 		  struct Common*, NCZOdometer**);
+
+#define floordiv(x,y) ((x) / (y))
+
+#define ceildiv(x,y) (((x) % (y)) == 0 ? ((x) / (y)) : (((x) / (y)) + 1))
 
 #endif /*ZCHUNKING_H*/

@@ -50,6 +50,9 @@ nczprint_slice(NCZSlice slice)
         snprintf(value,sizeof(value),"%lu",(unsigned long)slice.stride);
         ncbytescat(buf,value);
     }
+    ncbytescat(buf,"|");
+    snprintf(value,sizeof(value),"%lu",(unsigned long)slice.len);
+    ncbytescat(buf,value);
     ncbytescat(buf,"}");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
@@ -69,6 +72,31 @@ nczprint_slices(size_t rank, NCZSlice* slices)
 	ssl = nczprint_slice(slices[i]);
 	ncbytescat(buf,ssl);
         ncbytescat(buf,"]");
+    }
+    result = ncbytesextract(buf);
+    ncbytesfree(buf);
+    return result;
+}
+
+char*
+nczprint_slab(size_t rank, NCZSlice* slices)
+{
+    int i;
+    char* result = NULL;
+    NCbytes* buf = ncbytesnew();
+    char value[1024];
+
+    for(i=0;i<rank;i++) {
+        snprintf(value,sizeof(value),"[%llu:%llu",slices[i].start,slices[i].stop);
+        ncbytescat(buf,value);
+        if(slices[i].stride != 1) {
+            ncbytescat(buf,":");
+            snprintf(value,sizeof(value),"%llu",slices[i].stride);
+            ncbytescat(buf,value);
+        }
+        ncbytescat(buf,"|");
+        snprintf(value,sizeof(value),"%llu]",slices[i].len);
+        ncbytescat(buf,value);
     }
     result = ncbytesextract(buf);
     ncbytesfree(buf);
@@ -108,14 +136,23 @@ nczprint_odom(NCZOdometer odom)
     }
     ncbytescat(buf,"]");
 
+    ncbytescat(buf," len=[");
+    for(r=0;r<odom.rank;r++) {
+	if(r > 0) ncbytescat(buf,",");
+        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.slices[r].len);
+        ncbytescat(buf,value);
+    }
+    ncbytescat(buf,"]");
+
     ncbytescat(buf," index=[");
     for(r=0;r<odom.rank;r++) {
 	if(r > 0) ncbytescat(buf,",");
         snprintf(value,sizeof(value),"%lu",(unsigned long)odom.index[r]);
         ncbytescat(buf,value);
     }
-    ncbytescat(buf,"]");
-
+    ncbytescat(buf,"] offset=");
+    snprintf(value,sizeof(value),"%llu",nczodom_offset(&odom));
+    ncbytescat(buf,value);
     ncbytescat(buf,"}");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
@@ -229,17 +266,20 @@ zdumpcommon(struct Common* c)
 {
     int r;
     fprintf(stderr,"Common:\n");
+#if 0
     fprintf(stderr,"\tfile: %s\n",c->file->controller->path);
     fprintf(stderr,"\tvar: %s\n",c->var->hdr.name);
     fprintf(stderr,"\treading=%d\n",c->reading);
-    fprintf(stderr,"\trank=%d\n",c->rank);
-    fprintf(stderr,"\tdimlens=%s\n",nczprint_vector(c->rank,c->dimlens));
-    fprintf(stderr,"\tchunklens=%s\n",nczprint_vector(c->rank,c->chunklens));
+#endif
+    fprintf(stderr,"\trank=%d",c->rank);
+    fprintf(stderr," dimlens=%s",nczprint_vector(c->rank,c->dimlens));
+    fprintf(stderr," chunklens=%s",nczprint_vector(c->rank,c->chunklens));
+#if 0
     fprintf(stderr,"\tmemory=%p\n",c->memory);
     fprintf(stderr,"\ttypesize=%d\n",c->typesize);
     fprintf(stderr,"\tswap=%d\n",c->swap);
-    fprintf(stderr,"\tchunkcount=%llu\n",c->chunkcount);
-    fprintf(stderr,"\tshape=%s\n",nczprint_vector(c->rank,c->shape));
+#endif
+    fprintf(stderr," shape=%s\n",nczprint_vector(c->rank,c->shape));
     fprintf(stderr,"\tallprojections:\n");
     for(r=0;r<c->rank;r++)
         fprintf(stderr,"\t\t[%d] %s\n",r,nczprint_sliceprojections(c->allprojections[r]));

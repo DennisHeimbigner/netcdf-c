@@ -7,7 +7,8 @@
 
 #undef ZUT /* unit test support is enabled */
 
-#undef ZDEBUG /* general debug */
+#define ZDEBUG /* general debug */
+#define ZDEBUG1 /* detailed debug */
 
 #define ZCATCH /* Warning: significant performance impact */
 #define ZTRACING /* Warning: significant performance impact */
@@ -35,6 +36,7 @@ extern int zthrow(int err, const char* fname, int line);
 /* printers */
 extern char* nczprint_slice(NCZSlice);
 extern char* nczprint_slices(size_t, NCZSlice*);
+extern char* nczprint_slab(size_t, NCZSlice*);
 extern char* nczprint_odom(NCZOdometer);
 extern char* nczprint_chunkrange(NCZChunkRange);
 extern char* nczprint_projection(NCZProjection);

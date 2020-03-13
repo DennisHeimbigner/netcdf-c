@@ -8,8 +8,6 @@ static int pcounter = 0;
 
 /* Forward */
 static int compute_intersection(const NCZSlice* slice, const size64_t chunklen, NCZChunkRange* range);
-static size64_t floordiv(size64_t x, size64_t y);
-static size64_t ceildiv(size64_t x, size64_t y);
 
 /**************************************************/
 /* Goal:create a vector of chunk ranges: one for each slice in
@@ -107,6 +105,7 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
         projection->slice.stop = projection->len;
     }
     projection->slice.stride = slice->stride;
+    projection->slice.len = chunklen;
 
     /* compute the I/O position: the "location" in the memory
        array to read/write items */
@@ -195,6 +194,7 @@ done:
 /**************************************************/
 /* Utilities */
     
+#if 0
 static size64_t
 floordiv(size64_t x, size64_t y)
 {
@@ -208,6 +208,7 @@ ceildiv(size64_t x, size64_t y)
       if((x % y) != 0) div++;
       return div;
 }
+#endif
 
 #if 0
 static void
