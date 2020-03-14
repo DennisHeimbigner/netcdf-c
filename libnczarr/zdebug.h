@@ -42,6 +42,10 @@ extern char* nczprint_chunkrange(NCZChunkRange);
 extern char* nczprint_projection(NCZProjection);
 extern char* nczprint_sliceprojections(NCZSliceProjections);
 extern char* nczprint_vector(size_t,size64_t*);
+extern char* nczprint_slicex(NCZSlice slice, int raw);
+extern char* nczprint_slicesx(size_t rank, NCZSlice* slices, int raw);
+extern char* nczprint_projectionx(NCZProjection proj, int raw);
+extern char* nczprint_sliceprojectionsx(NCZSliceProjections slp, int raw);
 
 #ifdef ZDEBUG
 extern void zdumpcommon(struct Common*);

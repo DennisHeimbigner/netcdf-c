@@ -4,6 +4,10 @@
  *********************************************************************/
 #include "zincludes.h"
 
+/* Mnemonic */
+#define RAW 1
+
+
 #ifdef ZUT
 /* Unit Test Printer */
 NCZ_UT_PRINTER* nczprinter = NULL;
@@ -35,11 +39,20 @@ zthrow(int err, const char* file, int line)
 char*
 nczprint_slice(NCZSlice slice)
 {
+    return nczprint_slicex(slice,!RAW);
+}
+
+char*
+nczprint_slicex(NCZSlice slice, int raw)
+{
     char* result = NULL;
     NCbytes* buf = ncbytesnew();
     char value[64];
 
-    ncbytescat(buf,"Slice{");
+    if(raw)
+        ncbytescat(buf,"[");
+    else
+        ncbytescat(buf,"Slice{");
     snprintf(value,sizeof(value),"%lu",(unsigned long)slice.start);
     ncbytescat(buf,value);
     ncbytescat(buf,":");
@@ -53,7 +66,10 @@ nczprint_slice(NCZSlice slice)
     ncbytescat(buf,"|");
     snprintf(value,sizeof(value),"%lu",(unsigned long)slice.len);
     ncbytescat(buf,value);
-    ncbytescat(buf,"}");
+    if(raw)
+        ncbytescat(buf,"]");
+    else
+        ncbytescat(buf,"}");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
     return result;
@@ -62,16 +78,24 @@ nczprint_slice(NCZSlice slice)
 char*
 nczprint_slices(size_t rank, NCZSlice* slices)
 {
+    return nczprint_slicesx(rank, slices, !RAW);
+}
+
+char*
+nczprint_slicesx(size_t rank, NCZSlice* slices, int raw)
+{
     int i;
     char* result = NULL;
     NCbytes* buf = ncbytesnew();
 
     for(i=0;i<rank;i++) {
 	char* ssl;
-        ncbytescat(buf,"[");
-	ssl = nczprint_slice(slices[i]);
+	if(!raw)
+            ncbytescat(buf,"[");
+	ssl = nczprint_slicex(slices[i],raw);
 	ncbytescat(buf,ssl);
-        ncbytescat(buf,"]");
+	if(!raw)
+	    ncbytescat(buf,"]");
     }
     result = ncbytesextract(buf);
     ncbytesfree(buf);
@@ -81,26 +105,7 @@ nczprint_slices(size_t rank, NCZSlice* slices)
 char*
 nczprint_slab(size_t rank, NCZSlice* slices)
 {
-    int i;
-    char* result = NULL;
-    NCbytes* buf = ncbytesnew();
-    char value[1024];
-
-    for(i=0;i<rank;i++) {
-        snprintf(value,sizeof(value),"[%llu:%llu",slices[i].start,slices[i].stop);
-        ncbytescat(buf,value);
-        if(slices[i].stride != 1) {
-            ncbytescat(buf,":");
-            snprintf(value,sizeof(value),"%llu",slices[i].stride);
-            ncbytescat(buf,value);
-        }
-        ncbytescat(buf,"|");
-        snprintf(value,sizeof(value),"%llu]",slices[i].len);
-        ncbytescat(buf,value);
-    }
-    result = ncbytesextract(buf);
-    ncbytesfree(buf);
-    return result;
+    return nczprint_slicesx(rank,slices,RAW);
 }
 
 char*
@@ -162,6 +167,12 @@ nczprint_odom(NCZOdometer odom)
 char*
 nczprint_projection(NCZProjection proj)
 {
+   return nczprint_projectionx(proj,!RAW);
+}
+
+char*
+nczprint_projectionx(NCZProjection proj, int raw)
+{
     char* result = NULL;
     NCbytes* buf = ncbytesnew();
     char value[128];
@@ -183,12 +194,13 @@ nczprint_projection(NCZProjection proj)
     ncbytescat(buf,value);
     snprintf(value,sizeof(value),",iocount=%lu",(unsigned long)proj.iocount);
     ncbytescat(buf,value);
-    ncbytescat(buf,",slice={");
-    result = nczprint_slice(proj.slice);
+    ncbytescat(buf,",chunkslice=");
+    result = nczprint_slicex(proj.chunkslice,raw);
+    ncbytescat(buf,result);
+    ncbytescat(buf,",memslice=");
+    result = nczprint_slicex(proj.memslice,raw);
     ncbytescat(buf,result);
     result = NULL;
-    ncbytescat(buf,"}");
-    ncbytescat(buf,"}");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
     return result;
@@ -196,6 +208,12 @@ nczprint_projection(NCZProjection proj)
 
 char*
 nczprint_sliceprojections(NCZSliceProjections slp)
+{
+    return nczprint_sliceprojectionsx(slp,!RAW);
+}
+
+char*
+nczprint_sliceprojectionsx(NCZSliceProjections slp, int raw)
 {
     char* result = NULL;
     NCbytes* buf = ncbytesnew();
@@ -209,7 +227,7 @@ nczprint_sliceprojections(NCZSliceProjections slp)
     for(i=0;i<slp.count;i++) {
 	NCZProjection* p = (NCZProjection*)&slp.projections[i];
 	ncbytescat(buf,"\t");
-        result = nczprint_projection(*p);
+        result = nczprint_projectionx(*p,raw);
         ncbytescat(buf,result);
 	ncbytescat(buf,"\n");
     }
@@ -282,7 +300,7 @@ zdumpcommon(struct Common* c)
     fprintf(stderr," shape=%s\n",nczprint_vector(c->rank,c->shape));
     fprintf(stderr,"\tallprojections:\n");
     for(r=0;r<c->rank;r++)
-        fprintf(stderr,"\t\t[%d] %s\n",r,nczprint_sliceprojections(c->allprojections[r]));
+        fprintf(stderr,"\t\t[%d] %s\n",r,nczprint_sliceprojectionsx(c->allprojections[r],RAW));
     fflush(stderr);
 }
 #endif

@@ -98,14 +98,14 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
 
     /* Compute the slice relative to this chunk.
        Recall the possibility that start+stride >= projection->limit */
-    projection->slice.start = (projection->first - offset);
-    projection->slice.stop = projection->slice.start + (slice->stride * count);
+    projection->chunkslice.start = (projection->first - offset);
+    projection->chunkslice.stop = projection->chunkslice.start + (slice->stride * count);
 //+1
     if(slice->stop > projection->limit) {
-        projection->slice.stop = projection->len;
+        projection->chunkslice.stop = projection->len;
     }
-    projection->slice.stride = slice->stride;
-    projection->slice.len = chunklen;
+    projection->chunkslice.stride = slice->stride;
+    projection->chunkslice.len = chunklen;
 
     /* compute the I/O position: the "location" in the memory
        array to read/write items */
@@ -116,6 +116,10 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
     /* And number of I/O items */
     projection->iocount = count;
 
+    projection->memslice.start = projection->iopos;
+    projection->memslice.stop = projection->memslice.start + projection->iocount;
+    projection->memslice.stride = 1;
+    projection->memslice.len = projection->memslice.stop;
     return stat;
 }
 

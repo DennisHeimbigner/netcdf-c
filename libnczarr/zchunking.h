@@ -46,7 +46,8 @@ typedef struct NCProjection {
     size64_t limit;  /* Actual limit of chunk = min(limit,dimlen) */
     size64_t iopos;    /* start point in the data memory to access the data */
     size64_t iocount;  /* no. of I/O items */
-    NCZSlice slice;  /* slice relative to this chunk */
+    NCZSlice chunkslice;  /* slice relative to this chunk */
+    NCZSlice memslice;  /* slice relative to memory */
 } NCZProjection;
 
 /* Set of Projections for a slice */
