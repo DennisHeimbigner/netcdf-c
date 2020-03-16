@@ -21,9 +21,6 @@
 #include <malloc.h>
 #include <stddef.h> /* size_t, ptrdiff_t */
 #include <assert.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 #include "netcdf.h"
 #include "ncdispatch.h"

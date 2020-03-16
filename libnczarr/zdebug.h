@@ -7,8 +7,8 @@
 
 #undef ZUT /* unit test support is enabled */
 
-#define ZDEBUG /* general debug */
-#define ZDEBUG1 /* detailed debug */
+#undef ZDEBUG /* general debug */
+#undef ZDEBUG1 /* detailed debug */
 
 #define ZCATCH /* Warning: significant performance impact */
 #define ZTRACING /* Warning: significant performance impact */

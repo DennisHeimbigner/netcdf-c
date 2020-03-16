@@ -129,7 +129,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 	default: goto done;
 	}
 #ifdef ZDEBUG
-fprintf(stderr,"read: %s\n",nczprint_vector(var->ndims,chunkindices));
+fprintf(stderr,"read: %s\n",nczprint_vector(chunkodom->rank,chunkodom->index));
 #endif
 	for(r=0;r<common.rank;r++) {
 	    NCZSliceProjections* slp = &common.allprojections[r];
@@ -159,7 +159,10 @@ fprintf(stderr,"read: %s\n",nczprint_vector(var->ndims,chunkindices));
 	/* This is the key action: walk this set of slices and transfer data */
 	if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,&common,chunkdata))) goto done;
     }
-
+#ifdef ZDEBUG
+    if(!nczodom_more(chunkodom)) fprintf(stderr,"chunkodom done\n");
+    fflush(stderr);
+#endif
 done:
     return stat;
 }
@@ -243,10 +246,10 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
     if(nczprinter) nczprinter->used = 0;
     zwalkprint(PRINTSORT_WALK2, common->rank, nczodom_offset(memodom), ioposv, common->shape);
 #endif
-    while(nczodom_more(slpodom)) {
+    for(;nczodom_more(slpodom);nczodom_next(slpodom),nczodom_next(memodom)) {
         size64_t chunkpos, mempos;
 	/* Convert the indices to a linear offset WRT to chunk */
-	size64_t chunkoffset = nczodom_offset(slpodom);
+	size64_t slpoffset = nczodom_offset(slpodom);
 	size64_t memoffset = nczodom_offset(memodom);
 #ifdef ZDEBUG1
 fprintf(stderr,"----------\n");
@@ -257,23 +260,23 @@ fprintf(stderr,"----------\n");
 fflush(stderr);
 #endif
 #ifdef ZUT
-	zwalkprint(PRINTSORT_WALK3, common->rank, chunkoffset, nczodom_offsett(memodom), slpodom);
+	zwalkprint(PRINTSORT_WALK3, common->rank, slpoffset, nczodom_offsett(memodom), slpodom);
 #endif
 	/* transfer data */
 	if(common->reading) {
-            chunkpos = chunkoffset * common->typesize;
+            chunkpos = slpoffset * common->typesize;
 	    mempos = memoffset * common->typesize;
 	    unsigned char* memdst = ((unsigned char*)common->memory)+mempos;
 	    unsigned char* chunksrc = ((unsigned char*)chunkdata)+chunkpos;
 	    memcpy(memdst,chunksrc,common->typesize);
 #ifdef ZDEBUG
-fprintf(stderr,"chunkoffset=%llu value=%d\n",chunkoffset,((int*)chunksrc)[0]);
+fprintf(stderr,"slpoffset=%llu value=%d\n",slpoffset,((int*)chunksrc)[0]);
 fprintf(stderr,"memoffset=%llu value=%d\n",memoffset,((int*)memdst)[0]);
 #endif
 	    if(common->swap)
 		NCZ_swapatomicdata(common->typesize,chunksrc,common->typesize);
 	} else {
-            chunkpos = chunkoffset * common->typesize;
+            chunkpos = slpoffset * common->typesize;
 	    mempos = memoffset * common->typesize;
 	    unsigned char* memsrc = ((unsigned char*)common->memory)+mempos;
 	    unsigned char* chunkdst = ((unsigned char*)chunkdata)+chunkpos;
@@ -281,17 +284,16 @@ fprintf(stderr,"memoffset=%llu value=%d\n",memoffset,((int*)memdst)[0]);
 	    if(common->swap)
 		NCZ_swapatomicdata(common->typesize,chunkdst,common->typesize);
 #ifdef ZDEBUG
-fprintf(stderr,"chunkoffset=%llu value=%d\n",chunkoffset,((int*)chunkdst)[0]);
+fprintf(stderr,"slpoffset=%llu value=%d\n",slpoffset,((int*)chunkdst)[0]);
 fprintf(stderr,"memoffset=%llu value=%d\n",memoffset,((int*)memsrc)[0]);
 #endif
  	}
-        nczodom_next(memodom);
-	nczodom_next(slpodom);
+    }
 #ifdef ZDEBUG
 if(!nczodom_more(memodom)) fprintf(stderr,"memodom done\n");
 if(!nczodom_more(slpodom)) fprintf(stderr,"slpodom done\n");
 #endif
-    }
+
 #ifdef ZUT
     if(nczprinter) nczprinter->used = (size_t)memoffset;
 #endif

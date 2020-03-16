@@ -7,6 +7,7 @@
 
 # Get AM_CPPFLAGS and AM_LDFLAGS
 include $(top_srcdir)/lib_flags.am
+AM_CPPFLAGS += -D_LARGEFILE_SOURCE
 AM_CPPFLAGS += -I$(top_srcdir)/libsrc4
 libnczarr_la_CPPFLAGS = ${AM_CPPFLAGS}
 libnczarr_la_LIBADD =
@@ -40,8 +41,6 @@ zfilter.c \
 zgrp.c \
 zinternal.c \
 zjson.c \
-zmap.c \
-zmap_nc4.c \
 zodom.c \
 zopen.c \
 zprov.c \
@@ -49,7 +48,10 @@ zsync.c \
 ztype.c \
 zutil.c \
 zvar.c \
-zwalk.c
+zwalk.c \
+zmap.c \
+zmap_nc4.c \
+zmap_file.c
 
 HDRS= \
 zdispatch.h \
@@ -66,19 +68,3 @@ IGNORED=ztype.c
 
 # Package this for cmake build.
 EXTRA_DIST += CMakeLists.txt
-
-##################################################
-# Temporary unit tests
-
-LDADD += ${top_builddir}/liblib/libnetcdf.la
-
-check_PROGRAMS =
-TESTS =
-
-# Unit Tests
-ut_range_SOURCES = ut_range.c ut_util.c ../nczarr_test/ztest.c
-check_PROGRAMS += ut_range
-
-TESTS += ut.sh
-
-
