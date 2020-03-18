@@ -726,3 +726,23 @@ NCZ_swapatomicdata(size_t datalen, void* data, int typesize)
 done:
     return THROW(stat);
 }
+
+char**
+NCZ_cloneenvv(const char** controls)
+{
+    const char** p;
+    char** q;
+    char** clone = NULL;
+    int len;
+    if(controls == NULL) return NULL;
+    for(len=0,p=controls;*p;p++) len++;
+    clone = malloc(sizeof(char*) * (1+len));
+    if(clone == NULL) return NULL;
+    for(q=clone,p=controls;*p;p++) {
+	char* s = strdup(*p);
+	if(s == NULL) return NULL;
+	*q++ = s;
+    }
+    *q++ = NULL;
+    return clone;
+}

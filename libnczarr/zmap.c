@@ -69,6 +69,12 @@ nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* 
         stat = zmap_nc4.create(filepath, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
+    case NCZM_FILE:
+	if(filepath == NULL)
+	     {stat = NC_ENOTNC; goto done;}
+        stat = zmap_file.create(filepath, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
     default:
 	{stat = NC_ENOTBUILT; goto done;}
     }
@@ -277,6 +283,39 @@ nczm_suffix(const char* prefix, const char* suffix, char** pathp)
     if(pathp) *pathp = ncbytesextract(buf);
     ncbytesfree(buf);
     return NC_NOERR;
+}
+
+int
+nczm_divide(const char* key, int nsegs, char** prefixp, char** suffixp)
+{
+    int i,stat = NC_NOERR;
+    NClist* presegs = nclistnew();
+    NClist* sufsegs = nclistnew();
+    size_t len = nclistlength(presegs);
+    size_t start;
+    
+    if((stat = nczm_split(key,presegs))) goto done;
+    if(nsegs > len)
+	{stat = NC_EINVAL; goto done;}
+    start = (len - nsegs) ;
+    for(i=len-1;i>=start;i--) { /* Walk backwards */
+	char* seg = nclistremove(presegs,i);
+	nclistpush(sufsegs,seg);
+    }
+    if(prefixp) {
+	char* prefix = NULL;
+	if((stat = nczm_join(presegs,&prefix))) goto done;
+	*prefixp = prefix; prefix = NULL;
+    }
+    if(suffixp) {
+	char* suffix = NULL;
+	if((stat = nczm_join(sufsegs,&suffix))) goto done;
+	*suffixp = suffix; suffix = NULL;
+    }
+done:
+    nclistfreeall(presegs);
+    nclistfreeall(sufsegs);
+    return stat;
 }
 
 int

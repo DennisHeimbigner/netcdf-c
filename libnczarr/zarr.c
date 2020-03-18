@@ -8,8 +8,8 @@
 /**************************************************/
 /* Forwards */
 
-static NCZM_IMPL computemapimpl(NClist*, int cmode);
-static int computefeatures(NClist*, NClist* features);
+static NCZM_IMPL computemapimpl(NCZ_FILE_INFO_T*, int cmode);
+static int computefeatures(NCZ_FILE_INFO_T*);
 
 /***************************************************/
 /* API */
@@ -23,7 +23,7 @@ static int computefeatures(NClist*, NClist* features);
 */
 
 int
-ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
+ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NClist* controls)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = NULL;
@@ -33,8 +33,6 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
     NC* nc = NULL;
     NCjson* json = NULL;
     char* key = NULL;
-    const char* smode = NULL;
-    NClist* features = NULL;
 
     ZTRACE();
 
@@ -55,7 +53,7 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
     /* Fill in NCZ_FILE_INFO_T */
     zinfo->created = 1;
     zinfo->common.file = file;
-    zinfo->controls = nclistnew();
+    zinfo->controls = nclistclone((NClist*)controls,1/*deep*/); /* deep clone */
 
     /* fill in some of the zinfo and zroot fields */
     zinfo->zarr.zarr_version = ZARRVERSION;
@@ -65,24 +63,12 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
 	   &zinfo->zarr.nczarr_version.release);
 
     /* Figure out the map implementation */
-
-    /* Get the "mode=" arg */
-    /* Parse url and params */
-    if(ncuriparse(nc->path,&uri))
-	{stat = NC_EDAPURL; goto done;}
-    if((smode = ncurilookup(uri,"mode")) != NULL) {
-	if((stat = NCZ_comma_parse(smode,zinfo->controls)));
-    }
-
-    if((mapimpl = computemapimpl(zinfo->controls,nc->mode)) == NCZM_UNDEF)
+    if((mapimpl = computemapimpl(zinfo,nc->mode)) == NCZM_UNDEF)
 	mapimpl = NCZM_DEFAULT;
 
     /* Check for other features */
-    features = nclistnew();
-    if((stat=computefeatures(zinfo->controls,features)))
+    if((stat=computefeatures(zinfo)))
 	goto done;
-    if(nclistmatch(features,PUREZARR,0))
-	zinfo->purezarr = 1;
 
     /* initialize map handle*/
     if((stat = nczmap_create(mapimpl,nc->path,nc->mode,0,NULL,&zinfo->map)))
@@ -91,11 +77,14 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root)
     /* Load auth info from rc file */
     if((zinfo->auth = calloc(1,sizeof(NCauth)))==NULL)
 	{stat = NC_ENOMEM; goto done;}
-    if((stat = NC_authsetup(zinfo->auth, uri)))
-	goto done;
+    if((stat = ncuriparse(nc->path,&uri))) goto done;
+    if(uri) {
+	if((stat = NC_authsetup(zinfo->auth, uri)))
+	    goto done;
+    }
 
 done:
-    nclistfree(features);
+    ncurifree(uri);
     NCJreclaim(json);
     nullfree(key);
     return stat;
@@ -110,7 +99,7 @@ done:
 */
 
 int
-ncz_open_dataset(NC_FILE_INFO_T* file)
+ncz_open_dataset(NC_FILE_INFO_T* file, const NClist* controls)
 {
     int i,stat = NC_NOERR;
     NC* nc = NULL;
@@ -121,7 +110,6 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
     NCZ_FILE_INFO_T* zinfo = NULL;
     NCZM_IMPL mapimpl = NCZM_UNDEF;
     int mode;
-    const char* path = NULL;
     NClist* modeargs = NULL;
 
     ZTRACE();
@@ -129,7 +117,6 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
     /* Extract info reachable via file */
     nc = (NC*)file->controller;
     mode = nc->mode;
-    path = nc->path;
 
     root = file->root_grp;
     assert(root != NULL && root->hdr.sort == NCGRP);
@@ -142,8 +129,8 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
     /* Fill in NCZ_FILE_INFO_T */
     zinfo->created = 0;
     zinfo->common.file = file;
-    zinfo->controls = nclistnew();
     zinfo->native_endianness = (NCZ_isLittleEndian() ? NC_ENDIAN_LITTLE : NC_ENDIAN_BIG);
+    zinfo->controls = nclistclone((NClist*)controls,1/*deep*/);
 
     /* Add struct to hold NCZ-specific group info. */
     if (!(root->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
@@ -151,19 +138,7 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
     ((NCZ_GRP_INFO_T*)root->format_grp_info)->common.file = file;
 
     /* Figure out the map implementation */
-
-    if(ncuriparse(path,&uri))
-	{stat = NC_EURL; goto done;}
-
-    /* Get the "mode=" from uri*/
-    {
-	const char* modes = ncurilookup(uri,"mode");
-	if(modes != NULL) {
-	    if((stat = NCZ_comma_parse(modes,zinfo->controls)));
-	}
-    }
-
-    if((mapimpl = computemapimpl(zinfo->controls,mode)) == NCZM_UNDEF)
+    if((mapimpl = computemapimpl(zinfo,mode)) == NCZM_UNDEF)
 	mapimpl = NCZM_DEFAULT;
 
     /* initialize map handle*/
@@ -190,8 +165,11 @@ ncz_open_dataset(NC_FILE_INFO_T* file)
     /* Load auth info from rc file */
     if((zinfo->auth = calloc(1,sizeof(NCauth)))==NULL)
 	{stat = NC_ENOMEM; goto done;}
-    if((stat = NC_authsetup(zinfo->auth, uri)))
-	goto done;
+    if((stat = ncuriparse(nc->path,&uri))) goto done;
+    if(uri) {
+	if((stat = NC_authsetup(zinfo->auth, uri)))
+	    goto done;
+    }
 
 done:
     nclistfreeall(modeargs);
@@ -379,34 +357,32 @@ done:
 }
 
 static NCZM_IMPL
-computemapimpl(NClist* controls, int cmode)
+computemapimpl(NCZ_FILE_INFO_T* zinfo, int cmode)
 {
     int i;
 
     NC_UNUSED(cmode);
-
-    if(controls == NULL) return NCZM_DEFAULT;
-
-    for(i=0;i<nclistlength(controls);i++) {
-	const char* mode = nclistget(controls,i);
-	if(strcasecmp(mode,"s3")==0) return NCZM_S3;
-	if(strcasecmp(mode,"ncz")==0) return NCZM_NC4;
-	if(strcasecmp(mode,"nczfile")==0) return NCZM_FILE;
+    if(zinfo->controls == NULL) return NCZM_DEFAULT;
+    for(i=0;i<nclistlength(zinfo->controls);i++) {
+        const char* p = nclistget(zinfo->controls,i);
+	if(strcasecmp(p,"s3")==0) return NCZM_S3;
+	if(strcasecmp(p,"nc4")==0) return NCZM_NC4;
+	if(strcasecmp(p,"file")==0) return NCZM_FILE;
     }
     return NCZM_DEFAULT; /* could not determine map impl */
 }
 
 /* Extract list of mode feature flags */
 static int
-computefeatures(NClist* modeargs, NClist* features)
+computefeatures(NCZ_FILE_INFO_T* zinfo)
 {
     int i;
 
-    if(modeargs == NULL) return NC_NOERR;
-
-    for(i=0;i<nclistlength(modeargs);i++) {
-	const char* mode = nclistget(modeargs,i);
-	if(strcasecmp(mode,PUREZARR)==0) nclistpush(features,mode);
+    if(zinfo->controls == NULL) return NC_NOERR;
+    for(i=0;i<nclistlength(zinfo->controls);i++) {
+        const char* p = nclistget(zinfo->controls,i);
+	if(strcasecmp(p,PUREZARR)==0)
+	    zinfo->purezarr = 1;
     }
     return NC_NOERR;
 }

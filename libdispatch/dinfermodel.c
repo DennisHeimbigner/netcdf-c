@@ -107,13 +107,33 @@ static struct FORMATMODES {
 {"udf0",NC_FORMATX_UDF0,NC_FORMAT_NETCDF4},
 {"udf1",NC_FORMATX_UDF1,NC_FORMAT_NETCDF4},
 {"nczarr",NC_FORMATX_NCZARR,NC_FORMAT_NETCDF4},
+{"zarr",NC_FORMATX_NCZARR,NC_FORMAT_NETCDF4},
 {NULL,0},
 };
+
+/* For some reason, compiler complains */
+#if 0
+static const struct MACRODEF {
+    char* name;
+    char** def;
+} macrodefs[] = {
+{"zarr",{"nczarr","zarr"}},
+{NULL,{NULL}}
+};
+#else
+static const struct MACRODEF {
+    char* name;
+    char* def;
+} macrodefs[] = {
+{"zarr","nczarr,zarr"},
+{NULL,NULL}
+};
+#endif
 
 /* Define the legal singleton mode tags;
    thse should also appear in the above mode table. */
 static const char* modesingles[] = {
-    "dap2", "dap4", "bytes", "nczarr", NULL
+    "dap2", "dap4", "bytes", "nczarr", "zarr", NULL
 };
 
 /* Map FORMATX to readability to get magic number */
@@ -152,6 +172,7 @@ static int NC_omodeinfer(int useparallel, int omode, NCmodel*);
 static int check_file_type(const char *path, int omode, int use_parallel, void *parameters, NCmodel* model, NCURI* uri);
 static int parseurlmode(const char* modestr, NClist* list);
 static int processuri(const char* path, NCURI** urip, char** newpathp, NClist* modeargs);
+static int processmacros(NClist** modelistp);
 static char* list2string(NClist* modelist);
 static char* envv2string(NClist* envv);
 static int issingleton(const char* tag);;
@@ -238,12 +259,12 @@ processuri(const char* path, NCURI** urip, char** newpathp, NClist* modeargs)
     /* At this point modeargs should contain all mode-like args from the URL */
     
     /* Remove duplicates */
-    for(i=nclistlength(modeargs)-1;i>=0;i--) {
+    for(i=0;i<nclistlength(modeargs);i++) {
 	const char* mode = nclistget(modeargs,i);
-	for(j=0;j<i;j++) {
-	    const char* other = nclistget(modeargs,i);
+	for(j=nclistlength(modeargs)-1;j>i;j--) {
+	    const char* other = nclistget(modeargs,j);
 	    if(strcasecmp(mode,other)==0) {
-		nclistremove(modeargs,i); /* duplicate */
+		nclistremove(modeargs,j); /* duplicate */
 		break;
 	    }
 	}
@@ -370,6 +391,44 @@ processmodearg(const char* arg, NCmodel* model)
     return check(stat);
 }
 
+/* Given a modelist, do macro replacement */
+static int
+processmacros(NClist** modelistp)
+{
+    int stat = NC_NOERR;
+    int i;
+    const struct MACRODEF* macros = macrodefs;
+    NClist*  modelist = NULL;
+    NClist* expanded = NULL;
+    NClist* def = nclistnew();
+
+    if(modelistp == NULL || nclistlength(*modelistp) == 0) goto done;
+    modelist = *modelistp;
+    expanded = nclistnew();    
+    for(i=0;i<nclistlength(modelist);i++) {
+	int match = 0;
+	char* mode = nclistremove(modelist,i);
+        for(;macros->name;macros++) {
+	    if(strcmp(macros->name,mode)==0) {
+	        nclistclear(def);
+		if((stat=parseurlmode(macros->def,def))) goto done;
+	        while(nclistlength(def) > 0) {
+		    nclistpush(expanded,nclistremove(def,0));
+		}
+		match = 1;
+	    }
+	}
+	if(!match) {nclistpush(expanded,mode); mode = NULL;}
+	nullfree(mode);
+    }
+    *modelistp = expanded; expanded = NULL;
+done:
+    nclistfreeall(def);    
+    nclistfreeall(expanded);
+    nclistfreeall(modelist);
+    return check(stat);
+}
+
 /* Search singleton list */
 static int
 issingleton(const char* tag)
@@ -479,7 +538,6 @@ set_default_mode(int* modep)
 @param params
 @param model
 @param newpathp
-
 */
 
 int
@@ -496,28 +554,42 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
     if((stat = processuri(path, &uri, &newpath, modeargs))) goto done;
     if(newpath == NULL) newpath = strdup(path); /* No change */
 
-    /* Phase 2: Process the modeargs list to see if we can tell the formatx */
+    /* Phase 2: Expand macros and modify new path to reflect */
+    if((stat = processmacros(&modeargs))) goto done;
+    if(nclistlength(modeargs) > 0) {
+	/* Modify url fragment to reflect */
+	NCbytes* newmode = ncbytesnew();
+	int m;
+	for(m=0;m<nclistlength(modeargs);m++) {
+	    if(m > 0) ncbytescat(newmode,",");
+	    ncbytescat(newmode,nclistget(modeargs,m));
+	}
+	ncurisetfragmentkey(uri,"mode",ncbytescontents(newmode));
+	ncbytesfree(newmode);
+    }
+
+    /* Phase 3: Process the modeargs list to see if we can tell the formatx */
     /* Note that if the path was not a URL, then modeargs will be empty list*/
     for(i=0;i<nclistlength(modeargs);i++) {
 	const char* arg = nclistget(modeargs,i);
 	if((stat=processmodearg(arg,model))) goto done;
     }
 
-    /* Phase 2.5: Special case: if this is a URL, and there are no mode args
+    /* Phase 3.5: Special case: if this is a URL, and there are no mode args
        and model.impl is still not defined, default to DAP2 */
     if(uri != NULL && nclistlength(modeargs) == 0 && !modelcomplete(model)) {
 	model->impl = NC_FORMATX_DAP2;
 	model->format = NC_FORMAT_NC3;
     }
 
-    /* Phase 3: mode inference from mode flags */
+    /* Phase 4: mode inference from mode flags */
     /* The modeargs did not give us a model (probably not a URL).
        So look at the combination of mode flags and the useparallel flag */
     if(!modelcomplete(model)) {
         if((stat = NC_omodeinfer(useparallel,omode,model))) goto done;
     }
 
-    /* Phase 4: Infer from file content, if possible;
+    /* Phase 5: Infer from file content, if possible;
        this has highest precedence, so it may override
        previous decisions. Note that we do this last
        because we need previously determined model info

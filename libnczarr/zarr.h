@@ -13,8 +13,8 @@
 #define ZARR_H
 
 /* zarr.c */
-extern int ncz_create_dataset(NC_FILE_INFO_T*, NC_GRP_INFO_T*);
-extern int ncz_open_dataset(NC_FILE_INFO_T*);
+extern int ncz_create_dataset(NC_FILE_INFO_T*, NC_GRP_INFO_T*, const NClist* contrls);
+extern int ncz_open_dataset(NC_FILE_INFO_T*, const NClist* controls);
 extern int ncz_del_attr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name);
 
 extern int NCZ_isnetcdf4(struct NC_FILE_INFO*);
@@ -60,5 +60,6 @@ extern int NCZ_grpname_full(int gid, char** pathp);
 extern int ncz_get_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
 extern int NCZ_comma_parse(const char* s, NClist* list);
 extern int NCZ_swapatomicdata(size_t datalen, void* data, int typesize);
+extern char** NCZ_cloneenvv(const char** controls);
 
 #endif /*ZARR_H*/

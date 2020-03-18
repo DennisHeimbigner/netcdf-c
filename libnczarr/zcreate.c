@@ -30,7 +30,7 @@ static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_DISKLESS|NC_64BIT
  * @author Dennis Heimbigner, Ed Hartnett
  */
 static int
-ncz_create_file(const char *path, int cmode, size_t initialsz, int ncid)
+ncz_create_file(const char *path, int cmode, size_t initialsz, const NClist* modelist, int ncid)
 {
     int retval = NC_NOERR;
     NC_FILE_INFO_T* h5 = NULL;
@@ -51,7 +51,7 @@ ncz_create_file(const char *path, int cmode, size_t initialsz, int ncid)
     /* Do format specific setup */
     /* Should check if file already exists, and if NC_NOCLOBBER is specified,
        return an error */
-    if((retval = ncz_create_dataset(h5,h5->root_grp)))
+    if((retval = ncz_create_dataset(h5,h5->root_grp,modelist)))
 	BAIL(retval);
 
     /* Define mode gets turned on automatically on create. */
@@ -96,6 +96,7 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
 {
     int stat = NC_NOERR;
     NCURI* uri = NULL;
+    NClist* modelist = NULL;
 
     NC_UNUSED(parameters);
 
@@ -119,14 +120,21 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
 
     ncuriparse(path,&uri);
     if(uri) {
+	const char* modevalue = NULL;
         /* Rebuild the path without any fragment parameters */
         path = ncuribuild(uri,NULL,NULL,NCURISVC);
+	modevalue = ncurifragmentlookup(uri,"mode");	
+	if(modevalue != NULL) {
+	    modelist = nclistnew();
+	    if((stat = NCZ_comma_parse(modevalue,modelist))) goto done;
+	}
     }
  
     /* Create the file */
-    stat = ncz_create_file(path, cmode, initialsz, ncid);
+    stat = ncz_create_file(path, cmode, initialsz, modelist, ncid);
 
 done:
+    nclistfreeall(modelist);
     ncurifree(uri);
     return stat;
 }

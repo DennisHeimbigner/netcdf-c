@@ -89,6 +89,10 @@ static void freestringvec(char** list);
 static int ncfind(char** params, const char* key);
 static char* nclocate(char* p, const char* charlist);
 static int parselist(const char* ptext, NClist* list);
+static int unparselist(const char** vec, const char* prefix, int encode, char** svecp);
+static int ensurefraglist(NCURI* uri);
+static int ensurequerylist(NCURI* uri);
+static void buildlist(const char** list, int encode, NCbytes* buf);
 
 /**************************************************/
 /*
@@ -495,15 +499,28 @@ ncurisetfragments(NCURI* duri,const char* fragments)
     duri->fragment = NULL;
     duri->fraglist = NULL;
     if(fragments != NULL && strlen(fragments) > 0) {
-	NClist* params = nclistnew();
 	duri->fragment = strdup(fragments);
-	ret = parselist(duri->fragment,params);
-	if(ret != NC_NOERR)
-	    {THROW(NC_EURL);}
-	nclistpush(params,NULL);
-	duri->fraglist = nclistextract(params);
-	nclistfree(params);
     }
+    return ret;
+}
+
+/* Replace a specific fragment key*/
+int
+ncurisetfragmentkey(NCURI* duri,const char* key, const char* value)
+{
+    int ret = NC_NOERR;
+    int pos = -1;
+    char* newlist = NULL;
+
+    ensurefraglist(duri);
+    pos = ncfind(duri->fraglist, key);
+    if(pos < 0) return NC_EINVAL; /* does not exist */
+    nullfree(duri->fraglist[pos+1]);
+    duri->fraglist[pos+1] = strdup(value);
+    /* Rebuild the fragment */
+    if((ret = unparselist((const char**)duri->fraglist,"#",0,&newlist))) goto done;
+    nullfree(duri->fragment);
+    duri->fragment = newlist; newlist = NULL;
 done:
     return ret;
 }
@@ -607,44 +624,15 @@ ncuribuild(NCURI* duri, const char* prefix, const char* suffix, int flags)
 	ncbytescat(buf,suffix);
 
     /* The query and the querylist are assumed to be unencoded */
-    if(flags & NCURIQUERY && duri->querylist != NULL) {
-	char** p;
-	int first = 1;
-	for(p=duri->querylist;*p;p+=2,first=0) {
-	    ncbytescat(buf,(first?"?":"&"));
-	    if(encode) {
-		char* encoded = ncuriencodeonly(p[0],queryallow);
-		ncbytescat(buf,encoded);
-	        nullfree(encoded);
-	    } else
-	        ncbytescat(buf,p[0]);
-	    if(p[1] != NULL && strlen(p[1]) > 0) {
-		ncbytescat(buf,"=");
-		if(encode) {
-		    char* encoded = ncuriencodeonly(p[1],queryallow);
-		    ncbytescat(buf,encoded);
-	            nullfree(encoded);
-		} else
-		    ncbytescat(buf,p[1]);
-	    }
-	}
+    if(flags & NCURIQUERY && duri->query != NULL && strlen(duri->query) > 0) {
+ 	ensurequerylist(duri);
+        ncbytescat(buf,"?");
+	buildlist((const char**)duri->querylist,encode,buf);
     }
-    if((flags & NCURIFRAG) && duri->fraglist != NULL) {
-	char** p;
-	int first = 1;
-	for(p=duri->fraglist;*p;p+=2,first=0) {
-	    ncbytescat(buf,(first?"#":"&"));
-	    ncbytescat(buf,p[0]);
-	    if(p[1] != NULL && strlen(p[1]) > 0) {
-		ncbytescat(buf,"=");
-		if(encode) {
-		    char* encoded = ncuriencodeonly(p[1],queryallow);
-		    ncbytescat(buf,encoded);
-	            nullfree(encoded);
-		} else
-		    ncbytescat(buf,p[1]);
-	    }
-	}
+    if(flags & NCURIFRAG && duri->fragment != NULL && strlen(duri->fragment) > 0) {
+ 	ensurefraglist(duri);
+        ncbytescat(buf,"#");
+	buildlist((const char**)duri->fraglist,encode,buf);
     }
     ncbytesnull(buf);
     newuri = ncbytesextract(buf);
@@ -654,11 +642,12 @@ ncuribuild(NCURI* duri, const char* prefix, const char* suffix, int flags)
 
 
 const char*
-ncurilookup(NCURI* uri, const char* key)
+ncurifragmentlookup(NCURI* uri, const char* key)
 {
   int i;
   char* value = NULL;
-  if(uri == NULL || key == NULL || uri->fraglist == NULL) return NULL;
+  if(uri == NULL || key == NULL) return NULL;
+  ensurefraglist(uri);
   i = ncfind(uri->fraglist,key);
   if(i < 0)
     return NULL;
@@ -809,7 +798,7 @@ fromHex(int c)
 Support encode of user and password fields
 */
 char*
-ncuriencodeuserpwd(char* s)
+ncuriencodeuserpwd(const char* s)
 {
     return ncuriencodeonly(s,userpwdallow);
 }
@@ -820,11 +809,11 @@ ncuriencodeuserpwd(char* s)
  */
 
 char*
-ncuriencodeonly(char* s, const char* allowable)
+ncuriencodeonly(const char* s, const char* allowable)
 {
     size_t slen;
     char* encoded;
-    char* inptr;
+    const char* inptr;
     char* outptr;
 
     if(s == NULL) return NULL;
@@ -856,12 +845,12 @@ ncuriencodeonly(char* s, const char* allowable)
 
 /* Return a string representing decoding of input; caller must free;*/
 char*
-ncuridecode(char* s)
+ncuridecode(const char* s)
 {
     size_t slen;
     char* decoded;
     char* outptr;
-    char* inptr;
+    const char* inptr;
     unsigned int c;
 
     if (s == NULL) return NULL;
@@ -894,12 +883,12 @@ Partially decode a string. Only characters in 'decodeset'
 are decoded. Return decoded string; caller must free.
 */
 char*
-ncuridecodepartial(char* s, const char* decodeset)
+ncuridecodepartial(const char* s, const char* decodeset)
 {
     size_t slen;
     char* decoded;
     char* outptr;
-    char* inptr;
+    const char* inptr;
     unsigned int c;
 
     if (s == NULL || decodeset == NULL) return NULL;
@@ -1021,4 +1010,89 @@ parselist(const char* text, NClist* list)
     }
     nullfree(ptext);
     return ret;
+}
+
+static int
+unparselist(const char** vec, const char* prefix, int encode, char** svecp)
+{
+    int stat = NC_NOERR;
+    NCbytes* buf = ncbytesnew();
+    const char** p;
+    int first = 1;
+
+    if(vec == NULL || vec[0] == NULL) goto done;
+    if(prefix != NULL) ncbytescat(buf,prefix);
+    for(p=vec;*p;p+=2,first=0) {
+        if(!first) ncbytescat(buf,"&");
+        if(encode) {
+  	    char* encoded = ncuriencodeonly(p[0],queryallow);
+	    ncbytescat(buf,encoded);
+	    nullfree(encoded);
+	} else
+	    ncbytescat(buf,p[0]);
+	if(p[1] != NULL && strlen(p[1]) > 0) {
+	    ncbytescat(buf,"=");
+	    if(encode) {
+		char* encoded = ncuriencodeonly(p[1],queryallow);
+		ncbytescat(buf,encoded);
+	        nullfree(encoded);
+	    } else
+		ncbytescat(buf,p[1]);
+	}
+    }
+    if(*svecp) {*svecp = ncbytesextract(buf);}
+done:
+    return stat;
+}
+
+static int
+ensurefraglist(NCURI* uri)
+{
+    int stat = NC_NOERR;
+    NClist* fraglist = NULL;
+    if(uri->fragment == NULL || strlen(uri->fragment) == 0) goto done;
+    if(uri->fraglist == NULL && uri->fragment != NULL && strlen(uri->fragment) > 0) {
+	fraglist = nclistnew();
+	if((stat = parselist(uri->fragment,fraglist))) goto done;	
+	uri->fraglist = nclistextract(fraglist);
+    }
+done:
+    nclistfreeall(fraglist);
+    return stat;
+}
+
+static int
+ensurequerylist(NCURI* uri)
+{
+    int stat = NC_NOERR;
+    NClist* querylist = NULL;
+    if(uri->query == NULL || strlen(uri->query) == 0) goto done;
+    if(uri->querylist == NULL && uri->query != NULL && strlen(uri->query) > 0) {
+	querylist = nclistnew();
+	if((stat = parselist(uri->query,querylist))) goto done;	
+	uri->querylist = nclistextract(querylist);
+    }
+done:
+    nclistfreeall(querylist);
+    return stat;
+}
+
+static void
+buildlist(const char** list, int encode, NCbytes* buf)
+{
+    const char** p;
+    int first = 1;
+    for(p=list;*p;p+=2,first=0) {
+        if(!first) ncbytescat(buf,"&");
+        ncbytescat(buf,p[0]);
+        if(p[1] != NULL && strlen(p[1]) > 0) {
+	    ncbytescat(buf,"=");
+	    if(encode) {
+		char* encoded = ncuriencodeonly(p[1],queryallow);
+		ncbytescat(buf,encoded);
+	        nullfree(encoded);
+	    } else
+	        ncbytescat(buf,p[1]);
+        }
+    }
 }

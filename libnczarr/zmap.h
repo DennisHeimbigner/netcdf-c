@@ -141,6 +141,7 @@ extern int nczm_split(const char* path, NClist* segments);
 extern int nczm_joinprefix(NClist* segments, int nsegs, char** pathp);
 extern int nczm_join(NClist* segments, char** pathp);
 extern int nczm_suffix(const char* prefix, const char* suffix, char** pathp);
+extern int nczm_divide(const char* key, int nsegs, char** prefixp, char** suffixp);
 extern int nczm_clear(NCZMAP* map);
 
 #endif /*ZMAP_H*/

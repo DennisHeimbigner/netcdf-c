@@ -175,16 +175,6 @@ nclistremove(NClist* l, size_t i)
   return elem;
 }
 
-/* Duplicate and return the content (null terminate) */
-void**
-nclistdup(NClist* l)
-{
-    void** result = (void**)malloc(sizeof(void*)*(l->length+1));
-    memcpy((void*)result,(void*)l->content,sizeof(void*)*l->length);
-    result[l->length] = (void*)0;
-    return result;
-}
-
 int
 nclistcontains(NClist* l, void* elem)
 {
@@ -259,14 +249,30 @@ nclistunique(NClist* l)
     return 1;
 }
 
+/* Duplicate a list and if deep is true, assume the contents
+   are char** and duplicate those also */
 NClist*
-nclistclone(NClist* l)
+nclistclone(NClist* l, int deep)
 {
-    NClist* clone = nclistnew();
-    *clone = *l;
-    clone->content = nclistdup(l);
+    NClist* clone = NULL;
+    if(l == NULL) goto done;
+    clone = nclistnew();
+    nclistsetalloc(clone,l->length+1); /* make room for final null */
+    if(!deep) {
+        memcpy((void*)clone->content,(void*)l->content,sizeof(void*)*l->length);
+    } else { /*deep*/
+	int i;
+	for(i=0;i<nclistlength(l);i++) {
+	    char* dups = strdup(nclistget(l,i));
+	    if(dups == NULL) {nclistfreeall(clone); clone = NULL; goto done;}
+	    nclistpush(clone,dups);	    
+	}
+    }
+    clone->content[l->length] = (void*)0;
+done:
     return clone;
 }
+
 
 void*
 nclistextract(NClist* l)

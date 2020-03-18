@@ -69,6 +69,9 @@ EXTERNL int ncurisetquery(NCURI*,const char* query);
 /* Replace the fragment list */
 extern int ncurisetfragments(NCURI*, const char* fragments);
 
+/* Replace a specific &key=...& in uri fragment */
+extern int ncurisetfragmentkey(NCURI* duri,const char* key, const char* value);
+
 /* Construct a complete NC URI; caller frees returned string */
 EXTERNL char* ncuribuild(NCURI*,const char* prefix, const char* suffix, int flags);
 
@@ -76,7 +79,7 @@ EXTERNL char* ncuribuild(NCURI*,const char* prefix, const char* suffix, int flag
     Null result => entry not found; !NULL=>found;
     In any case, the result is imutable and should not be free'd.
 */
-extern const char* ncurilookup(NCURI*, const char* param);
+extern const char* ncurifragmentlookup(NCURI*, const char* param);
 
 /*! Search the query for a given parameter
     Null result => entry not found; !NULL=>found;
@@ -91,13 +94,13 @@ extern const char** ncurifragmentparams(NCURI*);
 extern const char** ncuriqueryparams(NCURI*);
 
 /* URL Encode/Decode */
-extern char* ncuridecode(char* s);
+extern char* ncuridecode(const char* s);
 /* Partial decode */
-extern char* ncuridecodepartial(char* s, const char* decodeset);
+extern char* ncuridecodepartial(const char* s, const char* decodeset);
 /* Encode using specified character set */
-extern char* ncuriencodeonly(char* s, const char* allowable);
+extern char* ncuriencodeonly(const char* s, const char* allowable);
 /* Encode user or pwd */
-extern char* ncuriencodeuserpwd(char* s);
+extern char* ncuriencodeuserpwd(const char* s);
 
 #if defined(_CPLUSPLUS_) || defined(__CPLUSPLUS__) || defined(__CPLUSPLUS)
 }
