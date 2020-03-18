@@ -138,7 +138,7 @@ extern int nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t flag
 
 /* Utility functions */
 extern int nczm_split(const char* path, NClist* segments);
-extern int nczm_joinprefix(NClist* segments, int nsegs, char** pathp);
+extern int nczm_joinn(NClist* segments, int nsegs, const char* prefix, char** pathp);
 extern int nczm_join(NClist* segments, char** pathp);
 extern int nczm_suffix(const char* prefix, const char* suffix, char** pathp);
 extern int nczm_divide(const char* key, int nsegs, char** prefixp, char** suffixp);

@@ -229,7 +229,7 @@ done:
 
 /* Join the first nseg segments into a path using '/' character */
 int
-nczm_joinprefix(NClist* segments, int nsegs, char** pathp)
+nczm_joinn(NClist* segments, int nsegs, const char* sprefix, char** pathp)
 {
     int stat = NC_NOERR;
     int i;
@@ -237,7 +237,7 @@ nczm_joinprefix(NClist* segments, int nsegs, char** pathp)
 
     if(segments == NULL)
 	{stat = NC_EINVAL; goto done;}
-    if((buf = ncbytesnew()))
+    if((buf = ncbytesnew())==NULL)
 	{stat = NC_ENOMEM; goto done;}
     if(nclistlength(segments) < nsegs)
 	nsegs = nclistlength(segments);
@@ -245,9 +245,10 @@ nczm_joinprefix(NClist* segments, int nsegs, char** pathp)
 	ncbytescat(buf,NCZM_SEP);
 	goto done;		
     }
+    if(sprefix) ncbytescat(buf,sprefix);    
     for(i=0;i<nsegs;i++) {
 	const char* seg = nclistget(segments,i);
-	ncbytescat(buf,NCZM_SEP);
+	if(i > 0) ncbytescat(buf,NCZM_SEP);
 	ncbytescat(buf,seg);		
     }
 
@@ -263,7 +264,7 @@ done:
 int
 nczm_join(NClist* segments, char** pathp)
 {
-    return nczm_joinprefix(segments,nclistlength(segments),pathp);
+    return nczm_joinn(segments,nclistlength(segments),NULL,pathp);
 }
 
 /* Convenience: suffix an object name to a group path: caller frees*/
