@@ -49,6 +49,7 @@ EXTERNL int NCopen2(const char* path, int flags);
 EXTERNL int NCaccess(const char* path, int mode);
 EXTERNL int NCremove(const char* path);
 EXTERNL int NCmkdir(const char* path, int mode);
+EXTERNL char* NCcwd(char* cwdbuf, size_t len);
 #else /*!WINPATH*/
 #define NCfopen(path,flags) fopen((path),(flags))
 #define NCopen3(path,flags,mode) open((path),(flags),(mode))
@@ -60,6 +61,7 @@ EXTERNL int NCmkdir(const char* path, int mode);
 #define NCaccess(path,mode) access(path,mode)
 #endif
 #define NCmkdir(path, mode) mkdir(path,mode)
+#define NCcwd(buf, len) getcwd(buf,len)
 #endif /*WINPATH*/
 
 #endif /* _NCWINIO_H_ */

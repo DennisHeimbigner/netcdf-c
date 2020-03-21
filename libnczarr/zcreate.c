@@ -39,7 +39,7 @@ ncz_create_file(const char *path, int cmode, size_t initialsz, const NClist* mod
     LOG((3, "%s: path %s mode 0x%x", __func__, path, cmode));
 
     /* Add necessary structs to hold netcdf-4 file data. */
-    if ((retval = nc4_file_list_add(ncid, path, (NC_WRITE | cmode), (void**)&h5)))
+    if ((retval = nc4_file_list_add(ncid, path, cmode, (void**)&h5)))
         BAIL(retval);
     assert(h5 && h5->root_grp);
     h5->root_grp->atts_read = 1;
@@ -116,7 +116,7 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
 
     /* Check the cmode for validity. */
     if((cmode & ILLEGAL_CREATE_FLAGS) != 0)
-    {stat = NC_EINVAL; goto done;}
+        {stat = NC_EINVAL; goto done;}
 
     ncuriparse(path,&uri);
     if(uri) {
@@ -130,6 +130,9 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
 	}
     }
  
+    /* Turn on NC_WRITE */
+    cmode |= NC_WRITE;
+    
     /* Create the file */
     stat = ncz_create_file(path, cmode, initialsz, modelist, ncid);
 

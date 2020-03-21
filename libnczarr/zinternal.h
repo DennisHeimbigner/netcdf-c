@@ -47,10 +47,10 @@
 #  endif
 #endif
 
-#define NCZMETAROOT "/_nczarr"
-#define NCZGROUP "_nczgroup"
-#define NCZVAR "_nczvar"
-#define NCZATTR "_nczattr"
+#define NCZMETAROOT "/.nczarr"
+#define NCZGROUP ".nczgroup"
+#define NCZVAR ".nczvar"
+#define NCZATTR ".nczattr"
 
 #define ZGROUP ".zgroup"
 #define ZATTRS ".zattrs"

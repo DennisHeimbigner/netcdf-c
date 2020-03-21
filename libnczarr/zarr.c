@@ -145,21 +145,27 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const NClist* controls)
     if((stat = nczmap_open(mapimpl,nc->path,mode,0,NULL,&zinfo->map)))
 	goto done;
 
-    if((stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json)))
-	goto done;
-    /* Extract the information from it */
-    for(i=0;i<nclistlength(json->dict);i+=2) {
-	const NCjson* key = nclistget(json->dict,i);
-	const NCjson* value = nclistget(json->dict,i+1);
-	if(strcmp(key->value,"zarr_format")==0) {
-	    if(sscanf(value->value,"%d",&zinfo->zarr.zarr_version)!=1)
-		{stat = NC_ENOTNC; goto done;}		
-	} else if(strcmp(key->value,"nczarr_version")==0) {
-	    sscanf(value->value,"%lu.%lu.%lu",
-		&zinfo->zarr.nczarr_version.major,
-		&zinfo->zarr.nczarr_version.minor,
-		&zinfo->zarr.nczarr_version.release);
+    if(!zinfo->purezarr || (stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json)) == NC_NOERR) {
+        /* Extract the information from it */
+        for(i=0;i<nclistlength(json->dict);i+=2) {
+    	    const NCjson* key = nclistget(json->dict,i);
+	    const NCjson* value = nclistget(json->dict,i+1);
+	    if(strcmp(key->value,"zarr_format")==0) {
+	        if(sscanf(value->value,"%d",&zinfo->zarr.zarr_version)!=1)
+		    {stat = NC_ENOTNC; goto done;}		
+	    } else if(strcmp(key->value,"nczarr_version")==0) {
+	        sscanf(value->value,"%lu.%lu.%lu",
+		    &zinfo->zarr.nczarr_version.major,
+		    &zinfo->zarr.nczarr_version.minor,
+		    &zinfo->zarr.nczarr_version.release);
+	    }
 	}
+    } else { /* zinfo->purezarr */
+	zinfo->zarr.zarr_version = ZARRVERSION;
+	sscanf(NCZARRVERSION,"%lu.%lu.%lu",
+		    &zinfo->zarr.nczarr_version.major,
+		    &zinfo->zarr.nczarr_version.minor,
+		    &zinfo->zarr.nczarr_version.release);
     }
 
     /* Load auth info from rc file */
@@ -306,12 +312,13 @@ done:
 @author Dennis Heimbigner
 */
 int
-ncz_unload_jatts(NCZMAP* map, NC_OBJ* container, NCjson* jattrs, NCjson* jtypes)
+ncz_unload_jatts(NCZ_FILE_INFO_T* zinfo, NC_OBJ* container, NCjson* jattrs, NCjson* jtypes)
 {
     int stat = NC_NOERR;
     char* fullpath = NULL;
     char* akey = NULL;
     char* tkey = NULL;
+    NCZMAP* map = zinfo->map;
 
     assert((jattrs->sort = NCJ_DICT));
     assert((jtypes->sort = NCJ_DICT));
@@ -319,12 +326,12 @@ ncz_unload_jatts(NCZMAP* map, NC_OBJ* container, NCjson* jattrs, NCjson* jtypes)
     if(container->sort == NCGRP) {
         NC_GRP_INFO_T* grp = (NC_GRP_INFO_T*)container;
         /* Get grp's fullpath name */
-        if((stat = NCZ_grppath(grp,&fullpath)))
+        if((stat = NCZ_grpkey(grp,&fullpath)))
 	    goto done;
     } else {
         NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)container;
         /* Get var's fullpath name */
-        if((stat = NCZ_varpath(var,&fullpath)))
+        if((stat = NCZ_varkey(var,&fullpath)))
 	    goto done;
     }
 
@@ -336,15 +343,15 @@ ncz_unload_jatts(NCZMAP* map, NC_OBJ* container, NCjson* jattrs, NCjson* jtypes)
     if((stat=NCZ_uploadjson(map,tkey,jattrs)))
 	goto done;
 
-    /* Construct the path to the .zattrtypes object */
-    if((stat = nczm_suffix(fullpath,NCZATTR,&tkey)))
-	goto done;
-
-    /* Upload the .ztypes object */
-
-    if((stat=NCZ_uploadjson(map,tkey,jtypes)))
-	goto done;
-
+    if(!zinfo->purezarr) {
+        /* Construct the path to the .nczattr object */
+        if((stat = nczm_suffix(fullpath,NCZATTR,&tkey)))
+   	    goto done;
+        /* Upload the .nczattr object */
+        if((stat=NCZ_uploadjson(map,tkey,jtypes)))
+	    goto done;
+    }
+    
 done:
     if(stat) {
 	NCJreclaim(jattrs);

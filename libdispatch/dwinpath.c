@@ -278,4 +278,25 @@ NCmkdir(const char* path, int mode)
     return status;
 }
 
+EXTERNL
+char*
+NCcwd(char* cwdbuf, size_t len)
+{
+    int ret = 0;
+    char* cvtname = NULL;
+
+    errno = 0;
+    if(cwdbuf == NULL || len == 0) {errno = ENAMETOOLONG; goto done;}
+    if(getcwd(cwdbuf,len) == NULL) {goto done;}
+    cvtname = NCpathcvt(cwdbuf);
+    if(cvtname == NULL || strlen(cvtname)+1 > len)
+	{errno = ENAMETOOLONG; goto done;}
+    cwdbuf[0] = '\0';
+    strlcat(cwdbuf,cvtname,len);
+done:
+    nullfree(cvtname);
+    if(errno) return NULL;
+    return cwdbuf;
+}
+
 #endif /*WINPATH*/

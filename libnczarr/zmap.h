@@ -116,7 +116,6 @@ struct NCZMAP_API {
 /* Define the Dataset level API */
 typedef struct NCZMAP_DS_API {
     int version;
-    int (*verify)(const char *path, int mode, size64_t flags, void* parameters);
     int (*create)(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
     int (*open)(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
 } NCZMAP_DS_API;

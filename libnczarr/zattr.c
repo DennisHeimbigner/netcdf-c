@@ -954,7 +954,7 @@ ncz_del_attr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name)
 	}    
     }
     /* Write the json back out */
-    if((stat = ncz_unload_jatts(zinfo->map, container, jattrs, jtypes)))
+    if((stat = ncz_unload_jatts(zinfo, container, jattrs, jtypes)))
 	goto done;
 
 done:

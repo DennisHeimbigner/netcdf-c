@@ -55,6 +55,7 @@ static void zify(const char* nc4name, char* zname);
 
 /* Define the Dataset level API */
 
+#if 0
 static int
 znc4verify(const char *path, int mode, size64_t flags, void* parameters)
 {
@@ -80,6 +81,7 @@ done:
     nullfree(filepath);
     return (stat);
 }
+#endif
 
 static int
 znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
@@ -698,7 +700,6 @@ nc4ify(const char* zname, char* nc4name)
 
 NCZMAP_DS_API zmap_nc4 = {
     NCZM_NC4_V1,
-    znc4verify,
     znc4create,
     znc4open,
 };

@@ -283,15 +283,17 @@ typedef struct NC_GRP_INFO
 
 /* These constants apply to the cmode parameter in the
  * HDF5_FILE_INFO_T defined below. */
-#define NC_CREAT 2      /**< in create phase, cleared by ncendef */
-#define NC_INDEF 8      /**< in define mode, cleared by ncendef */
-#define NC_NSYNC 0x10   /**< synchronise numrecs on change */
-#define NC_HSYNC 0x20   /**< synchronise whole header on change */
-#define NC_NDIRTY 0x40  /**< numrecs has changed */
-#define NC_HDIRTY 0x80  /**< header info has changed */
+/* Make sure they do not conflict with defined flags in netcdf.h */
+#define NC_CREAT 0x10002      /**< in create phase, cleared by ncendef */
+#define NC_INDEF 0x10008      /**< in define mode, cleared by ncendef */
+#define NC_NSYNC 0x10010   /**< synchronise numrecs on change */
+#define NC_HSYNC 0x10020   /**< synchronise whole header on change */
+#define NC_NDIRTY 0x10040  /**< numrecs has changed */
+#define NC_HDIRTY 0x10080  /**< header info has changed */
 
 /** This is the metadata we need to keep track of for each
- * netcdf-4/HDF5 file. */
+  * netcdf-4/HDF5 file. */
+
 typedef struct  NC_FILE_INFO
 {
     NC *controller; /**< Pointer to containing NC. */

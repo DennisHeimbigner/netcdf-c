@@ -66,12 +66,20 @@ int
 NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap)
 {
     int stat = NC_NOERR;
+    char* chunkkey = NULL;
+    char* varkey = NULL;
     char* key = NULL;
     NCZCacheEntry* entry = NULL;
     size_t rank = cache->var->ndims;
 
     /* Create the key for this cache */
-    if((stat=buildchunkkey(rank, indices, &key))) goto done;
+    /* Get the chunk object name */
+    if((stat=buildchunkkey(rank, indices, &chunkkey))) goto done;
+    /* Get the var object key */
+    if((stat = NCZ_varkey(cache->var,&varkey))) goto done;
+    /* Prefix the path to the containing variable object */
+    if((stat=nczm_suffix(varkey,chunkkey,&key))) goto done;
+
     /* See if already in cache */
     if(!NC_hashmapget(cache->entries, key, strlen(key), (uintptr_t*)&entry)) { /* !found */
 	/* Create a new entry */

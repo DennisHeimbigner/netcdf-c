@@ -13,7 +13,7 @@ static int ncz_jsonize_atts(NCindex* attlist, NCjson** jattrsp);
 static int load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypes);
 static int zconvert(nc_type typeid, size_t typelen, void* dst, NCjson* src);
 static int computeattrinfo(const char* name, NClist* atypes, NCjson* values,
-		nc_type* typeidp, size_t* lenp, void** datap);
+                nc_type* typeidp, size_t* lenp, void** datap);
 static int parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist* subgrps);
 static int define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp);
 static int define_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* diminfo);
@@ -61,7 +61,7 @@ ncz_sync_file(NC_FILE_INFO_T* file)
 
     /* Overwrite in all cases */
     if((stat = NCJnew(NCJ_DICT,&json)))
-	goto done;
+        goto done;
 
     /* fill */
     snprintf(version,sizeof(version),"%d",zinfo->zarr.zarr_version);
@@ -69,20 +69,22 @@ ncz_sync_file(NC_FILE_INFO_T* file)
     if((stat = NCJaddstring(json,NCJ_INT,version))) goto done;
     if((stat = NCJaddstring(json,NCJ_STRING,"nczarr_version"))) goto done;
     {
-	char ver[1024];
-	snprintf(ver,sizeof(ver),"%lu.%lu.%lu",
-	   zinfo->zarr.nczarr_version.major,
-	   zinfo->zarr.nczarr_version.minor,
-	   zinfo->zarr.nczarr_version.release);
-	if((stat = NCJaddstring(json,NCJ_STRING,ver))) goto done;
+        char ver[1024];
+        snprintf(ver,sizeof(ver),"%lu.%lu.%lu",
+           zinfo->zarr.nczarr_version.major,
+           zinfo->zarr.nczarr_version.minor,
+           zinfo->zarr.nczarr_version.release);
+        if((stat = NCJaddstring(json,NCJ_STRING,ver))) goto done;
     }
-    /* Write back to map */
-    if((stat=NCZ_uploadjson(map,NCZMETAROOT,json)))
-	goto done;
+    if(!zinfo->purezarr) {
+        /* Write back to map */
+        if((stat=NCZ_uploadjson(map,NCZMETAROOT,json)))
+            goto done;
+    }
 
     /* Write out root group recursively */
     if((stat = ncz_sync_grp(file, file->root_grp)))
-	goto done;
+        goto done;
 
 done:
     NCJreclaim(json);
@@ -107,11 +109,11 @@ ncz_collect_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jdimsp)
 
     NCJnew(NCJ_DICT,&jdims);   
     for(i=0; i<ncindexsize(grp->dim); i++) {
-	NC_DIM_INFO_T* dim = (NC_DIM_INFO_T*)ncindexith(grp->dim,i);
-	char slen[128];
-	snprintf(slen,sizeof(slen),"%llu",(unsigned long long)dim->len);
-	if((stat = NCJaddstring(jdims,NCJ_STRING,dim->hdr.name))) goto done;
-	if((stat = NCJaddstring(jdims,NCJ_INT,slen))) goto done;
+        NC_DIM_INFO_T* dim = (NC_DIM_INFO_T*)ncindexith(grp->dim,i);
+        char slen[128];
+        snprintf(slen,sizeof(slen),"%llu",(unsigned long long)dim->len);
+        if((stat = NCJaddstring(jdims,NCJ_STRING,dim->hdr.name))) goto done;
+        if((stat = NCJaddstring(jdims,NCJ_INT,slen))) goto done;
     }
     if(jdimsp) {*jdimsp = jdims; jdims = NULL;}
 done:
@@ -148,77 +150,76 @@ ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
     zinfo = file->format_file_info;
     map = zinfo->map;
 
-    /* Construct grp path */
-    if((stat = NCZ_grppath(grp,&fullpath)))
-	goto done;
+    /* Construct grp key */
+    if((stat = NCZ_grpkey(grp,&fullpath)))
+        goto done;
 
     /* Create dimensions dict */
     if((stat = ncz_collect_dims(file,grp,&jdims))) goto done;
 
     /* Create vars list */
     if((stat = NCJnew(NCJ_ARRAY,&jvars)))
-	goto done;
+        goto done;
     for(i=0; i<ncindexsize(grp->vars); i++) {
-	NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)ncindexith(grp->vars,i);
-	if((stat = NCJaddstring(jvars,NCJ_STRING,var->hdr.name))) goto done;
+        NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)ncindexith(grp->vars,i);
+        if((stat = NCJaddstring(jvars,NCJ_STRING,var->hdr.name))) goto done;
     }
 
     /* Create subgroups list */
     if((stat = NCJnew(NCJ_ARRAY,&jsubgrps)))
-	goto done;
+        goto done;
     for(i=0; i<ncindexsize(grp->children); i++) {
-	NC_GRP_INFO_T* g = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
-	if((stat = NCJaddstring(jsubgrps,NCJ_STRING,g->hdr.name))) goto done;
+        NC_GRP_INFO_T* g = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
+        if((stat = NCJaddstring(jsubgrps,NCJ_STRING,g->hdr.name))) goto done;
     }
-
-    /* Create the NCZGROUP json object */
-    if((stat = NCJnew(NCJ_DICT,&jgroup)))
-	goto done;
-
-    /* Insert the various dicts and arrays */
-    if((stat = NCJinsert(jgroup,"dims",jdims))) goto done;
-    jdims = NULL; /* avoid memory problems */
-    if((stat = NCJinsert(jgroup,"vars",jvars))) goto done;
-    jvars = NULL; /* avoid memory problems */
-    if((stat = NCJinsert(jgroup,"groups",jsubgrps))) goto done;
-    jsubgrps = NULL; /* avoid memory problems */
 
     /* build ZGROUP path */
     if((stat = nczm_suffix(fullpath,ZGROUP,&key)))
-	goto done;
+        goto done;
     if((stat = NCJnew(NCJ_DICT,&json)))
-	goto done;
+        goto done;
     snprintf(version,sizeof(version),"%d",zinfo->zarr.zarr_version);
     if((stat = NCJaddstring(json,NCJ_STRING,"zarr_format"))) goto done;
     if((stat = NCJaddstring(json,NCJ_INT,version))) goto done;
     /* Write to map */
     if((stat=NCZ_uploadjson(map,key,json)))
-	goto done;
+        goto done;
     nullfree(key); key = NULL;
 
-    /* build NCZGROUP path */
-    if((stat = nczm_suffix(fullpath,NCZGROUP,&key)))
-	goto done;
-    /* Write to map */
-    if((stat=NCZ_uploadjson(map,key,jgroup)))
-	goto done;
-    nullfree(key); key = NULL;
-
+    if(!zinfo->purezarr) {
+        /* Create the NCZGROUP json object */
+        if((stat = NCJnew(NCJ_DICT,&jgroup)))
+            goto done;
+        /* Insert the various dicts and arrays */
+        if((stat = NCJinsert(jgroup,"dims",jdims))) goto done;
+        jdims = NULL; /* avoid memory problems */
+        if((stat = NCJinsert(jgroup,"vars",jvars))) goto done;
+        jvars = NULL; /* avoid memory problems */
+        if((stat = NCJinsert(jgroup,"groups",jsubgrps))) goto done;
+        jsubgrps = NULL; /* avoid memory problems */
+        /* build NCZGROUP path */
+        if((stat = nczm_suffix(fullpath,NCZGROUP,&key)))
+            goto done;
+        /* Write to map */
+        if((stat=NCZ_uploadjson(map,key,jgroup)))
+            goto done;
+        nullfree(key); key = NULL;
+    }
     /* Build NCZATTR object and the .zattrs object */
     assert(grp->att);
     if((stat = ncz_sync_atts(file,(NC_OBJ*)grp, grp->att)))
-	goto done;
+        goto done;
 
     /* Now synchronize all the variables */
     for(i=0; i<ncindexsize(grp->vars); i++) {
-	NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)ncindexith(grp->vars,i);
-	if((stat = ncz_sync_var(file,var))) goto done;
+        NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)ncindexith(grp->vars,i);
+        if((stat = ncz_sync_var(file,var))) goto done;
     }
 
     /* Now recurse to synchronize all the subgrps */
     for(i=0; i<ncindexsize(grp->children); i++) {
-	NC_GRP_INFO_T* g = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
-	if((stat = ncz_sync_grp(file,g))) goto done;
+        NC_GRP_INFO_T* g = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
+        if((stat = ncz_sync_grp(file,g))) goto done;
     }
 
 done:
@@ -265,12 +266,12 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     map = zinfo->map;
 
     /* Construct var path */
-    if((stat = NCZ_varpath(var,&fullpath)))
-	goto done;
+    if((stat = NCZ_varkey(var,&fullpath)))
+        goto done;
 
     /* Create the zarray json object */
     if((stat = NCJnew(NCJ_DICT,&jvar)))
-	goto done;
+        goto done;
 
     /* zarr_format key */
     snprintf(number,sizeof(number),"%d",zinfo->zarr.zarr_version);
@@ -279,8 +280,8 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 
     /* Collect the shape vector */
     for(i=0;i<var->ndims;i++) {
-	NC_DIM_INFO_T* dim = var->dim[i];
-	shape[i] = (ssize64_t)dim->len;
+        NC_DIM_INFO_T* dim = var->dim[i];
+        shape[i] = (ssize64_t)dim->len;
     }
 
     /* shape key */
@@ -288,8 +289,8 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     /* Create the list */
     if((stat = NCJnew(NCJ_ARRAY,&jtmp))) goto done;
     for(i=0;i<var->ndims;i++) {
-	snprintf(number,sizeof(number),"%lld",shape[i]);
-	NCJaddstring(jtmp,NCJ_INT,number);
+        snprintf(number,sizeof(number),"%lld",shape[i]);
+        NCJaddstring(jtmp,NCJ_INT,number);
     }
     if((stat = NCJinsert(jvar,"shape",jtmp))) goto done;
     jtmp = NULL;
@@ -297,15 +298,15 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     /* dtype key */
     /* A string or list defining a valid data type for the array. */
     if((stat = NCJaddstring(jvar,NCJ_STRING,"dtype"))) goto done;
-    {	/* Add the type name */
-	const char* dtypename;
-	int endianness = var->type_info->endianness;
-	int islittle = (endianness == NC_ENDIAN_LITTLE
-			|| NCZ_isLittleEndian());
-	int atomictype = var->type_info->hdr.id;
-	assert(atomictype > 0 && atomictype <= NC_MAX_ATOMIC_TYPE && atomictype != NC_STRING);
-	if((stat = ncz_zarr_type_name(atomictype,islittle,&dtypename))) goto done;
-	if((stat = NCJaddstring(jvar,NCJ_STRING,dtypename))) goto done;
+    {   /* Add the type name */
+        const char* dtypename;
+        int endianness = var->type_info->endianness;
+        int islittle = (endianness == NC_ENDIAN_LITTLE
+                        || NCZ_isLittleEndian());
+        int atomictype = var->type_info->hdr.id;
+        assert(atomictype > 0 && atomictype <= NC_MAX_ATOMIC_TYPE && atomictype != NC_STRING);
+        if((stat = ncz_zarr_type_name(atomictype,islittle,&dtypename))) goto done;
+        if((stat = NCJaddstring(jvar,NCJ_STRING,dtypename))) goto done;
     }
 
     /* chunks key */
@@ -319,32 +320,32 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     /* Create the list */
     if((stat = NCJnew(NCJ_ARRAY,&jtmp))) goto done;
     for(i=0;i<var->ndims;i++) {
-	ssize64_t len = (var->contiguous?shape[i]:(ssize64_t)var->chunksizes[i]);
-	snprintf(number,sizeof(number),"%lld",len);
-	NCJaddstring(jtmp,NCJ_INT,number);
+        ssize64_t len = (var->contiguous?shape[i]:(ssize64_t)var->chunksizes[i]);
+        snprintf(number,sizeof(number),"%lld",len);
+        NCJaddstring(jtmp,NCJ_INT,number);
     }
     if((stat = NCJappend(jvar,jtmp))) goto done;
     jtmp = NULL;
     
     /* fill_value key */
     if(!var->no_fill) {
-	const char* strfill = NULL;
-	int fillsort;
-	int atomictype = var->type_info->hdr.id;
-	NCjson* jfill = NULL;
+        const char* strfill = NULL;
+        int fillsort;
+        int atomictype = var->type_info->hdr.id;
+        NCjson* jfill = NULL;
         /* A scalar value providing the default value to use for uninitialized
            portions of the array, or ``null`` if no fill_value is to be used. */
         /* Use the defaults defined in netdf.h */
-	assert(atomictype > 0 && atomictype <= NC_MAX_ATOMIC_TYPE && atomictype != NC_STRING);
-	if((stat = ncz_fill_value_sort(atomictype,&fillsort))) goto done;
-	if(var->fill_value == NULL) { /* use default */
-	    if((stat = ncz_default_fill_value(atomictype,&strfill))) goto done;
+        assert(atomictype > 0 && atomictype <= NC_MAX_ATOMIC_TYPE && atomictype != NC_STRING);
+        if((stat = ncz_fill_value_sort(atomictype,&fillsort))) goto done;
+        if(var->fill_value == NULL) { /* use default */
+            if((stat = ncz_default_fill_value(atomictype,&strfill))) goto done;
             if((stat = NCJnewstring(fillsort,strfill,&jfill))) goto done;
-	} else { /* use fill_value */
-	    /* Convert var->fill_value to a string */
-	    if((stat = NCZ_stringconvert(atomictype,1,var->fill_value,&jfill)))
-		goto done;
-	}
+        } else { /* use fill_value */
+            /* Convert var->fill_value to a string */
+            if((stat = NCZ_stringconvert(atomictype,1,var->fill_value,&jfill)))
+                goto done;
+        }
         if((stat = NCJinsert(jvar,"fill_value",jfill))) goto done;
     }
 
@@ -374,60 +375,61 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 
     /* build .zarray path */
     if((stat = nczm_suffix(fullpath,ZARRAY,&key)))
-	goto done;
+        goto done;
 
     /* Write to map */
     if((stat=NCZ_uploadjson(map,key,jvar)))
-	goto done;
+        goto done;
 
     /* Build the NCZVAR object */
     {
-	/* Create the dimrefs json object */
-	if((stat = NCJnew(NCJ_ARRAY,&jdimrefs)))
-	    goto done;
-	/* Walk the dimensions and capture the fullpath names */
-	for(i=0;i<var->ndims;i++) {
-	    NC_DIM_INFO_T* dim = var->dim[i];
-	    if((stat = NCZ_dimpath(dim,&dimpath))) goto done;
-	    NCJaddstring(jdimrefs,NCJ_STRING,dimpath);
-	    nullfree(dimpath); dimpath = NULL;
-	}
-	/* Create the NCZVAR json object */
-	if((stat = NCJnew(NCJ_DICT,&jncvar)))
-	    goto done;
-	/* Insert dimrefs  */
-	if((stat = NCJinsert(jncvar,"dimrefs",jdimrefs)))
-	    goto done;
-	jdimrefs = NULL; /* Avoid memory problems */
+        /* Create the dimrefs json object */
+        if((stat = NCJnew(NCJ_ARRAY,&jdimrefs)))
+            goto done;
+        /* Walk the dimensions and capture the fullpath names */
+        for(i=0;i<var->ndims;i++) {
+            NC_DIM_INFO_T* dim = var->dim[i];
+            if((stat = NCZ_dimkey(dim,&dimpath))) goto done;
+            NCJaddstring(jdimrefs,NCJ_STRING,dimpath);
+            nullfree(dimpath); dimpath = NULL;
+        }
+        /* Create the NCZVAR json object */
+        if((stat = NCJnew(NCJ_DICT,&jncvar)))
+            goto done;
+        /* Insert dimrefs  */
+        if((stat = NCJinsert(jncvar,"dimrefs",jdimrefs)))
+            goto done;
+        jdimrefs = NULL; /* Avoid memory problems */
 
-	/* Add the _Storage flag */
+        /* Add the _Storage flag */
         if(var->contiguous) {
-	     if((stat = NCJnewstring(NCJ_STRING,"contiguous",&jtmp)))goto done;
+             if((stat = NCJnewstring(NCJ_STRING,"contiguous",&jtmp)))goto done;
         } else if(var->compact) {
-	     if((stat = NCJnewstring(NCJ_STRING,"compact",&jtmp)))goto done;
-	} else {/* chunked */
-	     if((stat = NCJnewstring(NCJ_STRING,"chunked",&jtmp)))goto done;
-	}	
-	if((stat = NCJinsert(jncvar,"storage",jtmp))) goto done;
-	jtmp = NULL;
+             if((stat = NCJnewstring(NCJ_STRING,"compact",&jtmp)))goto done;
+        } else {/* chunked */
+             if((stat = NCJnewstring(NCJ_STRING,"chunked",&jtmp)))goto done;
+        }       
+        if((stat = NCJinsert(jncvar,"storage",jtmp))) goto done;
+        jtmp = NULL;
 
-	/* Write out NCZVAR */
-        if((stat = nczm_suffix(fullpath,NCZVAR,&key)))
-	    goto done;
-        /* Write to map */
-        if((stat=NCZ_uploadjson(map,key,jncvar)))
-	    goto done;
+        if(!zinfo->purezarr) {
+            /* Write out NCZVAR */
+            if((stat = nczm_suffix(fullpath,NCZVAR,&key)))
+                goto done;
+            /* Write to map */
+            if((stat=NCZ_uploadjson(map,key,jncvar)))
+                goto done;
+        }
     }
-
     /* Build .zattrs object including _nczattr object */
     assert(var->att);
     if((stat = ncz_sync_atts(file,(NC_OBJ*)var, var->att)))
-	goto done;
+        goto done;
 
     /* Flush the chunk cache */
     if(NCZ_cache_size(zvar->cache) > 0) {
         if((stat = NCZ_flush_chunk_cache(zvar->cache)))
-	    goto done;
+            goto done;
     }
 
 done:
@@ -471,58 +473,60 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist)
     map = zinfo->map;
 
     if(ncindexsize(attlist) == 0) 
-	goto done; /* do nothing */
+        goto done; /* do nothing */
 
     /* Create the jncattr object */
     if((stat = NCJnew(NCJ_DICT,&jnczattr)))
-	goto done;
+        goto done;
 
     /* Create the jncattr.types object */
     if((stat = NCJnew(NCJ_DICT,&jtypes)))
-	goto done;
+        goto done;
     /* Walk all the attributes and collect the types by attribute name */
     for(i=0;i<ncindexsize(attlist);i++) {
-	NC_ATT_INFO_T* a = (NC_ATT_INFO_T*)ncindexith(attlist,i);
-	char tname[1024];
-	if(a->nc_typeid >= NC_STRING)
-	    {stat = THROW(NC_ENCZARR); goto done;}	
-	snprintf(tname,sizeof(tname),"%u",a->nc_typeid);
-	if((stat = NCJnewstring(NCJ_STRING,tname,&jtype)))
-	    goto done;
-	if((stat = NCJinsert(jtypes,a->hdr.name,jtype))) /* add {name: type} */
-	    goto done;
-	jtype = NULL;
+        NC_ATT_INFO_T* a = (NC_ATT_INFO_T*)ncindexith(attlist,i);
+        char tname[1024];
+        if(a->nc_typeid >= NC_STRING)
+            {stat = THROW(NC_ENCZARR); goto done;}      
+        snprintf(tname,sizeof(tname),"%u",a->nc_typeid);
+        if((stat = NCJnewstring(NCJ_STRING,tname,&jtype)))
+            goto done;
+        if((stat = NCJinsert(jtypes,a->hdr.name,jtype))) /* add {name: type} */
+            goto done;
+        jtype = NULL;
     }
     /* Insert into the NCZATTR json */
     if((stat = NCJinsert(jnczattr,"types",jtypes)))
-	    goto done;
-    jtypes = NULL;	
+            goto done;
+    jtypes = NULL;      
 
     /* Construct container path */
     if(container->sort == NCGRP)
-	stat = NCZ_grppath((NC_GRP_INFO_T*)container,&fullpath);
+        stat = NCZ_grpkey((NC_GRP_INFO_T*)container,&fullpath);
     else
-	stat = NCZ_varpath((NC_VAR_INFO_T*)container,&fullpath);
+        stat = NCZ_varkey((NC_VAR_INFO_T*)container,&fullpath);
     if(stat)
-	goto done;
+        goto done;
 
     /* Upload the NCZATTR object */
     if((stat = nczm_suffix(fullpath,NCZATTR,&key)))
-	goto done;
-    /* Write to map */
-    if((stat=NCZ_uploadjson(map,key,jnczattr)))
-	goto done;
+        goto done;
+    if(!zinfo->purezarr) {
+        /* Write to map */
+        if((stat=NCZ_uploadjson(map,key,jnczattr)))
+            goto done;
+    }
 
     /* Jsonize the attribute list */
     if((stat = ncz_jsonize_atts(attlist,&jatts)))
-	goto done;
+        goto done;
 
     /* write .zattrs path */
     if((stat = nczm_suffix(fullpath,ZATTRS,&key)))
-	goto done;
+        goto done;
     /* Write to map */
     if((stat=NCZ_uploadjson(map,key,jatts)))
-	goto done;
+        goto done;
     nullfree(key); key = NULL;
 
 done:
@@ -563,12 +567,12 @@ ncz_jsonize_atts(NCindex* attlist, NCjson** jattrsp)
 
     /* Iterate over the attribute list */
     for(i=0;i<ncindexsize(attlist);i++) {
-	NC_ATT_INFO_T* att = (NC_ATT_INFO_T*)ncindexith(attlist,i);
-	/* Create the attribute dict value*/
-	if((stat = NCZ_stringconvert(att->nc_typeid,att->len,att->data,&jdata)))
-	    goto done;
-	if((stat = NCJinsert(jattrs,att->hdr.name,jdata))) goto done;
-	jdata = NULL;
+        NC_ATT_INFO_T* att = (NC_ATT_INFO_T*)ncindexith(attlist,i);
+        /* Create the attribute dict value*/
+        if((stat = NCZ_stringconvert(att->nc_typeid,att->len,att->data,&jdata)))
+            goto done;
+        if((stat = NCJinsert(jattrs,att->hdr.name,jdata))) goto done;
+        jdata = NULL;
     }
 
     if(jattrsp) {*jattrsp = jattrs; jattrs = NULL;}
@@ -605,20 +609,20 @@ load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypesp)
     atypes = nclistnew();
 
     if(container->sort == NCGRP) {
-	NC_GRP_INFO_T* grp = (NC_GRP_INFO_T*)container;
-	/* Get grp's fullpath name */
-	if((stat = NCZ_grppath(grp,&fullpath)))
-	    goto done;
+        NC_GRP_INFO_T* grp = (NC_GRP_INFO_T*)container;
+        /* Get grp's fullpath name */
+        if((stat = NCZ_grpkey(grp,&fullpath)))
+            goto done;
     } else {
-	NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)container;
-	/* Get var's fullpath name */
-	if((stat = NCZ_varpath(var,&fullpath)))
-	    goto done;
+        NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)container;
+        /* Get var's fullpath name */
+        if((stat = NCZ_varkey(var,&fullpath)))
+            goto done;
     }
 
     /* Construct the path to the .zattrs object */
     if((stat = nczm_suffix(fullpath,ZATTRS,&key)))
-	goto done;
+        goto done;
 
     /* Download the .zattrs object: may not exist */
     switch ((stat=NCZ_downloadjson(map,key,&jattrs))) {
@@ -640,23 +644,23 @@ load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypesp)
         nullfree(key); key = NULL;
 
         if(jncattr == NULL) { /* Pure Zarr, fake it */
-	    assert(0);
+abort();
         } else {
-	    NCjson* jtypes = NULL;
-   	    /* jncattr attribute should be a dict */
+            NCjson* jtypes = NULL;
+            /* jncattr attribute should be a dict */
             if(jncattr->sort != NCJ_DICT) {stat = THROW(NC_ENCZARR); goto done;}
-  	    /* Extract "types */
+            /* Extract "types */
             if((stat = NCJdictget(jncattr,"types",&jtypes))) goto done;
             if(jtypes->sort != NCJ_DICT) {stat = THROW(NC_ENCZARR); goto done;}
-  	    /* Convert to an envv list */
-	    for(i=0;i<nclistlength(jtypes->dict);i+=2) {
-	        const NCjson* key = nclistget(jtypes->dict,i);
-	        const NCjson* value = nclistget(jtypes->dict,i+1);
+            /* Convert to an envv list */
+            for(i=0;i<nclistlength(jtypes->dict);i+=2) {
+                const NCjson* key = nclistget(jtypes->dict,i);
+                const NCjson* value = nclistget(jtypes->dict,i+1);
                 if(key->sort != NCJ_STRING) {stat = THROW(NC_ENCZARR); goto done;}
- 	        if(value->sort != NCJ_STRING) {stat = THROW(NC_ENCZARR); goto done;}
-	        nclistpush(atypes,strdup(key->value));
-	        nclistpush(atypes,strdup(value->value));
-	    }
+                if(value->sort != NCJ_STRING) {stat = THROW(NC_ENCZARR); goto done;}
+                nclistpush(atypes,strdup(key->value));
+                nclistpush(atypes,strdup(value->value));
+            }
         }
     }
     if(jattrsp) {*jattrsp = jattrs; jattrs = NULL;}
@@ -665,8 +669,8 @@ load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypesp)
 done:
     NCJreclaim(jncattr);
     if(stat) {
-	NCJreclaim(jnczarr);
-	nclistfreeall(atypes);
+        NCJreclaim(jnczarr);
+        nclistfreeall(atypes);
     }
     nullfree(fullpath);
     nullfree(key);
@@ -684,23 +688,23 @@ zconvert(nc_type typeid, size_t typelen, void* dst0, NCjson* src)
 
     switch (src->sort) {
     case NCJ_ARRAY:
-	for(i=0;i<nclistlength(src->array);i++) {
-	    NCjson* value = nclistget(src->array,i);
-	    assert(value->sort != NCJ_STRING);
-	    if((stat = NCZ_convert1(value, typeid, dst)))
-	        goto done;
-	    dst += typelen;
-	}
-	break;
+        for(i=0;i<nclistlength(src->array);i++) {
+            NCjson* value = nclistget(src->array,i);
+            assert(value->sort != NCJ_STRING);
+            if((stat = NCZ_convert1(value, typeid, dst)))
+                goto done;
+            dst += typelen;
+        }
+        break;
     case NCJ_STRING:
-	len = strlen(src->value);
-	memcpy(dst,src->value,len);
-	dst[len] = '\0'; /* nul terminate */
-	break;	
+        len = strlen(src->value);
+        memcpy(dst,src->value,len);
+        dst[len] = '\0'; /* nul terminate */
+        break;  
     case NCJ_INT: case NCJ_DOUBLE: case NCJ_BOOLEAN:
         if((stat = NCZ_convert1(src, typeid, dst)))
-	    goto done;
-	break;
+            goto done;
+        break;
     default: stat = THROW(NC_ENCZARR); goto done;
     }
 
@@ -713,7 +717,7 @@ Extract type and data for an attribute
 */
 static int
 computeattrinfo(const char* name, NClist* atypes, NCjson* values,
-		nc_type* typeidp, size_t* lenp, void** datap)
+                nc_type* typeidp, size_t* lenp, void** datap)
 {
     int stat = NC_NOERR;
     int i;
@@ -723,17 +727,17 @@ computeattrinfo(const char* name, NClist* atypes, NCjson* values,
 
     /* Get type info for the given att */
     for(i=0;i<nclistlength(atypes);i+=2) {
-	const char* aname = nclistget(atypes,i);
-	if(strcmp(aname,name)==0) {
-	    const char* atype = nclistget(atypes,i+1);
-	    unsigned long tid;
-	    if(sscanf(atype,"%lu",&tid) != 1) {stat = THROW(NC_ENCZARR); goto done;}
-	    typeid = (nc_type)tid;
-	    break;
-	}
+        const char* aname = nclistget(atypes,i);
+        if(strcmp(aname,name)==0) {
+            const char* atype = nclistget(atypes,i+1);
+            unsigned long tid;
+            if(sscanf(atype,"%lu",&tid) != 1) {stat = THROW(NC_ENCZARR); goto done;}
+            typeid = (nc_type)tid;
+            break;
+        }
     }
     if(typeid == NC_NAT || typeid >= NC_STRING)
-	{stat = NC_EINTERNAL; goto done;}
+        {stat = NC_EINTERNAL; goto done;}
 
     if((stat = computeattrdata(typeid, values, &len, &data))) goto done;
 
@@ -761,25 +765,25 @@ computeattrdata(nc_type typeid, NCjson* values, size_t* lenp, void** datap)
     switch (values->sort) {
     case NCJ_DICT: stat = NC_EINTERNAL; goto done;
     case NCJ_ARRAY:
-	len = nclistlength(values->array);
-	break;
+        len = nclistlength(values->array);
+        break;
     case NCJ_STRING: /* requires special handling as an array of characters */
-	len = strlen(values->value);
-	break;
+        len = strlen(values->value);
+        break;
     default:
-	len = 1;
-	break;
+        len = 1;
+        break;
     }
 
     /* Allocate data space */
     if((stat = NC4_inq_atomic_type(typeid, NULL, &typelen)))
-	goto done;
+        goto done;
     if((data = malloc(typelen*len)) == NULL)
-	{stat = NC_ENOMEM; goto done;}
+        {stat = NC_ENOMEM; goto done;}
 
-    /* convert to target type */	
+    /* convert to target type */        
     if((stat = zconvert(typeid, typelen, data, values)))
-	goto done;
+        goto done;
 
     if(lenp) *lenp = len;
     if(datap) {*datap = data; data = NULL;}
@@ -810,7 +814,7 @@ ncz_read_file(NC_FILE_INFO_T* file)
 
     /* Now load the groups starting with root */
     if((stat = define_grp(file,file->root_grp)))
-	goto done;
+        goto done;
 
 done:
     NCJreclaim(json);
@@ -846,28 +850,35 @@ define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
     map = zinfo->map;
 
     /* Construct grp path */
-    if((stat = NCZ_grppath(grp,&fullpath)))
-	goto done;
+    if((stat = NCZ_grpkey(grp,&fullpath)))
+        goto done;
 
-    /* build NCZGROUP path */
-    if((stat = nczm_suffix(fullpath,NCZGROUP,&key)))
-	goto done;
-    /* Read */
-    switch (stat=NCZ_downloadjson(map,key,&jncgroup)) {
-    case NC_NOERR: break; /* we read it */
-    case NC_EACCESS: /* probably pure zarr, so does not exist, use search */
-	nclistclear(varnames);
-	if((stat = searchvars(file,grp,varnames)))
-	nclistclear(subgrps);
-	if((stat = searchsubgrps(file,grp,subgrps)))
-	break;
-    default: goto done;
+    if(zinfo->purezarr) {
+        nclistclear(varnames);
+        if((stat = searchvars(file,grp,varnames))) goto done;
+        nclistclear(subgrps);
+        if((stat = searchsubgrps(file,grp,subgrps))) goto done;
+    } else { /*!zinfo->purezarr*/
+        /* build NCZGROUP path */
+        if((stat = nczm_suffix(fullpath,NCZGROUP,&key)))
+            goto done;
+        /* Read */
+        switch (stat=NCZ_downloadjson(map,key,&jncgroup)) {
+        case NC_NOERR: break; /* we read it */
+        case NC_EACCESS: /* probably pure zarr, so does not exist, use search */
+            nclistclear(varnames);
+            if((stat = searchvars(file,grp,varnames))) goto done;
+            nclistclear(subgrps);
+            if((stat = searchsubgrps(file,grp,subgrps))) goto done;
+            break;
+        default: goto done;
+        }
+        nullfree(key); key = NULL;
     }
-    nullfree(key); key = NULL;
 
     /* Pull out lists about group content */
     if((stat = parse_group_content(jncgroup,dimdefs,varnames,subgrps)))
-	goto done;
+        goto done;
 
     /* Define dimensions */
     if((stat = define_dims(file,grp,dimdefs))) goto done;
@@ -920,9 +931,9 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
     map = zinfo->map;
 
     if(container->sort == NCGRP)
-	attlist = ((NC_GRP_INFO_T*)container)->att;
+        attlist = ((NC_GRP_INFO_T*)container)->att;
     else
-	attlist = ((NC_VAR_INFO_T*)container)->att;
+        attlist = ((NC_VAR_INFO_T*)container)->att;
 
     switch ((stat = load_jatts(map, container, &jattrs, &atypes))) {
     case NC_NOERR: break;
@@ -1016,7 +1027,7 @@ define_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* diminfo)
             goto done;
         if((dim->format_dim_info = calloc(1,sizeof(NCZ_DIM_INFO_T))) == NULL)
             {stat = NC_ENOMEM; goto done;}
-	((NCZ_DIM_INFO_T*)dim->format_dim_info)->common.file = file;
+        ((NCZ_DIM_INFO_T*)dim->format_dim_info)->common.file = file;
     }
 
 done:
@@ -1070,11 +1081,11 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
         /* And its annotation */
         if((zvar = calloc(1,sizeof(NCZ_VAR_INFO_T)))==NULL)
             {stat = NC_ENOMEM; goto done;}
-	var->format_var_info = zvar;
-	zvar->common.file = file;
+        var->format_var_info = zvar;
+        zvar->common.file = file;
 
         /* Construct var path */
-        if((stat = NCZ_varpath(var,&varpath)))
+        if((stat = NCZ_varkey(var,&varpath)))
             goto done;
 
         /* Construct the path to the zarray object */
@@ -1085,47 +1096,48 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
             goto done;
         nullfree(key); key = NULL;
         assert((jvar->sort == NCJ_DICT));
-        /* Download the NCZVAR object */
-        if((stat = nczm_suffix(varpath,NCZVAR,&key))) goto done;
-        if((stat=NCZ_readdict(map,key,&jncvar))) goto done;
-        nullfree(key); key = NULL;
-        assert((jncvar->sort == NCJ_DICT));
 
-        /* Extract storage flag */
-        if((stat = NCJdictget(jncvar,"storage",&jvalue)))
-	    goto done;
-        if(jvalue != NULL) {
-	    if(strcmp(jvalue->value,"chunked") == 0) {
-                var->contiguous = NC_FALSE;
-                var->compact = NC_FALSE;
-	    } else if(strcmp(jvalue->value,"compact") == 0) {
-                var->contiguous = NC_FALSE;
-                var->compact = NC_TRUE;
-	    } else { /*storage = NC_CONTIGUOUS;*/
-                var->contiguous = NC_TRUE;
-                var->compact = NC_FALSE;
-	    }
-	}	    
-
-        /* Extract dimrefs list  */
-        switch ((stat = NCJdictget(jncvar,"dimrefs",&jdimrefs))) {
-        case NC_NOERR: /* Extract the dimref names */
-            assert((jdimrefs->sort == NCJ_ARRAY));
-            hasdimrefs = 0; /* until we have one */     
-            for(j=0;j<nclistlength(jdimrefs->array);j++) {
-                const NCjson* dimpath = nclistget(jdimrefs->array,j);
-                assert(dimpath->sort == NCJ_STRING);
-                nclistpush(dimrefs,strdup(dimpath->value));
-                hasdimrefs = 1;
-            }
-            break;
-        case NC_EACCESS: /* simulate it from the shape of the variable */
-	    stat = NC_NOERR;
+        if(zinfo->purezarr) {
+            var->storage = NC_CHUNKED;
             hasdimrefs = 0;
-            break;
-        default: goto done;
+        } else { /*zinfo->purezarr*/
+            /* Download the NCZVAR object */
+            if((stat = nczm_suffix(varpath,NCZVAR,&key))) goto done;
+            if((stat=NCZ_readdict(map,key,&jncvar))) goto done;
+            nullfree(key); key = NULL;
+            assert((jncvar->sort == NCJ_DICT));
+            /* Extract storage flag */
+            if((stat = NCJdictget(jncvar,"storage",&jvalue)))
+                goto done;
+            if(jvalue != NULL) {
+                if(strcmp(jvalue->value,"chunked") == 0) {
+                    var->storage = NC_CHUNKED;
+                } else if(strcmp(jvalue->value,"compact") == 0) {
+                    var->storage = NC_COMPACT;
+                } else { /*storage = NC_CONTIGUOUS;*/
+                    var->storage = NC_CONTIGUOUS;
+                }
+            }
+            /* Extract dimrefs list  */
+            switch ((stat = NCJdictget(jncvar,"dimrefs",&jdimrefs))) {
+            case NC_NOERR: /* Extract the dimref names */
+                assert((jdimrefs->sort == NCJ_ARRAY));
+                hasdimrefs = 0; /* until we have one */     
+                for(j=0;j<nclistlength(jdimrefs->array);j++) {
+                    const NCjson* dimpath = nclistget(jdimrefs->array,j);
+                    assert(dimpath->sort == NCJ_STRING);
+                    nclistpush(dimrefs,strdup(dimpath->value));
+                    hasdimrefs = 1;
+                }
+                break;
+            case NC_EACCESS: /* simulate it from the shape of the variable */
+                stat = NC_NOERR;
+                hasdimrefs = 0;
+                break;
+            default: goto done;
+            }
+            jdimrefs = NULL;
         }
-        jdimrefs = NULL;
 
         /* Use jvar to set up the rest of the NC_VAR_INFO_T object */
         /* Verify the format */
@@ -1190,24 +1202,24 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
             /* Verify the rank */
             rank = nclistlength(jvalue->array);
             if(rank > 0) {
-		var->contiguous = (var->compact = NC_FALSE);
+                var->contiguous = (var->compact = NC_FALSE);
                 if(var->ndims != rank)
                     {stat = THROW(NC_ENCZARR); goto done;}
                 if((var->chunksizes = malloc(sizeof(size_t)*rank)) == NULL)
                     {stat = NC_ENOMEM; goto done;}
                 if((stat = decodeints(jvalue, chunks))) goto done;
                 /* validate the chunk sizes */
-	        zvar->chunkproduct = 1;
+                zvar->chunkproduct = 1;
                 for(j=0;j<rank;j++) {
                     NC_DIM_INFO_T* d = var->dim[j]; /* matching dim */
                     if(chunks[j] == 0 || chunks[j] > d->len)
                         {stat = THROW(NC_ENCZARR); goto done;}
                     var->chunksizes[j] = (size_t)chunks[j];
-		    zvar->chunkproduct *= chunks[j];
+                    zvar->chunkproduct *= chunks[j];
                 }
-	        /* Create the cache */
-		if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,&zvar->cache)))
-		    goto done;
+                /* Create the cache */
+                if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,&zvar->cache)))
+                    goto done;
             }
         }
         /* fill_value */
@@ -1280,7 +1292,7 @@ define_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames)
             goto done;
         if(!(g->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
             {stat = NC_ENOMEM; goto done;}
-	((NCZ_GRP_INFO_T*)g->format_grp_info)->common.file = file;
+        ((NCZ_GRP_INFO_T*)g->format_grp_info)->common.file = file;
     }
 
     /* Recurse to fill in subgroups */
@@ -1466,7 +1478,7 @@ parsedimrefs(NC_FILE_INFO_T* file, NClist* dimrefs, NC_DIM_INFO_T** dims)
         /* Clear the list */
         nclistfreeall(segments);
         segments = nclistnew();
-        if((stat = ncz_splitpath(dimpath,segments)))
+        if((stat = ncz_splitkey(dimpath,segments)))
             goto done;
         if((stat=locategroup(file,nclistlength(segments)-1,segments,&g)))
             goto done;

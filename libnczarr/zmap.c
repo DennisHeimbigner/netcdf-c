@@ -289,33 +289,40 @@ nczm_suffix(const char* prefix, const char* suffix, char** pathp)
 int
 nczm_divide(const char* key, int nsegs, char** prefixp, char** suffixp)
 {
-    int i,stat = NC_NOERR;
-    NClist* presegs = nclistnew();
-    NClist* sufsegs = nclistnew();
-    size_t len = nclistlength(presegs);
-    size_t start;
-    
-    if((stat = nczm_split(key,presegs))) goto done;
+    int stat = NC_NOERR;
+    char* prefix = NULL;
+    char* suffix = NULL;
+    size_t len, endp, i;
+    ptrdiff_t delta;
+    const char* p;
+ 
+    /* Special case */
+    if(key == NULL || strlen(key) == 0) goto done;
+    /* Count number of segments */
+    for(p=key,len=0;;) {
+        const char* q = strchr(p,'/');    
+	if(q == NULL) {len++; break;}
+	p = q+1;
+	len++;
+    }
     if(nsegs > len)
 	{stat = NC_EINVAL; goto done;}
-    start = (len - nsegs) ;
-    for(i=len-1;i>=start;i--) { /* Walk backwards */
-	char* seg = nclistremove(presegs,i);
-	nclistpush(sufsegs,seg);
+    /* find split point */
+    endp = len - nsegs;
+    for(p=key,i=0;i<endp;i++) {
+        const char* q = strchr(p,'/');    
+	if(q == NULL) p = (p + strlen(p));
+	else p = q+1;
     }
-    if(prefixp) {
-	char* prefix = NULL;
-	if((stat = nczm_join(presegs,&prefix))) goto done;
-	*prefixp = prefix; prefix = NULL;
-    }
-    if(suffixp) {
-	char* suffix = NULL;
-	if((stat = nczm_join(sufsegs,&suffix))) goto done;
-	*suffixp = suffix; suffix = NULL;
-    }
+    /* p should point at split point */
+    delta = (p-key);    
+    prefix = malloc(delta+1);
+    memcpy(prefix,key,delta);
+    prefix[delta] = '\0';
+    suffix = strdup(p);
 done:
-    nclistfreeall(presegs);
-    nclistfreeall(sufsegs);
+    if(prefixp) *prefixp = prefix;
+    if(suffixp) *suffixp = suffix;
     return stat;
 }
 

@@ -65,14 +65,14 @@ NCJ_INT, /*NC_UINT64*/
 /**************************************************/
 
 /**
-@internal Get full path for a group
+@internal Get key for a group
 @param grp - [in] group
 @param pathp - [out] full path
 @return NC_NOERR
 @author Dennis Heimbigner
 */
 int
-NCZ_grppath(NC_GRP_INFO_T* grp, char** pathp)
+NCZ_grpkey(const NC_GRP_INFO_T* grp, char** pathp)
 {
     int stat = NC_NOERR;
     NClist* segments = nclistnew();
@@ -80,7 +80,7 @@ NCZ_grppath(NC_GRP_INFO_T* grp, char** pathp)
     NC_GRP_INFO_T* parent = NULL;
     int i;
 
-    nclistinsert(segments,0,grp);
+    nclistinsert(segments,0,(void*)grp);
     parent = grp->parent;
     while(parent != NULL) {
         nclistinsert(segments,0,parent);
@@ -101,21 +101,21 @@ NCZ_grppath(NC_GRP_INFO_T* grp, char** pathp)
 }
 
 /**
-@internal Get full path for a var
+@internal Get key for a var
 @param var - [in] var
 @param pathp - [out] full path
 @return NC_NOERR
 @author Dennis Heimbigner
 */
 int
-NCZ_varpath(NC_VAR_INFO_T* var, char** pathp)
+NCZ_varkey(const NC_VAR_INFO_T* var, char** pathp)
 {
     int stat = NC_NOERR;
     char* grppath = NULL;
     char* varpath = NULL;
 
     /* Start by creating the full path for the parent group */
-    if((stat = NCZ_grppath(var->container,&grppath)))
+    if((stat = NCZ_grpkey(var->container,&grppath)))
 	goto done;
     /* Create the suffix path using the var name */
     if((stat = nczm_suffix(grppath,var->hdr.name,&varpath)))
@@ -130,21 +130,21 @@ done:
 }
 
 /**
-@internal Get full path for a dimension
+@internal Get key for a dimension
 @param dim - [in] dim
 @param pathp - [out] full path
 @return NC_NOERR
 @author Dennis Heimbigner
 */
 int
-NCZ_dimpath(NC_DIM_INFO_T* dim, char** pathp)
+NCZ_dimkey(const NC_DIM_INFO_T* dim, char** pathp)
 {
     int stat = NC_NOERR;
     char* grppath = NULL;
     char* dimpath = NULL;
 
     /* Start by creating the full path for the parent group */
-    if((stat = NCZ_grppath(dim->container,&grppath)))
+    if((stat = NCZ_grpkey(dim->container,&grppath)))
 	goto done;
     /* Create the suffix path using the dim name */
     if((stat = nczm_suffix(grppath,dim->hdr.name,&dimpath)))
@@ -159,45 +159,16 @@ done:
 }
 
 /**
-@internal Split a name path on '/' characters
-@param  path - [in]
+@internal Split a key into pieces along '/' character; elide any leading '/'
+@param  key - [in]
 @param segments - [out] split path
 @return NC_NOERR
 @author Dennis Heimbigner
 */
 int
-ncz_splitpath(const char* path, NClist* segments)
+ncz_splitkey(const char* key, NClist* segments)
 {
-    int stat = NC_NOERR;
-    const char* p = NULL;
-    const char* q = NULL;
-    ptrdiff_t len = 0;
-    char* seg = NULL;
-
-    if(path == NULL || strlen(path)==0 || segments == NULL)
-	{stat = NC_EINVAL; goto done;}
-
-    p = path;
-    if(p[0] == '/') p++;
-    for(;*p;) {
-	q = strchr(p,'/');
-	if(q==NULL)
-	    q = p + strlen(p); /* point to trailing nul */
-        len = (q - p);
-	if(len == 0)
-	    {stat = NC_EURL; goto done;}
-	if((seg = malloc(len+1)) == NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	memcpy(seg,p,len);
-	seg[len] = '\0';
-	nclistpush(segments,seg);
-	seg = NULL; /* avoid mem errors */
-	if(*q) p = q+1; else p = q;
-    }
-
-done:
-    if(seg != NULL) free(seg);
-    return THROW(stat);
+    return nczm_split(key,segments);
 }
 
 /**************************************************/

@@ -118,6 +118,8 @@ extern "C" {
    currently unused:
         0x0002
    and the whole upper 16 bits
+   Note: nc4internal also defines flags in this space even tho it should not.
+   so check there around #define NC_CREAT.
 */
 
 #define NC_NOWRITE       0x0000 /**< Set read-only access for nc_open(). */
@@ -125,7 +127,6 @@ extern "C" {
 
 #define NC_CLOBBER       0x0000 /**< Destroy existing file. Mode flag for nc_create(). */
 #define NC_NOCLOBBER     0x0004 /**< Don't destroy existing file. Mode flag for nc_create(). */
-
 #define NC_DISKLESS      0x0008  /**< Use diskless file. Mode flag for nc_open() or nc_create(). */
 #define NC_MMAP          0x0010  /**< \deprecated Use diskless file with mmap. Mode flag for nc_open() or nc_create()*/
 
