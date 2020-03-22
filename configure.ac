@@ -1408,9 +1408,18 @@ AC_ARG_ENABLE([filter-testing],
 test "x$enable_filter_testing" = xno || enable_filter_testing=yes
 AC_MSG_RESULT($enable_filter_testing)
 
+# Control client filters
+AC_MSG_CHECKING([whether client filters should be enabled])
+AC_ARG_ENABLE([client-filters],
+              [AS_HELP_STRING([--enable-clientfilters],
+                              [Enable client side filters; default off])])
+test "x$enable_client_filters" = xyes || enable_client_filters=no
+AC_MSG_RESULT($enable_client_filters)
+
 if test "x$enable_netcdf_4" = xno ; then
-AC_MSG_WARN([netCDF-4 disabled => --disable-filter-testing])
+AC_MSG_WARN([netCDF-4 disabled => --disable-filter-testing && --disable-client-filters])
 enable_filter_testing=no
+enable_client_filters=no
 fi
 
 if test "x$enable_hdf5" = xno ; then

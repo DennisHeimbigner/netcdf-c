@@ -443,7 +443,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
      * same name as one of its dimensions. If it is a coordinate var,
      * is it a coordinate var in the same group as the dim? Also, check
      * whether we should use contiguous or chunked storage. */
-    var->contiguous = NC_TRUE;
+    var->storage = NC_CONTIGUOUS;
     for (d = 0; d < ndims; d++)
     {
         NC_GRP_INFO_T *dim_grp;
@@ -608,16 +608,14 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
     if (shuffle)
     {
         var->shuffle = *shuffle;
-        var->contiguous = NC_FALSE;
-        var->compact = NC_FALSE;
+        var->storage = NC_CHUNKED;
     }
 
     /* Fletcher32 checksum error protection? */
     if (fletcher32)
     {
         var->fletcher32 = *fletcher32;
-        var->contiguous = NC_FALSE;
-        var->compact = NC_FALSE;
+        var->storage = NC_CHUNKED;
     }
 
 #ifdef USE_PARALLEL
@@ -650,11 +648,9 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 
         /* Handle chunked storage settings. */
         if (*storage == NC_CHUNKED && var->ndims == 0) {
-                var->contiguous = NC_TRUE;
-		var->compact = NC_FALSE;
+            var->storage = NC_CONTIGUOUS;
         } else if (*storage == NC_CHUNKED && var->ndims > 0) {
-            var->contiguous = NC_FALSE;
-            var->compact = NC_FALSE;
+            var->storage = NC_CHUNKED;
 
             /* If the user provided chunksizes, check that they are valid
              * and that their total size of chunk is less than 4 GB. */
@@ -673,7 +669,7 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
         }
         else if (*storage == NC_CONTIGUOUS)
         {
-            var->contiguous = NC_TRUE;
+            var->storage = NC_CONTIGUOUS;
         }
         else if (*storage == NC_COMPACT)
         {
@@ -688,14 +684,13 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
             if (ndata * var->type_info->size > SIXTY_FOUR_KB)
                 return NC_EVARSIZE;
 
-            var->contiguous = NC_FALSE;
-            var->compact = NC_TRUE;
+            var->storage = NC_COMPACT;
         }
     }
 
     /* Is this a variable with a chunksize greater than the current
      * cache size? */
-    if (!var->contiguous && !var->compact)
+    if (var->storage == NC_CHUNKED)
     {
 	if(chunksizes) {
 	    zvar = var->format_var_info;

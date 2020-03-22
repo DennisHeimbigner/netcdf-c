@@ -75,4 +75,10 @@ extern void NCJreclaim(NCjson*);
 /* dump NCjson* object */
 extern void NCJdump(const NCjson* json, int flags);
 
+/* Macro defined functions */
+#define NCJlength(json) \
+(json->sort == NCJ_DICT ? (nclistlength(json->dict)/2) \
+                        : (json->sort == NCJ_ARRAY ? (nclistlength(json->array)) \
+                        : 1))
+
 #endif /*NCJSON_H*/

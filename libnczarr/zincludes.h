@@ -32,6 +32,7 @@
 #include "ncauth.h"
 #include "nclog.h"
 #include "ncrc.h"
+#include "ncfilter.h"
 
 #include "zinternal.h"
 #include "zdispatch.h"

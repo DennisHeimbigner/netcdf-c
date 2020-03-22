@@ -802,6 +802,8 @@ platformdircontent(int dfd, NClist* contents)
     for(;;) {
 	errno = 0;
         if((entry = readdir(dir)) == NULL) {stat = platformerr(errno); goto done;}
+	if(strcmp(entry->d_name,".")==0 || strcmp(entry->d_name,"..")==0)
+	    continue;
 	nclistpush(contents,strdup(entry->d_name));
     }
 done:

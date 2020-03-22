@@ -396,7 +396,6 @@ static int
 processmacros(NClist** modelistp)
 {
     int stat = NC_NOERR;
-    int i;
     const struct MACRODEF* macros = macrodefs;
     NClist*  modelist = NULL;
     NClist* expanded = NULL;
@@ -405,9 +404,9 @@ processmacros(NClist** modelistp)
     if(modelistp == NULL || nclistlength(*modelistp) == 0) goto done;
     modelist = *modelistp;
     expanded = nclistnew();    
-    for(i=0;i<nclistlength(modelist);i++) {
+    while(nclistlength(modelist) > 0) {
 	int match = 0;
-	char* mode = nclistremove(modelist,i);
+	char* mode = nclistremove(modelist,0);
         for(;macros->name;macros++) {
 	    if(strcmp(macros->name,mode)==0) {
 	        nclistclear(def);

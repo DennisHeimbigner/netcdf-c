@@ -118,7 +118,7 @@ typedef enum {NC_FALSE = 0, NC_TRUE = 1} nc_bool_t;
 /* Forward declarations. */
 struct NC_GRP_INFO;
 struct NC_TYPE_INFO;
-struct NC_FIlterobject;
+struct NC_Filterobject;
 
 /**
  * This struct provides indexed Access to Meta-data objects. See the
@@ -457,58 +457,4 @@ extern const NC_reservedatt* NC_findreserved(const char* name);
 #define NC_ATT_FORMAT "_Format"
 #define NC_ATT_DIMID_NAME "_Netcdf4Dimid"
 #define NC_ATT_NC3_STRICT_NAME "_nc3_strict"
-
-/**************************************************/
-/* Internal filter related structures */
-
-/* Internal filter actions */
-#define NCFILTER_DEF		1
-#define NCFILTER_REMOVE  	2
-#define NCFILTER_INQ	    	3
-#define NCFILTER_FILTERIDS      4
-#define NCFILTER_INFO		5
-#define NCFILTER_FREESPEC	6
-#define NCFILTER_CLIENT_REG	10
-#define NCFILTER_CLIENT_UNREG	11
-#define NCFILTER_CLIENT_INQ	12
-
-typedef enum NC_FILTER_SORT {
-	NC_FILTER_SORT_SPEC=((int)1),
-	NC_FILTER_SORT_IDS=((int)2),
-	NC_FILTER_SORT_CLIENT=((int)3),
-} NC_FILTER_SORT;
-
-/* Provide structs to pass args to filter_actions function for HDF5*/
-
-typedef struct NC_FILTER_SPEC_HDF5 {
-    int active;            /**< true iff HDF5 library was told to activate filter */
-    unsigned int filterid; /**< ID for arbitrary filter. */
-    size_t nparams;        /**< nparams for arbitrary filter. */
-    unsigned int* params;  /**< Params for arbitrary filter. */
-} NC_FILTER_SPEC_HDF5;
-
-typedef struct NC_FILTERIDS_HDF5 {
-    size_t nfilters;          /**< number of filters */
-    unsigned int* filterids;  /**< Filter ids. */
-} NC_FILTERIDS_HDF5;
-
-typedef struct NC_FILTER_CLIENT_HDF5 {
-    unsigned int id;
-    /* The filter info for hdf5 */
-    /* Avoid needing hdf.h by using void* */
-    void* info;
-} NC_FILTER_CLIENT_HDF5;
-
-typedef struct NC_FILTER_OBJ_HDF5 {
-    NC_Filterobject hdr; /* So we can cast it */
-    NC_FILTER_SORT sort; /* discriminate union */
-    union {
-        NC_FILTER_SPEC_HDF5 spec;
-        NC_FILTERIDS_HDF5 ids;
-        NC_FILTER_CLIENT_HDF5 client;
-    } u;
-} NC_FILTER_OBJ_HDF5;
-
-extern void NC4_freefilterspec(NC_FILTER_SPEC_HDF5* f);
-
 #endif /* _NC4INTERNAL_ */

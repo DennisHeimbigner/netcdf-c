@@ -17,6 +17,7 @@
 
 #include "netcdf.h"
 #include "netcdf_filter.h"
+#include "ncfilter.h"
 
 /** @internal Default size for unlimited dim chunksize. */
 #define DEFAULT_1D_UNLIM_SIZE (4096)

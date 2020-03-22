@@ -4,6 +4,7 @@
  *********************************************************************/
 
 #include "zincludes.h"
+#include "ncfilter.h"
 
 /**************************************************/
 /* Forwards */
@@ -141,11 +142,15 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const NClist* controls)
     if((mapimpl = computemapimpl(zinfo,mode)) == NCZM_UNDEF)
 	mapimpl = NCZM_DEFAULT;
 
+    /* Check for other features */
+    if((stat=computefeatures(zinfo)))
+	goto done;
+
     /* initialize map handle*/
     if((stat = nczmap_open(mapimpl,nc->path,mode,0,NULL,&zinfo->map)))
 	goto done;
 
-    if(!zinfo->purezarr || (stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json)) == NC_NOERR) {
+    if(!zinfo->purezarr && (stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json)) == NC_NOERR) {
         /* Extract the information from it */
         for(i=0;i<nclistlength(json->dict);i+=2) {
     	    const NCjson* key = nclistget(json->dict,i);
@@ -160,7 +165,7 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const NClist* controls)
 		    &zinfo->zarr.nczarr_version.release);
 	    }
 	}
-    } else { /* zinfo->purezarr */
+    } else { /* zinfo->purezarr || no object */
 	zinfo->zarr.zarr_version = ZARRVERSION;
 	sscanf(NCZARRVERSION,"%lu.%lu.%lu",
 		    &zinfo->zarr.nczarr_version.major,

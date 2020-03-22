@@ -103,7 +103,7 @@ static const NC_Dispatch NCZ_dispatcher = {
     NC_NOTNC4_def_var_filter,
     NCZ_set_var_chunk_cache,
     NC4_get_var_chunk_cache,
-
+    NCZ_filter_actions,
 };
 
 const NC_Dispatch* NCZ_dispatch_table = NULL; /* moved here from ddispatch.c */

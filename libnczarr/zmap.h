@@ -52,6 +52,8 @@ will almost certainly exceed this limit.
 
 #define NCZM_SEP "/"
 
+#define NCZM_DOT '.'
+
 /* Mnemonic */
 #define NCZ_ISMETA 0
 

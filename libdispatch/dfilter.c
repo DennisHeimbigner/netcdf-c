@@ -15,6 +15,7 @@
 #include "netcdf_filter.h"
 #include "ncdispatch.h"
 #include "nc4internal.h"
+#include "ncfilter.h"
 
 #ifdef USE_HDF5
 #include "hdf5internal.h"
@@ -376,7 +377,7 @@ NC4_filterfix8(unsigned char* mem, int decode)
 #endif	    
 }
 
-
+/**************************************************/
 /* Support direct user defined filters */
 
 /* Use void* to avoid having to include hdf.h*/
@@ -384,9 +385,10 @@ EXTERNL int
 nc_filter_client_register(unsigned int id, void* info)
 {
     int stat = NC_NOERR;
+#ifdef ENABLE_CLIENT_FILTERS
+#ifdef USE_HDF5
     if(id == 0 ||info == NULL)
 	return NC_EINVAL;
-#ifdef USE_HDF5
     NC_FILTER_OBJ_HDF5 client;
     memset(&client,0,sizeof(client));
     client.hdr.format = NC_FILTER_FORMAT_HDF5;
@@ -398,15 +400,22 @@ nc_filter_client_register(unsigned int id, void* info)
 #else
     stat = NC_ENOTBUILT;
 #endif
+#else
+    stat = NC_ENOTBUILT;
+#endif
     return stat;
 }
 
 EXTERNL int
 nc_filter_client_unregister(unsigned int id)
 {
-    int stat = NC_NOERR;
+int stat = NC_NOERR;
+#ifdef ENABLE_CLIENT_FILTERS
 #ifdef USE_HDF5
     stat = nc4_global_filter_action(NCFILTER_CLIENT_UNREG, id, NULL);
+#else
+    stat = NC_ENOTBUILT;
+#endif
 #else
     stat = NC_ENOTBUILT;
 #endif
@@ -417,7 +426,8 @@ nc_filter_client_unregister(unsigned int id)
 EXTERNL int
 nc_filter_client_inq(unsigned int id, void* infop)
 {
-    int stat = NC_NOERR;
+int stat = NC_NOERR;
+#ifdef ENABLE_CLIENT_FILTERS
 #ifdef USE_HDF5
     H5Z_class2_t* hct = (H5Z_class2_t*)infop;
     NC_FILTER_OBJ_HDF5 client;
@@ -436,8 +446,14 @@ nc_filter_client_inq(unsigned int id, void* infop)
 #else
     stat = NC_ENOTBUILT;
 #endif
+#else
+    stat = NC_ENOTBUILT;
+#endif
     return stat;
 }
+
+/**************************************************/
+/* Per-variable filters */
 
 /**
 Find the set of filters (if any) associated with a variable.
@@ -638,6 +654,162 @@ nc_var_filter_remove(int ncid, int varid, unsigned int id)
     spec.hdr.format = NC_FILTER_FORMAT_HDF5;
     spec.sort = NC_FILTER_SORT_SPEC;
     spec.u.spec.filterid = id;
+    return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_REMOVE,(NC_Filterobject*)&spec);
+}
+
+/**************************************************/
+/* Per-variable filters extended string-based */
+
+/**
+Find the set of filters (if any) associated with a variable.
+
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as
+nc_inq_ncid().
+
+\param varid Variable ID
+\param nfilters return no. of filters
+\param ids return the filter ids (caller allocates)
+
+\returns ::NC_NOERR No error.
+\returns ::NC_ENOTNC4 Not a netCDF-4 file.
+\returns ::NC_EBADID Bad ncid.
+\returns ::NC_ENOTVAR Invalid variable ID.
+\returns ::NC_EINVAL Invalid arguments
+\ingroup variables
+\author Dennis Heimbigner
+*/
+EXTERNL int
+ncx_inq_var_filterids(int ncid, int varid, size_t* nfiltersp, char*** ids)
+{
+   NC* ncp;
+   int stat = NC_check_id(ncid,&ncp);
+   NCX_FILTER_OBJ ncids;
+
+   if(stat != NC_NOERR) return stat;
+   TRACE(ncx_inq_var_filterids);
+
+   memset(&ncids,0,sizeof(ncids));
+   ncids.hdr.format = NCX_FILTER_FORMAT;
+   ncids.sort = NC_FILTER_SORT_IDS;
+   ncids.u.ids.nfilters = (nfiltersp?*nfiltersp:0);
+   ncids.u.ids.filterids = (*ids == NULL ? NULL : *ids);
+   
+   if((stat = ncp->dispatch->filter_actions(ncid,varid, NCFILTER_FILTERIDS, (NC_Filterobject*)&ncids)) == NC_NOERR) {
+	if(nfiltersp) *nfiltersp = ncids.u.ids.nfilters;
+	if(ids) {*ids = ncids.u.ids.filterids; ncids.u.ids.filterids = NULL;}
+   }
+   return stat;
+ }
+
+/**
+Find the the param info about filter (if any)
+associated with a variable and with specified id.
+
+This is a wrapper for nc_inq_var_all().
+
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as
+nc_inq_ncid().
+
+\param varid Variable ID
+\param id The filter id of interest
+\param formatp (Out) Storage for the filter format
+\param nparamsp (Out) Storage which will get the number of parameters to the filter
+\param params (Out) Storage which will get associated parameters.
+Note: the caller must allocate and free.
+
+\returns ::NC_NOERR No error.
+\returns ::NC_ENOTNC4 Not a netCDF-4 file.
+\returns ::NC_EBADID Bad ncid.
+\returns ::NC_ENOTVAR Invalid variable ID.
+\returns ::NC_ENOFILTER No filter defined.
+\ingroup variables
+\author Dennis Heimbigner
+*/
+EXTERNL int
+ncx_inq_var_filter_info(int ncid, int varid, const char* id, char** paramsp)
+{
+   NC* ncp;
+   int stat = NC_check_id(ncid,&ncp);
+   NCX_FILTER_OBJ spec;
+
+   if(stat != NC_NOERR) return stat;
+   TRACE(ncx_inq_var_filter_info);
+
+   memset(&spec,0,sizeof(spec));
+   spec.hdr.format = NCX_FILTER_FORMAT;
+   spec.sort = NC_FILTER_SORT_SPEC;
+   spec.u.spec.filterid = (char*)id;
+   spec.u.spec.params = NULL;
+
+   if((stat = ncp->dispatch->filter_actions(ncid,varid,NCFILTER_INFO,(NC_Filterobject*)&spec)) == NC_NOERR) {
+       if(paramsp)
+           *paramsp = strdup(spec.u.spec.params);
+   }
+   return stat;
+}
+
+/**
+   Define a new variable filter.
+
+   Only variables with chunked storage can use filters.
+
+   @param ncid File and group ID.
+   @param varid Variable ID.
+   @param id Filter ID.
+   @param nparams Number of filter parameters.
+   @param parms Filter parameters.
+
+   @return ::NC_NOERR No error.
+   @return ::NC_EINVAL Variable must be chunked.
+   @return ::NC_EBADID Bad ID.
+   @author Dennis Heimbigner
+*/
+
+EXTERNL int
+ncx_def_var_filter(int ncid, int varid, const char* id, const char* params)
+{
+    NC* ncp;
+    NCX_FILTER_OBJ spec;
+    int stat = NC_check_id(ncid,&ncp);
+   
+    if(stat != NC_NOERR) return stat;
+    TRACE(ncx_def_var_filter);
+
+    memset(&spec,0,sizeof(spec));
+    spec.hdr.format = NCX_FILTER_FORMAT;
+    spec.sort = NC_FILTER_SORT_SPEC;
+    spec.u.spec.filterid = (char*)id;
+    spec.u.spec.params = (char*)params; /* discard const */
+    return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_DEF,(NC_Filterobject*)&spec);
+}
+
+/**
+   Remove all filters with specified id from a variable
+
+   @param ncid File and group ID.
+   @param varid Variable ID.
+   @param id filter to remove
+
+   @return ::NC_NOERR No error.
+   @return ::NC_EBADID Bad ID.
+   @author Dennis Heimbigner
+*/
+EXTERNL int
+ncx_var_filter_remove(int ncid, int varid, const char* id)
+{
+    NC* ncp;
+    int stat = NC_check_id(ncid,&ncp);
+    NCX_FILTER_OBJ spec;
+    
+    if(stat != NC_NOERR) return stat;
+    TRACE(ncx_var_filter_remove);
+
+    memset(&spec,0,sizeof(spec));
+    spec.hdr.format = NCX_FILTER_FORMAT;
+    spec.sort = NC_FILTER_SORT_SPEC;
+    spec.u.spec.filterid = (char*)id;
     return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_REMOVE,(NC_Filterobject*)&spec);
 }
 

@@ -22,6 +22,7 @@
 #include "nc.h" /* from libsrc */
 #include "ncdispatch.h" /* from libdispatch */
 #include "ncutf8.h"
+#include "ncfilter.h"
 
 /** @internal Number of reserved attributes. These attributes are
  * hidden from the netcdf user, but exist in the implementation
@@ -1885,8 +1886,16 @@ freefilterlist(NClist* filters)
     int i;
     if(filters == NULL) return;
     for(i=0;i<nclistlength(filters);i++) {
-	NC_FILTER_SPEC_HDF5* f = nclistget(filters,i);
-	NC4_freefilterspec(f);
+	NC_Filterspec* f = nclistget(filters,i);
+	switch (f->hdr.format) {
+	case NC_FILTER_FORMAT_HDF5:
+	    NC4_freefilterspec((NC_FILTER_SPEC_HDF5*)f);
+	    break;
+	case NCX_FILTER_FORMAT:
+	    NCX_freefilterspec((NCX_FILTER_SPEC*)f);
+	    break;
+	default: assert(0);
+	}
     }
     nclistfree(filters);
 }

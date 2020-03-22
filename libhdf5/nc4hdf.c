@@ -18,6 +18,7 @@
 #include "netcdf.h"
 #include "nc4internal.h"
 #include "ncdispatch.h"
+#include "ncfilter.h"
 #include "hdf5internal.h"
 #include <math.h>
 

@@ -192,10 +192,12 @@ int ncz_gettype(NC_GRP_INFO_T*, int xtype, NC_TYPE_INFO_T** typep);
 int ncz_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 
 /* zfilter.c */
-int NCZ_zarr_addfilter(NC_VAR_INFO_T* var, int active, unsigned int id, size_t nparams, unsigned int* inparams);
-int NCZ_global_filter_action(int op, unsigned int id, NC_FILTER_OBJ_HDF5* infop);
 int NCZ_filter_actions(int ncid, int varid, int op, NC_Filterobject* args);
-void NCZ_freefilterspec(NC_FILTER_SPEC_HDF5* f);
+void NCZ_freefilterspec(NCX_FILTER_SPEC* f);
+int NCZ_addfilter(NC_VAR_INFO_T* var, int active, const char* id, const char* inparams);
+#ifdef ENABLE_CLIENT_FILTERS
+int NCZ_global_filter_action(int op, unsigned int id, NC_FILTER_OBJ_HDF5* infop);
+#endif
 
 /* Undefined */
 /* Find var, doing lazy var metadata read if needed. */

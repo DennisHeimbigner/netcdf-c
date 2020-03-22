@@ -21,9 +21,6 @@ For the object API, the mapping is as follows:
 
 #define NCZM_NC4_V1 1
 
-/* the zarr meta prefix tag */
-#define ZDOT '.'
-
 /* What to replace ZDOT with */
 #define ZDOTNC4 '_'
 
@@ -683,7 +680,7 @@ zify(const char* nc4name, char* zname)
 {
     zname[0] = '\0';
     strlcat(zname,nc4name,NC_MAX_NAME);
-    if(zname[0] == ZDOTNC4) zname[0] = ZDOT;
+    if(zname[0] == ZDOTNC4) zname[0] = NCZM_DOT;
 }
 
 /* Convert .z... name to _z... name */
@@ -692,7 +689,7 @@ nc4ify(const char* zname, char* nc4name)
 {
     nc4name[0] = '\0';
     strlcat(nc4name,zname,NC_MAX_NAME);
-    if(nc4name[0] == ZDOT) nc4name[0] = ZDOTNC4;
+    if(nc4name[0] == NCZM_DOT) nc4name[0] = ZDOTNC4;
 }
 
 /**************************************************/

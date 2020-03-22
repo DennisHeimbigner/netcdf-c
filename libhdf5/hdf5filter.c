@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include "hdf5internal.h"
 #include "hdf5debug.h"
+#include "ncfilter.h"
 
 #define HAVE_H5_DEFLATE
 
@@ -25,12 +26,15 @@
 
 /* WARNING: GLOBAL VARIABLE */
 
+#ifdef ENABLE_CLIENT_FILTERS
 /* Define list of registered filters */
 static NClist* NC4_registeredfilters = NULL; /** List<NC_FILTER_CLIENT_HDF5*> */
+#endif
 
 /**************************************************/
 /* Filter registration support */
 
+#ifdef ENABLE_CLIENT_FILTERS
 static int
 filterlookup(unsigned int id)
 {
@@ -75,36 +79,6 @@ dupfilterinfo(NC_FILTER_CLIENT_HDF5* info)
 fail:
     reclaiminfo(dup);
     return NULL;
-}
-
-int
-NC4_hdf5_addfilter(NC_VAR_INFO_T* var, int active, unsigned int id, size_t nparams, unsigned int* inparams)
-{
-    int stat = NC_NOERR;
-    NC_FILTER_SPEC_HDF5* fi = NULL;
-    unsigned int* params = NULL;
-
-    if(var->filters == NULL) {
-	if((var->filters = nclistnew())==NULL) return THROW(NC_ENOMEM);
-    }
-
-    if(nparams > 0 && inparams == NULL)
-        return THROW(NC_EINVAL);
-    if(inparams != NULL) {
-        if((params = malloc(sizeof(unsigned int)*nparams)) == NULL)
-	    return THROW(NC_ENOMEM);
-        memcpy(params,inparams,sizeof(unsigned int)*nparams);
-    }
-    
-    if((fi = calloc(1,sizeof(NC_FILTER_SPEC_HDF5))) == NULL)
-    	{nullfree(params); return THROW(NC_ENOMEM);}
-
-    fi->active = active;
-    fi->filterid = id;
-    fi->nparams = nparams;
-    fi->params = params;
-    nclistpush(var->filters,fi);
-    return THROW(stat);
 }
 
 int
@@ -167,6 +141,37 @@ nc4_global_filter_action(int op, unsigned int id, NC_FILTER_OBJ_HDF5* infop)
 done:
     return THROW(stat);
 } 
+#endif
+
+int
+NC4_hdf5_addfilter(NC_VAR_INFO_T* var, int active, unsigned int id, size_t nparams, unsigned int* inparams)
+{
+    int stat = NC_NOERR;
+    NC_FILTER_SPEC_HDF5* fi = NULL;
+    unsigned int* params = NULL;
+
+    if(var->filters == NULL) {
+	if((var->filters = nclistnew())==NULL) return THROW(NC_ENOMEM);
+    }
+
+    if(nparams > 0 && inparams == NULL)
+        return THROW(NC_EINVAL);
+    if(inparams != NULL) {
+        if((params = malloc(sizeof(unsigned int)*nparams)) == NULL)
+	    return THROW(NC_ENOMEM);
+        memcpy(params,inparams,sizeof(unsigned int)*nparams);
+    }
+    
+    if((fi = calloc(1,sizeof(NC_FILTER_SPEC_HDF5))) == NULL)
+    	{nullfree(params); return THROW(NC_ENOMEM);}
+
+    fi->active = active;
+    fi->filterid = id;
+    fi->nparams = nparams;
+    fi->params = params;
+    nclistpush(var->filters,fi);
+    return THROW(stat);
+}
 
 /**
  * @internal Define filter settings. Called by nc_def_var_filter().

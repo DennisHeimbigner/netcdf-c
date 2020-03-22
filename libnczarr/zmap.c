@@ -116,6 +116,12 @@ nczmap_open(NCZM_IMPL impl, const char *path0, int mode, size64_t flags, void* p
         stat = zmap_nc4.open(filepath, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
+    case NCZM_FILE:
+	if(filepath == NULL)
+	     {stat = NC_ENOTNC; goto done;}
+        stat = zmap_file.open(filepath, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
     default:
 	{stat = NC_ENOTBUILT; goto done;}
     }
