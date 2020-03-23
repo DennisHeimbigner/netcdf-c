@@ -379,7 +379,7 @@ computemapimpl(NCZ_FILE_INFO_T* zinfo, int cmode)
         const char* p = nclistget(zinfo->controls,i);
 	if(strcasecmp(p,"s3")==0) return NCZM_S3;
 	if(strcasecmp(p,"nc4")==0) return NCZM_NC4;
-	if(strcasecmp(p,"file")==0) return NCZM_FILE;
+	if(strcasecmp(p,"zfile")==0) return NCZM_FILE;
     }
     return NCZM_DEFAULT; /* could not determine map impl */
 }
