@@ -8,7 +8,7 @@
 # Get AM_CPPFLAGS and AM_LDFLAGS
 include $(top_srcdir)/lib_flags.am
 AM_CPPFLAGS += -D_LARGEFILE_SOURCE
-AM_CPPFLAGS += -I$(top_srcdir)/libsrc4
+AM_CPPFLAGS += -I$(top_srcdir)/libsrc4 -I$(top_srcdir)/libdap4
 libnczarr_la_CPPFLAGS = ${AM_CPPFLAGS}
 libnczarr_la_LIBADD =
 
@@ -51,7 +51,7 @@ zvar.c \
 zwalk.c \
 zmap.c \
 zmap_nc4.c \
-zmap_file.c
+zmap_file.c \
 
 HDRS= \
 zdispatch.h \
@@ -62,6 +62,16 @@ zincludes.h \
 zmap.h \
 zprovenance.h \
 zdebug.h
+
+if ENABLE_S3_SDK
+libnczarr_la_SOURCES += zmap_s3.cpp
+else
+libnczarr_la_SOURCES += zmap_s3.c
+if ENABLE_DAP4
+DISTCLEANFILES += ezxml.c
+libnczarr_la_SOURCES += ezxml.c
+endif
+endif
 
 # For now, ignore these
 IGNORED=ztype.c 

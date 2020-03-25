@@ -369,7 +369,7 @@ zfileclose(NCZMAP* map, int delete)
 /*
 Return a list of keys immediately "below" a specified prefix.
 In theory, the returned list should be sorted in lexical order,
-but it is not.
+but it possible that it is not.
 */
 int
 zfilesearch(NCZMAP* map, const char* prefix, NClist* matches)

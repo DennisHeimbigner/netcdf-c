@@ -201,6 +201,13 @@ nczmap_search(NCZMAP* map, const char* prefix, NClist* matches)
 int
 nczm_split(const char* path, NClist* segments)
 {
+    return nczm_split_delim(path,NCZM_SEP[0],segments);
+}
+
+/* Split a path into pieces along some character; elide any leading char */
+int
+nczm_split_delim(const char* path, char delim, NClist* segments)
+{
     int stat = NC_NOERR;
     const char* p = NULL;
     const char* q = NULL;
@@ -211,9 +218,9 @@ nczm_split(const char* path, NClist* segments)
 	{stat = NC_EINVAL; goto done;}
 
     p = path;
-    if(p[0] == NCZM_SEP[0]) p++;
+    if(p[0] == delim) p++;
     for(;*p;) {
-	q = strchr(p,NCZM_SEP[0]);
+	q = strchr(p,delim);
 	if(q==NULL)
 	    q = p + strlen(p); /* point to trailing nul */
         len = (q - p);
@@ -233,13 +240,14 @@ done:
     return THROW(stat);
 }
 
-/* Join the first nseg segments into a path using '/' character */
+/* Join the first nseg segments into a path using delim  character */
 int
-nczm_joinn(NClist* segments, int nsegs, const char* sprefix, char** pathp)
+nczm_join_delim(NClist* segments, int nsegs, const char* sprefix, char delim, char** pathp)
 {
     int stat = NC_NOERR;
     int i;
     NCbytes* buf = NULL;
+    char sep[2] = {delim,'\0'};
 
     if(segments == NULL)
 	{stat = NC_EINVAL; goto done;}
@@ -248,13 +256,13 @@ nczm_joinn(NClist* segments, int nsegs, const char* sprefix, char** pathp)
     if(nclistlength(segments) < nsegs)
 	nsegs = nclistlength(segments);
     if(nsegs == 0) {
-	ncbytescat(buf,NCZM_SEP);
+	ncbytescat(buf,sep);
 	goto done;		
     }
     if(sprefix) ncbytescat(buf,sprefix);    
     for(i=0;i<nsegs;i++) {
 	const char* seg = nclistget(segments,i);
-	if(i > 0) ncbytescat(buf,NCZM_SEP);
+	if(i > 0) ncbytesappend(buf,sep);
 	ncbytescat(buf,seg);		
     }
 

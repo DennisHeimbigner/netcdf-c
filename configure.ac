@@ -451,6 +451,14 @@ if test "x$enable_nczarr" = xyes; then
 fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
+# Check for the AWS S3 SDK library
+AC_CHECK_LIB([curl],[curl_easy_setopt],[found_curl=yes],[found_curl=no])
+if test "x$enable_dap" = "xyes" ; then
+   AC_SEARCH_LIBS([curl_easy_setopt],[curl curl.dll], [],
+      [AC_MSG_ERROR([curl required for remote access. Install curl or build with --disable-dap.])])
+fi
+
+
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
 AC_MSG_CHECKING([whether to enable strict null-byte header padding when reading (default off)])
@@ -1549,6 +1557,7 @@ AC_CONFIG_FILES([h5_test/run_par_tests.sh], [chmod ugo+x h5_test/run_par_tests.s
 AC_CONFIG_FILES([nc_test4/run_par_test.sh], [chmod ugo+x nc_test4/run_par_test.sh])
 AC_CONFIG_FILES([nc_perf/run_par_bm_test.sh], [chmod ugo+x nc_perf/run_par_bm_test.sh])
 AC_CONFIG_FILES([examples/C/run_par_test.sh], [chmod ugo+x examples/C/run_par_test.sh])
+AC_CONFIG_FILES(libnczarr/ezxml.c:libdap4/ezxml.c)
 AC_CONFIG_FILES([nc-config], [chmod 755 nc-config])
 AC_CONFIG_FILES([Makefile
                  netcdf.pc

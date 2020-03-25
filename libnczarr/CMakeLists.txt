@@ -34,6 +34,11 @@ zvar.c
 zwalk.c
 )
 
+IF(NOT ENABLE_DAP4)
+
+SET(libnczarr_SOURCES ${libnczarr_SOURCES} ezxml.c
+ENDIF()
+
 # Build the Zarr dispatch layer as a library that will be included in
 # the netCDF library.
 add_library(nczarr OBJECT ${libnczarr_SOURCES})
