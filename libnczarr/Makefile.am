@@ -65,7 +65,7 @@ zprovenance.h \
 zdebug.h
 
 if ENABLE_S3_SDK
-libnczarr_la_SOURCES += zmap_awss3.cpp
+libnczarr_la_SOURCES += zmap_s3sdk.cpp
 else
 libnczarr_la_SOURCES += zmap_s3.c
 if ENABLE_DAP4

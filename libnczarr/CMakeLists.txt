@@ -34,9 +34,13 @@ zvar.c
 zwalk.c
 )
 
+IF(ENABLE_S3_SDK) 
+SET(libnczarr_SOURCES ${libnczarr_SOURCES} zmap_s3sdk.c)
+ELSE()
+SET(libnczarr_SOURCES ${libnczarr_SOURCES} zmap_s3.c)
 IF(NOT ENABLE_DAP4)
-
-SET(libnczarr_SOURCES ${libnczarr_SOURCES} ezxml.c
+SET(libnczarr_SOURCES ${libnczarr_SOURCES} ezxml.c)
+ENDIF()
 ENDIF()
 
 # Build the Zarr dispatch layer as a library that will be included in
