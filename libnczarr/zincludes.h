@@ -14,6 +14,8 @@
 #define ZINCLUDES_H
 
 #include "config.h"
+
+#ifndef __cplusplus
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -21,6 +23,11 @@
 #include <malloc.h>
 #include <stddef.h> /* size_t, ptrdiff_t */
 #include <assert.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "netcdf.h"
 #include "ncdispatch.h"
@@ -43,6 +50,10 @@
 #include "zjson.h"
 #include "zarr.h"
 #include "zdebug.h"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ZINCLUDES_H */
 

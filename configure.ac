@@ -452,12 +452,12 @@ fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
 # Check for the AWS S3 SDK library
-AC_CHECK_LIB([curl],[curl_easy_setopt],[found_curl=yes],[found_curl=no])
-if test "x$enable_dap" = "xyes" ; then
-   AC_SEARCH_LIBS([curl_easy_setopt],[curl curl.dll], [],
-      [AC_MSG_ERROR([curl required for remote access. Install curl or build with --disable-dap.])])
+AC_LANG_PUSH([C++])
+AC_SEARCH_LIBS([aws_allocator_is_valid],[aws-c-common aws-cpp-sdk-s3 aws-cpp-sdk-core], [have_aws=yes],[have_aws=no])
+AC_LANG_POP
+if test "x$have_aws" = xno ; then
+      AC_MSG_ERROR([libaws required for nczarr. Install libaws or build with --disable-nczarr.])
 fi
-
 
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
@@ -701,6 +701,7 @@ fi
 
 
 AC_PROG_CC
+AC_PROG_CXX
 AM_PROG_CC_C_O
 AC_C_CONST
 
@@ -1334,6 +1335,7 @@ AM_CONDITIONAL(ENABLE_BYTERANGE, [test "x$enable_byterange" = xyes])
 AM_CONDITIONAL(RELAX_COORD_BOUND, [test "xyes" = xyes])
 AM_CONDITIONAL(HAS_PAR_FILTERS, [test x$hdf5_supports_par_filters = xyes ])
 AM_CONDITIONAL(ENABLE_NCZARR, [test "x$enable_nczarr" = xyes])
+AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$have_aws" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!

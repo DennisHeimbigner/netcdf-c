@@ -28,8 +28,8 @@ extern int ncz_close_file(NC_FILE_INFO_T* file, int abort);
 
 /* zcvt.c */
 extern int NCZ_convert1(NCjson* jsrc, nc_type, char* memory0);
-extern int NCZ_stringconvert1(nc_type typeid, char* src, char** strp);
-extern int NCZ_stringconvert(nc_type typeid, size_t len, void* data0, NCjson** jdatap);
+extern int NCZ_stringconvert1(nc_type typid, char* src, char** strp);
+extern int NCZ_stringconvert(nc_type typid, size_t len, void* data0, NCjson** jdatap);
 
 /* zsync.c */
 extern int ncz_sync_file(NC_FILE_INFO_T* file);

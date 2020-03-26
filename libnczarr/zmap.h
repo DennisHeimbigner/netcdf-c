@@ -110,7 +110,7 @@ struct NCZMAP_API {
 	/* Read/write metadata (e.g. Json)*/
 	int (*readmeta)(NCZMAP* map, const char* key, size64_t count, char* content);
 	int (*writemeta)(NCZMAP* map, const char* key, size64_t count, const char* content);
-        int (*close)(NCZMAP* map, int delete);
+        int (*close)(NCZMAP* map, int deleteit);
 	/* Return the set of keys immediately "below" a specified prefix */
         int (*search)(NCZMAP* map, const char* prefix, NClist* matches);
 };
@@ -122,6 +122,10 @@ typedef struct NCZMAP_DS_API {
     int (*open)(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
 } NCZMAP_DS_API;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Object API Wrappers */
 extern int nczmap_exists(NCZMAP* map, const char* key);
 extern int nczmap_len(NCZMAP* map, const char* key, size64_t* lenp);
@@ -130,7 +134,7 @@ extern int nczmap_read(NCZMAP* map, const char* key, size64_t start, size64_t co
 extern int nczmap_write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
 extern int nczmap_readmeta(NCZMAP* map, const char* key, size64_t count, char* content);
 extern int nczmap_writemeta(NCZMAP* map, const char* key, size64_t count, const char* content);
-extern int nczmap_close(NCZMAP* map, int delete);
+extern int nczmap_close(NCZMAP* map, int deleteit);
 extern int nczmap_search(NCZMAP* map, const char* prefix, NClist* matches);
 
 /* Create/open and control a dataset using a specific implementation */
@@ -145,5 +149,9 @@ extern int nczm_join(NClist* segments, char** pathp);
 extern int nczm_suffix(const char* prefix, const char* suffix, char** pathp);
 extern int nczm_divide(const char* key, int nsegs, char** prefixp, char** suffixp);
 extern int nczm_clear(NCZMAP* map);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /*ZMAP_H*/

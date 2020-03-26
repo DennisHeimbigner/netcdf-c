@@ -7,6 +7,7 @@
 #include "awsincludes.h"
 #include <streambuf>
 #include <istream>
+#include "zmap.h"
 
 /*
 Map our simplified map model to an S3 bucket + objects.
@@ -35,7 +36,7 @@ typedef struct ZS3MAP {
     char* region; /* region */
     char* bucketurl; /* url prefix in path style */
     Aws::SDKOptions options;
-    Aws::ClientConfiguration config;
+    Aws::Client::ClientConfiguration config;
 } ZS3MAP;
 
 
@@ -50,7 +51,7 @@ static int zs3readmeta(NCZMAP* map, const char* key, size64_t avail, char* conte
 static int zs3writemeta(NCZMAP* map, const char* key, size64_t count, const char* content);
 static int zs3search(NCZMAP* map, const char* prefix, int deep, NClist* matches);
 
-static int zs3close(NCZMAP* map, int delete);
+static int zs3close(NCZMAP* map, int deleteit);
 static int zlookupgroup(ZS3MAP*, NClist* segments, int nskip, int* grpidp);
 static int zlookupobj(ZS3MAP*, NClist* segments, int* objidp);
 static int zcreategroup(ZS3MAP* z3map, NClist* segments, int nskip, int* grpidp);
@@ -63,13 +64,14 @@ static int s3exists(ZS3MAP* z3map);
 static int s3createbucket(ZS3MAP* z3map);
 static int s3createobject(ZS3MAP* z3map);
 static int s3bucketpath(const char* bucket, const char* region, char** bucketp);
-static Awd::S3::Model::BucketLocationConstraint s3findregion(const char* name);
+static Aws::S3::Model::BucketLocationConstraint s3findregion(const char* name);
 
 /* Define the Dataset level API */
 
 static int zs3initialized = 0;
 
-static zs3initialize(void)
+static void
+zs3initialize(void)
 {
     Aws::SDKOptions options;
     options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Info;
@@ -92,6 +94,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     NC_UNUSED(flags);
     NC_UNUSED(parameters);
 
+    if(!zs3initialized) zs3initialize();
     /* Parse the URL */
     if((stat = ncuriparse(path,&url))) goto done;
     if(url == NULL)
@@ -109,20 +112,20 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     */
     if(nclistlength(segments) == 5) { /* virtual */
 	/* verify */
-	if(strcasecmp(nclistget(segments,1),"s3")!=0)
+	if(strcasecmp((char*)nclistget(segments,1),"s3")!=0)
 	    {stat = NC_EURL;goto done;}
-	region = strdup(nclistget(segments,2));
-	bucket = strdup(nclistget(segments,0));	
+	region = strdup((char*)nclistget(segments,2));
+	bucket = strdup((char*)nclistget(segments,0));	
     } else if(nclistlength(segments) == 4) { /* path */
-	if(strcasecmp(nclistget(segments,0),"s3")!=0)
+	if(strcasecmp((char*)nclistget(segments,0),"s3")!=0)
 	    {stat = NC_EURL;goto done;}
-	region = strdup(nclistget(segments,1));
+	region = strdup((char*)nclistget(segments,1));
 	/* We have to process the path to get the bucket */
         /* split the path by "/" */
 	nclistfreeall(segments);
 	segments = nclistnew();
         if((stat = nczm_split_delim(url->path,'/',segments))) goto done;
-	bucket = strdup(nclistget(segments,0));
+	bucket = strdup((char*)nclistget(segments,0));
     } else
 	{stat = NC_EURL; goto done;}
 
@@ -131,7 +134,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	goto done;
 
     /* Build the z4 state */
-    if((z3map = calloc(1,sizeof(ZS3MAP))) == NULL)
+    if((z3map = (ZS3MAP*)calloc(1,sizeof(ZS3MAP))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
 
     z3map->map.format = NCZM_S3;
@@ -143,8 +146,6 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     z3map->region = region; /* region */
     z3map->bucketurl = bucketurl; /* url prefix in path style */
     bucket = (region = (bucketurl = NULL));
-    z3map->url = ncbytesnew();
-    z3map->buf = ncbytesnew();
 
     Aws::InitAPI(z3map->options);
 
@@ -181,6 +182,7 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     NC_UNUSED(flags);
     NC_UNUSED(parameters);
 
+    if(!zs3initialized) zs3initialize();
     /* Parse the URL */
     if((stat = ncuriparse(path,&url))) goto done;
     if(url == NULL)
@@ -198,20 +200,20 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     */
     if(nclistlength(segments) == 5) { /* virtual */
 	/* verify */
-	if(strcasecmp(nclistget(segments,1),"s3")!=0)
+	if(strcasecmp((char*)nclistget(segments,1),"s3")!=0)
 	    {stat = NC_EURL;goto done;}
-	region = strdup(nclistget(segments,2));
-	bucket = strdup(nclistget(segments,0));	
+	region = strdup((char*)nclistget(segments,2));
+	bucket = strdup((char*)nclistget(segments,0));	
     } else if(nclistlength(segments) == 4) { /* path */
-	if(strcasecmp(nclistget(segments,0),"s3")!=0)
+	if(strcasecmp((char*)nclistget(segments,0),"s3")!=0)
 	    {stat = NC_EURL;goto done;}
-	region = strdup(nclistget(segments,1));
+	region = strdup((char*)nclistget(segments,1));
 	/* We have to process the path to get the bucket */
         /* split the path by "/" */
 	nclistfreeall(segments);
 	segments = nclistnew();
         if((stat = nczm_split_delim(url->path,'/',segments))) goto done;
-	bucket = strdup(nclistget(segments,0));	
+	bucket = strdup((char*)nclistget(segments,0));	
     } else
 	{stat = NC_EURL; goto done;}
 
@@ -220,7 +222,7 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
 	goto done;
 
     /* Build the z4 state */
-    if((z3map = calloc(1,sizeof(ZS3MAP))) == NULL)
+    if((z3map = (ZS3MAP*)calloc(1,sizeof(ZS3MAP))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
 
     z3map->map.format = NCZM_S3;
@@ -232,15 +234,13 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     z3map->region = region; /* region */
     z3map->bucketurl = bucketurl; /* url prefix in path style */
     bucket = (region = (bucketurl = NULL));
-    z3map->url = ncbytesnew();
-    z3map->buf = ncbytesnew();
 
     Aws::InitAPI(z3map->options);
 
-    z3map->clientConfig.scheme = Aws::Http::Scheme::HTTPS;
-    z3map->clientConfig.region = z3map->region;
-    z3map->clientConfig.connectTimeoutMs = 30000;
-    z3map->clientConfig.requestTimoutMs = 600000;
+    z3map->config.scheme = Aws::Http::Scheme::HTTPS;
+    z3map->config.region = z3map->region;
+    z3map->config.connectTimeoutMs = 30000;
+    z3map->config.requestTimeoutMs = 600000;
 
     if(mapp) *mapp = (NCZMAP*)z3map;    
 
@@ -386,12 +386,12 @@ zs3writemeta(NCZMAP* map, const char* key, size64_t count, const char* content)
 }
 
 static int
-zs3close(NCZMAP* map, int delete)
+zs3close(NCZMAP* map, int deleteit)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map;
 
-    if(delete)
+    if(deleteit)
         deletetree(z3map);
     nullfree(z3map->bucket);
     nullfree(z3map->region);
@@ -724,7 +724,7 @@ s3buildaccesspoint(ZS3MAP* zmap, NCbytes* apoint)
     return NC_NOERR;
 }
 
-static Awd::S3::Model::BucketLocationConstraint
+static Aws::S3::Model::BucketLocationConstraint
 s3findregion(const char* name)
 {
     return Aws::S3::Model::BucketLocationConstraint::BucketLocationConstraintMapper::BucketLocationConstraintMapper::GetBucketLocationConstraintForName(name);

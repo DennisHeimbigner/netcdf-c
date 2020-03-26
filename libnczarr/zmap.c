@@ -262,7 +262,7 @@ nczm_join_delim(NClist* segments, int nsegs, const char* sprefix, char delim, ch
     if(sprefix) ncbytescat(buf,sprefix);    
     for(i=0;i<nsegs;i++) {
 	const char* seg = nclistget(segments,i);
-	if(i > 0) ncbytesappend(buf,sep);
+	if(i > 0) ncbytescat(buf,sep);
 	ncbytescat(buf,seg);		
     }
 
@@ -278,7 +278,7 @@ done:
 int
 nczm_join(NClist* segments, char** pathp)
 {
-    return nczm_joinn(segments,nclistlength(segments),NULL,pathp);
+    return nczm_join_delim(segments,nclistlength(segments),NULL,'/',pathp);
 }
 
 /* Convenience: suffix an object name to a group path: caller frees*/
