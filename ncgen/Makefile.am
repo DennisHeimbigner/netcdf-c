@@ -4,7 +4,7 @@
 
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
-LDADD = ${top_builddir}/liblib/libnetcdf.la
+ncgen_LDADD = ${top_builddir}/liblib/libnetcdf.la
 
 # Build ncgen from the listed sources.
 bin_PROGRAMS = ncgen

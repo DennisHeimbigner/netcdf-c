@@ -193,7 +193,7 @@ NC4_hdf5_addfilter(NC_VAR_INFO_T* var, int active, unsigned int id, size_t npara
  * @author Dennis Heimbigner
  */
 int
-NC4_filter_actions(int ncid, int varid, int op, NC_Filterobject* args)
+NC4_filter_actions(int ncid, int varid, int op, void* args)
 {
     int stat = NC_NOERR;
     NC_GRP_INFO_T *grp = NULL;

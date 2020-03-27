@@ -58,7 +58,7 @@ will almost certainly exceed this limit.
 #define NCZ_ISMETA 0
 
 /* Forward */
-struct NCZMAP_API;
+typedef struct NCZMAP_API NCZMAP_API;
 
 /* Define the space of implemented (eventually) map implementations */
 typedef enum NCZM_IMPL {
@@ -92,7 +92,6 @@ typedef struct NCZMAP {
 } NCZMAP;
 
 /* Forward */
-typedef struct NCZMAP_API NCZMAP_API;
 
 /* Define the object-level API */
 

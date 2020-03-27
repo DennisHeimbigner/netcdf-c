@@ -148,7 +148,7 @@ struct NC_Dispatch
 
     /* Dispatch table Version 2 or later */
     /* Handle all filter related actions. */
-    int (*filter_actions)(int ncid, int varid, int action, struct NC_Filterobject*);
+    int (*filter_actions)(int ncid, int varid, int action, void*);
 };
 
 #if defined(__cplusplus)

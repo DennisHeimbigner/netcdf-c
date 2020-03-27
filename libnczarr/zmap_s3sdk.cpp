@@ -39,7 +39,7 @@ typedef struct ZS3MAP {
 
 
 /* Forward */
-static NCZMAP_API zapi;
+extern NCZMAP_API nczs3api; // c++ will not allow static forward variables
 static int zs3exists(NCZMAP* map, const char* key);
 static int zs3len(NCZMAP* map, const char* key, size64_t* lenp);
 static int zs3define(NCZMAP* map, const char* key, size64_t len);
@@ -50,31 +50,35 @@ static int zs3writemeta(NCZMAP* map, const char* key, size64_t count, const char
 static int zs3search(NCZMAP* map, const char* prefix, int deep, NClist* matches);
 
 static int zs3close(NCZMAP* map, int deleteit);
-static int zlookupgroup(ZS3MAP*, NClist* segments, int nskip, int* grpidp);
-static int zlookupobj(ZS3MAP*, NClist* segments, int* objidp);
-static int zcreategroup(ZS3MAP* z3map, NClist* segments, int nskip, int* grpidp);
-static int zcreateobj(ZS3MAP*, NClist* segments, size64_t, int* objidp);
-static int zcreatedim(ZS3MAP*, size64_t dimsize, int* dimidp);
+static int z3createobj(ZS3MAP*, const char* key, size64_t len);
 
-static int s3clear(ZS3MAP* z3map);
 static int s3buildaccesspoint(ZS3MAP* zmap, NCbytes* apoint);
-static int s3exists(ZS3MAP* z3map);
+static int s3bucketexists(ZS3MAP* z3map);
 static int s3createbucket(ZS3MAP* z3map);
 static int s3createobject(ZS3MAP* z3map);
 static int s3bucketpath(const char* bucket, const char* region, char** bucketp);
 static Aws::S3::Model::BucketLocationConstraint s3findregion(const char* name);
+static int s3clear(ZS3MAP* z3map);
+static int isLegalBucketName(const char* bucket);
 
 /* Define the Dataset level API */
 
 static int zs3initialized = 0;
+static Aws::SDKOptions zs3options;
 
 static void
 zs3initialize(void)
 {
-    Aws::SDKOptions options;
-    options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Error;
-    Aws::InitAPI(options);
+    zs3options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Error;
+    Aws::InitAPI(zs3options);
     zs3initialized = 1;
+}
+
+static void
+zs3finalize(void)
+{
+    Aws:ShutdownAPI(zs3options);
+    zs3initialized = 0;
 }
 
 
@@ -82,12 +86,13 @@ static int
 zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
-    char* bucketurl = NULL;
     char* region = NULL;
     char* bucket = NULL;
     ZS3MAP* z3map = NULL;
     NClist* segments = nclistnew();
     NCURI* url = NULL;
+    const char* exception = NULL;
+    const char* message = NULL;
 	
     NC_UNUSED(flags);
     NC_UNUSED(parameters);
@@ -124,12 +129,10 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	segments = nclistnew();
         if((stat = nczm_split_delim(url->path,'/',segments))) goto done;
 	bucket = strdup((char*)nclistget(segments,0));
+	if(!isLegalBucketName(bucket))
+	    {stat = NC_EURL; goto done;}
     } else
 	{stat = NC_EURL; goto done;}
-
-    /* Standardize on path style URLs */
-    if((stat=s3bucketpath(bucket,region,&bucketurl)))
-	goto done;
 
     /* Build the z4 state */
     if((z3map = (ZS3MAP*)calloc(1,sizeof(ZS3MAP))) == NULL)
@@ -139,27 +142,59 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     z3map->map.url = strdup(path);
     z3map->map.mode = mode;
     z3map->map.flags = flags;
-    z3map->map.api = (NCZMAP_API*)&zapi;
+    z3map->map.api = (NCZMAP_API*)&nczs3api;
     z3map->bucket = bucket; /* bucket name */
     z3map->region = region; /* region */
-    z3map->bucketurl = bucketurl; /* url prefix in path style */
-    bucket = (region = (bucketurl = NULL));
+    region = (bucket = NULL);
 
+    {
+	int exists = 0;
+        /* Does bucket already exist */
+	Aws::S3::S3Client s3_client(z3map->config);
+        auto result = s3_client.ListBuckets();
+        if(!result.IsSuccess()) {
+	    exception = strdup(result.GetError().GetExceptionName().c_str());
+    	    message = strdup(result.GetError().GetMessage().c_str());
+	    goto done;
+	}
+        Aws::Vector<Aws::S3::Model::Bucket> bucket_list = result.GetResult().GetBuckets();
+        for(auto const &awsbucket : bucket_list) {
+	   const char* name = awsbucket.GetName().c_str();
+	   if(strcmp(name,bucket)==0) {exists = 1; break;}
+        }
+	if(!exists) {
+	    /* create it */
+            const Aws::S3::Model::BucketLocationConstraint &awsregion = s3findregion(region);
+	    if(awsregion == Aws::S3::Model::BucketLocationConstraint::NOT_SET)
+	        {stat = NC_EURL; goto done;}
+	    /* Set up the request */
+	    Aws::S3::Model::CreateBucketRequest create_request;
+	    create_request.SetBucket(bucket);
+            /* Specify the region as a location constraint */
+            Aws::S3::Model::CreateBucketConfiguration bucket_config;
+            bucket_config.SetLocationConstraint(awsregion);
+            create_request.SetCreateBucketConfiguration(bucket_config);
+	    /* Create the bucket */
+            auto create_result = s3_client.CreateBucket(create_request);
+            if(!create_result.IsSuccess()) {
+		exception = strdup(create_result.GetError().GetExceptionName().c_str());
+		message = strdup(create_result.GetError().GetMessage().c_str());
+		goto done;
+	    }
+	}
+        /* Delete objects in bucket */
+        s3clear(z3map);
+    }
+    
     if(mapp) *mapp = (NCZMAP*)z3map;    
 
-    /* If bucket does not exist, create it */
-    if((stat=s3exists(z3map))) {
-	if((stat = s3createbucket(z3map))) goto done;
-    }
-
-    /* Delete objects in bucket */
-    s3clear(z3map);
-
 done:
+    if(exception) {
+        nclog(NCLOGERR,"%s: %s",exception,message);
+    }
     ncurifree(url);
     nullfree(region);
     nullfree(bucket);
-    nullfree(bucketurl);
     if(stat) zs3close((NCZMAP*)z3map,1);
     return (stat);
 }
@@ -170,7 +205,6 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     int stat = NC_NOERR;
     char* region = NULL;
     char* bucket = NULL;
-    char* bucketurl = NULL;
     ZS3MAP* z3map = NULL;
     NClist* segments = nclistnew();
     NCURI* url = NULL;
@@ -213,10 +247,6 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     } else
 	{stat = NC_EURL; goto done;}
 
-    /* Standardize on path style URLs */
-    if((stat=s3bucketpath(bucket,region,&bucketurl)))
-	goto done;
-
     /* Build the z4 state */
     if((z3map = (ZS3MAP*)calloc(1,sizeof(ZS3MAP))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
@@ -225,11 +255,10 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     z3map->map.url = strdup(path);
     z3map->map.mode = mode;
     z3map->map.flags = flags;
-    z3map->map.api = (NCZMAP_API*)&zapi;
+    z3map->map.api = (NCZMAP_API*)&nczs3api;
     z3map->bucket = bucket; /* bucket name */
     z3map->region = region; /* region */
-    z3map->bucketurl = bucketurl; /* url prefix in path style */
-    bucket = (region = (bucketurl = NULL));
+    bucket = (region = NULL);
 
     z3map->config.scheme = Aws::Http::Scheme::HTTPS;
     z3map->config.region = z3map->region;
@@ -242,9 +271,14 @@ done:
     ncurifree(url);
     nullfree(region);
     nullfree(bucket);
-    nullfree(bucketurl);
     if(stat) zs3close((NCZMAP*)z3map,0);
     return (stat);
+}
+
+static int
+isLegalBucketName(const char* bucket)
+{
+    return 1;
 }
 
 /**************************************************/
@@ -267,7 +301,7 @@ zs3len(NCZMAP* map, const char* key, size64_t* lenp)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map;
-    Aws::S3::S3Client s3_client;
+    Aws::S3::S3Client s3_client(z3map->config);
     Aws::S3::Model::ListObjectsRequest objects_request;
     objects_request.WithBucket(z3map->bucket);
     objects_request.SetMarker(key);
@@ -275,11 +309,11 @@ zs3len(NCZMAP* map, const char* key, size64_t* lenp)
     auto list_objects_outcome = s3_client.ListObjects(objects_request);
     if(list_objects_outcome.IsSuccess()) {
 	Aws::Vector<Aws::S3::Model::Object> object_list = list_objects_outcome.GetResult().GetContents();
-	if(object_list.size() != 1) {
+	if(object_list.size() != 1)
 	    {stat = NC_EACCESS; goto done;}
         if(lenp) *lenp = (size64_t)(object_list.front().GetSize());
     } else{
-        nclog(NCLOGDEBUG,"%s",list_objects_outcome.GetError().GetExceptionName());
+        nclog(NCLOGERR,"%s",list_objects_outcome.GetError().GetExceptionName());
 	stat = NC_ES3;
 	goto done;
     }
@@ -294,11 +328,11 @@ zs3define(NCZMAP* map, const char* key, size64_t len)
     int grpid;
     ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
 
-    if((stat = zs3exists(z3map,key)) == NC_NOERR) 
+    if((stat = zs3exists(map,key)) == NC_NOERR) 
 	goto done; /* Already exists */
     else if(stat != NC_EACCESS) /* Some other kind of failure */
 	goto done;
-    if((stat = zcreateobj(???,segments,len,&grpid)))
+    if((stat = z3createobj(z3map,key,len)))
 	goto done;
 
 done:
@@ -309,42 +343,23 @@ static int
 zs3read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content)
 {
     int stat = NC_NOERR;
-    ZFMAP* zfmap = (ZFMAP*)map; /* cast to true type */
-    Aws::S3::S3Client s3_client(z3map->clientConfig);
+    ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
+    Aws::S3::S3Client s3_client(z3map->config);
     Aws::S3::Model::GetObjectRequest object_request;
 
     object_request.SetBucket(z3map->bucket);
     object_request.SetKey(key);
-    object_request.SetContentLength((long long)count);
-    auto writebuf = Aws::MakeShared<oMemStream>();
-    object_request.SetBody(writebuf);
-    auto put_object_outcome = s3_client.PutObject(object_request);
-    if(!put_object_outcome.IsSuccess()) {
-        auto error = put_object_outcome.GetError();
+    auto get_object_result = s3_client.GetObject(object_request);
+    if(!get_object_result.IsSuccess()) {
+        auto error = get_object_result.GetError();
         nclog(NCLOGERR,"%s: %s\n",
  		error.GetExceptionName(),
                 error.GetMessage());
         stat = NC_ES3;
 	goto done;
+    } else {
+        Aws::IOStream &result = get_object_result.GetResultWithOwnership().GetBody();
     }
-var s3Client = new AmazonS3Client(AccessKeyId, SecretKey, Amazon.RegionEndpoint.USEast1);
-    using (s3Client)
-    {
-        MemoryStream ms = new MemoryStream();
-        GetObjectRequest getObjectRequest = new GetObjectRequest();
-        getObjectRequest.BucketName = BucketName;
-        getObjectRequest.Key = awsFileKey;
-
-        using (var getObjectResponse = s3Client.GetObject(getObjectRequest))
-        {
-            getObjectResponse.ResponseStream.CopyTo(ms);
-        }
-        var download = new FileContentResult(ms.ToArray(), "image/png"); //"application/pdf"
-        download.FileDownloadName = ToFilePath;
-        return download;
-    }
-
-
 done:
     return (stat);
 }
@@ -353,19 +368,21 @@ static int
 zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content)
 {
     int stat = NC_NOERR;
-    ZFMAP* zfmap = (ZFMAP*)map; /* cast to true type */
-    Aws::S3::S3Client s3_client(z3map->clientConfig);
+    ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
+    Aws::S3::S3Client s3_client(z3map->config);
     Aws::S3::Model::PutObjectRequest object_request;
+
     object_request.SetBucket(z3map->bucket);
     object_request.SetKey(key);
-    object_request.SetContentLength((long long)count);
-    auto readbuf = Aws::MakeShared<iMemStream>(content,count);
-    object_request.SetBody(readbuf);
-    auto put_object_outcome = s3_client.PutObject(object_request);
-    if(!put_object_outcome.IsSuccess()) {
-        auto error = put_object_outcome.GetError();
+
+    auto data = Aws::MakeShared<Aws::StringStream>("PutObjectInputStream", std::stringstream::in | std::stringstream::out | std::stringstream::binary);
+    data->write(reinterpret_cast<const char*>(content), count);
+    object_request.SetBody(data);
+    auto put_object_result = s3_client.PutObject(object_request);
+    if(!put_object_result.IsSuccess()) {
+        auto error = put_object_result.GetError();
         nclog(NCLOGERR,"%s: %s\n",
- 		error.GetExceptionName(),
+		error.GetExceptionName(),
                 error.GetMessage());
         stat = NC_ES3;
 	goto done;
@@ -393,13 +410,10 @@ zs3close(NCZMAP* map, int deleteit)
     ZS3MAP* z3map = (ZS3MAP*)map;
 
     if(deleteit)
-        deletetree(z3map);
+        s3clear(z3map);
     nullfree(z3map->bucket);
     nullfree(z3map->region);
-    nullfree(z3map->bucketurl);
-    nullfree(z3map->accountid);
-    ~z3map->config();
-    Aws::ShutdownAPI(z3map->options);
+    delete &z3map->config;
 
 done:
     nullfree(z3map);
@@ -413,18 +427,17 @@ In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
 */
 static int
-zs3search(NCZMAP* map, const char* prefix, int deep, NClist* matches)
+zs3search(NCZMAP* map, const char* prefix, NClist* matches)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map;
-    Aws::S3::S3Client s3_client(zs3map->config);
+    Aws::S3::S3Client s3_client(z3map->config);
     Aws::S3::Model::ListObjectsRequest objects_request;
 
     objects_request.WithBucket(z3map->bucket);
 
     /* Build the search query */
-    if(!deep)
-        objects_request.SetDelimiter("/");
+//    if(!deep) objects_request.SetDelimiter("/");
     objects_request.SetPrefix(prefix);
 
     auto list_objects_outcome = s3_client.ListObjects(objects_request);
@@ -432,7 +445,8 @@ zs3search(NCZMAP* map, const char* prefix, int deep, NClist* matches)
         Aws::Vector<Aws::S3::Model::Object> object_list =
             list_objects_outcome.GetResult().GetContents();
         for (auto const &s3_object : object_list) {
-	    nclistpush(matches,(const char*)s3_object.GetKey());
+	    const char* s = strdup(s3_object.GetKey().c_str());
+	    nclistpush(matches,s);
         }
     } else {
         nclog(NCLOGERR,"%s: %s",
@@ -454,22 +468,18 @@ static int
 z3createobj(ZS3MAP* z3map, const char* key, size64_t size)
 {
     int stat = NC_NOERR;
-    Aws::S3::S3Client s3_client(z3map->clientConfig);
+    Aws::S3::S3Client s3_client(z3map->config);
     Aws::S3::Model::PutObjectRequest object_request;
-    
 
     object_request.SetBucket(z3map->bucket);
     object_request.SetKey(key);
-    object_request.SetContentLength(0);
-    char* emptydata[1] = 0;
-    struct iMemStream memstream(emptydata,0);
-    const std::shared_ptr<Aws::IOStream> input_data = 
-        Aws::MakeShared<MemStream>(emptydata,0);
-    object_request.SetBody(input_data);
-    auto put_object_outcome = s3_client.PutObject(object_request);
-    if(!put_object_outcome.IsSuccess()) {
-        auto error = put_object_outcome.GetError();
-        nclog(NCLOGERR,"%s: %s",error.GetExceptionName(),error.getMessage());
+    auto data = Aws::MakeShared<Aws::StringStream>("PutObjectInputStream", std::stringstream::in | std::stringstream::out | std::stringstream::binary);
+    data->write("", 0);
+    object_request.SetBody(data);
+
+    auto put_result = s3_client.PutObject(object_request);
+    if(!put_result.IsSuccess()) {
+        nclog(NCLOGERR,"%s: %s",put_result.GetError().GetExceptionName(),put_result.GetError().GetMessage());
         stat = NC_ES3;
 	goto done;
     }
@@ -480,10 +490,75 @@ done:
 /**************************************************/
 /* S3 Utilities */
 
+#if 0
+static int
+s3bucketexists(ZS3MAP* z3map, const char* bucket)
+{
+    int stat = NC_NOERR;
+    Aws::S3::S3Client s3_client(z3map->config);
+    Aws::S3::Model::ListObjectsRequest objects_request;
+    objects_request.WithBucket(z3map->bucket);
+    objects_request.SetMarker(key);
+    objects_request.SetMaxKeys(1);
+    auto list_objects_outcome = s3_client.ListObjects(objects_request);
+    if(list_objects_outcome.IsSuccess()) {
+	Aws::Vector<Aws::S3::Model::Object> object_list = list_objects_outcome.GetResult().GetContents();
+	if(object_list.size() != 1)
+	    {stat = NC_EACCESS; goto done;}
+        if(lenp) *lenp = (size64_t)(object_list.front().GetSize());
+    } else{
+        nclog(NCLOGERR,"%s",list_objects_outcome.GetError().GetExceptionName());
+	stat = NC_ES3;
+	goto done;
+    }
+}
+#endif
+
+static int
+s3clear(ZS3MAP* z3map)
+{
+    int stat = NC_NOERR;
+    Aws::S3::S3Client s3_client(z3map->config);
+    Aws::S3::Model::ListObjectsRequest list_request;
+    Aws::S3::Model::DeleteObjectRequest delete_request;
+
+    list_request.WithBucket(z3map->bucket);
+    /* Build the search query */
+    list_request.SetPrefix("/");
+    auto list_objects_outcome = s3_client.ListObjects(list_request);
+    if(list_objects_outcome.IsSuccess()) {
+        Aws::Vector<Aws::S3::Model::Object> object_list =
+            list_objects_outcome.GetResult().GetContents();
+        for (auto const &s3_object : object_list) {
+	    const char* key = strdup(s3_object.GetKey().c_str());
+	    /* Delete this key object */
+	    delete_request.WithBucket(z3map->bucket);
+    	    delete_request.WithKey(key);
+	    auto delete_result = s3_client.DeleteObject(delete_request);
+	    if(!delete_result.IsSuccess()) {
+		nclog(NCLOGERR,"5s: %s",
+			delete_result.GetError().GetExceptionName(),
+			delete_result.GetError().GetMessage());
+		stat = NC_ES3;
+		goto done;
+	    }
+        }
+    } else {
+        nclog(NCLOGERR,"%s: %s",
+            list_objects_outcome.GetError().GetExceptionName(),
+            list_objects_outcome.GetError().GetMessage());
+	stat = NC_ES3;
+	goto done;
+    }
+
+done:
+    return THROW(stat);
+}
+
 static Aws::S3::Model::BucketLocationConstraint
 s3findregion(const char* name)
 {
-    return Aws::S3::Model::BucketLocationConstraint::BucketLocationConstraintMapper::BucketLocationConstraintMapper::GetBucketLocationConstraintForName(name);
+    return Aws::S3::Model::BucketLocationConstraintMapper::GetBucketLocationConstraintForName(name);
 }
 
 struct MemBuf: std::streambuf {
@@ -493,30 +568,19 @@ struct MemBuf: std::streambuf {
     }
 };
 
-struct iMemstream: virtual MemBuf, std::istream {
-    iMemstream(char const* base, size_t size)
-        : MemBuf((char*)base, size)
-        , std::ostream(static_cast<std::streambuf*>(this)) {
-    }
-};
-
-struct oMemstream: virtual MemBuf, std::ostream {
-    oMemstream(char * base, size_t size)
-        : MemBuf(base, size)
-        , std::ostream(static_cast<std::streambuf*>(this)) {
-    }
-};
 
 /**************************************************/
 /* External API objects */
 
+extern "C" NCZMAP_DS_API zmap_s3;
 NCZMAP_DS_API zmap_s3 = {
     NCZM_S3_V1,
     zs3create,
     zs3open,
 };
 
-static NCZMAP_API zapi = {
+NCZMAP_API
+nczs3api = {
     NCZM_S3_V1,
     zs3exists,
     zs3len,

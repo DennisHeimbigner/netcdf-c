@@ -7,11 +7,13 @@
 
 #include <aws/core/Aws.h> /* Needed for InitAPI, SDKOptions, Logging,
                              and ShutdownAPI */
-#if 0
-#include <aws/core/utils/memory/stl/AwsStringStream.h> 
-#endif
 #include <aws/s3/S3Client.h>
+#include <aws/s3/model/Object.h>
+#include <aws/s3/model/ListObjectsRequest.h>
+#include <aws/s3/model/GetObjectRequest.h>
 #include <aws/s3/model/PutObjectRequest.h>
+#include <aws/s3/model/DeleteObjectRequest.h>
+#include <aws/s3/model/CreateBucketRequest.h>
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>

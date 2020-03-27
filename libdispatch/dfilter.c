@@ -94,7 +94,7 @@ Parse a filter spec string into a NC_FILTER_SPEC*
 */
 
 EXTERNL int
-NC_parsefilterspec(const char* txt, int format, NC_Filterspec** specp)
+NC_filter_parsespec(const char* txt, int format, NC4_Filterspec** specp)
 {
     int stat = NC_NOERR;
     int sstat; /* for scanf */
@@ -249,11 +249,10 @@ NC_parsefilterspec(const char* txt, int format, NC_Filterspec** specp)
     if(specp != NULL) {
         NC4_Filterspec* pfs = calloc(1,sizeof(NC4_Filterspec));
         if(pfs == NULL) {stat = NC_ENOMEM; goto done;}
-        pfs->hdr.hdr.format = format;
         pfs->filterid = id;
         pfs->nparams = nparams;
         pfs->params = ulist; ulist = NULL;
-	*specp = (NC_Filterspec*)pfs;
+	*specp = pfs;
     }
 
 done:
@@ -276,7 +275,7 @@ Parse a string containing multiple '|' separated filter specs.
 */
 
 EXTERNL int
-NC_parsefilterlist(const char* txt0, int* formatp, size_t* nspecsp, NC_Filterspec*** vectorp)
+NC_filter_parselist(const char* txt0, int* formatp, size_t* nspecsp, NC4_Filterspec*** vectorp)
 {
     int stat = NC_NOERR;
     int format = NC_FILTER_FORMAT_HDF5; /* default */
@@ -336,14 +335,14 @@ NC_parsefilterlist(const char* txt0, int* formatp, size_t* nspecsp, NC_Filterspe
 	    q = strchr(p,'|');
 	    if(q == NULL) q = p + strlen(p); /* fake it */
 	    *q = '\0';
-	    if(NC_parsefilterspec(p,format,(NC_Filterspec**)&aspec))
+	    if(NC_filter_parsespec(p,format,&aspec))
 	        {stat = NC_EINVAL; goto done;}
 	    vector[count] = aspec; aspec = NULL;
 	    p = q+1; /* ok because of double nul */
 	}
     }
     if(nspecsp) *nspecsp = nspecs;
-    if(vectorp) *vectorp = (nspecs == 0 ? NULL : (NC_Filterspec**)vector);
+    if(vectorp) *vectorp = (nspecs == 0 ? NULL : vector);
     vector = NULL;
 done:
     nullfree(spec0);
@@ -485,12 +484,11 @@ nc_inq_var_filterids(int ncid, int varid, size_t* nfiltersp, unsigned int* ids)
    TRACE(nc_inq_var_filterids);
 
    memset(&ncids,0,sizeof(ncids));
-   ncids.hdr.format = NC_FILTER_FORMAT_HDF5;
-   ncids.sort = NC_FILTER_SORT_IDS;
+   ncids.usort = NC_FILTER_UNION_IDS;
    ncids.u.ids.nfilters = (nfiltersp?*nfiltersp:0);
    ncids.u.ids.filterids = ids;
    
-   if((stat = ncp->dispatch->filter_actions(ncid,varid, NCFILTER_FILTERIDS, (NC_Filterobject*)&ncids)) == NC_NOERR) {
+   if((stat = ncp->dispatch->filter_actions(ncid,varid, NCFILTER_FILTERIDS, &ncids)) == NC_NOERR) {
        if(nfiltersp) *nfiltersp = ncids.u.ids.nfilters;
    }
    return stat;
@@ -532,13 +530,12 @@ nc_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, u
    TRACE(nc_inq_var_filter_info_hdf5);
 
    memset(&spec,0,sizeof(spec));
-   spec.hdr.format = NC_FILTER_FORMAT_HDF5;
-   spec.sort = NC_FILTER_SORT_SPEC;
+   spec.usort = NC_FILTER_UNION_SPEC;
    spec.u.spec.filterid = id;
    spec.u.spec.nparams = (nparamsp?*nparamsp:0);
    spec.u.spec.params = params;
 
-   if((stat = ncp->dispatch->filter_actions(ncid,varid,NCFILTER_INFO,(NC_Filterobject*)&spec)) == NC_NOERR) {
+   if((stat = ncp->dispatch->filter_actions(ncid,varid,NCFILTER_INFO,&spec)) == NC_NOERR) {
        if(nparamsp) *nparamsp = spec.u.spec.nparams;
    }
    return stat;
@@ -580,13 +577,12 @@ nc_inq_var_filter(int ncid, int varid, unsigned int* idp, size_t* nparamsp, unsi
    TRACE(nc_inq_var_filter);
 
    memset(&spec,0,sizeof(spec));
-   spec.hdr.format = NC_FILTER_FORMAT_HDF5;
-   spec.sort = NC_FILTER_SORT_SPEC;
+   spec.usort = NC_FILTER_UNION_SPEC;
    spec.u.spec.filterid = (idp?*idp:0);
    spec.u.spec.nparams = (nparamsp?*nparamsp:0);
    spec.u.spec.params = params;
 
-   if((stat=ncp->dispatch->filter_actions(ncid,varid,NCFILTER_INQ,(NC_Filterobject*)&spec)))
+   if((stat=ncp->dispatch->filter_actions(ncid,varid,NCFILTER_INQ,&spec)))
       return stat;
    if(idp) *idp = spec.u.spec.filterid;
    if(nparamsp) *nparamsp = spec.u.spec.nparams;
@@ -621,12 +617,11 @@ nc_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const un
     TRACE(nc_def_var_filter_hdf5);
 
     memset(&spec,0,sizeof(spec));
-    spec.hdr.format = NC_FILTER_FORMAT_HDF5;
-    spec.sort = NC_FILTER_SORT_SPEC;
+    spec.usort = NC_FILTER_UNION_SPEC;
     spec.u.spec.filterid = id;
     spec.u.spec.nparams = nparams;
     spec.u.spec.params = (unsigned int*)params; /* discard const */
-    return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_DEF,(NC_Filterobject*)&spec);
+    return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_DEF,&spec);
 }
 
 /**
@@ -651,10 +646,9 @@ nc_var_filter_remove(int ncid, int varid, unsigned int id)
     TRACE(nc_var_filter_hdf5_remove);
 
     memset(&spec,0,sizeof(spec));
-    spec.hdr.format = NC_FILTER_FORMAT_HDF5;
-    spec.sort = NC_FILTER_SORT_SPEC;
+    spec.usort = NC_FILTER_UNION_SPEC;
     spec.u.spec.filterid = id;
-    return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_REMOVE,(NC_Filterobject*)&spec);
+    return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_REMOVE,&spec);
 }
 
 /**************************************************/
@@ -680,7 +674,7 @@ nc_inq_ncid().
 \author Dennis Heimbigner
 */
 EXTERNL int
-ncx_inq_var_filterids(int ncid, int varid, size_t* nfiltersp, char*** ids)
+nc_inq_var_filterx_ids(int ncid, int varid, size_t* nfiltersp, char*** ids)
 {
    NC* ncp;
    int stat = NC_check_id(ncid,&ncp);
@@ -690,12 +684,11 @@ ncx_inq_var_filterids(int ncid, int varid, size_t* nfiltersp, char*** ids)
    TRACE(ncx_inq_var_filterids);
 
    memset(&ncids,0,sizeof(ncids));
-   ncids.hdr.format = NCX_FILTER_FORMAT;
-   ncids.sort = NC_FILTER_SORT_IDS;
+   ncids.usort = NC_FILTER_UNION_IDS;
    ncids.u.ids.nfilters = (nfiltersp?*nfiltersp:0);
    ncids.u.ids.filterids = (*ids == NULL ? NULL : *ids);
    
-   if((stat = ncp->dispatch->filter_actions(ncid,varid, NCFILTER_FILTERIDS, (NC_Filterobject*)&ncids)) == NC_NOERR) {
+   if((stat = ncp->dispatch->filter_actions(ncid,varid, NCFILTER_FILTERIDS, &ncids)) == NC_NOERR) {
 	if(nfiltersp) *nfiltersp = ncids.u.ids.nfilters;
 	if(ids) {*ids = ncids.u.ids.filterids; ncids.u.ids.filterids = NULL;}
    }
@@ -728,7 +721,7 @@ Note: the caller must allocate and free.
 \author Dennis Heimbigner
 */
 EXTERNL int
-ncx_inq_var_filter_info(int ncid, int varid, const char* id, char** paramsp)
+nc_inq_var_filterx_info(int ncid, int varid, const char* id, char** paramsp)
 {
    NC* ncp;
    int stat = NC_check_id(ncid,&ncp);
@@ -738,12 +731,11 @@ ncx_inq_var_filter_info(int ncid, int varid, const char* id, char** paramsp)
    TRACE(ncx_inq_var_filter_info);
 
    memset(&spec,0,sizeof(spec));
-   spec.hdr.format = NCX_FILTER_FORMAT;
-   spec.sort = NC_FILTER_SORT_SPEC;
+   spec.usort = NC_FILTER_UNION_SPEC;
    spec.u.spec.filterid = (char*)id;
    spec.u.spec.params = NULL;
 
-   if((stat = ncp->dispatch->filter_actions(ncid,varid,NCFILTER_INFO,(NC_Filterobject*)&spec)) == NC_NOERR) {
+   if((stat = ncp->dispatch->filter_actions(ncid,varid,NCFILTER_INFO,&spec)) == NC_NOERR) {
        if(paramsp)
            *paramsp = strdup(spec.u.spec.params);
    }
@@ -768,7 +760,7 @@ ncx_inq_var_filter_info(int ncid, int varid, const char* id, char** paramsp)
 */
 
 EXTERNL int
-ncx_def_var_filter(int ncid, int varid, const char* id, const char* params)
+nc_def_var_filterx(int ncid, int varid, const char* id, const char* params)
 {
     NC* ncp;
     NCX_FILTER_OBJ spec;
@@ -778,11 +770,10 @@ ncx_def_var_filter(int ncid, int varid, const char* id, const char* params)
     TRACE(ncx_def_var_filter);
 
     memset(&spec,0,sizeof(spec));
-    spec.hdr.format = NCX_FILTER_FORMAT;
-    spec.sort = NC_FILTER_SORT_SPEC;
+    spec.usort = NC_FILTER_UNION_SPEC;
     spec.u.spec.filterid = (char*)id;
     spec.u.spec.params = (char*)params; /* discard const */
-    return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_DEF,(NC_Filterobject*)&spec);
+    return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_DEF,&spec);
 }
 
 /**
@@ -797,7 +788,7 @@ ncx_def_var_filter(int ncid, int varid, const char* id, const char* params)
    @author Dennis Heimbigner
 */
 EXTERNL int
-ncx_var_filter_remove(int ncid, int varid, const char* id)
+nc_var_filterx_remove(int ncid, int varid, const char* id)
 {
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
@@ -807,10 +798,9 @@ ncx_var_filter_remove(int ncid, int varid, const char* id)
     TRACE(ncx_var_filter_remove);
 
     memset(&spec,0,sizeof(spec));
-    spec.hdr.format = NCX_FILTER_FORMAT;
-    spec.sort = NC_FILTER_SORT_SPEC;
+    spec.usort = NC_FILTER_UNION_SPEC;
     spec.u.spec.filterid = (char*)id;
-    return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_REMOVE,(NC_Filterobject*)&spec);
+    return ncp->dispatch->filter_actions(ncid,varid,NCFILTER_REMOVE,&spec);
 }
 
 /**************************************************/

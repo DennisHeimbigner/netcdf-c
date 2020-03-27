@@ -478,8 +478,9 @@ by the desired type. */
 #define NC_EINMEMORY     (-135)    /**< In-memory file error */
 #define NC_ENOFILTER     (-136)    /**< Filter not defined on variable. */
 #define NC_ENCZARR       (-137)    /**< Error at NCZarr layer. */
+#define NC_ES3           (-138)    /**< Generic S3 error */
 
-#define NC4_LAST_ERROR   (-138)    /**< @internal All netCDF errors > this. */
+#define NC4_LAST_ERROR   (-139)    /**< @internal All netCDF errors > this. */
 
 /* Errors for all remote access methods(e.g. DAP and CDMREMOTE)*/
 #define NC_EURL         (NC_EDAPURL)   /**< Malformed URL */

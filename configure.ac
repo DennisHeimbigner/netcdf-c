@@ -456,8 +456,9 @@ AC_LANG_PUSH([C++])
 AC_SEARCH_LIBS([aws_allocator_is_valid],[aws-c-common aws-cpp-sdk-s3 aws-cpp-sdk-core], [have_aws=yes],[have_aws=no])
 AC_LANG_POP
 if test "x$have_aws" = xno ; then
-      AC_MSG_ERROR([libaws required for nczarr. Install libaws or build with --disable-nczarr.])
+    AC_MSG_ERROR([libaws required for nczarr. Install libaws or build with --disable-nczarr.])
 fi
+AC_DEFINE([ENABLE_S3_SDK], [1], [if true, build libnczarr with S3 support enabled])
 
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.

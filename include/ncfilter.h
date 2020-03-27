@@ -27,16 +27,15 @@
 #define NCFILTER_CLIENT_UNREG	11
 #define NCFILTER_CLIENT_INQ	12
 
-typedef enum NC_FILTER_SORT {
-	NC_FILTER_SORT_SPEC=((int)1),
-	NC_FILTER_SORT_IDS=((int)2),
-	NC_FILTER_SORT_CLIENT=((int)3),
-} NC_FILTER_SORT;
+typedef enum NC_FILTER_UNION {
+	NC_FILTER_UNION_SPEC=((int)1),
+	NC_FILTER_UNION_IDS=((int)2),
+	NC_FILTER_UNION_CLIENT=((int)3),
+} NC_FILTER_UNION;
 
 /* Provide structs to pass args to filter_actions function for HDF5*/
 
 typedef struct NC_FILTER_SPEC_HDF5 {
-    NC_Filterspec format;
     int active;            /**< true iff HDF5 library was told to activate filter */
     unsigned int filterid; /**< ID for arbitrary filter. */
     size_t nparams;        /**< nparams for arbitrary filter. */
@@ -56,8 +55,7 @@ typedef struct NC_FILTER_CLIENT_HDF5 {
 } NC_FILTER_CLIENT_HDF5;
 
 typedef struct NC_FILTER_OBJ_HDF5 {
-    NC_Filterobject hdr; /* So we can cast it */
-    NC_FILTER_SORT sort; /* discriminate union */
+    NC_FILTER_UNION usort; /* discriminate union */
     union {
         NC_FILTER_SPEC_HDF5 spec;
         NC_FILTERIDS_HDF5 ids;
@@ -71,7 +69,7 @@ extern void NC4_freefilterspec(NC_FILTER_SPEC_HDF5*);
 /* Provide structs to pass args to filter_actions function using strings */
 
 typedef struct NCX_FILTER_SPEC {
-    NC_Filterspec format;
+//    NC_Filterspec format;
     int active;            /**< true iff underlying library was told to activate filter */
     char* filterid;	   /**< ID for arbitrary filter. */
     char* params;  	   /**< Params for arbitrary filter. */
@@ -90,8 +88,7 @@ typedef struct NCX_FILTER_CLIENT {
 } NCX_FILTER_CLIENT;
 
 typedef struct NCX_FILTER_OBJ {
-    NC_Filterobject hdr; /* So we can cast it */
-    NC_FILTER_SORT sort; /* discriminate union */
+    NC_FILTER_UNION usort; /* discriminate union */
     union {
         NCX_FILTER_SPEC spec;
         NCX_FILTERIDS ids;

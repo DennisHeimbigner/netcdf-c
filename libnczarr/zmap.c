@@ -39,6 +39,7 @@ object is defined by the common prefix model.
 
 extern NCZMAP_DS_API zmap_nc4;
 extern NCZMAP_DS_API zmap_file;
+extern NCZMAP_DS_API zmap_s3;
 
 /**************************************************/
 
@@ -73,6 +74,12 @@ nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* 
 	if(filepath == NULL)
 	     {stat = NC_ENOTNC; goto done;}
         stat = zmap_file.create(filepath, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
+    case NCZM_S3:
+	if(filepath == NULL)
+	     {stat = NC_ENOTNC; goto done;}
+        stat = zmap_s3.create(filepath, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
     default:
@@ -120,6 +127,12 @@ nczmap_open(NCZM_IMPL impl, const char *path0, int mode, size64_t flags, void* p
 	if(filepath == NULL)
 	     {stat = NC_ENOTNC; goto done;}
         stat = zmap_file.open(filepath, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
+    case NCZM_S3:
+	if(filepath == NULL)
+	     {stat = NC_ENOTNC; goto done;}
+        stat = zmap_s3.open(filepath, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
     default:
