@@ -231,7 +231,7 @@ extern "C" {
     EXTERNL int NC_NOTNC4_inq_user_type(int, nc_type, char *, size_t *,
                                         nc_type *, size_t *, int *);
     EXTERNL int NC_NOTNC4_inq_typeid(int, const char *, nc_type *);
-    EXTERNL int NC_NOTNC4_filter_actions(int, int, int, struct NC_Filterobject*);
+    EXTERNL int NC_NOTNC4_filter_actions(int, int, int, void*);
 
 #if defined(__cplusplus)
 }

@@ -211,7 +211,7 @@ typedef struct NC_VAR_INFO
     size_t chunk_cache_nelems;   /**< Number of slots in var chunk cache. */
     float chunk_cache_preemption; /**< Chunk cache preemtion policy. */
     void *format_var_info;       /**< Pointer to any binary format info. */
-    NClist* filters;             /**< List of filters to be applied to var data.  */
+    NClist* filters;             /**< List of filters to be applied to var data; technically format dependent */
 } NC_VAR_INFO_T;
 
 /** This is a struct to handle the field metadata from a user-defined

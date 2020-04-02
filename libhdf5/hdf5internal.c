@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "hdf5internal.h"
+#include "ncfilter.h"
 
 #undef DEBUGH5
 
@@ -609,6 +610,10 @@ close_vars(NC_GRP_INFO_T *grp)
                 H5Tclose(hdf5_att->native_hdf_typeid) < 0)
                 return NC_EHDFERR;
         }
+
+        /* reclaim the format_var_info object */
+	nullfree(var->format_var_info);
+
     }
 
     return NC_NOERR;

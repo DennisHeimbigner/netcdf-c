@@ -117,17 +117,17 @@ genc_netcdf(void)
 		for(k=0;k<special->nfilters;k++) {
 		    int i;
 		    size_t nparams;
-		    unsigned int* params;
-		    NC4_Filterspec* nfs = (NC4_Filterspec*)special->_Filters[k];
+		    char** params = NULL;
+		    NC_Filterspec* nfs = (NC_Filterspec*)special->_Filters[k];
 		    if(nfs->nparams == 0 || nfs->params == NULL) continue;
 	   	    bbClear(tmp);
 		    nparams = nfs->nparams;
 		    params = nfs->params;
 		    for(i=0;i<nparams;i++) {
-                        bbprintf(tmp,"%s%luU",
+                        bbprintf(tmp,"%s%s",
                             (i == 0?"":", "),params[i]);
 		    }
-                    bbprintf0(stmt,"static unsigned int %s_%d_filterparams[%d] = {",
+                    bbprintf0(stmt,"static char** %s_%d_filterparams[%d] = {",
                             cname(var),k,nparams);
                     codedump(stmt);
                     codedump(tmp);
@@ -519,13 +519,13 @@ genc_definespecialattributes(Symbol* vsym)
     if(special->flags & _FILTER_FLAG) {
 	int k;
 	for(k=0;k<special->nfilters;k++) {
-	     NC4_Filterspec* nfs = (NC4_Filterspec*)special->_Filters[k];
+	     NC_Filterspec* nfs = (NC_Filterspec*)special->_Filters[k];
 	     bbprintf0(stmt,
-	                "    stat = nc_def_var_filter(%s, %s, %u, %u, ",
+	                "    stat = nc_def_var_filter(%s, %s, %s, %lu ",
 	                groupncid(vsym->container),
 	                varncid(vsym),
 			nfs->filterid,
-			nfs->nparams
+			(unsigned long)nfs->nparams
 			);
 	    codedump(stmt);
 	    if(nfs->nparams == 0 || nfs->params == NULL)

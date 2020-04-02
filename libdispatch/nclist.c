@@ -259,6 +259,7 @@ nclistclone(NClist* l, int deep)
     clone = nclistnew();
     nclistsetalloc(clone,l->length+1); /* make room for final null */
     if(!deep) {
+        nclistsetlength(clone,l->length);
         memcpy((void*)clone->content,(void*)l->content,sizeof(void*)*l->length);
     } else { /*deep*/
 	int i;

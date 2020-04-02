@@ -6,8 +6,6 @@
 #include "includes.h"
 #include "nc_iter.h"
 #include "odom.h"
-#include "ncoffsets.h"
-#include "netcdf_aux.h"
 
 /**************************************************/
 /* Code for generating data lists*/

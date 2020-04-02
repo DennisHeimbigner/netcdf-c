@@ -10,6 +10,7 @@
 
 #include "netcdf.h"
 #include "netcdf_filter.h"
+#include "netcdf_aux.h"
 
 #undef DEBUG
 
@@ -193,15 +194,15 @@ main(int argc, char **argv)
     unsigned long long baseull;
     float basef;
     double based;
-    NC4_Filterspec* pfs = NULL;
+    NC_H5_Filterspec* pfs = NULL;
 
     printf("\nTesting filter parser.\n");
 
     buildbaseline(); /* Build our comparison vector */
 
-    stat = NC_parsefilterspec(spec,NC_FILTER_FORMAT_HDF5,(NC_Filterspec**)&pfs);
+    stat = ncaux_filter_parsespec(spec,&pfs);
     if(stat) {
-	fprintf(stderr,"NC_parsefilterspec failed\n");
+	fprintf(stderr,"ncaux_filter_parsespec failed\n");
 	exit(1);
     }
     
@@ -223,7 +224,7 @@ main(int argc, char **argv)
     /* signed long long */
     ul.ui[0] = pfs->params[10];
     ul.ui[1] = pfs->params[11];
-    NC4_filterfix8((unsigned char*)&ul.ll,1);
+    ncaux_filterfix8((unsigned char*)&ul.ll,1);
     memcpy(&basell,&baseline[10],8);
     if(ul.ll != basell)
 	mismatch2(10,pfs->params,"ul.ll");
@@ -231,7 +232,7 @@ main(int argc, char **argv)
     /* unsigned long long */
     ul.ui[0] = pfs->params[12];
     ul.ui[1] = pfs->params[13];
-    NC4_filterfix8((unsigned char*)&ul.ull,1);
+    ncaux_filterfix8((unsigned char*)&ul.ull,1);
     memcpy(&baseull,&baseline[12],8);
     if(ul.ull != baseull)
 	mismatch2(12,pfs->params,"ul.ull");
@@ -239,7 +240,7 @@ main(int argc, char **argv)
     /* double */
     ud.ui[0] = pfs->params[14];
     ud.ui[1] = pfs->params[15];
-    NC4_filterfix8((unsigned char*)&ud.d,1);
+    ncaux_filterfix8((unsigned char*)&ud.d,1);
     memcpy(&based,&baseline[14],8);
     if(ud.d != based)
 	mismatch2(14,pfs->params,"ud.d");

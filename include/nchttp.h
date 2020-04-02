@@ -12,9 +12,20 @@ typedef enum HTTPMETHOD {
 HTTPNONE=0, HTTPGET=1, HTTPPUT=2, HTTPPOST=3, HTTPHEAD=4
 } HTTPMETHOD;
 
-extern int nc_http_open(const char* objecturl, void** curlp, size64_t* filelenp);
-extern int nc_http_size(void* curl, const char* objecturl, size64_t* sizep);
-extern int nc_http_read(void* curl, const char* url, size64_t start, size64_t count, NCbytes* buf);
-extern int nc_http_close(void* curl);
+struct CURL; /* Forward */
+
+typedef struct NC_HTTP_STATE {
+    struct CURL* curl;
+    long httpcode;        
+    const char** headset; /* which headers to capture */
+    NClist* headers;
+    NCbytes* buf;
+} NC_HTTP_STATE;
+
+extern int nc_http_open(const char* objecturl, NC_HTTP_STATE** state, size64_t* lenp);
+extern int nc_http_size(NC_HTTP_STATE* state, const char* url, size64_t* sizep);
+extern int nc_http_read(NC_HTTP_STATE* state, const char* url, size64_t start, size64_t count, NCbytes* buf);
+extern int nc_http_close(NC_HTTP_STATE* state);
+extern int nc_http_headers(NC_HTTP_STATE* state, const NClist** headersp); /* only if headerson */
 
 #endif /*NCHTTP_H*/

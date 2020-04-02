@@ -138,29 +138,6 @@ done:
 
 /**************************************************/
 
-int
-NCZ_addfilter(NC_VAR_INFO_T* var, int active, const char* id, const char* inparams)
-{
-    int stat = NC_NOERR;
-    NCX_FILTER_SPEC* fi = NULL;
-
-    if(var->filters == NULL) {
-	if((var->filters = nclistnew())==NULL) return THROW(NC_ENOMEM);
-    }
-
-    if(id == NULL || inparams == NULL)
-        return THROW(NC_EINVAL);
-    
-    if((fi = calloc(1,sizeof(NC_FILTER_SPEC_HDF5))) == NULL)
-    	return THROW(NC_ENOMEM);
-
-    fi->active = active;
-    fi->filterid = strdup(id);
-    fi->params = strdup(inparams);
-    nclistpush(var->filters,fi);
-    return THROW(stat);
-}
-
 /**
  * @internal Define filter settings. Called by nc_def_var_filter().
  *
@@ -181,22 +158,20 @@ NCZ_addfilter(NC_VAR_INFO_T* var, int active, const char* id, const char* inpara
  * @author Dennis Heimbigner
  */
 int
-NCZ_filter_actions(int ncid, int varid, int op, NC_Filterobject* args)
+NCZ_filter_actions(int ncid, int varid, int op, void* args)
 {
     int stat = NC_NOERR;
     NC_GRP_INFO_T *grp = NULL;
     NC_FILE_INFO_T *h5 = NULL;
     NC_VAR_INFO_T *var = NULL;
-    NCX_FILTER_OBJ* obj = (NCX_FILTER_OBJ*)args;
+    NC_FILTERX_OBJ* obj = (NC_FILTERX_OBJ*)args;
+    NC_FILTERX_SPEC* spec = NULL;
+    char** xfilterids = NULL;
     size_t nfilters = 0;
-    size_t* nfiltersp = 0;
-    char** filterids = NULL;
-    char* id = NULL;
 
     LOG((2, "%s: ncid 0x%x varid %d op=%d", __func__, ncid, varid, op));
 
     if(args == NULL) return THROW(NC_EINVAL);
-    if(args->format != NC_FILTER_FORMAT_HDF5) return THROW(NC_EFILTER);
 
     /* Find info for this file and group and var, and set pointer to each. */
     if ((stat = nc4_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
@@ -208,14 +183,13 @@ NCZ_filter_actions(int ncid, int varid, int op, NC_Filterobject* args)
 
     switch (op) {
     case NCFILTER_DEF: {
-        NCX_FILTER_SPEC* spec;
-        if(obj->sort != NC_FILTER_SORT_SPEC) return THROW(NC_EFILTER);
+        if(obj->usort != NC_FILTER_UNION_SPEC) return THROW(NC_EFILTER);
         /* If the dataset has already been created, then it is too
          * late to set all the extra stuff. */
-        if (!(h5->flags & NC_INDEF)) return THROW(NC_EINDEFINE);
-        if (!var->ndims) return NC_NOERR; /* For scalars, ignore */
+        if (!(h5->flags & NC_INDEF)) {stat = THROW(NC_EINDEFINE); goto done;}
+        if (!var->ndims) goto done; /* For scalars, ignore */
         if (var->created)
-             return THROW(NC_ELATEDEF);
+             {stat = THROW(NC_ELATEDEF); goto done;}
         /* Filter => chunking */
         var->storage = NC_CHUNKED;
         /* Determine default chunksizes for this variable unless already specified */
@@ -225,74 +199,49 @@ NCZ_filter_actions(int ncid, int varid, int op, NC_Filterobject* args)
 	        goto done;
         }
         spec = &obj->u.spec;
-	if((stat = NCZ_addfilter(var,!FILTERACTIVE,spec->filterid,spec->params)))
+	if((stat = NC4_filterx_add(var,!FILTERACTIVE,spec)))
             goto done;
     } break;
-    case NCFILTER_INQ:
-	return THROW(NC_ENOTBUILT);
     case NCFILTER_FILTERIDS: {
-        if(obj->sort != NC_FILTER_SORT_IDS) return THROW(NC_EFILTER);
-	nfiltersp = &obj->u.ids.nfilters;
-	filterids = obj->u.ids.filterids;
-        if(nfiltersp) *nfiltersp = nfilters;
-	if(filterids) filterids[0] = NULL;
-        if(nfilters > 0 && filterids != NULL) {
+        if(obj->usort != NC_FILTER_UNION_IDS) return THROW(NC_EFILTER);
+	if((obj->u.ids.filterids = calloc(sizeof(char*),nfilters))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+        obj->u.ids.nfilters = nfilters;
+        if(nfilters > 0) {
 	    int k;
 	    for(k=0;k<nfilters;k++) {
-		NCX_FILTER_SPEC* f = (NCX_FILTER_SPEC*)nclistget(var->filters,k);
-		filterids[k] = f->filterid;
+		NC_FILTERX_SPEC* f = (NC_FILTERX_SPEC*)nclistget(var->filters,k);
+		if((obj->u.ids.filterids[k] = strdup(f->filterid)) == NULL)
+	    	    {stat = NC_ENOMEM; goto done;}
 	    }
 	}
 	} break;
     case NCFILTER_INFO: {
 	int k,found;
-        if(obj->sort != NC_FILTER_SORT_SPEC) return THROW(NC_EFILTER);
-	id = obj->u.spec.filterid;
+        if(obj->usort != NC_FILTER_UNION_SPEC) return THROW(NC_EFILTER);
         for(found=0,k=0;k<nfilters;k++) {
-	    NCX_FILTER_SPEC* f = (NCX_FILTER_SPEC*)nclistget(var->filters,k);
-	    if(strcmp(f->filterid,id)==0) {
-		if(obj->u.spec.params != NULL && f->params != NULL)
-		    f->params = strdup(obj->u.spec.params);
+	    NC_FILTERX_SPEC* f = (NC_FILTERX_SPEC*)nclistget(var->filters,k);
+	    if(strcasecmp(f->filterid,obj->u.spec.filterid)==0) {
+		obj->u.spec.nparams = f->nparams;
+		obj->u.spec.active = f->active;
+		if((stat = NC_filterx_copy(f->nparams,(const char**)f->params,&obj->u.spec.params)))
+		    goto done;
 		found = 1;
 		break;
 	    }
 	}
 	if(!found) {stat = NC_ENOFILTER; goto done;}
 	} break;
-    case NCFILTER_REMOVE: {
-	int k;
+    case NCFILTER_REMOVE:
         if (!(h5->flags & NC_INDEF)) return THROW(NC_EINDEFINE);
-        if(obj->sort != NC_FILTER_SORT_SPEC) return THROW(NC_EFILTER);
-	id = obj->u.spec.filterid;
-	/* Walk backwards */
-        for(k=nfilters-1;k>=0;k--) {
-	    NCX_FILTER_SPEC* f = (NCX_FILTER_SPEC*)nclistget(var->filters,k);
-	    if(strcmp(f->filterid,id)==0) {
-		if(f->active) {
-		    /* Remove from variable */
-#ifdef LOOK
-		    if((stat = NCZ_nczarr_remove_filter(var,id))) {stat = NC_ENOFILTER; goto done;}
-#endif
-		}
-		nclistremove(var->filters,k);
-		NCX_freefilterspec(f);
-	    }
-	}
-	} break;
+        if(obj->usort != NC_FILTER_UNION_SPEC) return THROW(NC_EFILTER);
+	if((stat = NC4_filterx_remove(var,obj->u.spec.filterid))) goto done;
+	break;
     default:
 	{stat = NC_EINTERNAL; goto done;}	
     }
 
 done:
+    NC_freestringvec(nfilters,xfilterids);
     return THROW(stat);
-}
-
-void
-NCX_freefilterspec(NCX_FILTER_SPEC* f)
-{
-    if(f) {
-        if(f->params != NULL) {free(f->params);}
-        if(f->filterid != NULL) {free(f->filterid);}
-	free(f);
-    }
 }

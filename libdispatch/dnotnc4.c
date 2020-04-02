@@ -26,7 +26,7 @@
  * @author Ed Hartnett
  */
 int
-NC_NOTNC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
+NC_NOTNC4_def_var_filter(int ncid, int varid, unsigned int  id, size_t nparams,
                          const unsigned int* parms)
 {
     return NC_ENOTNC4;
@@ -625,7 +625,11 @@ NC_NOTNC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
  * @author D. Heimbigner
  */
 int
-NC_NOTNC4_filter_actions(int ncid, int varid, int action, struct NC_Filterobject* spec)
+NC_NOTNC4_filter_actions(int ncid, int varid, int action, void* spec)
 {
+    NC_UNUSED(ncid);
+    NC_UNUSED(varid);
+    NC_UNUSED(action);
+    NC_UNUSED(spec);
     return NC_ENOTNC4;
 }

@@ -55,8 +55,6 @@ size_t nc4_chunk_cache_size = CHUNK_CACHE_SIZE;            /**< Default chunk ca
 size_t nc4_chunk_cache_nelems = CHUNK_CACHE_NELEMS;        /**< Default chunk cache number of elements. */
 float nc4_chunk_cache_preemption = CHUNK_CACHE_PREEMPTION; /**< Default chunk cache preemption. */
 
-static void freefilterlist(NClist* filters);
-
 #ifdef LOGGING
 /* This is the severity level of messages which will be logged. Use
    severity 0 for errors, 1 for important log messages, 2 for less
@@ -1366,12 +1364,8 @@ var_free(NC_VAR_INFO_T *var)
     if (var->dimscale_attached)
         free(var->dimscale_attached);
 
-    /* Release filter information. */
-    freefilterlist(var->filters);
-
-    /* Delete any format-specific info. */
-    if (var->format_var_info)
-        free(var->format_var_info);
+    /* Free the filter list */
+    if((retval=NC4_filterx_freelist(var))) return retval;
 
     /* Delete the var. */
     free(var);
@@ -1878,24 +1872,4 @@ NC_findreserved(const char* name)
             R = (m - 1);
     }
     return NULL;
-}
-
-static void
-freefilterlist(NClist* filters)
-{
-    int i;
-    if(filters == NULL) return;
-    for(i=0;i<nclistlength(filters);i++) {
-	NC_Filterspec* f = nclistget(filters,i);
-	switch (f->hdr.format) {
-	case NC_FILTER_FORMAT_HDF5:
-	    NC4_freefilterspec((NC_FILTER_SPEC_HDF5*)f);
-	    break;
-	case NCX_FILTER_FORMAT:
-	    NCX_freefilterspec((NCX_FILTER_SPEC*)f);
-	    break;
-	default: assert(0);
-	}
-    }
-    nclistfree(filters);
 }

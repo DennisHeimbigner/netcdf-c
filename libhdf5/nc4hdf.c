@@ -833,6 +833,7 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
     NC_DIM_INFO_T *dim = NULL;
     char *name_to_use;
     int retval;
+    unsigned int* params = NULL;
 
     assert(grp && grp->format_grp_info && var && var->format_var_info);
 
@@ -915,36 +916,46 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
     if(var->filters != NULL) {
 	int j;
 	for(j=0;j<nclistlength(var->filters);j++) {
-	    NC_FILTER_SPEC_HDF5* fi = (NC_FILTER_SPEC_HDF5*)nclistget(var->filters,j);
+	    NC_FILTERX_SPEC* fi = (NC_FILTERX_SPEC*)nclistget(var->filters,j);
+	    unsigned int filterid;
 	    size_t nparams;
-	    unsigned int* params;
-	    nparams = fi->nparams;
-	    params = fi->params;
-            if(fi->filterid == H5Z_FILTER_DEFLATE) {/* Handle zip case here */
-                unsigned level;
-                if(nparams != 1)
-                    BAIL(NC_EFILTER);
-                level = (int)params[0];
-                if(H5Pset_deflate(plistid, level) < 0)
-                    BAIL(NC_EFILTER);
-            } else if(fi->filterid == H5Z_FILTER_SZIP) {/* Handle szip case here */
-                int options_mask;
-                int bits_per_pixel;
-                if(nparams != 2)
-                    BAIL(NC_EFILTER);
-                options_mask = (int)params[0];
-                bits_per_pixel = (int)params[1];
-                if(H5Pset_szip(plistid, options_mask, bits_per_pixel) < 0)
-                    BAIL(NC_EFILTER);
-            } else {
-                herr_t code = H5Pset_filter(plistid, (unsigned int)fi->filterid, H5Z_FLAG_MANDATORY, nparams, params);
-                if(code < 0) {
-                    BAIL(NC_EFILTER);
-                }
-            }
-	}
-    }
 
+	    if(!fi->active) {
+	        nparams = fi->nparams;
+  	        /* Do the conversions */
+	        if((retval = NC_cvtX2I_id(fi->filterid,&filterid))) BAIL(retval);
+	        if((params = malloc(nparams*sizeof(unsigned int)))==NULL)
+	            BAIL(NC_ENOMEM);
+    	        if((retval = NC_cvtX2H5_params(nparams,(const char**)fi->params,params))) BAIL(retval);
+                if(filterid == H5Z_FILTER_DEFLATE) {/* Handle zip case here */
+                    unsigned level;
+                    if(nparams != 1)
+                        BAIL(NC_EFILTER);
+                    level = (int)params[0];
+                    if(H5Pset_deflate(plistid, level) < 0)
+                        BAIL(NC_EFILTER);
+		    fi->active = 1;
+  	        } else if(filterid == H5Z_FILTER_SZIP) {/* Handle szip case here */
+                    int options_mask;
+                    int bits_per_pixel;
+                    if(nparams != 2)
+                        BAIL(NC_EFILTER);
+                    options_mask = (int)params[0];
+                    bits_per_pixel = (int)params[1];
+                    if(H5Pset_szip(plistid, options_mask, bits_per_pixel) < 0)
+                        BAIL(NC_EFILTER);
+		    fi->active = 1;
+                } else {
+                    herr_t code = H5Pset_filter(plistid, filterid, H5Z_FLAG_MANDATORY, nparams, params);
+                    if(code < 0)
+                        BAIL(NC_EFILTER);
+		    fi->active = 1;
+		}
+            }
+	    /* reclaim */
+	    nullfree(params); params = NULL;
+        }
+    }
     /* If the user wants to fletcher error correction, set that up now. */
     if (var->fletcher32)
         if (H5Pset_fletcher32(plistid) < 0)
@@ -1094,6 +1105,7 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
     var->attr_dirty = NC_FALSE;
 
 exit:
+    nullfree(params);
     if (typeid > 0 && H5Tclose(typeid) < 0)
         BAIL2(NC_EHDFERR);
     if (plistid > 0 && H5Pclose(plistid) < 0)
@@ -2699,19 +2711,21 @@ NC4_walk(hid_t gid, int* countp)
 }
 
 int
-NC4_hdf5_remove_filter(NC_VAR_INFO_T* var, unsigned int filterid)
+NC4_hdf5_remove_filter(NC_VAR_INFO_T* var, const char* filterid)
 {
     int stat = NC_NOERR;
     NC_HDF5_VAR_INFO_T *hdf5_var;
     hid_t propid = -1;
     herr_t herr = -1;
     H5Z_filter_t hft;
+    unsigned int id;
 
     hdf5_var = (NC_HDF5_VAR_INFO_T *)var->format_var_info;
     if ((propid = H5Dget_create_plist(hdf5_var->hdf_datasetid)) < 0)
 	{stat = NC_EHDFERR; goto done;}
 
-    hft = filterid;
+    if((stat = NC_cvtX2I_id(filterid,&id))) goto done;    
+    hft = id;
     if((herr = H5Premove_filter(propid,hft)) < 0)
 	{stat = NC_EHDFERR; goto done;}
 done:

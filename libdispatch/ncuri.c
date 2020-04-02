@@ -93,6 +93,7 @@ static int unparselist(const char** vec, const char* prefix, int encode, char** 
 static int ensurefraglist(NCURI* uri);
 static int ensurequerylist(NCURI* uri);
 static void buildlist(const char** list, int encode, NCbytes* buf);
+static void removedups(NClist* list);
 
 /**************************************************/
 /*
@@ -172,7 +173,7 @@ ncuriparse(const char* uri0, NCURI** durip)
     /* break up the url into coarse pieces */
     if(*p == LBRACKET) {
         prefix = p;
-        ret = collectprefixparams(p,&next); /* collect the prefix */
+        ret = collectprefixparams(p,&next); /* collect the prefix; convert to & form */
         if(ret != NC_NOERR)
             {THROW(NC_EURL);}
          p = next;
@@ -206,11 +207,13 @@ ncuriparse(const char* uri0, NCURI** durip)
         if(parselist(prefix,params) != NC_NOERR)
             {THROW(NC_EURL);}
     }
-    /* Parse the fragment parameters */
+    /* Parse the fragment parameters into the params list */
     if(tmp.fragment != NULL) {
         if(parselist(tmp.fragment,params) != NC_NOERR)
             {THROW(NC_EURL);}
     }
+    /* Remove duplicates */
+    removedups(params);
     if(nclistlength(params) > 0) {
 	nclistpush(params,NULL);
         tmp.fraglist = nclistextract(params);
@@ -378,8 +381,8 @@ ncuriparse(const char* uri0, NCURI** durip)
 	    *tmp.path = pathchar;
         duri->path = nulldup(tmp.path);
     }
-    duri->query = nulldup(tmp.query);
-    duri->fragment = nulldup(tmp.fragment);
+    duri->query = NULL; /* let ensurequery fix this */
+    duri->fragment = NULL; /* let ensurefrag fix this */
     duri->fraglist = tmp.fraglist; tmp.fraglist = NULL;
     duri->querylist = tmp.querylist; tmp.querylist = NULL;
     if(durip)
@@ -624,15 +627,19 @@ ncuribuild(NCURI* duri, const char* prefix, const char* suffix, int flags)
 	ncbytescat(buf,suffix);
 
     /* The query and the querylist are assumed to be unencoded */
-    if(flags & NCURIQUERY && duri->query != NULL && strlen(duri->query) > 0) {
+    if(flags & NCURIQUERY) {
  	ensurequerylist(duri);
-        ncbytescat(buf,"?");
-	buildlist((const char**)duri->querylist,encode,buf);
+        if(duri->query != NULL) {
+            ncbytescat(buf,"?");
+	    ncbytescat(buf,duri->query);
+        }
     }
-    if(flags & NCURIFRAG && duri->fragment != NULL && strlen(duri->fragment) > 0) {
+    if(flags & NCURIFRAG) {
  	ensurefraglist(duri);
-        ncbytescat(buf,"#");
-	buildlist((const char**)duri->fraglist,encode,buf);
+        if(duri->fragment != NULL) {
+            ncbytescat(buf,"#");
+	    ncbytescat(buf,duri->fragment);
+	}
     }
     ncbytesnull(buf);
     newuri = ncbytesextract(buf);
@@ -672,6 +679,7 @@ ncuriquerylookup(NCURI* uri, const char* key)
 const char**
 ncurifragmentparams(NCURI* uri)
 {
+    ensurefraglist(uri);
     return (const char**)uri->fraglist;
 }
 
@@ -679,6 +687,7 @@ ncurifragmentparams(NCURI* uri)
 const char**
 ncuriqueryparams(NCURI* uri)
 {
+    ensurequerylist(uri);
     return (const char**)uri->querylist;
 }
 
@@ -711,6 +720,8 @@ ncfind(char** params, const char* key)
 {
     int i;
     char** p;
+    if(key == NULL) return -1;
+    if(params == NULL) return -1;
     for(i=0,p=params;*p;p+=2,i++) {
 	if(strcasecmp(key,*p)==0) return i;
     }
@@ -1040,8 +1051,9 @@ unparselist(const char** vec, const char* prefix, int encode, char** svecp)
 		ncbytescat(buf,p[1]);
 	}
     }
-    if(*svecp) {*svecp = ncbytesextract(buf);}
+    if(svecp) {*svecp = ncbytesextract(buf);}
 done:
+    ncbytesfree(buf);
     return stat;
 }
 
@@ -1049,14 +1061,28 @@ static int
 ensurefraglist(NCURI* uri)
 {
     int stat = NC_NOERR;
+    int nofrag = 0;
+    int nolist = 0;
     NClist* fraglist = NULL;
-    if(uri->fragment == NULL || strlen(uri->fragment) == 0) goto done;
-    if(uri->fraglist == NULL && uri->fragment != NULL && strlen(uri->fragment) > 0) {
+    NCbytes* frag = NULL;
+	
+    if(uri->fragment == NULL || strlen(uri->fragment) == 0)
+        {nullfree(uri->fragment); uri->fragment = NULL; nofrag=1;}
+    if(uri->fraglist == NULL) nolist = 1;
+    if(nolist && !nofrag) {
 	fraglist = nclistnew();
 	if((stat = parselist(uri->fragment,fraglist))) goto done;	
+	removedups(fraglist);
 	uri->fraglist = nclistextract(fraglist);
+    } else if(!nolist && nofrag) {
+	/* Create the fragment string from fraglist */
+	frag = ncbytesnew();
+	buildlist((const char**)uri->fraglist,1,frag);
+	uri->fragment = ncbytesextract(frag);
     }
+
 done:
+    ncbytesfree(frag);
     nclistfreeall(fraglist);
     return stat;
 }
@@ -1065,16 +1091,49 @@ static int
 ensurequerylist(NCURI* uri)
 {
     int stat = NC_NOERR;
+    int noquery = 0;
+    int nolist = 0;
     NClist* querylist = NULL;
-    if(uri->query == NULL || strlen(uri->query) == 0) goto done;
-    if(uri->querylist == NULL && uri->query != NULL && strlen(uri->query) > 0) {
+    NCbytes* query = NULL;
+	
+    if(uri->query == NULL || strlen(uri->query) == 0)
+        {nullfree(uri->query); uri->query = NULL; noquery=1;}
+    if(uri->querylist == NULL) nolist = 1;
+    if(nolist && !noquery) {
 	querylist = nclistnew();
 	if((stat = parselist(uri->query,querylist))) goto done;	
+	removedups(querylist);
 	uri->querylist = nclistextract(querylist);
+    } else if(!nolist && noquery) {
+	/* Create the query string from querylist */
+	query = ncbytesnew();
+	buildlist((const char**)uri->querylist,1,query);
+	uri->query = ncbytesextract(query);
     }
+
 done:
+    ncbytesfree(query);
     nclistfreeall(querylist);
     return stat;
+}
+
+static void
+removedups(NClist* list)
+{
+    int i,j;
+
+    if(nclistlength(list) <= 2) return; /* need at least 2 pairs */
+    for(i=0;i<nclistlength(list);i+=2) {
+	/* look for dups for this entry */
+	for(j=nclistlength(list)-2;j>i;j-=2) {
+	    if(strcasecmp(nclistget(list,i),nclistget(list,j))==0
+		&& strcasecmp(nclistget(list,i+1),nclistget(list,j+1))) {
+		nclistremove(list,j+1); nclistremove(list,j);
+	    }
+	}
+    }
+    /* NULL terminate the list */
+    nclistpush(list,NULL);
 }
 
 static void

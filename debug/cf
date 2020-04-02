@@ -1,23 +1,26 @@
 #!/bin/bash
 #NB=1
-#DB=1
+DB=1
 #X=-x
 
 #ANSI=1
-#MEM=1 # export NC_VLEN_NOTEST=1
+MEM=1
 #NOTUIL=1
 #FAST=1
 #PROF=1
 
 NCZARR=1
 HDF5=1
-#DAP=1
-#SZIP=1
-#HDF4=1
+DAP=1
+SZIP=1
+HDF4=1
 #PNETCDF=1
 #PAR4=1
 
+#TESTSERVERS="149.165.169.123:8080,remotetest.unidata.ucar.edu"
 #TESTSERVERS="localhost:8080,149.165.169.123:8080"
+#TESTSERVERS="149.165.169.123:8080"
+#TESTSERVERS="remotetest.unidata.ucar.edu"
 
 if test $# != 0 ; then
 cmds=$@
@@ -34,11 +37,10 @@ CFLAGS="-Wall -Wno-unused-parameter -Wno-char-subscripts -Wno-pointer-sign ${CFL
 #CFLAGS="-Wall ${CFLAGS}"
 #CFLAGS="$CFLAGS -Wconversion"
 #CFLAGS="-Wall -Wunused-parameter -Wno-char-subscripts -Wno-pointer-sign ${CFLAGS}"
-CXXFLAGS="$CXXFLAGS -std=c++11"
 
 if test "x$MEM" = x1 ; then
-  export NC_VLEN_NOTEST=1
-  CFLAGS="-fsanitize=address ${CFLAGS}"
+CFLAGS="-fsanitize=address ${CFLAGS}"
+export export NC_VLEN_NOTEST=1
 fi
 
 if test "x$ANSI" = x1 ; then
@@ -94,6 +96,16 @@ if test "x$SZIP" = "x1" ; then
 LDFLAGS="$LDFLAGS -lsz -laec"
 fi
 
+if test "x$NCZARR" = "x1" ; then
+CPPFLAGS="-I${stddir}/include $CPPFLAGS"
+LDFLAGS="$LDFLAGS -L${stddir}/lib -laws-cpp-sdk-s3"
+LDFLAGS="$LDFLAGS -laws-cpp-sdk-core"
+#LDFLAGS="$LDFLAGS -laws-c-common"
+#LDFLAGS="$LDFLAGS -laws-c-event-stream"
+#LDFLAGS="$LDFLAGS -laws-checksums"
+LDFLAGS="$LDFLAGS -lstdc++"
+fi
+
 export PKG_CONFIG_PATH=/usr/lib/pkgconfig
 if curl-config --version >/dev/null ; then
 TMP=`curl-config --cflags`
@@ -134,7 +146,6 @@ FLAGS="$FLAGS --enable-byterange"
 #FLAGS="$FLAGS --disable-silent-rules"
 #FLAGS="$FLAGS --disable-filter-testing"
 #FLAGS="$FLAGS --enable-metadata-perf"
-#FLAGS="$FLAGS --enable-extra-tests"
 #FLAGS="$FLAGS --with-ncproperties-extra=key1=value1,key2=value2"
 #FLAGS="$FLAGS --enable-valgrind"
 
@@ -148,6 +159,7 @@ fi
 
 if test "x$NCZARR" = x1 ; then
 FLAGS="$FLAGS --enable-nczarr"
+CXXFLAGS="$CXXFLAGS -std=c++11"
 fi
 
 if test "x$NOUTIL" = x1 ; then

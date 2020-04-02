@@ -1178,21 +1178,30 @@ NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
 {
     int retval = NC_NOERR;
     NC *nc;
-    NC_FILTER_OBJ_HDF5 spec;
+    NC_FILTERX_OBJ obj;
+    char* xid = NULL;
+    char** xparams = NULL;
 
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
     if((retval = NC_check_id(ncid,&nc))) return retval;
     assert(nc);
 
-    memset(&spec,0,sizeof(spec));
-    spec.hdr.format = NC_FILTER_FORMAT_HDF5;
-    spec.sort = NC_FILTER_SORT_SPEC;
-    spec.u.spec.filterid = id;
-    spec.u.spec.nparams = nparams;
-    spec.u.spec.params = (unsigned int*)params; /* Need to remove const */
+    if((retval=NC_cvtH52X_idlist(1,&id,&xid))) goto done;
+    if((xparams = malloc(nparams*sizeof(char*)))==NULL)
+        {retval = NC_ENOMEM; goto done;}
+    if((retval=NC_cvtH52X_params(nparams,params,xparams))) goto done;
 
-    return nc->dispatch->filter_actions(ncid,varid,NCFILTER_DEF,(NC_Filterobject*)&spec);
+    memset(&obj,0,sizeof(obj));
+    obj.usort = NC_FILTER_UNION_SPEC;
+    obj.u.spec.filterid = xid;
+    obj.u.spec.nparams = nparams;
+    obj.u.spec.params = (char**)xparams; /* Need to remove const */
+
+    if((retval=nc->dispatch->filter_actions(ncid,varid,NCFILTER_DEF,&obj))) goto done;
+    
+done:
+    return retval;
 }
 
 /**

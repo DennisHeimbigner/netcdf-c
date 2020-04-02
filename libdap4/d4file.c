@@ -131,7 +131,7 @@ NCD4_open(const char * path, int mode,
     }
 
     /* Turn on logging; only do this after oc_open*/
-    if((value = ncurilookup(d4info->uri,"log")) != NULL) {
+    if((value = ncurifragmentlookup(d4info->uri,"log")) != NULL) {
 	ncloginit();
         if(nclogopen(value))
 	    ncsetlogging(1);
@@ -523,7 +523,7 @@ getparam(NCD4INFO* info, const char* key)
     const char* value;
 
     if(info == NULL || key == NULL) return NULL;
-    if((value=ncurilookup(info->uri,key)) == NULL)
+    if((value=ncurifragmentlookup(info->uri,key)) == NULL)
 	return NULL;
     return value;
 }

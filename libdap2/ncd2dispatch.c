@@ -1227,7 +1227,7 @@ paramlookup(NCDAPCOMMON* state, const char* key)
 {
     const char* value = NULL;
     if(state == NULL || key == NULL || state->oc.url == NULL) return NULL;
-    value = ncurilookup(state->oc.url,key);
+    value = ncurifragmentlookup(state->oc.url,key);
     return value;
 }
 

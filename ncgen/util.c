@@ -120,9 +120,8 @@ freeSpecialdata(Specialdata* data)
     if(data->_Filters) {
 	int i;
 	for(i=0;i<data->nfilters;i++) {
-	    NC4_Filterspec* f = (NC4_Filterspec*)data->_Filters[i];
-            efree(f->params);
-	    efree(f);
+	    NC_Filterspec* f = (NC_Filterspec*)data->_Filters[i];
+	    ncaux_filterspec_free(f);
 	}
 	efree(data->_Filters);
     }

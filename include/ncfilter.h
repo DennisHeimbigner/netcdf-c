@@ -19,83 +19,68 @@
 /* Internal filter actions */
 #define NCFILTER_DEF		1
 #define NCFILTER_REMOVE  	2
-#define NCFILTER_INQ	    	3
-#define NCFILTER_FILTERIDS      4
-#define NCFILTER_INFO		5
-#define NCFILTER_FREESPEC	6
+#define NCFILTER_FILTERIDS      3
+#define NCFILTER_INFO		4
 #define NCFILTER_CLIENT_REG	10
 #define NCFILTER_CLIENT_UNREG	11
 #define NCFILTER_CLIENT_INQ	12
 
 typedef enum NC_FILTER_UNION {
-	NC_FILTER_UNION_SPEC=((int)1),
-	NC_FILTER_UNION_IDS=((int)2),
-	NC_FILTER_UNION_CLIENT=((int)3),
+    NC_FILTER_UNION_SPEC=((int)1),
+    NC_FILTER_UNION_IDS=((int)2),
+    NC_FILTER_UNION_CLIENT=((int)3),
 } NC_FILTER_UNION;
-
-/* Provide structs to pass args to filter_actions function for HDF5*/
-
-typedef struct NC_FILTER_SPEC_HDF5 {
-    int active;            /**< true iff HDF5 library was told to activate filter */
-    unsigned int filterid; /**< ID for arbitrary filter. */
-    size_t nparams;        /**< nparams for arbitrary filter. */
-    unsigned int* params;  /**< Params for arbitrary filter. */
-} NC_FILTER_SPEC_HDF5;
-
-typedef struct NC_FILTERIDS_HDF5 {
-    size_t nfilters;          /**< number of filters */
-    unsigned int* filterids;  /**< Filter ids. */
-} NC_FILTERIDS_HDF5;
-
-typedef struct NC_FILTER_CLIENT_HDF5 {
-    unsigned int id;
-    /* The filter info for hdf5 */
-    /* Avoid needing hdf.h by using void* */
-    void* info;
-} NC_FILTER_CLIENT_HDF5;
-
-typedef struct NC_FILTER_OBJ_HDF5 {
-    NC_FILTER_UNION usort; /* discriminate union */
-    union {
-        NC_FILTER_SPEC_HDF5 spec;
-        NC_FILTERIDS_HDF5 ids;
-        NC_FILTER_CLIENT_HDF5 client;
-    } u;
-} NC_FILTER_OBJ_HDF5;
-
-extern void NC4_freefilterspec(NC_FILTER_SPEC_HDF5*);
 
 /**************************************************/
 /* Provide structs to pass args to filter_actions function using strings */
+/* Originally, this used the HDF5 model where ids and params were unsigned ints.
+   To extend to zarr, we have converted so that ids and params are strings (char*).
+   Additionally we now allow a string id to be either an integer (as before but as a string)
+   or a name defined in the known_filters table in dfilter.c */
 
-typedef struct NCX_FILTER_SPEC {
-//    NC_Filterspec format;
+typedef struct NC_FILTERX_SPEC {
     int active;            /**< true iff underlying library was told to activate filter */
     char* filterid;	   /**< ID for arbitrary filter. */
-    char* params;  	   /**< Params for arbitrary filter. */
-} NCX_FILTER_SPEC;
+    size_t nparams;
+    char** params;  	   /**< Params for arbitrary filter. */
+} NC_FILTERX_SPEC;
 
-typedef struct NCX_FILTERIDS {
+typedef struct NC_FILTERX_IDS {
     size_t nfilters;   /**< number of filters */
     char** filterids;  /**< Filter ids. */
-} NCX_FILTERIDS;
+} NC_FILTERX_IDS;
 
-typedef struct NCX_FILTER_CLIENT {
+typedef struct NC_FILTERX_CLIENT {
     char* id;
     /* The filter info for x */
     /* Avoid needing hdf.h by using void* */
     void* info;
-} NCX_FILTER_CLIENT;
+} NC_FILTERX_CLIENT;
 
-typedef struct NCX_FILTER_OBJ {
+typedef struct NC_FILTERX_OBJ {
     NC_FILTER_UNION usort; /* discriminate union */
     union {
-        NCX_FILTER_SPEC spec;
-        NCX_FILTERIDS ids;
-        NCX_FILTER_CLIENT client;
+        NC_FILTERX_SPEC spec;
+        NC_FILTERX_IDS ids;
+        NC_FILTERX_CLIENT client;
     } u;
-} NCX_FILTER_OBJ;
+} NC_FILTERX_OBJ;
 
-extern void NCX_freefilterspec(NCX_FILTER_SPEC*);
+struct NC_VAR_INFO;
+
+extern int NC4_filterx_add(struct NC_VAR_INFO* var, int active, NC_FILTERX_SPEC* spec);
+extern int NC4_filterx_remove(struct NC_VAR_INFO* var, const char* xid);
+extern int NC4_filterx_freelist(struct NC_VAR_INFO* var);
+extern int NC4_filterx_free(NC_FILTERX_SPEC*);
+extern int NC_cvtH52X_idlist(int n, const unsigned int* ids, char** xid);
+extern int NC_cvtH52X_params(int n, const unsigned int* ids, char** params);
+extern int NC_cvtX2H5_params(size_t nparams, const char** xparamslist, unsigned int* params);
+extern int NC_cvtX2H5_idlist(size_t n, const char** xidlist, unsigned int* ids);
+extern int NC_cvtX2I_id(const char* xid, unsigned int* id);
+extern int NC_cvtI2X_id(unsigned int id, char** xidp, int usename);
+extern unsigned int NC_filterx_lookup(const char* filtername);
+extern const char* NC_filterx_toname(unsigned int id);
+extern void NC_filterx_freestringvec(size_t n, char** vec);
+extern int NC_filterx_copy(size_t n, const char** vec, char*** copyp);
 
 #endif /*NCFILTER_H*/

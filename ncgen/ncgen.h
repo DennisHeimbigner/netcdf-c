@@ -135,7 +135,7 @@ typedef struct Specialdata {
     int           _Shuffle;      /* 0 => false, 1 => true*/
     int           _Endianness;   /* 1 =>little, 2 => big*/
     int           _Fill ;        /* 0 => false, 1 => true WATCHOUT: this is inverse of NOFILL*/
-    NC4_Filterspec** _Filters;
+    NC_Filterspec** _Filters;
         size_t	  nfilters; /* |filters| */
 } Specialdata;
 

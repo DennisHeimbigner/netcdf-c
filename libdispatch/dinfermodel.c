@@ -52,8 +52,8 @@ struct MagicFile {
     MPI_File fh;
 #endif
 #ifdef ENABLE_BYTERANGE
-    void* curl; /* avoid need to include curl.h */
     char* curlurl; /* url to use with CURLOPT_SET_URL */
+    NC_HTTP_STATE* state;
 #endif
 };
 
@@ -816,7 +816,7 @@ openmagic(struct MagicFile* file)
 	/* Construct a URL minus any fragment */
         file->curlurl = ncuribuild(file->uri,NULL,NULL,NCURISVC);
 	/* Open the curl handle */
-	if((status=nc_http_open(file->curlurl,&file->curl,&file->filelen))) goto done;
+	if((status=nc_http_open(file->curlurl,&file->state,&file->filelen))) goto done;
 #endif
     } else {
 #ifdef USE_PARALLEL
@@ -902,7 +902,7 @@ readmagic(struct MagicFile* file, long pos, char* magic)
 	NCbytes* buf = ncbytesnew();
 	fileoffset_t start = (size_t)pos;
 	fileoffset_t count = MAGIC_NUMBER_LEN;
-	status = nc_http_read(file->curl,file->curlurl,start,count,buf);
+	status = nc_http_read(file->state,file->curlurl,start,count,buf);
 	if(status == NC_NOERR) {
 	    if(ncbyteslength(buf) != count)
 	        status = NC_EINVAL;
@@ -957,7 +957,7 @@ closemagic(struct MagicFile* file)
 	/* noop */
 #ifdef ENABLE_BYTERANGE
     } else if(file->uri != NULL) {
-	status = nc_http_close(file->curl);
+	status = nc_http_close(file->state);
 	nullfree(file->curlurl);
 #endif
     } else {

@@ -16,6 +16,7 @@ static char SccsId[] = "$Id: ncgen.y,v 1.42 2010/05/18 21:32:46 dmh Exp $";
 #include        "netcdf_aux.h"
 #include        "ncgeny.h"
 #include        "ncgen.h"
+#include        "ncfilter.h"
 #ifdef USE_NETCDF4
 #include        "netcdf_filter.h"
 #endif
@@ -1489,15 +1490,12 @@ static int
 parsefilterflag(const char* sdata, Specialdata* special)
 {
     int stat = NC_NOERR;
-    int format;
 
     if(sdata == NULL || strlen(sdata) == 0) return NC_EINVAL;
 
-    stat = NC_parsefilterlist(sdata, &format, &special->nfilters, (NC_Filterspec***)&special->_Filters);
+    stat = ncaux_filterspec_parselist(sdata, NULL, &special->nfilters, &special->_Filters);
     if(stat)
         derror("Malformed filter spec: %s",sdata);
-    if(format != NC_FILTER_FORMAT_HDF5)
-        derror("Non HDF5 filter format encountered");
 #ifdef GENDEBUG1
 printfilters(special->nfilters,special->_Filters);
 #endif
@@ -1579,21 +1577,21 @@ done:
 
 #ifdef GENDEBUG1
 static void
-printfilters(size_t nfilters, NC_ParsedFilterSpec** filters)
+printfilters(size_t nfilters, NC_Filterspec** filters)
 {
     int i;
     fprintf(stderr,"xxx: nfilters=%lu: ",(unsigned long)nfilters);
     for(i=0;i<nfilters;i++) {
 	int k;
-	NC_ParsedFilterSpec* sp = filters[i];
+	NC_Filterspec* sp = filters[i];
         fprintf(stderr,"{");
-        fprintf(stderr,"filterid=%llu format=%d nparams=%lu params=%p",
+        fprintf(stderr,"filterid=%s format=%s nparams=%lu params=%p",
 		sp->filterid,sp->format,(unsigned long)sp->nparams,sp->params);
-	if(sp->nparams == 0 || sp->params != NULL) {
+	if(sp->nparams > 0 && sp->params != NULL) {
             fprintf(stderr," params={");
             for(k=0;k<sp->nparams;k++) {
 	        if(i==0) fprintf(stderr,",");
-	        fprintf(stderr,"%u",sp->params[i]);
+	        fprintf(stderr,"%s",sp->params[i]);
 	    }
             fprintf(stderr,"}");
 	} else

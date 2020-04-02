@@ -65,20 +65,6 @@ nc_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparams, un
 /* Remove filter from variable*/
 EXTERNL int nc_var_filter_remove(int ncid, int varid, unsigned int id);
 
-/* HDF5 specific filter info */
-typedef struct NC4_Filterspec {
-    unsigned int filterid; /**< ID for arbitrary filter. */
-    size_t nparams;        /**< nparams for arbitrary filter. */
-    unsigned int* params;  /**< Params for arbitrary filter. */
-} NC4_Filterspec;
-
-EXTERNL void NC4_filterfix8(unsigned char* mem, int decode);
-
-EXTERNL int NC_filter_parselist(const char* listspec, int* formatp, size_t* nfilters, NC4_Filterspec*** filtersp);
-EXTERNL int NC_filter_parsespec(const char* txt, int format, NC4_Filterspec** specp);
-#define NC_parsefilterlist(listspec, formatp, nfilters, filtersp) NC_filter_parselist(listspec, formatp, nfilters, filtersp) 
-#define NC_parsefilterspec(txt,format,specp) NC_filter_parsespec(txt,format,specp)
-
 /* Support direct user defined filters if enabled during configure;
    last arg is void*, but is actually H5Z_class2_t*.
    It is void* to avoid having to reference hdf.h.
@@ -94,30 +80,21 @@ EXTERNL int nc_filter_client_inq(unsigned int id, void*/*H5Z_class2_t* */);
 
 /*Define a filter for a variable */
 EXTERNL int
-ncx_def_var_filterx(int ncid, int varid, const char* id, const char* params);
+nc_def_var_filterx(int ncid, int varid, const char* id, size_t nparams, const char** params);
 
 /* Support inquiry about all the filters associated with a variable */
 /* As is usual, it is expected that this will be called twice: 
    once to get the number of filters, and then a second time to read the ids */
 EXTERNL int
-nc_inq_var_filterx_ids(int ncid, int varid, size_t* nfilters, char*** filteridsp);
+nc_inq_var_filterx_ids(int ncid, int varid, size_t* nfilters, char** filteridsp);
 
 /* Learn about the filter with specified id wrt a variable */
 EXTERNL int
-nc_inq_var_filterx_info(int ncid, int varid, const char* id, char** paramsp);
+nc_inq_var_filterx_info(int ncid, int varid, const char* id, size_t* nparamsp, char** paramsp);
 
 /* Remove filter from variable*/
 EXTERNL int
 nc_var_filterx_remove(int ncid, int varid, const char* id);
-
-/* String specific filter info */
-typedef struct NCX_Filterspec {
-    char* filterid; /**< ID for arbitrary filter. */
-    char* params;   /**< Params for arbitrary filter. */
-} NCX_Filterspec;
-
-EXTERNL int NC_filterx_parselist(const char* listspec, int* formatp, size_t* nfilters, NCX_Filterspec*** filtersp);
-EXTERNL int NC_filterx_parsespec(const char* txt, int format, NCX_Filterspec** specp);
 
 /* Support direct user defined filters if enabled during configure;
    last arg is void*, but is actually H5Z_class2_t*.

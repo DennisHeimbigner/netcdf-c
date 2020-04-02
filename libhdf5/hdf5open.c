@@ -13,6 +13,7 @@
 #include "hdf5internal.h"
 #include "ncrc.h"
 #include "ncmodel.h"
+#include "ncfilter.h"
 
 #ifdef ENABLE_BYTERANGE
 #include "H5FDhttp.h"
@@ -933,10 +934,11 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
 {
     H5Z_filter_t filter;
     int num_filters;
-    unsigned int cd_values_zip[CD_NELEMS_ZLIB];
-    size_t cd_nelems = CD_NELEMS_ZLIB;
+    unsigned int* cd_values = NULL;
+    size_t cd_nelems = 0;
     int f;
     int stat = NC_NOERR;
+    NC_FILTERX_SPEC* spec = NULL;
 
     assert(var);
 
@@ -945,9 +947,24 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
 
     for (f = 0; f < num_filters; f++)
     {
-        if ((filter = H5Pget_filter2(propid, f, NULL, &cd_nelems, cd_values_zip,
+	cd_nelems = 0; /* We only want this value back */
+        if ((filter = H5Pget_filter2(propid, f, NULL, &cd_nelems, NULL, 0, NULL, NULL)) < 0)
+            {stat = NC_EHDFERR; goto done;}
+
+	nullfree(cd_values);
+	if((cd_values = calloc(sizeof(unsigned int),cd_nelems))== NULL)
+	    goto done;
+        if ((filter = H5Pget_filter2(propid, f, NULL, &cd_nelems, cd_values,
                                      0, NULL, NULL)) < 0)
-            return NC_EHDFERR;
+            {stat = NC_EHDFERR; goto done;}
+	if(spec) {NC4_filterx_free(spec); spec = NULL;}
+	if((spec = calloc(1,sizeof(NC_FILTERX_SPEC)))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	spec->active = 1;
+	spec->nparams = cd_nelems;
+	if((spec->params = calloc(cd_nelems,sizeof(char*))) == NULL) goto done;
+	if((stat = NC_cvtI2X_id(filter,&spec->filterid,0))) goto done;
+
         switch (filter)
         {
         case H5Z_FILTER_SHUFFLE:
@@ -960,59 +977,49 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
 
         case H5Z_FILTER_DEFLATE:
             if (cd_nelems != CD_NELEMS_ZLIB ||
-                cd_values_zip[0] > NC_MAX_DEFLATE_LEVEL)
-                return NC_EHDFERR;
-	    if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,cd_values_zip)))
-		return stat;
+                cd_values[0] > NC_MAX_DEFLATE_LEVEL)
+                {stat = NC_EHDFERR; goto done;}
+	    /* Presume it has been activated in HDF5 */
+	    if((stat = NC_cvtH52X_params(cd_nelems,cd_values,spec->params))) goto done;
+	    if((stat = NC4_filterx_add(var,FILTERACTIVE,spec))) goto done;
             break;
 
         case H5Z_FILTER_SZIP: {
             /* Szip is tricky because the filter code expands the set of parameters from 2 to 4
                and changes some of the parameter values; try to compensate */
             if(cd_nelems == 0) {
-		if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,0,NULL)))
-		   return stat;
+	        /* Presume it has been activated in HDF5 */
+	        if((stat = NC4_filterx_add(var,FILTERACTIVE,spec))) goto done;
             } else {
-                /* We have to re-read the parameters based on actual nparams,
-                   which in the case of szip, differs from users original nparams */
-                unsigned int* realparams = (unsigned int*)calloc(1,sizeof(unsigned int)*cd_nelems);
-                if(realparams == NULL)
-                    return NC_ENOMEM;
-                if((filter = H5Pget_filter2(propid, f, NULL, &cd_nelems,
-                                            realparams, 0, NULL, NULL)) < 0) 
-                    return NC_EHDFERR;
                 /* fix up the parameters and the #params */
 		if(cd_nelems != 4)
-		    return NC_EHDFERR;
-		cd_nelems = 2; /* ignore last two */		
-		/* Fix up changed params */
-		realparams[0] &= (H5_SZIP_ALL_MASKS);
+		    {stat = NC_EHDFERR; goto done;}
+		spec->nparams = (cd_nelems = 2); /* ignore last two */		
+	        /* Fix up changed params */
+		cd_values[0] &= (H5_SZIP_ALL_MASKS);
 		/* Save info */
-		stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,realparams);
-		nullfree(realparams);
-		if(stat) return stat;
-
+	        if((stat = NC_cvtH52X_params(cd_nelems,cd_values,spec->params))) goto done;
+	        /* Presume it has been activated in HDF5 */
+		if((stat = NC4_filterx_add(var,FILTERACTIVE,spec))) goto done;
             }
             } break;
 
         default:
             if(cd_nelems == 0) {
-  	        if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,0,NULL))) return stat;
+	        /* Presume it has been activated in HDF5 */
+  	        if((stat = NC4_filterx_add(var,FILTERACTIVE,spec))) return stat;
             } else {
-                /* We have to re-read the parameters based on actual nparams */
-                unsigned int* realparams = (unsigned int*)calloc(1,sizeof(unsigned int)*cd_nelems);
-                if(realparams == NULL)
-                    return NC_ENOMEM;
-                if((filter = H5Pget_filter2(propid, f, NULL, &cd_nelems,
-                                            realparams, 0, NULL, NULL)) < 0)
-                    return NC_EHDFERR;
-  	        stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,realparams);
-		nullfree(realparams);
-		if(stat) return stat;
+	        if((stat = NC_cvtH52X_params(cd_nelems,cd_values,spec->params))) goto done;
+	        /* Presume it has been activated in HDF5 */
+  	        if((stat = NC4_filterx_add(var,FILTERACTIVE,spec))) goto done;
             }
             break;
         }
+	NC4_filterx_free(spec); spec = NULL;
     }
+done:
+    nullfree(cd_values);
+    NC4_filterx_free(spec);
     return NC_NOERR;
 }
 
@@ -1411,8 +1418,10 @@ exit:
          * delete the var info struct we just created. */
         if (incr_id_rc && H5Idec_ref(datasetid) < 0)
             BAIL2(NC_EHDFERR);
-        if (var)
+        if (var) {
+	    nullfree(var->format_var_info);
             nc4_var_list_del(grp, var);
+	}
     }
 
     return retval;

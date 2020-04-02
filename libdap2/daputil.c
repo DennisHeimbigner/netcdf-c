@@ -215,7 +215,7 @@ dapparamvalue(NCDAPCOMMON* nccomm, const char* key)
     const char* value;
 
     if(nccomm == NULL || key == NULL) return 0;
-    value=ncurilookup(nccomm->oc.url,key);
+    value=ncurifragmentlookup(nccomm->oc.url,key);
     return value;
 }
 
@@ -231,7 +231,7 @@ dapparamcheck(NCDAPCOMMON* nccomm, const char* key, const char* subkey)
     char* p;
 
     if(nccomm == NULL || key == NULL) return 0;
-    if((value=ncurilookup(nccomm->oc.url,key)) == NULL)
+    if((value=ncurifragmentlookup(nccomm->oc.url,key)) == NULL)
 	return 0;
     if(subkey == NULL) return 1;
     p = strstr(value,subkey);
