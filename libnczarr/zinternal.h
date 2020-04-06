@@ -162,6 +162,8 @@ extern int ncz_initialized; /**< True if initialization has happened. */
 struct NC_FILTER_INFO;
 
 /* zinternal.c */
+int NCZ_initialize(void);
+int NCZ_finalize(void);
 int NCZ_initialize_internal(void);
 int NCZ_finalize_internal(void);
 int ncz_get_fill_value(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, void **fillp);

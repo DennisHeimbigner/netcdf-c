@@ -113,7 +113,7 @@ check_chunksizes(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, const size_t *chunksize
     if ((retval = nc4_get_typelen_mem(grp->nc4_info, var->type_info->hdr.id, &type_len)))
         return THROW(retval);
     if (var->type_info->nc_type_class == NC_VLEN)
-        dprod = (double)sizeof(hvl_t);
+        dprod = (double)sizeof(nc_hvl_t);
     else
         dprod = (double)type_len;
     for (d = 0; d < var->ndims; d++)
@@ -1825,7 +1825,7 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
                fill value for the variable. */
             if (!no_read)
             {
-                if (start[d2] >= (hssize_t)fdims[d2])
+                if (start[d2] >= (size64_t)fdims[d2])
                     fill_value_size[d2] = count[d2];
                 else if (endindex >= fdims[d2])
                     fill_value_size[d2] = count[d2] - ((fdims[d2] - start[d2])/stride[d2]);
@@ -2210,6 +2210,7 @@ NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems,
     return THROW(NC_NOERR);
 }
 
+#ifdef LOOK
 /**
  * @internal A wrapper for NCZ_set_var_chunk_cache(), we need this
  * version for fortran. Negative values leave settings as they are.
@@ -2243,6 +2244,7 @@ ncz_set_var_chunk_cache_ints(int ncid, int varid, int size, int nelems,
     return NCZ_set_var_chunk_cache(ncid, varid, real_size, real_nelems,
                                         real_preemption);
 }
+#endif
 
 int
 ncz_gettype(NC_GRP_INFO_T* container, int xtype, NC_TYPE_INFO_T** typep)

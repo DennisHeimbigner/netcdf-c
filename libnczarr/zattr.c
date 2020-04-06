@@ -572,10 +572,13 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
             free(var->fill_value);
         }
 
+#ifdef LOOK
         /* Determine the size of the fill value in bytes. */
         if (var->type_info->nc_type_class == NC_VLEN)
             size = sizeof(hvl_t);
-        else if (var->type_info->nc_type_class == NC_STRING)
+        else
+#endif
+	if (var->type_info->nc_type_class == NC_STRING)
             size = sizeof(char *);
         else
             size = type_size;
@@ -633,6 +636,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
             return retval;
 
         assert(data);
+#ifdef LOOK
         if (type_class == NC_VLEN)
         {
             const hvl_t *vldata1;
@@ -659,7 +663,9 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
                 memcpy(att->vldata[i].p, vldata1[i].p, base_typelen * att->vldata[i].len);
             }
         }
-        else if (type_class == NC_STRING)
+        else
+#endif
+	if (type_class == NC_STRING)
         {
             LOG((4, "copying array of NC_STRING"));
             if (!(att->stdata = malloc(sizeof(char *) * att->len))) {

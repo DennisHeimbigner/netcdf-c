@@ -182,6 +182,7 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
 
 done:
     nullfree(filepath);
+    nullfree(zfcwd);
     if(stat)
     	zfileclose((NCZMAP*)zfmap,1);
     return (stat);
@@ -225,7 +226,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     zfmap->map.flags = flags;
     zfmap->map.mode = mode;
     zfmap->map.api = (NCZMAP_API*)&zapi;
-    zfmap->root = strdup(filepath);
+    zfmap->root = filepath;
 	filepath = NULL;
 
     /* Use the path to open the root directory */
@@ -379,11 +380,20 @@ zfilesearch(NCZMAP* map, const char* prefix, NClist* matches)
     int xfd;
 
     /* Get fd of the the prefix */
-    if((stat = zflookupgroup(zfmap,prefix,0,!CREATEGROUP,&xfd)))
+    stat = zflookupgroup(zfmap,prefix,0,!CREATEGROUP,&xfd);
+    switch (stat) {
+    case NC_EINVAL: /* not a directory, so stop */
+	stat = NC_NOERR;
+	break;
+    case NC_NOERR:
+        /* get names of the files in the group */
+        if((stat = platformdircontent(xfd, matches))) goto done;
+	break;
+    case NC_EACCESS: /* No such file */
+        /* Fall thru */
+    default:
 	goto done;
-    
-    /* get names of the files in the group */
-    if((stat = platformdircontent(xfd, matches))) goto done;
+    }
 
 done:
     zfrelease(zfmap,&xfd);
@@ -394,7 +404,7 @@ done:
 /* Utilities */
 
 /* Lookup a group by parsed path (segments)*/
-/* Return NC_EACCESS if not found and create if 0 */
+/* Return NC_EACCESS if not found, NC_EINVAL if not a directory; create if create flag is set */
 static int
 zflookupgroup(ZFMAP* zfmap, const char* key, int nskip, int create, int* gfdp)
 {
@@ -429,6 +439,7 @@ zflookupgroup(ZFMAP* zfmap, const char* key, int nskip, int create, int* gfdp)
 done:
     nullfree(fullpath);
     zfrelease(zfmap,&gfd);
+    ncbytesfree(path);
     nclistfreeall(segments);
     return (stat);
 }
@@ -660,6 +671,7 @@ platformerr(int err)
 {
      switch (err) {
      case ENOENT: err = NC_EACCESS; break; /* File does not exist */
+     case ENOTDIR: err = NC_EINVAL; break; /* not a directory */
      case EACCES: err = NC_EAUTH; break; /* file permissions */
      case EPERM:  err = NC_EAUTH; break; /* ditto */
      default: break;
@@ -855,6 +867,7 @@ done:
     }
     /* delete this file|dir */
     remove(path);
+    nullfree(path);
     errno = 0;
     return THROW(ret);
 }

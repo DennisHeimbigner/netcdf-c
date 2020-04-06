@@ -20,13 +20,30 @@ int optind;
 #endif
 
 #include "zincludes.h"
-#include "ztest.h"
+#include "ut_test.h"
+#include "ut_projtest.h"
 
-char* url = NULL;
 struct Options options;
 
+void
+usage(int err)
+{
+    if(err) {
+	fprintf(stderr,"error: (%d) %s\n",err,nc_strerror(err));
+    }
+    fprintf(stderr,"usage:");
+        fprintf(stderr," -d/*debug*/");
+        fprintf(stderr," -x<cmd,cmd,...>");
+        fprintf(stderr," -f<inputfilename>");
+        fprintf(stderr," -o<outputfilename>");
+        fprintf(stderr," -k<kind>");
+	fprintf(stderr,"\n");	
+    fflush(stderr);
+    exit(1);
+}
+
 int
-ut_init(int argc, char** argv, struct Options* options)
+ut_init(int argc, char** argv, struct Options * options)
 {
     int stat = NC_NOERR;
     int c;
@@ -34,13 +51,22 @@ ut_init(int argc, char** argv, struct Options* options)
     nc_initialize();
 
     if(options != NULL) {
-        while ((c = getopt(argc, argv, "dc:")) != EOF) {
+        while ((c = getopt(argc, argv, "dx:f:o:k:")) != EOF) {
             switch(c) {
             case 'd':  
                 options->debug = 1;     
                 break;
-            case 'x':
-		options->cmd = optarg;
+            case 'x': /*execute*/
+		if(parsestringvector(optarg,0,&options->cmds) <= 0) usage(0);
+                break;
+            case 'f':
+		options->file = strdup(optarg);
+                break;
+            case 'o':
+		options->output = strdup(optarg);
+                break;
+            case 'k': /*implementation*/
+		options->kind = strdup(optarg);
                 break;
             case '?':
                fprintf(stderr,"unknown option: '%c'\n",c);
@@ -64,23 +90,30 @@ nccheck(int stat, int line)
     }
 }
 
-void
+char*
 makeurl(const char* file)
 {
     char wd[4096];
+    char* url = NULL;
     NCbytes* buf = ncbytesnew();
-    ncbytescat(buf,"file://");
-    (void)getcwd(wd, sizeof(wd));
-    ncbytescat(buf,wd);
-    ncbytescat(buf,"/");
-    ncbytescat(buf,file);
-    ncbytescat(buf,"#mode=nczarr"); /* => use default file: format */
-    url = ncbytesextract(buf);
+    if(file && strlen(file) > 0) {
+        ncbytescat(buf,"file://");
+        if(file[0] != '/') {
+            (void)getcwd(wd, sizeof(wd));
+            ncbytescat(buf,wd);
+            ncbytescat(buf,"/");
+        }
+        ncbytescat(buf,file);
+        ncbytescat(buf,"#mode=nczarr"); /* => use default file: format */
+       url = ncbytesextract(buf);
+    }
     ncbytesfree(buf);
     fprintf(stderr,"url=|%s|\n",url);
     fflush(stderr);
+    return url;
 }
 
+#if 0
 int
 setup(int argc, char** argv)
 {
@@ -119,17 +152,30 @@ setup(int argc, char** argv)
 done:
     return stat;
 }
+#endif
+
+struct Test*
+findtest(const char* cmd, struct Test* tests)
+{
+    struct Test* t = NULL;
+    for(t=tests;t->cmd;t++) {
+        if(strcasecmp(t->cmd,cmd)==0) return t;
+    }
+    return NULL;
+}
 
 int
-findtest(const char* cmd, struct Test* tests, struct Test** thetest)
+runtests(const char** cmds, struct Test* tests)
 {
-    int stat = NC_NOERR;
-    struct Test* t = NULL;
-    *thetest = NULL;
-    for(t=tests;t->cmd;t++) {
-        if(strcasecmp(t->cmd,cmd)==0) {*thetest = t; break;}
+    struct Test* test = NULL;
+    const char** cmd = NULL;
+    for(cmd=cmds;*cmd;cmd++) {
+        for(test=tests;test->cmd;test++) {
+	    if(strcmp(test->cmd,*cmd)==0) {
+		if(test->cmd == NULL) return NC_EINVAL;
+		test->test(); /* Execute */
+	    }
+	}
     }
-    if(*thetest == NULL) {stat = NC_EINVAL; goto done;}
-done:
-    return stat;
+    return NC_NOERR;
 }

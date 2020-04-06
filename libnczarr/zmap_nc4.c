@@ -234,7 +234,7 @@ znc4define(NCZMAP* map, const char* key, size64_t len)
 	goto done;
 
 done:
-    nclistfree(segments);
+    nclistfreeall(segments);
     return (stat);
 }
 
@@ -263,7 +263,7 @@ znc4read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* con
 	goto done;
 
 done:
-    nclistfree(segments);
+    nclistfreeall(segments);
     return (stat);
 }
 
@@ -292,7 +292,7 @@ znc4write(NCZMAP* map, const char* key, size64_t start, size64_t count, const vo
 	goto done;
 
 done:
-    nclistfree(segments);
+    nclistfreeall(segments);
     return (stat);
 }
 
@@ -324,7 +324,7 @@ znc4readmeta(NCZMAP* map, const char* key, size64_t avail, char* content)
 	goto done;
 
 done:
-    nclistfree(segments);
+    nclistfreeall(segments);
     return (stat);
 }
 
@@ -350,7 +350,7 @@ znc4writemeta(NCZMAP* map, const char* key, size64_t count, const char* content)
 	goto done;
 
 done:
-    nclistfree(segments);
+    nclistfreeall(segments);
     return (stat);
 }
 
@@ -362,7 +362,6 @@ znc4close(NCZMAP* map, int delete)
     char* path = NULL;
 
     path = z4map->path;
-    z4map->path = NULL;
         
     if((stat = nc_close(z4map->ncid)))
 	goto done;
@@ -372,9 +371,8 @@ znc4close(NCZMAP* map, int delete)
     }
 
 done:
-    nullfree(path);
-    nczm_clear(map);
     nullfree(z4map->path);
+    nczm_clear(map);
     free(z4map);
     return (stat);
 }
@@ -390,7 +388,7 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
     int stat = NC_NOERR;
     Z4MAP* z4map = (Z4MAP*)map;
     NClist* segments = nclistnew();
-    int grpid, ngrps, nvars;
+    int grpid, ngrps;
     int* subgrps = NULL;
     int* vars = NULL;
     int i;
@@ -434,6 +432,7 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
 	zify(gname,zname);
 	nclistpush(matches,strdup(zname));	
     }
+#if 0
     /* 2. Add any variables in the group */
     if((stat = nc_inq_varids(grpid,&nvars,NULL)))
 	goto done;
@@ -449,10 +448,12 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
 	zify(vname,zname);
 	nclistpush(matches,strdup(zname));	
     }
-    
+#endif
+
 done:
     nullfree(vars);
     nullfree(subgrps);
+    nclistfreeall(segments);
     return stat;
 }
 

@@ -22,17 +22,28 @@ check_PROGRAMS =
 TESTS =
 
 # Unit Tests
-check_PROGRAMS += ut_mapnc4
-check_PROGRAMS += ut_json
-check_PROGRAMS += ut_projections
-TESTS += run_unittests.sh
+check_PROGRAMS += ut_map ut_json ut_projections
+
+commonsrc = ut_util.c ut_test.c
+
+ut_map_SOURCES = ut_map.c ${commonsrc}
+ut_json_SOURCES = ut_json.c ${commonsrc}
+ut_projections_SOURCES = ut_projections.c ${commonsrc}
 
 # Integration Tests
-check_PROGRAMS += t_meta
-TESTS += run_meta_tests.sh
+#check_PROGRAMS += it_meta
+
+TESTS += run_unittests.sh
+
+#TESTS += run_meta_tests.sh
 
 #noinst_PROGRAMS = z4dump
 #z4dump_SOURCES = z4dump.c
+
+# Given a netcdf4 file, dump the actual chunk contents.
+# Used to validate nczarr chunking code.
+noinst_PROGRAMS = ncdumpchunks
+ncdumpchunks_SOURCES = ncdumpchunks.c
 
 EXTRA_DIST = run_unittests.sh run_meta_tests.sh \
 	ref_ut_mapnc4_create.cdl ref_ut_mapnc4_meta.cdl \

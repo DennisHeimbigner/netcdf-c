@@ -1,4 +1,4 @@
-netcdf testmapnc4 {
+netcdf testmap {
 
 group: _nczarr {
   } // group _nczarr
@@ -8,10 +8,4 @@ group: meta1 {
   // group attributes:
   		:data = "{\n\"foo\": 42,\n\"bar\": \"apples\",\n\"baz\": [1, 2, 3, 4]}" ;
   } // group meta1
-
-group: meta2 {
-
-  // group attributes:
-  		:data = "{\n\"foo\": 42,\n\"bar\": \"apples\",\n\"baz\": [1, 2, 3, 4],\n\"extra\": 137}" ;
-  } // group meta2
 }

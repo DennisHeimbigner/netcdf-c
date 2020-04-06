@@ -31,8 +31,7 @@
 typedef struct NCjson {
     int sort;
     char* value;
-    NClist* array;
-    NClist* dict;
+    NClist* contents; /* For array|dict */
 } NCjson;
 
 #define NCJF_MULTILINE 1
@@ -71,14 +70,15 @@ extern int NCJunparse(const NCjson* json, int flags, char** textp);
 
 /* Utilities */
 extern void NCJreclaim(NCjson*);
+extern int NCJclone(NCjson* json, NCjson** clonep); /* deep clone */
 
 /* dump NCjson* object */
 extern void NCJdump(const NCjson* json, int flags);
 
 /* Macro defined functions */
 #define NCJlength(json) \
-(json->sort == NCJ_DICT ? (nclistlength(json->dict)/2) \
-                        : (json->sort == NCJ_ARRAY ? (nclistlength(json->array)) \
+((json)->sort == NCJ_DICT ? (nclistlength((json)->contents)/2) \
+                        : ((json)->sort == NCJ_ARRAY ? (nclistlength((json)->contents)) \
                         : 1))
 
 #endif /*NCJSON_H*/

@@ -52,6 +52,8 @@ static int NCJunparseR(const NCjson* json, NCbytes* buf, int flags);
 static int NCJunescape(NCJparser* parser);
 static int NCJescape(const char* text, NCbytes* buf);
 static int NCJappendquoted(const char* value, NCbytes* buf);
+static int NCJcloneArray(NClist* array, NCjson** clonep);
+static int NCJcloneDict(NClist* dict, NCjson** clonep);
 
 /**************************************************/
 int
@@ -135,11 +137,11 @@ NCJparseR(NCJparser* parser, NCjson** jsonp)
 	break;
     case NCJ_LBRACE:
         if((stat = NCJnew(NCJ_DICT,&json))) goto done;
-	if((stat = NCJparseDict(parser, json->dict))) goto done;
+	if((stat = NCJparseDict(parser, json->contents))) goto done;
 	break;
     case NCJ_LBRACKET:
         if((stat = NCJnew(NCJ_ARRAY,&json))) goto done;
-	if((stat = NCJparseArray(parser, json->array))) goto done;
+	if((stat = NCJparseArray(parser, json->contents))) goto done;
 	break;
     case NCJ_RBRACE: /* We hit end of the dict we are parsing */
 	parser->pos--; /* pushback so NCJparseArray will catch */
@@ -400,10 +402,12 @@ NCJreclaim(NCjson* json)
 	nullfree(json->value);
 	break;
     case NCJ_DICT:
-	NCJreclaimDict(json->dict);
+	NCJreclaimDict(json->contents);
+	nclistfree(json->contents);
 	break;
     case NCJ_ARRAY:
-	NCJreclaimArray(json->array);
+	NCJreclaimArray(json->contents);
+	nclistfree(json->contents);
 	break;
     default: break; /* nothing to reclaim */
     }
@@ -418,19 +422,76 @@ NCJreclaimArray(NClist* array)
 	NCjson* j = nclistget(array,i);
 	NCJreclaim(j);
     }
-    nclistfree(array);
 }
 
 static void
 NCJreclaimDict(NClist* dict)
 {
-    int i;
-    for(i=0;i<nclistlength(dict);i++) {
-	NCjson* value = NULL;
-	value = nclistget(dict,i);
-	NCJreclaim(value);
+    return NCJreclaimArray(dict);
+}
+
+int
+NCJclone(NCjson* json, NCjson** clonep)
+{
+    int stat = NC_NOERR;
+    NCjson* clone = NULL;
+    if(json == NULL) goto done;
+    switch(json->sort) {
+    case NCJ_INT:
+    case NCJ_DOUBLE:
+    case NCJ_BOOLEAN:
+    case NCJ_STRING:
+	if((stat=NCJnew(json->sort,&clone))) goto done;
+	if((clone->value = strdup(json->value)) == NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	break;
+    case NCJ_NULL:
+	if((stat=NCJnew(json->sort,&clone))) goto done;
+	break;
+    case NCJ_DICT:
+	if((stat=NCJcloneDict(json->contents,&clone))) goto done;
+	break;
+    case NCJ_ARRAY:
+	if((stat=NCJcloneArray(json->contents,&clone))) goto done;
+	break;
+    default: break; /* nothing to clone */
     }
-    nclistfree(dict);
+done:
+    if(stat == NC_NOERR && clonep) {*clonep = clone; clone = NULL;}
+    NCJreclaim(clone);    
+    return stat;
+}
+
+static int
+NCJcloneArray(NClist* array, NCjson** clonep)
+{
+    int i, stat=NC_NOERR;
+    NCjson* clone = NULL;
+    if((stat=NCJnew(NCJ_ARRAY,&clone))) goto done;
+    for(i=0;i<nclistlength(array);i++) {
+	NCjson* elem = nclistget(array,i);
+	NCjson* elemclone = NULL;
+	if((stat=NCJclone(elem,&elemclone))) goto done;
+	nclistpush(clone->contents,elemclone);
+    }
+done:
+    if(stat == NC_NOERR && clonep) {*clonep = clone; clone = NULL;}
+    NCJreclaim(clone);    
+    return stat;
+}
+
+static int
+NCJcloneDict(NClist* dict, NCjson** clonep)
+{
+    int stat = NC_NOERR;
+    NCjson* clone = NULL;
+    if((stat=NCJcloneArray(dict,&clone))) goto done;
+    /* Convert from array to dict */
+    clone->sort = NCJ_DICT;
+done:
+    if(stat == NC_NOERR && clonep) {*clonep = clone; clone = NULL;}
+    NCJreclaim(clone);    
+    return stat;
 }
 
 /**************************************************/
@@ -453,10 +514,10 @@ NCJnew(int sort, NCjson** objectp)
     case NCJ_NULL:
 	break;
     case NCJ_DICT:
-	object->dict = nclistnew();
+	object->contents = nclistnew();
 	break;
     case NCJ_ARRAY:
-	object->array = nclistnew();
+	object->contents = nclistnew();
 	break;
     default: 
 	stat = NC_EINVAL;
@@ -495,7 +556,7 @@ NCJinsert(NCjson* object, char* key, NCjson* value)
     if(object == NULL || object->sort != NCJ_DICT)
 	return NC_EINTERNAL;
     NCJaddstring(object,NCJ_STRING,key);
-    nclistpush(object->dict,value);
+    nclistpush(object->contents,value);
     return NC_NOERR;
 }
 
@@ -507,11 +568,11 @@ NCJaddstring(NCjson* dictarray, int sort, const char* value)
     switch (dictarray->sort) {
     case NCJ_DICT:
 	if((stat = NCJnewstring(sort,value,&jvalue))) goto done;
-	nclistpush(dictarray->dict,jvalue);
+	nclistpush(dictarray->contents,jvalue);
 	break;
     case NCJ_ARRAY:
 	if((stat = NCJnewstring(sort,value,&jvalue))) goto done;
-	nclistpush(dictarray->array,jvalue);
+	nclistpush(dictarray->contents,jvalue);
 	break;
     default: stat = NC_EINVAL; goto done;
     }
@@ -525,10 +586,10 @@ NCJdictith(NCjson* object, size_t i, const char** keyp, NCjson** valuep)
 {
     if(object == NULL || object->sort != NCJ_DICT)
 	return NC_EINTERNAL;
-    if(i >= (nclistlength(object->dict)/2))
+    if(i >= (nclistlength(object->contents)/2))
 	return NC_EINVAL;
-    if(keyp) *keyp = nclistget(object->dict,2*i);
-    if(valuep) *valuep = nclistget(object->dict,(2*i)+1);
+    if(keyp) *keyp = nclistget(object->contents,2*i);
+    if(valuep) *valuep = nclistget(object->contents,(2*i)+1);
     return NC_NOERR;
 }
 
@@ -539,11 +600,11 @@ NCJdictget(NCjson* object, const char* key, NCjson** valuep)
     if(object == NULL || object->sort != NCJ_DICT)
 	return NC_EINTERNAL;
     if(valuep) *valuep = NULL;
-    for(i=0;i<nclistlength(object->dict);i+=2) {
-	const NCjson* k = nclistget(object->dict,i);
+    for(i=0;i<nclistlength(object->contents);i+=2) {
+	const NCjson* k = nclistget(object->contents,i);
 	assert(k != NULL && k->sort == NCJ_STRING);
 	if(strcmp(k->value,key)==0) {
-            if(valuep) *valuep = nclistget(object->dict,i+1);
+            if(valuep) *valuep = nclistget(object->contents,i+1);
 	    break;
 	}
     }
@@ -559,10 +620,10 @@ NCJappend(NCjson* object, NCjson* value)
 	return NC_EINTERNAL;
     switch (object->sort) {
     case NCJ_ARRAY:
-        nclistpush(object->array,value);
+        nclistpush(object->contents,value);
 	break;
     case NCJ_DICT:
-        nclistpush(object->dict,value);
+        nclistpush(object->contents,value);
 	break;
     default:
 	return NC_EINTERNAL;
@@ -575,7 +636,7 @@ NCJarrayith(NCjson* object, size_t i, NCjson** valuep)
 {
     if(object == NULL || object->sort != NCJ_DICT)
 	return NC_EINTERNAL;
-    if(valuep) *valuep = nclistget(object->array,i);
+    if(valuep) *valuep = nclistget(object->contents,i);
     return NC_NOERR;
 }
 
@@ -642,20 +703,20 @@ NCJunparseR(const NCjson* json, NCbytes* buf, int flags)
 	break;
     case NCJ_DICT:
 	ncbytesappend(buf,NCJ_LBRACE);
-	for(i=0;i<nclistlength(json->dict);) {
+	for(i=0;i<nclistlength(json->contents);) {
 	    const NCjson* key = NULL;
 	    const NCjson* value = NULL;
 	    if(i > 0) ncbytesappend(buf,NCJ_COMMA);
-	    key = nclistget(json->dict,i);
+	    key = nclistget(json->contents,i);
 	    NCJunparseR(key,buf,flags);
 	    ncbytesappend(buf,NCJ_COLON);
 	    ncbytesappend(buf,' ');
 	    /* Allow for the possibility of a short dict entry */
 	    i++;
-	    if(i >= nclistlength(json->dict)) { /*short*/
+	    if(i >= nclistlength(json->contents)) { /*short*/
 		ncbytescat(buf,"?");		
 	    } else {
-	        value = nclistget(json->dict,i);
+	        value = nclistget(json->contents,i);
 	        NCJunparseR(value,buf,flags);
 		i++;
 	    }
@@ -664,8 +725,8 @@ NCJunparseR(const NCjson* json, NCbytes* buf, int flags)
 	break;
     case NCJ_ARRAY:
 	ncbytesappend(buf,NCJ_LBRACKET);
-	for(i=0;i<nclistlength(json->array);i++) {
-	    const NCjson* value = nclistget(json->array,i);
+	for(i=0;i<nclistlength(json->contents);i++) {
+	    const NCjson* value = nclistget(json->contents,i);
 	    if(i > 0) ncbytesappend(buf,NCJ_COMMA);
 	    NCJunparseR(value,buf,flags);
 	}	

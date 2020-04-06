@@ -654,9 +654,9 @@ load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypesp)
             if((stat = NCJdictget(jncattr,"types",&jtypes))) goto done;
             if(jtypes->sort != NCJ_DICT) {stat = THROW(NC_ENCZARR); goto done;}
             /* Convert to an envv list */
-            for(i=0;i<nclistlength(jtypes->dict);i+=2) {
-                const NCjson* key = nclistget(jtypes->dict,i);
-                const NCjson* value = nclistget(jtypes->dict,i+1);
+            for(i=0;i<nclistlength(jtypes->contents);i+=2) {
+                const NCjson* key = nclistget(jtypes->contents,i);
+                const NCjson* value = nclistget(jtypes->contents,i+1);
                 if(key->sort != NCJ_STRING) {stat = THROW(NC_ENCZARR); goto done;}
                 if(value->sort != NCJ_STRING) {stat = THROW(NC_ENCZARR); goto done;}
                 nclistpush(atypes,strdup(key->value));
@@ -689,8 +689,8 @@ zconvert(nc_type typeid, size_t typelen, void* dst0, NCjson* src)
 
     switch (src->sort) {
     case NCJ_ARRAY:
-        for(i=0;i<nclistlength(src->array);i++) {
-            NCjson* value = nclistget(src->array,i);
+        for(i=0;i<nclistlength(src->contents);i++) {
+            NCjson* value = nclistget(src->contents,i);
             assert(value->sort != NCJ_STRING);
             if((stat = NCZ_convert1(value, typeid, dst)))
                 goto done;
@@ -771,7 +771,7 @@ computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap)
     switch (values->sort) {
     case NCJ_DICT: stat = NC_EINTERNAL; goto done;
     case NCJ_ARRAY:
-        len = nclistlength(values->array);
+        len = nclistlength(values->contents);
         break;
     case NCJ_STRING: /* requires special handling as an array of characters */
         len = strlen(values->value);
@@ -1013,9 +1013,9 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
     if(jattrs != NULL) {
         /* Iterate over the attributes to create the in-memory attributes */
         /* Watch for reading _FillValue */
-        for(i=0;i<nclistlength(jattrs->dict);i+=2) {
-            NCjson* key = nclistget(jattrs->dict,i);
-            NCjson* value = nclistget(jattrs->dict,i+1);
+        for(i=0;i<nclistlength(jattrs->contents);i+=2) {
+            NCjson* key = nclistget(jattrs->contents,i);
+            NCjson* value = nclistget(jattrs->contents,i+1);
             const NC_reservedatt* ra = NULL;
     
             /* See if this is reserved attribute */
@@ -1193,8 +1193,8 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
             case NC_NOERR: /* Extract the dimref names */
                 assert((jdimrefs->sort == NCJ_ARRAY));
                 hasdimrefs = 0; /* until we have one */     
-                for(j=0;j<nclistlength(jdimrefs->array);j++) {
-                    const NCjson* dimpath = nclistget(jdimrefs->array,j);
+                for(j=0;j<nclistlength(jdimrefs->contents);j++) {
+                    const NCjson* dimpath = nclistget(jdimrefs->contents,j);
                     assert(dimpath->sort == NCJ_STRING);
                     nclistpush(dimrefs,strdup(dimpath->value));
                     hasdimrefs = 1;
@@ -1242,7 +1242,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
             if((stat = NCJdictget(jvar,"shape",&jvalue))) goto done;
             if(jvalue->sort != NCJ_ARRAY) {stat = THROW(NC_ENCZARR); goto done;}
             /* Verify the rank */
-            rank = nclistlength(jvalue->array);
+            rank = nclistlength(jvalue->contents);
             if(hasdimrefs) { /* verify rank consistency */
                 if(nclistlength(dimrefs) != rank)
                     {stat = THROW(NC_ENCZARR); goto done;}
@@ -1270,7 +1270,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
             if(jvalue != NULL && jvalue->sort != NCJ_ARRAY)
                 {stat = THROW(NC_ENCZARR); goto done;}
             /* Verify the rank */
-            rank = nclistlength(jvalue->array);
+            rank = nclistlength(jvalue->contents);
             if(rank > 0) {
                 var->storage = NC_CHUNKED;
                 if(var->ndims != rank)
@@ -1391,9 +1391,9 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
     if(jvalue != NULL) {
         if(jvalue->sort != NCJ_DICT) {stat = THROW(NC_ENCZARR); goto done;}
         /* Extract the dimensions defined in this group */
-        for(i=0;i<nclistlength(jvalue->dict);i+=2) {
-            NCjson* jname = nclistget(jvalue->dict,i);
-            NCjson* jlen = nclistget(jvalue->dict,i+1);
+        for(i=0;i<nclistlength(jvalue->contents);i+=2) {
+            NCjson* jname = nclistget(jvalue->contents,i);
+            NCjson* jlen = nclistget(jvalue->contents,i+1);
             char norm_name[NC_MAX_NAME + 1];
             ssize64_t len;
             /* Verify name legality */
@@ -1411,8 +1411,8 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
     if((stat=NCJdictget(jcontent,"vars",&jvalue))) goto done;
     if(jvalue != NULL) {
         /* Extract the variable names in this group */
-        for(i=0;i<nclistlength(jvalue->array);i++) {
-            NCjson* jname = nclistget(jvalue->array,i);
+        for(i=0;i<nclistlength(jvalue->contents);i++) {
+            NCjson* jname = nclistget(jvalue->contents,i);
             char norm_name[NC_MAX_NAME + 1];
             /* Verify name legality */
             if((stat = nc4_check_name(jname->value, norm_name)))
@@ -1424,8 +1424,8 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
     if((stat=NCJdictget(jcontent,"groups",&jvalue))) goto done;
     if(jvalue != NULL) {
         /* Extract the subgroup names in this group */
-        for(i=0;i<nclistlength(jvalue->array);i++) {
-            NCjson* jname = nclistget(jvalue->array,i);
+        for(i=0;i<nclistlength(jvalue->contents);i++) {
+            NCjson* jname = nclistget(jvalue->contents,i);
             char norm_name[NC_MAX_NAME + 1];
             /* Verify name legality */
             if((stat = nc4_check_name(jname->value, norm_name)))
@@ -1560,9 +1560,9 @@ decodeints(NCjson* jshape, size64_t* shapes)
 {
     int i, stat = NC_NOERR;
 
-    for(i=0;i<nclistlength(jshape->array);i++) {
+    for(i=0;i<nclistlength(jshape->contents);i++) {
         long long v;
-        NCjson* jv = nclistget(jshape->array,i);
+        NCjson* jv = nclistget(jshape->contents,i);
         if((stat = NCZ_convert1(jv,NC_INT64,(char*)&v))) goto done;
         if(v < 0) {stat = THROW(NC_ENCZARR); goto done;}
         shapes[i] = (size64_t)v;

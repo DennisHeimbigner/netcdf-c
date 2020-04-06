@@ -341,7 +341,7 @@ NCZ_stringconvert(nc_type typeid, size_t len, void* data0, NCjson** jdatap)
 	    }
 	    jvalue->value = str;
 	    str = NULL;
-	    nclistpush(jdata->array,jvalue);
+	    nclistpush(jdata->contents,jvalue);
 	    jvalue = NULL;
 	    src += typelen;
 	}

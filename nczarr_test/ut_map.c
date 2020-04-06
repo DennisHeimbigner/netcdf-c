@@ -5,13 +5,14 @@
 
 #include "config.h"
 #include "zincludes.h"
-#include "ztest.h"
+#include "ut_test.h"
 
-#undef SETUP
 #undef DEBUG
 
+#if 0
 #define FILE1 "testmapnc4.ncz"
 #define URL1 "file://" FILE1 "#mode=zarr"
+#endif
 
 #define ZARRROOT "/_nczarr"
 #define META1 "/meta1"
@@ -23,6 +24,9 @@ static const char* metadata1 = "{\n\"foo\": 42,\n\"bar\": \"apples\",\n\"baz\": 
 
 static const char* metadata2 = "{\n\"foo\": 42,\n\"bar\": \"apples\",\n\"baz\": [1, 2, 3, 4],\n\"extra\": 137}";
 
+static char* url = NULL;
+static NCZM_IMPL impl = NCZM_UNDEF;
+
 /* Forward */
 static int simplecreate(void);
 static int simpledelete(void);
@@ -33,40 +37,34 @@ static int writedata(void);
 static int readdata(void);
 static int search(void);
 
+struct Test tests[] = {
+{"create",simplecreate},
+{"delete",simpledelete},
+{"writemeta", writemeta},
+{"writemeta2", writemeta2},
+{"readmeta", readmeta},
+{"writedata", writedata},
+{"readdata", readdata},
+{"search", search},
+{NULL,NULL}
+};
+
 int
 main(int argc, char** argv)
 {
     int stat = NC_NOERR;
-    struct Test test;
 
-    memset(&test,0,sizeof(test));
-    if((stat = ut_init(argc, argv, &test))) goto done;
+    if((stat = ut_init(argc, argv, &options))) goto done;
+    if(options.file == NULL && options.output != NULL) options.file = strdup(options.output);
+    if(options.output == NULL && options.file != NULL)options.output = strdup(options.file);
+    url = makeurl(options.file);
+    impl = kind2impl(options.kind);
 
-    if(strcmp(test.cmd,"create")==0)
-	stat=simplecreate();
-    else if(strcmp(test.cmd,"delete")==0)
-	stat=simpledelete();
-    else if(strcmp(test.cmd,"writemeta")==0)
-	stat = writemeta();
-    else if(strcmp(test.cmd,"writemeta2")==0)
-	stat = writemeta2();
-    else if(strcmp(test.cmd,"readmeta")==0)
-	stat = readmeta();
-    else if(strcmp(test.cmd,"writedata")==0)
-	stat = writedata();
-    else if(strcmp(test.cmd,"readdata")==0)
-	stat = readdata();
-    else if(strcmp(test.cmd,"search")==0)
-	stat = search();
-    else {
-	fprintf(stderr,"unknown command specified\n");
-	exit(1);
-    }
-
+    if((stat = runtests((const char**)options.cmds,tests))) goto done;
+    
 done:
-    if(stat)
-	nc_strerror(stat);
-    return (stat ? 1 : 0);    
+    if(stat) usage(stat);
+    return 0;
 }
 
 /* Do a simple create */
@@ -77,9 +75,7 @@ simplecreate(void)
     NCZMAP* map = NULL;
     char* path = NULL;
 
-    unlink(FILE1);
-
-    if((stat = nczmap_create(NCZM_NC4,URL1,0,0,NULL,&map)))
+    if((stat = nczmap_create(impl,url,0,0,NULL,&map)))
 	goto done;
 
     if((stat=nczm_suffix(NULL,ZARRROOT,&path)))
@@ -91,6 +87,7 @@ simplecreate(void)
     if((stat = nczmap_close(map,0)))
 	goto done;
 done:
+    nullfree(path);
     return THROW(stat);
 }
 
@@ -101,11 +98,7 @@ simpledelete(void)
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
 
-#ifdef SETUP
-    NCCHECK(simplecreate());
-#endif
-
-    if((stat = nczmap_open(NCZM_NC4,URL1,0,0,NULL,&map)))
+    if((stat = nczmap_open(impl,url,0,0,NULL,&map)))
 	goto done;
     if((stat = nczmap_close(map,1)))
 	goto done;
@@ -121,21 +114,21 @@ writemeta(void)
     NCZMAP* map = NULL;
     char* path = NULL;
 
-    unlink(FILE1);
-
-    if((stat = nczmap_create(NCZM_NC4,URL1,0,0,NULL,&map)))
+    if((stat = nczmap_create(impl,url,0,0,NULL,&map)))
 	goto done;
 
     if((stat=nczm_suffix(NULL,ZARRROOT,&path)))
 	goto done;
     if((stat = nczmap_def(map, path, NCZ_ISMETA)))
 	goto done;
+    free(path); path = NULL;
 
     if((stat=nczm_suffix(NULL,META1,&path)))
 	goto done;
     if((stat = nczmap_def(map, path, NCZ_ISMETA)))
 	goto done;
-
+    free(path); path = NULL;
+    
     if((stat = nczmap_writemeta(map, META1, strlen(metadata1), metadata1)))
 	goto done;
 
@@ -154,16 +147,11 @@ writemeta2(void)
     NCZMAP* map = NULL;
     char* path = NULL;
 
-#ifdef SETUP
-    NCCHECK(writemeta());
-#endif
- 
-    if((stat = nczmap_open(NCZM_NC4,URL1,NC_WRITE,0,NULL,&map)))
+    if((stat = nczmap_open(impl,url,NC_WRITE,0,NULL,&map)))
 	goto done;
 
     if((stat=nczm_suffix(NULL,META2,&path)))
 	goto done;
-
     if((stat = nczmap_def(map,path,NCZ_ISMETA)))
 	goto done;
 
@@ -187,11 +175,7 @@ readmeta(void)
     size64_t olen;
     char* content = NULL;
 
-#ifdef SETUP
-    NCCHECK(writemeta2());
-#endif
-
-    if((stat = nczmap_open(NCZM_NC4,URL1,0,0,NULL,&map)))
+    if((stat = nczmap_open(impl,url,0,0,NULL,&map)))
 	goto done;
 
     if((stat=nczm_suffix(NULL,META1,&path)))
@@ -232,17 +216,11 @@ writedata(void)
     size64_t totallen;
     char* data1p = (char*)&data1[0]; /* byte level version of data1 */
 
-    /* Take output of writemeta2 */
-#ifdef SETUP
-    NCCHECK(writemeta2());
-#endif
-
     /* Create the data */
-    for(i=0;i<DATA1LEN;i++)
-	data1[i] = i;
+    for(i=0;i<DATA1LEN;i++) data1[i] = i;
     totallen = sizeof(int)*DATA1LEN;
 
-    if((stat = nczmap_open(NCZM_NC4,URL1,NC_WRITE,0,NULL,&map)))
+    if((stat = nczmap_open(impl,url,NC_WRITE,0,NULL,&map)))
 	goto done;
 
     /* ensure object */
@@ -285,12 +263,7 @@ readdata(void)
     size64_t chunklen, totallen;
     char* data1p = NULL; /* byte level pointer into data1 */
 
-    /* Take output of writedata */
-#ifdef SETUP
-    NCCHECK(writedata());
-#endif
-
-    if((stat = nczmap_open(NCZM_NC4,URL1,0,0,NULL,&map)))
+    if((stat = nczmap_open(impl,url,0,0,NULL,&map)))
 	goto done;
 
     /* ensure object */
@@ -335,36 +308,60 @@ done:
     return THROW(stat);
 }
 
-/* Currently no tests */
+static int
+searchR(NCZMAP* map, int depth, NCbytes* prefix, NClist* objects)
+{
+    int i,stat = NC_NOERR;
+    size_t savepoint;
+    NClist* matches = nclistnew();
+    
+    savepoint = ncbyteslength(prefix);
+
+    /* add this prefix to object list */
+    nclistpush(objects,strdup(ncbytescontents(prefix)));
+    
+    /* get next level objects below the prefix */
+    if((stat = nczmap_search(map, ncbytescontents(prefix), matches))) goto done;
+    for(i=0;i<nclistlength(matches);i++) {
+	const char* segment = nclistget(matches,i);
+	if(depth > 0) ncbytescat(prefix,"/");
+	ncbytescat(prefix,segment);
+	if((stat = searchR(map,depth+1,prefix,objects))) goto done;
+	ncbytessetlength(prefix,savepoint);
+    }
+
+done:
+    ncbytessetlength(prefix,savepoint);
+    nclistfreeall(matches);
+    return stat;
+}
+
 static int
 search(void)
 {
     int i,stat = NC_NOERR;
     NCZMAP* map = NULL;
-    NClist* matches = nclistnew();
+    NClist* objects = nclistnew();
+    NCbytes* prefix = ncbytesnew();
 
-    /* Take output of writedata */
-#ifdef SETUP
-    NCCHECK(writedata());
-#endif
-
-    if((stat = nczmap_open(NCZM_NC4,URL1,0,0,NULL,&map)))
+    if((stat = nczmap_open(impl,url,0,0,NULL,&map)))
 	goto done;
 
-    /* Do a search on root to get all objects */
-    if((stat=nczmap_search(map,"/",matches)))
+    /* Do a recursive search on root to get all objects */
+    ncbytescat(prefix,"/");
+    if((stat=searchR(map,0,prefix,objects)))
 	goto done;
 
     /* Print out the list */
-    for(i=0;i<nclistlength(matches);i++) {
-	const char* path = nclistget(matches,i);
+    for(i=0;i<nclistlength(objects);i++) {
+	const char* path = nclistget(objects,i);
 	printf("[%d] %s\n",i,path);
     }
 
-    /* Do not delete so later tests can use it */
-    if((stat = nczmap_close(map,0)))
-	goto done;
 done:
-    nclistfree(matches);
+    /* Do not delete so later tests can use it */
+    (void)nczmap_close(map,0);
+    ncbytesfree(prefix);
+    nclistfreeall(objects);
     return THROW(stat);
 }

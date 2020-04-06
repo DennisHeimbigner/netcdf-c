@@ -242,6 +242,6 @@ NCZ_filter_actions(int ncid, int varid, int op, void* args)
     }
 
 done:
-    NC_freestringvec(nfilters,xfilterids);
+    NC_filterx_freestringvec(nfilters,xfilterids);
     return THROW(stat);
 }

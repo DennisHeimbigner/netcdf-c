@@ -10,7 +10,7 @@
 AC_PREREQ([2.59])
 
 # Initialize with name, version, and support email address.
-AC_INIT([netCDF], [4.7.4-development], [support-netcdf@unidata.ucar.edu], [netcdf-c])
+AC_INIT([netCDF], [4.8.0-development], [support-netcdf@unidata.ucar.edu], [netcdf-c])
 
 ##
 # Prefer an empty CFLAGS variable instead of the default -g -O2.
@@ -20,8 +20,8 @@ AC_INIT([netCDF], [4.7.4-development], [support-netcdf@unidata.ucar.edu], [netcd
 : ${CFLAGS=""}
 
 AC_SUBST([NC_VERSION_MAJOR]) NC_VERSION_MAJOR=4
-AC_SUBST([NC_VERSION_MINOR]) NC_VERSION_MINOR=7
-AC_SUBST([NC_VERSION_PATCH]) NC_VERSION_PATCH=4
+AC_SUBST([NC_VERSION_MINOR]) NC_VERSION_MINOR=8
+AC_SUBST([NC_VERSION_PATCH]) NC_VERSION_PATCH=0
 AC_SUBST([NC_VERSION_NOTE]) NC_VERSION_NOTE="-development"
 
 #####
@@ -455,10 +455,11 @@ AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 AC_LANG_PUSH([C++])
 AC_SEARCH_LIBS([aws_allocator_is_valid],[aws-c-common aws-cpp-sdk-s3 aws-cpp-sdk-core], [have_aws=yes],[have_aws=no])
 AC_LANG_POP
-if test "x$have_aws" = xno ; then
-    AC_MSG_ERROR([libaws required for nczarr. Install libaws or build with --disable-nczarr.])
+AC_MSG_CHECKING([whether AWS S3 SDK library is available])
+AC_MSG_RESULT([$have_aws])
+if test "x$have_aws" = xyes ; then
+  AC_DEFINE([ENABLE_S3_SDK], [1], [if true, build libnczarr with S3 support enabled])
 fi
-AC_DEFINE([ENABLE_S3_SDK], [1], [if true, build libnczarr with S3 support enabled])
 
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.

@@ -32,8 +32,6 @@ extern float ncz_chunk_cache_preemption;
 extern int nc_log_level;
 #endif /* LOGGING */
 
-int ncz_initialized = 0; /**< True if initialization has happened. */
-
 #ifdef LOOK
 /**
  * @internal Provide a wrapper for H5Eset_auto
@@ -158,6 +156,7 @@ exit:
     return retval;
 }
 
+#ifdef LOOK
 /**
  * @internal Search for type with a given HDF type id.
  *
@@ -195,6 +194,7 @@ ncz_rec_find_hdf_type(NC_FILE_INFO_T *h5, hid_t target_hdf_typeid)
     /* Can't find it. Fate, why do you mock me? */
     return NULL;
 }
+#endif
 
 /**
  * @internal Find the actual length of a dim by checking the length of

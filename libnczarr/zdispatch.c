@@ -114,13 +114,18 @@ const NC_Dispatch* NCZ_dispatch_table = NULL; /* moved here from ddispatch.c */
  * @return ::NC_NOERR No error.
  * @author Dennis Heimbigner, Ed Hartnett
  */
+int ncz_initialized = 0; /**< True if initialization has happened. */
+
 int
 NCZ_initialize(void)
 {
+    int stat;
     NCZ_dispatch_table = &NCZ_dispatcher;
     if (!ncz_initialized)
         NCZ_initialize_internal();
-    return NCZ_provenance_init();
+    stat = NCZ_provenance_init();
+    if(stat) ncz_initialized = 1;
+    return stat;
 }
 
 /**

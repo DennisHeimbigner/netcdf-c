@@ -1,4 +1,4 @@
-netcdf testmapnc4 {
+netcdf testmap {
 dimensions:
 	dim100 = 100 ;
 

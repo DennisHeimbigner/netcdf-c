@@ -4,20 +4,9 @@
  */
 
 #include "zincludes.h"
-#ifdef HAVE_UNISTD_H
-#include "unistd.h"
-#endif
-#ifdef HAVE_GETOPT_H
-#include <getopt.h>
-#endif
+#include "zjson.h"
+#include "ut_test.h"
 
-#ifdef _MSC_VER
-#include "XGetopt.h"
-int opterr;
-int optind;
-#endif
-
-#define SETUP
 #define DEBUG
 
 typedef enum Cmds {
@@ -25,12 +14,6 @@ typedef enum Cmds {
     cmd_build = 1,
     cmd_parse = 2,
 } Cmds;
-
-/* Arguments from command line */
-struct Options {
-    int debug;
-    Cmds cmd;
-} options;
 
 /* Forward */
 static int testbuild(void);
@@ -40,14 +23,10 @@ static void dump(NCjson* json);
 static void dumpR(NCjson* json, int depth);
 static char* sortname(int sort);
 
-struct Test {
-    const char* option;
-    Cmds cmd;
-    int (*test)(void);
-} tests[] = {
-{"build", cmd_build, testbuild},
-{"parse", cmd_parse, testparse},
-{NULL, cmd_none, NULL}
+struct Test tests[] = {
+{"build", testbuild},
+{"parse", testparse},
+{NULL, NULL}
 };
 
 typedef struct NCJ {
@@ -62,68 +41,17 @@ typedef struct NCJ {
     NCjson* ncj_dict2;
 } NCJ;
 
-
-
-#ifdef SETUP
-#define NCCHECK(expr) nccheck((expr),__LINE__)
-void nccheck(int stat, int line)
-{
-    if(stat) {
-	fprintf(stderr,"%d: %s\n",line,nc_strerror(stat));
-	fflush(stderr);
-	exit(1);
-    }
-}
-#endif
-
 int
 main(int argc, char** argv)
 {
     int stat = NC_NOERR;
-    int c;
-    struct Test* test = NULL;
 
-    memset((void*)&options,0,sizeof(options));
-    while ((c = getopt(argc, argv, "dc:")) != EOF) {
-	struct Test* t;
-	switch(c) {
-	case 'd': 
-	    options.debug = 1;	    
-	    break;
-	case 'c':
-	    if(test != NULL) {
-		fprintf(stderr,"error: multiple tests specified\n");
-		stat = NC_EINVAL;
-		goto done;
-	    }
-	    for(t=tests;t->option;t++) {
-		if(strcmp(optarg,t->option)==0) {test = t;}
-	    }		    
-	    if(test == NULL) {
-		fprintf(stderr,"unknown command: %s\n",optarg);
-		stat = NC_EINVAL;
-		goto done;
-	    };
-	    break;
-	case '?':
-	   fprintf(stderr,"unknown option\n");
-	   stat = NC_EINVAL;
-	   goto done;
-	}
-    }
-    if(test == NULL) {
-	fprintf(stderr,"no command specified\n");
-	stat = NC_EINVAL;
-	goto done;
-    }
-
-    /* Execute */
-    test->test();
+    if((stat = ut_init(argc, argv, &options))) goto done;
+    if((stat = runtests((const char**)options.cmds,tests))) goto done;
 
 done:
-    if(stat)
-	nc_strerror(stat);
-    return (stat ? 1 : 0);    
+    if(stat) usage(stat);
+    return 0;
 }
 
 /* Build a reasonably complex json structure */
@@ -131,6 +59,7 @@ static int
 build(NCJ* ncj)
 {
     int stat = NC_NOERR;
+    NCjson* clone;
 
     memset(ncj,0,sizeof(NCJ));
 
@@ -150,29 +79,57 @@ build(NCJ* ncj)
 
     /* Create a filled array */
     if((stat = NCJnew(NCJ_ARRAY,&ncj->ncj_array2))) goto done;
-    if((stat = NCJappend(ncj->ncj_array2,ncj->ncj_string))) goto done;
-    if((stat = NCJappend(ncj->ncj_array2,ncj->ncj_int))) goto done;
-    if((stat = NCJappend(ncj->ncj_array2,ncj->ncj_double))) goto done;
-    if((stat = NCJappend(ncj->ncj_array2,ncj->ncj_boolean))) goto done;
-    if((stat = NCJappend(ncj->ncj_array2,ncj->ncj_null))) goto done;
-    if((stat = NCJappend(ncj->ncj_array2,ncj->ncj_array1))) goto done;
+    if((stat = NCJclone(ncj->ncj_string,&clone))) goto done;
+    if((stat = NCJappend(ncj->ncj_array2,clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_int,&clone))) goto done;
+    if((stat = NCJappend(ncj->ncj_array2,clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_double,&clone))) goto done;
+    if((stat = NCJappend(ncj->ncj_array2,clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_boolean,&clone))) goto done;
+    if((stat = NCJappend(ncj->ncj_array2,clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_null,&clone))) goto done;
+    if((stat = NCJappend(ncj->ncj_array2,clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_array1,&clone))) goto done;
+    if((stat = NCJappend(ncj->ncj_array2,clone))) goto done;
 
     /* Create an empty dict */
     if((stat = NCJnew(NCJ_DICT,&ncj->ncj_dict1))) goto done;
 
     /* Create a filled dict */
     if((stat = NCJnew(NCJ_DICT,&ncj->ncj_dict2))) goto done;
-    if((stat = NCJinsert(ncj->ncj_dict2,"string",ncj->ncj_string))) goto done;
-    if((stat = NCJinsert(ncj->ncj_dict2,"int",ncj->ncj_int))) goto done;
-    if((stat = NCJinsert(ncj->ncj_dict2,"double",ncj->ncj_double))) goto done;
-    if((stat = NCJinsert(ncj->ncj_dict2,"boolean",ncj->ncj_boolean))) goto done;
-    if((stat = NCJinsert(ncj->ncj_dict2,"null",ncj->ncj_null))) goto done;
-    if((stat = NCJinsert(ncj->ncj_dict2,"array1",ncj->ncj_array1))) goto done;
-    if((stat = NCJinsert(ncj->ncj_dict2,"array2",ncj->ncj_array2))) goto done;
-    if((stat = NCJinsert(ncj->ncj_dict2,"dict1",ncj->ncj_dict1))) goto done;
+    if((stat = NCJclone(ncj->ncj_string,&clone))) goto done;
+    if((stat = NCJinsert(ncj->ncj_dict2,"string",clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_int,&clone))) goto done;
+    if((stat = NCJinsert(ncj->ncj_dict2,"int",clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_double,&clone))) goto done;
+    if((stat = NCJinsert(ncj->ncj_dict2,"double",clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_boolean,&clone))) goto done;
+    if((stat = NCJinsert(ncj->ncj_dict2,"boolean",clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_null,&clone))) goto done;
+    if((stat = NCJinsert(ncj->ncj_dict2,"null",clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_array1,&clone))) goto done;
+    if((stat = NCJinsert(ncj->ncj_dict2,"array1",clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_array2,&clone))) goto done;
+    if((stat = NCJinsert(ncj->ncj_dict2,"array2",clone))) goto done;
+    if((stat = NCJclone(ncj->ncj_dict1,&clone))) goto done;
+    if((stat = NCJinsert(ncj->ncj_dict2,"dict1",clone))) goto done;
 
 done:
     return THROW(stat);
+}
+
+static void
+clear(NCJ* ncj)
+{
+    NCJreclaim(ncj->ncj_array1);
+    NCJreclaim(ncj->ncj_array2);
+    NCJreclaim(ncj->ncj_dict1);
+    NCJreclaim(ncj->ncj_dict2);
+    NCJreclaim(ncj->ncj_string);
+    NCJreclaim(ncj->ncj_int);
+    NCJreclaim(ncj->ncj_double);
+    NCJreclaim(ncj->ncj_boolean);
+    NCJreclaim(ncj->ncj_null);
 }
 
 /* Create test netcdf4 file via netcdf.h API*/
@@ -205,6 +162,7 @@ testbuild(void)
     dump(ncj.ncj_dict2);
 
 done:
+    clear(&ncj);
     return THROW(stat);
 }
 
@@ -212,9 +170,8 @@ done:
 static int
 testparse(void)
 {
-
-    int stat = NC_NOERR;
     NCJ ncj;
+    int stat = NC_NOERR;
     char* text = NULL;
     char* result = NULL;
     NCjson* json = NULL;
@@ -231,6 +188,10 @@ testparse(void)
     printf("text  : |%s|\nresult: |%s|\n",text,result);
 
 done:
+    nullfree(text);
+    nullfree(result);
+    NCJreclaim(json);
+    clear(&ncj);
     return stat;
 }
 
@@ -271,31 +232,31 @@ dumpR(NCjson* json, int depth)
 	printf("null");
 	break;
     case NCJ_DICT: 
-	if(nclistlength(json->dict) == 0) {
+	if(nclistlength(json->contents) == 0) {
 	    printf("{}");
 	} else {
 	    printf("\n");
-	    for(i=0;i<nclistlength(json->dict);i+=2) {
+	    for(i=0;i<nclistlength(json->contents);i+=2) {
 		NCjson* j = NULL;
-		j = (NCjson*)nclistget(json->dict,i);
+		j = (NCjson*)nclistget(json->contents,i);
 		assert(j->sort == NCJ_STRING);
 	        printf("{%d} ",depth+1);
 	        printf("\"%s\" => ",j->value);
-		if(i+1 >= nclistlength(json->dict)) {/* malformed */
+		if(i+1 >= nclistlength(json->contents)) {/* malformed */
 		    printf("<malformed>");
 		} else
-	            dumpR((NCjson*)nclistget(json->dict,i+1),depth+1);
+	            dumpR((NCjson*)nclistget(json->contents,i+1),depth+1);
 	    }
 	}
 	break;
     case NCJ_ARRAY: 
-	if(nclistlength(json->array) == 0) {
+	if(nclistlength(json->contents) == 0) {
 	    printf("[]");
 	} else {
 	    printf("\n");
-	    for(i=0;i<nclistlength(json->array);i++) {
+	    for(i=0;i<nclistlength(json->contents);i++) {
 	        printf("[%d] ",depth+1);
-	        dumpR((NCjson*)nclistget(json->array,i),depth+1);
+	        dumpR((NCjson*)nclistget(json->contents,i),depth+1);
 	    }
 	}
 	break;

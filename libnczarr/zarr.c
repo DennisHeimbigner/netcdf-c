@@ -152,9 +152,9 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const NClist* controls)
 
     if(!zinfo->purezarr && (stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json)) == NC_NOERR) {
         /* Extract the information from it */
-        for(i=0;i<nclistlength(json->dict);i+=2) {
-    	    const NCjson* key = nclistget(json->dict,i);
-	    const NCjson* value = nclistget(json->dict,i+1);
+        for(i=0;i<nclistlength(json->contents);i+=2) {
+    	    const NCjson* key = nclistget(json->contents,i);
+	    const NCjson* value = nclistget(json->contents,i+1);
 	    if(strcmp(key->value,"zarr_format")==0) {
 	        if(sscanf(value->value,"%d",&zinfo->zarr.zarr_version)!=1)
 		    {stat = NC_ENOTNC; goto done;}		
@@ -286,9 +286,9 @@ ncz_open_rootgroup(NC_FILE_INFO_T* dataset)
     if((stat = NCZ_downloadjson(zfile->map, rootpath, &json)))
 	goto  done;
     /* Process the json */ 
-    for(i=0;i<nclistlength(json->dict);i+=2) {
-	const NCjson* key = nclistget(json->dict,i);
-	const NCjson* value = nclistget(json->dict,i+1);
+    for(i=0;i<nclistlength(json->contents);i+=2) {
+	const NCjson* key = nclistget(json->contents,i);
+	const NCjson* value = nclistget(json->contents,i+1);
 	if(strcmp(key->value,"zarr_format")==0) {
 	    int zversion;
 	    if(sscanf(value->value,"%d",&zversion)!=1)
