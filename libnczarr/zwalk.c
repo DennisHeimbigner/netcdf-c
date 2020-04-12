@@ -244,6 +244,10 @@ fprintf(stderr,"read: %s\n",nczprint_vector(chunkodom->rank,chunkodom->index));
 	}
 	slpodom = nczodom_fromslices(common->rank,slpslices);
 	memodom = nczodom_fromslices(common->rank,memslices);
+#ifdef ENABLE_NCZARR_SLAB
+	nczodom_slabify(slpodom);
+	nczodom_slabify(memodom);
+#endif
 #ifdef ZDEBUG
 	fprintf(stderr,"slpodom=%s\n",nczprint_odom(*slpodom));
 	fprintf(stderr,"memodom=%s\n",nczprint_odom(*memodom));

@@ -29,8 +29,10 @@ nczodom_new(size_t rank, const size64_t* start, const size64_t* stop, const size
     nczodom_reset(odom);
     for(i=0;i<rank;i++)
         assert(stop > 0 && stride[i] > 0 && len[i] >= stop[i]);
+#ifdef ENABLE_NCZARR_SLAB
     odom->useslabs = 0;
     odom->slabprod = 1;
+#endif
 done:
     return odom;
 }
@@ -53,8 +55,10 @@ nczodom_fromslices(size_t rank, const NCZSlice* slices)
     nczodom_reset(odom);
     for(i=0;i<rank;i++)
         assert(slices[i].stop > 0 && slices[i].stride > 0 && slices[i].len >= slices[i].stop);
+#ifdef ENABLE_NCZARR_SLAB
     odom->useslabs = 0;
     odom->slabprod = 1;
+#endif
 done:
     return odom;
 }
@@ -68,7 +72,11 @@ nczodom_free(NCZOdometer* odom)
 int
 nczodom_more(NCZOdometer* odom)
 {
-    return (!odom->useslabs || odom->slab1 > 0) && (odom->index[0] < odom->stop[0]);
+#ifdef ENABLE_NCZARR_SLAB
+return (!odom->useslabs || odom->slab1 > 0) && (odom->index[0] < odom->stop[0]);
+#else
+return (odom->index[0] < odom->stop[0]);
+#endif
 }
 
 int
@@ -76,7 +84,12 @@ nczodom_next(NCZOdometer* odom)
 {
     size64_t i;
     int more = 0;
-    for(i=odom->slab1-1;i>=0;i--) {
+#ifdef ENABLE_NCZARR_SLAB
+    int rank = odom->slab1;
+#else
+    int rank = odom->rank;
+#endif
+    for(i=rank-1;i>=0;i--) {
 	odom->index[i] += odom->stride[i];
         if(odom->index[i] < odom->stop[i]) break;
         if(i == 0) goto done; /* leave the 0th entry if it overflows */
@@ -98,16 +111,24 @@ size64_t
 nczodom_offset(NCZOdometer* odom)
 {
     size64_t i,offset;
+#ifdef ENABLE_NCZARR_SLAB
+    int rank = odom->slab1;
+#else
+    int rank = odom->rank;
+#endif
 
     offset = 0;
-    for(i=0;i<odom->slab1;i++) {
+    for(i=0;i<rank;i++) {
         offset *= odom->max[i];
         offset += odom->index[i];
     } 
+#ifdef ENABLE_NCZARR_SLAB
     if(odom->useslabs) offset *= odom->slabprod;
+#endif
     return offset;
 }
 
+#ifdef ENABLE_NCZARR_SLAB
 void
 nczodom_slabify(NCZOdometer* odom)
 {
@@ -120,3 +141,4 @@ nczodom_slabify(NCZOdometer* odom)
         odom->slabprod *= odom->max[i];
     odom->useslabs = 1;
 }
+#endif

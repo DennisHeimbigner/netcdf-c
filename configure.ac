@@ -461,6 +461,19 @@ if test "x$have_aws" = xyes ; then
   AC_DEFINE([ENABLE_S3_SDK], [1], [if true, build libnczarr with S3 support enabled])
 fi
 
+AC_MSG_CHECKING([whether netcdf zarr slab optimization is enabled])
+AC_ARG_ENABLE([nczarr-slab],
+              [AS_HELP_STRING([--enable-nczarr-slab],
+                              [enable netcdf zarr slab optimization])])
+test "x$enable_nczarr_slab" = xyes || enable_nczarr_slab=no
+if test "x$enable_nczarr" = xno ; then
+enable_nczarr_slab=no
+fi
+AC_MSG_RESULT($enable_nczarr_slab)
+if test "x$enable_nczarr_slab" = xyes ; then
+  AC_DEFINE([ENABLE_NCZARR_SLAB], [1], [if true, build libnczarr with slab optimizations])
+fi
+
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
 AC_MSG_CHECKING([whether to enable strict null-byte header padding when reading (default off)])
