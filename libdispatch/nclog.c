@@ -35,7 +35,7 @@ static struct NCLOGGLOBAL {
     FILE* nclogstream;
 } nclog_global = {0,0,NULL,NULL};
 
-static const char* nctagset[] = {"Warning","Error","Note","Debug"};
+static const char* nctagset[] = {"Note","Warning","Error","Debug"};
 static const int nctagsize = sizeof(nctagset)/sizeof(char*);
 
 /* Forward */
@@ -60,12 +60,12 @@ ncloginit(void)
     nclog_global.nclogstream = NULL;
     /* Use environment variables to preset nclogging state*/
     /* I hope this is portable*/
+    if(getenv(NCENVLOGGING) != NULL) {
+	ncsetlogging(1);
+    }
     file = getenv(NCENVLOGFILE);
     if(file != NULL && strlen(file) > 0) {
         nclogopen(file);
-    }
-    if(getenv(NCENVLOGGING) != NULL) {
-	ncsetlogging(1);
     }
 }
 

@@ -135,9 +135,6 @@ NCD4_open(const char * path, int mode,
 	ncloginit();
         if(nclogopen(value))
 	    ncsetlogging(1);
-	ncloginit();
-        if(nclogopen(value))
-	    ncsetlogging(1);
     }
 
     /* Setup a curl connection */

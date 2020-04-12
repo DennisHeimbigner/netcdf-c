@@ -7,12 +7,6 @@
 /* Mnemonic */
 #define RAW 1
 
-
-#ifdef ZUT
-/* Unit Test Printer */
-NCZ_UT_PRINTER* nczprinter = NULL;
-#endif
-
 #ifdef ZCATCH
 /* Place breakpoint here to catch errors close to where they occur*/
 int
@@ -31,6 +25,13 @@ zthrow(int err, const char* file, int line)
 #endif
     return zbreakpoint(err);
 }
+#endif
+
+/**************************************************/
+/* Data Structure  */
+
+#ifdef ZUT
+struct ZUTEST zutest;
 #endif
 
 /**************************************************/
@@ -94,6 +95,7 @@ nczprint_slicesx(size_t rank, NCZSlice* slices, int raw)
             ncbytescat(buf,"[");
 	ssl = nczprint_slicex(slices[i],raw);
 	ncbytescat(buf,ssl);
+	nullfree(ssl); ssl = NULL;
 	if(!raw)
 	    ncbytescat(buf,"]");
     }
@@ -109,54 +111,34 @@ nczprint_slab(size_t rank, NCZSlice* slices)
 }
 
 char*
-nczprint_odom(NCZOdometer odom)
+nczprint_odom(NCZOdometer* odom)
 {
     char* result = NULL;
     NCbytes* buf = ncbytesnew();
     char value[128];
-    int r;
+    char* txt = NULL;
 
-    snprintf(value,sizeof(value),"Odometer{rank=%lu,",(unsigned long)odom.rank);
+    snprintf(value,sizeof(value),"Odometer{rank=%lu,",(unsigned long)odom->rank);
     ncbytescat(buf,value);
 
-    ncbytescat(buf,"start=[");
-    for(r=0;r<odom.rank;r++) {
-	if(r > 0) ncbytescat(buf,",");
-        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.slices[r].start);
-        ncbytescat(buf,value);
-    }
-    ncbytescat(buf,"]");
-    ncbytescat(buf," stop=[");
-    for(r=0;r<odom.rank;r++) {
-	if(r > 0) ncbytescat(buf,",");
-        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.slices[r].stop);
-        ncbytescat(buf,value);
-    }
-    ncbytescat(buf,"]");
-    ncbytescat(buf," stride=[");
-    for(r=0;r<odom.rank;r++) {
-	if(r > 0) ncbytescat(buf,",");
-        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.slices[r].stride);
-        ncbytescat(buf,value);
-    }
-    ncbytescat(buf,"]");
-
-    ncbytescat(buf," len=[");
-    for(r=0;r<odom.rank;r++) {
-	if(r > 0) ncbytescat(buf,",");
-        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.slices[r].len);
-        ncbytescat(buf,value);
-    }
-    ncbytescat(buf,"]");
-
-    ncbytescat(buf," index=[");
-    for(r=0;r<odom.rank;r++) {
-	if(r > 0) ncbytescat(buf,",");
-        snprintf(value,sizeof(value),"%lu",(unsigned long)odom.index[r]);
-        ncbytescat(buf,value);
-    }
-    ncbytescat(buf,"] offset=");
-    snprintf(value,sizeof(value),"%llu",nczodom_offset(&odom));
+    ncbytescat(buf," start=");
+    txt = nczprint_vector(odom->rank,odom->start);
+    ncbytescat(buf,txt);
+    ncbytescat(buf," stop=");
+    txt = nczprint_vector(odom->rank,odom->stop);
+    ncbytescat(buf,txt);
+    ncbytescat(buf," stride=");
+    txt = nczprint_vector(odom->rank,odom->stride);
+    ncbytescat(buf,txt);
+    ncbytescat(buf," max=");
+    txt = nczprint_vector(odom->rank,odom->max);
+    ncbytescat(buf,txt);
+    ncbytescat(buf," index=");
+    txt = nczprint_vector(odom->rank,odom->index);
+    ncbytescat(buf,txt);
+    
+    ncbytescat(buf," offset=");
+    snprintf(value,sizeof(value),"%llu",nczodom_offset(odom));
     ncbytescat(buf,value);
     ncbytescat(buf,"}");
     result = ncbytesextract(buf);
@@ -197,10 +179,11 @@ nczprint_projectionx(NCZProjection proj, int raw)
     ncbytescat(buf,",chunkslice=");
     result = nczprint_slicex(proj.chunkslice,raw);
     ncbytescat(buf,result);
+    nullfree(result);
     ncbytescat(buf,",memslice=");
     result = nczprint_slicex(proj.memslice,raw);
     ncbytescat(buf,result);
-    result = NULL;
+    nullfree(result);
     result = ncbytesextract(buf);
     ncbytesfree(buf);
     return result;

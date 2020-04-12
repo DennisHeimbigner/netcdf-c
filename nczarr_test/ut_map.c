@@ -57,8 +57,8 @@ main(int argc, char** argv)
     if((stat = ut_init(argc, argv, &options))) goto done;
     if(options.file == NULL && options.output != NULL) options.file = strdup(options.output);
     if(options.output == NULL && options.file != NULL)options.output = strdup(options.file);
-    url = makeurl(options.file);
     impl = kind2impl(options.kind);
+    url = makeurl(options.file,impl);
 
     if((stat = runtests((const char**)options.cmds,tests))) goto done;
     

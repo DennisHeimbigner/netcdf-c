@@ -9,8 +9,7 @@
 /**************************************************/
 /* Forwards */
 
-static NCZM_IMPL computemapimpl(NCZ_FILE_INFO_T*, int cmode);
-static int computefeatures(NCZ_FILE_INFO_T*);
+static int applycontrols(NCZ_FILE_INFO_T* zinfo);
 
 /***************************************************/
 /* API */
@@ -24,7 +23,7 @@ static int computefeatures(NCZ_FILE_INFO_T*);
 */
 
 int
-ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NClist* controls)
+ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const char** controls)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = NULL;
@@ -54,7 +53,13 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NClist* cont
     /* Fill in NCZ_FILE_INFO_T */
     zinfo->created = 1;
     zinfo->common.file = file;
-    zinfo->controls = nclistclone((NClist*)controls,1/*deep*/); /* deep clone */
+    {
+	const char** p;
+	zinfo->controls = nclistnew();
+	for(p=controls;*p;p++)
+	    nclistpush(zinfo->controls,*p);
+	nclistpush(zinfo->controls,NULL);
+    }
 
     /* fill in some of the zinfo and zroot fields */
     zinfo->zarr.zarr_version = ZARRVERSION;
@@ -63,13 +68,8 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NClist* cont
 	   &zinfo->zarr.nczarr_version.minor,
 	   &zinfo->zarr.nczarr_version.release);
 
-    /* Figure out the map implementation */
-    if((mapimpl = computemapimpl(zinfo,nc->mode)) == NCZM_UNDEF)
-	mapimpl = NCZM_DEFAULT;
-
-    /* Check for other features */
-    if((stat=computefeatures(zinfo)))
-	goto done;
+    /* Apply client controls */
+    if((stat = applycontrols(zinfo))) goto done;
 
     /* initialize map handle*/
     if((stat = nczmap_create(mapimpl,nc->path,nc->mode,0,NULL,&zinfo->map)))
@@ -94,13 +94,13 @@ done:
 /**
 @internal Open the topmost dataset object.
 @param file - [in] the file struct
-@param fraglist - [in] the fragment list in envv form from uri
+@param controls - [in] the fragment list in envv form from uri
 @return NC_NOERR
 @author Dennis Heimbigner
 */
 
 int
-ncz_open_dataset(NC_FILE_INFO_T* file, const NClist* controls)
+ncz_open_dataset(NC_FILE_INFO_T* file, const char** controls)
 {
     int i,stat = NC_NOERR;
     NC* nc = NULL;
@@ -131,26 +131,24 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const NClist* controls)
     zinfo->created = 0;
     zinfo->common.file = file;
     zinfo->native_endianness = (NCZ_isLittleEndian() ? NC_ENDIAN_LITTLE : NC_ENDIAN_BIG);
-    zinfo->controls = nclistclone((NClist*)controls,1/*deep*/);
+    {
+	const char** p;
+	zinfo->controls = nclistnew();
+	for(p=controls;*p;p++)
+	    nclistpush(zinfo->controls,*p);
+	nclistpush(zinfo->controls,NULL);
+    }
 
     /* Add struct to hold NCZ-specific group info. */
     if (!(root->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
         {stat = NC_ENOMEM; goto done;}
     ((NCZ_GRP_INFO_T*)root->format_grp_info)->common.file = file;
 
-    /* Figure out the map implementation */
-    if((mapimpl = computemapimpl(zinfo,mode)) == NCZM_UNDEF)
-	mapimpl = NCZM_DEFAULT;
-
-    /* Check for other features */
-    if((stat=computefeatures(zinfo)))
-	goto done;
-
     /* initialize map handle*/
     if((stat = nczmap_open(mapimpl,nc->path,mode,0,NULL,&zinfo->map)))
 	goto done;
 
-    if(!zinfo->purezarr && (stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json)) == NC_NOERR) {
+    if(!zinfo->features.purezarr && (stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json)) == NC_NOERR) {
         /* Extract the information from it */
         for(i=0;i<nclistlength(json->contents);i+=2) {
     	    const NCjson* key = nclistget(json->contents,i);
@@ -165,7 +163,7 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const NClist* controls)
 		    &zinfo->zarr.nczarr_version.release);
 	    }
 	}
-    } else { /* zinfo->purezarr || no object */
+    } else { /* zinfo->features.purezarr || no object */
 	zinfo->zarr.zarr_version = ZARRVERSION;
 	sscanf(NCZARRVERSION,"%lu.%lu.%lu",
 		    &zinfo->zarr.nczarr_version.major,
@@ -348,7 +346,7 @@ ncz_unload_jatts(NCZ_FILE_INFO_T* zinfo, NC_OBJ* container, NCjson* jattrs, NCjs
     if((stat=NCZ_uploadjson(map,tkey,jattrs)))
 	goto done;
 
-    if(!zinfo->purezarr) {
+    if(!zinfo->features.purezarr) {
         /* Construct the path to the .nczattr object */
         if((stat = nczm_suffix(fullpath,NCZATTR,&tkey)))
    	    goto done;
@@ -368,36 +366,53 @@ done:
     return stat;
 }
 
-static NCZM_IMPL
-computemapimpl(NCZ_FILE_INFO_T* zinfo, int cmode)
+static const char*
+controllookup(NClist* controls, const char* key)
 {
     int i;
-
-    NC_UNUSED(cmode);
-    if(zinfo->controls == NULL) return NCZM_DEFAULT;
-    for(i=0;i<nclistlength(zinfo->controls);i++) {
-        const char* p = nclistget(zinfo->controls,i);
-	if(strcasecmp(p,"s3")==0) return NCZM_S3;
-	if(strcasecmp(p,"nc4")==0) return NCZM_NC4;
-	if(strcasecmp(p,"zfile")==0) return NCZM_FILE;
+    for(i=0;i<nclistlength(controls);i++) {
+	if(strcasecmp(key,(const char*)nclistget(controls,i))==0) {
+	    return (const char*)nclistget(controls,i+1);
+	}
     }
-    return NCZM_DEFAULT; /* could not determine map impl */
+    return NULL;
 }
 
-/* Extract list of mode feature flags */
+
 static int
-computefeatures(NCZ_FILE_INFO_T* zinfo)
+applycontrols(NCZ_FILE_INFO_T* zinfo)
 {
-    int i;
+    int i,stat = NC_NOERR;
+    const char* value = NULL;
+    NClist* modelist = nclistnew();
 
-    if(zinfo->controls == NULL) return NC_NOERR;
-    for(i=0;i<nclistlength(zinfo->controls);i++) {
-        const char* p = nclistget(zinfo->controls,i);
-	if(strcasecmp(p,PUREZARR)==0)
-	    zinfo->purezarr = 1;
+    if((value = controllookup(zinfo->controls,"mode")) != NULL) {
+	if((stat = NCZ_comma_parse(value,modelist))) goto done;
     }
-    return NC_NOERR;
+    /* Process the modelist first */
+    zinfo->features.mapimpl = NCZM_DEFAULT;
+    for(i=0;i<nclistlength(modelist);i++) {
+        const char* p = nclistget(modelist,i);
+	if(strcasecmp(p,PUREZARR)==0) zinfo->features.purezarr = 1;
+	else if(strcasecmp(p,"s3")==0) zinfo->features.mapimpl = NCZM_S3;
+	else if(strcasecmp(p,"nc4")==0) zinfo->features.mapimpl = NCZM_NC4;
+	else if(strcasecmp(p,"zfile")==0) zinfo->features.mapimpl = NCZM_FILE;
+    }
+    /* Process other controls */
+    if((value = controllookup(zinfo->controls,"log")) != NULL) {
+	zinfo->features.logging = 1;
+	ncloginit();
+        if(nclogopen(value))
+	    ncsetlogging(1);
+	ncloginit();
+        if(nclogopen(value))
+	    ncsetlogging(1);
+    }
+    if((value = controllookup(zinfo->controls,"show")) != NULL) {
+	if(strcasecmp(value,"fetch")==0) zinfo->features.showfetch = 1;
+    }
+done:
+    nclistfreeall(modelist);
+    return stat;
 }
-
-
 

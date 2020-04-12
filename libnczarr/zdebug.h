@@ -5,7 +5,8 @@
 #ifndef ZDEBUG_H
 #define ZDEBUG_H
 
-#undef ZUT /* unit test support is enabled */
+/* Enable unit testing; on by default */
+#define ZUT
 
 #undef ZDEBUG /* general debug */
 #undef ZDEBUG1 /* detailed debug */
@@ -37,7 +38,7 @@ extern int zthrow(int err, const char* fname, int line);
 extern char* nczprint_slice(NCZSlice);
 extern char* nczprint_slices(size_t, NCZSlice*);
 extern char* nczprint_slab(size_t, NCZSlice*);
-extern char* nczprint_odom(NCZOdometer);
+extern char* nczprint_odom(NCZOdometer*);
 extern char* nczprint_chunkrange(NCZChunkRange);
 extern char* nczprint_projection(NCZProjection);
 extern char* nczprint_sliceprojections(NCZSliceProjections);
@@ -51,29 +52,18 @@ extern char* nczprint_sliceprojectionsx(NCZSliceProjections slp, int raw);
 extern void zdumpcommon(struct Common*);
 #endif
 
-#ifdef ZUT
-/* Expose functions for unit tests */
-typedef struct NCZ_UT_PRINTER {
-    int printsort;
-#define PRINTSORT_RANGE 1
-#define PRINTSORT_WALK1 2
-#define PRINTSORT_WALK2 3
-#define PRINTSORT_WALK3 4
-    void (*printer)(struct NCZ_UT_PRINTER*);
-    /* Union of all fields */
-    size_t rank;
-    size64_t count;
-    size64_t offset;
-    size64_t* indices;
-    size64_t* vector;
-    void** pvector;
-    NCZOdometer* odom;
-    void* output;
-    size_t used;
-} NCZ_UT_PRINTER;
+/* Define the possible unit tests (powers of 2) */
+#define UTEST_RANGE 1
+#define UTEST_WALK1 2
+#define UTEST_WALK2 4
+#define UTEST_WALK3 8
 
-extern NCZ_UT_PRINTER* nczprinter;
-#endif /* ZUT */
+#ifdef ZUT
+extern struct ZUTEST {
+    int tests;
+    void (*print)(int sort,...);
+} zutest;
+#endif
 
 #endif /*ZDEBUG_H*/
 

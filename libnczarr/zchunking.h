@@ -22,20 +22,6 @@ typedef struct NCZSlice {
     size64_t len; /* full dimension length */
 } NCZSlice;
 
-#if 0
-/* Complete Chunk position as cross product of the per-dimension positions */
-typedef struct NCZChunkPos {
-    size64_t rank;
-    NCZChunkPos offsets[NC_MAX_VAR_DIM];
-} NCZChunkPos;
-
-/* Complete Set of slices of the hyperslab */
-typedef struct NCZChunkPos {
-    size64_t rank;
-    NCZSlice slices[NC_MAX_VAR_DIM];
-} NCZChunkPos;
-#endif
-
 typedef struct NCProjection {
     int id;
     size64_t chunkindex; /* which chunk are we projecting */
@@ -60,37 +46,24 @@ typedef struct NCZSliceProjections {
 				   the chunk */
 } NCZSliceProjections;
 
-#if 0
-/* Track the set of chunks touched by the current hyperslab */
-/* This will be iterated over to construct a set of proections
-   for each chunk in turn.
-*/
-typedef struct NCZChunkSeq {
-    size64_t nchunks; /* number of chunks touched by this slice index */
-    NCZChunkpos* chunks; /* Chunks touched by this hyperslab */
-} struct NCZChunkSeq;
-#endif
-
-typedef struct NCZOdometer {
-  size64_t rank; /*rank */
-  NCZSlice slices[NC_MAX_VAR_DIMS];
-  size64_t max[NC_MAX_VAR_DIMS]; /* max size of ith index */
-  size64_t index[NC_MAX_VAR_DIMS]; /* current value of the odometer*/
-} NCZOdometer;
-
 /* Combine some values to simplify internal argument lists */
 struct Common {
     NC_FILE_INFO_T* file;
     NC_VAR_INFO_T* var;
     int reading; /* 1=> read, 0 => write */
     size_t rank;
-    size64_t dimlens[NC_MAX_VAR_DIMS];
-    size64_t chunklens[NC_MAX_VAR_DIMS];
+    size64_t* dimlens;
+    size64_t* chunklens;
     void* memory;
     size_t typesize;
     int swap; /* var->format_info_file->native_endianness == var->endianness */
     size64_t shape[NC_MAX_VAR_DIMS]; /* shape of the output hyperslab */
     NCZSliceProjections* allprojections;
+    /* Parametric chunk reader so we can do unittests */
+    struct Reader {
+	void* source;
+	int (*read)(void* source, size64_t* chunkindices, void** chunkdata);
+    } reader;
 };
 
 /**************************************************/
@@ -100,31 +73,23 @@ extern int NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t 
 extern int NCZ_compute_per_slice_projections(size_t rank, const NCZSlice*, const NCZChunkRange*, size64_t dimlen, size64_t chunklen, NCZSliceProjections* slp);
 extern int NCZ_compute_all_slice_projections(size64_t rank, const NCZSlice* slices, const size64_t* dimlen, const size64_t* chunklen, const NCZChunkRange*, NCZSliceProjections*);
 
-/* From zodom.c */
-extern NCZOdometer* nczodom_new(size_t, const size64_t*, const size64_t*, const size64_t*, const size64_t*);
-extern NCZOdometer* nczodom_fromslices(size_t rank, const NCZSlice* slices);
-extern int nczodom_more(NCZOdometer*);
-extern int nczodom_next(NCZOdometer*);
-extern size64_t* nczodom_indices(NCZOdometer*);
-extern size64_t nczodom_offset(NCZOdometer*);
-extern void nczodom_reset(NCZOdometer* odom);
-extern void nczodom_free(NCZOdometer*);
-
-
 /* From zwalk.c */
 extern int ncz_chunking_init(void);
 extern int NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 		  size64_t* start, size64_t* count, size64_t* stride,
 		  void* memory, size_t typesize);
+extern int NCZ_transfer(struct Reader reader, struct Common* common, NCZSlice* slices);
 extern size64_t NCZ_computelinearoffset(size_t, const size64_t*, const size64_t*);
 
 /* Special entry points for unit testing */
 struct Common;
-extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, size64_t*, NCZOdometer** odom);
+struct NCZOdometer;
 extern int NCZ_projectslices(size64_t* dimlens,
 		  size64_t* chunklens,
 		  NCZSlice* slices,
-		  struct Common*, NCZOdometer**);
+		  struct Common*, struct NCZOdometer**);
+extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, size64_t*, struct NCZOdometer** odom);
+extern void NCZ_clearsliceprojections(int count, NCZSliceProjections* slpv);
 
 #define floordiv(x,y) ((x) / (y))
 

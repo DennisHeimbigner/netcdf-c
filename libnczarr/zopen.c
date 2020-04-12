@@ -64,7 +64,7 @@ check_for_classic_model(NC_GRP_INFO_T *root_grp, int *is_classic)
  * @author Dennis Heimbigner, Ed Hartnett
  */
 static int
-ncz_open_file(const char *path, int mode, const NClist* modelist, int ncid)
+ncz_open_file(const char *path, int mode, const char** controls, int ncid)
 {
     int stat;
     NC_FILE_INFO_T *h5 = NULL;
@@ -94,7 +94,7 @@ ncz_open_file(const char *path, int mode, const NClist* modelist, int ncid)
 	h5->no_write = NC_TRUE;
 
     /* Setup zarr state */
-    if((stat = ncz_open_dataset(h5,modelist)))
+    if((stat = ncz_open_dataset(h5,controls)))
 	goto exit;
 
     /* Now read in all the metadata. Some types
@@ -150,7 +150,6 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 {
     int stat = NC_NOERR;
     NCURI* uri = NULL;
-    NClist* modelist = NULL;
 
     NC_UNUSED(parameters);
 
@@ -177,22 +176,15 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 
     ncuriparse(path,&uri);
     if(uri) {
-	const char* modevalue = NULL;
         /* Rebuild the path without any fragment parameters */
         path = ncuribuild(uri,NULL,NULL,NCURISVC);
-	modevalue = ncurifragmentlookup(uri,"mode");	
-	if(modevalue != NULL) {
-	    modelist = nclistnew();
-	    if((stat = NCZ_comma_parse(modevalue,modelist))) goto done;
-	}
     }
 
     /* Open the file. */
-    if((stat = ncz_open_file(path, mode, modelist, ncid)))
+    if((stat = ncz_open_file(path, mode, ncurifragmentparams(uri), ncid)))
 	goto done;
 
 done:
-    nclistfreeall(modelist);
     ncurifree(uri);
     return stat;
 }

@@ -32,11 +32,15 @@ usage(int err)
 	fprintf(stderr,"error: (%d) %s\n",err,nc_strerror(err));
     }
     fprintf(stderr,"usage:");
-        fprintf(stderr," -d/*debug*/");
+        fprintf(stderr," -D/*debug*/");
         fprintf(stderr," -x<cmd,cmd,...>");
         fprintf(stderr," -f<inputfilename>");
         fprintf(stderr," -o<outputfilename>");
         fprintf(stderr," -k<kind>");
+        fprintf(stderr," -d<dim>=<len>");
+        fprintf(stderr," -v<type>var(<dim/chunksize,dim/chunksize...>)");
+        fprintf(stderr," -s<slices>");
+        fprintf(stderr," -W<int>,<int>...");
 	fprintf(stderr,"\n");	
     fflush(stderr);
     exit(1);
@@ -47,13 +51,17 @@ ut_init(int argc, char** argv, struct Options * options)
 {
     int stat = NC_NOERR;
     int c;
+    Dimdef* dimdef = NULL;
+    Vardef* vardef = NULL;
 
     nc_initialize();
 
     if(options != NULL) {
-        while ((c = getopt(argc, argv, "dx:f:o:k:")) != EOF) {
+	options->dimdefs = nclistnew();
+	options->vardefs = nclistnew();
+        while ((c = getopt(argc, argv, "Dx:f:o:k:d:v:s:W:")) != EOF) {
             switch(c) {
-            case 'd':  
+            case 'D':  
                 options->debug = 1;     
                 break;
             case 'x': /*execute*/
@@ -67,6 +75,22 @@ ut_init(int argc, char** argv, struct Options * options)
                 break;
             case 'k': /*implementation*/
 		options->kind = strdup(optarg);
+                break;
+            case 'd': /*dimdef*/
+		if((stat=parsedimdef(optarg,&dimdef))) usage(stat);
+		nclistpush(options->dimdefs,dimdef);
+		dimdef = NULL;
+                break;
+            case 'v': /*vardef*/
+		if((stat=parsevardef(optarg,options->dimdefs,&vardef))) usage(stat);
+		nclistpush(options->vardefs,vardef);
+		vardef = NULL;
+                break;
+            case 's': /*slices*/
+		if((stat=parseslices(optarg,options->slices))) usage(stat);
+                break;
+            case 'W': /*walk data*/
+		if((stat=parseintvector(optarg,4,(void**)&options->idata))) usage(stat);
                 break;
             case '?':
                fprintf(stderr,"unknown option: '%c'\n",c);
@@ -91,21 +115,31 @@ nccheck(int stat, int line)
 }
 
 char*
-makeurl(const char* file)
+makeurl(const char* file, NCZM_IMPL kind)
 {
     char wd[4096];
     char* url = NULL;
     NCbytes* buf = ncbytesnew();
     if(file && strlen(file) > 0) {
-        ncbytescat(buf,"file://");
-        if(file[0] != '/') {
-            (void)getcwd(wd, sizeof(wd));
-            ncbytescat(buf,wd);
-            ncbytescat(buf,"/");
-        }
-        ncbytescat(buf,file);
-        ncbytescat(buf,"#mode=nczarr"); /* => use default file: format */
-       url = ncbytesextract(buf);
+	switch (kind) {
+	case NCZM_NC4: /* fall thru */
+	case NCZM_FILE:
+            ncbytescat(buf,"file://");
+            if(file[0] != '/') {
+                (void)getcwd(wd, sizeof(wd));
+                ncbytescat(buf,wd);
+                ncbytescat(buf,"/");
+            }
+            ncbytescat(buf,file);
+            ncbytescat(buf,"#mode=nczarr"); /* => use default file: format */
+	    break;
+	case NCZM_S3:
+	    ncbytescat(buf,"https://");
+	    ncbytescat(buf,file); /* Assume file is e.g. in virtual form */
+	    break;
+	default: abort();
+	}
+	url = ncbytesextract(buf);
     }
     ncbytesfree(buf);
     fprintf(stderr,"url=|%s|\n",url);
@@ -169,6 +203,7 @@ runtests(const char** cmds, struct Test* tests)
 {
     struct Test* test = NULL;
     const char** cmd = NULL;
+    if(cmds == NULL) return NC_EINVAL;
     for(cmd=cmds;*cmd;cmd++) {
         for(test=tests;test->cmd;test++) {
 	    if(strcmp(test->cmd,*cmd)==0) {

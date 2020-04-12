@@ -14,6 +14,8 @@
 #include <aws/s3/model/PutObjectRequest.h>
 #include <aws/s3/model/DeleteObjectRequest.h>
 #include <aws/s3/model/CreateBucketRequest.h>
+#include <aws/s3/model/DeleteBucketRequest.h>
 #include <iostream>
 #include <fstream>
+#include <cstdio>
 #include <sys/stat.h>

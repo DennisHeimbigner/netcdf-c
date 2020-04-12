@@ -273,6 +273,8 @@ const char *nc_strerror(int ncerr1)
        return "NetCDF: In-memory File operation failed.";
       case NC_ENCZARR:
 	 return "NetCDF: NCZarr error";
+      case NC_ES3:
+	 return "NetCDF: AWS S3 error";
      default:
 #ifdef USE_PNETCDF
         /* The behavior of ncmpi_strerror here is to return

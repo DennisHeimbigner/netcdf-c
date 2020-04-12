@@ -13,8 +13,8 @@
 #define ZARR_H
 
 /* zarr.c */
-extern int ncz_create_dataset(NC_FILE_INFO_T*, NC_GRP_INFO_T*, const NClist* contrls);
-extern int ncz_open_dataset(NC_FILE_INFO_T*, const NClist* controls);
+extern int ncz_create_dataset(NC_FILE_INFO_T*, NC_GRP_INFO_T*, const char** controls);
+extern int ncz_open_dataset(NC_FILE_INFO_T*, const char** controls);
 extern int ncz_del_attr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name);
 
 extern int NCZ_isnetcdf4(struct NC_FILE_INFO*);

@@ -27,8 +27,7 @@ NCZ_compute_chunk_ranges(
     int i;
 
     for(i=0;i<rank;i++) {
-        NCZChunkRange* range = &ncr[i];
-	if((stat = compute_intersection(&slices[i],chunklen[i],range)))
+	if((stat = compute_intersection(&slices[i],chunklen[i],&ncr[i])))
 	    goto done;
     }
 
@@ -198,30 +197,19 @@ done:
 /**************************************************/
 /* Utilities */
     
-#if 0
-static size64_t
-floordiv(size64_t x, size64_t y)
+void
+NCZ_clearsliceprojections(int count, NCZSliceProjections* slpv)
 {
-      return x/y;
+    if(slpv != NULL) {
+	int i;
+        for(i=0;i<count;i++) {
+	    NCZSliceProjections* slp = &slpv[i];
+	    nullfree(slp->projections);	
+	}
+    }
 }
-
-static size64_t
-ceildiv(size64_t x, size64_t y)
-{
-      size64_t div = x/y;
-      if((x % y) != 0) div++;
-      return div;
-}
-#endif
 
 #if 0
-static void
-clearsliceprojection(NCZSliceProjections* slp)
-{
-    if(slp != NULL)
-	nclistfreeall(slp->projections);
-}
-
 static void
 clearallprojections(NCZAllProjections* nap)
 {

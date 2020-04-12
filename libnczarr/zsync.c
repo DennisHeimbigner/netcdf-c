@@ -79,7 +79,7 @@ ncz_sync_file(NC_FILE_INFO_T* file)
            zinfo->zarr.nczarr_version.release);
         if((stat = NCJaddstring(json,NCJ_STRING,ver))) goto done;
     }
-    if(!zinfo->purezarr) {
+    if(!zinfo->features.purezarr) {
         /* Write back to map */
         if((stat=NCZ_uploadjson(map,NCZMETAROOT,json)))
             goto done;
@@ -189,7 +189,7 @@ ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
         goto done;
     nullfree(key); key = NULL;
 
-    if(!zinfo->purezarr) {
+    if(!zinfo->features.purezarr) {
         /* Create the NCZGROUP json object */
         if((stat = NCJnew(NCJ_DICT,&jgroup)))
             goto done;
@@ -415,7 +415,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
         if((stat = NCJinsert(jncvar,"storage",jtmp))) goto done;
         jtmp = NULL;
 
-        if(!zinfo->purezarr) {
+        if(!zinfo->features.purezarr) {
             /* Write out NCZVAR */
             if((stat = nczm_suffix(fullpath,NCZVAR,&key)))
                 goto done;
@@ -514,7 +514,7 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist)
     /* Upload the NCZATTR object */
     if((stat = nczm_suffix(fullpath,NCZATTR,&key)))
         goto done;
-    if(!zinfo->purezarr) {
+    if(!zinfo->features.purezarr) {
         /* Write to map */
         if((stat=NCZ_uploadjson(map,key,jnczattr)))
             goto done;
@@ -921,11 +921,11 @@ define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
     if((stat = NCZ_grpkey(grp,&fullpath)))
         goto done;
 
-    if(zinfo->purezarr) {
+    if(zinfo->features.purezarr) {
         if((stat = parse_group_content_pure(zinfo,grp,varnames,subgrps)))
             goto done;
 	nodimrefs = 1;
-    } else { /*!zinfo->purezarr*/
+    } else { /*!zinfo->features.purezarr*/
         /* build NCZGROUP path */
         if((stat = nczm_suffix(fullpath,NCZGROUP,&key)))
             goto done;
@@ -1167,10 +1167,10 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
         nullfree(key); key = NULL;
         assert((jvar->sort == NCJ_DICT));
 
-        if(zinfo->purezarr) {
+        if(zinfo->features.purezarr) {
             var->storage = NC_CHUNKED;
             hasdimrefs = 0;
-        } else { /*zinfo->purezarr*/
+        } else { /*zinfo->features.purezarr*/
             /* Download the NCZVAR object */
             if((stat = nczm_suffix(varpath,NCZVAR,&key))) goto done;
             if((stat=NCZ_readdict(map,key,&jncvar))) goto done;

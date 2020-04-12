@@ -58,10 +58,12 @@ nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* 
     if(mapp) *mapp = NULL;
 
     /* See if this is a local file */
-    if(ncuriparse(path,&uri))
+    if(ncuriparse(path,&uri) != NC_NOERR)
 	filepath = path;
     else if(strcmp(uri->protocol,"file")==0)
 	filepath = uri->path;
+    else
+	filepath = path;
 
     switch (impl) {
     case NCZM_NC4:
@@ -115,6 +117,8 @@ nczmap_open(NCZM_IMPL impl, const char *path0, int mode, size64_t flags, void* p
 	filepath = path0;
     else if(strcmp(uri->protocol,"file")==0)
 	filepath = uri->path;
+    else
+        filepath = path0;
 
     switch (impl) {
     case NCZM_NC4:

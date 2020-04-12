@@ -78,7 +78,6 @@ typedef struct NCZcommon {
 typedef struct NCZ_FILE_INFO {
     NCZcommon common;
     struct NCZMAP* map; /* implementation */
-    NClist* controls;
     struct NCauth* auth;
     struct nczarr {
 	int zarr_version;
@@ -90,7 +89,13 @@ typedef struct NCZ_FILE_INFO {
     } zarr;
     int created; /* 1=> created 0=>open */
     int native_endianness; /* NC_ENDIAN_LITTLE | NC_ENDIAN_BIG */
-    int purezarr; /* read/write to match standard zarr format */
+    NClist* controls;
+    struct Features {
+        int purezarr; /* read/write to match standard zarr format */
+	NCZM_IMPL mapimpl;
+	int showfetch;
+	int logging;
+    } features;
 } NCZ_FILE_INFO_T;
 
 /* This is a struct to handle the dim metadata. */

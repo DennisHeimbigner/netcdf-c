@@ -44,10 +44,11 @@ extern "C" {
 #include "ncrc.h"
 #include "ncfilter.h"
 
+#include "zmap.h"
 #include "zinternal.h"
 #include "zdispatch.h"
 #include "zprovenance.h"
-#include "zmap.h"
+#include "zodom.h"
 #include "zchunking.h"
 #include "zcache.h"
 #include "zjson.h"

@@ -6,9 +6,12 @@ if test "x$socked" = x ; then srcdir=`pwd`; fi
 set -e
 set -x
 
-# Control which test sets are executed
-# possible sets: mapnc4 json proj walk
-TESTS=walk
+# Test those map implementations where
+# it is possible to look at the actual storage.
+# .ncz and .nzf specifically. Note that we
+# cannot easily look inside S3 storage
+# except using the aws-cli, if available
+
 
 # Functions
 
@@ -128,67 +131,13 @@ testmapsearch() {
   diff -wb ${srcdir}/ref_$txt ./$txt
 }
 
-testjson() {
-  file="ut_json_build.txt"
-  rm -f $file
-  CMD="${execdir}/ut_json${ext}"
-  $CMD -x build > $file
-  diff -wb ${srcdir}/ref_$file ./$file
-  file="ut_json_parse.txt"
-  rm -f $file
-  $CMD -x parse > $file
-  diff -wb ${srcdir}/ref_$file ./$file
-}
-
-testproj() {
-  file="ut_proj.txt"
-  rm -f $file
-  CMD="${execdir}/ut_projections${ext}"
-  $CMD -ddim1=4 -v "int v(dim1/2)" -s "[0:4:1]" > $file
-  diff -wb ${srcdir}/ref_$file ./$file
-}
-
-testwalk() {
-  file="ut_walk.txt"
-  rm -f $file
-  CMD="${execdir}/ut_walk${ext}"
-  $CMD -ddim1=4 -v "int v(dim1/2)" -s "[0:4:1]" > $file
-  diff -wb ${srcdir}/ref_$file ./$file
-}
-
 echo ""
 
-echo "*** Unit Testing"
+echo "*** Map Unit Testing"
 
-for T in $TESTS ; do
-case "$T" in
-
-map)
 #echo ""; echo "*** Test zmap_nz4"
 #testmapcreate nz4; testmapmeta nz4; testmapdata nz4; testmapsearch nz4
 echo ""; echo "*** Test zmap_nzf"
 testmapcreate nzf; testmapmeta nzf; testmapdata nzf; testmapsearch nzf
-;;
-
-json)
-echo ""; echo "*** Test zjson"
-testjson
-;;
-
-proj)
-echo ""; echo "*** Test projection computations"
-echo ""; echo "*** Test 1"
-testproj
-;;
-
-walk)
-echo ""; echo "*** Test chunk walkings"
-testwalk
-;;
-
-*) echo "Unknown test set: $T"; exit 1 ;;
-
-esac
-done
 
 exit 0
