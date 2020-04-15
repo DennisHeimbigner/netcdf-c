@@ -60,6 +60,7 @@ extern int NCZ_grpname_full(int gid, char** pathp);
 extern int ncz_get_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
 extern int NCZ_comma_parse(const char* s, NClist* list);
 extern int NCZ_swapatomicdata(size_t datalen, void* data, int typesize);
-extern char** NCZ_cloneenvv(const char** controls);
+extern char** NCZ_clonestringvec(size_t len, const char** vec);
+extern void NCZ_freestringvec(size_t len, char** vec);
 
 #endif /*ZARR_H*/

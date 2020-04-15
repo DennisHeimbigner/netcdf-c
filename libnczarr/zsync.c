@@ -383,7 +383,9 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     /* Write to map */
     if((stat=NCZ_uploadjson(map,key,jvar)))
         goto done;
-
+    
+    nullfree(key); key = NULL;
+    
     /* Build the NCZVAR object */
     {
         /* Create the dimrefs json object */
@@ -422,6 +424,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
             /* Write to map */
             if((stat=NCZ_uploadjson(map,key,jncvar)))
                 goto done;
+	    nullfree(key); key = NULL;
         }
     }
     /* Build .zattrs object including _nczattr object */
@@ -440,6 +443,7 @@ done:
     nullfree(key);
     nullfree(dimpath);
     NCJreclaim(jvar);
+    NCJreclaim(jncvar);
     NCJreclaim(jtmp);
     return THROW(stat);
 }
@@ -519,6 +523,7 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist)
         if((stat=NCZ_uploadjson(map,key,jnczattr)))
             goto done;
     }
+    nullfree(key); key = NULL;
 
     /* Jsonize the attribute list */
     if((stat = ncz_jsonize_atts(attlist,&jatts)))
@@ -1228,7 +1233,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
                 goto done;
             if(vtype > NC_NAT && vtype < NC_STRING) {
                 /* Locate the NC_TYPE_INFO_T object */
-                if((stat = ncz_gettype(grp,vtype,&var->type_info)))
+                if((stat = ncz_gettype(file,grp,vtype,&var->type_info)))
                     goto done;
             } else {stat = NC_EBADTYPE; goto done;}
             if(endianness == NC_ENDIAN_LITTLE || endianness == NC_ENDIAN_BIG) {

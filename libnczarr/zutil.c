@@ -699,21 +699,37 @@ done:
 }
 
 char**
-NCZ_cloneenvv(const char** controls)
+NCZ_clonestringvec(size_t len, const char** vec)
 {
-    const char** p;
-    char** q;
     char** clone = NULL;
-    int len;
-    if(controls == NULL) return NULL;
-    for(len=0,p=controls;*p;p++) len++;
+    size_t i;
+    if(vec == NULL) return NULL;
+    if(len == 0) { /* Figure out size as envv vector */
+        const char** p;
+        for(p=vec;*p;p++) len++;
+    }
     clone = malloc(sizeof(char*) * (1+len));
     if(clone == NULL) return NULL;
-    for(q=clone,p=controls;*p;p++) {
-	char* s = strdup(*p);
+    for(i=0;i<len;i++) {
+	char* s = strdup(vec[i]);
 	if(s == NULL) return NULL;
-	*q++ = s;
+	clone[i] = s;
     }
-    *q++ = NULL;
+    clone[len] = NULL;
     return clone;
+}
+
+void
+NCZ_freestringvec(size_t len, char** vec)
+{
+    size_t i;
+    if(vec == NULL) return;
+    if(len == 0) { /* Figure out size as envv vector */
+        char** p;
+        for(p=vec;*p;p++) len++;
+    }
+    for(i=0;i<len;i++) {
+	nullfree(vec[i]);
+    }
+    nullfree(vec);
 }

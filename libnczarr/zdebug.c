@@ -77,13 +77,13 @@ nczprint_slicex(NCZSlice slice, int raw)
 }
 
 char*
-nczprint_slices(size_t rank, NCZSlice* slices)
+nczprint_slices(int rank, NCZSlice* slices)
 {
     return nczprint_slicesx(rank, slices, !RAW);
 }
 
 char*
-nczprint_slicesx(size_t rank, NCZSlice* slices, int raw)
+nczprint_slicesx(int rank, NCZSlice* slices, int raw)
 {
     int i;
     char* result = NULL;
@@ -105,7 +105,7 @@ nczprint_slicesx(size_t rank, NCZSlice* slices, int raw)
 }
 
 char*
-nczprint_slab(size_t rank, NCZSlice* slices)
+nczprint_slab(int rank, NCZSlice* slices)
 {
     return nczprint_slicesx(rank,slices,RAW);
 }
@@ -118,7 +118,7 @@ nczprint_odom(NCZOdometer* odom)
     char value[128];
     char* txt = NULL;
 
-    snprintf(value,sizeof(value),"Odometer{rank=%lu,",(unsigned long)odom->rank);
+    snprintf(value,sizeof(value),"Odometer{rank=%d,",odom->rank);
     ncbytescat(buf,value);
 
     ncbytescat(buf," start=");
@@ -136,10 +136,22 @@ nczprint_odom(NCZOdometer* odom)
     ncbytescat(buf," index=");
     txt = nczprint_vector(odom->rank,odom->index);
     ncbytescat(buf,txt);
-    
+  
     ncbytescat(buf," offset=");
     snprintf(value,sizeof(value),"%llu",nczodom_offset(odom));
     ncbytescat(buf,value);
+    
+#ifdef ENABLE_NCZARR_SLAB
+    if(odom->useslabs) {
+        ncbytescat(buf," psweudorank=");
+        snprintf(value,sizeof(value),"%d",odom->pseudorank);
+        ncbytescat(buf,value);
+        ncbytescat(buf," slabprod=");
+        snprintf(value,sizeof(value),"%llu",odom->slabprod);
+        ncbytescat(buf,value);
+    }
+#endif
+
     ncbytescat(buf,"}");
     result = ncbytesextract(buf);
     ncbytesfree(buf);

@@ -90,7 +90,7 @@ ut_init(int argc, char** argv, struct Options * options)
 		if((stat=parseslices(optarg,options->slices))) usage(stat);
                 break;
             case 'W': /*walk data*/
-		if((stat=parseintvector(optarg,4,(void**)&options->idata))) usage(stat);
+		options->idatalen = parseintvector(optarg,4,(void**)&options->idata);
                 break;
             case '?':
                fprintf(stderr,"unknown option: '%c'\n",c);
@@ -120,6 +120,8 @@ makeurl(const char* file, NCZM_IMPL kind)
     char wd[4096];
     char* url = NULL;
     NCbytes* buf = ncbytesnew();
+    NCURI* uri = NULL;
+    
     if(file && strlen(file) > 0) {
 	switch (kind) {
 	case NCZM_NC4: /* fall thru */
@@ -134,8 +136,13 @@ makeurl(const char* file, NCZM_IMPL kind)
             ncbytescat(buf,"#mode=nczarr"); /* => use default file: format */
 	    break;
 	case NCZM_S3:
-	    ncbytescat(buf,"https://");
-	    ncbytescat(buf,file); /* Assume file is e.g. in virtual form */
+	    /* Assume that we have a complete url */
+	    if(ncuriparse(file,&uri)) return NULL;
+	    if(strcasecmp(uri->protocol,"s3")==0)
+		ncurisetprotocol(uri,"https");
+	    if(strcasecmp(uri->protocol,"http")!=0 && strcasecmp(uri->protocol,"https")!=0)
+	        return NULL;
+	    ncbytescat(buf,file);
 	    break;
 	default: abort();
 	}
@@ -201,6 +208,7 @@ findtest(const char* cmd, struct Test* tests)
 int
 runtests(const char** cmds, struct Test* tests)
 {
+    int stat = NC_NOERR;
     struct Test* test = NULL;
     const char** cmd = NULL;
     if(cmds == NULL) return NC_EINVAL;
@@ -208,9 +216,10 @@ runtests(const char** cmds, struct Test* tests)
         for(test=tests;test->cmd;test++) {
 	    if(strcmp(test->cmd,*cmd)==0) {
 		if(test->cmd == NULL) return NC_EINVAL;
-		test->test(); /* Execute */
+		if((stat=test->test())) goto done; /* Execute */
 	    }
 	}
     }
-    return NC_NOERR;
+done:
+    return stat;
 }

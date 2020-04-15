@@ -27,6 +27,10 @@ For the object API, the mapping is as follows:
 /* define the attr/var name containing an objects content */
 #define ZCONTENT "data"
 
+/* Define the dimension for the ZCONTENT variable */
+/* Avoid creating a coordinate variable */
+#define ZCONTENTDIM "data_dim"
+
 /* Mnemonic */
 #define Z4META 0
 
@@ -45,7 +49,7 @@ static int zlookupgroup(Z4MAP*, NClist* segments, int nskip, int* grpidp);
 static int zlookupobj(Z4MAP*, NClist* segments, int* objidp);
 static int zcreategroup(Z4MAP* z4map, NClist* segments, int nskip, int* grpidp);
 static int zcreateobj(Z4MAP*, NClist* segments, size64_t, int* objidp);
-static int zcreatedim(Z4MAP*, size64_t dimsize, int* dimidp);
+static int zcreatedim(Z4MAP*, int, int* dimidp);
 static int getpath(const char* path0, char** pathp);
 static void nc4ify(const char* zname, char* nc4name);
 static void zify(const char* nc4name, char* zname);
@@ -273,6 +277,7 @@ znc4write(NCZMAP* map, const char* key, size64_t start, size64_t count, const vo
     int stat = NC_NOERR;
     int grpid,vid;
     Z4MAP* z4map = (Z4MAP*)map; /* cast to true type */
+    int dimids[1];
     size_t vstart[1];
     size_t vcount[1];
     NClist* segments = nclistnew();
@@ -282,10 +287,21 @@ znc4write(NCZMAP* map, const char* key, size64_t start, size64_t count, const vo
     if((stat = zlookupobj(z4map,segments,&grpid)))
 	goto done;
 
-    /* Look for a data variable */
-    if((stat = nc_inq_varid(grpid,ZCONTENT,&vid)))
-	goto done;
-
+    /* Ensure the data variable exists */
+    stat = nc_inq_varid(grpid,ZCONTENT,&vid);
+    switch (stat) {
+    case NC_NOERR: break;
+    case NC_ENOTVAR:
+        /* Create the dimension */
+	if((stat = zcreatedim(z4map,grpid,&dimids[0])))
+	    goto done;
+	/* Create the variable */
+        if((stat=nc_def_var(grpid, ZCONTENT, NC_UBYTE, 1, dimids, &vid)))
+	    goto done;
+	break;
+    default: goto done;
+    }
+    
     vstart[0] = (size_t)start;
     vcount[0] = (size_t)count;
     if((stat = nc_put_vara(grpid,vid,vstart,vcount,content)))
@@ -360,6 +376,8 @@ znc4close(NCZMAP* map, int delete)
     int stat = NC_NOERR;
     Z4MAP* z4map = (Z4MAP*)map;
     char* path = NULL;
+
+    if(map == NULL) return NC_NOERR;
 
     path = z4map->path;
         
@@ -596,16 +614,16 @@ done:
 }
 
 static int
-zcreatedim(Z4MAP* z4map, size64_t dimsize, int* dimidp)
+zcreatedim(Z4MAP* z4map, int grpid, int* dimidp)
 {
     int stat = NC_NOERR;
-    char name[NC_MAX_NAME];
     int dimid;
 
-    snprintf(name,sizeof(name),"dim%llu",dimsize);
-    if((stat=nc_inq_dimid(z4map->ncid,name,&dimid))) {
+    NC_UNUSED(z4map);
+
+    if((stat=nc_inq_dimid(grpid,ZCONTENTDIM,&dimid))) {
 	/* create it */
-        if((stat=nc_def_dim(z4map->ncid,name,(size_t)dimsize,&dimid)))
+        if((stat=nc_def_dim(grpid,ZCONTENTDIM,NC_UNLIMITED,&dimid)))
 	    goto done;
     }
     if(dimidp) *dimidp = dimid;
@@ -621,8 +639,7 @@ static int
 zcreateobj(Z4MAP* z4map, NClist* segments, size64_t len, int* grpidp)
 {
     int skip,stat = NC_NOERR;
-    int grpid, vid;
-    int dimids[1];
+    int grpid;
 
     /* Create the whole path */
     skip = nclistlength(segments);
@@ -632,23 +649,6 @@ zcreateobj(Z4MAP* z4map, NClist* segments, size64_t len, int* grpidp)
     }
     /* Last grpid should be one we want */
     if(grpidp) *grpidp = grpid;
-
-    if(len == 0) { /* meta */
-	/* do not create the data attribute: let writemeta do that */
-#if 0
-	{unsigned char content[1] = {0};
-        if((stat = nc_put_att_text(grpid,NC_GLOBAL,ZCONTENT,(size_t)0,content)))
-	    goto done;
-	}
-#endif
-    } else {
-        /* Create the dimension */
-	if((stat = zcreatedim(z4map,len,&dimids[0])))
-	    goto done;
-	/* Create the variable */
-        if((stat=nc_def_var(grpid, ZCONTENT, NC_UBYTE, 1, dimids, &vid)))
-	    goto done;
-    }
 
 done:
     return (stat);    

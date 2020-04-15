@@ -284,11 +284,13 @@ zs3close(NCZMAP* map, int deleteit)
     if(deleteit)
         s3clear(z3map);
     NCZ_s3sdkclose(z3map->s3client, z3map->s3config);
+    z3map->s3client = NULL;
+    z3map->s3config = NULL;
     nullfree(z3map->bucket);
     nullfree(z3map->region);
     nullfree(z3map->host);
     nczm_clear(map);
-    nullfree(z3map);
+    nullfree(map);
     return (stat);
 }
 

@@ -174,11 +174,8 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
     NCZ_set_log_level();
 #endif /* LOGGING */
 
-    ncuriparse(path,&uri);
-    if(uri) {
-        /* Rebuild the path without any fragment parameters */
-        path = ncuribuild(uri,NULL,NULL,NCURISVC);
-    }
+    /* Get the controls */
+    if(ncuriparse(path,&uri)) goto done;
 
     /* Open the file. */
     if((stat = ncz_open_file(path, mode, ncurifragmentparams(uri), ncid)))

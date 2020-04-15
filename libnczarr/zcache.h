@@ -8,7 +8,6 @@
 
 typedef struct NCZCacheEntry {
     int modified;
-    size64_t* offset;
     size64_t indices[NC_MAX_VAR_DIMS];
     void* data;
 } NCZCacheEntry;

@@ -4,6 +4,9 @@
  *********************************************************************/
 #include "zincludes.h"
 
+/*Forward*/
+static int buildodom(int rank, NCZOdometer** odomp);
+
 void
 nczodom_reset(NCZOdometer* odom)
 {
@@ -13,13 +16,11 @@ nczodom_reset(NCZOdometer* odom)
 }
 
 NCZOdometer*
-nczodom_new(size_t rank, const size64_t* start, const size64_t* stop, const size64_t* stride, const size64_t* len)
+nczodom_new(int rank, const size64_t* start, const size64_t* stop, const size64_t* stride, const size64_t* len)
 {
     int i;
     NCZOdometer* odom = NULL;
-    if((odom = calloc(1,sizeof(NCZOdometer))) == NULL)
-	goto done;   
-    odom->rank = rank;
+    if(buildodom(rank,&odom)) return NULL;
     for(i=0;i<rank;i++) { 
 	odom->start[i] = (size64_t)start[i];
 	odom->stop[i] = (size64_t)stop[i];
@@ -33,19 +34,16 @@ nczodom_new(size_t rank, const size64_t* start, const size64_t* stop, const size
     odom->useslabs = 0;
     odom->slabprod = 1;
 #endif
-done:
     return odom;
 }
 
 NCZOdometer*
-nczodom_fromslices(size_t rank, const NCZSlice* slices)
+nczodom_fromslices(int rank, const NCZSlice* slices)
 {
     size_t i;
     NCZOdometer* odom = NULL;
 
-    if((odom = calloc(1,sizeof(NCZOdometer))) == NULL)
-	goto done;   
-    odom->rank = rank;
+    if(buildodom(rank,&odom)) return NULL;
     for(i=0;i<rank;i++) {    
 	odom->start[i] = slices[i].start;
 	odom->stop[i] = slices[i].stop;
@@ -59,45 +57,51 @@ nczodom_fromslices(size_t rank, const NCZSlice* slices)
     odom->useslabs = 0;
     odom->slabprod = 1;
 #endif
-done:
     return odom;
 }
   
 void
 nczodom_free(NCZOdometer* odom)
 {
+    if(odom == NULL) return;
+    nullfree(odom->start);
+    nullfree(odom->stop);
+    nullfree(odom->stride);
+    nullfree(odom->max);
+    nullfree(odom->index);
     nullfree(odom);
 }
 
 int
 nczodom_more(NCZOdometer* odom)
 {
-#ifdef ENABLE_NCZARR_SLAB
-return (!odom->useslabs || odom->slab1 > 0) && (odom->index[0] < odom->stop[0]);
-#else
-return (odom->index[0] < odom->stop[0]);
-#endif
+    return (odom->index[0] < odom->stop[0]);
 }
 
-int
+void
 nczodom_next(NCZOdometer* odom)
 {
-    size64_t i;
-    int more = 0;
+    int i;
+    int rank;
 #ifdef ENABLE_NCZARR_SLAB
-    int rank = odom->slab1;
-#else
-    int rank = odom->rank;
+    if(odom->useslabs) {
+        rank = odom->pseudorank;
+        if(rank == 0) {
+	    /* fake !more by incrementing the index[0] */
+	    odom->index[0] = odom->stop[0];
+	    return;
+	}
+    } else
 #endif
+        rank = odom->rank;
     for(i=rank-1;i>=0;i--) {
 	odom->index[i] += odom->stride[i];
         if(odom->index[i] < odom->stop[i]) break;
         if(i == 0) goto done; /* leave the 0th entry if it overflows */
         odom->index[i] = odom->start[i]; /* reset this position */
     }
-    more = 1;
 done:
-    return more;
+    return;
 }
   
 /* Get the value of the odometer */
@@ -110,12 +114,9 @@ nczodom_indices(NCZOdometer* odom)
 size64_t
 nczodom_offset(NCZOdometer* odom)
 {
-    size64_t i,offset;
-#ifdef ENABLE_NCZARR_SLAB
-    int rank = odom->slab1;
-#else
-    int rank = odom->rank;
-#endif
+    int i;
+    size64_t offset;
+    int rank = odom->pseudorank;
 
     offset = 0;
     for(i=0;i<rank;i++) {
@@ -128,17 +129,55 @@ nczodom_offset(NCZOdometer* odom)
     return offset;
 }
 
+static int
+buildodom(int rank, NCZOdometer** odomp)
+{
+    int stat = NC_NOERR;
+    NCZOdometer* odom = NULL;
+    if(odomp) {
+        if((odom = calloc(1,sizeof(NCZOdometer))) == NULL)
+	    goto done;   
+        odom->rank = rank;
+        if((odom->start=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
+        if((odom->stop=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
+        if((odom->stride=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
+        if((odom->max=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
+        if((odom->index=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
+        *odomp = odom; odom = NULL;
+    }
+done:
+    nczodom_free(odom);
+    return stat;
+nomem:
+    stat = NC_ENOMEM;
+    goto done;
+}
+
 #ifdef ENABLE_NCZARR_SLAB
 void
-nczodom_slabify(NCZOdometer* odom)
+nczodom_slabify(NCZOdometer* odom, size64_t maxprod)
 {
     int i;
-    for(i=odom->rank-1;i>=0;i--) {if(odom->stride[i] != 1) break;}
+    size64_t product = 1;
+    /* Walk right to left accumulating the product
+       upto the point where product is max index
+       where product <= maxprod and all strides are one*/
+    for(i=odom->rank-1;i>=0;i--) {
+	if(odom->stride[i] != 1) break;
+    }
+    odom->pseudorank = (i + 1);
+    if(maxprod == 0) {
+        for(i=odom->rank-1;i>=odom->pseudorank;i--) {
+	    product *= odom->max[i];
+	}
+    } else {
+        for(i=odom->rank-1;i>=odom->pseudorank;i--) {
+	    if((product * odom->max[i]) > maxprod) {odom->pseudorank = i; break;}
+	    product *= odom->max[i];
+	}
+    }
     /* use rank to signal odom->stride[rank-1] > 1 */
-    odom->slab1 = (i < 0 ? odom->rank : i);
-    odom->slabprod = 1;
-    for(i=odom->slab1;i<odom->rank;i++)
-        odom->slabprod *= odom->max[i];
+    odom->slabprod = product;
     odom->useslabs = 1;
 }
 #endif

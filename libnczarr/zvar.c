@@ -406,7 +406,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     /* If this is a user-defined type, there is a type struct with
      * all the type information. For atomic types, fake up a type
      * struct. */
-    if((retval = ncz_gettype(grp,xtype,&type)))
+    if((retval = ncz_gettype(h5,grp,xtype,&type)))
 	BAIL(retval);
 
     /* Create a new var and fill in some ZARR cache setting values. */
@@ -426,7 +426,9 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
 
     /* Point to the type, and increment its ref. count */
     var->type_info = type;
-    var->type_info->rc++;
+#ifdef LOOK
+var->type_info->rc++;
+#endif
     type = NULL;
 
     /* Propagate the endianness */
@@ -2247,7 +2249,7 @@ ncz_set_var_chunk_cache_ints(int ncid, int varid, int size, int nelems,
 #endif
 
 int
-ncz_gettype(NC_GRP_INFO_T* container, int xtype, NC_TYPE_INFO_T** typep)
+ncz_gettype(NC_FILE_INFO_T* h5, NC_GRP_INFO_T* container, int xtype, NC_TYPE_INFO_T** typep)
 {
     int retval = NC_NOERR;
     NC_TYPE_INFO_T* type = NULL;
@@ -2268,15 +2270,17 @@ ncz_gettype(NC_GRP_INFO_T* container, int xtype, NC_TYPE_INFO_T** typep)
         /* Create new NC_TYPE_INFO_T struct for this atomic type. */
         if ((retval = nc4_type_new(len, name, xtype, &type)))
             BAIL(retval);
+	assert(type->rc == 0);
 	type->container = container;
         type->endianness = NC_ENDIAN_NATIVE; /* for now */
         type->size = len;
 
-        /* Allocate storage for NCZ-specific type info. */
-        if (!(ztype = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
-            BAIL(NC_ENOMEM);
+	/* Allocate storage for NCZ-specific type info. */
+	if (!(ztype = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
+            return NC_ENOMEM;
 	type->format_type_info = ztype;
-        ztype->common.file = ((NC_GRP_INFO_T*)type->container)->nc4_info;
+	ztype->common.file = h5;
+	ztype = NULL;
 
         /* Set the "class" of the type */
         if (xtype == NC_CHAR)
@@ -2309,6 +2313,7 @@ ncz_gettype(NC_GRP_INFO_T* container, int xtype, NC_TYPE_INFO_T** typep)
 exit:
     if (type)
         retval = nc4_type_free(type);
+    nullfree(ztype);
     return THROW(retval);
 }
 	

@@ -18,7 +18,7 @@ static int compute_intersection(const NCZSlice* slice, const size64_t chunklen, 
 */
 int
 NCZ_compute_chunk_ranges(
-	size64_t rank, /* variable rank */
+	int rank, /* variable rank */
         const NCZSlice* slices, /* the complete set of slices |slices| == R*/
 	const size64_t* chunklen, /* the chunk length corresponding to the dimensions */
         NCZChunkRange* ncr)
@@ -128,7 +128,7 @@ Create a vector of projections wrt a slice and a sequence of chunks.
 
 int
 NCZ_compute_per_slice_projections(
-	size_t r, /* which dimension are we projecting? */
+	int r, /* which dimension are we projecting? */
         const NCZSlice* slice, /* the slice for which projections are computed */
 	const NCZChunkRange* range, /* range */
 	size64_t dimlen, /* the dimension length for r'th dimension */
@@ -168,7 +168,7 @@ done:
 */
 int
 NCZ_compute_all_slice_projections(
-	size64_t rank, /* variable rank */
+	int rank, /* variable rank */
         const NCZSlice* slices, /* the complete set of slices |slices| == R*/
 	const size64_t* dimlen, /* the dimension lengths associated with a variable */
 	const size64_t* chunklen, /* the chunk length corresponding to the dimensions */

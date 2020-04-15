@@ -38,7 +38,7 @@ typedef struct NCProjection {
 
 /* Set of Projections for a slice */
 typedef struct NCZSliceProjections {
-    size64_t r; /* 0<=r<rank */
+    int r; /* 0<=r<rank */
     NCZChunkRange range; /* Chunk ranges covered by this set of projections */
     size_t count; /* |projections| == (range.stop - range.start) */
     NCZProjection* projections; /* Vector of projections derived from the
@@ -51,7 +51,7 @@ struct Common {
     NC_FILE_INFO_T* file;
     NC_VAR_INFO_T* var;
     int reading; /* 1=> read, 0 => write */
-    size_t rank;
+    int rank;
     size64_t* dimlens;
     size64_t* chunklens;
     void* memory;
@@ -68,10 +68,10 @@ struct Common {
 
 /**************************************************/
 /* From zchunking.c */
-extern int NCZ_compute_chunk_ranges(size64_t, const NCZSlice*, const size64_t*, NCZChunkRange* ncr);
+extern int NCZ_compute_chunk_ranges(int rank, const NCZSlice*, const size64_t*, NCZChunkRange* ncr);
 extern int NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, size_t n, NCZProjection* projections);
-extern int NCZ_compute_per_slice_projections(size_t rank, const NCZSlice*, const NCZChunkRange*, size64_t dimlen, size64_t chunklen, NCZSliceProjections* slp);
-extern int NCZ_compute_all_slice_projections(size64_t rank, const NCZSlice* slices, const size64_t* dimlen, const size64_t* chunklen, const NCZChunkRange*, NCZSliceProjections*);
+extern int NCZ_compute_per_slice_projections(int rank, const NCZSlice*, const NCZChunkRange*, size64_t dimlen, size64_t chunklen, NCZSliceProjections* slp);
+extern int NCZ_compute_all_slice_projections(int rank, const NCZSlice* slices, const size64_t* dimlen, const size64_t* chunklen, const NCZChunkRange*, NCZSliceProjections*);
 
 /* From zwalk.c */
 extern int ncz_chunking_init(void);
@@ -88,8 +88,9 @@ extern int NCZ_projectslices(size64_t* dimlens,
 		  size64_t* chunklens,
 		  NCZSlice* slices,
 		  struct Common*, struct NCZOdometer**);
-extern int NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, size64_t*, struct NCZOdometer** odom);
+extern int NCZ_chunkindexodom(int rank, const NCZChunkRange* ranges, size64_t*, struct NCZOdometer** odom);
 extern void NCZ_clearsliceprojections(int count, NCZSliceProjections* slpv);
+extern void NCZ_clearcommon(struct Common* common);
 
 #define floordiv(x,y) ((x) / (y))
 

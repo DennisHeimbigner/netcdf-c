@@ -89,7 +89,7 @@ typedef struct NCZ_FILE_INFO {
     } zarr;
     int created; /* 1=> created 0=>open */
     int native_endianness; /* NC_ENDIAN_LITTLE | NC_ENDIAN_BIG */
-    NClist* controls;
+    char** controls; /* Envv format */
     struct Features {
         int purezarr; /* read/write to match standard zarr format */
 	NCZM_IMPL mapimpl;
@@ -195,7 +195,7 @@ int ncz_create_fillvalue(NC_VAR_INFO_T* var);
 int ncz_makeattr(NC_OBJ*, NCindex* attlist, const char* name, nc_type typid, size_t len, void* values, NC_ATT_INFO_T**);
 
 /* zvar.c */
-int ncz_gettype(NC_GRP_INFO_T*, int xtype, NC_TYPE_INFO_T** typep);
+int ncz_gettype(NC_FILE_INFO_T*, NC_GRP_INFO_T*, int xtype, NC_TYPE_INFO_T** typep);
 int ncz_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 
 /* zfilter.c */

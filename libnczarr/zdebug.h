@@ -12,7 +12,7 @@
 #undef ZDEBUG1 /* detailed debug */
 
 #define ZCATCH /* Warning: significant performance impact */
-#define ZTRACING /* Warning: significant performance impact */
+#undef ZTRACING /* Warning: significant performance impact */
 
 #ifdef ZCATCH
 /* Place breakpoint on zbreakpoint to catch errors close to where they occur*/
@@ -36,15 +36,15 @@ extern int zthrow(int err, const char* fname, int line);
 
 /* printers */
 extern char* nczprint_slice(NCZSlice);
-extern char* nczprint_slices(size_t, NCZSlice*);
-extern char* nczprint_slab(size_t, NCZSlice*);
+extern char* nczprint_slices(int rank, NCZSlice*);
+extern char* nczprint_slab(int rank, NCZSlice*);
 extern char* nczprint_odom(NCZOdometer*);
 extern char* nczprint_chunkrange(NCZChunkRange);
 extern char* nczprint_projection(NCZProjection);
 extern char* nczprint_sliceprojections(NCZSliceProjections);
 extern char* nczprint_vector(size_t,size64_t*);
 extern char* nczprint_slicex(NCZSlice slice, int raw);
-extern char* nczprint_slicesx(size_t rank, NCZSlice* slices, int raw);
+extern char* nczprint_slicesx(int rank, NCZSlice* slices, int raw);
 extern char* nczprint_projectionx(NCZProjection proj, int raw);
 extern char* nczprint_sliceprojectionsx(NCZSliceProjections slp, int raw);
 

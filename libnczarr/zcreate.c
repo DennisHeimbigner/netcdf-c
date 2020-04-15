@@ -117,15 +117,12 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
     if((cmode & ILLEGAL_CREATE_FLAGS) != 0)
         {stat = NC_EINVAL; goto done;}
 
-    ncuriparse(path,&uri);
-    if(uri) {
-        /* Rebuild the path without any fragment parameters */
-        path = ncuribuild(uri,NULL,NULL,NCURISVC);
-    }
- 
     /* Turn on NC_WRITE */
     cmode |= NC_WRITE;
     
+    /* Get the controls */
+    if(ncuriparse(path,&uri)) goto done;
+
     /* Create the file */
     stat = ncz_create_file(path, cmode, initialsz, ncurifragmentparams(uri), ncid);
 

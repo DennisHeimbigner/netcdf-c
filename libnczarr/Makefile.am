@@ -51,8 +51,8 @@ zutil.c \
 zvar.c \
 zwalk.c \
 zmap.c \
-zmap_nc4.c \
-zmap_file.c
+zmap_nz4.c \
+zmap_nzf.c
 
 HDRS= \
 zdispatch.h \

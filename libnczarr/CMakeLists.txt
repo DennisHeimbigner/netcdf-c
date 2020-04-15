@@ -23,7 +23,8 @@ zgrp.c
 zinternal.c
 zjson.c
 zmap.c
-zmap_nc4.c
+zmap_nz4.c
+zmap_nzf.c
 zodom.c
 zopen.c
 zprov.c
@@ -35,7 +36,7 @@ zwalk.c
 )
 
 IF(ENABLE_S3_SDK) 
-SET(libnczarr_SOURCES ${libnczarr_SOURCES} zmap_s3sdk.c)
+SET(libnczarr_SOURCES ${libnczarr_SOURCES} zmap_s3sdk.c zs3sdkwrap.cpp)
 ELSE()
 SET(libnczarr_SOURCES ${libnczarr_SOURCES} zmap_s3.c)
 IF(NOT ENABLE_DAP4)

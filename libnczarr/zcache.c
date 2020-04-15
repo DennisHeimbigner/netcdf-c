@@ -70,7 +70,7 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
     char* varkey = NULL;
     char* key = NULL;
     NCZCacheEntry* entry = NULL;
-    size_t rank = cache->var->ndims;
+    int rank = cache->var->ndims;
 
     /* Create the key for this cache */
     /* Get the chunk object name */
@@ -81,7 +81,11 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
     if((stat=nczm_suffix(varkey,chunkkey,&key))) goto done;
 
     /* See if already in cache */
-    if(!NC_hashmapget(cache->entries, key, strlen(key), (uintptr_t*)&entry)) { /* !found */
+    if(NC_hashmapget(cache->entries, key, strlen(key), (uintptr_t*)&entry)) { /* found */
+        if(datap) *datap = entry->data;
+	entry = NULL; /*avoid reclaiming */
+	goto done;
+    } else { /*!found*/
 	/* Create a new entry */
 	if((entry = calloc(1,sizeof(NCZCacheEntry)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
@@ -89,9 +93,6 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
 	/* Create the local copy space */
 	if((entry->data = calloc(1,cache->entrysize)) == NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	/* Put entry into hashmap */
-        if(!NC_hashmapadd(cache->entries, (uintptr_t)entry, key, strlen(key)))
-	    {stat = NC_EINTERNAL; goto done;}
 	/* Read the object in toto */
 	stat=get_chunk(cache,key,entry);
 	switch (stat) {
@@ -102,11 +103,19 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
 	    break;
 	default: goto done;
 	}
+	/* Put entry into hashmap */
+        if(!NC_hashmapadd(cache->entries, (uintptr_t)entry, key, strlen(key)))
+	    {stat = NC_EINTERNAL; goto done;}
+        if(datap) *datap = entry->data;
+	entry = NULL;
     }
-    if(datap) *datap = entry->data;
 
 done:
+    if(entry) nullfree(entry->data);
+    nullfree(entry);
     nullfree(key);
+    nullfree(varkey);
+    nullfree(chunkkey);
     return THROW(stat);
 }
 
@@ -116,7 +125,7 @@ NCZ_write_cache_chunk(NCZChunkCache* cache, const size64_t* indices, const void*
     int stat = NC_NOERR;
     char* key = NULL;
     NCZCacheEntry* entry = NULL;
-    size_t rank = cache->var->ndims;
+    int rank = cache->var->ndims;
 
     /* Create the key for this cache */
     if((stat=buildchunkkey(rank, indices, &key))) goto done;
@@ -174,7 +183,7 @@ NCZ_chunk_cache_modified(NCZChunkCache* cache, const size64_t* indices)
     int stat = NC_NOERR;
     char* key = NULL;
     NCZCacheEntry* entry = NULL;
-    size_t rank = cache->var->ndims;
+    int rank = cache->var->ndims;
 
     /* Create the key for this cache */
     if((stat=buildchunkkey(rank, indices, &key))) goto done;
@@ -340,4 +349,7 @@ NCZ_free_chunk_cache(NCZChunkCache* cache)
 	    nullfree(entry);
 	}
     }
+    NC_hashmapfree(cache->entries);
+    cache->entries = NULL;
+    nullfree(cache);
 }

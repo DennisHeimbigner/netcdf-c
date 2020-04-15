@@ -10,6 +10,7 @@ static int initialized = 0;
 static int NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, void* chunkdata);
 static int rangecount(NCZChunkRange range);
 static int readfromcache(void* source, size64_t* chunkindices, void** chunkdata);
+void NCZ_clearcommon(struct Common* common);
     
 /**************************************************/
 int
@@ -172,6 +173,7 @@ fprintf(stderr,"read: %s\n",nczprint_vector(chunkodom->rank,chunkodom->index));
 #endif
 #endif
 done:
+    NCZ_clearcommon(&common);
     return stat;
 }
 
@@ -181,6 +183,8 @@ NCZ_transfer(struct Reader reader, struct Common* common, NCZSlice* slices)
 {
     int stat = NC_NOERR;
     NCZOdometer* chunkodom =  NULL;
+    NCZOdometer* slpodom = NULL;
+    NCZOdometer* memodom = NULL;
 
     /*
      We will need three sets of odometers.
@@ -199,11 +203,9 @@ NCZ_transfer(struct Reader reader, struct Common* common, NCZSlice* slices)
 
     /* iterate over the odometer: all combination of chunk
        indices in the projections */
-    for(;nczodom_more(chunkodom);nczodom_next(chunkodom)) {
+    for(;nczodom_more(chunkodom);) {
 	int r;
 	size64_t* chunkindices = NULL;
-        NCZOdometer* slpodom = NULL;
-        NCZOdometer* memodom = NULL;
         NCZSlice slpslices[NC_MAX_VAR_DIMS];
         NCZSlice memslices[NC_MAX_VAR_DIMS];
         NCZProjection* proj[NC_MAX_VAR_DIMS];
@@ -245,8 +247,8 @@ fprintf(stderr,"read: %s\n",nczprint_vector(chunkodom->rank,chunkodom->index));
 	slpodom = nczodom_fromslices(common->rank,slpslices);
 	memodom = nczodom_fromslices(common->rank,memslices);
 #ifdef ENABLE_NCZARR_SLAB
-	nczodom_slabify(slpodom);
-	nczodom_slabify(memodom);
+	nczodom_slabify(slpodom,0);
+	nczodom_slabify(memodom,slpodom->slabprod);
 #endif
 #ifdef ZDEBUG
 	fprintf(stderr,"slpodom=%s\n",nczprint_odom(*slpodom));
@@ -258,12 +260,19 @@ fprintf(stderr,"read: %s\n",nczprint_vector(chunkodom->rank,chunkodom->index));
 #endif
 	/* This is the key action: walk this set of slices and transfer data */
 	if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
-    }
+        nczodom_free(slpodom); slpodom = NULL;
+        nczodom_free(memodom); memodom = NULL;
+nczodom_next(chunkodom);
+}
+
 #ifdef ZDEBUG
     if(!nczodom_more(chunkodom)) fprintf(stderr,"chunkodom done\n");
     fflush(stderr);
 #endif
 done:
+    nczodom_free(slpodom);
+    nczodom_free(memodom);
+    nczodom_free(chunkodom);
     return stat;
 }
 
@@ -343,8 +352,9 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
 {
     int stat = NC_NOERR;
 
-    for(;nczodom_more(slpodom);nczodom_next(slpodom),nczodom_next(memodom)) {
-        size64_t chunkpos, mempos;
+//    for(;nczodom_more(slpodom);nczodom_next(slpodom),nczodom_next(memodom)) {
+      for(;;) {
+        if(!nczodom_more(slpodom)) break;
 	/* Convert the indices to a linear offset WRT to chunk */
 	size64_t slpoffset = nczodom_offset(slpodom);
 	size64_t memoffset = nczodom_offset(memodom);
@@ -357,32 +367,55 @@ fprintf(stderr,"----------\n");
 fflush(stderr);
 #endif
 
-	/* transfer data */
-	if(common->reading) {
-            chunkpos = slpoffset * common->typesize;
-	    mempos = memoffset * common->typesize;
-	    unsigned char* memdst = ((unsigned char*)common->memory)+mempos;
-	    unsigned char* chunksrc = ((unsigned char*)chunkdata)+chunkpos;
-	    memcpy(memdst,chunksrc,common->typesize);
-#ifdef ZDEBUG
-fprintf(stderr,"slpoffset=%llu value=%d\n",slpoffset,((int*)chunksrc)[0]);
-fprintf(stderr,"memoffset=%llu value=%d\n",memoffset,((int*)memdst)[0]);
+	{/* transfer data */
+	    unsigned char* memptr0 = NULL;
+	    unsigned char* chunkptr0 = NULL;
+	    unsigned char* memptr = NULL;
+	    unsigned char* chunkptr = NULL;
+#ifdef ENABLE_NCZARR_SLAB
+	    size64_t avail, pos;
+	    size64_t slpprod = slpodom->slabprod;
+    	    size64_t memprod = memodom->slabprod;
+
+	    fprintf(stderr,"xxx: slp=%llu mem=%llu\n",slpprod,memprod);
 #endif
-	    if(common->swap)
-		NCZ_swapatomicdata(common->typesize,chunksrc,common->typesize);
-	} else {
-            chunkpos = slpoffset * common->typesize;
-	    mempos = memoffset * common->typesize;
-	    unsigned char* memsrc = ((unsigned char*)common->memory)+mempos;
-	    unsigned char* chunkdst = ((unsigned char*)chunkdata)+chunkpos;
-	    memcpy(chunkdst,memsrc,common->typesize);
-	    if(common->swap)
-		NCZ_swapatomicdata(common->typesize,chunkdst,common->typesize);
-#ifdef ZDEBUG
-fprintf(stderr,"slpoffset=%llu value=%d\n",slpoffset,((int*)chunkdst)[0]);
-fprintf(stderr,"memoffset=%llu value=%d\n",memoffset,((int*)memsrc)[0]);
+	    memptr0 = ((unsigned char*)common->memory)+(memoffset * common->typesize);
+	    chunkptr0 = ((unsigned char*)chunkdata)+(slpoffset * common->typesize);
+	    memptr = memptr0;
+	    chunkptr = chunkptr0;
+#ifdef ENABLE_NCZARR_SLAB
+	    avail = slpprod;
+	    pos = 0;	    
+	    for(;avail > 0;) {
+	        if(avail < memprod) memprod = avail;
+		if(common->reading) {
+	            memcpy(memptr,chunkptr,common->typesize*memprod);
+	            if(common->swap)
+		        NCZ_swapatomicdata(common->typesize*slpprod,memptr0,common->typesize);
+		} else {
+		    memcpy(chunkptr,memptr,common->typesize*memprod);
+		    if(common->swap)
+			NCZ_swapatomicdata(common->typesize*slpprod,chunkptr0,common->typesize);
+		}
+		pos += memprod;
+		avail -= memprod;
+	        memptr += common->typesize*memprod;
+	        chunkptr += common->typesize*memprod;
+	    }
+#else
+	    if(common->reading) {
+	        memcpy(mem,chunk,common->typesize);
+	        if(common->swap)
+		    NCZ_swapatomicdata(common->typesize,mempos0,common->typesize);
+	    } else { /*!common->reading */
+	        memcpy(chunk,mem,common->typesize);
+	        if(common->swap)
+		    NCZ_swapatomicdata(common->typesize,chunkpos0,common->typesize);
+	    }
 #endif
- 	}
+	}
+nczodom_next(slpodom);
+nczodom_next(memodom);
     }
 #ifdef ZDEBUG
 if(!nczodom_more(memodom)) fprintf(stderr,"memodom done\n");
@@ -448,7 +481,7 @@ NCZ_offset2indices(size_t R, size64_t offset, const size64_t* dimlens, size64_t*
 /* Unit test entry points */
 
 int
-NCZ_chunkindexodom(size_t rank, const NCZChunkRange* ranges, size64_t* chunkcounts, NCZOdometer** odomp)
+NCZ_chunkindexodom(int rank, const NCZChunkRange* ranges, size64_t* chunkcounts, NCZOdometer** odomp)
 {
     int stat = NC_NOERR;
     int r;
@@ -479,4 +512,11 @@ static int
 readfromcache(void* source, size64_t* chunkindices, void** chunkdatap)
 {
     return NCZ_read_cache_chunk((struct NCZChunkCache*)source, chunkindices, chunkdatap);
+}
+
+void
+NCZ_clearcommon(struct Common* common)
+{
+    NCZ_clearsliceprojections(common->rank,common->allprojections);
+    nullfree(common->allprojections);
 }

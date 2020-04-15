@@ -11,6 +11,7 @@ static int zclose_gatts(NC_GRP_INFO_T*);
 static int zclose_vars(NC_GRP_INFO_T*);
 static int zclose_dims(NC_GRP_INFO_T*);
 static int zclose_types(NC_GRP_INFO_T*);
+static int zclose_type(NC_TYPE_INFO_T* type);
 
 /**************************************************/
 
@@ -39,7 +40,7 @@ ncz_close_file(NC_FILE_INFO_T* file, int abort)
 
     if((stat = nczmap_close(zinfo->map,(abort && zinfo->created)?1:0)))
 	goto done;
-    nclistfreeall(zinfo->controls);
+    NCZ_freestringvec(0,zinfo->controls);
     NC_authclear(zinfo->auth);
     nullfree(zinfo->auth);
     nullfree(zinfo);
@@ -155,6 +156,8 @@ zclose_vars(NC_GRP_INFO_T* grp)
 	    nullfree(zatt);
 	    att->format_att_info = NULL; /* avoid memory errors */
         }
+	/* Reclaim the type */
+	(void)zclose_type(var->type_info);
         NCZ_free_chunk_cache(zvar->cache);
 	nullfree(zvar);
 	var->format_var_info = NULL; /* avoid memory errors */
@@ -190,9 +193,35 @@ zclose_dims(NC_GRP_INFO_T* grp)
 }
 
 /**
+ * @internal Close resources for a single type.  Set values to
+ * 0 after closing types. Because of type reference counters, these
+ * closes can be called multiple times.
+ *
+ * @param type Pointer to type struct.
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
+ */
+static int
+zclose_type(NC_TYPE_INFO_T* type)
+{
+    int stat = NC_NOERR;
+    NCZ_TYPE_INFO_T* ztype;
+
+    assert(type && type->format_type_info != NULL);
+    /* Get Zarr-specific type info. */
+    ztype = type->format_type_info;
+    nullfree(ztype);
+    type->format_type_info = NULL; /* avoid memory errors */
+    return stat;
+}
+
+/**
  * @internal Close resources for types in a group.  Set values to
  * 0 after closing types. Because of type reference counters, these
  * closes can be called multiple times.
+ * Warning: note that atomic types are not covered here; this
+ * is only for user-defined types.
  *
  * @param grp Pointer to group info struct.
  *
@@ -205,18 +234,13 @@ zclose_types(NC_GRP_INFO_T* grp)
     int stat = NC_NOERR;
     int i;
     NC_TYPE_INFO_T* type;
-    NCZ_TYPE_INFO_T* ztype;
 
     for(i = 0; i < ncindexsize(grp->type); i++)
     {
         type = (NC_TYPE_INFO_T*)ncindexith(grp->type, i);
-        assert(type && type->format_type_info != NULL);
-        /* Get Zarr-specific type info. */
-        ztype = type->format_type_info;
-	nullfree(ztype);
-	type->format_type_info = NULL; /* avoid memory errors */
+	if((stat = zclose_type(type))) goto done;
     }
-
+done:
     return stat;
 }
 
