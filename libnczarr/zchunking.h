@@ -6,6 +6,11 @@
 #ifndef ZCHUNKING_H
 #define ZCHUNKING_H
 
+/* Callback functions so we can use with unit tests */
+
+typedef int (*NCZ_reader)(void* source, size64_t* chunkindices, void** chunkdata);
+struct Reader {void* source; NCZ_reader reader;};
+
 /* Define the intersecting set of chunks for a slice
    in terms of chunk indices (not absolute positions)
 */
@@ -60,10 +65,7 @@ struct Common {
     size64_t shape[NC_MAX_VAR_DIMS]; /* shape of the output hyperslab */
     NCZSliceProjections* allprojections;
     /* Parametric chunk reader so we can do unittests */
-    struct Reader {
-	void* source;
-	int (*read)(void* source, size64_t* chunkindices, void** chunkdata);
-    } reader;
+    struct Reader reader;
 };
 
 /**************************************************/
@@ -78,7 +80,7 @@ extern int ncz_chunking_init(void);
 extern int NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 		  size64_t* start, size64_t* count, size64_t* stride,
 		  void* memory, size_t typesize);
-extern int NCZ_transfer(struct Reader reader, struct Common* common, NCZSlice* slices);
+extern int NCZ_transfer(struct Common* common, NCZSlice* slices);
 extern size64_t NCZ_computelinearoffset(size_t, const size64_t*, const size64_t*);
 
 /* Special entry points for unit testing */

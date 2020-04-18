@@ -57,7 +57,7 @@ main(int argc, char** argv)
         if(r != slp->r) usage(NC_EINTERNAL);
 	sr = nczprint_chunkrange(slp->range);
 	sl = nczprint_slice(options.slices[r]);
-        printf("%s %s\n",sr,sl);
+        printf("[r=%d] %s %s\n",r,sr,sl);
 	nullfree(sr); nullfree(sl);
         for(i=0;i<slp->count;i++) {
             NCZProjection* proj = &slp->projections[i];
@@ -66,6 +66,7 @@ main(int argc, char** argv)
 	    nullfree(tmp);
 	}
     }
+
     /* Cleanup */
     NCZ_clearsliceprojections(var->rank,slpv);
 
@@ -88,7 +89,7 @@ main(int argc, char** argv)
         if(r != slp->r) usage(NC_EINTERNAL);
 	sr = nczprint_chunkrange(slp->range);
 	sl = nczprint_slice(options.slices[r]);
-        printf("%s %s\n",sr,sl);
+        printf("[r=%d] %s %s\n",r,sr,sl);
 	nullfree(sr); nullfree(sl);
         for(i=0;i<slp->count;i++) {
             NCZProjection* proj = &slp->projections[i];
@@ -115,7 +116,7 @@ ut_chunk_test(int sort,...)
 #if 0
     struct Common* common = NULL;    
 #endif
-    size64_t rank; /* variable rank */
+    int rank; /* variable rank */
     NCZSlice* slices = NULL; /* the complete set of slices |slices| == R*/
     size64_t* chunksizes = NULL; /* the chunk length corresponding to the dimensions */
     NCZChunkRange* ranges = NULL; /* computed chunk ranges */
@@ -129,7 +130,7 @@ ut_chunk_test(int sort,...)
         slices = va_arg(ap,NCZSlice*);
 	chunksizes = va_arg(ap,size64_t*);
         ranges = va_arg(ap,NCZChunkRange*);
-        printf("Chunksizes: %s\n",nczprint_vector(rank,chunksizes));
+        printf("[r=%d] Chunksizes: %s\n",rank,nczprint_vector(rank,chunksizes));
         printf("Slices: ");
 	for(i=0;i<rank;i++)
 	    printf(" %s",nczprint_slicesx(rank,slices,1));

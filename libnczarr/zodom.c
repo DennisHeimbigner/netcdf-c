@@ -158,25 +158,34 @@ void
 nczodom_slabify(NCZOdometer* odom, size64_t maxprod)
 {
     int i;
-    size64_t product = 1;
+    size64_t product;
     /* Walk right to left accumulating the product
-       upto the point where product is max index
-       where product <= maxprod and all strides are one*/
+       upto the point P where:
+       1. prod = (max[P..rank-1]) <= maxprod
+       2. stride[P..rank-1] == 1
+       3. start[P..rank-1] == 0
+       4. stop[P..rank-1] == max
+    */
+    /* Fulfill conditions 2-4 */
     for(i=odom->rank-1;i>=0;i--) {
-	if(odom->stride[i] != 1) break;
+	if(odom->stride[i] != 1
+	   || odom->start[i] != 0
+	   || odom->stop[i] != odom->max[i])
+	   break;
     }
-    odom->pseudorank = (i + 1);
+    odom->pseudorank = (i + 1); /* 0=>all, rank=>none */
+    product = 1;
+    /* Fulfill constraint 1 */
     if(maxprod == 0) {
         for(i=odom->rank-1;i>=odom->pseudorank;i--) {
 	    product *= odom->max[i];
 	}
     } else {
         for(i=odom->rank-1;i>=odom->pseudorank;i--) {
-	    if((product * odom->max[i]) > maxprod) {odom->pseudorank = i; break;}
+	    if((product * odom->max[i]) > maxprod) {odom->pseudorank = (i+1);  break;}
 	    product *= odom->max[i];
 	}
     }
-    /* use rank to signal odom->stride[rank-1] > 1 */
     odom->slabprod = product;
     odom->useslabs = 1;
 }

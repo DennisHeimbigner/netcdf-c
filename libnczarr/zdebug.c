@@ -124,26 +124,30 @@ nczprint_odom(NCZOdometer* odom)
     ncbytescat(buf," start=");
     txt = nczprint_vector(odom->rank,odom->start);
     ncbytescat(buf,txt);
+    nullfree(txt);
     ncbytescat(buf," stop=");
     txt = nczprint_vector(odom->rank,odom->stop);
     ncbytescat(buf,txt);
+    nullfree(txt);
     ncbytescat(buf," stride=");
     txt = nczprint_vector(odom->rank,odom->stride);
     ncbytescat(buf,txt);
+    nullfree(txt);
     ncbytescat(buf," max=");
     txt = nczprint_vector(odom->rank,odom->max);
     ncbytescat(buf,txt);
+    nullfree(txt);
     ncbytescat(buf," index=");
     txt = nczprint_vector(odom->rank,odom->index);
     ncbytescat(buf,txt);
-  
+    nullfree(txt);
     ncbytescat(buf," offset=");
     snprintf(value,sizeof(value),"%llu",nczodom_offset(odom));
     ncbytescat(buf,value);
     
 #ifdef ENABLE_NCZARR_SLAB
     if(odom->useslabs) {
-        ncbytescat(buf," psweudorank=");
+        ncbytescat(buf," pseudorank=");
         snprintf(value,sizeof(value),"%d",odom->pseudorank);
         ncbytescat(buf,value);
         ncbytescat(buf," slabprod=");
