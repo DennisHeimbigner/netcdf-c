@@ -155,36 +155,27 @@ nomem:
 
 #ifdef ENABLE_NCZARR_SLAB
 void
-nczodom_slabify(NCZOdometer* odom, size64_t maxprod)
+nczodom_slabify(NCZOdometer* odom)
 {
     int i;
     size64_t product;
-    /* Walk right to left accumulating the product
-       upto the point P where:
-       1. prod = (max[P..rank-1]) <= maxprod
-       2. stride[P..rank-1] == 1
-       3. start[P..rank-1] == 0
-       4. stop[P..rank-1] == max
+    /* Walk right to left thru the leftmost point P where:
+       1. stride[P..rank-1] == 1
+       2. start[P..rank-1] == 0
+       3. stop[P..rank-1] == max
     */
-    /* Fulfill conditions 2-4 */
     for(i=odom->rank-1;i>=0;i--) {
 	if(odom->stride[i] != 1
 	   || odom->start[i] != 0
 	   || odom->stop[i] != odom->max[i])
 	   break;
     }
+    /* Record the point P as pseudorank */
     odom->pseudorank = (i + 1); /* 0=>all, rank=>none */
+    /* Compute the crossproduct of max[P..rank-1] */
     product = 1;
-    /* Fulfill constraint 1 */
-    if(maxprod == 0) {
-        for(i=odom->rank-1;i>=odom->pseudorank;i--) {
-	    product *= odom->max[i];
-	}
-    } else {
-        for(i=odom->rank-1;i>=odom->pseudorank;i--) {
-	    if((product * odom->max[i]) > maxprod) {odom->pseudorank = (i+1);  break;}
-	    product *= odom->max[i];
-	}
+    for(i=odom->rank-1;i>=odom->pseudorank;i--) {
+        product *= odom->max[i];
     }
     odom->slabprod = product;
     odom->useslabs = 1;

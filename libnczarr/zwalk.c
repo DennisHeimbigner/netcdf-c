@@ -158,8 +158,10 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 
 	/* This is the key action: walk this set of slices and transfer data */
 	if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
+
         nczodom_free(slpodom); slpodom = NULL;
         nczodom_free(memodom); memodom = NULL;
+
         nczodom_next(chunkodom);
     }
 
@@ -187,12 +189,13 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
 
     for(;;) {
         if(!nczodom_more(slpodom)) break;
-        for(;;) {
+//        for(;;)
+	{
             unsigned char* memptr = NULL;
             unsigned char* chunkptr = NULL;
             size64_t slpoffset = 0;
             size64_t memoffset = 0;
-            if(!nczodom_more(memodom)) break;
+//            if(!nczodom_more(memodom)) break;
             /* Convert the indices to a linear offset WRT to chunk */
             slpoffset = nczodom_offset(slpodom);
             memoffset = nczodom_offset(memodom);
