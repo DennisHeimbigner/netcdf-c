@@ -116,7 +116,11 @@ nczodom_offset(NCZOdometer* odom)
 {
     int i;
     size64_t offset;
-    int rank = odom->pseudorank;
+#ifdef ENABLE_NCZARR_SLAB
+    int rank = (odom->useslabs?odom->pseudorank:odom->rank);
+#else
+    int rank = odom->rank
+#endif
 
     offset = 0;
     for(i=0;i<rank;i++) {

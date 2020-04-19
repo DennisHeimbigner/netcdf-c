@@ -148,7 +148,10 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 
 	slpodom = nczodom_fromslices(common->rank,slpslices);
 	memodom = nczodom_fromslices(common->rank,memslices);
-
+#ifdef ENABLE_NCZARR_SLAB
+	nczodom_slabify(slpodom);
+	nczodom_slabify(memodom);
+#endif
         /* Read from cache */
         switch ((stat = common->reader.reader(common->reader.source, chunkindices, &chunkdata))) {
         case NC_EACCESS: break; /* cache created the chunk */
