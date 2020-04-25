@@ -161,9 +161,6 @@ extern int nc4_create_dim_wo_var(NC_DIM_INFO_T *dim);
  * name, but the var is not a coord var of that dim. */
 extern int nc4_give_var_secret_name(NC_VAR_INFO_T *var);
 
-/* Get the fill value for a var. */
-int nc4_get_fill_value(NC_FILE_INFO_T *h5, NC_VAR_INFO_T *var, void **fillp);
-
 /* Find file, group, var, and att info, doing lazy reads if needed. */
 int nc4_hdf5_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
                               int use_name, char *norm_name, NC_FILE_INFO_T **h5,

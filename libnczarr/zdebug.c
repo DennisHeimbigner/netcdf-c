@@ -37,6 +37,30 @@ struct ZUTEST zutest;
 /**************************************************/
 /* Data Structure printers */
 
+static NClist* reclaim = NULL;
+static const int maxreclaim = 8;
+
+static char*
+capture(char* s)
+{
+    if(s != NULL) {
+	while(nclistlength(reclaim) >= maxreclaim)
+	    free(nclistremove(reclaim,0));
+        if(reclaim == NULL) reclaim = nclistnew();
+        nclistpush(reclaim,s);
+    }
+    return s;
+}
+
+void
+nczprint_reclaim(void)
+{
+    if(reclaim != NULL) {
+        nclistfreeall(reclaim);
+	reclaim = NULL;
+    }
+}
+
 char*
 nczprint_slice(NCZSlice slice)
 {
@@ -73,7 +97,7 @@ nczprint_slicex(NCZSlice slice, int raw)
         ncbytescat(buf,"}");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
-    return result;
+    return capture(result);
 }
 
 char*
@@ -101,7 +125,7 @@ nczprint_slicesx(int rank, NCZSlice* slices, int raw)
     }
     result = ncbytesextract(buf);
     ncbytesfree(buf);
-    return result;
+    return capture(result);
 }
 
 char*
@@ -124,23 +148,18 @@ nczprint_odom(NCZOdometer* odom)
     ncbytescat(buf," start=");
     txt = nczprint_vector(odom->rank,odom->start);
     ncbytescat(buf,txt);
-    nullfree(txt);
     ncbytescat(buf," stop=");
     txt = nczprint_vector(odom->rank,odom->stop);
     ncbytescat(buf,txt);
-    nullfree(txt);
     ncbytescat(buf," stride=");
     txt = nczprint_vector(odom->rank,odom->stride);
     ncbytescat(buf,txt);
-    nullfree(txt);
     ncbytescat(buf," max=");
     txt = nczprint_vector(odom->rank,odom->max);
     ncbytescat(buf,txt);
-    nullfree(txt);
     ncbytescat(buf," index=");
     txt = nczprint_vector(odom->rank,odom->index);
     ncbytescat(buf,txt);
-    nullfree(txt);
     ncbytescat(buf," offset=");
     snprintf(value,sizeof(value),"%llu",nczodom_offset(odom));
     ncbytescat(buf,value);
@@ -155,11 +174,10 @@ nczprint_odom(NCZOdometer* odom)
         ncbytescat(buf,value);
     }
 #endif
-
     ncbytescat(buf,"}");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
-    return result;
+    return capture(result);
 }
 
 char*
@@ -202,7 +220,7 @@ nczprint_projectionx(NCZProjection proj, int raw)
     nullfree(result);
     result = ncbytesextract(buf);
     ncbytesfree(buf);
-    return result;
+    return capture(result);
 }
 
 char*
@@ -235,7 +253,7 @@ nczprint_sliceprojectionsx(NCZSliceProjections slp, int raw)
     ncbytescat(buf,"}");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
-    return result;
+    return capture(result);
 }
 
 char*
@@ -254,7 +272,7 @@ nczprint_chunkrange(NCZChunkRange range)
     ncbytescat(buf,"}");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
-    return result;
+    return capture(result);
 }
 
 char*
@@ -274,7 +292,7 @@ nczprint_vector(size_t len, size64_t* vec)
     ncbytescat(buf,")");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
-    return result;
+    return capture(result);
 }
 
 #ifdef ZDEBUG

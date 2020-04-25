@@ -5,7 +5,7 @@
 
 #include "zincludes.h"
 #include "zmap.h"
-#include "zs3sdkwrap.h"
+#include "zs3sdk.h"
 
 /*
 Map our simplified map model to an S3 bucket + objects.
@@ -25,7 +25,7 @@ Notes:
 
 #undef DEBUG
 
-#define NCZM_S3_V1 1
+#define NCZM_S3SDK_V1 1
 
 #define AWSHOST ".amazonaws.com"
 
@@ -44,7 +44,7 @@ typedef struct ZS3MAP {
 } ZS3MAP;
 
 /* Forward */
-static NCZMAP_API nczs3api; // c++ will not allow static forward variables
+static NCZMAP_API nczs3sdkapi; // c++ will not allow static forward variables
 static int zs3exists(NCZMAP* map, const char* key);
 static int zs3len(NCZMAP* map, const char* key, size64_t* lenp);
 static int zs3define(NCZMAP* map, const char* key, size64_t len);
@@ -113,7 +113,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	{stat = NC_ENOMEM; goto done;}
 
     /* Parse the URL */
-    if((stat = ncuriparse(path,&url))) goto done;
+    ncuriparse(path,&url);
     if(url == NULL)
         {stat = NC_EURL; goto done;}
     if((stat = processurl(z3map,url))) goto done;
@@ -122,7 +122,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     z3map->map.url = strdup(path);
     z3map->map.mode = mode;
     z3map->map.flags = flags;
-    z3map->map.api = (NCZMAP_API*)&nczs3api;
+    z3map->map.api = (NCZMAP_API*)&nczs3sdkapi;
 
     if((stat=NCZ_s3sdkcreateconfig(z3map->host, z3map->region, &z3map->s3config))) goto done;
     if((stat = NCZ_s3sdkcreateclient(z3map->s3config,&z3map->s3client))) goto done;
@@ -144,7 +144,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 done:
     if(z3map->errmsg) reporterr(z3map);
     ncurifree(url);
-    if(stat) zs3close((NCZMAP*)z3map,1);
+    if(stat) nczmap_close((NCZMAP*)z3map,1);
     return (stat);
 }
 
@@ -174,7 +174,7 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     z3map->map.url = strdup(path);
     z3map->map.mode = mode;
     z3map->map.flags = flags;
-    z3map->map.api = (NCZMAP_API*)&nczs3api;
+    z3map->map.api = (NCZMAP_API*)&nczs3sdkapi;
 
     if((stat=NCZ_s3sdkcreateconfig(z3map->host,z3map->region,&z3map->s3config))) goto done;
     if((stat=NCZ_s3sdkcreateclient(z3map->s3config,&z3map->s3client))) goto done;
@@ -183,7 +183,7 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
 
 done:
     ncurifree(url);
-    if(stat) zs3close((NCZMAP*)z3map,0);
+    if(stat) nczmap_close((NCZMAP*)z3map,0);
     return (stat);
 }
 
@@ -199,13 +199,7 @@ isLegalBucketName(const char* bucket)
 static int
 zs3exists(NCZMAP* map, const char* key)
 {
-    int stat = NC_NOERR;
-
-    if((stat = zs3len(map, key, NULL)))
-	{stat = NC_EACCESS; goto done;}
-
-done:
-    return (stat);
+    return zs3len(map,key,NULL);
 }
 
 static int
@@ -213,7 +207,7 @@ zs3len(NCZMAP* map, const char* key, size64_t* lenp)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map;
-    if((stat = NCZ_s3sdklen(z3map->s3client,z3map->bucket,key,lenp,&z3map->errmsg)))
+    if((stat = NCZ_s3sdkinfo(z3map->s3client,z3map->bucket,key,lenp,&z3map->errmsg)))
         goto done;
 done:
     if(z3map->errmsg) reporterr(z3map);
@@ -243,6 +237,8 @@ zs3read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* cont
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
  
+    if((stat=NCZ_s3sdkinfo(z3map->s3client, z3map->bucket, key, NULL, &z3map->errmsg)))
+	goto done; 	
     if((stat = NCZ_s3sdkread(z3map->s3client, z3map->bucket, key, start, count, content, &z3map->errmsg)))
         goto done;
 done:
@@ -255,11 +251,49 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
+    void* chunk = NULL;
+    size64_t objsize = 0;
+    unsigned char* newchunk = NULL;
+    size64_t newsize = start + count;
+    int exists;
+	
+    if(count == 0) goto done;
 
-    if((stat = NCZ_s3sdkwrite(z3map->s3client, z3map->bucket, key, start, count, content, &z3map->errmsg)))
+    /* Apparently S3 has no write byterange operation, so we need to read the whole object,
+       copy data, and then rewrite */       
+    switch (stat=NCZ_s3sdkinfo(z3map->s3client, z3map->bucket, key, &objsize, &z3map->errmsg)) {
+    case NC_NOERR: exists = 1; break;
+    case NC_EACCESS: exists = 0; break;
+    default: exists = 0; goto done;
+    }
+    if(exists) {
+        if((stat = NCZ_s3sdkreadobject(z3map->s3client, z3map->bucket, key, &objsize, &chunk, &z3map->errmsg)))
+            goto done;
+    } else { /* fake it */
+	objsize = newsize;	
+	if((chunk = (unsigned char*)malloc(objsize))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	memset(chunk,0,objsize);	
+    }
+    if(newsize > objsize) {
+	/* Reallocate */
+	/* TODO: consider multipart write */
+	if((newchunk = (unsigned char*)malloc(newsize))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	if(start > 0) memcpy(newchunk,chunk,start);
+	memcpy(&newchunk[start],content,count);
+	free(chunk);
+	chunk = newchunk;
+	newchunk = NULL;
+	objsize = newsize;
+    } else
+	memcpy(&((unsigned char*)chunk)[start],content,count); /* remember there may be data above start+count */
+    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, z3map->bucket, key, objsize, chunk, &z3map->errmsg)))
         goto done;
 
 done:
+    nullfree(chunk);
+    nullfree(newchunk);
     return (stat);
 }
 
@@ -289,6 +323,7 @@ zs3close(NCZMAP* map, int deleteit)
     nullfree(z3map->bucket);
     nullfree(z3map->region);
     nullfree(z3map->host);
+    nullfree(z3map->errmsg);
     nczm_clear(map);
     nullfree(map);
     return (stat);
@@ -302,14 +337,19 @@ but it possible that it is not.
 static int
 zs3search(NCZMAP* map, const char* prefix, NClist* matches)
 {
-    int stat = NC_NOERR;
+    int i,stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map;
     char** list = NULL;
+    size_t nkeys;
 
-    if((stat = NCZ_s3sdkgetkeys(z3map->s3client,z3map->bucket,prefix,&list,&z3map->errmsg)))
+    if(*prefix == '/') prefix++; /* Elide leading '/' */
+    if((stat = NCZ_s3sdkgetkeys(z3map->s3client,z3map->bucket,prefix,"/",&nkeys,&list,&z3map->errmsg)))
         goto done;
-
+    for(i=0;i<nkeys;i++)
+	nclistpush(matches,list[i]);
+    
 done:
+    nullfree(list);
     if(z3map->errmsg) reporterr(z3map);
     return THROW(stat);
 }
@@ -395,7 +435,7 @@ z3createobj(ZS3MAP* z3map, const char* key, size64_t size)
     unsigned char empty[1];
 
     empty[0] = 0;
-    if((stat = NCZ_s3sdkwrite(z3map->s3client, z3map->bucket, key, 0, 1, empty, &z3map->errmsg)))
+    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, z3map->bucket, key, 1, empty, &z3map->errmsg)))
         goto done;
 
 done:
@@ -428,8 +468,9 @@ s3clear(ZS3MAP* z3map)
     int stat = NC_NOERR;
     char** list = NULL;
     char** p;
+    size_t nkeys;
 
-    if((stat = NCZ_s3sdkgetallkeys(z3map->s3config, z3map->s3client, z3map->bucket, &list, &z3map->errmsg)))
+    if((stat = NCZ_s3sdkgetkeys(z3map->s3client, z3map->bucket, "", "/", &nkeys, &list, &z3map->errmsg)))
         goto done;
     
     for(p=list;*p;p++) {
@@ -439,22 +480,23 @@ s3clear(ZS3MAP* z3map)
 
 done:
     if(z3map->errmsg) reporterr(z3map);
+    NCZ_freestringvec(nkeys,list);
     return THROW(stat);
 }
 
 /**************************************************/
 /* External API objects */
 
-NCZMAP_DS_API zmap_s3;
-NCZMAP_DS_API zmap_s3 = {
-    NCZM_S3_V1,
+NCZMAP_DS_API zmap_s3sdk;
+NCZMAP_DS_API zmap_s3sdk = {
+    NCZM_S3SDK_V1,
     zs3create,
     zs3open,
 };
 
 static NCZMAP_API
-nczs3api = {
-    NCZM_S3_V1,
+nczs3sdkapi = {
+    NCZM_S3SDK_V1,
     zs3exists,
     zs3len,
     zs3define,

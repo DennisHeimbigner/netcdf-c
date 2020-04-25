@@ -107,12 +107,12 @@ main(int argc, char** argv)
 #if 1
         if(H5Dread_chunk(datasetid, dxpl_id, offset, &filter_mask, chunkdata) < 0) abort();
 	for(r=0;r<rank;r++)
-            fprintf(stderr,"[%lu/%lu]",(unsigned long)odom->index[r],(unsigned long)offset[r]);
-        fprintf(stderr," =");
+            printf("[%lu/%lu]",(unsigned long)odom->index[r],(unsigned long)offset[r]);
+        printf(" =");
 	for(r=0;r<chunkprod;r++)
-	    fprintf(stderr," %02d", chunkdata[r]);
-        fprintf(stderr,"\n");
-	fflush(stderr);
+	    printf(" %02d", chunkdata[r]);
+        printf("\n");
+	fflush(stdout);
 #endif
 	odom_next(odom);
     }

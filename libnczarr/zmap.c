@@ -37,9 +37,11 @@ object is defined by the common prefix model.
 /**************************************************/
 /* Import the current implementations */
 
-extern NCZMAP_DS_API zmap_nc4;
-extern NCZMAP_DS_API zmap_file;
-extern NCZMAP_DS_API zmap_s3;
+extern NCZMAP_DS_API zmap_nz4;
+extern NCZMAP_DS_API zmap_nzf;
+#ifdef ENABLE_S3_SDK
+extern NCZMAP_DS_API zmap_s3sdk;
+#endif
 
 /**************************************************/
 
@@ -50,40 +52,27 @@ nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* 
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
     NCURI* uri = NULL;
-    const char* filepath = NULL; /* if path indicates a local file */
     
     if(path == NULL || strlen(path) == 0)
 	{stat = NC_EINVAL; goto done;}
 
     if(mapp) *mapp = NULL;
 
-    /* See if this is a local file */
-    if(ncuriparse(path,&uri) != NC_NOERR)
-	filepath = path;
-    else if(strcmp(uri->protocol,"file")==0)
-	filepath = uri->path;
-    else
-	filepath = path;
-
     switch (impl) {
     case NCZM_NC4:
-	if(filepath == NULL)
-	     {stat = NC_ENOTNC; goto done;}
-        stat = zmap_nc4.create(filepath, mode, flags, parameters, &map);
+        stat = zmap_nz4.create(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
     case NCZM_FILE:
-	if(filepath == NULL)
-	     {stat = NC_ENOTNC; goto done;}
-        stat = zmap_file.create(filepath, mode, flags, parameters, &map);
+        stat = zmap_nzf.create(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
+#ifdef ENABLE_S3_SDK
     case NCZM_S3:
-	if(filepath == NULL)
-	     {stat = NC_ENOTNC; goto done;}
-        stat = zmap_s3.create(filepath, mode, flags, parameters, &map);
+        stat = zmap_s3sdk.create(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
+#endif
     default:
 	{stat = NC_ENOTBUILT; goto done;}
     }
@@ -100,45 +89,32 @@ format: zarr | tiledb
 */
 
 int
-nczmap_open(NCZM_IMPL impl, const char *path0, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
+nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
     NCURI* uri = NULL;
-    const char* filepath = NULL; /* if path indicates a local file */
 
-    if(path0 == NULL || strlen(path0) == 0)
+    if(path == NULL || strlen(path) == 0)
 	{stat = NC_EINVAL; goto done;}
 
     if(mapp) *mapp = NULL;
 
-    /* See if this is a local file */
-    if(ncuriparse(path0,&uri))
-	filepath = path0;
-    else if(strcmp(uri->protocol,"file")==0)
-	filepath = uri->path;
-    else
-        filepath = path0;
-
     switch (impl) {
     case NCZM_NC4:
-	if(filepath == NULL)
-	     {stat = NC_ENOTNC; goto done;}
-        stat = zmap_nc4.open(filepath, mode, flags, parameters, &map);
+        stat = zmap_nz4.open(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
     case NCZM_FILE:
-	if(filepath == NULL)
-	     {stat = NC_ENOTNC; goto done;}
-        stat = zmap_file.open(filepath, mode, flags, parameters, &map);
+        stat = zmap_nzf.open(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
+#ifdef ENABLE_S3_SDK
     case NCZM_S3:
-	if(filepath == NULL)
-	     {stat = NC_ENOTNC; goto done;}
-        stat = zmap_s3.open(filepath, mode, flags, parameters, &map);
+        stat = zmap_s3sdk.open(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
+#endif
     default:
 	{stat = NC_ENOTBUILT; goto done;}
     }
@@ -176,9 +152,9 @@ nczmap_len(NCZMAP* map, const char* key, size64_t* lenp)
 }
 
 int
-nczmap_def(NCZMAP* map, const char* key, size64_t len)
+nczmap_define(NCZMAP* map, const char* key, size64_t len)
 {
-    return map->api->def(map, key, len);
+    return map->api->define(map, key, len);
 }
 
 int
@@ -363,4 +339,23 @@ nczm_clear(NCZMAP* map)
     if(map) 
 	nullfree(map->url);
     return NC_NOERR;
+}
+
+static const char* driveletter = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+int
+nczm_isabsolutepath(const char* path)
+{
+    if(path == NULL) return 0;
+    switch (path[0]) {
+    case '\\': return 1;
+    case '/': return 1;
+    case '\0': break;
+    default:
+	/* Check for windows drive letter */
+	if(strchr(driveletter,path[0]) != NULL && path[1] == ':')
+	    return 1; /* windows path with drive letter */
+        break;
+    }
+    return 0;
 }

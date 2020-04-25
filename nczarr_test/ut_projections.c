@@ -20,7 +20,6 @@ main(int argc, char** argv)
     struct Common common;
     NCZSliceProjections slpv[NC_MAX_VAR_DIMS];
     NCZChunkRange ncrv[NC_MAX_VAR_DIMS];
-    char* tmp = NULL;
     
     /* Initialize */
     memset(&slpv,0,sizeof(slpv));
@@ -34,8 +33,7 @@ main(int argc, char** argv)
 
     var = nclistget(options.vardefs,0);
 
-    tmp=nczprint_slicesx(var->rank,options.slices,1);
-    printf("Slices: %s\n",tmp);
+    printf("Slices: %s\n",nczprint_slicesx(var->rank,options.slices,1));
     nullfree(tmp);
 
     /* Compute chunk ranges */
@@ -53,17 +51,12 @@ main(int argc, char** argv)
     /* Dump Results */
     for(r=0;r<var->rank;r++) {
 	NCZSliceProjections* slp = &slpv[r];
-	char *sr, *sl;
         if(r != slp->r) usage(NC_EINTERNAL);
 	sr = nczprint_chunkrange(slp->range);
-	sl = nczprint_slice(options.slices[r]);
-        printf("[r=%d] %s %s\n",r,sr,sl);
-	nullfree(sr); nullfree(sl);
+        printf("[r=%d] %s %s\n",r,nczprint_chunkrange(slp->range),nczprint_slice(options.slices[r]));
         for(i=0;i<slp->count;i++) {
             NCZProjection* proj = &slp->projections[i];
-	    tmp = nczprint_projection(*proj);
-            printf("[%d] %s\n",i,tmp);
-	    nullfree(tmp);
+            printf("[%d] %s\n",i,nczprint_projection(*proj));
 	}
     }
 
@@ -93,9 +86,7 @@ main(int argc, char** argv)
 	nullfree(sr); nullfree(sl);
         for(i=0;i<slp->count;i++) {
             NCZProjection* proj = &slp->projections[i];
-	    tmp = nczprint_projection(*proj);
-            printf("[%d] %s\n",i,tmp);
-	    nullfree(tmp);
+            printf("[%d] %s\n",i,nczprint_projection(*proj));
 	}
     }
     /* Cleanup */

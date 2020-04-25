@@ -52,6 +52,7 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const char** contr
     /* Fill in NCZ_FILE_INFO_T */
     zinfo->created = 1;
     zinfo->common.file = file;
+    zinfo->native_endianness = (NCZ_isLittleEndian() ? NC_ENDIAN_LITTLE : NC_ENDIAN_BIG);
     if((zinfo->controls=NCZ_clonestringvec(0,controls)) == NULL)
 	{stat = NC_ENOMEM; goto done;}
 
@@ -66,7 +67,7 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const char** contr
     if((stat = applycontrols(zinfo))) goto done;
 
     /* initialize map handle*/
-    if((stat = nczmap_create(zinfo->features.mapimpl,nc->path,nc->mode,0,NULL,&zinfo->map)))
+    if((stat = nczmap_create(zinfo->features.mapimpl,nc->path,nc->mode,zinfo->features.flags,NULL,&zinfo->map)))
 	goto done;
 
     /* Load auth info from rc file */
@@ -136,10 +137,11 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const char** controls)
     if((stat = applycontrols(zinfo))) goto done;
 
     /* initialize map handle*/
-    if((stat = nczmap_open(zinfo->features.mapimpl,nc->path,mode,0,NULL,&zinfo->map)))
+    if((stat = nczmap_open(zinfo->features.mapimpl,nc->path,mode,zinfo->features.flags,NULL,&zinfo->map)))
 	goto done;
 
-    if(!zinfo->features.purezarr && (stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json)) == NC_NOERR) {
+    if(!(zinfo->features.flags & FLAG_PUREZARR)
+        && (stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json)) == NC_NOERR) {
         /* Extract the information from it */
         for(i=0;i<nclistlength(json->contents);i+=2) {
     	    const NCjson* key = nclistget(json->contents,i);
@@ -338,7 +340,7 @@ ncz_unload_jatts(NCZ_FILE_INFO_T* zinfo, NC_OBJ* container, NCjson* jattrs, NCjs
     if((stat=NCZ_uploadjson(map,tkey,jattrs)))
 	goto done;
 
-    if(!zinfo->features.purezarr) {
+    if(!(zinfo->features.flags & FLAG_PUREZARR)) {
         /* Construct the path to the .nczattr object */
         if((stat = nczm_suffix(fullpath,NCZATTR,&tkey)))
    	    goto done;
@@ -385,16 +387,19 @@ applycontrols(NCZ_FILE_INFO_T* zinfo)
     zinfo->features.mapimpl = NCZM_DEFAULT;
     for(i=0;i<nclistlength(modelist);i++) {
         const char* p = nclistget(modelist,i);
-	if(strcasecmp(p,PUREZARR)==0) zinfo->features.purezarr = 1;
+	if(strcasecmp(p,PUREZARR)==0) zinfo->features.flags |= FLAG_PUREZARR;
+	else if(strcasecmp(p,"bytes")==0) zinfo->features.flags |= FLAG_BYTERANGE;
 	else if(strcasecmp(p,"s3")==0) zinfo->features.mapimpl = NCZM_S3;
 	else if(strcasecmp(p,"nz4")==0) zinfo->features.mapimpl = NCZM_NC4;
-	else if(strcasecmp(p,"nc4")==0) zinfo->features.mapimpl = NCZM_NC4;/*alias*/
 	else if(strcasecmp(p,"nzf")==0) zinfo->features.mapimpl = NCZM_FILE;
-	else if(strcasecmp(p,"zfile")==0) zinfo->features.mapimpl = NCZM_FILE; /* alias */
+	else if(strcasecmp(p,"nzrf")==0)
+	    {zinfo->features.mapimpl = NCZM_FILE; zinfo->features.flags |= FLAG_BYTERANGE;}
+	else if(strcasecmp(p,"nzr4")==0)
+	    {zinfo->features.mapimpl = NCZM_NC4; zinfo->features.flags |= FLAG_BYTERANGE;}
     }
     /* Process other controls */
     if((value = controllookup((const char**)zinfo->controls,"log")) != NULL) {
-	zinfo->features.logging = 1;
+	zinfo->features.flags |= FLAG_LOGGING;
 	ncloginit();
         if(nclogopen(value))
 	    ncsetlogging(1);
@@ -403,7 +408,8 @@ applycontrols(NCZ_FILE_INFO_T* zinfo)
 	    ncsetlogging(1);
     }
     if((value = controllookup((const char**)zinfo->controls,"show")) != NULL) {
-	if(strcasecmp(value,"fetch")==0) zinfo->features.showfetch = 1;
+	if(strcasecmp(value,"fetch")==0)
+	    zinfo->features.flags |= FLAG_SHOWFETCH;
     }
 done:
     nclistfreeall(modelist);

@@ -91,10 +91,12 @@ typedef struct NCZ_FILE_INFO {
     int native_endianness; /* NC_ENDIAN_LITTLE | NC_ENDIAN_BIG */
     char** controls; /* Envv format */
     struct Features {
-        int purezarr; /* read/write to match standard zarr format */
+        size64_t flags;
+#		define FLAG_PUREZARR  1
+#		define FLAG_SHOWFETCH 2
+#		define FLAG_LOGGING   4
+#		define FLAG_BYTERANGE 8
 	NCZM_IMPL mapimpl;
-	int showfetch;
-	int logging;
     } features;
 } NCZ_FILE_INFO_T;
 

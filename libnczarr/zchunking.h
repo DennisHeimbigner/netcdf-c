@@ -9,7 +9,7 @@
 /* Callback functions so we can use with unit tests */
 
 typedef int (*NCZ_reader)(void* source, size64_t* chunkindices, void** chunkdata);
-struct Reader {void* source; NCZ_reader reader;};
+struct Reader {void* source; NCZ_reader read;};
 
 /* Define the intersecting set of chunks for a slice
    in terms of chunk indices (not absolute positions)
@@ -61,6 +61,8 @@ struct Common {
     size64_t* chunklens;
     void* memory;
     size_t typesize;
+    void* fillvalue;
+    size64_t chunksize; /* computed product of chunklens */
     int swap; /* var->format_info_file->native_endianness == var->endianness */
     size64_t shape[NC_MAX_VAR_DIMS]; /* shape of the output hyperslab */
     NCZSliceProjections* allprojections;

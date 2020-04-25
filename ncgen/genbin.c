@@ -65,6 +65,11 @@ genbin_netcdf(void)
     /* ncid created above is also root group*/
     rootgroup->nc_id = ncid;
 
+    if (nofill_flag) {
+        stat = nc_set_fill(rootgroup->nc_id, NC_NOFILL, 0);
+        CHECKERR(stat);
+    }
+
 #ifdef USE_NETCDF4
     /* Define the group structure */
     /* walking grdefs list will do a preorder walk of all defined groups*/
@@ -136,7 +141,7 @@ genbin_netcdf(void)
     }
 #endif /*USE_NETCDF4*/
 
-/* define global attributes */
+    /* define global attributes */
     if(ngatts > 0) {
         for(iatt = 0; iatt < ngatts; iatt++) {
             Symbol* gasym = (Symbol*)listget(gattdefs,iatt);
@@ -150,11 +155,6 @@ genbin_netcdf(void)
             Symbol* asym = (Symbol*)listget(attdefs,iatt);
             genbin_defineattr(asym);
         }
-    }
-
-    if (nofill_flag) {
-        stat = nc_set_fill(rootgroup->nc_id, NC_NOFILL, 0);
-        CHECKERR(stat);
     }
 
     /* leave define mode */

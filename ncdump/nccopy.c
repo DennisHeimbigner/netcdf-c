@@ -369,6 +369,8 @@ done:
     freefilterlist(nfilters,filters);
     if(vlist) listfreeall(vlist);
     if(optarg) free(optarg);
+extern void nczprint_reclaim(void);
+    nczprint_reclaim();
     return stat;
 }
 
@@ -1531,7 +1533,8 @@ inq_nvals(int igrp, int varid, long long *nvalsp) {
 /* Copy data from variable varid in group igrp to corresponding group
  * ogrp. */
 static int
-copy_var_data(int igrp, int varid, int ogrp) {
+copy_var_data(int igrp, int varid, int ogrp)
+{
     int stat = NC_NOERR;
     nc_type vartype;
     long long nvalues;		/* number of values for this variable */
@@ -2374,6 +2377,9 @@ main(int argc, char**argv)
 
     if(copy(inputfile, outputfile) != NC_NOERR)
         exitcode = EXIT_FAILURE;
+
+    nullfree(inputfile);
+    nullfree(outputfile);
 
 #ifdef USE_NETCDF4
     /* Clean up */

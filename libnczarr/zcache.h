@@ -14,7 +14,8 @@ typedef struct NCZCacheEntry {
 
 typedef struct NCZChunkCache {
     const NC_VAR_INFO_T* var; /* backlink */
-    size64_t entrysize; /* all entries assumed to have same size */
+    void* fillchunk; /* enough fillvalues to fill a chunk */
+    size64_t chunksize; /* all entries assumed to have same size */
     NC_hashmap* entries; /* NC_hashmap<NCZCacheEntry*>*/
 } NCZChunkCache;
 
@@ -26,6 +27,7 @@ extern int NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, v
 extern int NCZ_flush_chunk_cache(NCZChunkCache* cache);
 extern int NCZ_chunk_cache_modified(NCZChunkCache* cache, const size64_t* indices);
 extern size64_t NCZ_cache_entrysize(NCZChunkCache* cache);
+extern NCZCacheEntry* NCZ_cache_entry(NCZChunkCache* cache, const size64_t* indices);
 extern size64_t NCZ_cache_size(NCZChunkCache* cache);
-
+extern int NCZ_buildchunkpath(NCZChunkCache* cache, const size64_t* chunkindices, char** keyp);
 #endif /*ZCACHE_H*/

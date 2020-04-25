@@ -10,8 +10,23 @@ static int initialized = 0;
 static int NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, void* chunkdata);
 static int rangecount(NCZChunkRange range);
 static int readfromcache(void* source, size64_t* chunkindices, void** chunkdata);
-void NCZ_clearcommon(struct Common* common);
+static int NCZ_fillchunk(void* chunkdata, struct Common* common);
     
+const char*
+astype(int typesize, void* ptr)
+{
+    switch(typesize) {
+    case 4: {
+	static char is[8];
+	snprintf(is,sizeof(is),"%u",*((unsigned int*)ptr));
+	return is;
+        } break;
+    default: break;
+    }
+    return "?";
+}
+
+
 /**************************************************/
 int
 ncz_chunking_init(void)
@@ -69,12 +84,16 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     common.reading = reading;
     common.memory = memory;
     common.typesize = typesize;
+    if(var->fill_value) {
+        if((stat = ncz_get_fill_value(common.file, common.var, &common.fillvalue))) goto done;
+    } else
+        common.fillvalue = NULL;
     common.rank = var->ndims;
     common.swap = (zfile->native_endianness == var->endianness ? 0 : 1);
     common.dimlens = dimlens;
     common.chunklens = chunklens;
     common.reader.source = ((NCZ_VAR_INFO_T*)(var->format_var_info))->cache;
-    common.reader.reader = readfromcache;
+    common.reader.read = readfromcache;
 
     if((stat = NCZ_transfer(&common, slices))) goto done;
 
@@ -153,8 +172,10 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	nczodom_slabify(memodom);
 #endif
         /* Read from cache */
-        switch ((stat = common->reader.reader(common->reader.source, chunkindices, &chunkdata))) {
+        switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
         case NC_EACCESS: break; /* cache created the chunk */
+	    if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
+	    break;
         case NC_NOERR: break;
         default: goto done;
         }
@@ -194,30 +215,75 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
         if(!nczodom_more(slpodom)) break;
 //        for(;;)
 	{
-            unsigned char* memptr = NULL;
-            unsigned char* chunkptr = NULL;
             size64_t slpoffset = 0;
             size64_t memoffset = 0;
+            unsigned char* memptr0 = NULL;
+            unsigned char* chunkptr0 = NULL;
+
 //            if(!nczodom_more(memodom)) break;
             /* Convert the indices to a linear offset WRT to chunk */
             slpoffset = nczodom_offset(slpodom);
             memoffset = nczodom_offset(memodom);
+
             /* transfer data */
-            memptr = ((unsigned char*)common->memory)+(memoffset * common->typesize);
-            chunkptr = ((unsigned char*)chunkdata)+(slpoffset * common->typesize);
+            memptr0 = ((unsigned char*)common->memory)+(memoffset * common->typesize);
+            chunkptr0 = ((unsigned char*)chunkdata)+(slpoffset * common->typesize);
+#if 0
+fprintf(stderr,"xx.x: |%s|=%llu |%s|=%llu",
+nczprint_vector(slpodom->rank,slpodom->index), slpoffset,
+nczprint_vector(memodom->rank,memodom->index), memoffset);
+if(common->reading)
+fprintf(stderr," %d->%d\n",*((int*)chunkptr0),*((int*)memptr0));
+else
+fprintf(stderr," %d->%d\n",*((int*)memptr0),*((int*)chunkptr0));
+fflush(stderr);
+#endif
+
+	    LOG((1,"%s: chunkptr0=%p memptr0=%p slpoffset=%llu memoffset=%lld",__func__,chunkptr0,memptr0,slpoffset,memoffset));
 #ifdef ZUT
 	    if(zutest.tests & UTEST_WALK)
 		zutest.print(UTEST_WALK, common, chunkodom, slpodom, memodom);
 #endif
-            if(common->reading) {
-                memcpy(memptr,chunkptr,common->typesize);
-                if(common->swap)
-                    NCZ_swapatomicdata(common->typesize,memptr,common->typesize);
-            } else { /*!common->reading */
-                memcpy(chunkptr,memptr,common->typesize);
-                if(common->swap)
-                    NCZ_swapatomicdata(common->typesize,chunkptr,common->typesize);
-            }
+#ifdef ENABLE_NCZARR_SLAB
+	    if(slpodom->useslabs) {
+                size64_t avail, pos;
+                size64_t slpprod = slpodom->slabprod;
+                size64_t memprod = memodom->slabprod;
+                unsigned char* memptr = NULL;
+                unsigned char* chunkptr = NULL;
+                avail = slpprod;
+                pos = 0;        
+		memptr = memptr0;
+		chunkptr = chunkptr0;
+                for(;avail > 0;) {
+                    if(avail < memprod) memprod = avail;
+                    if(common->reading) {
+                        memcpy(memptr,chunkptr,common->typesize*memprod);
+                        if(common->swap)
+                            NCZ_swapatomicdata(common->typesize*memprod,memptr,common->typesize);
+                    } else {
+                        memcpy(chunkptr,memptr,common->typesize*memprod);
+                        if(common->swap)
+                            NCZ_swapatomicdata(common->typesize*memprod,chunkptr,common->typesize);
+                    }
+                    pos += memprod;
+                    avail -= memprod;
+                    memptr += common->typesize*memprod;
+                    chunkptr += common->typesize*memprod;
+                }
+            } else
+#endif
+	    {
+                if(common->reading) {
+                    memcpy(memptr0,chunkptr0,common->typesize);
+                    if(common->swap)
+                        NCZ_swapatomicdata(common->typesize,memptr0,common->typesize);
+                } else { /*!common->reading */
+                    memcpy(chunkptr0,memptr0,common->typesize);
+                    if(common->swap)
+                        NCZ_swapatomicdata(common->typesize,chunkptr0,common->typesize);
+                }
+	    }
             nczodom_next(memodom);
         }
         nczodom_next(slpodom);
@@ -225,15 +291,25 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
     return stat;    
 }
 
-#if 0
 /* This function may not be necessary if code in zvar does it instead */
 static int
-NCZ_fillchunk(size64_t chunklen, void* chunkdata, struct Common* common)
+NCZ_fillchunk(void* chunkdata, struct Common* common)
 {
-    memset(chunkdata,0,chunklen);
+#if 1
+NC_UNUSED(chunkdata); NC_UNUSED(common);
+#else
+    if(common->fillvalue == NULL)
+        memset(chunkdata,0,common->chunksize*common->typesize);
+    else {
+	unsigned char* dst = (unsigned char*)chunkdata; /* so we can do arithmetic */
+	size64_t i;
+	for(i=0;i<common->chunksize;i++) {
+	    memcpy(&dst[i*common->typesize],common->fillvalue,common->typesize);
+	}
+    }
+#endif
     return NC_NOERR;    
 }
-#endif
 
 /* Break out this piece so we can use it for unit testing */
 int
@@ -294,7 +370,7 @@ NCZ_projectslices(size64_t* dimlens,
         start[r] = ranges[r].start; 
         stop[r] = ranges[r].stop;
         stride[r] = 1;
-        len[r] = ceildiv(common->dimlens[r],common->chunklens[r]);
+        len[r] = floordiv(common->dimlens[r],common->chunklens[r]) + 1;
     }   
 
     if((odom = nczodom_new(common->rank,start,stop,stride,len)) == NULL)
@@ -389,4 +465,5 @@ NCZ_clearcommon(struct Common* common)
 {
     NCZ_clearsliceprojections(common->rank,common->allprojections);
     nullfree(common->allprojections);
+    nullfree(common->fillvalue);
 }

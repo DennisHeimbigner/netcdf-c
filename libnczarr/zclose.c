@@ -12,6 +12,7 @@ static int zclose_vars(NC_GRP_INFO_T*);
 static int zclose_dims(NC_GRP_INFO_T*);
 static int zclose_types(NC_GRP_INFO_T*);
 static int zclose_type(NC_TYPE_INFO_T* type);
+static int zwrite_vars(NC_GRP_INFO_T *grp);
 
 /**************************************************/
 
@@ -32,6 +33,11 @@ ncz_close_file(NC_FILE_INFO_T* file, int abort)
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = NULL;
  
+    if(!abort) {
+        /* Flush | create all chunks for all vars */
+        if((stat=zwrite_vars(file->root_grp))) goto done;
+    }
+
     /* Internal close to reclaim zarr annotations */
     if((stat = zclose_group(file->root_grp)))
 	goto done;
@@ -243,4 +249,39 @@ zclose_types(NC_GRP_INFO_T* grp)
 done:
     return stat;
 }
+
+/**
+ * @internal Recursively flush/create all data for all vars.
+ *
+ * @param grp Pointer to group info struct whose vars need to be written
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
+ */
+static int
+zwrite_vars(NC_GRP_INFO_T *grp)
+{
+    int stat = NC_NOERR;
+    int i;
+
+    assert(grp && grp->format_grp_info != NULL);
+    LOG((3, "%s: grp->name %s", __func__, grp->hdr.name));
+
+    /* Write all vars for this group breadth first */
+    for(i = 0; i < ncindexsize(grp->vars); i++) {
+        NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)ncindexith(grp->vars, i);
+	if((stat = ncz_write_var(var))) goto done;
+    }
+
+    /* Recursively call this function for each child group, if any, stopping
+     * if there is an error. */
+    for(i=0; i<ncindexsize(grp->children); i++) {
+        if ((stat = zwrite_vars((NC_GRP_INFO_T*)ncindexith(grp->children,i))))
+            goto done;
+    }
+
+done:
+    return stat;
+}
+
 

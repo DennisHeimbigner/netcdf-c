@@ -224,7 +224,7 @@ NCZ_createobject(NCZMAP* zmap, const char* key, ssize64_t size)
     int stat = NC_NOERR;
 
     /* create the target */
-    stat = nczmap_def(zmap, key, size);
+    stat = nczmap_define(zmap, key, size);
     return stat;
 }
 
@@ -247,7 +247,7 @@ NCZ_uploadjson(NCZMAP* zmap, const char* key, NCjson* json)
 	goto done;
 
     /* create the target */
-    if((stat = nczmap_def(zmap, key, NCZ_ISMETA)))
+    if((stat = nczmap_define(zmap, key, NCZ_ISMETA)))
 	goto done;
 
     /* Write the metadata */

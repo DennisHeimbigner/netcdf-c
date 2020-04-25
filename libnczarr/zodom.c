@@ -29,7 +29,7 @@ nczodom_new(int rank, const size64_t* start, const size64_t* stop, const size64_
     }
     nczodom_reset(odom);
     for(i=0;i<rank;i++)
-        assert(stop > 0 && stride[i] > 0 && len[i] >= stop[i]);
+        assert(stop[i] > 0 && stride[i] > 0 && len[i] >= stop[i]);
 #ifdef ENABLE_NCZARR_SLAB
     odom->useslabs = 0;
     odom->slabprod = 1;
@@ -163,6 +163,7 @@ nczodom_slabify(NCZOdometer* odom)
 {
     int i;
     size64_t product;
+    if(getenv("NETCDF_NOSLABIFY") != NULL) return;
     /* Walk right to left thru the leftmost point P where:
        1. stride[P..rank-1] == 1
        2. start[P..rank-1] == 0

@@ -5,6 +5,9 @@
 
 #include "zincludes.h"
 
+#include "fbits.h"
+#include "ncwinpath.h"
+
 /*
 Do a simple mapping of our simplified map model
 to a netcdf-4 file.
@@ -50,79 +53,70 @@ static int zlookupobj(Z4MAP*, NClist* segments, int* objidp);
 static int zcreategroup(Z4MAP* z4map, NClist* segments, int nskip, int* grpidp);
 static int zcreateobj(Z4MAP*, NClist* segments, size64_t, int* objidp);
 static int zcreatedim(Z4MAP*, int, int* dimidp);
-static int getpath(const char* path0, char** pathp);
+static int parseurl(const char* path0, NCURI** urip);
 static void nc4ify(const char* zname, char* nc4name);
 static void zify(const char* nc4name, char* zname);
+static int z4getcwd(char** cwdp);
+
 
 /* Define the Dataset level API */
-
-#if 0
-static int
-znc4verify(const char *path, int mode, size64_t flags, void* parameters)
-{
-    int stat = NC_NOERR;
-    char* filepath = NULL;
-    int ncid;
-    
-    if((stat=getpath(path,&filepath)))
-	goto done;
-
-    /* Attempt to open the file to see if it is nc4 */
-    mode = NC_NETCDF4 | mode; /* make sure */
-    if((stat=nc_open(filepath,mode,&ncid)))
-	{stat = NC_ENOTFOUND; goto done;}
-#if 0
-    /* check for the group ".zarr" */
-    nc4ify(Z4METAROOT,nc4name);
-    if((stat=nc_inq_grp_ncid(ncid,nc4name,&zid)))
-	{stat = NC_ENOTNC; goto done;}
-#endif
-
-done:
-    nullfree(filepath);
-    return (stat);
-}
-#endif
 
 static int
 znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
-    char* filepath = NULL;
+    char* truepath = NULL;
     Z4MAP* z4map = NULL;
     int ncid;
-	
-    if((stat=getpath(path,&filepath)))
+    NCURI* url = NULL;
+    char* z4cwd = NULL;
+    
+    if((stat=parseurl(path,&url)))
 	goto done;
 
-    /* Use the path to create the netcdf4 dataset */
-    /* ignore incoming mode */
-    mode = NC_NETCDF4 | NC_CLOBBER | NC_WRITE;
-    if((stat=nc_create(path,mode,&ncid)))
-        {stat = NC_ENOTFOUND; goto done;} /* could not open */
+    /* Fix up mode */
+    mode = (NC_NETCDF4 | NC_WRITE | mode);
+    if(flags & FLAG_BYTERANGE)
+        mode &=  ~(NC_CLOBBER | NC_WRITE);
+
+    if(!(mode & NC_WRITE))
+        {stat = NC_EPERM; goto done;}
+
+    /* Get cwd so we can use absolute paths */
+    if((stat = z4getcwd(&z4cwd))) goto done;
+
+    if(flags & FLAG_BYTERANGE)    
+	truepath = ncuribuild(url,NULL,NULL,NCURIALL);	
+    else {
+        /* Make the root path be absolute */
+        if(!nczm_isabsolutepath(url->path)) {
+	    if((stat = nczm_suffix(z4cwd,url->path,&truepath))) goto done;
+	} else
+	    truepath = strdup(url->path);
+    }
     
     /* Build the z4 state */
     if((z4map = calloc(1,sizeof(Z4MAP))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
 
     z4map->map.format = NCZM_NC4;
-    z4map->map.url = strdup(path);
+    z4map->map.url = ncuribuild(url,NULL,NULL,NCURIALL);
     z4map->map.mode = mode;
     z4map->map.flags = flags;
     z4map->map.api = &zapi;
+    z4map->path = truepath;
+        truepath = NULL;
+
+    if((stat=nc_create(z4map->path,mode,&ncid)))
+        {stat = NC_ENOTFOUND; goto done;} /* could not open */
     z4map->ncid = ncid;
-    z4map->path = strdup(path);
-
-#if 0
-    /* Create the .zarr object */
-    if((stat=nczmap_def((NCZMAP*)z4map,Z4METAROOT,0)))
-	{stat = NC_ENOTNC; goto done;}
-#endif
-
+    
     if(mapp) *mapp = (NCZMAP*)z4map;    
 
 done:
-    nullfree(filepath);
+    ncurifree(url);
+    nullfree(truepath);
+    nullfree(z4cwd);
     if(stat) znc4close((NCZMAP*)z4map,1);
     return (stat);
 }
@@ -131,34 +125,55 @@ static int
 znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
-    char* filepath = NULL;
+    char* truepath = NULL;
     Z4MAP* z4map = NULL;
     int ncid;
-    
-    if((stat=getpath(path,&filepath)))
+    NCURI* url = NULL;
+    char* z4cwd = NULL;
+	
+    /* Fixup mode */
+    mode = NC_NETCDF4 | mode;
+    if(flags & FLAG_BYTERANGE)
+        mode &= ~(NC_CLOBBER | NC_WRITE);
+
+    if((stat=parseurl(path,&url)))
 	goto done;
 
-    /* Use the path to open the netcdf4 dataset */
-    mode = NC_NETCDF4 | mode;
-    if((stat=nc_open(filepath,mode,&ncid)))
-	{stat = NC_ENOTFOUND; goto done;} /* could not open */
-    
+    /* Get cwd so we can use absolute paths */
+    if((stat = z4getcwd(&z4cwd))) goto done;
+
+    if(flags & FLAG_BYTERANGE)    
+	truepath = ncuribuild(url,NULL,NULL,NCURIALL);	
+    else {
+        /* Make the root path be absolute */
+        if(!nczm_isabsolutepath(url->path)) {
+	    if((stat = nczm_suffix(z4cwd,url->path,&truepath))) goto done;
+	} else
+	    truepath = strdup(url->path);
+    }
+
     /* Build the z4 state */
     if((z4map = calloc(1,sizeof(Z4MAP))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
 
     z4map->map.format = NCZM_NC4;
-    z4map->map.url = strdup(path);
+    z4map->map.url = ncuribuild(url,NULL,NULL,NCURIALL);
     z4map->map.mode = mode;
     z4map->map.flags = flags;
     z4map->map.api = (NCZMAP_API*)&zapi;
-    z4map->ncid = ncid;
-    z4map->path = strdup(filepath);
+    z4map->path = truepath;
+        truepath = NULL;
 
+    if((stat=nc_open(z4map->path,mode,&ncid)))
+        {stat = NC_ENOTFOUND; goto done;} /* could not open */
+    z4map->ncid = ncid;
+    
     if(mapp) *mapp = (NCZMAP*)z4map;    
 
 done:
-    nullfree(filepath);
+    nullfree(truepath);
+    nullfree(z4cwd);
+    ncurifree(url);
     if(stat) znc4close((NCZMAP*)z4map,0);
     return (stat);
 }
@@ -298,6 +313,8 @@ znc4write(NCZMAP* map, const char* key, size64_t start, size64_t count, const vo
 	/* Create the variable */
         if((stat=nc_def_var(grpid, ZCONTENT, NC_UBYTE, 1, dimids, &vid)))
 	    goto done;
+	/* Set its properties */
+	/* Var is automatically chunked because its dim is unlimited */
 	break;
     default: goto done;
     }
@@ -655,20 +672,14 @@ done:
 }
 
 static int
-getpath(const char* path0, char** pathp)
+parseurl(const char* path0, NCURI** urip)
 {
     int stat = NC_NOERR;
-    const char* path = NULL;
     NCURI* uri = NULL;
-    if(!ncuriparse(path0,&uri)) {
-	/* Check the protocol and extract the file part */	
-	if(strcasecmp(uri->protocol,"file") != 0)
-	    {stat = NC_EURL; goto done;}
-	path = uri->path;
-    } else
-	/* Assume path0 is the path */
-	path = path0;
-    if(pathp) *pathp = strdup(path);
+    ncuriparse(path0,&uri);
+    if(uri == NULL)
+	{stat = NC_EURL; goto done;}
+    if(urip) {*urip = uri; uri = NULL;}
 
 done:
     ncurifree(uri);
@@ -693,10 +704,21 @@ nc4ify(const char* zname, char* nc4name)
     if(nc4name[0] == NCZM_DOT) nc4name[0] = ZDOTNC4;
 }
 
+static int
+z4getcwd(char** cwdp)
+{
+    char buf[4096];
+    char* cwd = NULL;
+    cwd = NCcwd(buf,sizeof(buf));
+    if(cwd == NULL) return errno;
+    if(cwdp) *cwdp = strdup(buf);
+    return NC_NOERR;
+}
+
 /**************************************************/
 /* External API objects */
 
-NCZMAP_DS_API zmap_nc4 = {
+NCZMAP_DS_API zmap_nz4 = {
     NCZM_NC4_V1,
     znc4create,
     znc4open,

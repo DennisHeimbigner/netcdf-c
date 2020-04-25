@@ -27,15 +27,14 @@ extfor() {
 dumpmap1() {
     tmp=
     if test -f $1 ; then
-      if test -s $1 ; then
-	  ftype=`file -b $1`
-	  case "$ftype" in
-	  [Aa][Ss][Cc]*) tmp=`cat $1 | tr '\r\n' '  '` ;;
-	  data*) tmp=`hexdump -v -e '1/1 " %1x"' ./testmap.nzf/data1` ;;
-	  *) echo fail ; exit 1 ;;
-	  esac
-      fi
-      echo "$1 : |" "$tmp" "|" >> $2
+      ftype=`file -b $1`
+      case "$ftype" in
+      [Aa][Ss][Cc]*) tmp=`cat $1 | tr '\r\n' '  '` ;;
+      data*) tmp=`hexdump -v -e '1/1 " %1x"' ./testmap.nzf/data1` ;;
+      empty*) unset tmp ;;
+      *) echo fail ; exit 1 ;;
+      esac
+      echo "$1 : |$tmp|" >> $2
     else
       echo "$1" >> $2
     fi

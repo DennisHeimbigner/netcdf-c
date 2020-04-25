@@ -14,7 +14,6 @@
 #define URL1 "file://" FILE1 "#mode=zarr"
 #endif
 
-#define ZARRROOT "/_nczarr"
 #define META1 "/meta1"
 #define META2 "/meta2"
 #define DATA1 "/data1"
@@ -78,7 +77,7 @@ simplecreate(void)
     if((stat = nczmap_create(impl,url,0,0,NULL,&map)))
 	goto done;
 
-    if((stat=nczm_suffix(NULL,ZARRROOT,&path)))
+    if((stat=nczm_suffix(NULL,NCZMETAROOT,&path)))
 	goto done;
     if((stat = nczmap_def(map, path, NCZ_ISMETA)))
 	goto done;
@@ -117,7 +116,7 @@ writemeta(void)
     if((stat = nczmap_create(impl,url,0,0,NULL,&map)))
 	goto done;
 
-    if((stat=nczm_suffix(NULL,ZARRROOT,&path)))
+    if((stat=nczm_suffix(NULL,NCZMETAROOT,&path)))
 	goto done;
     if((stat = nczmap_def(map, path, NCZ_ISMETA)))
 	goto done;

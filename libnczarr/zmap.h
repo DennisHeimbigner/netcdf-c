@@ -63,9 +63,9 @@ typedef struct NCZMAP_API NCZMAP_API;
 /* Define the space of implemented (eventually) map implementations */
 typedef enum NCZM_IMPL {
 NCZM_UNDEF=0, /* In-memory implementation */
-NCZM_S3=1,    /* Amazon S3 implementation */
-NCZM_NC4=2,   /* Netcdf-4 file based implementation */
-NCZM_FILE=3,  /* File system directory-based implementation */
+NCZM_S3=1,	/* Amazon S3 implementation */
+NCZM_NC4=2,	/* Netcdf-4 file based implementation */
+NCZM_FILE=3,	/* File system directory-based implementation */
 } NCZM_IMPL;
 
 /* Define the default map implementation */
@@ -102,7 +102,7 @@ struct NCZMAP_API {
 	int (*exists)(NCZMAP* map, const char* key);
 	int (*len)(NCZMAP* map, const char* key, size64_t* lenp);
 	/* Define an object; do nothing if already exists */
-	int (*def)(NCZMAP* map, const char* key, size64_t len);
+	int (*define)(NCZMAP* map, const char* key, size64_t len);
 	/* Read/write data */
 	int (*read)(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
 	int (*write)(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
@@ -128,7 +128,7 @@ extern "C" {
 /* Object API Wrappers */
 extern int nczmap_exists(NCZMAP* map, const char* key);
 extern int nczmap_len(NCZMAP* map, const char* key, size64_t* lenp);
-extern int nczmap_def(NCZMAP* map, const char* key, size64_t lenp);
+extern int nczmap_define(NCZMAP* map, const char* key, size64_t lenp);
 extern int nczmap_read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
 extern int nczmap_write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
 extern int nczmap_readmeta(NCZMAP* map, const char* key, size64_t count, char* content);
@@ -148,6 +148,7 @@ extern int nczm_join(NClist* segments, char** pathp);
 extern int nczm_suffix(const char* prefix, const char* suffix, char** pathp);
 extern int nczm_divide(const char* key, int nsegs, char** prefixp, char** suffixp);
 extern int nczm_clear(NCZMAP* map);
+extern int nczm_isabsolutepath(const char*);
 
 #ifdef __cplusplus
 }

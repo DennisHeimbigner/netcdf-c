@@ -438,7 +438,7 @@ var->type_info->rc++;
      * variable type is variable length (NC_STRING or NC_VLEN) or is
      * user-defined type. */
     if (var->type_info->nc_type_class < NC_STRING)
-        var->no_fill = h5->fill_mode;
+        var->no_fill = (h5->fill_mode == NC_NOFILL);
 
     /* Assign dimensions to the variable. At the same time, check to
      * see if this is a coordinate variable. If so, it will have the

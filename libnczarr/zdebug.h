@@ -35,6 +35,7 @@ extern int zthrow(int err, const char* fname, int line);
 #endif
 
 /* printers */
+extern void nczprint_reclaim(void);
 extern char* nczprint_slice(NCZSlice);
 extern char* nczprint_slices(int rank, NCZSlice*);
 extern char* nczprint_slab(int rank, NCZSlice*);
