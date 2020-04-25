@@ -305,7 +305,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 	switch (endianness) {
 	case NC_ENDIAN_LITTLE: islittle = 1; break;
 	case NC_ENDIAN_BIG: islittle = 0; break;
-	case NC_ENDIAN_NATIVE: islittle = (NCZ_isLittleEndian() ? 1 : 0); break;
+	case NC_ENDIAN_NATIVE: abort(); /* should never happen */
 	}
 	int atomictype = var->type_info->hdr.id;
 	assert(atomictype > 0 && atomictype <= NC_MAX_ATOMIC_TYPE && atomictype != NC_STRING);

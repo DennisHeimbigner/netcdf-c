@@ -4,6 +4,8 @@
  *********************************************************************/
 #include "zincludes.h"
 
+#undef ENABLE_NCZARR_SLAB
+
 static int initialized = 0;
 
 /* Forward */

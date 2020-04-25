@@ -33,8 +33,7 @@ extern size64_t* nczodom_indices(NCZOdometer*);
 extern size64_t nczodom_offset(NCZOdometer*);
 extern void nczodom_reset(NCZOdometer* odom);
 extern void nczodom_free(NCZOdometer*);
-#ifdef ENABLE_NCZARR_SLAB
-extern void nczodom_slabify(NCZOdometer*);
-#endif
+extern size64_t nczodom_avail(NCZOdometer*);
+extern void nczodom_incr(NCZOdometer*,size64_t);
 
 #endif /*ZODOM_H*/

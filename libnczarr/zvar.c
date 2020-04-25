@@ -2116,7 +2116,6 @@ exit:
  * @param no_fill Gets fill mode.
  * @param fill_valuep Gets fill value.
  * @param endiannessp Gets one of ::NC_ENDIAN_BIG ::NC_ENDIAN_LITTLE
- * ::NC_ENDIAN_NATIVE
  * @param idp Pointer to memory to store filter id.
  * @param nparamsp Pointer to memory to store filter parameter count.
  * @param params Pointer to vector of unsigned integers into which
@@ -2272,7 +2271,7 @@ ncz_gettype(NC_FILE_INFO_T* h5, NC_GRP_INFO_T* container, int xtype, NC_TYPE_INF
             BAIL(retval);
 	assert(type->rc == 0);
 	type->container = container;
-        type->endianness = NC_ENDIAN_NATIVE; /* for now */
+        type->endianness = (NC_isLittleEndian()?NC_ENDIAN_LITTLE:NC_ENDIAN_BIG);
         type->size = len;
 
 	/* Allocate storage for NCZ-specific type info. */
