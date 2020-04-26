@@ -43,6 +43,7 @@ extern char* nczprint_odom(NCZOdometer*);
 extern char* nczprint_chunkrange(NCZChunkRange);
 extern char* nczprint_projection(NCZProjection);
 extern char* nczprint_sliceprojections(NCZSliceProjections);
+extern char* nczprint_allsliceprojections(int r, NCZSliceProjections* slp);
 extern char* nczprint_vector(size_t,size64_t*);
 extern char* nczprint_slicex(NCZSlice slice, int raw);
 extern char* nczprint_slicesx(int rank, NCZSlice* slices, int raw);
