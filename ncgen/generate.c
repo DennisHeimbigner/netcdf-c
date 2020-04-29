@@ -16,13 +16,25 @@
 
 /* Forward*/
 static void generate_array(Symbol*,Bytebuffer*,Datalist*,Generator*,Writer);
-static void generate_arrayr(Symbol*,Bytebuffer*,Datalist*,Odometer*,int,Datalist*,Generator*);
+//static void generate_arrayr(Symbol*,Bytebuffer*,Datalist*,Odometer*,int,Datalist*,Generator*);
 static void generate_primdata(Symbol*, NCConstant*, Bytebuffer*, Datalist* fillsrc, Generator*);
 static void generate_fieldarray(Symbol*, NCConstant*, Dimset*, Bytebuffer*, Datalist* fillsrc, Generator*);
 
 /* Mnemonics */
 #define VLENLIST1
 #define FIELDARRAY 1
+
+#define ITER_BUFSIZE_DEFAULT (2<<20)
+
+void
+pvec(int rank, size_t* vector)
+{
+    int i;
+    fprintf(stderr,"(");
+    for(i=0;i<rank;i++)
+        fprintf(stderr," %lu",(long)vector[i]);
+    fprintf(stderr,")");
+}
 
 /**************************************************/
 
@@ -119,7 +131,7 @@ unlimited.  The last group is everything from the last
 unlimited dimension thru the last dimension (index rank-1).
 
 */
-
+#if 0
 static void
 generate_array(Symbol* vsym,
                Bytebuffer* code,
@@ -132,7 +144,7 @@ generate_array(Symbol* vsym,
     int rank = dimset->ndims;
     Symbol* basetype = vsym->typ.basetype;
     nc_type typecode = basetype->typ.typecode;
-    nciter_t iter;
+    NCiter_t iter;
     int firstunlim = findunlimited(dimset,1);
     int nunlim = countunlimited(dimset);
     int isnc3unlim = (nunlim <= 1 && (firstunlim == 0 || firstunlim == rank)); /* netcdf-3 case of at most 1 unlim in 0th dimension */
@@ -159,7 +171,7 @@ generate_array(Symbol* vsym,
             size_t offset = 0; /* where are we in the data list */
             size_t nelems = 0; /* # of data list items to generate */
             /* Create an iterator and odometer and just walk the datalist */
-            nc_get_iter(vsym,nciterbuffersize,&iter);
+            NC_get_iter(vsym,nciterbuffersize,&iter);
             for(;;offset+=nelems) {
                 int i,uid;
                 nelems=nc_next_iter(&iter,odometerstartvector(odom),odometercountvector(odom));
@@ -281,6 +293,7 @@ generate_arrayr(Symbol* vsym,
         odometerfree(subodom);
     return;
 }
+#endif
 
 /* Generate an instance of the basetype using the value of con*/
 void
@@ -539,4 +552,99 @@ generate_primdata(Symbol* basetype, NCConstant* prim, Bytebuffer* codebuf,
     reclaimconstant(target);
     target = NULL;
     return;
+}
+
+/* Avoid long argument lists */
+struct Args {
+Symbol* vsym;
+Dimset* dimset;
+int typecode;
+int storage;
+int rank;
+Generator* generator;
+Writer writer;
+Bytebuffer* code;
+Datalist* filler;
+size_t dimsizes[NC_MAX_VAR_DIMS];
+size_t chunksizes[NC_MAX_VAR_DIMS];
+};
+
+static void
+generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* generator, Writer writer)
+{
+    int i;
+    size_t start[NC_MAX_VAR_DIMS];
+    size_t count[NC_MAX_VAR_DIMS];
+    struct Args args;
+    size_t nelems;
+    NCiter_t* iter = NULL;
+
+    assert(vsym->typ.dimset.ndims > 0);
+
+    args.vsym = vsym;
+    args.dimset = &vsym->typ.dimset;
+    args.generator = generator;
+    args.writer = writer;
+    args.filler = filler;
+    args.code = code;
+    args.rank = args.dimset->ndims;
+    args.storage = vsym->var.special._Storage;
+    args.typecode = vsym->typ.basetype->typ.typecode;
+
+    for(i=0;i<args.rank;i++) {
+        args.dimsizes[i] = args.dimset->dimsyms[i]->dim.declsize;
+    }
+    if(vsym->var.special._Storage == NC_CHUNKED)
+	memcpy(args.chunksizes,vsym->var.special._ChunkSizes,sizeof(size_t)*args.rank);
+
+    memset(start,0,sizeof(start));
+    memset(count,0,sizeof(count));
+
+    /* initialize variable iteration */
+    NC_get_iter(vsym, ITER_BUFSIZE_DEFAULT, &iter);
+
+    if(args.typecode == NC_CHAR) {
+        Bytebuffer* charbuf = bbNew();
+        gen_chararray(args.dimset,0,vsym->data,charbuf,args.filler);
+        generator->charconstant(generator,vsym,code,charbuf);
+	memset(start,0,sizeof(size_t)*args.rank);
+	memcpy(count,iter->dimsizes,sizeof(size_t)*args.rank);
+        writer(generator,vsym,code,args.rank,start,count);
+	bbFree(charbuf);
+    }
+
+    /* NC_next_iter() initializes start and count on first call,
+     * changes start and count to iterate through whole variable on
+     * subsequent calls. */
+    while((nelems = NC_next_iter(iter, start, count)) > 0) {
+	int r,p,uid;
+	Datalist* dl;
+	NCConstant* con;
+#if 1
+	fprintf(stderr,"xxx: nelems=%ld",(long)nelems);
+	fprintf(stderr," start="); pvec(args.rank,start);
+	fprintf(stderr," count="); pvec(args.rank,count);	
+	fprintf(stderr,"\n");
+	fflush(stderr);
+#endif
+	/* Move to start point */
+	dl = vsym->data;
+        generator->listbegin(generator,vsym,NULL,LISTDATA,datalistlen(dl),code,&uid,code);
+	for(r=0;r<args.rank-1;r++) {
+	    con = datalistith(dl,start[r]);	
+	    assert(islistconst(con));
+    	    assert(con->subtype == NC_DIM);
+	    dl = compoundfor(con);
+	}
+	/* For last start point, dump nelems elements */
+	for(p=0;p<count[r];p++) {
+	    con = datalistith(dl,start[r]+p);
+	    generate_basetype(vsym->typ.basetype,con,code,filler,generator);
+            generator->list(generator,vsym,NULL,LISTDATA,uid,p,code);
+	}
+        generator->listend(generator,vsym,NULL,LISTDATA,uid,p,code);
+        writer(generator,vsym,code,args.rank,start,count);
+	bbClear(code);
+    } /* end main iteration loop */
+    NC_free_iter(iter);
 }

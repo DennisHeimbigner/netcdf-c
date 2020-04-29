@@ -14,6 +14,7 @@
 
 /* nmemonics*/
 #define TOPLEVEL 1
+#define DEEP 0
 
 /* Forward types */
 struct Datalist;
@@ -50,6 +51,7 @@ typedef union Constvalue {
 
 typedef struct NCConstant {
     nc_type 	  nctype; /* NC_INT,... */
+    nc_type 	  subtype; /* NC_DIM | NC_NAT */
     int		  lineno;
     Constvalue    value;
     int           filled; /* was this originally NC_FILLVALUE? */
@@ -100,6 +102,7 @@ extern void capture(Datalist* dl);
 extern void dlappend(Datalist*, NCConstant*);
 extern void dlset(Datalist*, size_t, NCConstant*);
 extern NCConstant* builddatasublist(Datalist* dl);
+extern Datalist* builddatasubset(Datalist* dl, size_t start, size_t count);
 extern void dlextend(Datalist* dl);
 extern void dlsetalloc(Datalist* dl, size_t newalloc);
 extern Datalist* clonedatalist(Datalist* dl);
@@ -116,13 +119,14 @@ Datalist* const2list(NCConstant* con);
 
 int isstringable(nc_type nctype);
 
-#define islistconst(con) ((con)!=NULL && (con)->nctype == NC_COMPOUND)
+#define islistconst(con) ((con)!=NULL && ((con)->nctype == NC_COMPOUND))
 #define isfillconst(con) ((con)!=NULL && (con)->nctype == NC_FILLVALUE)
 #define constline(con) (con==NULL?0:(con)->lineno)
 #define consttype(con) (con==NULL?NC_NAT:(con)->nctype)
 
 #define isnilconst(con) ((con)!=NULL && (con)->nctype == NC_NIL)
-#define   compoundfor(con) ((con)==NULL?NULL:(con)->value.compoundv)
+#define compoundfor(con) ((con)==NULL?NULL:(con)->value.compoundv)
+#define setsubtype(con,type) {if((con)!=NULL){(con)->subtype=(type);}}
 
 NCConstant* emptycompoundconst(int lineno);
 NCConstant* emptystringconst(int);

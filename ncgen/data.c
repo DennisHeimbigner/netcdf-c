@@ -80,7 +80,7 @@ list2const(Datalist* list)
     NCConstant* con = nullconst();
     ASSERT(list != NULL);
     con->nctype = NC_COMPOUND;
-    con->lineno = list->data[0]->lineno;
+    if(!list->readonly) con->lineno = list->data[0]->lineno;
     setconstlist(con,list);
     con->filled = 0;
     return con;
@@ -589,6 +589,7 @@ dlextend(Datalist* dl)
 {
     size_t newalloc;
     NCConstant** newdata = NULL;
+    if(dl->readonly) abort();
     newalloc = (dl->alloc > 0?2*dl->alloc:2);
     newdata = (NCConstant**)ecalloc(newalloc*sizeof(NCConstant*));
     if(dl->length > 0)
@@ -647,6 +648,23 @@ builddatasublist(Datalist* dl)
   d->filled = 0;
   return d;
 
+}
+
+/* Convert a subsequence of a datalist to its own datalist */
+Datalist*
+builddatasubset(Datalist* dl, size_t start, size_t count)
+{
+    Datalist* subset;
+
+    if(dl == NULL || start >= datalistlen(dl)) return NULL;
+    if((start + count) > datalistlen(dl))
+        count = (datalistlen(dl) - start);
+    subset = (Datalist*)ecalloc(sizeof(Datalist));
+    subset->readonly = 1;
+    subset->length = count;
+    subset->alloc = count;
+    subset->data = &dl->data[start];
+    return subset;
 }
 
 /* Deep copy */

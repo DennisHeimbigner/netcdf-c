@@ -197,7 +197,7 @@ static int
 genbin_definespecialattributes(Symbol* var)
 {
     int stat = NC_NOERR;
-    Specialdata* special = var->var.special;
+    Specialdata* special = &var->var.special;
     if(special->flags & _STORAGE_FLAG) {
 	if(special->_Storage == NC_CONTIGUOUS
 	   || special->_Storage == NC_COMPACT) {

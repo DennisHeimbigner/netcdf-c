@@ -60,9 +60,9 @@ bufdump(Datalist* list, Bytebuffer* buf)
        NCConstant* dp = *dpl;
        switch (dp->nctype) {
         case NC_COMPOUND:
-	    bbCat(buf,"{");
+	    if(dp->subtype == NC_DIM) bbCat(buf,"("); else bbCat(buf,"{");
 	    bufdump(dp->value.compoundv,buf);
-	    bbCat(buf,"}");
+	    if(dp->subtype == NC_DIM) bbCat(buf,")"); else bbCat(buf,"}");
             break;
         case NC_ARRAY:
 	    bbCat(buf,"[");
@@ -195,7 +195,10 @@ dumpconstant1(NCConstant* con)
 	Bytebuffer* buf = bbNew();
 	bufdump(dl,buf);
 /*	fprintf(stderr,"(0x%lx){",(unsigned long)dl);*/
-	fprintf(stderr,"{%s}",bbDup(buf));
+	if(con->subtype == NC_DIM)
+  	    fprintf(stderr,"{%s}",bbDup(buf));
+	else
+	    fprintf(stderr,"{%s}",bbDup(buf));
 	bbFree(buf);
 	} break;	
     case NC_STRING:

@@ -111,7 +111,7 @@ reclaimattptrs(void* buf, long count)
 #endif
 
 static void
-freeSpecialdata(Specialdata* data)
+clearSpecialdata(Specialdata* data)
 {
     if(data == NULL) return;
     reclaimdatalist(data->_Fillvalue);
@@ -126,7 +126,6 @@ freeSpecialdata(Specialdata* data)
 	}
 	efree(data->_Filters);
     }
-    efree(data);
 }
 
 void
@@ -135,7 +134,7 @@ freeSymbol(Symbol* sym)
     /* recurse first */
     switch (sym->objectclass) {
     case NC_VAR:
-	freeSpecialdata(sym->var.special);
+	clearSpecialdata(&sym->var.special);
 	listfree(sym->var.attributes);
 	break;
     case NC_TYPE:

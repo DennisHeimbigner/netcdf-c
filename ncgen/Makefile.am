@@ -13,9 +13,13 @@ ncgen_SOURCES=generate.c main.c cdata.c bindata.c genchar.c cvt.c data.c debug.c
 escapes.c genc.c genbin.c generr.c genlib.c getfill.c odom.c	\
 semantics.c dump.c util.c bytebuffer.c list.c data.h		\
 debug.h generr.h genlib.h includes.h ncgen.h odom.h  dump.h	\
-util.h bytebuffer.h list.h genf77.c f77data.c genj.c jdata.c nc_iter.h	\
-nc_iter.c \
+util.h bytebuffer.h list.h genf77.c f77data.c genj.c jdata.c 	\
 ncgeny.c ncgeny.h
+
+# nc_iter.c is a slight variant of ncdump/nciter.c, so changes to one may need
+# to be propagated to the other. Note esp. that function names have been changed
+# to avoid load time conflicts.
+ncgen_SOURCES += nc_iter.c
 
 # This is the man page.
 man_MANS = ncgen.1

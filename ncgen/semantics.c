@@ -10,6 +10,9 @@
 #include        "ncoffsets.h"
 #include        "netcdf_aux.h"
 
+#define floordiv(x,y) ((x) / (y))
+#define ceildiv(x,y) (((x) % (y)) == 0 ? ((x) / (y)) : (((x) / (y)) + 1))
+
 /* Forward*/
 static void filltypecodes(void);
 static void processenums(void);
@@ -22,6 +25,7 @@ static void processunlimiteddims(void);
 static void processeconstrefs(void);
 static void processeconstrefsR(Symbol*,Datalist*);
 static void processroot(void);
+static void processvardata(void);
 
 static void computefqns(void);
 static void fixeconstref(Symbol*,NCConstant* con);
@@ -67,6 +71,8 @@ processsemantics(void)
     processeconstrefs();
     /* Compute the unlimited dimension sizes */
     processunlimiteddims();
+    /* Rebuild var datalists to show dim levels */
+    processvardata();
     /* check internal consistency*/
     checkconsistency();
 }
@@ -458,8 +464,8 @@ processeconstrefs(void)
 	Symbol* var = (Symbol*)listget(vardefs,i);
 	if(var->data != NULL && listlength(var->data) > 0)
 	    processeconstrefsR(var,var->data);
-	if(var->var.special->_Fillvalue != NULL)
-	    processeconstrefsR(var,var->var.special->_Fillvalue);
+	if(var->var.special._Fillvalue != NULL)
+	    processeconstrefsR(var,var->var.special._Fillvalue);
     }
 }
 
@@ -832,9 +838,9 @@ processattributes(void)
 		/* Generate a default fill value */
 	        asym->data = getfiller(asym->typ.basetype);
 	    }
-	    if(asym->att.var->var.special->_Fillvalue != NULL)
-	    	reclaimdatalist(asym->att.var->var.special->_Fillvalue);
-	    asym->att.var->var.special->_Fillvalue = clonedatalist(asym->data);
+	    if(asym->att.var->var.special._Fillvalue != NULL)
+	    	reclaimdatalist(asym->att.var->var.special._Fillvalue);
+	    asym->att.var->var.special._Fillvalue = clonedatalist(asym->data);
 	} else if(asym->typ.basetype == NULL) {
 	    inferattributetype(asym);
 	}
@@ -1206,7 +1212,10 @@ thisunlim->name,
 		    length += con->value.stringv.len;
 	            break;
 		case NC_COMPOUND:
-		    semwarn(datalistline(data),"Expected character constant, found {...}");
+		    if(con->subtype == NC_DIM)
+	  	        semwarn(datalistline(data),"Expected character constant, found {...}");
+		    else
+	     	        semwarn(datalistline(data),"Expected character constant, found (...)");
 		    break;
 		default:
 		    semwarn(datalistline(data),"Illegal character constant: %d",con->nctype);
@@ -1314,3 +1323,83 @@ createfilename(void)
     }
     return strdup(filename);
 }
+
+#if 1
+/* Recursive helper for processevardata */
+static NCConstant*
+processvardataR(Symbol* vsym, Dimset* dimset, Datalist* data, int dimindex)
+{
+    int rank = dimset->ndims;
+    Symbol* dim = dimset->dimsyms[dimindex];
+    size_t offset;
+    Datalist* newlist = NULL;
+    NCConstant* result;
+    size_t datalen;
+
+    if(dimindex == (rank-1)) {/* Stop recursion here */
+	/* return clone of this data */
+	newlist = clonedatalist(data);
+    } else {
+        if(dim->dim.isunlimited) {
+	     /* Just clone this list and recurse on its contents */
+	    datalen = datalistlen(data);
+    	    newlist = builddatalist(0);
+	    for(offset=0;offset<datalen;offset++) {
+  	        NCConstant* oldcon = datalistith(data,offset);
+		NCConstant* newcon;
+		if(oldcon->nctype == NC_COMPOUND) {
+		    newcon = processvardataR(vsym,dimset,compoundfor(oldcon),dimindex+1);
+		} else {
+		    newcon = cloneconstant(oldcon);
+		}
+                dlappend(newlist,newcon);
+	    }
+        } else { /* !dim->dim.isunlimited */
+            /* So we have a block of non-unlimited dims starting here */
+   	    int nextunlim = findunlimited(dimset,dimindex);
+            size_t dimblock;
+	    int i;
+
+            /* Construct a |dim| length datalist */
+            newlist = builddatalist(0);
+
+	    /* compute the size of the subblocks */
+            for(dimblock=1,i=dimindex+1;i<nextunlim;i++)
+                dimblock *= dimset->dimsyms[i]->dim.declsize;
+
+            datalen = datalistlen(data);
+
+            /* Divide this datalist into dimblock size sublists; last may be short and process each */
+            for(offset=0;;offset+=dimblock) {
+                size_t blocksize;
+		Datalist* subset;
+    	        NCConstant* newcon;
+                blocksize = (offset < datalen ? dimblock : (datalen - offset));
+		subset = builddatasubset(data,offset,blocksize);
+                /* Construct a datalist to hold processed subsetn */
+		newcon = processvardataR(vsym,dimset,subset,dimindex+1);
+                dlappend(newlist,newcon);
+                if((offset+blocksize) >= datalen) break; /* done */
+            }           
+        }
+    }
+    result = list2const(newlist);
+    setsubtype(result,NC_DIM);
+    return result;
+}
+
+/* listify n-dimensional data lists */
+static void
+processvardata(void)
+{
+    int i;
+    for(i=0;i<listlength(vardefs);i++) {
+        Symbol* vsym = (Symbol*)listget(vardefs,i);
+	NCConstant* con;
+	con = processvardataR(vsym,&vsym->typ.dimset,vsym->data,0);
+	reclaimdatalist(vsym->data);
+	vsym->data = compoundfor(con);
+	freeconst(con);
+    }
+}
+#endif
