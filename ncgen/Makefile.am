@@ -21,6 +21,11 @@ ncgeny.c ncgeny.h
 # to avoid load time conflicts.
 ncgen_SOURCES += nc_iter.c
 
+# Given a netcdf4 file, dump the actual chunk contents.
+# Used to validate nczarr chunking code.
+noinst_PROGRAMS = ncdumpchunks
+ncdumpchunks_SOURCES = ncdumpchunks.c
+
 # This is the man page.
 man_MANS = ncgen.1
 
