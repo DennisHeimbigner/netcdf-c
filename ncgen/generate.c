@@ -636,8 +636,11 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
     	    assert(con->subtype == NC_DIM);
 	    dl = compoundfor(con);
 	}
+	/* 
 	/* For last start point, dump nelems elements */
-	for(p=0;p<count[r];p++) {
+//	for(p=0;p<count[r];p++)
+	for(p=0;p<nelems;p++)
+        {
 	    con = datalistith(dl,start[r]+p);
 	    generate_basetype(vsym->typ.basetype,con,code,filler,generator);
             generator->list(generator,vsym,NULL,LISTDATA,uid,p,code);
