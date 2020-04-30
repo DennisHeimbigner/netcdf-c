@@ -14,6 +14,7 @@ escapes.c genc.c genbin.c generr.c genlib.c getfill.c odom.c	\
 semantics.c dump.c util.c bytebuffer.c list.c data.h		\
 debug.h generr.h genlib.h includes.h ncgen.h odom.h  dump.h	\
 util.h bytebuffer.h list.h genf77.c f77data.c genj.c jdata.c 	\
+nc_iter.c chunkiter.c                                           \
 ncgeny.c ncgeny.h
 
 # nc_iter.c is a slight variant of ncdump/nciter.c, so changes to one may need
