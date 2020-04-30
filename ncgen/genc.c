@@ -5,7 +5,6 @@
  *********************************************************************/
 
 #include "includes.h"
-#include "nc_iter.h"
 #include <ctype.h>	/* for isprint() */
 
 #ifdef ENABLE_C

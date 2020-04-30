@@ -4,7 +4,7 @@
  *********************************************************************/
 
 #include "includes.h"
-#include "nc_iter.h"
+#include "nciter.h"
 #include "odom.h"
 #include "ncoffsets.h"
 #include "netcdf_aux.h"
@@ -171,7 +171,7 @@ generate_array(Symbol* vsym,
             size_t offset = 0; /* where are we in the data list */
             size_t nelems = 0; /* # of data list items to generate */
             /* Create an iterator and odometer and just walk the datalist */
-            NC_get_iter(vsym,nciterbuffersize,&iter);
+            nc_get_iter(vsym,nciterbuffersize,&iter);
             for(;;offset+=nelems) {
                 int i,uid;
                 nelems=nc_next_iter(&iter,odometerstartvector(odom),odometercountvector(odom));
@@ -577,7 +577,7 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
     size_t count[NC_MAX_VAR_DIMS];
     struct Args args;
     size_t nelems;
-    NCiter_t* iter = NULL;
+    nciter_t* iter = NULL;
 
     assert(vsym->typ.dimset.ndims > 0);
 
@@ -601,7 +601,7 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
     memset(count,0,sizeof(count));
 
     /* initialize variable iteration */
-    NC_get_iter(vsym, ITER_BUFSIZE_DEFAULT, &iter);
+    nc_get_iter(vsym, ITER_BUFSIZE_DEFAULT, &iter);
 
     if(args.typecode == NC_CHAR) {
         Bytebuffer* charbuf = bbNew();
@@ -613,10 +613,10 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
 	bbFree(charbuf);
     }
 
-    /* NC_next_iter() initializes start and count on first call,
+    /* nc_next_iter() initializes start and count on first call,
      * changes start and count to iterate through whole variable on
      * subsequent calls. */
-    while((nelems = NC_next_iter(iter, start, count)) > 0) {
+    while((nelems = nc_next_iter(iter, start, count)) > 0) {
 	int r,p,uid;
 	Datalist* dl;
 	NCConstant* con;
@@ -648,5 +648,5 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
         writer(generator,vsym,code,args.rank,start,count);
 	bbClear(code);
     } /* end main iteration loop */
-    NC_free_iter(iter);
+    nc_free_iter(iter);
 }
