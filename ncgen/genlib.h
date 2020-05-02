@@ -192,7 +192,6 @@ extern char* binary_ext;
 extern int nofill_flag;
 extern int header_only;
 extern char* mainname;
-extern size_t nciterbuffersize;
 
 extern char* progname; /* for error messages*/
 extern char *netcdf_name; /* command line -o file name */

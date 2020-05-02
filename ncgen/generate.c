@@ -4,7 +4,6 @@
  *********************************************************************/
 
 #include "includes.h"
-#include "nciter.h"
 #include "ncoffsets.h"
 #include "netcdf_aux.h"
 
@@ -82,10 +81,6 @@ generate_vardata(Symbol* vsym, Generator* generator, Writer writer, Bytebuffer* 
     Datalist* filler = getfiller(vsym);
 
     if(vsym->data == NULL) return;
-
-    /* give the buffer a running start to be large enough*/
-    if(!bbSetalloc(code, nciterbuffersize))
-      return;
 
     if(rank == 0) {/*scalar case*/
         NCConstant* c0 = datalistith(vsym->data,0);

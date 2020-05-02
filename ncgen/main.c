@@ -50,8 +50,6 @@ size_t onesvector[NC_MAX_VAR_DIMS];
 
 char* binary_ext = ".nc";
 
-size_t nciterbuffersize;
-
 struct Vlendata* vlendata;
 
 char *netcdf_name = NULL; /* command line -o file name */
@@ -144,13 +142,6 @@ struct Languages legallanguages[] = {
 };
 #endif
 
-/* The default minimum iterator size depends
-   on whether we are doing binary or language
-   based output.
-*/
-#define DFALTBINNCITERBUFFERSIZE  0x40000 /* about 250k bytes */
-#define DFALTLANGNCITERBUFFERSIZE  0x4000 /* about 15k bytes */
-
 /* strip off leading path */
 /* result is malloc'd */
 
@@ -179,7 +170,6 @@ usage(void)
 " [-6]"
 " [-7]"
 " [-b]"
-" [-B buffersize]"
 " [-d]"
 " [-D debuglevel]"
 " [-h]"
@@ -223,7 +213,6 @@ main(
     syntax_only = 0;
     header_only = 0;
     mainname = "main";
-    nciterbuffersize = 0;
 
     k_flag = 0;
     format_attribute = 0;
@@ -238,7 +227,7 @@ main(
 #endif
     memset(&globalspecials,0,sizeof(GlobalSpecialData));
 
-    while ((c = getopt(argc, argv, "134567bB:cdD:fhHk:l:M:no:Pv:xL:N:")) != EOF)
+    while ((c = getopt(argc, argv, "134567bcdD:fhHk:l:M:no:Pv:xL:N:B:")) != EOF)
       switch(c) {
 	case 'd':
 	  debug = 1;
@@ -268,6 +257,9 @@ main(
 	    return 1;
 	  }
 	  l_flag = L_BINARY;
+	  break;
+	case 'B':
+	  /* ignore, but leave for back compatibility */
 	  break;
 	case 'H':
 	  header_only = 1;
@@ -376,9 +368,6 @@ main(
 	case 'M': /* Determine the name for the main function */
 	    mainname = nulldup(optarg);
 	    break;
-	case 'B':
-	  nciterbuffersize = atoi(optarg);
-	  break;
 	case 'P': /* diskless with persistence */
 	  diskless = 1;
 	  break;
@@ -392,15 +381,6 @@ main(
 	/* Treat -k or -o as an implicit -lb assuming no other -l flags */
         if(k_flag == 0 && netcdf_name == NULL)
 	    syntax_only = 1;
-    }
-
-    /* Compute/default the iterator buffer size */
-    if(l_flag == L_BINARY) {
-	if(nciterbuffersize == 0 )
-	    nciterbuffersize = DFALTBINNCITERBUFFERSIZE;
-    } else {
-	if(nciterbuffersize == 0)
-	    nciterbuffersize = DFALTLANGNCITERBUFFERSIZE;
     }
 
 #ifndef ENABLE_C
