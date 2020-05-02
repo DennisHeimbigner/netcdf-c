@@ -390,7 +390,7 @@ generate_arrayR(struct Args* args, int dimindex, size_t* index, Datalist* data)
 	} else
 	    actual = data;
         /* For last index, dump all of its elements */
-        args->generator->listbegin(args->generator,args->vsym,NULL,LISTATTR,datalistlen(actual),args->code,&uid);
+        args->generator->listbegin(args->generator,args->vsym,NULL,LISTDATA,datalistlen(actual),args->code,&uid);
         for(counter=0;counter<stop;counter++) {
             NCConstant* con = datalistith(actual,counter);
             generate_basetype(args->vsym->typ.basetype,con,args->code,args->filler,args->generator);
@@ -425,6 +425,8 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
     int i;
     size_t index[NC_MAX_VAR_DIMS];
     struct Args args;
+    size_t totalsize;
+    int nunlimited = 0;
 
     assert(vsym->typ.dimset.ndims > 0);
 
@@ -440,9 +442,13 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
 
     assert(args.rank > 0);
     
+    totalsize = 1; /* total # elements in the array */
     for(i=0;i<args.rank;i++) {
         args.dimsizes[i] = args.dimset->dimsyms[i]->dim.declsize;
+	totalsize *= args.dimsizes[i];
     }
+    nunlimited = countunlimited(args.dimset);
+
     if(vsym->var.special._Storage == NC_CHUNKED)
         memcpy(args.chunksizes,vsym->var.special._ChunkSizes,sizeof(size_t)*args.rank);
 
@@ -463,6 +469,23 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
 	return;
     }
 
-    generate_arrayR(&args, 0, index, vsym->data);    
-
+    /* If the total no. of elements is less than some max and no unlimited,
+       then generate a single vara that covers the whole array */
+    if(totalsize < wholevarsize && nunlimited == 0) {
+	Symbol* basetype = args.vsym->typ.basetype;
+	size_t counter;
+	int uid;	
+	Datalist* flat = flatten(vsym->data,args.rank);
+        args.generator->listbegin(args.generator,basetype,NULL,LISTDATA,totalsize,args.code,&uid);
+        for(counter=0;counter<totalsize;counter++) {
+            NCConstant* con = datalistith(flat,counter);
+	    if(con == NULL)
+	        con = &fillconstant;
+            generate_basetype(basetype,con,args.code,args.filler,args.generator);
+            args.generator->list(args.generator,args.vsym,NULL,LISTDATA,uid,counter,args.code);
+        }
+        args.generator->listend(args.generator,args.vsym,NULL,LISTDATA,uid,counter,args.code);
+        args.writer(args.generator,args.vsym,args.code,args.rank,zerosvector,args.dimsizes);
+    } else
+        generate_arrayR(&args, 0, index, vsym->data);    
 }

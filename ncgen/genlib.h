@@ -164,6 +164,7 @@ extern int specials_flag; /* 1 => special attributes are present */
 extern int usingclassic;   /* 1 => k_flag == 1|2|5 */
 extern int k_flag;
 extern int ncloglevel;
+extern int wholevarsize;
 extern GlobalSpecialData globalspecials;
 
 /* Global data */

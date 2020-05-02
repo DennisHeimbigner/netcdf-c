@@ -23,6 +23,7 @@ ncgen
 \%[\-N \fIdatasetname\fP]
 \%[\-o \fInetcdf_filename\fP]
 \%[\-P]
+.\%[\-W \fImaxwholevarsize\fP]
 \%[\-x]
 .hy
 .ft
@@ -202,6 +203,10 @@ seekable.
 .IP "\fB-P\fP"
 Use NC_DISKLESS mode to create the file totally in memory
 before persisting it to disk.
+.IP "\fB-W\fP \fRmaxwholevarsize\fP"
+Set wholevarsizem where if total number of elements is less than maxwholevarsize
+then updata a variable using a single nc_put_var. Requires
+that the variable has no unlimited dimensions.
 .IP "\fB-x\fP"
 Don't initialize data with fill values.  This can speed up creation of
 large netCDF files greatly, but later attempts to read unwritten data

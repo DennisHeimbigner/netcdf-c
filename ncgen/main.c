@@ -42,6 +42,7 @@ int usingclassic;
 int cmode_modifier;
 int diskless;
 int ncloglevel;
+int wholevarsize;
 
 GlobalSpecialData globalspecials;
 
@@ -183,6 +184,7 @@ usage(void)
 " [-N datasetname]"
 " [-L loglevel]"
 " [-H]"
+" [-W generate whole var upload]"
 " [file ... ]",
 	   progname);
     derror("netcdf library version %s", nc_inq_libvers());
@@ -220,6 +222,7 @@ main(
     cdf5_flag = 0;
     specials_flag = 0;
     diskless = 0;
+    wholevarsize = 1024;
 #ifdef LOGGING
     ncloglevel = NC_TURN_OFF_LOGGING;
 #else
@@ -312,6 +315,9 @@ main(
 	case 'N':		/* to explicitly specify dataset name */
 	  if(datasetname) efree(datasetname);
 	  datasetname = nulldup(optarg);
+	  break;
+	case 'W':
+	  wholevarsize = atoi(optarg);
 	  break;
 	case 'x': /* set nofill mode to speed up creation of large files */
 	  nofill_flag = 1;

@@ -775,18 +775,17 @@ flattenR(Datalist* result, Datalist* data, int rank, int depth)
     int i;
     NCConstant* con;
 
+    if(rank == depth) return;
     if(datalistlen(data) == 0) return;
-    con =  datalistith(data,0);
-    if(islistconst(con)) {
-	for(i=0;i<datalistlen(data);i++) {
-	    con = datalistith(data,i);
-	    ASSERT((islistconst(con)));
-	    flattenR(result,compoundfor(con),rank,depth+1);
-	}
-    } else {
-        for(i=0;i<datalistlen(data);i++) {
-	    con = datalistith(data,i);
-	    ASSERT((!islistconst(con)));
+    for(i=0;i<datalistlen(data);i++) {
+	con = datalistith(data,i);
+        if(depth < rank - 1) {
+	    /* Is this is a char list, then we might have short depth */
+	    if(islistconst(con))
+	        flattenR(result,compoundfor(con),rank,depth+1);
+	    else
+	        dlappend(result,con);
+        } else { /* depth == rank -1, last dimension */
 	    dlappend(result,con);
 	}
     }
