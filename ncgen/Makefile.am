@@ -13,10 +13,10 @@ ncgen_SOURCES = bindata.c bytebuffer.c cdata.c cvt.c data.c \
 debug.c dump.c escapes.c f77data.c genbin.c \
 genc.c genchar.c generate.c generr.c genf77.c \
 genj.c genlib.c getfill.c jdata.c list.c \
-main.c ncgeny. ncgeny.c semantics.c \
+main.c ncgeny.c semantics.c \
 util.c bytebuffer.h data.h debug.h dump.h \
 generate.h generr.h genlib.h includes.h list.h \
-ncgen.h util.h
+ncgen.h ncgeny.h util.h
 
 # Obsolete
 OBSOLETE = odom.c odom.h jdatastd.c jdatajni.c genjni.c cdfdata.c cmldata.c
