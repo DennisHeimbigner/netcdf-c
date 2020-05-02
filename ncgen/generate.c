@@ -49,18 +49,6 @@ int generator_reset(Generator* generator, void* state)
     generator->globalstate = state;
     return 1;
 }
-
-#ifdef IGNORe
-static void
-checkodom(Odometer* odom)
-{
-    int i;
-    for(i=0;i<odom->rank;i++) {
-	ASSERT(odom->index[i] == odom->start[i]+odom->count[i]);
-    }
-}
-#endif
-
 /**************************************************/
 
 void

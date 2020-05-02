@@ -345,7 +345,6 @@ gen_chararrayr(Dimset* dimset, int dimindex,
     int lastunlimited = findlastunlimited(dimset);
     int nextunlimited = findunlimited(dimset,dimindex+1);
     int islastgroup = (lastunlimited == rank || dimindex >= lastunlimited || dimindex == rank-1);
-    Odometer* subodom = NULL;
 
     ASSERT(rank > 0);
     ASSERT((islastgroup));

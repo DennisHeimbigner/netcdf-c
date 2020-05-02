@@ -9,16 +9,17 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 # Build ncgen from the listed sources.
 bin_PROGRAMS = ncgen
 
-ncgen_SOURCES=generate.c main.c cdata.c bindata.c genchar.c cvt.c data.c debug.c	\
-escapes.c genc.c genbin.c generr.c genlib.c getfill.c   	\
-semantics.c dump.c util.c bytebuffer.c list.c data.h generate.h \
-debug.h generr.h genlib.h includes.h ncgen.h odom.h  dump.h	\
-util.h bytebuffer.h list.h genf77.c f77data.c genj.c jdata.c 	\
-nciter.c nciter.h                                               \
-ncgeny.c ncgeny.h
+ncgen_SOURCES = bindata.c bytebuffer.c cdata.c cvt.c data.c \
+debug.c dump.c escapes.c f77data.c genbin.c \
+genc.c genchar.c generate.c generr.c genf77.c \
+genj.c genlib.c getfill.c jdata.c list.c \
+main.c ncgeny. ncgeny.c semantics.c \
+util.c bytebuffer.h data.h debug.h dump.h \
+generate.h generr.h genlib.h includes.h list.h \
+ncgen.h util.h
 
-# still needed?
-ncgen_SOURCES += odom.c odom.h
+# Obsolete
+OBSOLETE = odom.c odom.h jdatastd.c jdatajni.c genjni.c cdfdata.c cmldata.c
 
 # Given a netcdf4 file, dump the actual chunk contents.
 # Used to validate nczarr chunking code.

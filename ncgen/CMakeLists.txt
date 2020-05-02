@@ -9,15 +9,17 @@ IF(BUILD_SHARED_LIBS AND WIN32)
   remove_definitions(-DDLL_NETCDF)
 ENDIF()
 
-SET(ncgen_FILES generate.c main.c cdata.c bindata.c genchar.c cvt.c data.c debug.c
-escapes.c genc.c genbin.c generr.c genlib.c getfill.c
-semantics.c dump.c util.c bytebuffer.c list.c data.h generate.h
-debug.h generr.h genlib.h includes.h ncgen.h odom.h  dump.h
-util.h bytebuffer.h list.h genf77.c f77data.c genj.c jdata.c
-nciter.c nciter.h
-ncgeny.c ncgeny.h
-odom.c odom.h # needed?
-)
+SET(ncgen_FILES bindata.c bytebuffer.c cdata.c cvt.c data.c
+debug.c dump.c escapes.c f77data.c genbin.c
+genc.c genchar.c generate.c generr.c genf77.c
+genj.c genlib.c getfill.c jdata.c list.c
+main.c ncgeny. ncgeny.c semantics.c
+util.c bytebuffer.h data.h debug.h dump.h
+generate.h generr.h genlib.h includes.h list.h
+ncgen.h util.h)
+
+# Obsolete
+SET(OBSOLETE odom.c odom.h jdatastd.c jdatajni.c genjni.c cdfdata.c cmldata.c)
 
 # don't add the automatically determined parts of the RPATH
 # which point to directories outside the build tree to the install RPATH
