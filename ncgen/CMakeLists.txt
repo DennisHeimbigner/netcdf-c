@@ -9,12 +9,19 @@ IF(BUILD_SHARED_LIBS AND WIN32)
   remove_definitions(-DDLL_NETCDF)
 ENDIF()
 
-SET(ncgen_FILES generate.c main.c cdata.c bindata.c genchar.c cvt.c data.c debug.c escapes.c genc.c genbin.c generr.c genlib.c getfill.c odom.c semantics.c ncgeny.c dump.c util.c bytebuffer.c list.c genf77.c f77data.c genj.c jdata.c nc_iter.c ncgen.h)
+SET(ncgen_FILES generate.c main.c cdata.c bindata.c genchar.c cvt.c data.c debug.c
+escapes.c genc.c genbin.c generr.c genlib.c getfill.c
+semantics.c dump.c util.c bytebuffer.c list.c data.h generate.h
+debug.h generr.h genlib.h includes.h ncgen.h odom.h  dump.h
+util.h bytebuffer.h list.h genf77.c f77data.c genj.c jdata.c
+nciter.c nciter.h
+ncgeny.c ncgeny.h
+odom.c odom.h # needed?
+)
 
 # don't add the automatically determined parts of the RPATH
 # which point to directories outside the build tree to the install RPATH
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
-
 
 IF(USE_X_GETOPT)
   SET(ncgen_FILES ${ncgen_FILES} XGetopt.c)
@@ -22,6 +29,26 @@ ENDIF()
 
 ADD_EXECUTABLE(ncgen ${ncgen_FILES})
 TARGET_LINK_LIBRARIES(ncgen netcdf ${ALL_TLL_LIBS})
+
+# Given a netcdf4 file, dump the actual chunk contents.
+# Used to validate nczarr chunking code.
+SET(ncdumpchunks_FILES ncdumpchunks.c)
+IF(USE_X_GETOPT)
+  SET(ncdumpchunks_FILES ${ncvalidator_FILES} XGetopt.c)
+ENDIF()
+ADD_EXECUTABLE(ncdumpchunks ${ncdupchunks_FILES})
+TARGET_LINK_LIBRARIES(ncdumpchunks netcdf ${ALL_TLL_LIBS})
+  SET_TARGET_PROPERTIES(ncdumpchunks PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+    ${CMAKE_CURRENT_BINARY_DIR})
+  SET_TARGET_PROPERTIES(ncdumpchunks PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG
+    ${CMAKE_CURRENT_BINARY_DIR})
+  SET_TARGET_PROPERTIES(ncdumpchunks PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
+    ${CMAKE_CURRENT_BINARY_DIR})
+IF(MSVC)
+  SET_TARGET_PROPERTIES(ncdumpchunks
+    PROPERTIES LINK_FLAGS_DEBUG " /NODEFAULTLIB:MSVCRT"
+    )
+ENDIF()
 
 ####
 # We have to do a little tweaking
