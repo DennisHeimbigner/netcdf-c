@@ -9,7 +9,7 @@
 #define MAX_REDIRECTS 20L
 
 /* Mnemonic */
-#define OPTARG void*
+#define OPTARG uintptr_t
 
 /* Condition on libcurl version */
 /* Set up an alias as needed */
@@ -26,24 +26,17 @@
 #endif
 #endif
 
-#define CHECK(state,flag,value) {if(check(state,flag,(void*)value) != NC_NOERR) {goto done;}}
+#define CHECK(state,flag,value) {if(set_curlopt(state,flag,(uintptr_t)value) != NC_NOERR) {goto done;}}
 
 /* forward */
 static int set_curlflag(NCD4INFO*, int flag);
-static int set_curlopt(NCD4INFO*, int flag, void* value);
-
-static int
-check(NCD4INFO* info, int flag, void* value)
-{
-    int ret = set_curlopt(info,flag,value);
-    return THROW(ret);
-}
+static int set_curlopt(NCD4INFO*, int flag, uintptr_t value);
 
 /*
 Set a specific curl flag; primary wrapper for curl_easy_setopt
 */
 static int
-set_curlopt(NCD4INFO* state, int flag, void* value)
+set_curlopt(NCD4INFO* state, int flag, uintptr_t value)
 {
     int ret = NC_NOERR;
     CURLcode cstat = CURLE_OK;
