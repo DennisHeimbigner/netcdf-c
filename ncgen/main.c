@@ -45,6 +45,9 @@ int ncloglevel;
 
 GlobalSpecialData globalspecials;
 
+size_t zerosvector[NC_MAX_VAR_DIMS];
+size_t onesvector[NC_MAX_VAR_DIMS];
+
 char* binary_ext = ".nc";
 
 size_t nciterbuffersize;
@@ -139,15 +142,6 @@ struct Languages legallanguages[] = {
 {"java", L_JAVA},
 {NULL,L_UNDEFINED}
 };
-#endif
-
-#if 0 /*not used*/
-/* BOM Sequences */
-static char* U8   = "\xEF\xBB\xBF";    /* UTF-8 */
-static char* BE32 = "\x00\x00\xFE\xFF"; /* UTF-32; big-endian */
-static char* LE32 = "\xFF\xFE";       /* UTF-32; little-endian */
-static char* BE16 = "\xFE\xFF";       /* UTF-16; big-endian */
-static char* LE16 = "\xFF\xFE";       /* UTF-16; little-endian */
 #endif
 
 /* The default minimum iterator size depends
@@ -292,9 +286,6 @@ main(
               derror("%s: output language is null", progname);
               return(1);
             }
-#if 0
-            lang_name = estrdup(optarg);
-#endif
             lang_name = (char*) emalloc(strlen(optarg)+1);
             (void)strcpy(lang_name, optarg);
 
@@ -591,13 +582,22 @@ done:
 void
 init_netcdf(void) /* initialize global counts, flags */
 {
+    int i;
     memset((void*)&nullconstant,0,sizeof(NCConstant));
     fillconstant = nullconstant;
     fillconstant.nctype = NC_FILLVALUE;
 
+    filldatalist = builddatalist(1);
+    dlappend(filldatalist,&fillconstant);
+    filldatalist->readonly = 1;
+
     codebuffer = bbNew();
     stmt = bbNew();
     error_count = 0; /* Track # of errors */
+
+    for(i=0;i<NC_MAX_VAR_DIMS;i++) onesvector[i] = 1;
+    memset(zerosvector,0,sizeof(zerosvector));
+
 }
 
 void

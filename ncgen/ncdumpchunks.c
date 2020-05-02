@@ -11,7 +11,7 @@
 #define VAR "v1"
 
 #define RANK 3
-//static const size_t dimlens[RANK] = {4,4,2};
+static const size_t dimlens[RANK] = {4,4,2};
 static const size_t chunksize[RANK] = {2,2,2};
 static const size_t chunkcount[RANK] = {2,2,1};
 static const size_t CHUNKPROD = 8;

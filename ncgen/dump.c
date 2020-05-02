@@ -10,6 +10,9 @@
 
 #define DEBUGSRC
 
+#define MAXELEM 8
+#define MAXDEPTH 4
+
 /* Forward */
 static void dumpdataprim(NCConstant*,Bytebuffer*);
 
@@ -258,47 +261,3 @@ dumpconstant1(NCConstant* con)
     }
     fflush(stderr);
 }
-
-#define MAXELEM 8
-#define MAXDEPTH 4
-
-#if 0
-void
-dumpsrc0(Datasrc* src,char* tag)
-{
-    int i, count, index, depth;
-    depth = MAXDEPTH;
-    count = src->length;
-    index = src->index;
-    if(count > MAXELEM) count = MAXELEM;
-    if(index > count) index = count;
-    fprintf(stderr,"%s:: ",(tag?tag:""));
-    do {
-        fprintf(stderr,"[%d/%d]",src->index,src->length);
-	for(i=0;i<index;i++) {
-	    fprintf(stderr," ");
-	    dumpconstant1(src->data[i]);
-	}
-	fprintf(stderr,"^");
-	for(i=index;i<count;i++) {
-	    fprintf(stderr," ");
-	    dumpconstant1(src->data[i]);
-	}
-        if(count < src->length) fprintf(stderr,"...");
-	fprintf(stderr," | ");	
-        src = src->prev;
-    } while(src != NULL && depth > 0);
-    if(src != NULL) fprintf(stderr,"---");
-    fprintf(stderr,"\n");
-    fflush(stderr);
-}
-
-void
-dumpsrc(Datasrc* src,char* tag)
-{
-#ifndef DEBUGSRC
-    if(debug == 0) return;
-#endif
-    dumpsrc0(src,tag);
-}
-#endif

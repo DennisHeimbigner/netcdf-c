@@ -11,10 +11,10 @@ bin_PROGRAMS = ncgen
 
 ncgen_SOURCES=generate.c main.c cdata.c bindata.c genchar.c cvt.c data.c debug.c	\
 escapes.c genc.c genbin.c generr.c genlib.c getfill.c   	\
-semantics.c dump.c util.c bytebuffer.c list.c data.h		\
+semantics.c dump.c util.c bytebuffer.c list.c data.h generate.h \
 debug.h generr.h genlib.h includes.h ncgen.h odom.h  dump.h	\
 util.h bytebuffer.h list.h genf77.c f77data.c genj.c jdata.c 	\
-nciter.c nciter.h                                           \
+nciter.c nciter.h                                               \
 ncgeny.c ncgeny.h
 
 # still needed?

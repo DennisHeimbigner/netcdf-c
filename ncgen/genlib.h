@@ -82,6 +82,7 @@ extern struct Datalist* getfiller(Symbol*); /* symbol isa variable|type */
 
 /* from: ncgen.y */
 extern Symbol* install(const char *sname);
+extern void freesymbol(Symbol*);
 extern Symbol* basetypefor(nc_type nctype);/* Convert nctype to a Symbol*/
 extern Symbol* makearraytype(Symbol*, Dimset*);
 
@@ -197,6 +198,9 @@ extern char* progname; /* for error messages*/
 extern char *netcdf_name; /* command line -o file name */
 extern char *datasetname; /* name from the netcdf <name> {} */
 extern char *cdlname; /* name from the command line */
+
+extern size_t zerosvector[NC_MAX_VAR_DIMS];
+extern size_t onesvector[NC_MAX_VAR_DIMS];
 
 extern const char* specialname(int tag);
 

@@ -108,7 +108,6 @@ List* gattdefs; /* global attributes only*/
 List* xattdefs; /* unknown attributes*/
 List* typdefs;
 List* vardefs;
-List* condefs; /* non-dimension constants used in type defs*/
 List* tmp;
 
 /* Forward */
@@ -938,7 +937,6 @@ parse_init(void)
     xattdefs = listnew();
     typdefs = listnew();
     vardefs = listnew();
-    condefs = listnew();
     tmp = listnew();
     /* Create the primitive types */
     for(i=NC_NAT+1;i<=NC_STRING;i++) {

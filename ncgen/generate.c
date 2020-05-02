@@ -5,7 +5,6 @@
 
 #include "includes.h"
 #include "nciter.h"
-#include "odom.h"
 #include "ncoffsets.h"
 #include "netcdf_aux.h"
 
@@ -16,7 +15,6 @@
 
 /* Forward*/
 static void generate_array(Symbol*,Bytebuffer*,Datalist*,Generator*,Writer);
-//static void generate_arrayr(Symbol*,Bytebuffer*,Datalist*,Odometer*,int,Datalist*,Generator*);
 static void generate_primdata(Symbol*, NCConstant*, Bytebuffer*, Datalist* fillsrc, Generator*);
 static void generate_fieldarray(Symbol*, NCConstant*, Dimset*, Bytebuffer*, Datalist* fillsrc, Generator*);
 
@@ -106,194 +104,9 @@ generate_vardata(Symbol* vsym, Generator* generator, Writer writer, Bytebuffer* 
         generate_basetype(basetype,c0,code,filler,generator);
         writer(generator,vsym,code,0,NULL,NULL);
     } else {/*rank > 0*/
-#if 0
-        /* First, create an odometer using all of the dimensions */
-        odom = newodometer(dimset,NULL,NULL);
-	start = odometerstartvector(odom);
-	count = odometercountvector(odom);
-#endif
 	generate_array(vsym,code,filler,generator,writer);
     }
 }
-
-
-/**
-
-The basic idea is to split the set of dimensions into
-groups and iterate over each group by recursion.
-
-A group is defined as the range of indices starting at an
-unlimited dimension up to (but not including) the next
-unlimited.
-
-The first group starts at index 0, even if dimension 0 is not
-unlimited.  The last group is everything from the last
-unlimited dimension thru the last dimension (index rank-1).
-
-*/
-#if 0
-static void
-generate_array(Symbol* vsym,
-               Bytebuffer* code,
-               Datalist* filler,
-               Generator* generator,
-	       Writer writer
-              )
-{
-    Dimset* dimset = &vsym->typ.dimset;
-    int rank = dimset->ndims;
-    Symbol* basetype = vsym->typ.basetype;
-    nc_type typecode = basetype->typ.typecode;
-    NCiter_t iter;
-    int firstunlim = findunlimited(dimset,1);
-    int nunlim = countunlimited(dimset);
-    int isnc3unlim = (nunlim <= 1 && (firstunlim == 0 || firstunlim == rank)); /* netcdf-3 case of at most 1 unlim in 0th dimension */
-
-    ASSERT(rank > 0);
-
-    if(isnc3unlim) {
-        /* Handle NC_CHAR case separately */
-        if(typecode == NC_CHAR) {
-            Odometer* odom = newodometer(dimset,NULL,NULL);
-            Bytebuffer* charbuf = bbNew();
-            gen_chararray(dimset,0,vsym->data,charbuf,filler);
-	    generator->charconstant(generator,vsym,code,charbuf);
-	    /* Create an odometer to get the dimension info */
-            writer(generator,vsym,code,odom->rank,odom->start,odom->count);
-#if 0
-            writer(generator,vsym,code,odom->rank,0,bbLength(charbuf));
-#endif
-	    bbFree(charbuf);
-    	    odometerfree(odom);
-	} else { /* typecode != NC_CHAR */
-            Odometer* odom = newodometer(dimset,NULL,NULL);
-            /* Case: dim 1..rank-1 are not unlimited, dim 0 might be */
-            size_t offset = 0; /* where are we in the data list */
-            size_t nelems = 0; /* # of data list items to generate */
-            /* Create an iterator and odometer and just walk the datalist */
-            nc_get_iter(vsym,nciterbuffersize,&iter);
-            for(;;offset+=nelems) {
-                int i,uid;
-                nelems=nc_next_iter(&iter,odometerstartvector(odom),odometercountvector(odom));
-                if(nelems == 0)
-		    break;
-                bbClear(code);
-                generator->listbegin(generator,vsym,NULL,LISTDATA,vsym->data->length,code,&uid);
-                for(i=0;i<nelems;i++) {
-                    NCConstant* con = datalistith(vsym->data,i+offset);
-                    generator->list(generator,vsym,NULL,LISTDATA,uid,i,code);
-                    generate_basetype(basetype,con,code,filler,generator);
-                }
-                generator->listend(generator,vsym,NULL,LISTDATA,uid,i,code);
-                writer(generator,vsym,code,rank,odom->start,odom->count);
-            }
-	    odometerfree(odom);
-	}
-    } else { /* Hard case: multiple unlimited dimensions or unlim in dim > 0*/
-        Odometer* odom = newodometer(dimset,NULL,NULL);
-        /* Setup iterator and odometer */
-        nc_get_iter(vsym,NC_MAX_UINT,&iter); /* effectively infinite */
-        for(;;) {/* iterate in nelem chunks */
-            /* get nelems count and modify odometer */
-            size_t nelems=nc_next_iter(&iter,odom->start,odom->count);
-            if(nelems == 0) break;
-            generate_arrayr(vsym,code,vsym->data,
-                            odom,
-                            /*dim index=*/0,
-                            filler,generator
-                           );
-            writer(generator,vsym,code,odom->rank,odom->start,odom->count);
-        }
-        odometerfree(odom);
-    }
-}
-
-/**
-The basic idea is to split the set of dimensions into groups
-and iterate over each group.  A group is defined as the
-range of indices starting at an unlimited dimension up to
-(but not including) the next unlimited.  The first group
-starts at index 0, even if dimension 0 is not unlimited.
-The last group is everything from the last unlimited
-dimension thru the last dimension (index rank-1).
-*/
-static void
-generate_arrayr(Symbol* vsym,
-               Bytebuffer* code,
-               Datalist* list,
-               Odometer* odom,
-               int dimindex,
-               Datalist* filler,
-               Generator* generator
-              )
-{
-    int uid,i;
-    Symbol* basetype = vsym->typ.basetype;
-    Dimset* dimset = &vsym->typ.dimset;
-    int rank = dimset->ndims;
-    int lastunlimited = findlastunlimited(dimset);
-    int nextunlimited = findunlimited(dimset,dimindex+1);
-    int typecode = basetype->typ.typecode;
-    int islastgroup = (lastunlimited == rank || dimindex >= lastunlimited || dimindex == rank-1);
-    Odometer* subodom = NULL;
-
-    ASSERT(rank > 0);
-    ASSERT((dimindex >= 0 && dimindex < rank));
-
-    if(islastgroup) {
-        /* Handle NC_CHAR case separately */
-        if(typecode == NC_CHAR) {
-            Bytebuffer* charbuf = bbNew();
-            gen_chararray(dimset,dimindex,list,charbuf,filler);
-	    generator->charconstant(generator,vsym,code,charbuf);
-	    bbFree(charbuf);
-	} else {
-            /* build a special odometer to walk the last few dimensions */
-            subodom = newsubodometer(odom,dimset,dimindex,rank);
-            generator->listbegin(generator,vsym,NULL,LISTDATA,list->length,code,&uid);
-            for(i=0;odometermore(subodom);i++) {
-                size_t offset = odometeroffset(subodom);
-                NCConstant* con = datalistith(list,offset);
-                generator->list(generator,vsym,NULL,LISTDATA,uid,i,code);
-                generate_basetype(basetype,con,code,filler,generator);
-                odometerincr(subodom);
-            }
-            generator->listend(generator,vsym,NULL,LISTDATA,uid,i,code);
-            odometerfree(subodom); subodom = NULL;
-	}
-    } else {/* !islastgroup */
-        /* Our datalist must be a list of compounds representing
-           the next unlimited; so walk the subarray from this index
-           up to next unlimited.
-        */
-        ASSERT((dimindex < nextunlimited));
-        ASSERT((isunlimited(dimset,nextunlimited)));
-        /* build a sub odometer */
-        subodom = newsubodometer(odom,dimset,dimindex,nextunlimited);
-        for(i=0;odometermore(subodom);i++) {
-            size_t offset = odometeroffset(subodom);
-            NCConstant* con = datalistith(list,offset);
-            if(con == NULL || con->nctype == NC_FILL) {
-                if(filler == NULL)
-                    filler = getfiller(vsym);
-                generate_arrayr(vsym,code,filler,odom,nextunlimited,NULL,generator);
-
-            } else if(islistconst(con)) {
-                Datalist* sublist = compoundfor(con);
-                generate_arrayr(vsym,code,sublist,odom,nextunlimited,filler,generator);
-            } else {
-                semerror(constline(con),"Expected {...} representing unlimited list");
-                return;
-            }
-            odometerincr(subodom);
-        }
-        odometerfree(subodom); subodom = NULL;
-    }
-    if(subodom != NULL)
-        odometerfree(subodom);
-    return;
-}
-#endif
 
 /* Generate an instance of the basetype using the value of con*/
 void
@@ -307,6 +120,11 @@ generate_basetype(Symbol* tsym, NCConstant* con, Bytebuffer* codebuf, Datalist* 
     case NC_ENUM:
     case NC_OPAQUE:
     case NC_PRIM:
+        if(con == NULL || isfillconst(con)) {
+            Datalist* fill = (filler==NULL?getfiller(tsym):filler);
+	    ASSERT(fill->length == 1);
+            con = datalistith(fill,0);
+	}
         if(islistconst(con)) {
             semerror(constline(con),"Expected primitive found {..}");
         }
@@ -556,28 +374,74 @@ generate_primdata(Symbol* basetype, NCConstant* prim, Bytebuffer* codebuf,
 
 /* Avoid long argument lists */
 struct Args {
-Symbol* vsym;
-Dimset* dimset;
-int typecode;
-int storage;
-int rank;
-Generator* generator;
-Writer writer;
-Bytebuffer* code;
-Datalist* filler;
-size_t dimsizes[NC_MAX_VAR_DIMS];
-size_t chunksizes[NC_MAX_VAR_DIMS];
+    Symbol* vsym;
+    Dimset* dimset;
+    int typecode;
+    int storage;
+    int rank;
+    Generator* generator;
+    Writer writer;
+    Bytebuffer* code;
+    Datalist* filler;
+    size_t dimsizes[NC_MAX_VAR_DIMS];
+    size_t chunksizes[NC_MAX_VAR_DIMS];
 };
+
+static void
+generate_arrayR(struct Args* args, int dimindex, size_t* index, Datalist* data)
+{
+    size_t counter,stop;
+    size_t count[NC_MAX_VAR_DIMS];
+    Datalist* actual;
+    Symbol* dim = args->dimset->dimsyms[dimindex];
+
+    stop = args->dimsizes[dimindex];
+
+    /* Four cases: (dimindex==rank-1|dimindex<rank-1) X (unlimited|!unlimited) */
+    if(dimindex == (args->rank - 1)) {/* base case */
+	int uid;
+	if(dimindex > 0 && dim->dim.isunlimited) {
+	    /* Get the unlimited list */
+	    NCConstant* con = datalistith(data,0);
+	    actual = compoundfor(con);    
+	} else
+	    actual = data;
+        /* For last index, dump all of its elements */
+        args->generator->listbegin(args->generator,args->vsym,NULL,LISTATTR,datalistlen(actual),args->code,&uid);
+        for(counter=0;counter<stop;counter++) {
+            NCConstant* con = datalistith(actual,counter);
+            generate_basetype(args->vsym->typ.basetype,con,args->code,args->filler,args->generator);
+            args->generator->list(args->generator,args->vsym,NULL,LISTDATA,uid,counter,args->code);
+        }
+        args->generator->listend(args->generator,args->vsym,NULL,LISTDATA,uid,counter,args->code);
+        memcpy(count,onesvector,sizeof(size_t)*dimindex);
+        count[dimindex] = stop;
+        args->writer(args->generator,args->vsym,args->code,args->rank,index,count);
+        bbClear(args->code);
+    } else {    
+        actual = data;
+        /* Iterate over this dimension */
+        for(counter = 0;counter < stop; counter++) {
+            Datalist* subdata = NULL;
+            NCConstant* con = datalistith(actual,counter);
+	    if(con == NULL)
+		subdata = filldatalist;
+	    else {
+	        ASSERT(islistconst(con));
+	        if(islistconst(con)) subdata = compoundfor(con);
+	    }
+            index[dimindex] = counter;
+            generate_arrayR(args,dimindex+1,index,subdata); /* recurse */
+        }
+    }
+}
 
 static void
 generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* generator, Writer writer)
 {
     int i;
-    size_t start[NC_MAX_VAR_DIMS];
-    size_t count[NC_MAX_VAR_DIMS];
+    size_t index[NC_MAX_VAR_DIMS];
     struct Args args;
-    size_t nelems;
-    nciter_t* iter = NULL;
 
     assert(vsym->typ.dimset.ndims > 0);
 
@@ -591,62 +455,31 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
     args.storage = vsym->var.special._Storage;
     args.typecode = vsym->typ.basetype->typ.typecode;
 
+    assert(args.rank > 0);
+    
     for(i=0;i<args.rank;i++) {
         args.dimsizes[i] = args.dimset->dimsyms[i]->dim.declsize;
     }
     if(vsym->var.special._Storage == NC_CHUNKED)
-	memcpy(args.chunksizes,vsym->var.special._ChunkSizes,sizeof(size_t)*args.rank);
+        memcpy(args.chunksizes,vsym->var.special._ChunkSizes,sizeof(size_t)*args.rank);
 
-    memset(start,0,sizeof(start));
-    memset(count,0,sizeof(count));
+    memset(index,0,sizeof(index));
 
-    /* initialize variable iteration */
-    nc_get_iter(vsym, ITER_BUFSIZE_DEFAULT, &iter);
-
+    /* Special case for NC_CHAR */
     if(args.typecode == NC_CHAR) {
+        size_t start[NC_MAX_VAR_DIMS];
+        size_t count[NC_MAX_VAR_DIMS];
         Bytebuffer* charbuf = bbNew();
-        gen_chararray(args.dimset,0,vsym->data,charbuf,args.filler);
-        generator->charconstant(generator,vsym,code,charbuf);
-	memset(start,0,sizeof(size_t)*args.rank);
-	memcpy(count,iter->dimsizes,sizeof(size_t)*args.rank);
-        writer(generator,vsym,code,args.rank,start,count);
-	bbFree(charbuf);
+        gen_chararray(args.dimset,0,args.vsym->data,charbuf,args.filler);
+        args.generator->charconstant(args.generator,args.vsym,args.code,charbuf);
+        memset(start,0,sizeof(size_t)*args.rank);
+        memcpy(count,args.dimsizes,sizeof(size_t)*args.rank);
+        args.writer(args.generator,args.vsym,args.code,args.rank,start,count);
+        bbFree(charbuf);
+        bbClear(args.code);
+	return;
     }
 
-    /* nc_next_iter() initializes start and count on first call,
-     * changes start and count to iterate through whole variable on
-     * subsequent calls. */
-    while((nelems = nc_next_iter(iter, start, count)) > 0) {
-	int r,p,uid;
-	Datalist* dl;
-	NCConstant* con;
-#if 1
-	fprintf(stderr,"xxx: nelems=%ld",(long)nelems);
-	fprintf(stderr," start="); pvec(args.rank,start);
-	fprintf(stderr," count="); pvec(args.rank,count);	
-	fprintf(stderr,"\n");
-	fflush(stderr);
-#endif
-	/* Move to start point */
-	dl = vsym->data;
-        generator->listbegin(generator,vsym,NULL,LISTDATA,datalistlen(dl),code,&uid,code);
-	for(r=0;r<args.rank-1;r++) {
-	    con = datalistith(dl,start[r]);	
-	    assert(islistconst(con));
-    	    assert(con->subtype == NC_DIM);
-	    dl = compoundfor(con);
-	}
-	/* For last start point, dump nelems elements */
-//	for(p=0;p<count[r];p++)
-	for(p=0;p<nelems;p++)
-        {
-	    con = datalistith(dl,start[r]+p);
-	    generate_basetype(vsym->typ.basetype,con,code,filler,generator);
-            generator->list(generator,vsym,NULL,LISTDATA,uid,p,code);
-	}
-        generator->listend(generator,vsym,NULL,LISTDATA,uid,p,code);
-        writer(generator,vsym,code,args.rank,start,count);
-	bbClear(code);
-    } /* end main iteration loop */
-    nc_free_iter(iter);
+    generate_arrayR(&args, 0, index, vsym->data);    
+
 }
