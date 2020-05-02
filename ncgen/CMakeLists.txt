@@ -35,9 +35,6 @@ TARGET_LINK_LIBRARIES(ncgen netcdf ${ALL_TLL_LIBS})
 # Given a netcdf4 file, dump the actual chunk contents.
 # Used to validate nczarr chunking code.
 SET(ncdumpchunks_FILES ncdumpchunks.c)
-IF(USE_X_GETOPT)
-  SET(ncdumpchunks_FILES ${ncvalidator_FILES} XGetopt.c)
-ENDIF()
 ADD_EXECUTABLE(ncdumpchunks ${ncdupchunks_FILES})
 TARGET_LINK_LIBRARIES(ncdumpchunks netcdf ${ALL_TLL_LIBS})
   SET_TARGET_PROPERTIES(ncdumpchunks PROPERTIES RUNTIME_OUTPUT_DIRECTORY
