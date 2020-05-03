@@ -41,11 +41,6 @@ TESTS += run_ut_chunk.sh
 #noinst_PROGRAMS = z4dump
 #z4dump_SOURCES = z4dump.c
 
-# Given a netcdf4 file, dump the actual chunk contents.
-# Used to validate nczarr chunking code.
-noinst_PROGRAMS = ncdumpchunks
-ncdumpchunks_SOURCES = ncdumpchunks.c
-
 EXTRA_DIST = run_unittests.sh run_meta_tests.sh \
 	ref_ut_mapnc4_create.cdl ref_ut_mapnc4_meta.cdl \
 	ref_ut_mapnc4_wmeta.cdl ref_ut_mapnc4_wmeta2.cdl \
