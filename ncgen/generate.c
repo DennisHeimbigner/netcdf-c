@@ -486,6 +486,7 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
         }
         args.generator->listend(args.generator,args.vsym,NULL,LISTDATA,uid,counter,args.code);
         args.writer(args.generator,args.vsym,args.code,args.rank,zerosvector,args.dimsizes);
+	freedatalist(flat);
     } else
         generate_arrayR(&args, 0, index, vsym->data);    
 }
