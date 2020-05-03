@@ -30,10 +30,6 @@ nczodom_new(int rank, const size64_t* start, const size64_t* stop, const size64_
     nczodom_reset(odom);
     for(i=0;i<rank;i++)
         assert(stop[i] > 0 && stride[i] > 0 && len[i] >= stop[i]);
-#ifdef ENABLE_NCZARR_SLAB
-    odom->useslabs = 0;
-    odom->slabprod = 1;
-#endif
     return odom;
 }
 
@@ -53,10 +49,6 @@ nczodom_fromslices(int rank, const NCZSlice* slices)
     nczodom_reset(odom);
     for(i=0;i<rank;i++)
         assert(slices[i].stop > 0 && slices[i].stride > 0 && slices[i].len >= slices[i].stop);
-#ifdef ENABLE_NCZARR_SLAB
-    odom->useslabs = 0;
-    odom->slabprod = 1;
-#endif
     return odom;
 }
   
@@ -83,17 +75,7 @@ nczodom_next(NCZOdometer* odom)
 {
     int i;
     int rank;
-#ifdef ENABLE_NCZARR_SLAB
-    if(odom->useslabs) {
-        rank = odom->pseudorank;
-        if(rank == 0) {
-	    /* fake !more by incrementing the index[0] */
-	    odom->index[0] = odom->stop[0];
-	    return;
-	}
-    } else
-#endif
-        rank = odom->rank;
+    rank = odom->rank;
     for(i=rank-1;i>=0;i--) {
 	odom->index[i] += odom->stride[i];
         if(odom->index[i] < odom->stop[i]) break;
@@ -116,20 +98,13 @@ nczodom_offset(NCZOdometer* odom)
 {
     int i;
     size64_t offset;
-#ifdef ENABLE_NCZARR_SLAB
-    int rank = (odom->useslabs?odom->pseudorank:odom->rank);
-#else
-    int rank = odom->rank
-#endif
+    int rank = odom->rank;
 
     offset = 0;
     for(i=0;i<rank;i++) {
         offset *= odom->max[i];
         offset += odom->index[i];
     } 
-#ifdef ENABLE_NCZARR_SLAB
-    if(odom->useslabs) offset *= odom->slabprod;
-#endif
     return offset;
 }
 
@@ -155,6 +130,26 @@ done:
 nomem:
     stat = NC_ENOMEM;
     goto done;
+}
+
+size64_t
+nczodom_avail(NCZOdometer* odom)
+{
+    size64_t avail;
+    /* The best we can do is compute the count for the rightmost index */
+    if(odom->stride[odom->rank-1] == 1)
+        avail = (odom->stop[odom->rank-1]  - odom->start[odom->rank-1]);
+    else
+        avail = 1;
+    return avail;
+}
+
+void
+nczodom_incr(NCZOdometer* odom, size64_t count)
+{
+    for(;count > 0;count--) {
+	nczodom_next(odom); //temporary
+    }
 }
 
 #ifdef ENABLE_NCZARR_SLAB

@@ -213,14 +213,27 @@ nczprint_projectionx(NCZProjection proj, int raw)
     ncbytescat(buf,",chunkslice=");
     result = nczprint_slicex(proj.chunkslice,raw);
     ncbytescat(buf,result);
-    nullfree(result);
     ncbytescat(buf,",memslice=");
     result = nczprint_slicex(proj.memslice,raw);
     ncbytescat(buf,result);
-    nullfree(result);
     result = ncbytesextract(buf);
     ncbytesfree(buf);
     return capture(result);
+}
+
+char*
+nczprint_allsliceprojections(int r, NCZSliceProjections* slp)
+{
+    int i;
+    char* s;    
+    NCbytes* buf = ncbytesnew();
+    for(i=0;i<r;i++) {
+	s = nczprint_sliceprojections(slp[i]);
+	ncbytescat(buf,s);
+    } 	
+    s = ncbytesextract(buf);
+    ncbytesfree(buf);
+    return capture(s);
 }
 
 char*
@@ -234,12 +247,12 @@ nczprint_sliceprojectionsx(NCZSliceProjections slp, int raw)
 {
     char* result = NULL;
     NCbytes* buf = ncbytesnew();
-    char digits[64];
+    char tmp[4096];
     int i;
 
-    ncbytescat(buf,"SliceProjection{r=");
-    snprintf(digits,sizeof(digits),"%lu",(unsigned long)slp.r);
-    ncbytescat(buf,digits);
+    snprintf(tmp,sizeof(tmp),"SliceProjection{r=%d range=%s count=%ld",
+    		slp.r,nczprint_chunkrange(slp.range),(long)slp.count);
+    ncbytescat(buf,tmp);
     ncbytescat(buf,",projections=[\n");
     for(i=0;i<slp.count;i++) {
 	NCZProjection* p = (NCZProjection*)&slp.projections[i];
