@@ -2,6 +2,10 @@
    See the COPYRIGHT file for more information. */
 
 #include "config.h"
+#include <stdlib.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 #include "ncrc.h"
 #include "ocinternal.h"
 #include "ocdebug.h"
@@ -10,26 +14,16 @@
 #define OC_MAX_REDIRECTS 20L
 
 /* Mnemonic */
-#define OPTARG void*
+#define OPTARG uintptr_t
 
 /* Define some .rc file entries of interest*/
 #define NETRCFILETAG "HTTP.NETRC"
-
-/* Check return value */
-#define CHECK(state,flag,value) {if(check(state,flag,(void*)value) != OC_NOERR) {goto done;}}
-
-static OCerror
-check(OCstate* state, int flag, void* value)
-{
-    OCerror stat = ocset_curlopt(state,flag,value);
-    return stat;
-}
 
 /*
 Set a specific curl flag; primary wrapper for curl_easy_setopt
 */
 OCerror
-ocset_curlopt(OCstate* state, int flag, void* value)
+ocset_curlopt(OCstate* state, int flag, uintptr_t value)
 {
     OCerror stat = OC_NOERR;
     CURLcode cstat = CURLE_OK;
@@ -38,6 +32,9 @@ ocset_curlopt(OCstate* state, int flag, void* value)
 	stat = OC_ECURL;
     return stat;
 }
+
+/* Check return value */
+#define CHECK(state,flag,value) {if(ocset_curlopt(state,flag,(uintptr_t)value) != OC_NOERR) {goto done;}}
 
 /*
 Update a specific flag from state

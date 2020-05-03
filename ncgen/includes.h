@@ -46,6 +46,7 @@
 #include "netcdf_aux.h"
 #include "data.h"
 #include "ncgen.h"
+#include "generate.h"
 #include "genlib.h"
 #include "util.h"
 #include "debug.h"

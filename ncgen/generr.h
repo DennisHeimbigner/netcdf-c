@@ -25,7 +25,7 @@ extern void nprintf(char* buffer, size_t size, const char *fmt, ...);
 extern  void semerror(const int, const char *fmt, ...);
 extern  void semwarn(const int, const char *fmt, ...);
 
-#define CHECKERR(stat) check_err((stat),__LINE__,__FILE__)
-#define CHECKERR2(stat,cdl) check_err2((stat),(cdl),__LINE__,__FILE__)
+#define CHECK_ERR(x) check_err((x),__LINE__,__FILE__,__func__)
+#define CHECK_ERR2(x,cl) check_err2((x),(cl),__LINE__,__FILE__,__func__)
 
 #endif /*GENERR_H*/
