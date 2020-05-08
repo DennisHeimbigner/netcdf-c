@@ -11,7 +11,6 @@ UNK=1
 NGC=1
 MISC=1
 MULTI=1
-ORDER=1
 
 # Load the findplugins function
 . ${builddir}/findplugin.sh
@@ -219,13 +218,6 @@ diff -b -w ${srcdir}/ref_nccopyF.cdl ./ncgenFs.cdl
 echo "*** Pass: multiple filters"
 fi
 
-if test "x$MULTI" = x1 ; then
-echo "*** Testing multiple filter order of invocation"
-rm -f filterorder.txt
-${execdir}/test_filter_order >filterorder.txt
-diff -b -w ${srcdir}/ref_filter_order.txt filterorder.txt
-fi
-
 echo "*** Pass: all selected tests passed"
 
 #cleanup
@@ -240,7 +232,6 @@ rm -f bzip2.nc bzip2.dump tst_filter.txt bzip2x.dump
 rm -f test_bzip2.c
 rm -f multifilter.nc multi.cdl smulti.cdl
 rm -f nccopyF.nc nccopyF.cdl ncgenF.nc ncgenF.cdl
-rm -f filterorder.txt
 rm -f ncgenFs.cdl  nccopyFs.cdl
 exit 0
 

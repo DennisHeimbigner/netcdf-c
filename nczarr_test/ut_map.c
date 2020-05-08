@@ -79,7 +79,7 @@ simplecreate(void)
 
     if((stat=nczm_suffix(NULL,NCZMETAROOT,&path)))
 	goto done;
-    if((stat = nczmap_def(map, path, NCZ_ISMETA)))
+    if((stat = nczmap_define(map, path, NCZ_ISMETA)))
 	goto done;
 
     /* Do not delete so we can look at it with ncdump */
@@ -118,13 +118,13 @@ writemeta(void)
 
     if((stat=nczm_suffix(NULL,NCZMETAROOT,&path)))
 	goto done;
-    if((stat = nczmap_def(map, path, NCZ_ISMETA)))
+    if((stat = nczmap_define(map, path, NCZ_ISMETA)))
 	goto done;
     free(path); path = NULL;
 
     if((stat=nczm_suffix(NULL,META1,&path)))
 	goto done;
-    if((stat = nczmap_def(map, path, NCZ_ISMETA)))
+    if((stat = nczmap_define(map, path, NCZ_ISMETA)))
 	goto done;
     free(path); path = NULL;
     
@@ -151,7 +151,7 @@ writemeta2(void)
 
     if((stat=nczm_suffix(NULL,META2,&path)))
 	goto done;
-    if((stat = nczmap_def(map,path,NCZ_ISMETA)))
+    if((stat = nczmap_define(map,path,NCZ_ISMETA)))
 	goto done;
 
     if((stat = nczmap_writemeta(map, META2, strlen(metadata2), metadata2)))
@@ -226,7 +226,7 @@ writedata(void)
     if((stat=nczm_suffix(NULL,DATA1,&path)))
 	goto done;
 
-    if((stat = nczmap_def(map,path,totallen)))
+    if((stat = nczmap_define(map,path,totallen)))
 	goto done;
 
     /* Write in 3 slices */

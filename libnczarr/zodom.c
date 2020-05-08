@@ -152,32 +152,3 @@ nczodom_incr(NCZOdometer* odom, size64_t count)
     }
 }
 
-#ifdef ENABLE_NCZARR_SLAB
-void
-nczodom_slabify(NCZOdometer* odom)
-{
-    int i;
-    size64_t product;
-    if(getenv("NETCDF_NOSLABIFY") != NULL) return;
-    /* Walk right to left thru the leftmost point P where:
-       1. stride[P..rank-1] == 1
-       2. start[P..rank-1] == 0
-       3. stop[P..rank-1] == max
-    */
-    for(i=odom->rank-1;i>=0;i--) {
-	if(odom->stride[i] != 1
-	   || odom->start[i] != 0
-	   || odom->stop[i] != odom->max[i])
-	   break;
-    }
-    /* Record the point P as pseudorank */
-    odom->pseudorank = (i + 1); /* 0=>all, rank=>none */
-    /* Compute the crossproduct of max[P..rank-1] */
-    product = 1;
-    for(i=odom->rank-1;i>=odom->pseudorank;i--) {
-        product *= odom->max[i];
-    }
-    odom->slabprod = product;
-    odom->useslabs = 1;
-}
-#endif

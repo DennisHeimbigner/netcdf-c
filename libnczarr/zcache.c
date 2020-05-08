@@ -13,7 +13,7 @@
 #include "zincludes.h"
 #include "zcache.h"
 
-#undef FLUSH
+#define FLUSH
 
 /* Forward */
 static int get_chunk(NCZChunkCache* cache, const char* key, NCZCacheEntry* entry);
@@ -159,6 +159,9 @@ NCZ_write_cache_chunk(NCZChunkCache* cache, const size64_t* indices, const void*
     }
     /* Mark entry as modified */
     entry->modified = 1;    
+#ifdef FLUSH
+    if((stat=put_chunk(cache,key,entry))) goto done;
+#endif
 
 done:
     nullfree(key);
@@ -197,6 +200,7 @@ done:
     return THROW(stat);
 }
 
+#if 0
 int
 NCZ_chunk_cache_modified(NCZChunkCache* cache, const size64_t* indices)
 {
@@ -211,17 +215,13 @@ NCZ_chunk_cache_modified(NCZChunkCache* cache, const size64_t* indices)
     /* See if already in cache */
     if(NC_hashmapget(cache->entries, key, strlen(key), (uintptr_t*)entry)) { /* found */
 	entry->modified = 1;
-#ifdef FLUSH
-	if((stat=ncz_flush_chunk_cache(cache)))
-	    goto done;
-	entry->modified = 0;
-#endif	
     }
 
 done:
     nullfree(key);
     return THROW(stat);
 }
+#endif
 
 /**************************************************/
 /*

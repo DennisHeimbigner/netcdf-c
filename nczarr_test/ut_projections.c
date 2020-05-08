@@ -34,7 +34,6 @@ main(int argc, char** argv)
     var = nclistget(options.vardefs,0);
 
     printf("Slices: %s\n",nczprint_slicesx(var->rank,options.slices,1));
-    nullfree(tmp);
 
     /* Compute chunk ranges */
     if((stat = NCZ_compute_chunk_ranges(var->rank,options.slices,var->chunksizes,ncrv)))
@@ -52,7 +51,6 @@ main(int argc, char** argv)
     for(r=0;r<var->rank;r++) {
 	NCZSliceProjections* slp = &slpv[r];
         if(r != slp->r) usage(NC_EINTERNAL);
-	sr = nczprint_chunkrange(slp->range);
         printf("[r=%d] %s %s\n",r,nczprint_chunkrange(slp->range),nczprint_slice(options.slices[r]));
         for(i=0;i<slp->count;i++) {
             NCZProjection* proj = &slp->projections[i];
@@ -95,6 +93,7 @@ main(int argc, char** argv)
 
 done:
     fflush(stdout);
+    nczprint_reclaim();
     if(stat) usage(stat);
     return  0;
 }

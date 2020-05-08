@@ -538,3 +538,139 @@ generate_primdata(Symbol* basetype, NCConstant* prim, Bytebuffer* codebuf,
     target = NULL;
     return;
 }
+
+/* Avoid long argument lists */
+struct Args {
+    Symbol* vsym;
+    Dimset* dimset;
+    int typecode;
+    int storage;
+    int rank;
+    Generator* generator;
+    Writer writer;
+    Bytebuffer* code;
+    Datalist* filler;
+    size_t dimsizes[NC_MAX_VAR_DIMS];
+    size_t chunksizes[NC_MAX_VAR_DIMS];
+};
+
+static void
+generate_arrayR(struct Args* args, int dimindex, size_t* index, Datalist* data)
+{
+    size_t counter,stop;
+    size_t count[NC_MAX_VAR_DIMS];
+    Datalist* actual;
+    Symbol* dim = args->dimset->dimsyms[dimindex];
+
+    stop = args->dimsizes[dimindex];
+
+    /* Four cases: (dimindex==rank-1|dimindex<rank-1) X (unlimited|!unlimited) */
+    if(dimindex == (args->rank - 1)) {/* base case */
+	int uid;
+	if(dimindex > 0 && dim->dim.isunlimited) {
+	    /* Get the unlimited list */
+	    NCConstant* con = datalistith(data,0);
+	    actual = compoundfor(con);    
+	} else
+	    actual = data;
+        /* For last index, dump all of its elements */
+        args->generator->listbegin(args->generator,args->vsym,NULL,LISTDATA,datalistlen(actual),args->code,&uid);
+        for(counter=0;counter<stop;counter++) {
+            NCConstant* con = datalistith(actual,counter);
+            generate_basetype(args->vsym->typ.basetype,con,args->code,args->filler,args->generator);
+            args->generator->list(args->generator,args->vsym,NULL,LISTDATA,uid,counter,args->code);
+        }
+        args->generator->listend(args->generator,args->vsym,NULL,LISTDATA,uid,counter,args->code);
+        memcpy(count,onesvector,sizeof(size_t)*dimindex);
+        count[dimindex] = stop;
+        args->writer(args->generator,args->vsym,args->code,args->rank,index,count);
+        bbClear(args->code);
+    } else {    
+        actual = data;
+        /* Iterate over this dimension */
+        for(counter = 0;counter < stop; counter++) {
+            Datalist* subdata = NULL;
+            NCConstant* con = datalistith(actual,counter);
+	    if(con == NULL)
+		subdata = filldatalist;
+	    else {
+	        ASSERT(islistconst(con));
+	        if(islistconst(con)) subdata = compoundfor(con);
+	    }
+            index[dimindex] = counter;
+            generate_arrayR(args,dimindex+1,index,subdata); /* recurse */
+        }
+    }
+}
+
+static void
+generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* generator, Writer writer)
+{
+    int i;
+    size_t index[NC_MAX_VAR_DIMS];
+    struct Args args;
+    size_t totalsize;
+    int nunlimited = 0;
+
+    assert(vsym->typ.dimset.ndims > 0);
+
+    args.vsym = vsym;
+    args.dimset = &vsym->typ.dimset;
+    args.generator = generator;
+    args.writer = writer;
+    args.filler = filler;
+    args.code = code;
+    args.rank = args.dimset->ndims;
+    args.storage = vsym->var.special._Storage;
+    args.typecode = vsym->typ.basetype->typ.typecode;
+
+    assert(args.rank > 0);
+    
+    totalsize = 1; /* total # elements in the array */
+    for(i=0;i<args.rank;i++) {
+        args.dimsizes[i] = args.dimset->dimsyms[i]->dim.declsize;
+	totalsize *= args.dimsizes[i];
+    }
+    nunlimited = countunlimited(args.dimset);
+
+    if(vsym->var.special._Storage == NC_CHUNKED)
+        memcpy(args.chunksizes,vsym->var.special._ChunkSizes,sizeof(size_t)*args.rank);
+
+    memset(index,0,sizeof(index));
+
+    /* Special case for NC_CHAR */
+    if(args.typecode == NC_CHAR) {
+        size_t start[NC_MAX_VAR_DIMS];
+        size_t count[NC_MAX_VAR_DIMS];
+        Bytebuffer* charbuf = bbNew();
+        gen_chararray(args.dimset,0,args.vsym->data,charbuf,args.filler);
+        args.generator->charconstant(args.generator,args.vsym,args.code,charbuf);
+        memset(start,0,sizeof(size_t)*args.rank);
+        memcpy(count,args.dimsizes,sizeof(size_t)*args.rank);
+        args.writer(args.generator,args.vsym,args.code,args.rank,start,count);
+        bbFree(charbuf);
+        bbClear(args.code);
+	return;
+    }
+
+    /* If the total no. of elements is less than some max and no unlimited,
+       then generate a single vara that covers the whole array */
+    if(totalsize <= wholevarsize && nunlimited == 0) {
+	Symbol* basetype = args.vsym->typ.basetype;
+	size_t counter;
+	int uid;	
+	Datalist* flat = flatten(vsym->data,args.rank);
+        args.generator->listbegin(args.generator,basetype,NULL,LISTDATA,totalsize,args.code,&uid);
+        for(counter=0;counter<totalsize;counter++) {
+            NCConstant* con = datalistith(flat,counter);
+	    if(con == NULL)
+	        con = &fillconstant;
+            generate_basetype(basetype,con,args.code,args.filler,args.generator);
+            args.generator->list(args.generator,args.vsym,NULL,LISTDATA,uid,counter,args.code);
+        }
+        args.generator->listend(args.generator,args.vsym,NULL,LISTDATA,uid,counter,args.code);
+        args.writer(args.generator,args.vsym,args.code,args.rank,zerosvector,args.dimsizes);
+	freedatalist(flat);
+    } else
+        generate_arrayR(&args, 0, index, vsym->data);    
+}

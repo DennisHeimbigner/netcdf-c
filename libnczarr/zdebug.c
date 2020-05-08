@@ -38,7 +38,7 @@ struct ZUTEST zutest;
 /* Data Structure printers */
 
 static NClist* reclaim = NULL;
-static const int maxreclaim = 8;
+static const int maxreclaim = 16;
 
 static char*
 capture(char* s)
@@ -119,7 +119,6 @@ nczprint_slicesx(int rank, NCZSlice* slices, int raw)
             ncbytescat(buf,"[");
 	ssl = nczprint_slicex(slices[i],raw);
 	ncbytescat(buf,ssl);
-	nullfree(ssl); ssl = NULL;
 	if(!raw)
 	    ncbytescat(buf,"]");
     }
@@ -164,16 +163,6 @@ nczprint_odom(NCZOdometer* odom)
     snprintf(value,sizeof(value),"%llu",nczodom_offset(odom));
     ncbytescat(buf,value);
     
-#ifdef ENABLE_NCZARR_SLAB
-    if(odom->useslabs) {
-        ncbytescat(buf," pseudorank=");
-        snprintf(value,sizeof(value),"%d",odom->pseudorank);
-        ncbytescat(buf,value);
-        ncbytescat(buf," slabprod=");
-        snprintf(value,sizeof(value),"%llu",odom->slabprod);
-        ncbytescat(buf,value);
-    }
-#endif
     ncbytescat(buf,"}");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
@@ -263,7 +252,7 @@ nczprint_sliceprojectionsx(NCZSliceProjections slp, int raw)
     }
     result = NULL;
     ncbytescat(buf,"]");
-    ncbytescat(buf,"}");
+    ncbytescat(buf,"}\n");
     result = ncbytesextract(buf);
     ncbytesfree(buf);
     return capture(result);

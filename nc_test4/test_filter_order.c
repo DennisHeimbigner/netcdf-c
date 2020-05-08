@@ -21,7 +21,13 @@
 
 #undef DEBUG
 
-#define FILTER_ID 32768
+#ifdef ENABLE_CLIENT_FILTERS
+#define FILTERID0 32768
+#define FILTERID1 32769
+#else
+#define FILTERID0 32768
+#define FILTERID1 307
+#endif
 
 #define MAXERRS 8
 
@@ -56,10 +62,13 @@ static size_t nparams = 0;
 static unsigned int params[MAXPARAMS];
 static unsigned int baseline[2][NPARAMS] = {{0},{1}};
 
-static struct Base {
+struct Base {
     unsigned int id;
     H5Z_class2_t* info;
-} baseinfo;
+};
+#ifdef ENABLE_CLIENT_FILTERS
+static struct Base baseinfo;
+#endif
 
 static const H5Z_class2_t H5Z_REG[2];
 
@@ -72,7 +81,7 @@ static int odom_more(void);
 static int odom_next(void);
 static int odom_offset(void);
 static float expectedvalue(void);
-static void verifyparams(int);
+static void verifyparams(int,int);
 
 #define ERRR do { \
 fflush(stdout); /* Make sure our stdout is synced with stderr. */ \
@@ -138,6 +147,7 @@ create(void)
     return NC_NOERR;
 }
 
+#ifdef ENABLE_CLIENT_FILTERS
 static int
 verifyfilterinfo(struct Base* info, struct Base* base)
 {
@@ -168,22 +178,29 @@ verifyfilterinfo(struct Base* info, struct Base* base)
 #endif
     return stat;
 }
+#endif
 
 static void
 registerfilters(void)
 {
+#ifdef ENABLE_CLIENT_FILTERS
+    int stat = NC_NOERR;
     struct Base inqinfo;
 
     /* Register filter 0 */
     baseinfo.id = FILTER_ID;
     baseinfo.info = (H5Z_class2_t*)&H5Z_REG[0];
-    CHECK(nc_filter_client_register(baseinfo.id,baseinfo.info));
+    stat = nc_filter_client_register(baseinfo.id,baseinfo.info);
+    if(stat == NC_ENOTBUILT) {
+        fprintf(stderr,"filter registration not implemented: filter_test1 not executed\n");
+	exit(0);
+    }
     /* Verify by inquiry */
     memset(&inqinfo,0,sizeof(struct Base));
     inqinfo.id = FILTER_ID;
     if((inqinfo.info = (H5Z_class2_t*)calloc(1,sizeof(H5Z_class2_t))) == NULL)
         CHECK(NC_ENOMEM);
-    CHECK((nc_filter_client_inq(inqinfo.id,(void*)inqinfo.info)));
+    CHECK(nc_filter_client_inq(inqinfo.id,(void*)inqinfo.info));
     CHECK((verifyfilterinfo(&inqinfo,&baseinfo)));
     nullfree(inqinfo.info);
 
@@ -199,21 +216,22 @@ registerfilters(void)
     CHECK((nc_filter_client_inq(inqinfo.id,(void*)inqinfo.info)));
     CHECK((verifyfilterinfo(&inqinfo,&baseinfo)));
     nullfree(inqinfo.info);
+#endif
 }
 
 static void
-setvarfilter(int index)
+setvarfilter(int index, int id)
 {
     /* NOOP the params */
-    CHECK(nc_def_var_filter(ncid,varid,FILTER_ID+index,NPARAMS,baseline[index]));
-    verifyparams(index);
+    CHECK(nc_def_var_filter(ncid,varid,id,NPARAMS,baseline[index]));
+    verifyparams(index,id);
 }
 
 static void
-verifyparams(int index)
+verifyparams(int index, int id)
 {
     int i;
-    CHECK(nc_inq_var_filter_info(ncid,varid,FILTER_ID+index,&nparams,params));
+    CHECK(nc_inq_var_filter_info(ncid,varid,id,&nparams,params));
     if(nparams != NPARAMS) REPORT("nparams mismatch");
     for(i=0;i<nparams;i++) {
         if(params[i] != baseline[index][i])
@@ -359,10 +377,10 @@ filter_test1(void)
     create();
     setchunking();
     printf("set var filter 0\n");
-    setvarfilter(0);
+    setvarfilter(0,FILTERID0);
     showparameters();
     printf("set var filter 1\n");
-    setvarfilter(1);
+    setvarfilter(1,FILTERID1);
     showparameters();
     CHECK(nc_enddef(ncid));
 
@@ -481,8 +499,10 @@ main(int argc, char **argv)
 /**************************************************/
 /* In-line filter code */
 
-#define H5Z_FILTER_REG0 FILTER_ID
-#define H5Z_FILTER_REG1 (FILTER_ID+1)
+#ifdef ENABLE_CLIENT_FILTERS
+
+#define H5Z_FILTER_REG0 FILTERID0
+#define H5Z_FILTER_REG1 (FILTERID1)
 
 #ifndef DLL_EXPORT
 #define DLL_EXPORT
@@ -607,3 +627,4 @@ static const H5Z_class2_t H5Z_REG[2] = {
     (H5Z_func_t)H5Z_filter_reg,     /* The actual filter function   */
 }
 };
+#endif

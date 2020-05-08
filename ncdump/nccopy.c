@@ -65,20 +65,20 @@ typedef struct VarID {
 #define MAX_FILTER_SPECS 64
 #define MAX_FILTER_PARAMS 256
 
-struct FilterSpec {
+struct FilterOption {
     char* fqn; /* Of variable */
     int nofilter; /* 1=> do not apply any filters to this variable */
-    NC_Filterspec* pfs;
+    NC_Filterspec pfs;
 };
 
-static List* filterspecs = NULL;
+static List* filteroptions = NULL;
 static int suppressfilters = 0; /* 1 => do not apply any output filters unless specified */
 
 extern int nc__testurl(const char*,char**);
 
 /* Forward declaration, because copy_type, copy_vlen_type call each other */
 static int copy_type(int igrp, nc_type typeid, int ogrp);
-static void freespeclist(List* specs);
+static void freefilteroptlist(List* specs);
 static void freefilterlist(size_t nfilters, NC_Filterspec** filters);
 
 #endif
@@ -331,37 +331,36 @@ parsefilterspec(const char* optarg0, List* speclist)
     for(i=0;i<listlength(vlist);i++) {
 	int k;
 	size_t vlen;
-        struct FilterSpec* spec = NULL;
+        struct FilterOption* filtopt = NULL;
 	const char* var = listget(vlist,i);
 	if(var == NULL || strlen(var) == 0) continue;
 	vlen = strlen(var);
 	for(k=0;k<nfilters;k++) {
 	    NC_Filterspec* nsf = filters[k];
-	    if((spec = calloc(1,sizeof(struct FilterSpec)))==NULL)
+	    if((filtopt = calloc(1,sizeof(struct FilterOption)))==NULL)
 	       {stat = NC_ENOMEM; goto done;}
-	    spec->fqn = malloc(vlen+1+1); /* make room for nul and possible prefix '/' */
-	    if(spec->fqn == NULL) {stat = NC_ENOMEM; goto done;}
-            spec->fqn[0] = '\0'; /* for strlcat */
-	    if(strcmp(var,"*") != 0 && var[0] != '/') strlcat(spec->fqn,"/",vlen+2);
-	    strlcat(spec->fqn,var,vlen+2);
+	    filtopt->fqn = malloc(vlen+1+1); /* make room for nul and possible prefix '/' */
+	    if(filtopt->fqn == NULL) {stat = NC_ENOMEM; goto done;}
+            filtopt->fqn[0] = '\0'; /* for strlcat */
+	    if(strcmp(var,"*") != 0 && var[0] != '/') strlcat(filtopt->fqn,"/",vlen+2);
+	    strlcat(filtopt->fqn,var,vlen+2);
    	    if(isnone)
-	        spec->nofilter = 1;
+	        filtopt->nofilter = 1;
 	    else {
- 	        spec->pfs = calloc(1,sizeof(NC_Filterspec));
- 	        *spec->pfs = *nsf;
-		spec->pfs->filterid = strdup(spec->pfs->filterid);
+ 	        filtopt->pfs = *nsf;
+		filtopt->pfs.filterid = strdup(filtopt->pfs.filterid);
 		if(nsf->nparams != 0) {
 		    int f;
 	            /* Duplicate the params */
-	            spec->pfs->params = calloc(spec->pfs->nparams,sizeof(char*));
-	            if(spec->pfs->params == NULL) {stat = NC_ENOMEM; goto done;}
-		    for(f=0;f<spec->pfs->nparams;f++) 
-	                spec->pfs->params[i] = strdup(nsf->params[i]);
+	            filtopt->pfs.params = calloc(filtopt->pfs.nparams,sizeof(char*));
+	            if(filtopt->pfs.params == NULL) {stat = NC_ENOMEM; goto done;}
+		    for(f=0;f<filtopt->pfs.nparams;f++) 
+	                filtopt->pfs.params[f] = strdup(nsf->params[f]);
 		} else
-		    spec->pfs->params = NULL;
+		    filtopt->pfs.params = NULL;
 	    }
-  	    listpush(speclist,spec);
-	    spec = NULL;
+  	    listpush(filteroptions,filtopt);
+	    filtopt = NULL;
 	}
     }
     
@@ -375,32 +374,32 @@ extern void nczprint_reclaim(void);
 }
 
 static int
-hasfilterspecforvar(const char* ofqn)
+hasfilteroptforvar(const char* ofqn)
 {
   int i;	 
-  /* See which output filter specs are defined for this output variable */
-  for(i=0;i<listlength(filterspecs);i++) {
-      struct FilterSpec* spec = listget(filterspecs,i);
-      if(strcmp(spec->fqn,"*")==0) return 1;
-      if(strcmp(spec->fqn,ofqn)==0) return 1;
+  /* See which output filter options are defined for this output variable */
+  for(i=0;i<listlength(filteroptions);i++) {
+      struct FilterOption* opt = listget(filteroptions,i);
+      if(strcmp(opt->fqn,"*")==0) return 1;
+      if(strcmp(opt->fqn,ofqn)==0) return 1;
   }
   return 0;
 }
 
 static List*
-filterspecsforvar(const char* ofqn)
+filteroptsforvar(const char* ofqn)
 {
   int i;	 
   List* list = listnew();
-  /* See which output filter specs are defined for this output variable */
-  for(i=0;i<listlength(filterspecs);i++) {
-      struct FilterSpec* spec = listget(filterspecs,i);
-      if(strcmp(spec->fqn,"*")==0) {
+  /* See which output filter options are defined for this output variable */
+  for(i=0;i<listlength(filteroptions);i++) {
+      struct FilterOption* opt = listget(filteroptions,i);
+      if(strcmp(opt->fqn,"*")==0) {
 	  /* Add to the list */
-	  listpush(list,spec);
-      } else if(strcmp(spec->fqn,ofqn)==0) {
+	  listpush(list,opt);
+      } else if(strcmp(opt->fqn,ofqn)==0) {
 	  /* Add to the list */
-	  listpush(list,spec);
+	  listpush(list,opt);
       }
   }
   return list;
@@ -773,8 +772,8 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
     List* ospecs = NULL;
     List* inspecs = NULL;
     List* actualspecs = NULL;
-    struct FilterSpec inspec;
-    struct FilterSpec* tmp = NULL;
+    struct FilterOption inspec;
+    struct FilterOption* tmp = NULL;
     char* ofqn = NULL;
     int inputdefined, outputdefined, unfiltered;
     int innc4 = (inkind == NC_FORMAT_NETCDF4 || inkind == NC_FORMAT_NETCDF4_CLASSIC);
@@ -796,7 +795,7 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
     /* Only bother to look if output is netcdf-4 variant */
     if(outnc4) {
       /* See if any output filter spec is defined for this output variable */
-      ospecs = filterspecsforvar(ofqn);
+      ospecs = filteroptsforvar(ofqn);
       if(listlength(ospecs) > 0)
           outputdefined = 1;
     }
@@ -814,17 +813,18 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
       if((stat = nc_inq_var_filterx_ids(vid.grpid,vid.varid,&nfilters,ids)))
 	goto done;
       memset(&inspec,0,sizeof(inspec));
+      
       for(k=0;k<nfilters;k++) {
-	  inspec.pfs->filterid = strdup(ids[k]);
-          stat=nc_inq_var_filterx_info(vid.grpid,vid.varid,inspec.pfs->filterid,&inspec.pfs->nparams,NULL);
+	  inspec.pfs.filterid = ids[k]; ids[k] = NULL;
+          stat=nc_inq_var_filterx_info(vid.grpid,vid.varid,inspec.pfs.filterid,&inspec.pfs.nparams,NULL);
           if(stat && stat != NC_ENOFILTER)
 	    goto done; /* true error */
-          if(inspec.pfs->nparams > 0) {
-	    inspec.pfs->params = (char**)calloc(sizeof(unsigned int),inspec.pfs->nparams);
-            if((stat=nc_inq_var_filterx_info(vid.grpid,vid.varid,inspec.pfs->filterid,NULL,inspec.pfs->params)))
+          if(inspec.pfs.nparams > 0) {
+	    inspec.pfs.params = (char**)calloc(sizeof(char*),inspec.pfs.nparams);
+            if((stat=nc_inq_var_filterx_info(vid.grpid,vid.varid,inspec.pfs.filterid,NULL,inspec.pfs.params)))
 	       goto done;
 	  }
-          tmp = malloc(sizeof(struct FilterSpec));
+          tmp = malloc(sizeof(struct FilterOption));
           *tmp = inspec;
           memset(&inspec,0,sizeof(inspec)); /*reset*/
           listpush(inspecs,tmp);
@@ -855,8 +855,8 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
 	int k;
         /* Walk the set of filters to apply to see if "none" was specified */
         for(k=0;k<listlength(ospecs);k++) {
-	    struct FilterSpec* sp = (struct FilterSpec*)listget(actualspecs,k);
-	    if(sp->nofilter) {unfiltered = 1; break;}
+	    struct FilterOption* opt = (struct FilterOption*)listget(actualspecs,k);
+	    if(opt->nofilter) {unfiltered = 1; break;}
         }
     } else if(suppressfilters && outputdefined) /* row 3 */
       actualspecs = ospecs;
@@ -866,8 +866,8 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
 	int k;
         /* Walk the set of filters to apply to see if "none" was specified */
         for(k=0;k<listlength(ospecs);k++) {
-	    struct FilterSpec* sp = (struct FilterSpec*)listget(ospecs,k);
-	    if(sp->nofilter) {unfiltered = 1; break;}
+	    struct FilterOption* opt = (struct FilterOption*)listget(ospecs,k);
+	    if(opt->nofilter) {unfiltered = 1; break;}
         }
 	if(!unfiltered) actualspecs = ospecs;
     } else if(!suppressfilters && !outputdefined && !inputdefined) /* row 7 */
@@ -880,18 +880,18 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
 	/* add all the actual filters */
 	int k;
 	for(k=0;k<listlength(actualspecs);k++) {
-	    struct FilterSpec* actual = (struct FilterSpec*)listget(actualspecs,k);
+	    struct FilterOption* actual = (struct FilterOption*)listget(actualspecs,k);
 	    if((stat=nc_def_var_filterx(ovid.grpid,ovid.varid,
-				   actual->pfs->filterid,
-				   actual->pfs->nparams,
-				   (const char**)actual->pfs->params)))
+				   actual->pfs.filterid,
+				   actual->pfs.nparams,
+				   (const char**)actual->pfs.params)))
 	        goto done;
 	}
     }
 done:
     /* Cleanup */
     if(ofqn != NULL) free(ofqn);
-    freespeclist(inspecs); inspecs = NULL;
+    freefilteroptlist(inspecs); inspecs = NULL;
     listfree(ospecs); ospecs = NULL; /* Contents are also in filterspecs */
     /* Note we do not clean actualspec because it is a copy of in|out spec */
     return stat;
@@ -957,7 +957,7 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
     ovid.grpid = ogrp;
     ovid.varid = o_varid;
     if((stat=computeFQN(ovid,&ofqn))) goto done;
-    if(option_deflate_level >= 0 || hasfilterspecforvar(ofqn))
+    if(option_deflate_level >= 0 || hasfilteroptforvar(ofqn))
 	ocontig = NC_CHUNKED;
 
     /* See about dim-specific chunking; does not override -c spec*/
@@ -2341,9 +2341,9 @@ main(int argc, char**argv)
 	       || strcasecmp(optarg,"*,none")==0) {
 		suppressfilters = 1;
 	    } else {
-		if(filterspecs == NULL)
-		    filterspecs = listnew();
-		NC_CHECK(parsefilterspec(optarg,filterspecs));
+		if(filteroptions == NULL)
+		    filteroptions = listnew();
+		NC_CHECK(parsefilterspec(optarg,filteroptions));
 		/* Force output to be netcdf-4 */
 		option_kind = NC_FORMAT_NETCDF4;
 	    }
@@ -2406,8 +2406,8 @@ main(int argc, char**argv)
 
 #ifdef USE_NETCDF4
     /* Clean up */
-    freespeclist(filterspecs);
-    filterspecs = NULL;
+    freefilteroptlist(filteroptions);
+    filteroptions = NULL;
 #endif /*USE_NETCDF4*/
 
     exit(exitcode);
@@ -2415,14 +2415,14 @@ main(int argc, char**argv)
 
 #ifdef USE_NETCDF4
 static void
-freespeclist(List* specs)
+freefilteroptlist(List* specs)
 {
     int i;
     for(i=0;i<listlength(specs);i++) {
-        struct FilterSpec* spec = (struct FilterSpec*)listget(specs,i);
+        struct FilterOption* spec = (struct FilterOption*)listget(specs,i);
         if(spec->fqn) free(spec->fqn);
-	nullfree(spec->pfs->filterid);
-        NC_filterx_freestringvec(spec->pfs->nparams,spec->pfs->params);
+        nullfree(spec->pfs.filterid);
+        NC_filterx_freestringvec(spec->pfs.nparams,spec->pfs.params);
         free(spec);
     }
     listfree(specs);
@@ -2432,8 +2432,11 @@ static void
 freefilterlist(size_t nfilters, NC_Filterspec** filters)
 {
     int i;
-    for(i=0;i<nfilters;i++)
-        ncaux_filterspec_free(filters[i]);
+    if(filters != NULL) {
+        for(i=0;i<nfilters;i++)
+            ncaux_filterspec_free(filters[i]);
+        nullfree(filters);
+    }
 }
 
 #endif

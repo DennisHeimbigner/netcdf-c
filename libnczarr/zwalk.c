@@ -4,8 +4,6 @@
  *********************************************************************/
 #include "zincludes.h"
 
-#undef ENABLE_NCZARR_SLAB
-
 static int initialized = 0;
 
 /* Forward */
@@ -13,7 +11,7 @@ static int NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* 
 static int rangecount(NCZChunkRange range);
 static int readfromcache(void* source, size64_t* chunkindices, void** chunkdata);
 static int NCZ_fillchunk(void* chunkdata, struct Common* common);
-static int readn(NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, unsigned char* slpptr0, unsigned char* memptr0);    
+static int transfern(NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, unsigned char* slpptr0, unsigned char* memptr0);    
 const char*
 astype(int typesize, void* ptr)
 {
@@ -135,7 +133,9 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
     if((stat = NCZ_projectslices(common->dimlens, common->chunklens, slices,
 		  common, &chunkodom)))
 	goto done;
+#if 0
 fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,common->allprojections)); fflush(stderr);
+#endif
 
     /* iterate over the odometer: all combination of chunk
        indices in the projections */
@@ -170,10 +170,6 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 
 	slpodom = nczodom_fromslices(common->rank,slpslices);
 	memodom = nczodom_fromslices(common->rank,memslices);
-#ifdef ENABLE_NCZARR_SLAB
-	nczodom_slabify(slpodom);
-	nczodom_slabify(memodom);
-#endif
         /* Read from cache */
         switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
         case NC_EACCESS: break; /* cache created the chunk */
@@ -244,7 +240,7 @@ fflush(stderr);
 	    if(zutest.tests & UTEST_WALK)
 		zutest.print(UTEST_WALK, common, chunkodom, slpodom, memodom);
 #endif
-	    if((stat = readn(slpodom,memodom,common,memptr0,slpptr0))) goto done;
+	    if((stat = transfern(slpodom,memodom,common,slpptr0,memptr0))) goto done;
             nczodom_next(memodom);
         } else break; /* slpodom exhausted */
         nczodom_next(slpodom);
@@ -254,51 +250,17 @@ done:
 }
 
 static int
-readn(NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, unsigned char* slpptr0, unsigned char* memptr0)
+transfern(NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, unsigned char* slpptr0, unsigned char* memptr0)
 {
     int stat = NC_NOERR;
-#ifdef ENABLE_NCZARR_SLAB
-    size64_t avail, pos;
-    size64_t slpprod = slpodom->slabprod;
-    size64_t memprod = memodom->slabprod;
-    unsigned char* memptr = NULL;
-    unsigned char* slpptr = NULL;
-#endif
-
-#ifdef ENABLE_NCZARR_SLAB 
-    if(slpodom->useslabs) {
-        avail = slpprod;
-        pos = 0;        
-        memptr = memptr0;
-        slpptr = slpptr0;
-        for(;avail > 0;) {
-            if(avail < memprod) memprod = avail;
-            if(common->reading) {
-                memcpy(memptr,slpptr,common->typesize*memprod);
-                if(common->swap)
-                    NCZ_swapatomicdata(common->typesize*memprod,memptr,common->typesize);
-            } else { /* writing */
-                memcpy(slpptr,memptr,common->typesize*memprod);
-                if(common->swap)
-                    NCZ_swapatomicdata(common->typesize*memprod,slpptr,common->typesize);
-            }
-            pos += memprod;
-            avail -= memprod;
-            memptr += common->typesize*memprod;
-            slpptr += common->typesize*memprod;
-        }
-    } else /* !useslabs*/
-#endif
-    {
-        if(common->reading) {
-            memcpy(memptr0,slpptr0,common->typesize);
-            if(common->swap)
-                NCZ_swapatomicdata(common->typesize,memptr0,common->typesize);
-        } else { /*writing*/
-            memcpy(slpptr0,memptr0,common->typesize);
-            if(common->swap)
-                NCZ_swapatomicdata(common->typesize,slpptr0,common->typesize);
-        }
+    if(common->reading) {
+        memcpy(memptr0,slpptr0,common->typesize);
+        if(common->swap)
+            NCZ_swapatomicdata(common->typesize,memptr0,common->typesize);
+    } else { /*writing*/
+        memcpy(slpptr0,memptr0,common->typesize);
+        if(common->swap)
+            NCZ_swapatomicdata(common->typesize,slpptr0,common->typesize);
     }
     return THROW(stat);
 }
