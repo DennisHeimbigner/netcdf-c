@@ -471,7 +471,7 @@ generate_array(Symbol* vsym, Bytebuffer* code, Datalist* filler, Generator* gene
 
     /* If the total no. of elements is less than some max and no unlimited,
        then generate a single vara that covers the whole array */
-    if(totalsize < wholevarsize && nunlimited == 0) {
+    if(totalsize <= wholevarsize && nunlimited == 0) {
 	Symbol* basetype = args.vsym->typ.basetype;
 	size_t counter;
 	int uid;	

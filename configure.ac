@@ -1457,6 +1457,23 @@ if test "x$enable_shared" = xno ; then
 AC_MSG_WARN([Shared libraries are disabled => --disable-filter-testing])
 enable_filter_testing=no
 fi
+AM_CONDITIONAL(ENABLE_CLIENT_FILTERS, [test x$enable_client_filters = xyes])
+
+if test "x$enable_netcdf_4" = xno ; then
+AC_MSG_WARN([netCDF-4 disabled => --disable-filter-testing && --disable-client-filters])
+enable_filter_testing=no
+enable_client_filters=no
+fi
+
+if test "x$enable_hdf5" = xno ; then
+AC_MSG_WARN([HDF5 disabled => --disable-filter-testing])
+enable_filter_testing=no
+fi
+
+if test "x$enable_shared" = xno ; then
+AC_MSG_WARN([Shared libraries are disabled => --disable-filter-testing])
+enable_filter_testing=no
+fi
 AM_CONDITIONAL(ENABLE_FILTER_TESTING, [test x$enable_filter_testing = xyes])
 
 AC_SUBST(NC_LIBS,[$NC_LIBS])

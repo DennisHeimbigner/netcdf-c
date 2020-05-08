@@ -123,10 +123,10 @@ genc_netcdf(void)
 		    nparams = nfs->nparams;
 		    params = nfs->params;
 		    for(i=0;i<nparams;i++) {
-                        bbprintf(tmp,"%s%s",
+                        bbprintf(tmp,"%s%sU",
                             (i == 0?"":", "),params[i]);
 		    }
-                    bbprintf0(stmt,"static char** %s_%d_filterparams[%d] = {",
+                    bbprintf0(stmt,"static unsigned int %s_%d_filterparams[%d] = {",
                             cname(var),k,nparams);
                     codedump(stmt);
                     codedump(tmp);
@@ -522,7 +522,7 @@ genc_definespecialattributes(Symbol* vsym)
 	for(k=0;k<special->nfilters;k++) {
 	     NC_Filterspec* nfs = (NC_Filterspec*)special->_Filters[k];
 	     bbprintf0(stmt,
-	                "    stat = nc_def_var_filter(%s, %s, %s, %lu ",
+	                "    stat = nc_def_var_filter(%s, %s, %s, %lu, ",
 	                groupncid(vsym->container),
 	                varncid(vsym),
 			nfs->filterid,

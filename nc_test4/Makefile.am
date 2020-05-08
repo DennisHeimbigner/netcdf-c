@@ -75,7 +75,10 @@ extradir =
 extra_PROGRAMS = test_filter test_filter_misc test_filter_order
 check_PROGRAMS += test_filter_reg
 check_PROGRAMS += tst_multifilter
-TESTS += tst_filter.sh test_filter_reg
+TESTS += tst_filter.sh
+if ENABLE_CLIENT_FILTERS
+TESTS += tst_filterorder.sh test_filter_reg
+endif
 endif
 endif # BUILD_UTILITIES
 

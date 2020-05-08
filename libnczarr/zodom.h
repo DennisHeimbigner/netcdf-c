@@ -15,12 +15,6 @@ typedef struct NCZOdometer {
     size64_t* stride;
     size64_t* max; /* full dimension length */
     size64_t* index; /* current value of the odometer*/
-#ifdef ENABLE_NCZARR_SLAB
-    /* Slab optimizations */
-    int useslabs; /* 1 => modify odom behavior */
-    int pseudorank; /* least i s.t. stride[j] == 1 for i<=k<rank */
-    size64_t slabprod; /* max[slab1]*max[slab1+1]...*max[rank] */
-#endif
 } NCZOdometer;
 
 /**************************************************/
