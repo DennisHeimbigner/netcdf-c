@@ -14,7 +14,7 @@
 #define OC_MAX_REDIRECTS 20L
 
 /* Mnemonic */
-#define OPTARG uintptr_t
+#define OPTARG void*
 
 /* Define some .rc file entries of interest*/
 #define NETRCFILETAG "HTTP.NETRC"
@@ -23,7 +23,7 @@
 Set a specific curl flag; primary wrapper for curl_easy_setopt
 */
 OCerror
-ocset_curlopt(OCstate* state, int flag, uintptr_t value)
+ocset_curlopt(OCstate* state, int flag, void* value)
 {
     OCerror stat = OC_NOERR;
     CURLcode cstat = CURLE_OK;
@@ -34,7 +34,7 @@ ocset_curlopt(OCstate* state, int flag, uintptr_t value)
 }
 
 /* Check return value */
-#define CHECK(state,flag,value) {if(ocset_curlopt(state,flag,(uintptr_t)value) != OC_NOERR) {goto done;}}
+#define CHECK(state,flag,value) {if(ocset_curlopt(state,flag,(void*)value) != OC_NOERR) {goto done;}}
 
 /*
 Update a specific flag from state

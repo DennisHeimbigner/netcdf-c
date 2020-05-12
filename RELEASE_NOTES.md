@@ -7,6 +7,8 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.8.0 - TBD
 
+* [Bug Fix] Ncgen was not properly handling very large data sections and was
+storing data in incorrect order.
 * [Bug Fix] Now larger cache settings are used for sequential HDF5 file creates/opens on parallel I/O capable builds; see [Github #1716](https://github.com/Unidata/netcdf-c/issues/1716) for more information.
 * [Bug Fix] Add functions to libdispatch/dnotnc4.c to support
 dispatch table operations that should work for any dispatch

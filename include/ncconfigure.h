@@ -104,7 +104,6 @@ typedef unsigned short ushort;
 typedef unsigned int uint;
 #endif
 
-
 /* Provide a fixed size alternative to off_t or off64_t */
 typedef long long fileoffset_t;
 
