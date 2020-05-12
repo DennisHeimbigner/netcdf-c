@@ -28,7 +28,7 @@
 #include "nchttp.h"
 #endif
 
-#define DEBUG
+#undef DEBUG
 
 /* If Defined, then use only stdio for all magic number io;
    otherwise use stdio or mpio as required.
@@ -120,7 +120,6 @@ static const struct MACRODEF {
 {"dap2","mode=dap2"},
 {"dap4","mode=dap4"},
 {"s3","mode=nczarr,s3"},
-{"bytes","bytes"},
 {NULL,NULL}
 };
 
