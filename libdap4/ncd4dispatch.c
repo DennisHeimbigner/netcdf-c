@@ -862,7 +862,7 @@ NCD4_def_var_filter,
 NCD4_set_var_chunk_cache,
 NCD4_get_var_chunk_cache,
 
-NC_NOTNC4_filter_actions,
+NC_NOOP_filter_actions,
 };
 
 
