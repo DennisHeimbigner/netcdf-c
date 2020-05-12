@@ -220,7 +220,6 @@ extern "C" {
     EXTERNL int NC_NOTNC4_inq_typeids(int, int *, int *);
     EXTERNL int NC_NOTNC4_inq_user_type(int, nc_type, char *, size_t *,
                                         nc_type *, size_t *, int *);
-    EXTERNL int NC_NOTNC4_filter_actions(int, int, int, struct NC_Filterobject*);
 
     /* These functions are for dispatch layers that don't implement
      * the enhanced model, but want to succeed anyway.

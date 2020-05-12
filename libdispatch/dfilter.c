@@ -36,12 +36,13 @@ Unified filter related code
 /**************************************************/
 /* Support direct user defined filters */
 
+#ifdef ENABLE_CLIENTSIDE_FILTERS
+
 /* Use void* to avoid having to include hdf.h*/
 EXTERNL int
 nc_filter_client_register(unsigned int id, void* info)
 {
     int stat = NC_NOERR;
-#ifdef ENABLE_CLIENT_FILTERS
 #ifdef USE_HDF5
     NC_FILTER_OBJ_HDF5 client;
     if(id == 0 ||info == NULL)
@@ -56,9 +57,6 @@ nc_filter_client_register(unsigned int id, void* info)
 #else
     stat = NC_ENOTBUILT;
 #endif
-#else
-    stat = NC_ENOTBUILT;
-#endif
     return stat;
 }
 
@@ -66,12 +64,8 @@ EXTERNL int
 nc_filter_client_unregister(unsigned int id)
 {
 int stat = NC_NOERR;
-#ifdef ENABLE_CLIENT_FILTERS
 #ifdef USE_HDF5
     stat = nc4_global_filter_action(NCFILTER_CLIENT_UNREG, id, NULL);
-#else
-    stat = NC_ENOTBUILT;
-#endif
 #else
     stat = NC_ENOTBUILT;
 #endif
@@ -83,7 +77,6 @@ EXTERNL int
 nc_filter_client_inq(unsigned int id, void* infop)
 {
 int stat = NC_NOERR;
-#ifdef ENABLE_CLIENT_FILTERS
 #ifdef USE_HDF5
     H5Z_class2_t* hct = (H5Z_class2_t*)infop;
     NC_FILTER_OBJ_HDF5 client;
@@ -102,11 +95,9 @@ int stat = NC_NOERR;
 #else
     stat = NC_ENOTBUILT;
 #endif
-#else
-    stat = NC_ENOTBUILT;
-#endif
     return stat;
 }
+#endif /*ENABLE_CLIENTSIDE_FILTERS*/
 
 /**************************************************/
 /* Per-variable filters */

@@ -90,8 +90,7 @@ NC4_provenance_init(void)
     ncbytescat(buffer,printbuf);
 
 #ifdef NCPROPERTIES_EXTRA
-    {
-    char* p =NULL;
+    { const char* p;
     /* Add any extra fields */
     p = NCPROPERTIES_EXTRA;
     if(p[0] == NCPROPSSEP2) p++; /* If leading separator */

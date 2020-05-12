@@ -628,26 +628,6 @@ NC_NOTNC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
  * @param varid Containing variable id
  * @param action Action to perform
  *
- * @return ::NC_ENOTNC4 Not implemented for a dispatch table.
- * @author D. Heimbigner
- */
-int
-NC_NOTNC4_filter_actions(int ncid, int varid, int action, struct NC_Filterobject* spec)
-{
-    NC_UNUSED(ncid);
-    NC_UNUSED(varid);
-    NC_UNUSED(action);
-    NC_UNUSED(spec);
-    return NC_ENOTNC4;
-}
-
-/**
- * @internal Carry out one of several filter actions
- *
- * @param ncid Containing group id
- * @param varid Containing variable id
- * @param action Action to perform
- *
  * @return ::NC_NOERR Implemented as a no-op.
  * @return ::NC_ENOTNC4 Not implemented
  * @return ::NC_ENOFILTER No filter defined
