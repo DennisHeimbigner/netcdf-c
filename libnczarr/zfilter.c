@@ -158,7 +158,7 @@ done:
  * @author Dennis Heimbigner
  */
 int
-NCZ_filter_actions(int ncid, int varid, int op, void* args)
+NCZ_filter_actions(int ncid, int varid, int op, NCargs)
 {
     int stat = NC_NOERR;
     NC_GRP_INFO_T *grp = NULL;
