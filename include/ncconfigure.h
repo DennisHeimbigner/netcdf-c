@@ -9,6 +9,7 @@
 
 #ifndef NCCONFIGURE_H
 #define NCCONFIGURE_H 1
+
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -35,8 +36,8 @@ typedef SSIZE_T ssize_t;
 /*Warning: Cygwin with -ansi does not define these functions
   in its headers.*/
 #ifndef _WIN32
-#ifndef __cplusplus
 #if __STDC__ == 1 /*supposed to be same as -ansi flag */
+
 /* WARNING: in some systems, these functions may be defined as macros, so check */
 #ifndef strdup
 extern char* strdup(const char*);
@@ -59,8 +60,8 @@ extern unsigned long long int strtoull(const char*, char**, int);
 #ifndef fileno
 extern int fileno(FILE*);
 #endif
+
 #endif /*STDC*/
-#endif /*__cplusplus */
 #endif /*!_WIN32*/
 
 #ifdef _WIN32
@@ -85,17 +86,6 @@ extern char *nulldup(const char* s);
 #ifndef nullfree
 #define nullfree(s) {if((s)!=NULL) {free(s);} else {}}
 #endif
-
-#ifndef HAVE_SSIZE64_T
-typedef long long ssize64_t;
-#endif
-
-#ifndef HAVE_SIZE64_T
-typedef unsigned long long size64_t;
-#endif
-
-/* Provide a fixed size alternative to off_t or off64_t */
-typedef long long fileoffset_t;
 
 #ifndef HAVE_UCHAR
 typedef unsigned char uchar;

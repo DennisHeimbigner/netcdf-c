@@ -28,7 +28,7 @@ See \ref copyright file for more info.
 #define CURLINFO_RESPONSE_CODE CURLINFO_HTTP_CODE
 #endif
 
-extern OCerror ocset_curlopt(OCstate* state, int flag, uintptr_t value);
+extern OCerror ocset_curlopt(OCstate* state, int flag, void* value);
 
 struct OCCURLFLAG* occurlflagbyflag(int flag);
 struct OCCURLFLAG* occurlflagbyname(const char* name);

@@ -22,7 +22,7 @@ struct CURLFLAG {
     enum CURLFLAGTYPE type;
 };
 
-extern ncerror NCD4_set_curlopt(NCD4INFO* state, int flag, uintptr_t value);
+extern ncerror NCD4_set_curlopt(NCD4INFO* state, int flag, void* value);
 
 extern ncerror NCD4_set_flags_perfetch(NCD4INFO*);
 extern ncerror NCD4_set_flags_perlink(NCD4INFO*);

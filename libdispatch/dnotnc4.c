@@ -15,6 +15,7 @@
 
 #include "netcdf.h"
 #include "netcdf_filter.h"
+#include "netcdf_aux.h"
 #include "ncdispatch.h"
 #include "nc4internal.h"
 
@@ -631,7 +632,7 @@ NC_NOTNC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
  * @author D. Heimbigner
  */
 int
-NC_NOTNC4_filter_actions(int ncid, int varid, int action, void* spec)
+NC_NOTNC4_filter_actions(int ncid, int varid, int action, struct NC_Filterobject* spec)
 {
     NC_UNUSED(ncid);
     NC_UNUSED(varid);
