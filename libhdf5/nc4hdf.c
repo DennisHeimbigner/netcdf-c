@@ -854,7 +854,7 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
 	        if((retval = NC_cvtX2I_id(fi->filterid,&filterid))) BAIL(retval);
 	        if((params = malloc(nparams*sizeof(unsigned int)))==NULL)
 	            BAIL(NC_ENOMEM);
-    	        if((retval = NC_cvtX2H5_params(nparams,(const char**)fi->params,params))) BAIL(retval);
+    	        if((retval = NC_cvtX2I_params(nparams,(const char**)fi->params,params))) BAIL(retval);
                 if(filterid == H5Z_FILTER_DEFLATE) {/* Handle zip case here */
                     unsigned level;
                     if(nparams != 1)

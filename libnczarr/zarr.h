@@ -52,7 +52,7 @@ extern int ncz_zarr_type_name(nc_type nctype, int little, const char** znamep);
 extern int ncz_dtype2typeinfo(const char* dtype, nc_type* nctypep, int* endianness);
 extern int ncz_default_fill_value(nc_type nctype, const char**);
 extern int ncz_fill_value_sort(nc_type nctype, int*);
-extern int NCZ_createobject(NCZMAP* zmap, const char* key, ssize64_t size);
+extern int NCZ_createobject(NCZMAP* zmap, const char* key, size64_t size);
 extern int NCZ_uploadjson(NCZMAP* zmap, const char* key, NCjson* json);
 extern int NCZ_downloadjson(NCZMAP* zmap, const char* key, NCjson** jsonp);
 extern int NCZ_isLittleEndian(void);

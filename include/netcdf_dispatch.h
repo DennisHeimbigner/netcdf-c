@@ -227,7 +227,7 @@ extern "C" {
      * In some cases (filter actions), some cases may succeed and some
      * will fail.
      */
-    EXTERNL int NC_NOOP_filter_actions(int, int, int, struct NC_Filterobject*);
+    EXTERNL int NC_NOOP_filter_actions(int, int, int, void*);
 
 #if defined(__cplusplus)
 }

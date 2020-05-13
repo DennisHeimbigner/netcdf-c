@@ -18,6 +18,7 @@
 #include "netcdf_aux.h"
 #include "ncdispatch.h"
 #include "nc4internal.h"
+#include "ncfilter.h"
 
 /**
  * @internal Not implemented in some dispatch tables
@@ -634,17 +635,16 @@ NC_NOTNC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
  * @author D. Heimbigner
  */
 int
-NC_NOOP_filter_actions(int ncid, int varid, int action, struct NC_Filterobject* args)
+NC_NOOP_filter_actions(int ncid, int varid, int action, void* args)
 {
-    NC_FILTER_OBJ_HDF5* obj = (NC_FILTER_OBJ_HDF5*)args;
+    NC_FILTERX_OBJ* obj = (NC_FILTERX_OBJ*)args;
     switch (action) {
     case NCFILTER_FILTERIDS: 
 	obj->u.ids.nfilters = 0;
 	return NC_NOERR;
-    case NCFILTER_INQ: /* fall thrue */
     case NCFILTER_INFO:
 	return NC_ENOFILTER;
     default:
-	return NC_ENOTNC4;
+	return NC_EFILTER;
     }
 }

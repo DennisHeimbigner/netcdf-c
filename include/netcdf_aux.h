@@ -54,9 +54,13 @@ EXTERNL size_t ncaux_type_alignment(int xtype, int ncid);
 /* Takes type classes only */
 EXTERNL size_t ncaux_class_alignment(int ncclass);
 
+/**************************************************/
+
+#define NCAUX_FILTERSPEC_VERSION 1
+
 /* String specific filter info */
 typedef struct NC_Filterspec {
-    char* format;
+    int version;
     char* filterid; /**< ID for arbitrary filter. */
     size_t nparams;
     char** params;   /**< Params for arbitrary filter. */
@@ -70,8 +74,6 @@ typedef struct NC_H5_Filterspec {
 } NC_H5_Filterspec;
 
 EXTERNL void ncaux_filterfix8(unsigned char* mem, int decode);
-EXTERNL int ncaux_filter_parselist(const char* listspec, size_t* nfilters, struct NC_H5_Filterspec*** filtersp);
-EXTERNL int ncaux_filter_parsespec(const char* txt, struct NC_H5_Filterspec** specp);
 
 EXTERNL int ncaux_filterspec_parselist(const char* listspec, char** formatp, size_t* nfilters, NC_Filterspec*** filtersp);
 EXTERNL int ncaux_filterspec_parse(const char* txt, NC_Filterspec** specp);

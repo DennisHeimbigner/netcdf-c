@@ -142,7 +142,7 @@ nc_inq_var_filterids(int ncid, int varid, size_t* nfiltersp, unsigned int* ids)
 	if((stat = nc_inq_var_filterx_ids(ncid, varid, &nfilters, xidlist))) goto done;
 	/* Convert out to HDF5 format */
 	if(ids != NULL) {
-	    if((stat = NC_cvtX2H5_idlist(nfilters,(const char**)xidlist,ids)))
+	    if((stat = NC_cvtX2I_idlist(nfilters,(const char**)xidlist,ids)))
 	        goto done;
 	}
    }
@@ -200,7 +200,7 @@ nc_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, u
 	goto done;
     if(nparamsp) *nparamsp = nparams;
     if(params) {
-	if((stat = NC_cvtX2H5_params(nparams,(const char**)xparamslist,params))) goto done;
+	if((stat = NC_cvtX2I_params(nparams,(const char**)xparamslist,params))) goto done;
     }
 done:
     nullfree(xid);
@@ -294,7 +294,7 @@ nc_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const un
     if(nparams > 0) {
         if((xparams=malloc(nparams*sizeof(char*))) == NULL)
             {stat = NC_ENOMEM; goto done;}
-        if((stat = NC_cvtH52X_params(nparams,params,xparams))) goto done;
+        if((stat = NC_cvtI2X_params(nparams,params,xparams))) goto done;
     }
     if((stat = nc_def_var_filterx(ncid,varid,xid,nparams,(const char**)xparams))) goto done;
     

@@ -158,7 +158,7 @@ done:
  * @author Dennis Heimbigner
  */
 int
-NCZ_filter_actions(int ncid, int varid, int op, NCargs)
+NCZ_filter_actions(int ncid, int varid, int op, void* args)
 {
     int stat = NC_NOERR;
     NC_GRP_INFO_T *grp = NULL;
@@ -199,7 +199,7 @@ NCZ_filter_actions(int ncid, int varid, int op, NCargs)
 	        goto done;
         }
         spec = &obj->u.spec;
-	if((stat = NC4_filterx_add(var,!FILTERACTIVE,spec)))
+	if((stat = NC4_filterx_add(var,!FILTERACTIVE,spec->filterid,spec->nparams,(const char**)spec->params)))
             goto done;
     } break;
     case NCFILTER_FILTERIDS: {

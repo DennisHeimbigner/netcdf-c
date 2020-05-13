@@ -75,7 +75,9 @@ const struct FilterName {
 };
 
 /**************************************************/
-
+/*Forward*/
+static unsigned int NC_filterx_lookup(const char* filtername);
+static const char* NC_filterx_toname(unsigned int id);
 static int NC_filterx_transferstringvec(size_t n, char** vec, char** copy);
 
 /**************************************************/
@@ -246,7 +248,7 @@ done:
 /* Utilities */
 
 int
-NC_cvtX2H5_idlist(size_t n, const char** xidlist, unsigned int* ids)
+NC_cvtX2I_idlist(size_t n, const char** xidlist, unsigned int* ids)
 {
     int i,stat = NC_NOERR;
 
@@ -257,7 +259,7 @@ NC_cvtX2H5_idlist(size_t n, const char** xidlist, unsigned int* ids)
 }
 
 int
-NC_cvtX2H5_params(size_t nparams, const char** xparamslist, unsigned int* params)
+NC_cvtX2I_params(size_t nparams, const char** xparamslist, unsigned int* params)
 {
     int i,stat = NC_NOERR;
     unsigned int id;
@@ -272,7 +274,7 @@ NC_cvtX2H5_params(size_t nparams, const char** xparamslist, unsigned int* params
 }
 
 int
-NC_cvtH52X_idlist(int n, const unsigned int* ids, char** xid)
+NC_cvtI2X_idlist(int n, const unsigned int* ids, char** xid)
 {
     int i,stat = NC_NOERR;
     char sid[1024];
@@ -288,7 +290,7 @@ done:
 }
 
 int
-NC_cvtH52X_params(int n, const unsigned int* ids, char** params)
+NC_cvtI2X_params(int n, const unsigned int* ids, char** params)
 {
     int i,stat = NC_NOERR;
     char sid[1024];
@@ -334,7 +336,7 @@ NC_cvtI2X_id(unsigned int id, char** xidp, int usename)
     return NC_NOERR;
 }
 
-unsigned int
+static unsigned int
 NC_filterx_lookup(const char* filtername)
 {
     const struct FilterName* p = known_filters;
@@ -346,7 +348,7 @@ NC_filterx_lookup(const char* filtername)
     return 0; /* no match */
 }
 
-const char*
+static const char*
 NC_filterx_toname(unsigned int id)
 {
     const struct FilterName* p = known_filters;

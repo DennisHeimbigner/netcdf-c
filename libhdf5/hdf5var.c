@@ -1188,10 +1188,10 @@ NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
     if((retval = NC_check_id(ncid,&nc))) return retval;
     assert(nc);
 
-    if((retval=NC_cvtH52X_idlist(1,&id,&xid))) goto done;
+    if((retval=NC_cvtI2X_idlist(1,&id,&xid))) goto done;
     if((xparams = malloc(nparams*sizeof(char*)))==NULL)
         {retval = NC_ENOMEM; goto done;}
-    if((retval=NC_cvtH52X_params(nparams,params,xparams))) goto done;
+    if((retval=NC_cvtI2X_params(nparams,params,xparams))) goto done;
 
     memset(&obj,0,sizeof(obj));
     obj.usort = NC_FILTER_UNION_SPEC;

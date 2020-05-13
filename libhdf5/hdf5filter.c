@@ -27,12 +27,11 @@
 /**************************************************/
 /* Filter registration support */
 
-#ifdef ENABLE_CLIENTSIZE_FILTERS
+#ifdef ENABLE_CLIENTSIDE_FILTERS
 
 /* WARNING: GLOBAL VARIABLE */
 /* Define list of registered filters */
 static NClist* NC4_registeredfilters = NULL; /** List<NC_FILTER_CLIENT_HDF5*> */
-#endif
 
 /**************************************************/
 /* Filter registration support */
@@ -147,60 +146,30 @@ nc4_global_filter_action(int op, unsigned int id, NC_FILTER_OBJ_HDF5* infop)
 done:
     return THROW(stat);
 } 
-#endif
 
 #endif /*ENABLE_CLIENTSIDE_FILTERS*/
 
 /**************************************************/
-static int
-filterlookup(NC_VAR_INFO_T* var, unsigned int id, NC_FILTER_SPEC_HDF5** fp)
-{
-    int i;
-    if(var->filters == NULL)
-	var->filters = nclistnew();
-    for(i=0;i<nclistlength(var->filters);i++) {
-	NC_FILTER_SPEC_HDF5* x = nclistget(var->filters,i);
-	if(x != NULL && x->filterid == id) {
-	    if(fp) *fp = x;
-	    return i; /* return position */
-	}
-    }
-    return -1;
-}
 
 int
-NC4_hdf5_addfilter(NC_VAR_INFO_T* var, int active, unsigned int id, size_t nparams,
-                   unsigned int* inparams, NC_FILTER_SPEC_HDF5** filtspecp)
+NC4_hdf5_addfilter(NC_VAR_INFO_T* var, int active, unsigned int id, size_t nparams, unsigned int* inparams)
 {
     int stat = NC_NOERR;
-    NC_FILTER_SPEC_HDF5* fi = NULL;
-    unsigned int* params = NULL;
-    int pos;
+    char* idx = NULL;
+    char** paramsx = NULL;
 
-    if(var->filters == NULL) {
-	if((var->filters = nclistnew())==NULL) return THROW(NC_ENOMEM);
-    }
-
-    if(nparams > 0 && inparams == NULL)
+    if((nparams > 0 && inparams == NULL) || id == 0)
         return THROW(NC_EINVAL);
+    if((stat=NC_cvtI2X_id(id,&idx,0))) goto done;
     if(inparams != NULL) {
-        if((params = malloc(sizeof(unsigned int)*nparams)) == NULL)
+        if((paramsx = malloc(sizeof(char*)*nparams)) == NULL)
 	    return THROW(NC_ENOMEM);
-        memcpy(params,inparams,sizeof(unsigned int)*nparams);
+	if((stat = NC_cvtI2X_params(nparams,inparams,paramsx))) goto done;
     }
-    if((pos=filterlookup(var, id,&fi)) < 0) {
-	if((fi = calloc(1,sizeof(NC_FILTER_SPEC_HDF5))) == NULL)
-    	    {nullfree(params); return THROW(NC_ENOMEM);}
-    }
-    assert(fi != NULL);
-    fi->active = active;
-    fi->filterid = id;
-    fi->nparams = nparams;
-    if(fi->params) free(fi->params);
-    fi->params = params;
-    if(filtspecp) *filtspecp = fi;
-    if(pos < 0) nclistpush(var->filters,fi);
-    fi = NULL;
+    if((stat = NC4_filterx_add(var,active,idx,nparams,(const char**)paramsx))) goto done;
+done:
+    nullfree(idx);
+    NC_filterx_freestringvec(nparams,paramsx);
     return THROW(stat);
 }
 
@@ -232,10 +201,10 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
     NC_VAR_INFO_T *var = NULL;
     NC_FILTERX_OBJ* obj = (NC_FILTERX_OBJ*)args;
     unsigned int id = 0;
-    unsigned int filterid = 0;
     size_t nparams = 0;
     unsigned int* params = NULL;
     size_t nfilters = 0;
+    char* idx = NULL;
 
     LOG((2, "%s: ncid 0x%x varid %d op=%d", __func__, ncid, varid, op));
 
@@ -271,7 +240,7 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
 	nparams = obj->u.spec.nparams;
 	if((stat = NC_cvtX2I_id(obj->u.spec.filterid,&id))) goto done;
 	if((params = calloc(sizeof(unsigned int),nparams))==NULL) {stat = NC_ENOMEM; goto done;}
-	if((stat = NC_cvtX2H5_params(nparams,(const char**)obj->u.spec.params,params))) goto done;
+	if((stat = NC_cvtX2I_params(nparams,(const char**)obj->u.spec.params,params))) goto done;
 #ifdef HAVE_H5_DEFLATE
         if(id == H5Z_FILTER_DEFLATE) {
 	    int level;
@@ -282,8 +251,10 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
                 level > NC_MAX_DEFLATE_LEVEL)
                 {stat = THROW(NC_EINVAL); goto done;}
             /* If szip compression is already applied, return error. */
-	    if((filterlookup(var,H5Z_FILTER_SZIP,NULL)) >= 0)
+	    if((stat=NC_cvtI2X_id(H5Z_FILTER_SZIP,&idx,0))) goto done;
+	    if((NC4_filterx_lookup(var,idx,NULL)))
                  return THROW(NC_EINVAL);
+	    nullfree(idx); idx = NULL;
         }
 #else /*!HAVE_H5_DEFLATE*/
         if(id == H5Z_FILTER_DEFLATE)
@@ -297,8 +268,10 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
             if (params[1] % 2 || params[1] > NC_MAX_PIXELS_PER_BLOCK)
                 {stat = THROW(NC_EINVAL); goto done;}
             /* If zlib compression is already applied, return error. */
-	    if((filterlookup(var,H5Z_FILTER_DEFLATE,NULL)) >= 0)
+	    if((stat=NC_cvtI2X_id(H5Z_FILTER_DEFLATE,&idx,0))) goto done;
+	    if((NC4_filterx_lookup(var,idx,NULL)))
                  return THROW(NC_EINVAL);
+	    nullfree(idx); idx = NULL;
         }
 #else /*!HAVE_H5Z_SZIP*/
         if(id == H5Z_FILTER_SZIP)
@@ -328,7 +301,7 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
                 {stat = THROW(NC_EINVAL); goto done;}
         }
 #endif
-        if((stat = NC4_hdf5_addfilter(var,!FILTERACTIVE,id,nparams,params, NULL)))
+        if((stat = NC4_hdf5_addfilter(var,!FILTERACTIVE,id,nparams,params)))
             goto done;
 
 #ifdef USE_PARALLEL
@@ -377,30 +350,18 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
 	if(!found) {stat = NC_ENOFILTER; goto done;}
 	} break;
     case NCFILTER_REMOVE: {
-	int k;
         if (!(h5->flags & NC_INDEF))
 	    {stat = THROW(NC_EINDEFINE); goto done;}
         if(obj->usort != NC_FILTER_UNION_SPEC)
 	    {stat = THROW(NC_EFILTER); goto done;}
-	/* Walk backwards */
-        for(k=nfilters-1;k>=0;k--) {
-	    NC_FILTERX_SPEC* f = (NC_FILTERX_SPEC*)nclistget(var->filters,k);
-	    if(strcmp(f->filterid,obj->u.spec.filterid)==0) {
-		if(f->active) {
-		    /* Remove from HDF5 variable */
-		    if((stat = NC4_hdf5_remove_filter(var,obj->u.spec.filterid))) {stat = NC_ENOFILTER; goto done;}
-		}
-		/* remove from var->filters */
-		nclistremove(var->filters,k);
-		NC4_filterx_free(f);
-	    }
-	}
+	if((stat = NC4_filterx_remove(var,obj->u.spec.filterid))) goto done;
 	} break;
     default:
 	{stat = NC_EINTERNAL; goto done;}	
     }
 
 done:
+    nullfree(idx);
     nullfree(params);
     return THROW(stat);
 }

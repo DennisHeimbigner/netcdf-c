@@ -211,22 +211,7 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
 	return NC_EFILTER;
 
     if (idp) {
-#if 0
-        NC* nc = h5->controller;
-	NC_FILTER_ACTION action;
-	action.action = NCFILTER_INQ_FILTER;
-	action.format = NC_FORMATX_NC_HDF5;
-	action.id =  (idp)?*idp:0;
-	action.nelems = (nparamsp)?*nparamsp:0;
-	action.elems = params;
-	if((retval = nc->dispatch->filter_actions(ncid,varid,&action)) == NC_NOERR) {
-	    if(idp) *idp = action.id;
-	    if(nparamsp) *nparamsp = action.nelems;
-	}
-	return retval;
-#else
 	return NC_EFILTER;
-#endif
     }
 
     /* Fill value stuff. */

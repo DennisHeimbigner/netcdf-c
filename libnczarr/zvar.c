@@ -1815,8 +1815,8 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 
             /* Check for out of bound requests. */
             /* Allow start to equal dim size if count is zero. */
-            if (start[d2] > (ssize64_t)ulen ||
-                (start[d2] == (ssize64_t)ulen && count[d2] > 0))
+            if (start[d2] > (size64_t)ulen ||
+                (start[d2] == (size64_t)ulen && count[d2] > 0))
                 BAIL_QUIET(NC_EINVALCOORDS);
             if (count[d2] && endindex >= ulen)
                 BAIL_QUIET(NC_EEDGE);
@@ -1846,8 +1846,8 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
         {
             /* Check for out of bound requests. */
             /* Allow start to equal dim size if count is zero. */
-            if (start[d2] > (ssize64_t)fdims[d2] ||
-                (start[d2] == (ssize64_t)fdims[d2] && count[d2] > 0))
+            if (start[d2] > (size64_t)fdims[d2] ||
+                (start[d2] == (size64_t)fdims[d2] && count[d2] > 0))
                 BAIL_QUIET(NC_EINVALCOORDS);
             if (count[d2] && endindex >= fdims[d2])
                 BAIL_QUIET(NC_EEDGE);

@@ -998,7 +998,7 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
             if (cd_nelems != CD_NELEMS_ZLIB ||
                 cd_values[0] > NC_MAX_DEFLATE_LEVEL)
                 return NC_EHDFERR;
-	    if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,cd_values,NULL)))
+	    if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,cd_values)))
 	       return stat;
             break;
 
@@ -1006,7 +1006,7 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
             /* Szip is tricky because the filter code expands the set of parameters from 2 to 4
                and changes some of the parameter values; try to compensate */
             if(cd_nelems == 0) {
-		if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,0,NULL,NULL)))
+		if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,0,NULL)))
 		   return stat;
             } else {
                 /* fix up the parameters and the #params */
@@ -1016,23 +1016,23 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
 		/* Fix up changed params */
 		cd_values[0] &= (H5_SZIP_ALL_MASKS);
 		/* Save info */
-		stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,cd_values,NULL);
+		stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,cd_values);
 		if(stat) return stat;
             }
             } break;
 
         default:
             if(cd_nelems == 0) {
-  	        if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,0,NULL,NULL))) return stat;
+  	        if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,0,NULL))) return stat;
             } else {
-  	        stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,cd_values,NULL);
+  	        stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,cd_values);
 		if(stat) return stat;
             }
             break;
         }
 	nullfree(cd_values); cd_values = NULL;
     }
-done:
+
     nullfree(cd_values);
     NC4_filterx_free(spec);
     return NC_NOERR;

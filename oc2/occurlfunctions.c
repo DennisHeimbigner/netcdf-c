@@ -19,7 +19,7 @@
 /* Define some .rc file entries of interest*/
 #define NETRCFILETAG "HTTP.NETRC"
 
-#define SETCURLOPT(state,flag,value) {if(set_curlopt(state,flag,(void*)value) != NC_NOERR) {goto done;}}
+#define SETCURLOPT(state,flag,value) {if(ocset_curlopt(state,flag,(void*)value) != NC_NOERR) {goto done;}}
 
 /*
 Set a specific curl flag; primary wrapper for curl_easy_setopt

@@ -50,28 +50,44 @@ done:
 }
 
 int
-NC4_filterx_add(NC_VAR_INFO_T* var, int active, NC_FILTERX_SPEC* spec)
+NC4_filterx_lookup(NC_VAR_INFO_T* var, const char* id, NC_FILTERX_SPEC** specp)
+{
+    int i;
+    if(var->filters == NULL) {
+	if((var->filters = nclistnew())==NULL)
+	    return NC_ENOMEM;
+    }
+    for(i=0;i<nclistlength(var->filters);i++) {
+	NC_FILTERX_SPEC* spec = nclistget(var->filters,i);
+	if(strcasecmp(id,spec->filterid)==0) {
+	    if(specp) *specp = spec;
+	    return NC_NOERR;
+	}
+    }
+    return NC_ENOFILTER;
+}
+
+int
+NC4_filterx_add(NC_VAR_INFO_T* var, int active, const char* id, int nparams, const char** params)
 {
     int stat = NC_NOERR;
     NC_FILTERX_SPEC* fi = NULL;
 
-    if(var->filters == NULL) {
-	if((var->filters = nclistnew())==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-    }
-
-    if(spec->nparams > 0 && spec->params == NULL)
+    if(nparams > 0 && params == NULL)
 	{stat = NC_EINVAL; goto done;}
     
-    if((fi = calloc(1,sizeof(NC_FILTERX_SPEC))) == NULL)
-    	{stat = NC_ENOMEM; goto done;}
+    if((stat=NC4_filterx_lookup(var,id,&fi))==NC_NOERR)
+        {stat = NC_EFILTER; goto done;} /* already exists */
 
+    if((fi = calloc(1,sizeof(NC_FILTERX_SPEC))) == NULL)
+	{stat = NC_ENOMEM; goto done;}
+    
     fi->active = active;
-    fi->nparams = spec->nparams;
-    if((fi->filterid = strdup(spec->filterid)) == NULL)
+    fi->nparams = nparams;
+    if((fi->filterid = strdup(id)) == NULL)
         {stat = NC_ENOMEM; goto done;}
-    if(spec->params != NULL) {
-	if((stat = NC_filterx_copy(spec->nparams,(const char**)spec->params,&fi->params))) goto done;
+    if(params != NULL) {
+	if((stat = NC_filterx_copy(nparams,(const char**)params,&fi->params))) goto done;
     }
     nclistpush(var->filters,fi);
     fi = NULL;
@@ -81,7 +97,7 @@ done:
 }
 
 int
-NC4_filterx_remove(NC_VAR_INFO_T* var, const char*xid)
+NC4_filterx_remove(NC_VAR_INFO_T* var, const char* xid)
 {
     int k;
     /* Walk backwards */

@@ -186,7 +186,7 @@ int
 NCZ_downloadjson(NCZMAP* zmap, const char* key, NCjson** jsonp)
 {
     int stat = NC_NOERR;
-    ssize64_t len;
+    size64_t len;
     char* content = NULL;
     NCjson* json = NULL;
 
@@ -219,7 +219,7 @@ done:
 @author Dennis Heimbigner
 */
 int
-NCZ_createobject(NCZMAP* zmap, const char* key, ssize64_t size)
+NCZ_createobject(NCZMAP* zmap, const char* key, size64_t size)
 {
     int stat = NC_NOERR;
 

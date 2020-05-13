@@ -11,7 +11,13 @@
 #ifndef NETCDF_FILTER_H
 #define NETCDF_FILTER_H 1
 
-/* API for libdispatch/dfilter.c */
+/* API for libdispatch/dfilter.c
+   Note that since this filter_actions() is visible
+   thru the dispatch table (via netcdf_dispatch.h)
+   and that can be seen by clients using user-defined
+   formats, then all argument types need
+   to be user visible as well.
+*/
 
 /* Must match values in <H5Zpublic.h> */
 #ifndef H5Z_FILTER_DEFLATE

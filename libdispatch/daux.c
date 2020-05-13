@@ -66,6 +66,7 @@ static int reclaim_compound(int ncid, int xtype, size_t size, size_t nfields, Po
 static int reclaim_vlen(int ncid, int xtype, int basetype, Position* offset);
 static int reclaim_enum(int ncid, int xtype, int basetype, size_t, Position* offset);
 static int reclaim_opaque(int ncid, int xtype, size_t size, Position* offset);
+static void ncaux_freestringvec(int n, char** vec);
 
 static int computefieldinfo(struct NCAUX_CMPD* cmpd);
 #endif /* USE_NETCDF4 */
@@ -560,117 +561,6 @@ const struct LegalFormat {
     {NULL, 0},
 };
 
-/*
-Parse a filter spec string into a NC_FILTER_SPEC*
-@param txt - a string containing the spec as a sequence of
-              constants separated by commas.
-@param specp - store the parsed filter here -- caller frees
-@return NC_NOERR if parse succeeded
-@return NC_EINVAL otherwise
-*/
-
-EXTERNL int
-ncaux_filter_parsespec(const char* txt, NC_H5_Filterspec** h5specp)
-{
-    int stat = NC_NOERR;
-    NC_Filterspec* spec = NULL;
-    NC_H5_Filterspec* h5spec = NULL;
-    size_t len;
-    
-    if(txt == NULL) 
-	{stat = NC_EINVAL; goto done;}
-    len = strlen(txt);
-    if(len == 0) {stat = NC_EINVAL; goto done;}
-
-    /* Parse as strings */
-    if((stat = ncaux_filterspec_parse(txt,&spec))) goto done;
-    /* walk and convert */
-    if((stat = ncaux_filterspec_cvt(spec,&h5spec))) goto done;
-    /* Now return results */
-    if(h5specp != NULL) {*h5specp = h5spec; h5spec = NULL;}
-
-done:
-    ncaux_filterspec_free(spec);
-    if(h5spec) nullfree(h5spec->params);
-    nullfree(h5spec);
-    return stat;
-}
-
-/*
-Parse a string containing multiple '|' separated filter specs.
-
-@param spec0 - a string containing the list of filter specs.
-@param nspecsp - # of parsed specs
-@param specsp - pointer to hold vector of parsed specs. Caller frees
-@return NC_NOERR if parse succeeded
-@return NC_EINVAL if bad parameters or parse failed
-*/
-
-EXTERNL int
-ncaux_filter_parselist(const char* txt0, size_t* nspecsp, NC_H5_Filterspec*** vectorp)
-{
-    int stat = NC_NOERR;
-    size_t len = 0;
-    size_t nspecs = 0;
-    NC_H5_Filterspec** vector = NULL;
-    char* spec0 = NULL; /* with prefix */
-    char* spec = NULL; /* without prefix */
-    char* p = NULL;
-    char* q = NULL;
-
-    if(txt0  == NULL) return NC_EINVAL;
-    /* Duplicate txt0 so we can modify it */
-    len = strlen(txt0);
-    if((spec = calloc(1,len+1+1)) == NULL) return NC_ENOMEM;
-    memcpy(spec,txt0,len); /* Note double ending nul */
-    spec0 = spec; /* Save for later free */
-
-    /* See if there is a prefix '[format]' tag; ignore it */
-    if(spec[0] == LBRACK) {
-	spec = q; /* skip tag wrt later processing */
-    }
-    /* pass 1: count number of specs */
-    p = spec;
-    nspecs = 0;
-    while(*p) {
-	q = strchr(p,'|');
-	if(q == NULL) q = p + strlen(p); /* fake it */
-	nspecs++;
-	p = q + 1;
-    }
-    if(nspecs >  0) {
-	int count = 0;
-	if((vector = (NC_H5_Filterspec**)malloc(sizeof(NC_H5_Filterspec*)*nspecs)) == NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	/* pass 2: parse */
-	p = spec;
-	for(count=0;count<nspecs;count++) {
-	    NC_H5_Filterspec* aspec = NULL;
-	    q = strchr(p,'|');
-	    if(q == NULL) q = p + strlen(p); /* fake it */
-	    *q = '\0';
-	    if(ncaux_filter_parsespec(p,&aspec))
-	        {stat = NC_EINVAL; goto done;}
-	    vector[count] = aspec; aspec = NULL;
-	    p = q+1; /* ok because of double nul */
-	}
-    }
-    if(nspecsp) *nspecsp = nspecs;
-    if(vectorp) *vectorp = (nspecs == 0 ? NULL : vector);
-    vector = NULL;
-done:
-    nullfree(spec0);
-    if(vector != NULL) {
-	int k;
-	for(k=0;k<nspecs;k++) {
-	    NC_H5_Filterspec* nfs = vector[k];
-	    if(nfs->params) free(nfs->params);
-	    nullfree(nfs);
-	}
-	free(vector);
-    }
-    return stat;
-}
 
 EXTERNL void
 ncaux_filterfix8(unsigned char* mem, int decode)
@@ -823,9 +713,11 @@ ncaux_filterspec_parse(const char* txt, NC_Filterspec** specp)
         p = p + strlen(p) + 1; /* move to next param */
     }
     /* Now return results */
-    if(specp != NULL) {
+    if(specp != NULL) abort();
+    {
         NC_Filterspec* pfs = calloc(1,sizeof(NC_Filterspec));
         if(pfs == NULL) {stat = NC_ENOMEM; goto done;}
+	pfs->version = NCAUX_FILTERSPEC_VERSION;
         pfs->filterid = filterid; filterid = NULL;
         pfs->nparams = nparams;;
         pfs->params = params; params = NULL;
@@ -835,7 +727,7 @@ ncaux_filterspec_parse(const char* txt, NC_Filterspec** specp)
 done:
     nullfree(sdata);
     nullfree(filterid);
-    NC_filterx_freestringvec(nparams,params);
+    ncaux_freestringvec(nparams,params);
     return stat;
 }
 
@@ -924,16 +816,27 @@ void
 ncaux_filterspec_free(NC_Filterspec* spec)
 {
     if(spec) {
-	nullfree(spec->format);
 	nullfree(spec->filterid);
 	if(spec->params != NULL)
-	    NC_filterx_freestringvec(spec->nparams,spec->params);
+	    ncaux_freestringvec(spec->nparams,spec->params);
 	free(spec);
     }
 }
 
+static void
+ncaux_freestringvec(int n, char** vec)
+{
+    int i;
+    if(vec) {
+        for(i=0;i<n;i++)
+            nullfree(vec[i]);
+	nullfree(vec);
+    }
+}
+
+
 /*
-Convert an NC_Filterspec to equivalent NC4_Filterspec.
+Convert an NC_Filterspec to equivalent NC_H5_Filterspec.
 
 @param spec - (in) NC_Filterspec instance
 @param spech5p - (out) NC_H5_Filterspec poinbter
@@ -1050,3 +953,116 @@ done:
 }
     
     
+#if 0
+/*
+Parse a filter spec string into a NC_H5_Filterspec*
+@param txt - a string containing the spec as a sequence of
+              constants separated by commas.
+@param specp - store the parsed filter here -- caller frees
+@return NC_NOERR if parse succeeded
+@return NC_EINVAL otherwise
+*/
+
+EXTERNL int
+ncaux_filter_parsespec(const char* txt, NC_H5_Filterspec** h5specp)
+{
+    int stat = NC_NOERR;
+    NC_Filterspec* spec = NULL;
+    NC_H5_Filterspec* h5spec = NULL;
+    size_t len;
+    
+    if(txt == NULL) 
+	{stat = NC_EINVAL; goto done;}
+    len = strlen(txt);
+    if(len == 0) {stat = NC_EINVAL; goto done;}
+
+    /* Parse as strings */
+    if((stat = ncaux_filterspec_parse(txt,&spec))) goto done;
+    /* walk and convert */
+    if((stat = ncaux_filterspec_cvt(spec,&h5spec))) goto done;
+    /* Now return results */
+    if(h5specp != NULL) {*h5specp = h5spec; h5spec = NULL;}
+
+done:
+    ncaux_filterspec_free(spec);
+    if(h5spec) nullfree(h5spec->params);
+    nullfree(h5spec);
+    return stat;
+}
+
+/*
+Parse a string containing multiple '|' separated filter specs.
+
+@param spec0 - a string containing the list of filter specs.
+@param nspecsp - # of parsed specs
+@param specsp - pointer to hold vector of parsed specs. Caller frees
+@return NC_NOERR if parse succeeded
+@return NC_EINVAL if bad parameters or parse failed
+*/
+
+EXTERNL int
+ncaux_filter_parselist(const char* txt0, size_t* nspecsp, NC_H5_Filterspec*** vectorp)
+{
+    int stat = NC_NOERR;
+    size_t len = 0;
+    size_t nspecs = 0;
+    NC_H5_Filterspec** vector = NULL;
+    char* spec0 = NULL; /* with prefix */
+    char* spec = NULL; /* without prefix */
+    char* p = NULL;
+    char* q = NULL;
+
+    if(txt0  == NULL) return NC_EINVAL;
+    /* Duplicate txt0 so we can modify it */
+    len = strlen(txt0);
+    if((spec = calloc(1,len+1+1)) == NULL) return NC_ENOMEM;
+    memcpy(spec,txt0,len); /* Note double ending nul */
+    spec0 = spec; /* Save for later free */
+
+    /* See if there is a prefix '[format]' tag; ignore it */
+    if(spec[0] == LBRACK) {
+	spec = q; /* skip tag wrt later processing */
+    }
+    /* pass 1: count number of specs */
+    p = spec;
+    nspecs = 0;
+    while(*p) {
+	q = strchr(p,'|');
+	if(q == NULL) q = p + strlen(p); /* fake it */
+	nspecs++;
+	p = q + 1;
+    }
+    if(nspecs >  0) {
+	int count = 0;
+	if((vector = (NC_H5_Filterspec**)malloc(sizeof(NC_H5_Filterspec*)*nspecs)) == NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	/* pass 2: parse */
+	p = spec;
+	for(count=0;count<nspecs;count++) {
+	    NC_H5_Filterspec* aspec = NULL;
+	    q = strchr(p,'|');
+	    if(q == NULL) q = p + strlen(p); /* fake it */
+	    *q = '\0';
+	    if(ncaux_filter_parsespec(p,&aspec))
+	        {stat = NC_EINVAL; goto done;}
+	    vector[count] = aspec; aspec = NULL;
+	    p = q+1; /* ok because of double nul */
+	}
+    }
+    if(nspecsp) *nspecsp = nspecs;
+    if(vectorp) *vectorp = (nspecs == 0 ? NULL : vector);
+    vector = NULL;
+done:
+    nullfree(spec0);
+    if(vector != NULL) {
+	int k;
+	for(k=0;k<nspecs;k++) {
+	    NC_H5_Filterspec* nfs = vector[k];
+	    if(nfs->params) free(nfs->params);
+	    nullfree(nfs);
+	}
+	free(vector);
+    }
+    return stat;
+}
+#endif
