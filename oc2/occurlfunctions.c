@@ -6,6 +6,7 @@
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
+
 #include "ncrc.h"
 #include "ocinternal.h"
 #include "ocdebug.h"
@@ -14,7 +15,7 @@
 #define OC_MAX_REDIRECTS 20L
 
 /* Mnemonic */
-#define OPTARG void*
+#define OPTARG uintptr_t
 
 /* Define some .rc file entries of interest*/
 #define NETRCFILETAG "HTTP.NETRC"
