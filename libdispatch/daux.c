@@ -93,7 +93,7 @@ Should work for any netcdf format.
 @return error code
 */
 
-EXTERNL int
+int
 ncaux_reclaim_data(int ncid, int xtype, void* memory, size_t count)
 {
     int stat = NC_NOERR;
@@ -275,7 +275,7 @@ This code is a variant of the H5detect.c code from HDF5.
 Author: D. Heimbigner 10/7/2008
 */
 
-EXTERNL int
+int
 ncaux_begin_compound(int ncid, const char *name, int alignmode, void** tagp)
 {
 #ifdef USE_NETCDF4
@@ -307,7 +307,7 @@ fail:
 #endif
 }
 
-EXTERNL int
+int
 ncaux_abort_compound(void* tag)
 {
 #ifdef USE_NETCDF4
@@ -329,7 +329,7 @@ done:
 #endif
 }
 
-EXTERNL int
+int
 ncaux_add_field(void* tag,  const char *name, nc_type field_type,
 			   int ndims, const int* dimsizes)
 {
@@ -369,7 +369,7 @@ done:
 #endif
 }
 
-EXTERNL int
+int
 ncaux_end_compound(void* tag, nc_type* idp)
 {
 #ifdef USE_NETCDF4
@@ -411,7 +411,7 @@ done:
 /**
  @param ncclass - type class for which alignment is requested; excludes ENUM|COMPOUND
 */
-EXTERNL size_t
+size_t
 ncaux_class_alignment(int ncclass)
 {
     if(ncclass <= NC_MAX_ATOMIC_TYPE || ncclass == NC_VLEN || ncclass == NC_OPAQUE)
@@ -424,7 +424,7 @@ ncaux_class_alignment(int ncclass)
  @param ncid - only needed for a compound type
  @param xtype - type for which alignment is requested
 */
-EXTERNL size_t
+size_t
 ncaux_type_alignment(int xtype, int ncid)
 {
     if(!ncaux_initialized) {
@@ -562,7 +562,7 @@ const struct LegalFormat {
 };
 
 
-EXTERNL void
+void
 ncaux_filterfix8(unsigned char* mem, int decode)
 {
 #ifdef WORDS_BIGENDIAN
@@ -654,7 +654,7 @@ Parse a filter spec string into a NC_FILTER_SPEC*
 @return NC_EINVAL otherwise
 */
 
-EXTERNL int
+int
 ncaux_filterspec_parse(const char* txt, NC_Filterspec** specp)
 {
     int i,stat = NC_NOERR;
@@ -665,6 +665,7 @@ ncaux_filterspec_parse(const char* txt, NC_Filterspec** specp)
     char* filterid = NULL;
     char** params = NULL;
     size_t len;
+    NC_Filterspec* pfs = NULL;
     
     if(txt == NULL)
         {stat = NC_EINVAL; goto done;}
@@ -713,18 +714,19 @@ ncaux_filterspec_parse(const char* txt, NC_Filterspec** specp)
         p = p + strlen(p) + 1; /* move to next param */
     }
     /* Now return results */
-    if(specp != NULL) abort();
+    if(*specp != NULL) abort();
     {
-        NC_Filterspec* pfs = calloc(1,sizeof(NC_Filterspec));
+        pfs = calloc(1,sizeof(NC_Filterspec));
         if(pfs == NULL) {stat = NC_ENOMEM; goto done;}
 	pfs->version = NCAUX_FILTERSPEC_VERSION;
         pfs->filterid = filterid; filterid = NULL;
         pfs->nparams = nparams;;
         pfs->params = params; params = NULL;
-	*specp = pfs;
+	*specp = pfs; pfs = NULL;
     }
 
 done:
+    ncaux_filterspec_free(pfs);
     nullfree(sdata);
     nullfree(filterid);
     ncaux_freestringvec(nparams,params);
@@ -741,7 +743,7 @@ Parse a string containing multiple '|' separated filter specs.
 @return NC_EINVAL if bad parameters or parse failed
 */
 
-EXTERNL int
+int
 ncaux_filterspec_parselist(const char* txt0, char** formatp, size_t* nspecsp, NC_Filterspec*** vectorp)
 {
     int stat = NC_NOERR;
@@ -844,7 +846,7 @@ Convert an NC_Filterspec to equivalent NC_H5_Filterspec.
 @return NC_EINVAL if bad parameters or parse failed
 */
 
-EXTERNL int
+int
 ncaux_filterspec_cvt(const NC_Filterspec* spec, NC_H5_Filterspec** spech5p)
 {
     int i,stat = NC_NOERR;
@@ -963,7 +965,7 @@ Parse a filter spec string into a NC_H5_Filterspec*
 @return NC_EINVAL otherwise
 */
 
-EXTERNL int
+int
 ncaux_filter_parsespec(const char* txt, NC_H5_Filterspec** h5specp)
 {
     int stat = NC_NOERR;
@@ -1000,7 +1002,7 @@ Parse a string containing multiple '|' separated filter specs.
 @return NC_EINVAL if bad parameters or parse failed
 */
 
-EXTERNL int
+int
 ncaux_filter_parselist(const char* txt0, size_t* nspecsp, NC_H5_Filterspec*** vectorp)
 {
     int stat = NC_NOERR;

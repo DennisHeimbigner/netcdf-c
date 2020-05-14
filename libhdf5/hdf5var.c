@@ -700,14 +700,16 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
     if (shuffle)
     {
         var->shuffle = *shuffle;
-        var->storage = NC_CHUNKED;
+	if(var->shuffle)
+            var->storage = NC_CHUNKED;
     }
 
     /* Fletcher32 checksum error protection? */
     if (fletcher32)
     {
         var->fletcher32 = *fletcher32;
-        var->storage = NC_CHUNKED;
+	if(var->fletcher32)
+            var->storage = NC_CHUNKED;
     }
 
 #ifdef USE_PARALLEL
@@ -904,11 +906,14 @@ NC4_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
     unsigned int level = (unsigned int)deflate_level;
     /* Set shuffle first */
     if((stat = nc_def_var_extra(ncid, varid, &shuffle, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL))) goto done;
-    if(deflate)
-        stat = nc_def_var_filter(ncid, varid, H5Z_FILTER_DEFLATE,1,&level);
-    else
-        stat = nc_var_filter_remove(ncid, varid, H5Z_FILTER_DEFLATE);
-    if(stat) goto done;
+    if(deflate) {
+        if((stat = nc_def_var_filter(ncid, varid, H5Z_FILTER_DEFLATE,1,&level))) goto done;
+    } else {
+        switch (stat = nc_var_filter_remove(ncid, varid, H5Z_FILTER_DEFLATE)) {
+	case NC_NOERR: case NC_ENOFILTER: stat = NC_NOERR; break; /* ok if not previously defined */
+	default: goto done;
+	}
+    }
 done:
     return stat;
 }

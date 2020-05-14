@@ -120,6 +120,7 @@ static const struct MACRODEF {
 {"dap2","mode=dap2"},
 {"dap4","mode=dap4"},
 {"s3","mode=nczarr,s3"},
+{"bytes","mode=bytes"},
 {NULL,NULL}
 };
 
@@ -190,7 +191,7 @@ processuri(const char* path, NCURI** urip, NClist* fraglist)
     char* str = NULL;
     const char** ufrags;
     const char** p;
-    NCbytes* buf = ncbytesnew();
+    NCbytes* buf = NULL;
 
     if(path == NULL || pathlen == 0) {stat = NC_EURL; goto done;}
 
@@ -215,11 +216,7 @@ processuri(const char* path, NCURI** urip, NClist* fraglist)
 	tmp = nclistnew();
 	if((stat = parseonchar(protolist->fragments,'&',tmp))) goto done;
 	for(i=0;i<nclistlength(tmp);i++) {
-	    char* key = NULL;
-	    char* value = NULL;
-            ncbytesclear(buf);
-	    ncbytescat(buf,key); ncbytescat(buf,"="); ncbytescat(buf,value);
-	    nclistpush(fraglist,ncbytesextract(buf));
+	    nclistpush(fraglist,(char*)nclistget(tmp,i));
 	}
 	nclistfreeall(tmp); tmp = NULL;
     }
@@ -229,11 +226,14 @@ processuri(const char* path, NCURI** urip, NClist* fraglist)
 
     /* capture the fragments of the url */
     ufrags = ncurifragmentparams(uri);
+    buf = ncbytesnew();
     for(p=ufrags;*p;p+=2) {
 	const char* key = p[0];
 	const char* value = p[1];
-        ncbytesclear(buf);
-	ncbytescat(buf,key); ncbytescat(buf,"="); ncbytescat(buf,value);
+	ncbytescat(buf,key);
+	if(value != NULL && value[0] != '\0') {
+	    ncbytescat(buf,"="); ncbytescat(buf,value);
+	}
 	nclistpush(fraglist,ncbytesextract(buf));
     }
     if(urip) {
@@ -251,28 +251,29 @@ done:
 
 /* Split a key=value pair */
 static int
-parsepair(const char* pair, char**keyp, char** valuep)
+parsepair(const char* pair, char** keyp, char** valuep)
 {
     const char* p;
     char* key = NULL;
     char* value = NULL;
+
+    if(pair == NULL)
+        return NC_EINVAL; /* empty pair */
+    if(pair[0] == '\0' || pair[0] == '=')
+        return NC_EINVAL; /* no key */
     p = strchr(pair,'=');
-    if(p == pair) /* no key */
-        return NC_EINVAL;
-    else if(p == NULL || p[1]=='\0') {
-	ptrdiff_t len = (p-pair);
+    if(p == NULL) {
 	value = NULL;
-	key = malloc(len+1);
-	memcpy(key,p,len);
-	key[len] = '\0';
+	key = strdup(pair);
     } else {
 	ptrdiff_t len = (p-pair);
-	key = malloc(len+1);
-	memcpy(key,p,len);
+	if((key = malloc(len+1))==NULL) return NC_ENOMEM;
+	memcpy(key,pair,len);
 	key[len] = '\0';
-	value = malloc(len+1);
-	memcpy(value,p+1,len);
-	value[len] = '\0';
+	if(p[1] == '\0')
+	    value = NULL;
+	else
+	    value = strdup(p+1);
     }
     if(keyp) {*keyp = key; key = NULL;};
     if(valuep) {*valuep = value; value = NULL;};
@@ -358,8 +359,10 @@ pairlist2string(NClist* envv)
 	if(val == NULL) val = "";
 	if(i > 0) ncbytescat(buf,"&");
 	ncbytescat(buf,key);
-	ncbytescat(buf,"=");
-	ncbytescat(buf,val);
+	if(val != NULL && val[0] != '\0') {
+	    ncbytescat(buf,"=");
+	    ncbytescat(buf,val);
+	}
     }
     result = ncbytesextract(buf);
     ncbytesfree(buf);
@@ -413,31 +416,36 @@ processmacros(NClist** fraglistp)
     NClist*  fraglist = NULL;
     NClist* expanded = NULL;
     NClist* def = nclistnew();
+    char* pair = NULL;
 
     if(fraglistp == NULL || nclistlength(*fraglistp) == 0) goto done;
     fraglist = *fraglistp;
     expanded = nclistnew();    
     while(nclistlength(fraglist) > 0) {
 	int match = 0;
-	char* pair = nclistremove(fraglist,0); /* remove from changing front */
-	if(pair != NULL && strlen(pair) != 0) {
-            for(;macros->name;macros++) {
-	        if(strcmp(macros->name,pair)==0) {
-	            nclistclear(def);
-		    if((stat=parseonchar(macros->def,'&',def))) goto done;
-	            while(nclistlength(def) > 0) {
-		        char* s = nclistremove(def,0);
-		        nclistpush(expanded,s);
+	pair = nclistremove(fraglist,0); /* remove from changing front */
+	if(strchr(pair,'=') == NULL) { /* must be a singleton */
+	    if(pair != NULL && strlen(pair) != 0) {
+                for(;macros->name;macros++) {
+	            if(strcmp(macros->name,pair)==0) {
+	                nclistclear(def);
+		        if((stat=parseonchar(macros->def,'&',def))) goto done;
+	                while(nclistlength(def) > 0) {
+		            char* s = nclistremove(def,0);
+		            nclistpush(expanded,s);
+		        }
+	   	        match = 1;
 		    }
-	   	    match = 1;
 	        }
 	    }
 	}
-	if(!match) nclistpush(expanded,pair);
+	if(!match) {nclistpush(expanded,pair); pair = NULL;}
+	nullfree(pair); pair = NULL;
     }
     *fraglistp = expanded; expanded = NULL;
 
 done:
+    nullfree(pair);
     nclistfreeall(def);    
     nclistfreeall(expanded);
     nclistfreeall(fraglist);
@@ -469,13 +477,13 @@ mergekey(NClist** valuesp)
 
 done:
     nclistfreeall(values);
-    nclistfreeall(values);
+    nclistfreeall(newvalues);
     return check(stat);
 }
 
 /* Given a fragment list, coalesce duplicate keys and remove duplicate values*/
 static int
-processfragments(NClist** fraglistp)
+cleanfragments(NClist** fraglistp)
 {
     int i,j,stat = NC_NOERR;
     NClist*  fraglist = NULL;
@@ -483,9 +491,11 @@ processfragments(NClist** fraglistp)
     NClist* newlist = NULL;
     NCbytes* buf = NULL;
 
-    if(fraglistp == NULL || nclistlength(*fraglistp) == 0) goto done;
-    fraglist = *fraglistp;
+    if(fraglistp == NULL || nclistlength(*fraglistp) == 0) return NC_NOERR;
+    fraglist = *fraglistp; /* take control of this list */
+    *fraglistp = NULL;
     newlist = nclistnew();
+    buf = ncbytesnew();
     /* Collect same key across fragment */ 
     for(i=0;i<nclistlength(fraglist);i+=2) {
 	char* pair = nclistget(fraglist,i);
@@ -495,7 +505,7 @@ processfragments(NClist** fraglistp)
 	if((stat=parsepair(pair,&key,&value))) goto done;
 	klen = strlen(key);
         tmp = nclistnew();    
-	nclistpush(tmp,value); value = NULL;
+	if(value != NULL) {nclistpush(tmp,value); value = NULL;}
         for(j=i+2;j<nclistlength(fraglist);j++) {
   	    char* pair = nclistget(fraglist,j);
 	    if(memcmp(pair,key,klen)==0) {
@@ -503,26 +513,36 @@ processfragments(NClist** fraglistp)
 		nclistpush(tmp,value);
 	    }
 	}
-	nullfree(key);
 	/* merge the key values, remove duplicate */
 	if((stat=mergekey(&tmp))) goto done;
-        /* Construct keym,value pair and insert into newlist */
+        /* Construct key,value pair and insert into newlist */
 	ncbytesclear(buf);
 	ncbytescat(buf,key);
-	ncbytescat(buf,"=");
+	nullfree(key); key = NULL;
+	if(nclistlength(tmp) > 0)
+	    ncbytescat(buf,"=");
         for(j=0;j<nclistlength(tmp);j++) {
 	    char* v = nclistget(tmp,j);
 	    if(j>0) ncbytescat(buf,",");
 	    ncbytescat(buf,v);
         }
+	nclistfreeall(tmp); tmp = NULL;
 	nclistpush(newlist,ncbytesextract(buf));
     }
-    *fraglistp = fraglist; fraglist = NULL;
+    *fraglistp = newlist; newlist = NULL;
 done:
     nclistfreeall(tmp);
     ncbytesfree(buf);
     nclistfreeall(fraglist);
+    nclistfreeall(newlist);
     return check(stat);
+}
+
+/* process non-mode fragment keys in case they hold significance; currently not */
+static int
+processfragmentkeys(const char* key, const char* value, NCmodel* model)
+{
+    return NC_NOERR;    
 }
 
 /*
@@ -654,19 +674,19 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
 #endif
 
         /* Phase 3: coalesce duplicate fragment keys and remove duplicate values */
-        if((stat = processfragments(&fraglist))) goto done;
+        if((stat = cleanfragments(&fraglist))) goto done;
 #ifdef DEBUG
-	printlist(fraglist,"processfragments");
+	printlist(fraglist,"cleanfragments");
 #endif
 
         /* Phase 4: Rebuild the url fragment and rebuilt the url */
         sfrag = pairlist2string(fraglist);        
+        nclistfreeall(fraglist); fraglist = NULL;
 #ifdef DEBUG
 	fprintf(stderr,"frag final: %s\n",sfrag);
 #endif
         ncurisetfragments(uri,sfrag);
-        nullfree(sfrag);
-        nclistfreeall(fraglist);
+        nullfree(sfrag); sfrag = NULL;
 
 	/* rebuild the path */
         if(newpathp)
@@ -683,6 +703,18 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
         	const char* arg = nclistget(modeargs,i);
         	if((stat=processmodearg(arg,model))) goto done;
             }
+	}
+
+        /* Phase 6: Process the non-mode keys to see if we can tell the formatx */
+	if(!modelcomplete(model)) {
+	    const char** p = ncurifragmentparams(uri); /* envv format */
+	    if(p != NULL) {
+	        for(;*p;p++) {
+		    const char* key = p[0];
+		    const char* value = p[1];;
+        	    if((stat=processfragmentkeys(key,value,model))) goto done;
+	        }
+	    }
 	}
 
         /* Phase 6: Special case: if this is a URL, and there are no mode args
@@ -751,7 +783,7 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
 
 done:
     nullfree(sfrag);
-    if(uri) ncurifree(uri);
+    ncurifree(uri);
     nclistfreeall(modeargs);
     nclistfreeall(fraglist);
     *omodep = omode; /* in/out */

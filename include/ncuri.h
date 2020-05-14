@@ -72,6 +72,9 @@ extern int ncurisetfragments(NCURI*, const char* fragments);
 /* Replace a specific &key=...& in uri fragment */
 extern int ncurisetfragmentkey(NCURI* duri,const char* key, const char* value);
 
+/* append a specific &key=...& in uri fragment */
+extern int ncuriappendfragmentkey(NCURI* duri,const char* key, const char* value);
+
 /* Construct a complete NC URI; caller frees returned string */
 EXTERNL char* ncuribuild(NCURI*,const char* prefix, const char* suffix, int flags);
 

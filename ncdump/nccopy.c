@@ -368,8 +368,6 @@ done:
     freefilterlist(nfilters,filters);
     if(vlist) listfreeall(vlist);
     if(optarg) free(optarg);
-extern void nczprint_reclaim(void);
-    nczprint_reclaim();
     return stat;
 }
 

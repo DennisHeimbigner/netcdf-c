@@ -205,6 +205,8 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
     unsigned int* params = NULL;
     size_t nfilters = 0;
     char* idx = NULL;
+    NC_FILTERX_SPEC* oldspec = NULL;
+    int havedeflate, haveszip;
 
     LOG((2, "%s: ncid 0x%x varid %d op=%d", __func__, ncid, varid, op));
 
@@ -238,57 +240,76 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
 #endif /* HDF5_SUPPORTS_PAR_FILTERS */
 #endif /* USE_PARALLEL */
 	nparams = obj->u.spec.nparams;
+	/* Lookup incoming id to see if already defined */
 	if((stat = NC_cvtX2I_id(obj->u.spec.filterid,&id))) goto done;
 	if((params = calloc(sizeof(unsigned int),nparams))==NULL) {stat = NC_ENOMEM; goto done;}
 	if((stat = NC_cvtX2I_params(nparams,(const char**)obj->u.spec.params,params))) goto done;
+	oldspec = NULL;
+        switch((stat=NC4_filterx_lookup(var,obj->u.spec.filterid,&oldspec))) {
+	case NC_NOERR: break; /* already defined */
+        case NC_ENOFILTER: break; /*not defined*/
+        default: goto done;
+	}
+	/* See if deflate &/or szip is defined */
+	if((stat = NC_cvtI2X_id(H5Z_FILTER_DEFLATE,&idx,0))) goto done;
+	switch ((stat = NC4_filterx_lookup(var,idx,NULL))) {
+	case NC_NOERR: havedeflate = 1; break;
+	case NC_ENOFILTER: havedeflate = 0; break;	
+	default: goto done;
+	}
+	nullfree(idx); idx = NULL;
+	if((stat = NC_cvtI2X_id(H5Z_FILTER_SZIP,&idx,0))) goto done;
+	switch ((stat = NC4_filterx_lookup(var,idx,NULL))) {
+	case NC_NOERR: haveszip = 1; break;
+	case NC_ENOFILTER: haveszip = 0; break;	
+	default: goto done;
+	}
+	nullfree(idx); idx = NULL;
+	/* If incoming filter not already defined, then check for conflicts */
+	if(oldspec == NULL) {
 #ifdef HAVE_H5_DEFLATE
-        if(id == H5Z_FILTER_DEFLATE) {
-	    int level;
-            if(nparams != 1)
-                {stat = THROW(NC_EFILTER); goto done;}/* incorrect no. of parameters */
-	    level = (int)params[0];
-            if (level < NC_MIN_DEFLATE_LEVEL ||
-                level > NC_MAX_DEFLATE_LEVEL)
-                {stat = THROW(NC_EINVAL); goto done;}
-            /* If szip compression is already applied, return error. */
-	    if((stat=NC_cvtI2X_id(H5Z_FILTER_SZIP,&idx,0))) goto done;
-	    if((NC4_filterx_lookup(var,idx,NULL)))
-                 return THROW(NC_EINVAL);
-	    nullfree(idx); idx = NULL;
-        }
+            if(id == H5Z_FILTER_DEFLATE) {
+		int level;
+                if(nparams != 1)
+                    {stat = THROW(NC_EFILTER); goto done;}/* incorrect no. of parameters */
+   	        level = (int)params[0];
+                if (level < NC_MIN_DEFLATE_LEVEL || level > NC_MAX_DEFLATE_LEVEL)
+                    {stat = THROW(NC_EINVAL); goto done;}
+                /* If szip compression is already applied, return error. */
+	        if(haveszip) {stat = THROW(NC_EINVAL); goto done;}
+            }
 #else /*!HAVE_H5_DEFLATE*/
-        if(id == H5Z_FILTER_DEFLATE)
-            {stat = THROW(NC_EFILTER); /* Not allowed */ goto done;}
+            if(id == H5Z_FILTER_DEFLATE)
+                {stat = THROW(NC_EFILTER); /* Not allowed */ goto done;}
 #endif
 #ifdef HAVE_H5Z_SZIP
-        if(id == H5Z_FILTER_SZIP) { /* Do error checking */
-            if(nparams != 2)
-                {stat = THROW(NC_EFILTER); goto done;}/* incorrect no. of parameters */
-            /* Pixels per block must be an even number, < 32. */
-            if (params[1] % 2 || params[1] > NC_MAX_PIXELS_PER_BLOCK)
-                {stat = THROW(NC_EINVAL); goto done;}
-            /* If zlib compression is already applied, return error. */
-	    if((stat=NC_cvtI2X_id(H5Z_FILTER_DEFLATE,&idx,0))) goto done;
-	    if((NC4_filterx_lookup(var,idx,NULL)))
-                 return THROW(NC_EINVAL);
-	    nullfree(idx); idx = NULL;
-        }
+            if(id == H5Z_FILTER_SZIP) { /* Do error checking */
+                if(nparams != 2)
+                    {stat = THROW(NC_EFILTER); goto done;}/* incorrect no. of parameters */
+                /* Pixels per block must be an even number, < 32. */
+                if (params[1] % 2 || params[1] > NC_MAX_PIXELS_PER_BLOCK)
+                    {stat = THROW(NC_EINVAL); goto done;}
+                /* If zlib compression is already applied, return error. */
+	        if(havedeflate) {stat = THROW(NC_EINVAL); goto done;}
+            }
 #else /*!HAVE_H5Z_SZIP*/
-        if(id == H5Z_FILTER_SZIP)
-            {stat = THROW(NC_EFILTER); goto done;} /* Not allowed */
+            if(id == H5Z_FILTER_SZIP)
+                {stat = THROW(NC_EFILTER); goto done;} /* Not allowed */
 #endif
-        /* Filter => chunking */
-	var->storage = NC_CHUNKED;
-        /* Determine default chunksizes for this variable unless already specified */
-        if(var->chunksizes && !var->chunksizes[0]) {
-	    /* Should this throw error? */
-            if((stat = nc4_find_default_chunksizes2(grp, var)))
-	        goto done;
-            /* Adjust the cache. */
-            if ((stat = nc4_adjust_var_cache(grp, var)))
-                goto done;
-        }
+            /* Filter => chunking */
+	    var->storage = NC_CHUNKED;
+            /* Determine default chunksizes for this variable unless already specified */
+            if(var->chunksizes && !var->chunksizes[0]) {
+	        /* Should this throw error? */
+                if((stat = nc4_find_default_chunksizes2(grp, var)))
+	            goto done;
+                /* Adjust the cache. */
+                if ((stat = nc4_adjust_var_cache(grp, var)))
+                    goto done;
+            }
+	}
 #ifdef HAVE_H5Z_SZIP
+	/* More error checking */
         if(id == H5Z_FILTER_SZIP) { /* szip X chunking error checking */
 	    /* For szip, the pixels_per_block parameter must not be greater
 	     * than the number of elements in a chunk of data. */
@@ -301,9 +322,9 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
                 {stat = THROW(NC_EINVAL); goto done;}
         }
 #endif
+	/* addfilter can handle case where filter is already defined, and will just replace parameters */
         if((stat = NC4_hdf5_addfilter(var,!FILTERACTIVE,id,nparams,params)))
-            goto done;
-
+                goto done;
 #ifdef USE_PARALLEL
 #ifdef HDF5_SUPPORTS_PAR_FILTERS
         /* Switch to collective access. HDF5 requires collevtive access

@@ -1339,9 +1339,6 @@ var_free(NC_VAR_INFO_T *var)
     if (var->alt_name)
         free(var->alt_name);
 
-    if (var->hdr.name)
-        free(var->hdr.name);
-
     if (var->dimids)
         free(var->dimids);
 
@@ -1359,6 +1356,11 @@ var_free(NC_VAR_INFO_T *var)
 
     /* Release filter information. */
     NC4_filterx_freelist(var);
+    var->filters = NULL;
+
+    /* Do this last because debugging may need it */
+    if (var->hdr.name)
+        free(var->hdr.name);
 
     /* Delete the var. */
     free(var);

@@ -94,6 +94,7 @@ static int ensurefraglist(NCURI* uri);
 static int ensurequerylist(NCURI* uri);
 static void buildlist(const char** list, int encode, NCbytes* buf);
 static void removedups(NClist* list);
+static int extendenvv(char*** envvp, int amount, int* oldlen);
 
 /**************************************************/
 /*
@@ -520,6 +521,34 @@ ncurisetfragmentkey(NCURI* duri,const char* key, const char* value)
     if(pos < 0) return NC_EINVAL; /* does not exist */
     nullfree(duri->fraglist[pos+1]);
     duri->fraglist[pos+1] = strdup(value);
+    /* Rebuild the fragment */
+    if((ret = unparselist((const char**)duri->fraglist,"#",0,&newlist))) goto done;
+    nullfree(duri->fragment);
+    duri->fragment = newlist; newlist = NULL;
+done:
+    return ret;
+}
+
+/* Replace or add a specific fragment key*/
+int
+ncuriappendfragmentkey(NCURI* duri,const char* key, const char* value)
+{
+    int ret = NC_NOERR;
+    int len;
+    int pos = -1;
+    char* newlist = NULL;
+
+    ensurefraglist(duri);
+    pos = ncfind(duri->fraglist, key);
+    if(pos < 0) { /* does not exist */
+	if((ret = extendenvv(&duri->fraglist,2,&len))) goto done;
+	duri->fraglist[len] = strdup(key);
+	duri->fraglist[len+1] = nulldup(value);
+	duri->fraglist[len+2] = NULL;
+    } else {
+        nullfree(duri->fraglist[pos+1]);
+        duri->fraglist[pos+1] = strdup(value);
+    }
     /* Rebuild the fragment */
     if((ret = unparselist((const char**)duri->fraglist,"#",0,&newlist))) goto done;
     nullfree(duri->fragment);
@@ -1154,4 +1183,20 @@ buildlist(const char** list, int encode, NCbytes* buf)
 	        ncbytescat(buf,p[1]);
         }
     }
+}
+
+static int
+extendenvv(char*** envvp, int amount, int* oldlenp)
+{
+    char** envv = *envvp;
+    char** p;
+    int len;
+    for(len=0,p=envv;*p;p++) len++;
+    *oldlenp = len;
+    if((envv = (char**)malloc((amount+len+1)*sizeof(char*)))==NULL) return NC_ENOMEM;
+    memcpy(envv,*envvp,sizeof(char*)*len);
+    envv[len] = NULL;
+    nullfree(*envvp);
+    *envvp = envv; envv = NULL;
+    return NC_NOERR;
 }

@@ -199,20 +199,29 @@ main(int argc, char **argv)
     unsigned long long baseull;
     float basef;
     double based;
+    NC_Filterspec* xpfs = NULL;
     NC_H5_Filterspec* pfs = NULL;
 
     printf("\nTesting filter parser.\n");
 
     buildbaseline(); /* Build our comparison vector */
 
-    stat = ncaux_filter_parsespec(spec,&pfs);
+    stat = ncaux_filterspec_parse(spec,&xpfs);
     if(stat) {
 	fprintf(stderr,"ncaux_filter_parsespec failed\n");
-	exit(1);
+	goto done;
     }
     
-    if(pfs->filterid != PARAMS_ID)
+    /* convert NC_filterspec to NC_H5_filterspec */
+    if((stat = ncaux_filterspec_cvt(xpfs,&pfs))) {
+	fprintf(stderr,"ncaux_filter_cvt failed\n");
+	goto done;
+    }
+
+    if(pfs->filterid != PARAMS_ID) {
         fprintf(stderr,"mismatch: id: expected=%u actual=%u\n",(unsigned int)PARAMS_ID,pfs->filterid);
+	nerrs++;
+    }
 
     /* Do all the 32 bit tests */
     for(i=0;i<=8;i++) {
@@ -253,10 +262,11 @@ main(int argc, char **argv)
     if (!nerrs)
        printf("SUCCESS!!\n");
 
+done:
+    ncaux_filterspec_free(xpfs);
     if(pfs && pfs->params) free(pfs->params);
-    if(pfs) free(pfs);
-    
-    return (nerrs > 0 ? 1 : 0);
+    nullfree(pfs);
+    return (stat || nerrs > 0 ? 1 : 0);
 }
 
 #ifdef DEBUG

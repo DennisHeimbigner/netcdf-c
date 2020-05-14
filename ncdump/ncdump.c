@@ -51,6 +51,7 @@ int optind;
 #include "nclog.h"
 #include "ncwinpath.h"
 #include "nclist.h"
+#include "ncuri.h"
 #include "nc_provenance.h"
 
 #ifdef USE_NETCDF4
@@ -2149,21 +2150,22 @@ set_precision(const char *optarg)
 
 
 #ifdef USE_DAP
-#define DAP_CLIENT_CACHE_DIRECTIVE	"[cache]"
+#define DAP_CLIENT_CACHE_DIRECTIVE	"cache"
 /* replace path string with same string prefixed by
  * DAP_CLIENT_NCDUMP_DIRECTIVE */
-static
-void adapt_url_for_cache(char **pathp) {
-    char prefix[] = DAP_CLIENT_CACHE_DIRECTIVE;
+static void
+adapt_url_for_cache(char **pathp)
+{
     char* path = *pathp;
-    char *tmp_path = strdup(path);
-    path = (char *)emalloc(strlen(prefix) + strlen(tmp_path) + 1);
-    path[0] = '\0';
-    strncat(path, prefix, strlen(prefix));
-    strncat(path, tmp_path, strlen(tmp_path));
-    if(tmp_path) free(tmp_path);
-    if(*path) free(*pathp);
-    *pathp = path;
+    NCURI* url = NULL;
+    ncuriparse(path,&url);
+    if(url == NULL) return;
+    ncuriappendfragmentkey(url,DAP_CLIENT_CACHE_DIRECTIVE,NULL);
+    if(*pathp) free(*pathp);
+    path = ncuribuild(url,NULL,NULL,NCURIALL);
+    if(pathp) {*pathp = path; path = NULL;}
+    ncurifree(url);
+    nullfree(path);
     return;
 }
 #endif
@@ -2351,7 +2353,7 @@ main(int argc, char *argv[])
 
     /* Deescape the user name */
     path = NCdeescape(argv[i]);
-    if(!path) {
+    if(path == NULL) {
 	snprintf(errmsg,sizeof(errmsg),"out of memory copying argument %s", argv[i]);
 	goto fail;
     }
@@ -2419,15 +2421,15 @@ main(int argc, char *argv[])
 	    }
 	    NC_CHECK( nc_close(ncid) );
     }
-    if(path) {free(path); path = NULL;}
+    nullfree(path) path = NULL;
     exit(EXIT_SUCCESS);
 
 fail: /* ncstat failures */
     path = (path?path:strdup("<unknown>"));
     if(ncstat && strlen(errmsg) == 0)
 	snprintf(errmsg,sizeof(errmsg),"%s: %s", path, nc_strerror(ncstat));
+    nullfree(path); path = NULL;
     if(strlen(errmsg) > 0)
-	error("%s: %s", path, errmsg);
-    if(path) free(path);
+	error("%s", errmsg);
     exit(EXIT_FAILURE);
 }
