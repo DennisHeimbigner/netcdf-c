@@ -33,7 +33,7 @@ main(int argc, char** argv)
 
     var = nclistget(options.vardefs,0);
 
-    printf("Slices: %s\n",nczprint_slicesx(var->rank,options.slices,1));
+    printoptions(&options);
 
     /* Compute chunk ranges */
     if((stat = NCZ_compute_chunk_ranges(var->rank,options.slices,var->chunksizes,ncrv)))

@@ -87,7 +87,7 @@ ut_init(int argc, char** argv, struct Options * options)
 		vardef = NULL;
                 break;
             case 's': /*slices*/
-		if((stat=parseslices(optarg,options->slices))) usage(stat);
+		if((stat=parseslices(optarg,&options->nslices,options->slices))) usage(stat);
                 break;
             case 'W': /*walk data*/
 		options->idatalen = parseintvector(optarg,4,(void**)&options->idata);
