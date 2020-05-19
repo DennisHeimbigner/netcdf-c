@@ -915,13 +915,27 @@ IF(NOT WIN32)
   ENDIF()
 ENDIF()
 
+# Option to Build NCZarr clients
+OPTION(ENABLE_NCZARR "Enable NCZarr Client." OFF)
+
+# See if aws-s3-sdk is available
+FIND_LIBRARY(AWS_CPP_SDK_CORE_LIB NAMES aws-cpp-sdk-core)
+FIND_LIBRARY(AWS_CPP_SDK_S3_LIB NAMES aws-cpp-sdk-s3)
+FIND_LIBRARY(AWS_C_COMMON_LIB NAMES aws-c-common)
+
+IF(AWS_CPP_SDK_CORE_LIB AND AWS_CPP_SDK_S3_LIB AND AWS_C_COMMON_LIB)
+  SET(ENABLE_S3_SDK ON CACHE BOOL "")
+ELSE()
+  MESSAGE(WARN "Can't find or link to one of aws-c-common, aws-cpp-sdk-s3, or aws-cpp-sdk-core libraries")
+  SET(ENABLE_S3_SDK OFF CACHE BOOL "")
+ENDIF()
+
 ##
 # Enable Tests
 ##
 OPTION(ENABLE_TESTS "Enable basic tests, run with 'make test'." ON)
 IF(ENABLE_TESTS)
   SET(BUILD_TESTSETS ON CACHE BOOL "")
-
   # Options for CTest-based tests, dashboards.
   SET(NC_CTEST_PROJECT_NAME "netcdf-c" CACHE STRING "Project Name for CTest-based testing purposes.")
   SET(NC_CTEST_DROP_SITE "cdash.unidata.ucar.edu:443" CACHE STRING "Dashboard location for CTest-based testing purposes.")
@@ -1775,6 +1789,10 @@ IF(ENABLE_DAP4)
   ADD_SUBDIRECTORY(libdap4)
 ENDIF()
 
+IF(ENABLE_NCZARR)
+  ADD_SUBDIRECTORY(libnczarr)
+ENDIF()
+
 add_subdirectory(liblib)
 
 IF(ENABLE_FILTER_TESTING)
@@ -1815,6 +1833,9 @@ IF(ENABLE_TESTS)
   ENDIF()
   IF(ENABLE_DAP4)
     ADD_SUBDIRECTORY(dap4_test)
+  ENDIF()
+  IF(ENABLE_NCZARR)
+    ADD_SUBDIRECTORY(nczarr_test)
   ENDIF()
   IF(ENABLE_EXAMPLES)
     ADD_SUBDIRECTORY(examples)
