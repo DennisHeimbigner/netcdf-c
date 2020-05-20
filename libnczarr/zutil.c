@@ -685,7 +685,7 @@ NCZ_swapatomicdata(size_t datalen, void* data, int typesize)
 
     /*(typesize > 1)*/
     for(i=0;i<datalen;) {
-	char* p = data + i;
+	char* p = ((char*)data) + i;
         switch (typesize) {
         case 2: swapinline16(p); break;
         case 4: swapinline32(p); break;

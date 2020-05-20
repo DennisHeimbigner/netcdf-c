@@ -12,6 +12,12 @@
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif
+
+#ifdef _MSC_VER
+#include "XGetopt.h"
+#define snprintf _snprintf
+#endif
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -29,13 +35,6 @@
 #include "ncfilter.h"
 
 #undef DEBUGFILTER
-
-#ifdef _MSC_VER
-#include "XGetopt.h"
-#define snprintf _snprintf
-int opterr;
-int optind;
-#endif
 
 /* default bytes of memory we are willing to allocate for variable
  * values during copy */
@@ -2197,7 +2196,6 @@ main(int argc, char**argv)
     chunkspecinit();
     option_chunkspecs = listnew();
 
-    opterr = 1;
     progname = argv[0];
 
     if (argc <= 1)
@@ -2205,7 +2203,8 @@ main(int argc, char**argv)
        usage();
     }
 
-    while ((c = getopt(argc, argv, "k:3467d:sum:c:h:e:rwxg:G:v:V:F:L:M:E")) != -1) {
+    opterr = 1;
+    while ((c = getopt(argc, argv, "k:3467d:sum:c:h:e:rwxg:G:v:V:F:L:M:")) != -1) {
 	switch(c) {
         case 'k': /* for specifying variant of netCDF format to be generated
                      Format names:

@@ -66,13 +66,7 @@ zdebug.h
 
 if ENABLE_S3_SDK
 libnczarr_la_SOURCES += zmap_s3sdk.c
-libnczarr_la_SOURCES += zs3sdk.cpp
-else
-libnczarr_la_SOURCES += zmap_s3.c
-if ENABLE_DAP4
-DISTCLEANFILES += ezxml.c
-libnczarr_la_SOURCES += ezxml.c
-endif
+#libnczarr_la_SOURCES += zs3sdk.cpp
 endif
 
 # For now, ignore these

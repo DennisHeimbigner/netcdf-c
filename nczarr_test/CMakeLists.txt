@@ -22,15 +22,17 @@ IF(ENABLE_TESTS)
   # must be run in a particular order. It is painful but will use macros to help
   # keep it from being too bad.
 
-  BUILD_BIN_TEST(t_meta)
   BUILD_BIN_TEST(ut_json)
-  BUILD_BIN_TEST(ut_mapnc4)
+  BUILD_BIN_TEST(ut_map)
   BUILD_BIN_TEST(ut_projections)
 
-  TARGET_INCLUDE_DIRECTORIES(t_meta PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_json PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(ut_mapnc4 PUBLIC ../libnczarr)
+  TARGET_INCLUDE_DIRECTORIES(ut_map PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_projections PUBLIC ../libnczarr)
+
+  # Integration tests
+#  BUILD_BIN_TEST(it_meta)
+#  TARGET_INCLUDE_DIRECTORIES(it_meta PUBLIC ../libnczarr)
 
   IF(BUILD_UTILITIES)
     add_sh_test(nczarr_test run_unittests)

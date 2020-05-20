@@ -10,10 +10,14 @@
 #include "zincludes.h"
 
 #include <errno.h>
+#if 0
 #ifdef _WIN32
+#ifndef __cplusplus
 #include <windows.h>
 #include <io.h>
 #include <iostream>
+#endif
+#endif
 #endif
 
 #ifdef HAVE_SYS_TYPES_H
@@ -28,12 +32,18 @@
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#ifdef HAVE_DIRENT_H
 #include <dirent.h>
+#endif
 
 #include "fbits.h"
 #include "ncwinpath.h"
 
-#undef DEBUG
+#undef debug
+
+#ifndef O_DIRECTORY
+# define O_DIRECTORY  0200000
+#endif
 
 #define NCZM_FILE_V1 1
 
@@ -72,11 +82,35 @@ For the object API, the mapping is as follows:
 /* Mnemonic */
 #define CREATEGROUP 1
 
+/* Define a struct to wrap the platform dependent file
+   or directory handle
+*/
+
+typedef enum FDTYPE {FDUNDEF=-1,FDFILE=0,FDDIR=1} FDTYPE;
+
+typedef struct FD {
+    FDTYPE sort; /* Discriminator for union */
+    union {
+#ifdef _WIN32
+	struct {
+#ifdef _WIN32
+	    char* dir; /* absolute path of the directory */
+	} dir;
+	int fd;
+#else
+	struct {
+	    DIR* dir;
+	} dir;
+	int fd;
+#endif
+    } u;
+} FD;
+
 /* Define the "subclass" of NCZMAP */
 typedef struct ZFMAP {
     NCZMAP map;
     char* root;
-    int rootfd;
+    FD rootfd;
     char* cwd;
 } ZFMAP;
 
@@ -91,12 +125,12 @@ static int zffullpath(ZFMAP* zfmap, const char* key, char**);
 static void zfrelease(ZFMAP* zfmap, int* fdp);
 
 static int platformerr(int err);
-static int platformcreate(ZFMAP* map, const char* truepath, int* fdp);
-static int platformcreatedir(ZFMAP* map, const char* truepath, int* fdp);
-static int platformcreatex(ZFMAP* map, const char* truepath, int* ioflagsp, int* fdp);
-static int platformopenx(ZFMAP* map, const char* truepath, int* ioflagsp, int* fdp);
-static int platformopen(ZFMAP* map, const char* truepath, int* fdp);
-static int platformopendir(ZFMAP* map, const char* truepath, int* fdp);
+static int platformcreate(ZFMAP* map, const char* truepath, FD* fdp);
+static int platformcreatedir(ZFMAP* map, const char* truepath, FD* fdp);
+static int platformcreatex(ZFMAP* map, const char* truepath, int* ioflagsp, FD* fdp);
+static int platformopenx(ZFMAP* map, const char* truepath, int* ioflagsp, FD* fdp);
+static int platformopen(ZFMAP* map, const char* truepath, FD* fdp);
+static int platformopendir(ZFMAP* map, const char* truepath, void* direntp);
 static int platformdircontent(ZFMAP* map, int dfd, NClist* contents);
 static int platformdelete(ZFMAP* map, const char* path);
 static int platformseek(ZFMAP* map, int fd, int pos, size64_t* offset);
@@ -131,7 +165,7 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
     char* truepath = NULL; /* Might be a URL */
     char* zfcwd = NULL;
     ZFMAP* zfmap = NULL;
-    int rootfd;
+    FD rootfd;
     NCURI* url = NULL;
 	
     NC_UNUSED(parameters);
@@ -183,9 +217,9 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
     }
     
     /* Use the path to create the root directory */
-    rootfd = 0;
+   
     if((stat = platformcreatedir(zfmap, zfmap->root ,&rootfd)))
-	{rootfd = -1; goto done;}
+	{rootfd.sort = FDUNDEF; goto done;}
     zfmap->rootfd = rootfd;
     
     if(mapp) *mapp = (NCZMAP*)zfmap;    
@@ -467,7 +501,7 @@ done:
 /* Lookup an object */
 /* Return NC_EACCESS if not found */
 static int
-zflookupobj(ZFMAP* zfmap, const char* key, int* fdp)
+zflookupobj(ZFMAP* zfmap, const char* key, FD* fdp)
 {
     int stat = NC_NOERR;
     int fd = -1;
@@ -489,7 +523,7 @@ done:
 
 /* When we are finished accessing object */
 static void
-zfrelease(ZFMAP* zfmap, int* fdp)
+zfrelease(ZFMAP* zfmap, FD* fdp)
 {
     if(fdp) {
 	if(*fdp >=0) close(*fdp);
@@ -502,7 +536,7 @@ zfrelease(ZFMAP* zfmap, int* fdp)
 /* Create a group; assume all intermediate groups exist
    (do nothing if it already exists) */
 static int
-zfcreategroup(ZFMAP* zfmap, const char* key, int nskip, int* fdp)
+zfcreategroup(ZFMAP* zfmap, const char* key, int nskip, FD* fdp)
 {
     int stat = NC_NOERR;
     char* prefix = NULL;
@@ -527,7 +561,7 @@ done:
 /* Create an object file corresponding to a key; create any
    necessary intermediate groups */
 static int
-zfcreateobj(ZFMAP* zfmap, const char* key, size64_t len, int* fdp)
+zfcreateobj(ZFMAP* zfmap, const char* key, size64_t len, FD* fdp)
 {
     int stat = NC_NOERR;
     int fd = -1;
@@ -589,22 +623,6 @@ static NCZMAP_API zapi = {
     zfilesearch,
 };
 
-#ifdef _WIN32
-static int
-zfdirfiles(
-{
-    WIN32_FIND_DATA data;
-    FD hFind = FindFirstFile("C:\\semester2", &data);      // DIRECTORY
-
-    if ( hFind != INVALID_FD_VALUE ) {
-        do {
-            std::cout << data.cFileName << std::endl;
-        } while (FindNextFile(hFind, &data));
-        FindClose(hFind);
-    }
-}
-#endif
-
 static int
 zffullpath(ZFMAP* zfmap, const char* key, char** pathp)
 {
@@ -644,157 +662,155 @@ platformerr(int err)
      return err;
 }
 
+/* Create a file */
 static int
-platformcreate(ZFMAP* zfmap, const char* truepath, int* fdp)
+platformcreatefile(ZFMAP* zfmap, const char* truepath, FD* fdp)
 {
     int stat = NC_NOERR;
     int ioflags = 0;
-    stat = platformcreatex(zfmap, truepath, &ioflags,fdp);
+    int stat = NC_NOERR;
+    int createflags = 0;
+    int ioflags = 0;
+    int mode = zfmap->map.mode;
+    int fd = -1;
+    int permissions = NC_DEFAULT_ROPEN_PERMS;
+
+    fdp->sort = FDUNDEF;
+    
+    if(*ioflagsp) ioflags = *ioflagsp;
+    
+    errno = 0;
+    if(!fIsSet(mode, NC_WRITE))
+        ioflags |= (O_RDONLY);
+    else {
+        ioflags |= (O_RDWR);
+	permissions = NC_DEFAULT_RWOPEN_PERMS;
+    }
+#ifdef O_BINARY
+    fSet(ioflags, O_BINARY);
+#endif
+    if(fIsSet(mode, NC_NOCLOBBER))
+        fSet(createflags, O_EXCL);
+    else
+	fSet(createflags, O_TRUNC);
+    /* Try to open file as if it exists */
+    fdp->u.fd = NCopen3(truepath, createflags, permissions);
+    if(fdp->u.fd < 0) {
+	if(errno == ENOENT) {
+	    if(fIsSet(mode,NC_WRITE)) {
+	        /* Try to create it */
+                createflags = (ioflags|O_CREAT);
+                fdp->u.fd = NCopen3(truepath, createflags, permissions);
+	        if(fdp->u.fd < 0) goto done; /* could not create */
+	    }
+	}
+    }
+    if(fdp->u.fd < 0)
+        {stat = platformerr(errno); goto done;} /* could not open */
+    if(ioflagsp) *ioflagsp = ioflags;
+    fdp->sort = FDFILE;
+done:
+    errno = 0;
     return THROW(stat);
 }
 
 static int
-platformcreatedir(ZFMAP* zfmap, const char* truepath, int* fdp)
+platformcreatedir(ZFMAP* zfmap, const char* truepath, FD* fdp)
 {
     int stat = NC_NOERR;
     int ioflags = O_DIRECTORY;
-    stat = platformcreatex(zfmap, truepath, &ioflags,fdp);
-    return THROW(stat);
-}
-
-static int
-platformcreatex(ZFMAP* zfmap, const char* truepath, int* ioflagsp, int* fdp)
-{
     int stat = NC_NOERR;
     int createflags = 0;
     int ioflags = 0;
     int mode = zfmap->map.mode;
     int fd = -1;
 
-    if(fdp) *fdp = -1;
+    memset(&fdp->u.dir,0,sizeof(fdp->u.dir));
     
+    fdp->sort = FDUNDEF;
+
     if(*ioflagsp) ioflags = *ioflagsp;
     
     errno = 0;
-    if(fIsSet(ioflags,O_DIRECTORY)) {
-	ioflags |= (O_RDONLY);
-	/* Open the file/dir */
-        fd = NCopen2(truepath, ioflags);
-	if(fd < 0) {
+    ioflags |= (O_RDONLY);
+
+    /* Open the file/dir */
+#ifndef USEDIRENT /*=> _WIN32*/
+    {
+	HANDLE hFind;
+	WIN32_FIND_DATA data;
+        hFind = FindFirstFile(truepath,&data);
+        if(hFind == INVALID_HANDLE_VALUE) {
+            /* Create the directory using mkdir */
+   	    stat=NCmkdir(truepath,NC_DEFAULT_DIR_PERMS);
+            if(stat < 0)
+	        {stat = platformerr(errno); goto done;}
+	    /* Open again */
+            hFind = FindFirstFile(truepath,&data);
+            if(hFind == INVALID_HANDLE_VALUE)
+	        {stat = platformerr(EACCES); goto done;}
+	}
+        /* close it up for now */
+	FindClose(hFind);	
+	fdp->u.dir.dir = strdup(truepath);
+    }
+#endif
+#ifdef USEDIRENT
+    fdp->u.dir.dir = NCopendir(truepath);
+    if(fdp->u.dir.dir == NULL) {
+	if(errno == ENOENT) {
 	    errno = 0;
 	    /* Create the directory using mkdir */
    	    stat=NCmkdir(truepath,NC_DEFAULT_DIR_PERMS);
             if(stat < 0)
-	        {stat = platformerr(errno); errno = 0; goto done;}
+	        {stat = platformerr(errno); goto done;}
             /* open it again */
-	    fd = NCopen2(truepath, ioflags);
-            if(stat < 0)
-	        {stat = platformerr(errno); errno = 0; goto done;}
-	}
-    } else {/* Open the file */
-	int permissions = NC_DEFAULT_ROPEN_PERMS;
-        if(!fIsSet(mode, NC_WRITE))
-            ioflags |= (O_RDONLY);
-        else {
-            ioflags |= (O_RDWR);
-	    permissions = NC_DEFAULT_RWOPEN_PERMS;
-	}
-#ifdef O_BINARY
-        fSet(ioflags, O_BINARY);
-#endif
-        if(fIsSet(mode, NC_NOCLOBBER))
-	    fSet(createflags, O_EXCL);
-        else
-	    fSet(createflags, O_TRUNC);
-
-	/* Try to open file as if it exists */
-        fd = NCopen3(truepath, createflags, permissions);
-	if(fd < 0) {
-	if(errno == ENOENT) {
-	if(fIsSet(mode,NC_WRITE)) {
-	    /* Try to create it */
-            createflags = (ioflags|O_CREAT);
-            fd = NCopen3(truepath, createflags, permissions);
-	    if(fd < 0) goto done; /* could not create */
-	}}}
+	    fdp->u.dir.dir = NCopendir(truepath);
+            if(fdp->u.dir.dir == NULL)
+	        {stat = platformerr(errno); goto done;}
+	} else
+	    {stat = platformerr(errno); goto done;}
     }
-    if(fd < 0)
-        {stat = platformerr(errno); goto done;} /* could not open */
-    if(fdp) *fdp = fd;
-    if(ioflagsp) *ioflagsp = ioflags;
-done:
-    errno = 0;
-    return THROW(stat);
-}
-
-static int
-platformopen(ZFMAP* zfmap, const char* truepath, int* fdp)
-{
-    int stat = NC_NOERR;
-    int ioflags = 0;
-    stat = platformopenx(zfmap, truepath, &ioflags,fdp);
-    return THROW(stat);
-}
-
-static int
-platformopendir(ZFMAP* zfmap, const char* truepath, int* fdp)
-{
-    int stat = NC_NOERR;
-    int ioflags = O_DIRECTORY;
-    stat = platformopenx(zfmap, truepath, &ioflags,fdp);
-    return THROW(stat);
-}
-
-static int
-platformopenx(ZFMAP* zfmap, const char* truepath, int* ioflagsp, int* fdp)
-{
-    int stat = NC_NOERR;
-    int fd = -1;
-    int mode = zfmap->map.mode;
-    int ioflags = 0;
-
-    if(fdp) *fdp = fd;
-    
-if(*ioflagsp) ioflags = *ioflagsp;
-
-    if(fIsSet(ioflags,O_DIRECTORY) || !fIsSet(mode,NC_WRITE))
-        ioflags |= O_RDONLY;
-    else
-        ioflags |= O_RDWR;
-#ifdef O_BINARY
-    ioflags |= O_BINARY;
 #endif
-    errno = 0;
-    fd = NCopen2(truepath,ioflags);
-    if(fd < 0)
-	{stat = platformerr(errno); goto done;} /* could not open */
-    if(fdp) *fdp = fd;
-
+    if(ioflagsp) *ioflagsp = ioflags;
+    fdp->sort = FDDIR;
 done:
     errno = 0;
     return THROW(stat);
 }
 
 static int
-platformdircontent(ZFMAP* zfmap, int dfd, NClist* contents)
+platformdircontent(ZFMAP* zfmap, FD* dfd, NClist* contents)
 {
     int stat = NC_NOERR;
-    struct dirent* entry = NULL;
-    DIR* dir = NULL;
-
+#ifndef USEDIRENT /*=> _WIN32*/
+    HANDLE hFind;
+    WIN32_FIND_DATA data;
+    hFind = FindFirstFile(dfd->u.dir.dir,&data);
+    if(hFind == INVALID_HANDLE_VALUE)
+	{stat = platformerr(EACCES); goto done;
+    do {
+	const char* file = dfd->u.dir.FindFileData.cFileName;
+	if(strcmp(file,".")==0 || strcmp(file,"..")==0)
+	    continue;
+	nclistpush(contents,strdup(file));
+    } while (FindNextFile(dfd->u.dir.hFind, &dfd->u.dir.FindFileData);
+    FindClose(hFind);
+#endif /*!USEDIRENT*/
+#ifdef USEDIRENT
     errno = 0;
-    if((dir = fdopendir(dfd)) == NULL)
-	{stat = platformerr(errno); goto done;}
     for(;;) {
 	errno = 0;
-        if((entry = readdir(dir)) == NULL) {stat = platformerr(errno); goto done;}
+        if((entry = readdir(dfd->u.dir.dir)) == NULL)
+	    {stat = platformerr(errno); goto done;}
 	if(strcmp(entry->d_name,".")==0 || strcmp(entry->d_name,"..")==0)
 	    continue;
 	nclistpush(contents,strdup(entry->d_name));
     }
-done:
-    closedir(dir);
     nullfree(entry);
+    closedir(df->u.dir.dir);
+#endif
+done:
     errno = 0;
     return THROW(stat);
 }
