@@ -93,18 +93,9 @@ typedef enum FDTYPE {FDUNDEF=-1,FDFILE=0,FDDIR=1} FDTYPE;
 typedef struct FD {
     FDTYPE sort; /* Discriminator for union */
     union {
-#ifdef _WIN32
-	struct {
-#ifdef _WIN32
-	    char* dir; /* absolute path of the directory */
-	} dir;
+        char* dir; /* absolute path of the directory;
+	              we cant use the iterator because we cannot reset it */
 	int fd;
-#else
-	struct {
-	    DIR* dir;
-	} dir;
-	int fd;
-#endif
     } u;
 } FD;
 
@@ -120,24 +111,24 @@ typedef struct ZFMAP {
 static NCZMAP_API zapi;
 static int zfileclose(NCZMAP* map, int delete);
 static int zflookupgroup(ZFMAP*, const char* key, int nskip, int create, FD* fdp);
-static int zflookupobj(ZFMAP*, const char* key, int* objidp);
-static int zfcreateobj(ZFMAP*, const char* key, size64_t, int* objidp);
+static int zflookupobj(ZFMAP*, const char* key, FD* objidp);
+static int zfcreateobj(ZFMAP*, const char* key, size64_t, FD* objidp);
 static int zfparseurl(const char* path0, NCURI** urip);
 static int zffullpath(ZFMAP* zfmap, const char* key, char**);
-static void zfrelease(ZFMAP* zfmap, int* fdp);
+static void zfrelease(ZFMAP* zfmap, FD* fdp);
 
 static int platformerr(int err);
 static int platformcreatefile(ZFMAP* map, const char* truepath, FD* fdp);
 static int platformcreatedir(ZFMAP* map, const char* truepath, FD* fdp);
 static int platformopenfile(ZFMAP* map, const char* truepath, FD* fdp);
-static int platformopendir(ZFMAP* map, const char* truepath, void* direntp);
-static int platformdircontent(ZFMAP* map, int dfd, NClist* contents);
+static int platformopendir(ZFMAP* zfmap, const char* truepath, FD* fdp);
+static int platformdircontent(ZFMAP* map, FD* dfd, NClist* contents);
 static int platformdelete(ZFMAP* map, const char* path);
-static int platformseek(ZFMAP* map, int fd, int pos, size64_t* offset);
-static int platformread(ZFMAP* map, int fd, size64_t count, void* content);
-static int platformwrite(ZFMAP* map, int fd, size64_t count, const void* content);
+static int platformseek(ZFMAP* map, FD* fd, int pos, size64_t* offset);
+static int platformread(ZFMAP* map, FD* fd, size64_t count, void* content);
+static int platformwrite(ZFMAP* map, FD* fd, size64_t count, const void* content);
 static int platformcwd(char** cwdp);
-static void platformfrelease(ZFMAP* zfmap, int* fdp);
+static void platformrelease(ZFMAP* zfmap, FD* fdp);
 
 static int zfinitialized = 0;
 static void zfinitialize(void)
@@ -319,13 +310,13 @@ zfilelen(NCZMAP* map, const char* key, size64_t* lenp)
     int stat = NC_NOERR;
     ZFMAP* zfmap = (ZFMAP*)map;
     size64_t len;
-    int fd;
+    FD fd;
 
     if((stat=zflookupobj(zfmap,key,&fd)))
 	goto done;
     /* Get file size */
     len = 0;
-    if((stat=platformseek(zfmap, fd, SEEK_END, &len))) goto done;
+    if((stat=platformseek(zfmap, &fd, SEEK_END, &len))) goto done;
     zfrelease(zfmap,&fd);
     if(lenp) *lenp = len;
 
@@ -337,14 +328,14 @@ static int
 zfiledefine(NCZMAP* map, const char* key, size64_t len)
 {
     int stat = NC_NOERR;
-    int fd;
+    FD fd;
     ZFMAP* zfmap = (ZFMAP*)map; /* cast to true type */
 
     /* Create the intermediate groups */
-    if((stat = zflookupgroup(zfmap,key,1,CREATEGROUP,NULL)))
+    if((stat = zflookupgroup(zfmap,key,1,CREATEGROUP,&fd)))
 	goto done;
+    zfrelease(zfmap,&fd);
     stat = zflookupobj(zfmap,key,&fd);
-
     zfrelease(zfmap,&fd);
     if(stat == NC_NOERR) /* Already exists */
 	goto done;
@@ -363,14 +354,13 @@ static int
 zfileread(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content)
 {
     int stat = NC_NOERR;
-    int fd;
+    FD fd;
     ZFMAP* zfmap = (ZFMAP*)map; /* cast to true type */
 
     if((stat = zflookupobj(zfmap,key,&fd)))
 	goto done;
-
-    if((stat = platformseek(zfmap, fd,SEEK_SET,&start))) goto done;
-    if((stat = platformread(zfmap, fd,count,content))) goto done;
+    if((stat = platformseek(zfmap, &fd, SEEK_SET,&start))) goto done;
+    if((stat = platformread(zfmap, &fd, count,content))) goto done;
 
 done:
     return (stat);
@@ -380,14 +370,14 @@ static int
 zfilewrite(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content)
 {
     int stat = NC_NOERR;
-    int fd;
+    FD fd;
     ZFMAP* zfmap = (ZFMAP*)map; /* cast to true type */
 
     if((stat = zflookupobj(zfmap,key,&fd)))
 	goto done;
 
-    if((stat = platformseek(zfmap,fd,SEEK_SET,&start))) goto done;
-    if((stat = platformwrite(zfmap,fd,count,content))) goto done;
+    if((stat = platformseek(zfmap,&fd,SEEK_SET,&start))) goto done;
+    if((stat = platformwrite(zfmap,&fd,count,content))) goto done;
 
 done:
     return (stat);
@@ -415,7 +405,14 @@ zfileclose(NCZMAP* map, int delete)
     zfrelease(zfmap,&zfmap->rootfd);
     if(delete)
 	unlink(zfmap->root);
-
+    if(zfmap->rootfd.sort == FDDIR) {
+#ifdef USEDIRENT
+#else
+	nullfree(zfmap->rootfd.u.dir)
+#endif
+    } else {
+	close(zfmap->rootfd.u.fd);
+    }
     nczm_clear(map);
     nullfree(zfmap->root);
     free(zfmap);
@@ -432,7 +429,7 @@ zfilesearch(NCZMAP* map, const char* prefix, NClist* matches)
 {
     int stat = NC_NOERR;
     ZFMAP* zfmap = (ZFMAP*)map;
-    int xfd;
+    FD xfd;
 
     /* Get fd of the the prefix */
     stat = zflookupgroup(zfmap,prefix,0,!CREATEGROUP,&xfd);
@@ -442,7 +439,7 @@ zfilesearch(NCZMAP* map, const char* prefix, NClist* matches)
 	break;
     case NC_NOERR:
         /* get names of the files in the group */
-        if((stat = platformdircontent(zfmap, xfd, matches))) goto done;
+        if((stat = platformdircontent(zfmap, &xfd, matches))) goto done;
 	break;
     case NC_EACCESS: /* No such file */
         /* Fall thru */
@@ -461,10 +458,10 @@ done:
 /* Lookup a group by parsed path (segments)*/
 /* Return NC_EACCESS if not found, NC_EINVAL if not a directory; create if create flag is set */
 static int
-zflookupgroup(ZFMAP* zfmap, const char* key, int nskip, int create, int* gfdp)
+zflookupgroup(ZFMAP* zfmap, const char* key, int nskip, int create, FD* gfdp)
 {
     int stat = NC_NOERR;
-    int i, len, gfd;
+    int i, len;
     char* fullpath = NULL;
     NCbytes* path = ncbytesnew();
     NClist* segments = nclistnew();
@@ -473,27 +470,23 @@ zflookupgroup(ZFMAP* zfmap, const char* key, int nskip, int create, int* gfdp)
 	goto done;    
     len = nclistlength(segments);
     len -= nskip; /* leave off last nskip segments */
-    gfd = -1;
     ncbytescat(path,zfmap->root); /* We need path to be absolute */
-    if((stat = platformopendir(zfmap, ncbytescontents(path),&gfd))) goto done;
+    if((stat = platformopendir(zfmap, ncbytescontents(path),gfdp))) goto done;
     for(i=0;i<len;i++) {
 	const char* seg = nclistget(segments,i);
 	ncbytescat(path,"/");
 	ncbytescat(path,seg);
 	/* open and optionally create */	
-	zfrelease(zfmap,&gfd);
-	stat = platformopendir(zfmap,ncbytescontents(path),&gfd);
+	zfrelease(zfmap,gfdp);
+	stat = platformopendir(zfmap,ncbytescontents(path),gfdp);
         if(create && (stat == NC_EACCESS)) {
-	    zfrelease(zfmap,&gfd);
-	    stat = platformcreatedir(zfmap,ncbytescontents(path),&gfd);
+	    zfrelease(zfmap,gfdp);
+	    stat = platformcreatedir(zfmap,ncbytescontents(path),gfdp);
 	}
 	if(stat) goto done;
     }
-    if(gfdp) {*gfdp = gfd; gfd = -1;}
-
 done:
     nullfree(fullpath);
-    zfrelease(zfmap,&gfd);
     ncbytesfree(path);
     nclistfreeall(segments);
     return (stat);
@@ -505,7 +498,6 @@ static int
 zflookupobj(ZFMAP* zfmap, const char* key, FD* fdp)
 {
     int stat = NC_NOERR;
-    int fd = -1;
     char* path = NULL;
 
     fdp->sort = FDFILE;
@@ -513,7 +505,7 @@ zflookupobj(ZFMAP* zfmap, const char* key, FD* fdp)
     if((stat = zffullpath(zfmap,key,&path)))
 	{goto done;}    
 
-    if((stat = platformopenfile(zfmap,path,&fd)))
+    if((stat = platformopenfile(zfmap,path,fdp)))
 	goto done;
 
 done:
@@ -538,17 +530,14 @@ zfcreategroup(ZFMAP* zfmap, const char* key, int nskip, FD* fdp)
     int stat = NC_NOERR;
     char* prefix = NULL;
     char* suffix = NULL;
-    int fd = -1;
 
-    if(fdp) *fdp = -1;
     if((stat = nczm_divide(key,nskip,&prefix,&suffix)))
 	goto done;
-    if((stat = platformcreatedir(zfmap,prefix, zfmap->map.mode, &fd)))
+    if((stat = platformcreatedir(zfmap,prefix, zfmap->map.mode, fdp)))
 	goto done;
-    if(fdp) {*fdp = fd; fd = -1;}
 
 done:
-    zfrelease(zfmap,&fd);
+    zfrelease(zfmap,fdp);
     nullfree(prefix);
     nullfree(suffix);
     return (stat);
@@ -569,7 +558,7 @@ zfcreateobj(ZFMAP* zfmap, const char* key, size64_t len, FD* fdp)
     if((stat = zflookupgroup(zfmap, key, 1, CREATEGROUP, &grpfd))) goto done;
     /* Create the final object */
     if((stat=zffullpath(zfmap,key,&fullpath))) goto done;
-    if((stat = platformcreate(zfmap,fullpath,fdp)))
+    if((stat = platformcreatefile(zfmap,fullpath,fdp)))
 	goto done;
     /* Set its length */
     if((stat = platformseek(zfmap,fdp,SEEK_END,&len))) goto done;
@@ -664,16 +653,11 @@ platformcreatefile(ZFMAP* zfmap, const char* truepath, FD* fdp)
 {
     int stat = NC_NOERR;
     int ioflags = 0;
-    int stat = NC_NOERR;
     int createflags = 0;
-    int ioflags = 0;
     int mode = zfmap->map.mode;
-    int fd = -1;
     int permissions = NC_DEFAULT_ROPEN_PERMS;
 
     fdp->sort = FDUNDEF;
-    
-    if(*ioflagsp) ioflags = *ioflagsp;
     
     errno = 0;
     if(!fIsSet(mode, NC_WRITE))
@@ -703,7 +687,6 @@ platformcreatefile(ZFMAP* zfmap, const char* truepath, FD* fdp)
     }
     if(fdp->u.fd < 0)
         {stat = platformerr(errno); goto done;} /* could not open */
-    if(ioflagsp) *ioflagsp = ioflags;
     fdp->sort = FDFILE;
 done:
     errno = 0;
@@ -714,21 +697,12 @@ static int
 platformcreatedir(ZFMAP* zfmap, const char* truepath, FD* fdp)
 {
     int stat = NC_NOERR;
-    int ioflags = O_DIRECTORY;
-    int stat = NC_NOERR;
-    int createflags = 0;
-    int ioflags = 0;
-    int mode = zfmap->map.mode;
-    int fd = -1;
 
     memset(&fdp->u.dir,0,sizeof(fdp->u.dir));
     
     fdp->sort = FDUNDEF;
 
-    if(*ioflagsp) ioflags = *ioflagsp;
-    
     errno = 0;
-    ioflags |= (O_RDONLY);
 
     /* Open the file/dir */
 #ifndef USEDIRENT /*=> _WIN32*/
@@ -748,28 +722,30 @@ platformcreatedir(ZFMAP* zfmap, const char* truepath, FD* fdp)
 	}
         /* close it up for now */
 	FindClose(hFind);	
-	fdp->u.dir.dir = strdup(truepath);
     }
 #endif
 #ifdef USEDIRENT
-    fdp->u.dir.dir = NCopendir(truepath);
-    if(fdp->u.dir.dir == NULL) {
-	if(errno == ENOENT) {
-	    errno = 0;
-	    /* Create the directory using mkdir */
-   	    stat=NCmkdir(truepath,NC_DEFAULT_DIR_PERMS);
-            if(stat < 0)
-	        {stat = platformerr(errno); goto done;}
-            /* open it again */
-	    fdp->u.dir.dir = NCopendir(truepath);
-            if(fdp->u.dir.dir == NULL)
-	        {stat = platformerr(errno); goto done;}
-	} else
-	    {stat = platformerr(errno); goto done;}
+    {
+        DIR* dir = NCopendir(truepath);
+        if(dir == NULL) {
+            if(errno == ENOENT) {
+                errno = 0;
+                /* Create the directory using mkdir */
+                stat=NCmkdir(truepath,NC_DEFAULT_DIR_PERMS);
+                if(stat < 0)
+                    {stat = platformerr(errno); goto done;}
+                /* open it again */
+                dir = NCopendir(truepath);
+                if(dir == NULL)
+                    {stat = platformerr(errno); goto done;}
+            } else
+                {stat = platformerr(errno); goto done;}
+        }
+	NCclosedir(dir);
     }
 #endif
-    if(ioflagsp) *ioflagsp = ioflags;
     fdp->sort = FDDIR;
+    fdp->u.dir = strdup(truepath);
 done:
     errno = 0;
     return THROW(stat);
@@ -782,7 +758,7 @@ platformdircontent(ZFMAP* zfmap, FD* dfd, NClist* contents)
 #ifndef USEDIRENT /*=> _WIN32*/
     HANDLE hFind;
     WIN32_FIND_DATA data;
-    hFind = FindFirstFile(dfd->u.dir.dir,&data);
+    hFind = FindFirstFile(dfd->u.dir,&data);
     if(hFind == INVALID_HANDLE_VALUE)
 	{stat = platformerr(EACCES); goto done;
     do {
@@ -794,16 +770,21 @@ platformdircontent(ZFMAP* zfmap, FD* dfd, NClist* contents)
     FindClose(hFind);
 #endif /*!USEDIRENT*/
 #ifdef USEDIRENT
+    DIR* entry = NULL;
     errno = 0;
+    entry = opendir(dfd->u.dir);    
+    if(entry == NULL) 
+	{stat = platformerr(errno); goto done;}
     for(;;) {
+	struct dirent* de = NULL;
 	errno = 0;
-        if((entry = readdir(dfd->u.dir.dir)) == NULL)
+        if((de = readdir(entry)) == NULL)
 	    {stat = platformerr(errno); goto done;}
-	if(strcmp(entry->d_name,".")==0 || strcmp(entry->d_name,"..")==0)
+	if(strcmp(de->d_name,".")==0 || strcmp(de->d_name,"..")==0)
 	    continue;
-	nclistpush(contents,strdup(entry->d_name));
+	nclistpush(contents,strdup(de->d_name));
     }
-    nullfree(entry);
+    NCclosedir(entry);
 #endif
 done:
     errno = 0;
@@ -815,16 +796,12 @@ static int
 platformopenfile(ZFMAP* zfmap, const char* truepath, FD* fdp)
 {
     int stat = NC_NOERR;
-    int ioflags = 0;
-    int stat = NC_NOERR;
     int createflags = 0;
     int ioflags = 0;
     int mode = zfmap->map.mode;
-    int fd = -1;
+    int permissions = 0;
 
     fdp->sort = FDUNDEF;
-    
-    if(*ioflagsp) ioflags = *ioflagsp;
     
     errno = 0;
     if(!fIsSet(mode, NC_WRITE))
@@ -854,7 +831,6 @@ platformopenfile(ZFMAP* zfmap, const char* truepath, FD* fdp)
     }
     if(fdp->u.fd < 0)
         {stat = platformerr(errno); goto done;} /* could not open */
-    if(ioflagsp) *ioflagsp = ioflags;
     fdp->sort = FDFILE;
 done:
     errno = 0;
@@ -862,64 +838,38 @@ done:
 }
 
 static int
-platformcreatedir(ZFMAP* zfmap, const char* truepath, FD* fdp)
+platformopendir(ZFMAP* zfmap, const char* truepath, FD* fdp)
 {
     int stat = NC_NOERR;
-    int ioflags = O_DIRECTORY;
-    int stat = NC_NOERR;
-    int createflags = 0;
-    int ioflags = 0;
-    int mode = zfmap->map.mode;
-    int fd = -1;
 
     memset(&fdp->u.dir,0,sizeof(fdp->u.dir));
     
     fdp->sort = FDUNDEF;
 
-    if(*ioflagsp) ioflags = *ioflagsp;
-    
     errno = 0;
-    ioflags |= (O_RDONLY);
 
-    /* Open the file/dir */
+    /* Open the dir */
 #ifndef USEDIRENT /*=> _WIN32*/
     {
 	HANDLE hFind;
 	WIN32_FIND_DATA data;
         hFind = FindFirstFile(truepath,&data);
-        if(hFind == INVALID_HANDLE_VALUE) {
-            /* Create the directory using mkdir */
-   	    stat=NCmkdir(truepath,NC_DEFAULT_DIR_PERMS);
-            if(stat < 0)
-	        {stat = platformerr(errno); goto done;}
-	    /* Open again */
-            hFind = FindFirstFile(truepath,&data);
-            if(hFind == INVALID_HANDLE_VALUE)
-	        {stat = platformerr(EACCES); goto done;}
-	}
+        if(hFind == INVALID_HANDLE_VALUE)
+            {stat = platformerr(EACCES); goto done;}
         /* close it up for now */
 	FindClose(hFind);	
-	fdp->u.dir.dir = strdup(truepath);
     }
 #endif
 #ifdef USEDIRENT
-    fdp->u.dir.dir = NCopendir(truepath);
-    if(fdp->u.dir.dir == NULL) {
-	if(errno == ENOENT) {
-	    errno = 0;
-	    /* Create the directory using mkdir */
-   	    stat=NCmkdir(truepath,NC_DEFAULT_DIR_PERMS);
-            if(stat < 0)
-	        {stat = platformerr(errno); goto done;}
-            /* open it again */
-	    fdp->u.dir.dir = NCopendir(truepath);
-            if(fdp->u.dir.dir == NULL)
-	        {stat = platformerr(errno); goto done;}
-	} else
+    {
+	DIR* dir = NULL;
+        dir = NCopendir(truepath);
+        if(dir == NULL)
 	    {stat = platformerr(errno); goto done;}
+         NCclosedir(dir);
     }
 #endif
-    if(ioflagsp) *ioflagsp = ioflags;
+    fdp->u.dir = strdup(truepath);
     fdp->sort = FDDIR;
 done:
     errno = 0;
@@ -964,7 +914,7 @@ platformdeleter(ZFMAP* zfmap, NClist* segments)
 	    nullfree(seg);	    	    
         }
 done:	    
-        if(dir) closedir(dir);
+        if(dir) NCclosedir(dir);
     }
     /* delete this file|dir */
     remove(path);
@@ -990,21 +940,21 @@ done:
 }
 
 static int
-platformseek(ZFMAP* zfmap, int fd, int pos, size64_t* sizep)
+platformseek(ZFMAP* zfmap, FD* fd, int pos, size64_t* sizep)
 {
     int ret = NC_NOERR;
     off_t size, newsize;
     struct stat statbuf;    
     
+    if(fd->sort != FDFILE);
+        {ret = NC_EINVAL; goto done;}
     errno = 0;
-    ret = fstat(fd, &statbuf);
+    ret = fstat(fd->u.fd, &statbuf);
     if(ret < 0) {
 	ret = platformerr(errno); errno = 0;
     }
-    if(S_ISDIR(statbuf.st_mode))
-        {ret = NC_EINVAL; goto done;}
     if(sizep) size = *sizep; else size = 0;
-    newsize = lseek(fd,size,pos);
+    newsize = lseek(fd->u.fd,size,pos);
     if(sizep) *sizep = newsize;
 done:
     errno = 0;
@@ -1012,14 +962,18 @@ done:
 }
 
 static int
-platformread(ZFMAP* zfmap, int fd, size64_t count, void* content)
+platformread(ZFMAP* zfmap, FD* fd, size64_t count, void* content)
 {
     int stat = NC_NOERR;
     size_t need = count;
     unsigned char* readpoint = content;
+
+    if(fd->sort != FDFILE);
+        {stat = NC_EINVAL; goto done;}
+
     while(need > 0) {
         ssize_t red;
-        if((red = read(fd,readpoint,need)) <= 0)
+        if((red = read(fd->u.fd,readpoint,need)) <= 0)
 	    {stat = NC_EINVAL; goto done;}
         need -= red;
 	readpoint += red;
@@ -1029,14 +983,18 @@ done:
 }
 
 static int
-platformwrite(ZFMAP* zfmap, int fd, size64_t count, const void* content)
+platformwrite(ZFMAP* zfmap, FD* fd, size64_t count, const void* content)
 {
     int stat = NC_NOERR;
     size_t need = count;
     unsigned char* writepoint = (unsigned char*)content;
+
+    if(fd->sort != FDFILE);
+        {stat = NC_EINVAL; goto done;}
+
     while(need > 0) {
         ssize_t red;
-        if((red = write(fd,writepoint,need)) <= 0)
+        if((red = write(fd->u.fd,writepoint,need)) <= 0)
 	    {stat = NC_EINVAL; goto done;}
         need -= red;
 	writepoint += red;
@@ -1062,11 +1020,9 @@ platformrelease(ZFMAP* zfmap, FD* fdp)
 {
     if(fdp->sort == FDFILE) {
         if(fdp->u.fd >=0) close(fdp->u.fd);
-    } else {
-        closedir(fdp->u.dir.dir);
+        fdp->u.fd = -1;
+    } else { /* dir => do nothing */
     }
-    fdp->sort = FDUNDEF;
-    fdp->u.fd = -1;
 }
 
 

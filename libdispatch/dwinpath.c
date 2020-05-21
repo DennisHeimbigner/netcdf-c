@@ -233,6 +233,30 @@ NCopen2(const char *path, int flags)
     return NCopen3(path,flags,0);
 }
 
+EXTERNL
+DIR*
+NCopendir(const char* path)
+{
+    DIR* ent = NULL;
+    char* cvtname = NCpathcvt(path);
+    if(cvtname == NULL) return -1;
+    ent = opendir(cvtname);
+    free(cvtname);    
+    return ent;
+}
+
+EXTERNL
+int
+NCclosedir(DIR* ent)
+{
+    int stat = 0;
+    char* cvtname = NCpathcvt(path);
+    if(cvtname == NULL) return -1;
+    stat = closedir(cvtname);
+    free(cvtname);    
+    return stat;
+}
+
 /*
 Provide wrappers for other file system functions
 */

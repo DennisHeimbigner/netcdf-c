@@ -1,3 +1,4 @@
+
 #                                               -*- Autoconf -*-
 ## Process this file with autoconf to produce a configure script.
 
@@ -451,6 +452,14 @@ if test "x$enable_nczarr" = xyes; then
 fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
+# Check for forced disabling of S3 support
+AC_MSG_CHECKING([whether netcdf zarr S3 storage should be enabled])
+AC_ARG_ENABLE([s3],
+              [AS_HELP_STRING([--enable-s3],
+                              [enable netcdf zarr S3 storage])])
+test "x$enable_s3" = xno || enable_s3=yes
+AC_MSG_RESULT($enable_s3)
+
 # Check for the AWS S3 SDK library
 AC_LANG_PUSH([C++])
 AC_SEARCH_LIBS([aws_allocator_is_valid],[aws-c-common aws-cpp-sdk-s3 aws-cpp-sdk-core], [have_aws=yes],[have_aws=no])
@@ -458,8 +467,15 @@ AC_LANG_POP
 AC_MSG_CHECKING([whether AWS S3 SDK library is available])
 AC_MSG_RESULT([$have_aws])
 if test "x$have_aws" = xyes ; then
+  if test "x$enable_s3" = xno ; then
+    AC_MSG_WARN([--disable-s3 overrides access to aws -s3 libraries])
+    have_aws=no
+  fi
+fi
+if test "x$have_aws" = xyes ; then
   AC_DEFINE([ENABLE_S3_SDK], [1], [if true, build libnczarr with S3 support enabled])
 fi
+AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$have_aws" = xyes])
 
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
@@ -864,7 +880,7 @@ AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([libgen.h])
 #AC_CHECK_HEADERS([locale.h])
 AC_HEADER_STDC
-AC_CHECK_HEADERS([locale.h stdio.h stdarg.h fcntl.h malloc.h stdlib.h string.h strings.h unistd.h sys/stat.h getopt.h sys/time.h sys/types.h])
+AC_CHECK_HEADERS([locale.h stdio.h stdarg.h fcntl.h malloc.h stdlib.h string.h strings.h unistd.h sys/stat.h getopt.h sys/time.h sys/types.h dirent.h])
 
 # Do sys/resource.h separately
 #AC_CHECK_HEADERS([sys/resource.h],[havesysresource=1],[havesysresource=0])
@@ -1352,7 +1368,6 @@ AM_CONDITIONAL(ENABLE_BYTERANGE, [test "x$enable_byterange" = xyes])
 AM_CONDITIONAL(RELAX_COORD_BOUND, [test "xyes" = xyes])
 AM_CONDITIONAL(HAS_PAR_FILTERS, [test x$hdf5_supports_par_filters = xyes ])
 AM_CONDITIONAL(ENABLE_NCZARR, [test "x$enable_nczarr" = xyes])
-AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$have_aws" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!

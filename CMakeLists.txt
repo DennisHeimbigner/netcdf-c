@@ -925,16 +925,21 @@ ENDIF()
 
 # Option to Build NCZarr clients
 OPTION(ENABLE_NCZARR "Enable NCZarr Client." OFF)
+OPTION(ENABLE_S3 "Enable NCZarr S3 support." ON)
 
 # See if aws-s3-sdk is available
 FIND_LIBRARY(AWS_CPP_SDK_CORE_LIB NAMES aws-cpp-sdk-core)
 FIND_LIBRARY(AWS_CPP_SDK_S3_LIB NAMES aws-cpp-sdk-s3)
 FIND_LIBRARY(AWS_C_COMMON_LIB NAMES aws-c-common)
 
-IF(AWS_CPP_SDK_CORE_LIB AND AWS_CPP_SDK_S3_LIB AND AWS_C_COMMON_LIB)
-  SET(ENABLE_S3_SDK ON CACHE BOOL "")
+IF(ENABLE_S3)
+  IF(AWS_CPP_SDK_CORE_LIB AND AWS_CPP_SDK_S3_LIB AND AWS_C_COMMON_LIB)
+      SET(ENABLE_S3_SDK ON CACHE BOOL "")
+  ELSE()
+    MESSAGE(WARN "Can't find or link to one of aws-c-common, aws-cpp-sdk-s3, or aws-cpp-sdk-core libraries")
+    SET(ENABLE_S3_SDK OFF CACHE BOOL "")
+  ENDIF()
 ELSE()
-  MESSAGE(WARN "Can't find or link to one of aws-c-common, aws-cpp-sdk-s3, or aws-cpp-sdk-core libraries")
   SET(ENABLE_S3_SDK OFF CACHE BOOL "")
 ENDIF()
 
