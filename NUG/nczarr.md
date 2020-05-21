@@ -108,6 +108,32 @@ _MutableMap_
 <a href="#ref_python">[3]</a> class.
 In NCZarr, the corresponding type is called _zmap_.
 
+The zmap model is a set of keys where each key maps to
+an _object_ that can hold arbitrary data. The keys are assumed to
+have following BNF grammar.
+````
+key:   '/' segment
+     | key '/' segment
+     ;
+````
+This key structure induces a tree structure where each segment
+matches a node in the tree.  This key/tree duality deliberately
+matches that of a typical file system path in e.g. linux. The
+key '/' is the root of the tree.
+
+## Datasets
+
+Within the key induced tree, each dataset (in the netCDF sense)
+has a root which is specified by a specific key. All objects
+making up the dataset (see the section on <a
+href="#nczarr_purezarr">NCZarr vs Zarr </a>) reside in objects
+(keys) below that dataset root key.
+
+One restriction is that datasets cannot be nested in that
+no dataset root key can be a prefix of another dataset root key.
+
+## Zmap Implementatons 
+
 The primary zmap implementation is _s3_ (i.e. _mode=nczarr,s3_) and indicates
 that the Amazon S3 cloud storage is to be used. Other storage formats
 use a structured NetCDF-4 file format (_mode=nczarr,nz4_), or a
@@ -168,7 +194,9 @@ https://s2.<region>.amazonaws.com/<bucketname>/
 ```
 
 The NCZarr code will accept either form, although internally,
-it is standardized on path style.
+it is standardized on path style. The reason for this
+is that the bucket name forms the initial segment
+in the keys.
 
 # Zarr vs NCZarr {#nczarr_vs_zarr}
 
@@ -208,7 +236,8 @@ as Zarr. It also uses the Zarr special _.zXXX_ objects.
 However, NCZarr adds some additional special objects.
 1. _.nczarr_ -- this is in the top level group -- key _/.nczarr_.
 It is in effect the "superblock" for the dataset and contains
-any netcdf specific dataset level information.
+any netcdf specific dataset level information. It is also used
+to verify that a given key is the root of a dataset.
 1. _.nczgroup_ -- this is a parallel object to _.zgroup_ and contains
 any netcdf specific group information. Specifically it contains the following.
     * dims -- the name and size of shared dimensions defined in this group.
@@ -253,6 +282,21 @@ in _.zarray_ and creating references to the simulated shared dimension.
 netcdf specific information.
 1. _.nczattr_ -- The type of each attribute is inferred by trying to parse the first attribute value string.
 
+# Compatibility {#nczarr_compatibility}
+
+In order to accomodate existing implementations, certain mode tags are
+provided to tell the NCZarr code to look for information used
+by specific implementations.
+
+## XArray
+
+The Xarray
+<a href="#ref_xarray">[5]</a>
+Zarr implementation uses its own mechanism for
+specifying shared dimensions. It uses a special
+attribute named ''_ARRAY_DIMENSIONS''.
+The value of this attribute is a list of dimension names (strings), for example ````["time", "lon", "lat"]````.
+
 # Examples {#nczarr_examples}
 
 Here are a couple of examples using the _ncgen_ and _ncdump_ utilities.
@@ -281,6 +325,7 @@ zarr format.
 <a name="ref_nczarr">[2]</a> [NetCDF ZARR Data Model Specification](https://www.unidata.ucar.edu/blogs/developer/en/entry/netcdf-zarr-data-model-specification)<br>
 <a name="ref_python">[3]</a> [Python Documentation: 8.3. collections — High-performance container datatypes](https://docs.python.org/2/library/collections.html)<br>
 <a name="ref_zarrv2">[4]</a> [Zarr Version 2 Specification](https://zarr.readthedocs.io/en/stable/spec/v2.html)<br>
+<a name="ref_xarray">[5]</a> [XArray Zarr Encoding Specification](http://xarray.pydata.org/en/latest/internals.html#zarr-encoding-specification)<br>
 
 Appendix A. Building aws-sdk-cpp {#nczarr_s3sdk}
 ==========
