@@ -946,7 +946,7 @@ platformseek(ZFMAP* zfmap, FD* fd, int pos, size64_t* sizep)
     off_t size, newsize;
     struct stat statbuf;    
     
-    if(fd->sort != FDFILE);
+    if(fd->sort != FDFILE)
         {ret = NC_EINVAL; goto done;}
     errno = 0;
     ret = fstat(fd->u.fd, &statbuf);
@@ -968,7 +968,7 @@ platformread(ZFMAP* zfmap, FD* fd, size64_t count, void* content)
     size_t need = count;
     unsigned char* readpoint = content;
 
-    if(fd->sort != FDFILE);
+    if(fd->sort != FDFILE)
         {stat = NC_EINVAL; goto done;}
 
     while(need > 0) {
@@ -989,7 +989,7 @@ platformwrite(ZFMAP* zfmap, FD* fd, size64_t count, const void* content)
     size_t need = count;
     unsigned char* writepoint = (unsigned char*)content;
 
-    if(fd->sort != FDFILE);
+    if(fd->sort != FDFILE)
         {stat = NC_EINVAL; goto done;}
 
     while(need > 0) {

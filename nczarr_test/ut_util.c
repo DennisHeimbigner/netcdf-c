@@ -19,7 +19,8 @@ int opterr;
 int optind;
 #endif
 
-#include "ut_varstest.h"
+#include "zincludes.h"
+#include "ut_projtest.h"
 
 #define OPEN "[{("
 #define CLOSE "]})"
@@ -88,7 +89,7 @@ parsedimdef(const char* s0, Dimdef** defp)
     const char* p;
     ptrdiff_t count;
     
-    if((def = calloc(1,sizeof(struct DimDef)))==NULL)
+    if((def = calloc(1,sizeof(struct Dimdef)))==NULL)
 	return NC_ENOMEM;
 
     /* Extract */

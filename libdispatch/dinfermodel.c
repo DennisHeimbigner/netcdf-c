@@ -227,12 +227,14 @@ processuri(const char* path, NCURI** urip, NClist* fraglist)
     /* capture the fragments of the url */
     ufrags = ncurifragmentparams(uri);
     buf = ncbytesnew();
-    for(p=ufrags;*p;p+=2) {
-	const char* key = p[0];
-	const char* value = p[1];
-	ncbytescat(buf,key);
-	if(value != NULL && value[0] != '\0') {
-	    ncbytescat(buf,"="); ncbytescat(buf,value);
+    if(ufrags != NULL) {
+        for(p=ufrags;*p;p+=2) {
+	    const char* key = p[0];
+	    const char* value = p[1];
+	    ncbytescat(buf,key);
+	    if(value != NULL && value[0] != '\0') {
+	        ncbytescat(buf,"="); ncbytescat(buf,value);
+	    }
 	}
 	nclistpush(fraglist,ncbytesextract(buf));
     }
