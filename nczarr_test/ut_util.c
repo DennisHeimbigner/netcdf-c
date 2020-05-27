@@ -3,24 +3,7 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-#include "config.h"
-
-#ifdef HAVE_UNISTD_H
-#include "unistd.h"
-#endif
-
-#ifdef HAVE_GETOPT_H
-#include <getopt.h>
-#endif
-
-#ifdef _WIN32
-#include "XGetopt.h"
-int opterr;
-int optind;
-#endif
-
-#include "zincludes.h"
-#include "ut_projtest.h"
+#include "ut_includes.h"
 
 #define OPEN "[{("
 #define CLOSE "]})"
@@ -325,154 +308,9 @@ printvec(int len, size64_t* vec)
     ncbytesfree(buf);
     return result;
 }
-
-#endif
-
-char*
-printprojtest(ProjTest* test)
-
-{
-    char* results = NULL;
-    char value[128];
-    NCbytes* buf = ncbytesnew();
-
-    ncbytescat(buf,"Test{");
-    snprintf(value,sizeof(value),"R=%d",test->rank);
-    ncbytescat(buf,value);
-    ncbytescat(buf," dimlen=");
-    ncbytescat(buf,nczprint_vector(test->rank, test->dimlen));
-    ncbytescat(buf," chunklen=");
-    ncbytescat(buf,nczprint_vector(test->rank, test->chunklen));
-    ncbytescat(buf," slices=");
-    ncbytescat(buf,nczprint_slices(test->rank, test->slices));
-    ncbytescat(buf,"}");    
-    results = ncbytesextract(buf);
-    ncbytesfree(buf);
-    return results;
-}
+#endif /*0*/
 
 /**************************************************/
-#if 0
-int
-ut_proj_init(int argc, char** argv, ProjTest* test)
-{
-    int stat = NC_NOERR;
-    int count,c;
-    int optcount = 0;
-
-    ut_init(argc,argv,NULL);
-
-    buf = ncbytesnew();
-
-    while ((c = getopt(argc, argv, "r:d:c:s:R:t:")) != EOF) {
-        switch(c) {
-        case 'r': /* rank */
-            if(optcount > 0) {
-                fprintf(stderr,"Error: -r flag must be first\n");
-                exit(1);
-            }
-            test->rank = atoi(optarg);
-            if(test->rank <= 0) {stat = NC_EINVAL; goto done;}
-            break;
-        case 'd': /* dimlens */
-            count = parseintvector(optarg,4,(void**)&test->dimlen);
-            ranktest(test->rank,c,count);
-            break;
-        case 'c': /* chunklens */
-            count = parseintvector(optarg,4,(void**)&test->chunklen);
-            ranktest(test->rank,c,count);
-            break;
-        case 's': { /* slices */
-            NCZSlice* sl = NULL;
-            int n;
-            count = parseslices(optarg,&sl);
-            ranktest(test->rank,c,count);
-            for(n=0;n<count;n++) test->slices[n] = sl[n];
-            } break;
-        case 'R': {/* chunk range */
-            size64_t* r;
-            count = parseintvector(optarg,4,(void**)&r);
-            if(count != 2) {stat = NC_EINVAL; goto done;}
-            test->range.start = r[0];
-            test->range.stop = r[1];
-            } break;
-        case 't': /* typesize */
-            test->typesize = (unsigned)atoi(optarg);
-            break;
-        case '?':
-           fprintf(stderr,"unknown option\n");
-           stat = NC_EINVAL;
-           goto done;
-        }
-        optcount++;
-    }
-    printf("%s\n",printtest(test));
-
-done:
-    return stat;
-}
-
-int
-ut_vars_init(int argc, char** argv, VarsTest* test)
-{
-    int stat = NC_NOERR;
-    int count,c;
-    int optcount = 0;
-
-    ut_init(argc,argv,NULL);
-
-    buf = ncbytesnew();
-
-    while ((c = getopt(argc, argv, "r:n:t:f:D:V:s:W:")) != EOF) {
-        switch(c) {
-        case 'r': /* rank */
-            test->rank = atoi(optarg);
-            if(test->rank <= 0) {stat = NC_EINVAL; goto done;}
-            break;
-        case 'n': /* ndims */
-            test->ndims = atoi(optarg);
-            if(test->ndims <= 0) {stat = NC_EINVAL; goto done;}
-            break;
-        case 't':
-            test->type = atoi(optarg);
-            if(test->type <= 0 || test->type >= NC_MAX_ATOMIC_TYPE)
-                {stat = NC_EINVAL; goto done;}
-            break;
-        case 'D':
-            count = parsedimdefs(optarg,&test->dimdefs);
-            test->ndims = count;
-            break;
-        case 'V':
-            count = parsevardefs(optarg,&test->vardefs,test->ndims,test->dimdefs);
-            test->nvars = count;
-            break;
-        case 's': /* slices */
-            count = parseslices(optarg,&test->slices);
-            ranktest(test->rank,c,count);
-            break;
-        case 'W': /* wdata */
-            test->datacount = parseintvector(optarg,4,(void**)&test->wdata);
-            break;
-        case 'f': /* file */
-            test->file = strdup(optarg);
-            break;
-        case 'v':
-            count = parsevardefs(optarg,&test->vardefs,test->ndims,test->dimdefs);
-            if(count != test->ndims) {stat = NC_EINVAL; goto done;}         
-            break;
-        case '?':
-           fprintf(stderr,"unknown option\n");
-           stat = NC_EINVAL;
-           goto done;
-        }
-        optcount++;
-    }
-
-done:
-    return stat;
-}
-#endif
-
 int
 ut_typesize(nc_type t)
 {
@@ -620,4 +458,15 @@ printoptions(struct Options* opts)
 	printf("%s",nczprint_slicex(*sl,1));
     }
     printf("\n");
+}
+
+int
+hasdriveletter(const char* f)
+{
+    if(f == NULL || *f == '\0' || strlen(f) < 3) return 0;
+    if(f[1] != ':') return 0;
+    if(f[2] != '/' && f[2] != '\\') return 0;
+    if((f[0] < 'z' && f[0] >= 'a') || (f[0] < 'Z' && f[0] >= 'A'))
+        return 1;
+    return 0;
 }

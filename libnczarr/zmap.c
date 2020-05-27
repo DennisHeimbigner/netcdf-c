@@ -274,9 +274,9 @@ nczm_join(NClist* segments, char** pathp)
     return nczm_join_delim(segments,nclistlength(segments),NULL,'/',pathp);
 }
 
-/* Convenience: suffix an object name to a group path: caller frees*/
+/* Convenience: concat two strings; caller frees */
 int
-nczm_suffix(const char* prefix, const char* suffix, char** pathp)
+nczm_concat(const char* prefix, const char* suffix, char** pathp)
 {
     NCbytes* buf = ncbytesnew();
 

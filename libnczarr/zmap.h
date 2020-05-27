@@ -125,7 +125,9 @@ typedef struct NCZMAP_DS_API {
 extern "C" {
 #endif
 
-/* Object API Wrappers */
+/* Object API Wrappers; note that there are no group operations
+   because group keys do not map to directories.
+   */
 extern int nczmap_exists(NCZMAP* map, const char* key);
 extern int nczmap_len(NCZMAP* map, const char* key, size64_t* lenp);
 extern int nczmap_define(NCZMAP* map, const char* key, size64_t lenp);
@@ -145,7 +147,7 @@ extern int nczm_split(const char* path, NClist* segments);
 extern int nczm_split_delim(const char* path, char delim, NClist* segments);
 extern int nczm_join_delim(NClist* segments, int nsegs, const char* prefix, char delim, char** pathp);
 extern int nczm_join(NClist* segments, char** pathp);
-extern int nczm_suffix(const char* prefix, const char* suffix, char** pathp);
+extern int nczm_concat(const char* prefix, const char* suffix, char** pathp);
 extern int nczm_divide(const char* key, int nsegs, char** prefixp, char** suffixp);
 extern int nczm_clear(NCZMAP* map);
 extern int nczm_isabsolutepath(const char*);

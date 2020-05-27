@@ -90,7 +90,7 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
     else {
         /* Make the root path be absolute */
         if(!nczm_isabsolutepath(url->path)) {
-	    if((stat = nczm_suffix(z4cwd,url->path,&truepath))) goto done;
+	    if((stat = nczm_concat(z4cwd,url->path,&truepath))) goto done;
 	} else
 	    truepath = strdup(url->path);
     }
@@ -147,7 +147,7 @@ znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** 
     else {
         /* Make the root path be absolute */
         if(!nczm_isabsolutepath(url->path)) {
-	    if((stat = nczm_suffix(z4cwd,url->path,&truepath))) goto done;
+	    if((stat = nczm_concat(z4cwd,url->path,&truepath))) goto done;
 	} else
 	    truepath = strdup(url->path);
     }
@@ -531,7 +531,7 @@ znc4children(NCZMAP* map, const char* parentkey, NClist* children)
 	    /* translate name */
 	    zify(name,zname);
 	    /* Create a full path */
-	    if((stat = nczm_suffix(parentkey,zname,&path)))
+	    if((stat = nczm_concat(parentkey,zname,&path)))
 		goto done;
 	    /* Add to list of children */
 	    nclistpush(children,path);

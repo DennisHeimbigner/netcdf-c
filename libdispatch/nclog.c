@@ -165,10 +165,13 @@ nclog(int tag, const char* fmt, ...)
 {
     va_list args;
     const char* prefix;
+    int was;
 
     if(!nclogginginitialized) ncloginit();
 
-    if(!nclog_global.nclogging) return;
+    if(tag == NCLOGERR) was = ncsetlogging(1);
+        
+    if(!nclog_global.nclogging) goto done;
 
     if(nclog_global.nclogstream == NULL)
         nclog_global.nclogstream = stderr;
@@ -183,6 +186,9 @@ nclog(int tag, const char* fmt, ...)
     }
     fprintf(nclog_global.nclogstream, "\n" );
     fflush(nclog_global.nclogstream);
+
+done:
+    if(tag == NCLOGERR) ncsetlogging(was);
 }
 
 void

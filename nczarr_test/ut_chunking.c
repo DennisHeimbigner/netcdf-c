@@ -4,8 +4,8 @@
  */
 
 #define ZUT
-#include "zincludes.h"
-#include "ut_projtest.h"
+
+#include "ut_includes.h"
 
 void ut_chunk_print(int sort, ...);
 

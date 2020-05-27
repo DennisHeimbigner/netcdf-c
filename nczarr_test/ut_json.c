@@ -3,9 +3,7 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-#include "zincludes.h"
-#include "zjson.h"
-#include "ut_test.h"
+#include "ut_includes.h"
 
 #define DEBUG
 

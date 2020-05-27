@@ -177,7 +177,7 @@ ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
     }
 
     /* build ZGROUP path */
-    if((stat = nczm_suffix(fullpath,ZGROUP,&key)))
+    if((stat = nczm_concat(fullpath,ZGROUP,&key)))
 	goto done;
     if((stat = NCJnew(NCJ_DICT,&json)))
 	goto done;
@@ -201,7 +201,7 @@ ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
 	if((stat = NCJinsert(jgroup,"groups",jsubgrps))) goto done;
 	jsubgrps = NULL; /* avoid memory problems */
 	/* build NCZGROUP path */
-	if((stat = nczm_suffix(fullpath,NCZGROUP,&key)))
+	if((stat = nczm_concat(fullpath,NCZGROUP,&key)))
 	    goto done;
 	/* Write to map */
 	if((stat=NCZ_uploadjson(map,key,jgroup)))
@@ -378,7 +378,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     jtmp = NULL;
 
     /* build .zarray path */
-    if((stat = nczm_suffix(fullpath,ZARRAY,&key)))
+    if((stat = nczm_concat(fullpath,ZARRAY,&key)))
 	goto done;
 
     /* Write to map */
@@ -420,7 +420,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 
 	if(!(zinfo->features.flags & FLAG_PUREZARR)) {
 	    /* Write out NCZVAR */
-	    if((stat = nczm_suffix(fullpath,NCZVAR,&key)))
+	    if((stat = nczm_concat(fullpath,NCZVAR,&key)))
 		goto done;
 	    /* Write to map */
 	    if((stat=NCZ_uploadjson(map,key,jncvar)))
@@ -572,7 +572,7 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist)
 	goto done;
 
     /* Upload the NCZATTR object */
-    if((stat = nczm_suffix(fullpath,NCZATTR,&key)))
+    if((stat = nczm_concat(fullpath,NCZATTR,&key)))
 	goto done;
     if(!(zinfo->features.flags & FLAG_PUREZARR)) {
 	/* Write to map */
@@ -586,7 +586,7 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist)
 	goto done;
 
     /* write .zattrs path */
-    if((stat = nczm_suffix(fullpath,ZATTRS,&key)))
+    if((stat = nczm_concat(fullpath,ZATTRS,&key)))
 	goto done;
     /* Write to map */
     if((stat=NCZ_uploadjson(map,key,jatts)))
@@ -685,7 +685,7 @@ load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypesp)
     }
 
     /* Construct the path to the .zattrs object */
-    if((stat = nczm_suffix(fullpath,ZATTRS,&key)))
+    if((stat = nczm_concat(fullpath,ZATTRS,&key)))
 	goto done;
 
     /* Download the .zattrs object: may not exist */
@@ -698,7 +698,7 @@ load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypesp)
 
     if(jattrs != NULL) {
 	/* Construct the path to the NCZATTR object */
-	if((stat = nczm_suffix(fullpath,NCZATTR,&key))) goto done;
+	if((stat = nczm_concat(fullpath,NCZATTR,&key))) goto done;
 	/* Download the NCZATTR object: may not exist if pure zarr */
 	switch((stat=NCZ_downloadjson(map,key,&jncattr))) {
 	case NC_NOERR: break;
@@ -988,7 +988,7 @@ define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
 	nodimrefs = 1;
     } else { /*!(zinfo->features.flags & FLAG_PUREZARR) */
 	/* build NCZGROUP path */
-	if((stat = nczm_suffix(fullpath,NCZGROUP,&key)))
+	if((stat = nczm_concat(fullpath,NCZGROUP,&key)))
 	    goto done;
 	/* Read */
 	switch (stat=NCZ_downloadjson(map,key,&jncgroup)) {
@@ -1220,7 +1220,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    goto done;
 
 	/* Construct the path to the zarray object */
-	if((stat = nczm_suffix(varpath,ZARRAY,&key)))
+	if((stat = nczm_concat(varpath,ZARRAY,&key)))
 	    goto done;
 	/* Download the zarray object */
 	if((stat=NCZ_readdict(map,key,&jvar)))
@@ -1233,7 +1233,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    hasdimrefs = 0;
 	} else { /*zinfo->features.flags & FLAG_PUREZARR*/
 	    /* Download the NCZVAR object */
-	    if((stat = nczm_suffix(varpath,NCZVAR,&key))) goto done;
+	    if((stat = nczm_concat(varpath,NCZVAR,&key))) goto done;
 	    if((stat=NCZ_readdict(map,key,&jncvar))) goto done;
 	    nullfree(key); key = NULL;
 	    assert((jncvar->sort == NCJ_DICT));
@@ -1527,7 +1527,7 @@ parse_var_dims_pure(NCZ_FILE_INFO_T*  zinfo, NC_GRP_INFO_T* grp, NC_VAR_INFO_T* 
     /* Construct var path */
     if((stat = NCZ_varkey(var,&varkey))) goto done;
     /* Construct .zarray path */
-    if((stat = nczm_suffix(varkey,ZARRAY,&zakey))) goto done;
+    if((stat = nczm_concat(varkey,ZARRAY,&zakey))) goto done;
     /* Download the zarray object */
     if((stat=NCZ_readdict(zinfo->map,zakey,&jvar)))
 	goto done;
@@ -1564,8 +1564,8 @@ searchvars(NCZ_FILE_INFO_T* zfile, NC_GRP_INFO_T* grp, NClist* varnames)
 	const char* name = nclistget(matches,i);
 	if(name[0] == NCZM_DOT) continue; /* zarr/nczarr specific */
 	/* See if name/.zarray exists */
-	if((stat = nczm_suffix(grpkey,name,&varkey))) goto done;
-	if((stat = nczm_suffix(varkey,ZARRAY,&zarray))) goto done;
+	if((stat = nczm_concat(grpkey,name,&varkey))) goto done;
+	if((stat = nczm_concat(varkey,ZARRAY,&zarray))) goto done;
 	if((stat = nczmap_exists(zfile->map,zarray)) == NC_NOERR)
 	    nclistpush(varnames,strdup(name));
 	stat = NC_NOERR;
@@ -1598,8 +1598,8 @@ searchsubgrps(NCZ_FILE_INFO_T* zfile, NC_GRP_INFO_T* grp, NClist* subgrpnames)
 	const char* name = nclistget(matches,i);
 	if(name[0] == NCZM_DOT) continue; /* zarr/nczarr specific */
 	/* See if name/.zgroup exists */
-	if((stat = nczm_suffix(grpkey,name,&subkey))) goto done;
-	if((stat = nczm_suffix(subkey,ZGROUP,&zgroup))) goto done;
+	if((stat = nczm_concat(grpkey,name,&subkey))) goto done;
+	if((stat = nczm_concat(subkey,ZGROUP,&zgroup))) goto done;
 	if((stat = nczmap_exists(zfile->map,zgroup)) == NC_NOERR)
 	    nclistpush(subgrpnames,strdup(name));
 	stat = NC_NOERR;

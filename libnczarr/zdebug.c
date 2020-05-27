@@ -4,6 +4,10 @@
  *********************************************************************/
 #include "zincludes.h"
 
+#ifdef HAVE_EXECINFO_H
+#include <execinfo.h>
+#endif
+
 /* Mnemonic */
 #define RAW 1
 
@@ -23,6 +27,7 @@ zthrow(int err, const char* file, int line)
     fprintf(stderr,"THROW: %s/%d: (%d) %s\n",file,line,err,nc_strerror(err));
     fflush(stderr);
 #endif
+    NCZbacktrace();
     return zbreakpoint(err);
 }
 #endif
@@ -321,5 +326,29 @@ zdumpcommon(struct Common* c)
     for(r=0;r<c->rank;r++)
         fprintf(stderr,"\t\t[%d] %s\n",r,nczprint_sliceprojectionsx(c->allprojections[r],RAW));
     fflush(stderr);
+}
+#endif
+
+#ifdef HAVE_EXECINFO_H
+#define MAXSTACKDEPTH 100
+void
+NCZbacktrace(void)
+{
+    int j, nptrs;
+    void* buffer[MAXSTACKDEPTH];
+    char **strings;
+
+    if(getenv("NCZBACKTRACE") == NULL) return;
+    nptrs = backtrace(buffer, MAXSTACKDEPTH);
+    strings = backtrace_symbols(buffer, nptrs);
+    if (strings == NULL) {
+        perror("backtrace_symbols");
+        errno = 0;
+	return;
+    }
+    fprintf(stderr,"Backtrace:\n");
+    for(j = 0; j < nptrs; j++)
+	fprintf(stderr,"%s\n", strings[j]);
+    free(strings);
 }
 #endif

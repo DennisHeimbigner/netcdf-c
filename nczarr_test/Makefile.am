@@ -22,21 +22,29 @@ check_PROGRAMS =
 TESTS =
 
 # Unit Tests
-check_PROGRAMS += ut_map ut_json ut_projections ut_chunking
+check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking
 
 commonsrc = ut_util.c ut_test.c
 
 ut_map_SOURCES = ut_map.c ${commonsrc}
+ut_mapapi_SOURCES = ut_mapapi.c ${commonsrc}
 ut_json_SOURCES = ut_json.c ${commonsrc}
 ut_projections_SOURCES = ut_projections.c ${commonsrc}
 ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
 
+HDRS = ut_includes.h ut_test.h ut_util.h
+
 # Integration Tests
 #check_PROGRAMS += it_meta
 
-#TESTS += run_ut_map.sh
-#TESTS += run_ut_misc.sh
+TESTS += run_ut_map.sh
+TESTS += run_ut_mapapi.sh
+TESTS += run_ut_misc.sh
 TESTS += run_ut_chunk.sh
+
+ignorec = ut_allslices.c ut_transfer.c ut_vars.c ut_walk.c
+ignoresh = run_meta_tests.sh run_unittests.sh
+ignoreh = ut_varstest.h
 
 #noinst_PROGRAMS = z4dump
 #z4dump_SOURCES = z4dump.c

@@ -3,9 +3,7 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-#include "config.h"
-#include "zincludes.h"
-#include "ut_test.h"
+#include "ut_includes.h"
 
 #undef DEBUG
 
@@ -77,7 +75,7 @@ simplecreate(void)
     if((stat = nczmap_create(impl,url,0,0,NULL,&map)))
 	goto done;
 
-    if((stat=nczm_suffix(NULL,NCZMETAROOT,&path)))
+    if((stat=nczm_concat(NULL,NCZMETAROOT,&path)))
 	goto done;
     if((stat = nczmap_define(map, path, NCZ_ISMETA)))
 	goto done;
@@ -116,20 +114,19 @@ writemeta(void)
     if((stat = nczmap_create(impl,url,0,0,NULL,&map)))
 	goto done;
 
-    if((stat=nczm_suffix(NULL,NCZMETAROOT,&path)))
+    if((stat=nczm_concat(NULL,NCZMETAROOT,&path)))
 	goto done;
     if((stat = nczmap_define(map, path, NCZ_ISMETA)))
 	goto done;
     free(path); path = NULL;
 
-    if((stat=nczm_suffix(NULL,META1,&path)))
+    if((stat=nczm_concat(META1,ZARRAY,&path)))
 	goto done;
     if((stat = nczmap_define(map, path, NCZ_ISMETA)))
 	goto done;
-    free(path); path = NULL;
-    
-    if((stat = nczmap_writemeta(map, META1, strlen(metadata1), metadata1)))
+    if((stat = nczmap_writemeta(map, path, strlen(metadata1), metadata1)))
 	goto done;
+    free(path); path = NULL;
 
     /* Do not delete so we can look at it with ncdump */
     if((stat = nczmap_close(map,0)))
@@ -149,12 +146,11 @@ writemeta2(void)
     if((stat = nczmap_open(impl,url,NC_WRITE,0,NULL,&map)))
 	goto done;
 
-    if((stat=nczm_suffix(NULL,META2,&path)))
+    if((stat=nczm_concat(META2,NCZVAR,&path)))
 	goto done;
     if((stat = nczmap_define(map,path,NCZ_ISMETA)))
 	goto done;
-
-    if((stat = nczmap_writemeta(map, META2, strlen(metadata2), metadata2)))
+    if((stat = nczmap_writemeta(map, path, strlen(metadata2), metadata2)))
 	goto done;
 
     /* Do not delete so we can look at it with ncdump */
@@ -177,7 +173,7 @@ readmeta(void)
     if((stat = nczmap_open(impl,url,0,0,NULL,&map)))
 	goto done;
 
-    if((stat=nczm_suffix(NULL,META1,&path)))
+    if((stat=nczm_concat(META1,ZARRAY,&path)))
 	goto done;
 
     /* Get length */
@@ -194,7 +190,7 @@ readmeta(void)
     /* nul terminate */
     content[olen] = '\0';
 
-    printf("%s: |%s|\n",META1,content);
+    printf("%s: |%s|\n",path,content);
 
     if((stat = nczmap_close(map,0)))
 	goto done;
@@ -223,7 +219,7 @@ writedata(void)
 	goto done;
 
     /* ensure object */
-    if((stat=nczm_suffix(NULL,DATA1,&path)))
+    if((stat=nczm_concat(DATA1,"0",&path)))
 	goto done;
 
     if((stat = nczmap_define(map,path,totallen)))
@@ -239,7 +235,7 @@ writedata(void)
 	    last = totallen;
 	count = last - start;
         
-	if((stat = nczmap_write(map, DATA1, start, count, &data1p[start])))
+	if((stat = nczmap_write(map, path, start, count, &data1p[start])))
 	     goto done;
     }
 
@@ -266,7 +262,7 @@ readdata(void)
 	goto done;
 
     /* ensure object */
-    if((stat=nczm_suffix(NULL,DATA1,&path)))
+    if((stat=nczm_concat(DATA1,"0",&path)))
 	goto done;
 
     if((stat = nczmap_exists(map,path)))
@@ -286,7 +282,7 @@ readdata(void)
 	if(last > totallen) 
 	    last = totallen;
 	count = last - start;
-	if((stat = nczmap_read(map, DATA1, start, count, &data1p[start])))
+	if((stat = nczmap_read(map, path, start, count, &data1p[start])))
 	     goto done;
     }
 
@@ -325,7 +321,9 @@ searchR(NCZMAP* map, int depth, NCbytes* prefix, NClist* objects)
 	const char* segment = nclistget(matches,i);
 	if(depth > 0) ncbytescat(prefix,"/");
 	ncbytescat(prefix,segment);
-	if((stat = searchR(map,depth+1,prefix,objects))) goto done;
+	switch (stat = searchR(map,depth+1,prefix,objects)) {
+	case NC_NOERR: /* 
+	case NC_EINVAL:
 	ncbytessetlength(prefix,savepoint);
     }
 

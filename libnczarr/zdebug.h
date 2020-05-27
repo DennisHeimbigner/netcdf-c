@@ -12,7 +12,7 @@
 #undef ZDEBUG1 /* detailed debug */
 
 #define ZCATCH /* Warning: significant performance impact */
-#undef ZTRACING /* Warning: significant performance impact */
+#define ZTRACING /* Warning: significant performance impact */
 
 #ifdef ZCATCH
 /* Place breakpoint on zbreakpoint to catch errors close to where they occur*/
@@ -28,10 +28,10 @@ extern int zthrow(int err, const char* fname, int line);
 #include "nclog.h"
 #ifdef ZTRACING
 #define ZLOG(level,msg,...) nclog(level,msg,__VA_ARGS__)
-#define ZTRACE() nclog(NCLOGDBG,"trace: %s.%s",__FILE__,__func__)
+#define ZTRACE(fmt,...) nclog(NCLOGDBG,"trace: %s:%s " fmt,__FILE__,__func__,__VA_ARGS__)
 #else
 #define ZLOG(level,msg,...)
-#define ZTRACE()
+#define ZTRACE(fmt,...)
 #endif
 
 /* printers */
@@ -52,6 +52,10 @@ extern char* nczprint_sliceprojectionsx(NCZSliceProjections slp, int raw);
 
 #ifdef ZDEBUG
 extern void zdumpcommon(struct Common*);
+#endif
+
+#ifdef HAVE_EXECINFO_H
+extern void NCZbacktrace(void);
 #endif
 
 /* Define the possible unit tests (powers of 2) */

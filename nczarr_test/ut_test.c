@@ -3,27 +3,13 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-#include "config.h"
-
-#ifdef HAVE_UNISTD_H
-#include "unistd.h"
-#endif
-
-#ifdef HAVE_GETOPT_H
-#include <getopt.h>
-#endif
-
-#ifdef _WIN32
-#include "XGetopt.h"
-int opterr;
-int optind;
-#endif
-
-#include "zincludes.h"
-#include "ut_test.h"
-#include "ut_projtest.h"
+#include "ut_includes.h"
+#include "ncwinpath.h"
 
 struct Options options;
+
+/*Forward*/
+static void canonicalfile(char** fp);
 
 void
 usage(int err)
@@ -100,8 +86,74 @@ ut_init(int argc, char** argv, struct Options * options)
         }
     }
 
+    canonicalfile(&options->file);
+    canonicalfile(&options->output);
+    
 done:
     return stat;
+}
+
+static void
+getpathcwd(char** cwdp)
+{
+    char buf[4096];
+    (void)NCcwd(buf,sizeof(buf));
+    if(cwdp) *cwdp = strdup(buf);
+}
+
+static void
+canonicalfile(char** fp)
+{
+    size_t len, len2, offset;
+    char* f = NULL;
+    char* abspath = NULL;
+    char* p = NULL;
+    char* cwd = NULL;
+    NCURI* uri = NULL;
+#ifdef _WIN32
+    int fwin32=0, cwd32=0;
+#endif
+
+    if(fp == NULL || *fp == NULL) return;
+    f = *fp;
+    len = strlen(f);
+    if(len <= 1) return;
+    if(f[0] == '/' || f[0] == '\\' || hasdriveletter(f))
+        return; /* its already absolute */
+    ncuriparse(f,&uri);
+    if(uri != NULL) {ncurifree(uri); return;} /* its a url */
+#ifdef _WIN32
+    for(f32=0,p=f;*p;p++) {if(*p == '\\') {*p = '/'; f32 = 1;}}
+#endif
+    if(len >= 2 && memcmp(f,"./",2)==0) {
+	offset = 1; /* leave the '/' */
+    } else if(len >= 3 && memcmp(f,"../",3)==0) {
+	offset = 2;
+    } else
+        offset = 0;
+    getpathcwd(&cwd);
+    len2 = strlen(cwd);
+#ifdef _WIN32
+    for(cwd32=0,p=cwd;*p;p++) {if(*p == '\\') {*p = '/'; cwd32 = 1;}}
+#endif
+    if(offset == 2) {
+        p = strrchr(cwd,'/');
+        /* remove last segment including the preceding '/' */
+	if(p == NULL) {cwd[0] = '\0';} else {*p = '\0';}
+    }
+    len2 = (len-offset)+strlen(cwd);
+    if(offset == 0) len2++; /* need to add '/' */
+    abspath = (char*)malloc(len2+1);
+    abspath[0] = '\0';
+    strlcat(abspath,cwd,len2+1);
+    if(offset == 0) strlcat(abspath,"/",len2+1);
+    strlcat(abspath,f+offset,len2+1);
+#ifdef _WIN32
+    if(fwin32)
+     for(p=abspath;*p;p++) {if(*p == '/') {*p = '\\';}}
+#endif
+    nullfree(f);
+    *fp = abspath;
 }
 
 void
@@ -157,47 +209,6 @@ makeurl(const char* file, NCZM_IMPL impl)
     fflush(stderr);
     return url;
 }
-
-#if 0
-int
-setup(int argc, char** argv)
-{
-    int stat = NC_NOERR;
-    int c;
-    memset((void*)&options,0,sizeof(options));
-    while ((c = getopt(argc, argv, "dc:")) != EOF) {
-        switch(c) {
-        case 'd': 
-            options.debug = 1;      
-            break;
-        case 'c':
-            if(options.cmd != NULL) {
-                fprintf(stderr,"error: multiple commands specified\n");
-                stat = NC_EINVAL;
-                goto done;
-            }
-            if(optarg == NULL || strlen(optarg) == 0) {
-                fprintf(stderr,"error: bad command\n");
-                stat = NC_EINVAL;
-                goto done;
-            }
-            options.cmd = strdup(optarg);
-            break;
-        case '?':
-           fprintf(stderr,"unknown option\n");
-           stat = NC_EINVAL;
-           goto done;
-        }
-    }
-    if(options.cmd == NULL) {
-        fprintf(stderr,"no command specified\n");
-        stat = NC_EINVAL;
-        goto done;
-    }
-done:
-    return stat;
-}
-#endif
 
 struct Test*
 findtest(const char* cmd, struct Test* tests)

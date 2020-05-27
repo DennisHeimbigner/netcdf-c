@@ -396,7 +396,7 @@ NCZ_buildchunkpath(NCZChunkCache* cache, const size64_t* chunkindices, char** ke
     /* Get the var object key */
     if((stat = NCZ_varkey(cache->var,&varkey))) goto done;
     /* Prefix the path to the containing variable object */
-    if((stat=nczm_suffix(varkey,chunkname,&key))) goto done;
+    if((stat=nczm_concat(varkey,chunkname,&key))) goto done;
     if(keyp) {*keyp = key; key = NULL;}
 
 done:

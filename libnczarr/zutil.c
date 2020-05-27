@@ -118,7 +118,7 @@ NCZ_varkey(const NC_VAR_INFO_T* var, char** pathp)
     if((stat = NCZ_grpkey(var->container,&grppath)))
 	goto done;
     /* Create the suffix path using the var name */
-    if((stat = nczm_suffix(grppath,var->hdr.name,&varpath)))
+    if((stat = nczm_concat(grppath,var->hdr.name,&varpath)))
 	goto done;
     /* return path */
     if(pathp) {*pathp = varpath; varpath = NULL;}
@@ -147,7 +147,7 @@ NCZ_dimkey(const NC_DIM_INFO_T* dim, char** pathp)
     if((stat = NCZ_grpkey(dim->container,&grppath)))
 	goto done;
     /* Create the suffix path using the dim name */
-    if((stat = nczm_suffix(grppath,dim->hdr.name,&dimpath)))
+    if((stat = nczm_concat(grppath,dim->hdr.name,&dimpath)))
 	goto done;
     /* return path */
     if(pathp) {*pathp = dimpath; dimpath = NULL;}

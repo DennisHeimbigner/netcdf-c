@@ -3,8 +3,7 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-#include "zincludes.h"
-#include "ut_projtest.h"
+#include "ut_includes.h"
 
 void ut_chunk_test(int sort, ...);
 

@@ -904,6 +904,8 @@ IF(MSVC)
          DESTINATION ${netCDF_BINARY_DIR}/ncgen/)
     FILE(COPY ${netCDF_SOURCE_DIR}/libsrc/XGetopt.c
          DESTINATION ${netCDF_BINARY_DIR}/ncdump/)
+    FILE(COPY ${netCDF_SOURCE_DIR}/libsrc/XGetopt.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
   ENDIF()
 ENDIF()
 
@@ -1342,6 +1344,7 @@ CHECK_INCLUDE_FILE("string.h"  HAVE_STRING_H)
 CHECK_INCLUDE_FILE("winsock2.h" HAVE_WINSOCK2_H)
 CHECK_INCLUDE_FILE("ftw.h"  HAVE_FTW_H)
 CHECK_INCLUDE_FILE("libgen.h" HAVE_LIBGEN_H)
+CHECK_INCLUDE_FILE("execinfo.h" HAVE_EXECINFO_H)
 
 # Symbol Exists
 CHECK_SYMBOL_EXISTS(isfinite "math.h" HAVE_DECL_ISFINITE)

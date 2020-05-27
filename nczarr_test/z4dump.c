@@ -3,19 +3,7 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-#include "zincludes.h"
-#ifdef HAVE_UNISTD_H
-#include "unistd.h"
-#endif
-#ifdef HAVE_GETOPT_H
-#include <getopt.h>
-#endif
-
-#ifdef _MSC_VER
-#include "XGetopt.h"
-int opterr;
-int optind;
-#endif
+#include "ut_includes.h"
 
 #define DATANAME "data"
 

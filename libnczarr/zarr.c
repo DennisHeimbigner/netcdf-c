@@ -33,7 +33,7 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const char** contr
     NCjson* json = NULL;
     char* key = NULL;
 
-    ZTRACE();
+    ZTRACE("%s/%s %s",file->hdr.name,root->hdr.name,controls);
 
     nc = (NC*)file->controller;
 
@@ -107,7 +107,7 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const char** controls)
     int mode;
     NClist* modeargs = NULL;
 
-    ZTRACE();
+    ZTRACE("%s %s",file->hdr.name,controls);
 
     /* Extract info reachable via file */
     nc = (NC*)file->controller;
@@ -273,7 +273,7 @@ ncz_open_rootgroup(NC_FILE_INFO_T* dataset)
 
     assert(root != NULL);
 
-    if((stat=nczm_suffix(NULL,ZGROUP,&rootpath)))
+    if((stat=nczm_concat(NULL,ZGROUP,&rootpath)))
 	goto done;
     if((stat = NCZ_downloadjson(zfile->map, rootpath, &json)))
 	goto  done;
@@ -333,7 +333,7 @@ ncz_unload_jatts(NCZ_FILE_INFO_T* zinfo, NC_OBJ* container, NCjson* jattrs, NCjs
     }
 
     /* Construct the path to the .zattrs object */
-    if((stat = nczm_suffix(fullpath,ZATTRS,&akey)))
+    if((stat = nczm_concat(fullpath,ZATTRS,&akey)))
 	goto done;
 
     /* Upload the .zattrs object */
@@ -342,7 +342,7 @@ ncz_unload_jatts(NCZ_FILE_INFO_T* zinfo, NC_OBJ* container, NCjson* jattrs, NCjs
 
     if(!(zinfo->features.flags & FLAG_PUREZARR)) {
         /* Construct the path to the .nczattr object */
-        if((stat = nczm_suffix(fullpath,NCZATTR,&tkey)))
+        if((stat = nczm_concat(fullpath,NCZATTR,&tkey)))
    	    goto done;
         /* Upload the .nczattr object */
         if((stat=NCZ_uploadjson(map,tkey,jtypes)))
