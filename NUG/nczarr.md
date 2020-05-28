@@ -341,6 +341,11 @@ cmake -DFORCE_CURL=ON -DBUILD_ONLY=s3 -DMINIMIZE_SIZE=ON -DBUILD_DEPS=OFF -DCMAK
 
 ```
 
+The expected set of installed libraries are as follows:
+* aws-cpp-sdk-s3
+* aws-cpp-sdk-core
+
+
 Appendix B. Amazon S3 Imposed Limits {#nczarr_s3limits}
 ==========
 

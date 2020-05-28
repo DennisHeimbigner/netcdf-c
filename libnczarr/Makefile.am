@@ -66,7 +66,7 @@ zdebug.h
 
 if ENABLE_S3_SDK
 libnczarr_la_SOURCES += zmap_s3sdk.c
-#libnczarr_la_SOURCES += zs3sdk.cpp
+libnczarr_la_SOURCES += zs3sdk.cpp
 endif
 
 # For now, ignore these
