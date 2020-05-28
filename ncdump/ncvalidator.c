@@ -74,9 +74,8 @@ THIS SOFTWARE.
 #endif
 
 #ifdef _MSC_VER
-#include <io.h>
-#define snprintf _snprintf
 #include "XGetopt.h"
+#define snprintf _snprintf
 #endif
 
 #define X_ALIGN         4
