@@ -507,11 +507,11 @@ cleanfragments(NClist** fraglenvp)
         /* Construct key,value pair and insert into newlist */
 	nclistpush(newlist,key);
 	nclistpush(newlist,list2string(tmp));
-	nclistfreeall(tmp); tmp = NULL;
+	nclistfree(tmp); tmp = NULL;
     }
     *fraglenvp = newlist; newlist = NULL;
 done:
-    nclistfreeall(tmp);
+    nclistfree(tmp);
     ncbytesfree(buf);
     nclistfreeall(fraglenv);
     nclistfreeall(newlist);
