@@ -427,6 +427,8 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
     int* subgrps = NULL;
     int* vars = NULL;
     int i;
+    NCbytes* key = ncbytesnew();
+    int trailing = 0;
 	
     if((stat=nczm_split(prefix,segments)))
 	goto done;    
@@ -459,33 +461,21 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
 	{stat = NC_ENOMEM; goto done;}
     if((stat = nc_inq_grps(grpid,&ngrps,subgrps)))
 	goto done;
-    /* 1. Add the group names to the list of matches (zified) */
+    /* Add the subgroup keys to the list of matches (zified) */
+    trailing = (prefix[strlen(prefix)-1] == '/'); /* does prefix end with '/' */
     for(i=0;i<ngrps;i++) {
 	char gname[NC_MAX_NAME];
 	char zname[NC_MAX_NAME];
 	if((stat = nc_inq_grpname(subgrps[i],gname))) goto done;
 	zify(gname,zname);
-	nclistpush(matches,strdup(zname));	
+	ncbytescat(key,prefix);
+	if(!trailing) ncbytescat(key,"/");
+	ncbytescat(key,zname);
+	nclistpush(matches,ncbytesextract(key));
     }
-#if 0
-    /* 2. Add any variables in the group */
-    if((stat = nc_inq_varids(grpid,&nvars,NULL)))
-	goto done;
-    if((vars = calloc(1,sizeof(int)*nvars)) == NULL)
-	{stat = NC_ENOMEM; goto done;}
-    if((stat = nc_inq_varids(grpid,&nvars,vars)))
-	goto done;
-    /* 1. Add the var names to the list of matches */
-    for(i=0;i<nvars;i++) {
-	char vname[NC_MAX_NAME];
-	char zname[NC_MAX_NAME];
-	if((stat = nc_inq_varname(grpid,vars[i],vname))) goto done;
-	zify(vname,zname);
-	nclistpush(matches,strdup(zname));	
-    }
-#endif
 
 done:
+    ncbytesfree(key);
     nullfree(vars);
     nullfree(subgrps);
     nclistfreeall(segments);

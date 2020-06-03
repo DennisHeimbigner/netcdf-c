@@ -154,6 +154,7 @@ canonicalfile(char** fp)
 #endif
     nullfree(f);
     *fp = abspath;
+    nullfree(cwd);
 }
 
 void

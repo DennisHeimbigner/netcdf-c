@@ -46,8 +46,8 @@ ignorec = ut_allslices.c ut_transfer.c ut_vars.c ut_walk.c
 ignoresh = run_meta_tests.sh run_unittests.sh
 ignoreh = ut_varstest.h
 
-#noinst_PROGRAMS = z4dump
-#z4dump_SOURCES = z4dump.c
+noinst_PROGRAMS = zmapdump
+zmapdump_SOURCES = zmapdump.c
 
 EXTRA_DIST = run_unittests.sh run_meta_tests.sh \
 	ref_ut_mapnc4_create.cdl ref_ut_mapnc4_meta.cdl \

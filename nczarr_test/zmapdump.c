@@ -1,0 +1,240 @@
+/*
+ *	Copyright 2018, University Corporation for Atmospheric Research
+ *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
+ */
+
+#include "ut_includes.h"
+
+#define DEBUG
+
+#define DATANAME "data"
+
+#define OPT_NONE	0
+#define OPT_OBJDUMP	1
+
+/* Command line options */
+struct Dumpptions {
+    int debug;
+    int action;
+    char* infile;
+    NCZM_IMPL impl;    
+} dumpoptions;
+
+/* Forward */
+static int objdump(void);
+static NCZM_IMPL implfor(const char* path);
+static void printhex(size64_t len, const char* content);
+static int depthR(NCZMAP* map, const char* key, NClist* stack);
+
+#define NCCHECK(expr) nccheck((expr),__LINE__)
+void nccheck(int stat, int line)
+{
+    if(stat) {
+	fprintf(stderr,"%d: %s\n",line,nc_strerror(stat));
+	fflush(stderr);
+	exit(1);
+    }
+}
+
+static void
+Usage(void)
+{
+    fprintf(stderr,"usage: zmapdump <options> <file>\n");
+    exit(1);
+}
+
+int
+main(int argc, char** argv)
+{
+    int stat = NC_NOERR;
+    int c;
+
+    memset((void*)&dumpoptions,0,sizeof(dumpoptions));
+
+    /* Set defaults */
+    dumpoptions.action = OPT_OBJDUMP;
+
+    while ((c = getopt(argc, argv, "dv")) != EOF) {
+	switch(c) {
+	case 'd': 
+	    dumpoptions.debug = 1;	    
+	    break;
+	case 'v': 
+	    Usage();
+	    goto done;
+	case '?':
+	   fprintf(stderr,"unknown option\n");
+	   goto fail;
+	}
+    }
+
+    /* get file argument */
+    argc -= optind;
+    argv += optind;
+
+    if (argc > 1) {
+	fprintf(stderr, "z4dump: only one input file argument permitted\n");
+	goto fail;
+    }
+    if (argc == 0) {
+	fprintf(stderr, "z4dump: no input file specified\n");
+	goto fail;
+    }
+    dumpoptions.infile = strdup(argv[0]);
+
+    if((dumpoptions.impl = implfor(dumpoptions.infile))== NCZM_UNDEF)
+        Usage();
+
+    switch (dumpoptions.action) {
+    case OPT_OBJDUMP:
+	if((stat = objdump())) goto done;
+	break;
+    default:
+	fprintf(stderr,"Unimplemented action\n");
+	goto fail;
+    }    
+
+done:
+    if(stat)
+	nc_strerror(stat);
+    return (stat ? 1 : 0);    
+fail:
+    stat = NC_EINVAL;
+    goto done;
+}
+
+static NCZM_IMPL
+implfor(const char* path)
+{
+    NCURI* uri = NULL;
+    const char* mode = NULL;
+    NClist* segments = nclistnew();
+    int i;
+    NCZM_IMPL impl = NCZM_UNDEF;
+
+    ncuriparse(path,&uri);
+    if(uri == NULL) goto done;
+    mode = ncurifragmentlookup(uri,"mode");
+    if(mode == NULL) goto done;
+    /* split on commas */
+    NCCHECK(nczm_split_delim(mode,',',segments));
+    for(i=0;i<nclistlength(segments);i++) {
+        const char* value = nclistget(segments,i);
+	if(strcmp(value,"nz4")==0) {impl = NCZM_NC4; goto done;}
+	if(strcmp(value,"nzf")==0) {impl = NCZM_FILE; goto done;}
+	if(strcmp(value,"s3")==0) {impl = NCZM_S3; goto done;}
+    }
+done:
+    ncurifree(uri);
+    nclistfreeall(segments);    
+    return impl;
+}
+
+static int
+objdump(void)
+{
+    int stat = NC_NOERR;
+    NCZMAP* map = NULL;
+    NClist* matches = nclistnew();
+    NClist* stack = nclistnew();
+    char* prefix = NULL;
+    char* suffix = NULL;
+    char* obj = NULL;
+    char* content = NULL;
+
+    if((stat=nczmap_open(dumpoptions.impl, dumpoptions.infile, NC_NOCLOBBER, 0, NULL, &map)))
+        goto done;
+
+    /* Depth first walk all the groups to get all keys */
+    if((stat = depthR(map,strdup("/"),stack))) goto done;
+
+    if(dumpoptions.debug) {
+	int i;
+        fprintf(stderr,"stack:\n");
+        for(i=0;i<nclistlength(stack);i++)
+            fprintf(stderr,"[%d] %s\n",i,(char*)nclistget(stack,i));
+    }    
+    while(nclistlength(stack) > 0) {
+        size64_t len = 0;
+	int ismeta = 0;
+	obj = nclistremove(stack,0); /* zero pos is always top of stack */
+	/* Now print info for this obj key */
+        if((stat=nczm_divide(obj,1,&prefix,&suffix))) goto done;
+        if(suffix[0] == '.') ismeta = 1;
+        switch (stat=nczmap_len(map,obj,&len)) {
+	    case NC_NOERR: break;
+	    case NC_EACCESS: len = 0; stat = NC_NOERR; break;
+	    default: goto done;
+	}
+	if(len > 0) {
+	    content = malloc(len+1);
+	    if(ismeta) {
+		if((stat=nczmap_readmeta(map,obj,len,content))) goto done;
+	    } else {
+		if((stat=nczmap_read(map,obj,0,len,content))) goto done;
+	    }
+	    content[len] = '\0';
+        } else
+	    content = NULL;
+	if(len > 0) {
+	    assert(content != NULL);
+            printf("[%u] %s : (%llu) |",(unsigned int)nclistlength(stack),obj,len);
+	    if(ismeta)
+		printf("%s",content);
+	    else
+		printhex(len,content);
+	    printf("|\n");
+	} else
+	    printf("[%u] %s : (%llu) ||\n",(unsigned int)nclistlength(stack),obj,len);
+	nullfree(content); content = NULL;
+	nullfree(prefix); prefix = NULL;
+	nullfree(suffix); suffix = NULL;
+	nullfree(obj); obj = NULL;
+    }
+done:
+    nullfree(obj);
+    nullfree(content);
+    nullfree(prefix);
+    nullfree(suffix);
+    nullfree(obj);
+    nczmap_close(map,0);
+    nclistfreeall(matches);
+    nclistfreeall(stack);
+    return stat;
+}
+
+/* Depth first walk all the groups to get all keys */
+static int
+depthR(NCZMAP* map, const char* key, NClist* stack)
+{
+    int stat = NC_NOERR;
+    NClist* nextlevel = nclistnew();
+
+    nclistpush(stack,key);
+    if((stat=nczmap_search(map,key,nextlevel))) goto done;
+    /* Push new names onto the stack and recurse */
+    while(nclistlength(nextlevel) > 0) {
+        const char* subkey = nclistremove(nextlevel,0);
+	if((stat = depthR(map,subkey,stack))) goto done;
+    }
+done:
+   nclistfreeall(nextlevel);
+   return stat;
+}
+
+static char hex[16] = "0123456789abcdef";
+
+static void
+printhex(size64_t len, const char* content)
+{
+    size64_t i;
+    for(i=0;i<len;i++) {
+        unsigned int c0,c1;
+	c1 = (unsigned char)(content[i]);
+        c0 = c1 & 0xf;
+	c1 = (c1 >> 4);
+        c0 = hex[c0];
+        c1 = hex[c1];
+	printf("%c%c",(char)c1,(char)c0);
+    }
+}

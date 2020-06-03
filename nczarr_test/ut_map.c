@@ -304,31 +304,25 @@ done:
 }
 
 static int
-searchR(NCZMAP* map, int depth, NCbytes* prefix, NClist* objects)
+searchR(NCZMAP* map, int depth, const char* prefix, NClist* objects)
 {
     int i,stat = NC_NOERR;
-    size_t savepoint;
     NClist* matches = nclistnew();
     
-    savepoint = ncbyteslength(prefix);
-
     /* add this prefix to object list */
-    nclistpush(objects,strdup(ncbytescontents(prefix)));
+    nclistpush(objects,strdup(prefix));
     
-    /* get next level objects below the prefix */
-    if((stat = nczmap_search(map, ncbytescontents(prefix), matches))) goto done;
+    /* get next level object keys **below** the prefix */
+    if((stat = nczmap_search(map, prefix, matches)))
+	goto done;
     for(i=0;i<nclistlength(matches);i++) {
-	const char* segment = nclistget(matches,i);
-	if(depth > 0) ncbytescat(prefix,"/");
-	ncbytescat(prefix,segment);
-	switch (stat = searchR(map,depth+1,prefix,objects)) {
-	case NC_NOERR: /* 
-	case NC_EINVAL:
-	ncbytessetlength(prefix,savepoint);
+	const char* key = nclistget(matches,i);
+        if((stat = searchR(map,depth+1,key,objects))) goto done;
+	if(stat != NC_NOERR)
+	    goto done;
     }
 
 done:
-    ncbytessetlength(prefix,savepoint);
     nclistfreeall(matches);
     return stat;
 }
@@ -339,26 +333,22 @@ search(void)
     int i,stat = NC_NOERR;
     NCZMAP* map = NULL;
     NClist* objects = nclistnew();
-    NCbytes* prefix = ncbytesnew();
 
     if((stat = nczmap_open(impl,url,0,0,NULL,&map)))
 	goto done;
 
-    /* Do a recursive search on root to get all objects */
-    ncbytescat(prefix,"/");
-    if((stat=searchR(map,0,prefix,objects)))
+    /* Do a recursive search on root to get all object keys */
+    if((stat=searchR(map,0,"/",objects)))
 	goto done;
-
     /* Print out the list */
     for(i=0;i<nclistlength(objects);i++) {
-	const char* path = nclistget(objects,i);
-	printf("[%d] %s\n",i,path);
+	const char* key = nclistget(objects,i);
+	printf("[%d] %s\n",i,key);
     }
 
 done:
     /* Do not delete so later tests can use it */
     (void)nczmap_close(map,0);
-    ncbytesfree(prefix);
     nclistfreeall(objects);
     return THROW(stat);
 }
