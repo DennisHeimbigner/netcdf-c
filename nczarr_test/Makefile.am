@@ -49,22 +49,33 @@ ignoreh = ut_varstest.h
 noinst_PROGRAMS = zmapdump
 zmapdump_SOURCES = zmapdump.c
 
-EXTRA_DIST = run_unittests.sh run_meta_tests.sh \
-	ref_ut_mapnc4_create.cdl ref_ut_mapnc4_meta.cdl \
-	ref_ut_mapnc4_wmeta.cdl ref_ut_mapnc4_wmeta2.cdl \
-	ref_ut_mapnc4_write.cdl ref_ut_mapnc4_rmeta.txt \
-	ref_ut_mapnc4_search.txt ref_ut_proj1.txt \
-	ref_ut_json_build.txt ref_ut_json_parse.txt \
-	ref_t_ncgen.cdl
+EXTRA_DIST = \
+ref_ut_map_readmeta_nzf.txt \
+ref_ut_map_writedata_nzf.cdl \
+ref_ut_map_writemeta_nzf.cdl \
+ref_ut_map_writemeta_nz4.cdl \
+ref_ut_map_writedata_nz4.cdl \
+ref_ut_map_write2meta_nzf.cdl \
+ref_ut_map_write2meta_nz4.cdl \
+ref_ut_map_search_nzf.txt \
+ref_ut_map_search_nz4.txt \
+ref_ut_map_readmeta_nz4.txt \
+ref_ut_map_readdata_nz4.txt \
+ref_ut_map_create_nz4.cdl \
+ref_ut_json_parse.txt \
+ref_ut_json_build.txt \
+ref_t_meta_var1.cdl \
+ref_t_meta_dim1.cdl \
+ref_ut_testmap_create_nz4.cdl \
+ref_ut_proj.txt \
+ref_ut_map_create_nzf.cdl \
+ref_ut_mapapi_create_nz4.cdl \
+ref_ut_mapapi_writemeta_nz4.cdl \
+ref_ut_mapapi_write2meta_nz4.cdl \
+ref_ut_mapapi_meta_nz4.cdl \
+ref_ut_mapapi_data_nz4.cdl \
+ref_ut_mapapi_search_nz4.txt
 
-CLEANFILES = *.exe
-CLEANFILES += testnc4.nc
-CLEANFILES += ut_mapnc4_create.cdl ut_mapnc4_meta.cdl \
-	ut_mapnc4_wmeta.cdl ut_mapnc4_wmeta2.cdl \
-	ut_mapnc4_write.cdl ut_mapnc4_rmeta.txt \
-	ut_mapnc4_search.txt ut_proj1.txt \
-	ut_json_build.txt ut_json_parse.txt
-CLEANFILES += t_ncgen.cdl
-
-# This should only be left behind if using parallel io
-CLEANFILES += tmp_*
+#CLEANFILES = \
+#	ut_map*.cdl ut_map*.txt \
+#        ut_mapapi*.cdl ut_mapapi*.txt

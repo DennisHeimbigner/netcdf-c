@@ -558,7 +558,7 @@ zflookupobj(ZFMAP* zfmap, const char* key, FD* fd)
     if((stat = zffullpath(zfmap,key,&path)))
 	{goto done;}    
 
-    switch (platformfiletype(zfmap,path)) {
+    switch (stat=platformfiletype(zfmap,path)) {
     case 0:  stat = platformopendir(zfmap,path,fd); break;
     case ENOENT: stat = NC_EACCESS; break;
     case ENOTDIR: stat = platformopenfile(zfmap,path,fd); break;
@@ -697,7 +697,7 @@ platformcreatefile(ZFMAP* zfmap, const char* truepath, FD* fd)
     int mode = zfmap->map.mode;
     int permissions = NC_DEFAULT_ROPEN_PERMS;
 
-    assert(fd && fd->typ == FDFILE);
+    assert(fd && fd->typ == FDNONE);
     errno = 0;
     if(!fIsSet(mode, NC_WRITE))
         ioflags |= (O_RDONLY);
@@ -741,6 +741,7 @@ platformopenfile(ZFMAP* zfmap, const char* truepath, FD* fd)
     int mode = zfmap->map.mode;
     int permissions = 0;
 
+    assert(fd && fd->typ == FDNONE);
     errno = 0;
     if(!fIsSet(mode, NC_WRITE)) {
         ioflags |= (O_RDONLY);
@@ -1029,7 +1030,7 @@ platformfiletype(ZFMAP* zfmap, const char* truepath)
     
     errno = 0;
     ret = stat(truepath, &buf);    
-    if(ret < 0) goto done;
+    if(ret < 0) {ret = errno; goto done;}
     if(!S_ISDIR(buf.st_mode)) {ret = ENOTDIR;}
 done:
     errno = 0;

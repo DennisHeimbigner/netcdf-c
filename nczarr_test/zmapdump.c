@@ -73,11 +73,11 @@ main(int argc, char** argv)
     argv += optind;
 
     if (argc > 1) {
-	fprintf(stderr, "z4dump: only one input file argument permitted\n");
+	fprintf(stderr, "zmapdump: only one input file argument permitted\n");
 	goto fail;
     }
     if (argc == 0) {
-	fprintf(stderr, "z4dump: no input file specified\n");
+	fprintf(stderr, "zmapdump: no input file specified\n");
 	goto fail;
     }
     dumpoptions.infile = strdup(argv[0]);

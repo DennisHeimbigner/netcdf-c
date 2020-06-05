@@ -10,8 +10,9 @@ include $(top_srcdir)/lib_flags.am
 AM_CPPFLAGS += -D_LARGEFILE_SOURCE
 AM_CPPFLAGS += -I$(top_srcdir)/libsrc4 -I$(top_srcdir)/libdap4
 libnczarr_la_CPPFLAGS = ${AM_CPPFLAGS}
-libnczarr_la_CXXFLAGS = 
+AM_CXXFLAGS = 
 libnczarr_la_LIBADD =
+libnczarr_la_LDFLAGS =
 
 # Remember ENABLE_NCZARR implies USE_NETCDF4
 
@@ -34,7 +35,6 @@ zchunking.c \
 zclose.c \
 zcreate.c \
 zcvt.c \
-zdebug.c \
 zdim.c \
 zdispatch.c \
 zfile.c \
@@ -42,6 +42,10 @@ zfilter.c \
 zgrp.c \
 zinternal.c \
 zjson.c \
+zmap.c \
+zmap_nz4.c \
+zmap_nzf.c \
+zmap_s3sdk.c \
 zodom.c \
 zopen.c \
 zprov.c \
@@ -50,23 +54,23 @@ ztype.c \
 zutil.c \
 zvar.c \
 zwalk.c \
-zmap.c \
-zmap_nz4.c \
-zmap_nzf.c
-
-HDRS= \
-zdispatch.h \
-zinternal.h \
+zdebug.c \
+zarr.h \
+zcache.h \
 zchunking.h \
-zjson.h \
+zdispatch.h \
 zincludes.h \
+zinternal.h \
+zjson.h \
 zmap.h \
+zodom.h \
 zprovenance.h \
 zdebug.h
 
 if ENABLE_S3_SDK
 libnczarr_la_SOURCES += zmap_s3sdk.c
-libnczarr_la_SOURCES += zs3sdk.cpp
+libnczarr_la_SOURCES += zs3sdk.cpp awsincludes.h zs3sdk.h
+AM_CXXFLAGS += -std=c++11
 endif
 
 # For now, ignore these

@@ -9,10 +9,11 @@
 
 /*
 Map our simplified map model to an S3 bucket + objects.
-The whole data
 
 For the API, the mapping is as follows:
-1. The whole dataset is mapped to a bucket.
+1. A bucket contains multiple datasets.
+2. A key to the root of a dataset is assumed to include
+   the bucket name as the first segment of the key.
 2. Containment is simulated using the S3 key conventions.
 3. Every object (e.g. group or array) is mapped to an S3 object
 4. Meta data objects (e.g. .zgroup, .zarray, etc) are kept as an S3 object.
@@ -20,7 +21,8 @@ For the API, the mapping is as follows:
    using an S3 object per chunk.
 
 Notes:
-1. Our canonical URLs use path style rather than virtual-host
+1. Our canonical URLs use path style rather than virtual-host, although
+   virtual-host URLs will be accepted anc converted to path-style.
 */
 
 #undef DEBUG
@@ -36,11 +38,12 @@ typedef struct ZS3MAP {
     NCZMAP map;
     enum URLFORMAT urlformat;
     char* host; /* non-null if other*/
-    char* bucket; /* bucket name */
     char* region; /* region */
     void* s3config;
     void* s3client;
     char* errmsg;
+    char* bucket; /* bucket name */
+    char* rootkey; /* includes the bucket name as first segment */
 } ZS3MAP;
 
 /* Forward */
@@ -61,7 +64,7 @@ static int processurl(ZS3MAP* z3map, NCURI* url);
 static int endswith(const char* s, const char* suffix);
 
 static void zs3initialize(void);
-static int s3clear(ZS3MAP* z3map);
+static int s3clear(ZS3MAP* z3map, const char* key);
 static int isLegalBucketName(const char* bucket);
 
 static void
@@ -102,6 +105,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     int stat = NC_NOERR;
     ZS3MAP* z3map = NULL;
     NCURI* url = NULL;
+    char* prefix = NULL;
 	
     NC_UNUSED(flags);
     NC_UNUSED(parameters);
@@ -116,6 +120,8 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     ncuriparse(path,&url);
     if(url == NULL)
         {stat = NC_EURL; goto done;}
+
+    /* Convert to canonical path-style */
     if((stat = processurl(z3map,url))) goto done;
 
     z3map->map.format = NCZM_S3;
@@ -135,8 +141,8 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	    if((stat = NCZ_s3sdkbucketcreate(z3map->s3client,z3map->region,z3map->bucket,&z3map->errmsg)))
 	        goto done;
 	}
-        /* Delete objects in bucket */
-        s3clear(z3map);
+        /* Delete objects in object tree */
+        s3clear(z3map,z3map->rootkey);
     }
     
     if(mapp) *mapp = (NCZMAP*)z3map;    
@@ -144,6 +150,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 done:
     if(z3map->errmsg) reporterr(z3map);
     ncurifree(url);
+    nullfree(prefix);
     if(stat) nczmap_close((NCZMAP*)z3map,1);
     return (stat);
 }
@@ -168,6 +175,8 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     if((stat = ncuriparse(path,&url))) goto done;
     if(url == NULL)
         {stat = NC_EURL; goto done;}
+
+    /* Convert to canonical path-style */
     if((stat = processurl(z3map,url))) goto done;
 
     z3map->map.format = NCZM_S3;
@@ -190,7 +199,7 @@ done:
 static int
 isLegalBucketName(const char* bucket)
 {
-    return 1;
+    return 1; /*TBD*/
 }
 
 /**************************************************/
@@ -207,7 +216,7 @@ zs3len(NCZMAP* map, const char* key, size64_t* lenp)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map;
-    if((stat = NCZ_s3sdkinfo(z3map->s3client,z3map->bucket,key,lenp,&z3map->errmsg)))
+    if((stat = NCZ_s3sdkinfo(z3map->s3client,key,lenp,&z3map->errmsg)))
         goto done;
 done:
     if(z3map->errmsg) reporterr(z3map);
@@ -237,9 +246,9 @@ zs3read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* cont
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
  
-    if((stat=NCZ_s3sdkinfo(z3map->s3client, z3map->bucket, key, NULL, &z3map->errmsg)))
+    if((stat=NCZ_s3sdkinfo(z3map->s3client, key, NULL, &z3map->errmsg)))
 	goto done; 	
-    if((stat = NCZ_s3sdkread(z3map->s3client, z3map->bucket, key, start, count, content, &z3map->errmsg)))
+    if((stat = NCZ_s3sdkread(z3map->s3client, key, start, count, content, &z3map->errmsg)))
         goto done;
 done:
     if(z3map->errmsg) reporterr(z3map);
@@ -261,13 +270,13 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
 
     /* Apparently S3 has no write byterange operation, so we need to read the whole object,
        copy data, and then rewrite */       
-    switch (stat=NCZ_s3sdkinfo(z3map->s3client, z3map->bucket, key, &objsize, &z3map->errmsg)) {
+    switch (stat=NCZ_s3sdkinfo(z3map->s3client, key, &objsize, &z3map->errmsg)) {
     case NC_NOERR: exists = 1; break;
     case NC_EACCESS: exists = 0; break;
     default: exists = 0; goto done;
     }
     if(exists) {
-        if((stat = NCZ_s3sdkreadobject(z3map->s3client, z3map->bucket, key, &objsize, &chunk, &z3map->errmsg)))
+        if((stat = NCZ_s3sdkreadobject(z3map->s3client, key, &objsize, &chunk, &z3map->errmsg)))
             goto done;
     } else { /* fake it */
 	objsize = newsize;	
@@ -288,7 +297,7 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
 	objsize = newsize;
     } else
 	memcpy(&((unsigned char*)chunk)[start],content,count); /* remember there may be data above start+count */
-    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, z3map->bucket, key, objsize, chunk, &z3map->errmsg)))
+    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, key, objsize, chunk, &z3map->errmsg)))
         goto done;
 
 done:
@@ -316,7 +325,7 @@ zs3close(NCZMAP* map, int deleteit)
     ZS3MAP* z3map = (ZS3MAP*)map;
 
     if(deleteit)
-        s3clear(z3map);
+        s3clear(z3map,z3map->rootkey);
     NCZ_s3sdkclose(z3map->s3client, z3map->s3config);
     z3map->s3client = NULL;
     z3map->s3config = NULL;
@@ -342,8 +351,8 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
     char** list = NULL;
     size_t nkeys;
 
-    if(*prefix == '/') prefix++; /* Elide leading '/' */
-    if((stat = NCZ_s3sdkgetkeys(z3map->s3client,z3map->bucket,prefix,"/",&nkeys,&list,&z3map->errmsg)))
+    if(*prefix != '/') return NC_EINTERNAL;
+    if((stat = NCZ_s3sdkgetkeys(z3map->s3client,prefix,&nkeys,&list,&z3map->errmsg)))
         goto done;
     for(i=0;i<nkeys;i++)
 	nclistpush(matches,list[i]);
@@ -362,13 +371,17 @@ processurl(ZS3MAP* z3map, NCURI* url)
 {
     int stat = NC_NOERR;
     NClist* segments = NULL;
-    NCbytes* pathhost = NULL;
-    
+    NCbytes* buf = ncbytesnew();
+
     if(url == NULL)
         {stat = NC_EURL; goto done;}
     /* do some verification */
     if(strcmp(url->protocol,"https") != 0)
         {stat = NC_EURL; goto done;}
+
+    /* Path better look absolute */
+    if(!nczm_isabsolutepath(url->path))
+    	{stat = NC_EURL; goto done;}
 
     /* Distinguish path-style from virtual-host style from other:
        Virtual: https://bucket-name.s3.Region.amazonaws.com
@@ -397,31 +410,46 @@ processurl(ZS3MAP* z3map, NCURI* url)
     	    z3map->bucket = strdup(nclistget(segments,0));
 	    break;
 	}
-	/* Rebuild host into Path form */
-	pathhost = ncbytesnew();
-	ncbytescat(pathhost,"s3.");
-	ncbytescat(pathhost,z3map->region);
-	ncbytescat(pathhost,AWSHOST);
-        z3map->host = ncbytesextract(pathhost);
+	/* Rebuild host to look like path-style */
+	ncbytescat(buf,"s3.");
+	ncbytescat(buf,z3map->region);
+	ncbytescat(buf,AWSHOST);
+        z3map->host = ncbytesextract(buf);
     } else {
         z3map->urlformat = UF_OTHER;
         if((z3map->host = strdup(url->host))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
     }
-    if(z3map->urlformat == UF_PATH || z3map->urlformat == UF_OTHER) {
-	/* We have to process the path to get the bucket */
+    /* Do fixups to make everything look like it was path style */
+    switch (z3map->urlformat) {
+    case UF_PATH:
+    case UF_OTHER:
+	/* We have to process the path to get the bucket, but leave it in the path */
 	if(url->path != NULL && strlen(url->path) > 0) {
-            /* split the path by "/" */
+            /* split the path by "/"  */
    	    nclistfreeall(segments);
 	    segments = nclistnew();
             if((stat = nczm_split_delim(url->path,'/',segments))) goto done;
+	    if(nclistlength(segments) == 0)
+	    	{stat = NC_EURL; goto done;}
 	    z3map->bucket = strdup((char*)nclistget(segments,0));
+	    z3map->rootkey = strdup(url->path);
 	}
+	break;
+    case UF_VIRTUAL:
+	/* prepend the bucket name to the path to make it look like path-style */
+	ncbytescat(buf,"/");
+	ncbytescat(buf,z3map->bucket);
+	ncbytescat(buf,url->path);
+	z3map->rootkey = ncbytesextract(buf);
+	break;
+    default: stat = NC_EURL; goto done;
     }
+    /* Verify bucket name */
     if(z3map->bucket != NULL && !isLegalBucketName(z3map->bucket))
 	{stat = NC_EURL; goto done;}
 done:
-    ncbytesfree(pathhost);
+    ncbytesfree(buf);
     nclistfreeall(segments);
     return stat;
 }
@@ -435,7 +463,7 @@ z3createobj(ZS3MAP* z3map, const char* key, size64_t size)
     unsigned char empty[1];
 
     empty[0] = 0;
-    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, z3map->bucket, key, 1, empty, &z3map->errmsg)))
+    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, key, 1, empty, &z3map->errmsg)))
         goto done;
 
 done:
@@ -462,19 +490,23 @@ endswith(const char* s, const char* suffix)
 }
 
 
+/*
+Remove all objects with keys which have
+rootkey as prefix
+*/
 static int
-s3clear(ZS3MAP* z3map)
+s3clear(ZS3MAP* z3map, const char* rootkey)
 {
     int stat = NC_NOERR;
     char** list = NULL;
     char** p;
     size_t nkeys;
 
-    if((stat = NCZ_s3sdkgetkeys(z3map->s3client, z3map->bucket, "", "/", &nkeys, &list, &z3map->errmsg)))
+    if((stat = NCZ_s3sdkgetkeys(z3map->s3client, rootkey, &nkeys, &list, &z3map->errmsg)))
         goto done;
     
     for(p=list;*p;p++) {
-        if((stat = NCZ_s3sdkdeletekey(z3map->s3client, z3map->bucket, *p, &z3map->errmsg)))	
+        if((stat = NCZ_s3sdkdeletekey(z3map->s3client, *p, &z3map->errmsg)))	
 	    goto done;
     }
 
