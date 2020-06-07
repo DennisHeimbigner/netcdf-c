@@ -311,7 +311,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     zfmap->cwd = zfcwd; zfcwd = NULL;
     
     /* Verify root dir exists */
-    if((stat = platformcreatedir(zfmap,zfmap->root,&zfmap->rootfd)))
+    if((stat = platformopendir(zfmap,zfmap->root,&zfmap->rootfd)))
 	goto done;
 
     /* Dataset superblock will be read by higher layer */
@@ -350,14 +350,15 @@ zfilelen(NCZMAP* map, const char* key, size64_t* lenp)
 {
     int stat = NC_NOERR;
     ZFMAP* zfmap = (ZFMAP*)map;
-    size64_t len;
+    size64_t len = 0;
     FD fd = FDNUL;
 
     ZTRACE("%s",key);
     if((stat=zflookupobj(zfmap,key,&fd))) goto done;
-    /* Get file size */
-    len = 0;
-    if((stat=platformseek(zfmap, &fd, SEEK_END, &len))) goto done;
+    if(fd.typ == FDFILE) {
+        /* Get file size */
+        if((stat=platformseek(zfmap, &fd, SEEK_END, &len))) goto done;
+    }
     zfrelease(zfmap,&fd);
     if(lenp) *lenp = len;
 
@@ -455,8 +456,11 @@ zfileclose(NCZMAP* map, int delete)
     ZTRACE("%d",delete);
     if(zfmap == NULL) return NC_NOERR;
     
-    if(delete)
+    /* Delete the subtree below the root */
+    if(delete) {
+	stat = platformdelete(zfmap,zfmap->root);
 	unlink(zfmap->root);
+    }
     nczm_clear(map);
     zfrelease(zfmap,&zfmap->rootfd);
     nullfree(zfmap->root);
@@ -824,7 +828,7 @@ platformopendir(ZFMAP* zfmap, const char* truepath, FD* fd)
         {stat = platformerr(errno); goto done;} /* could not open */
     fd->typ = FDDIR;
 done:
-    platformrelease(zfmap,fd);
+    if(stat) platformrelease(zfmap,fd);
     errno = 0;
     return THROW(stat);
 }

@@ -18,6 +18,7 @@ struct Dumpptions {
     int action;
     char* infile;
     NCZM_IMPL impl;    
+    char* rootpath;
 } dumpoptions;
 
 /* Forward */
@@ -25,6 +26,7 @@ static int objdump(void);
 static NCZM_IMPL implfor(const char* path);
 static void printhex(size64_t len, const char* content);
 static int depthR(NCZMAP* map, const char* key, NClist* stack);
+static char* rootpathfor(const char* path);
 
 #define NCCHECK(expr) nccheck((expr),__LINE__)
 void nccheck(int stat, int line)
@@ -85,6 +87,9 @@ main(int argc, char** argv)
     if((dumpoptions.impl = implfor(dumpoptions.infile))== NCZM_UNDEF)
         Usage();
 
+    if((dumpoptions.rootpath = rootpathfor(dumpoptions.infile))== NULL)
+        Usage();
+
     switch (dumpoptions.action) {
     case OPT_OBJDUMP:
 	if((stat = objdump())) goto done;
@@ -130,6 +135,20 @@ done:
     return impl;
 }
 
+static char*
+rootpathfor(const char* path)
+{
+    NCURI* uri = NULL;
+    char* rootpath = NULL;
+
+    ncuriparse(path,&uri);
+    if(uri == NULL) goto done;
+    rootpath = strdup(uri->path);
+done:
+    ncurifree(uri);
+    return rootpath;
+}
+
 static int
 objdump(void)
 {
@@ -140,13 +159,16 @@ objdump(void)
     char* prefix = NULL;
     char* suffix = NULL;
     char* obj = NULL;
+    char* tmp = NULL;
     char* content = NULL;
+    int depth;
 
     if((stat=nczmap_open(dumpoptions.impl, dumpoptions.infile, NC_NOCLOBBER, 0, NULL, &map)))
         goto done;
 
     /* Depth first walk all the groups to get all keys */
-    if((stat = depthR(map,strdup("/"),stack))) goto done;
+    tmp = strdup(dumpoptions.rootpath);
+    if((stat = depthR(map,tmp,stack))) goto done;
 
     if(dumpoptions.debug) {
 	int i;
@@ -154,7 +176,7 @@ objdump(void)
         for(i=0;i<nclistlength(stack);i++)
             fprintf(stderr,"[%d] %s\n",i,(char*)nclistget(stack,i));
     }    
-    while(nclistlength(stack) > 0) {
+    for(depth=0;nclistlength(stack) > 0;depth++) {
         size64_t len = 0;
 	int ismeta = 0;
 	obj = nclistremove(stack,0); /* zero pos is always top of stack */
@@ -178,14 +200,14 @@ objdump(void)
 	    content = NULL;
 	if(len > 0) {
 	    assert(content != NULL);
-            printf("[%u] %s : (%llu) |",(unsigned int)nclistlength(stack),obj,len);
+            printf("[%d] %s : (%llu) |",depth,obj,len);
 	    if(ismeta)
 		printf("%s",content);
 	    else
 		printhex(len,content);
 	    printf("|\n");
 	} else
-	    printf("[%u] %s : (%llu) ||\n",(unsigned int)nclistlength(stack),obj,len);
+	    printf("[%d] %s : (%llu) ||\n",depth,obj,len);
 	nullfree(content); content = NULL;
 	nullfree(prefix); prefix = NULL;
 	nullfree(suffix); suffix = NULL;

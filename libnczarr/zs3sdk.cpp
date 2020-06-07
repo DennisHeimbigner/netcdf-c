@@ -20,7 +20,8 @@ static Aws::SDKOptions zs3options;
 
 /* Forward */
 static Aws::S3::Model::BucketLocationConstraint s3findregion(const char* name);
-static int s3objectsinfo(Aws::Vector<Aws::S3::Model::Object> list, const char* prefix, char*** keysp, size64_t** lenp);
+static int s3objectinfo1(const Aws::S3::Model::Object& s3_object, char** fullkeyp, size64_t* lenp);
+static int s3objectsinfo(Aws::Vector<Aws::S3::Model::Object> list, size_t*, char*** keysp, size64_t** lenp);
 static void freestringenvv(char** ss);
 static int getbucket(const char* pathkey, char** bucketp, const char** keyp);
     
@@ -181,36 +182,61 @@ NCZ_s3sdkinfo(void* s3client0, const char* pathkey, size64_t* lenp, char** errms
 {
     int stat = NC_NOERR;
     Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
-    Aws::S3::Model::ListObjectsV2Request objects_request;
-    size64_t* lengths = NULL;
-    size_t nkeys;
+    Aws::S3::Model::HeadObjectRequest head_request;
     char* bucket = NULL;
     const char* key = NULL;
 
-    if(*key != '/') return NC_EINTERNAL;
+    if(*pathkey != '/') return NC_EINTERNAL;
     /* extract the bucket prefix */
     if((stat = getbucket(pathkey,&bucket,&key))) return stat;
 
     if(errmsgp) *errmsgp = NULL;
-    objects_request.SetBucket(bucket);
-    objects_request.SetPrefix(key);
-    objects_request.SetMaxKeys(1);
-    auto list_outcome = s3client->ListObjectsV2(objects_request);
-    if(list_outcome.IsSuccess()) {
-        Aws::Vector<Aws::S3::Model::Object> object_list =
-            list_outcome.GetResult().GetContents();
-	nkeys = (size_t)object_list.size();
-	if(nkeys != 1) {stat = NC_EACCESS;}
-	else {
-	  if(!(stat = s3objectsinfo(object_list,pathkey,NULL,&lengths))) {
-	      if(lenp) *lenp = lengths[0];
-	  }
-	}
+    head_request.SetBucket(bucket);
+    head_request.SetKey(key);
+    auto head_outcome = s3client->HeadObject(head_request);
+    if(head_outcome.IsSuccess()) {
+	long long l  = head_outcome.GetResult().GetContentLength(); 
+	if(lenp) *lenp = (size64_t)l;
     } else {
-	if(errmsgp) *errmsgp = makeerrmsg(list_outcome.GetError(),key);
+	/* Distinquish access-denied and not-found from other errors */
+        if(errmsgp) *errmsgp = makeerrmsg(head_outcome.GetError(),key);
+	switch (head_outcome.GetError().GetErrorType()) {
+	case Aws::S3::S3Errors::ACCESS_DENIED:
+            stat = NC_EACCESS;
+	    break;
+	case Aws::S3::S3Errors::RESOURCE_NOT_FOUND:
+            stat = NC_ENOTFOUND;
+	    break;
+	default:
+            stat = NC_ES3;
+	    break;
+	}
+    }
+    return (stat);
+}
+
+/* Define object */
+int
+NCZ_s3sdkdefineobject(void* s3client0, const char* pathkey, char** errmsgp)
+{
+    int stat = NC_NOERR;
+    char* bucket = NULL;
+    const char* key = NULL;
+    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
+    Aws::S3::Model::PutObjectRequest put_request;
+
+    if(*pathkey != '/') return NC_EINTERNAL;
+    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
+    
+    if(errmsgp) *errmsgp = NULL;
+    put_request.SetBucket(bucket);
+    put_request.SetKey(key);
+    put_request.AddMetadata(".nczarr_directory",pathkey);
+    auto put_result = s3client->PutObject(put_request);
+    if(!put_result.IsSuccess()) {
+        if(errmsgp) *errmsgp = makeerrmsg(put_result.GetError(),key);
         stat = NC_ES3;
     }
-    nullfree(lengths);
     return (stat);
 }
 
@@ -224,8 +250,8 @@ NCZ_s3sdkread(void* s3client0, const char* pathkey, size64_t start, size64_t cou
     char* bucket = NULL;
     const char* key = NULL;
 
-    if(*key != '/') return NC_EINTERNAL;
-    if(!(stat = getbucket(pathkey,&bucket,&key))) return stat;
+    if(*pathkey != '/') return NC_EINTERNAL;
+    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
     
     object_request.SetBucket(bucket);
     object_request.SetKey(key);
@@ -260,8 +286,8 @@ NCZ_s3sdkreadobject(void* s3client0, const char* pathkey, size64_t* sizep, void*
     char* bucket = NULL;
     const char* key = NULL;
 
-    if(*key != '/') return NC_EINTERNAL;
-    if(!(stat = getbucket(pathkey,&bucket,&key))) return stat;
+    if(*pathkey != '/') return NC_EINTERNAL;
+    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
 
     if(errmsgp) *errmsgp = NULL;
     object_request.SetBucket(bucket);
@@ -309,25 +335,25 @@ int
 NCZ_s3sdkwriteobject(void* s3client0, const char* pathkey,  size64_t count, const void* content, char** errmsgp)
 {
     int stat = NC_NOERR;
-    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
-    Aws::S3::Model::PutObjectRequest object_request;
     char* bucket = NULL;
     const char* key = NULL;
+    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
+    Aws::S3::Model::PutObjectRequest put_request;
 
-    if(*key != '/') return NC_EINTERNAL;
-    if(!(stat = getbucket(pathkey,&bucket,&key))) return stat;
+    if(*pathkey != '/') return NC_EINTERNAL;
+    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
     
     if(errmsgp) *errmsgp = NULL;
-    object_request.SetBucket(bucket);
-    object_request.SetKey(key);
-    object_request.SetContentLength((long long)count);
+    put_request.SetBucket(bucket);
+    put_request.SetKey(key);
+    put_request.SetContentLength((long long)count);
 
     std::shared_ptr<Aws::IOStream> data = std::shared_ptr<Aws::IOStream>(new Aws::StringStream());
     data->rdbuf()->pubsetbuf((char*)content,count);
-    object_request.SetBody(data);
-    auto object_result = s3client->PutObject(object_request);
-    if(!object_result.IsSuccess()) {
-        if(errmsgp) *errmsgp = makeerrmsg(object_result.GetError(),key);
+    put_request.SetBody(data);
+    auto put_result = s3client->PutObject(put_request);
+    if(!put_result.IsSuccess()) {
+        if(errmsgp) *errmsgp = makeerrmsg(put_result.GetError(),key);
         stat = NC_ES3;
     }
     return (stat);
@@ -354,13 +380,13 @@ NCZ_s3sdkgetkeys(void* s3client0, const char* prefix, size_t* nkeysp, char*** ke
 {
     int stat = NC_NOERR;
     Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
-    Aws::S3::Model::ListObjectsV2Request objects_request;
     size_t nkeys = 0;
     char* bucket = NULL;
     const char* rootkey = NULL;
+    Aws::S3::Model::ListObjectsV2Request objects_request;
 
     if(*prefix != '/') return NC_EINTERNAL;
-    if(!(stat = getbucket(prefix,&bucket,&rootkey))) return stat;
+    if((stat = getbucket(prefix,&bucket,&rootkey))) return stat;
 
     if(errmsgp) *errmsgp = NULL;
     objects_request.SetBucket(bucket);
@@ -371,7 +397,7 @@ NCZ_s3sdkgetkeys(void* s3client0, const char* prefix, size_t* nkeysp, char*** ke
             objects_outcome.GetResult().GetContents();
         nkeys = (size_t)object_list.size();
         if(nkeysp) *nkeysp = nkeys;
-        stat = s3objectsinfo(object_list,prefix,keysp,NULL);
+        stat = s3objectsinfo(object_list,NULL,keysp,NULL);
     } else {
         if(errmsgp) *errmsgp = makeerrmsg(objects_outcome.GetError());
         stat = NC_ES3;
@@ -389,15 +415,14 @@ NCZ_s3sdkdeletekey(void* s3client0, const char* pathkey, char** errmsgp)
 #ifdef NOOP
     char* bucket = NULL;
     const char* key = NULL;
-    if(!(stat = getbucket(pathkey,&bucket,&key))) {
-        /* Delete this key object */
-        delete_request.SetBucket(bucket);
-        delete_request.SetKey(key);
-        auto delete_result = s3client->DeleteObject(delete_request);
-        if(!delete_result.IsSuccess()) {
-            if(errmsgp) *errmsgp = makeerrmsg(delete_result.GetError(),key);
-            stat = NC_ES3;
-	}
+    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
+    /* Delete this key object */
+    delete_request.SetBucket(bucket);
+    delete_request.SetKey(key);
+    auto delete_result = s3client->DeleteObject(delete_request);
+    if(!delete_result.IsSuccess()) {
+        if(errmsgp) *errmsgp = makeerrmsg(delete_result.GetError(),key);
+        stat = NC_ES3;
     }
 #else
     fprintf(stderr,"delete object: %s.%s\n",bucket,key); fflush(stderr);
@@ -407,59 +432,63 @@ NCZ_s3sdkdeletekey(void* s3client0, const char* pathkey, char** errmsgp)
 }
 
 /*
+Get Info about a single object from a vector
+*/
+static int
+s3objectinfo1(const Aws::S3::Model::Object& s3_object, char** fullkeyp, size64_t* lenp)
+{
+    int stat = NC_NOERR;
+    char* cstr = NULL;
+
+    if(fullkeyp) {
+        auto s = s3_object.GetKey();
+        cstr = strdup(s.c_str());
+        if(cstr == NULL) {
+            stat = NC_ENOMEM;
+	} else if(fullkeyp) {
+	    *fullkeyp = cstr;
+	    cstr = NULL;
+	}
+    }
+    if(!stat) {
+        if(lenp) *lenp = (size64_t)s3_object.GetSize();
+    }
+    nullfree(cstr);
+    return stat;
+}
+
+/*
 Get Info about a vector of objects
 */
 static int
-s3objectsinfo(Aws::Vector<Aws::S3::Model::Object> list, const char* prefix, char*** keysp, size64_t** lenp)
+s3objectsinfo(Aws::Vector<Aws::S3::Model::Object> list, size_t* nkeysp, char*** keysp, size64_t** lenp)
 {
     int stat = NC_NOERR;
     char** keys = NULL;
     size_t nkeys;
     size64_t *lengths = NULL;
     int i;
-    size_t prelen = (prefix?strlen(prefix):0);
 
     nkeys = list.size();
-    if(keysp) {
-        if((keys=(char**)calloc(sizeof(char*),(nkeys+1)))==NULL)
-            stat = NC_ENOMEM;
-    }
+    if(nkeysp) *nkeysp = nkeys;
+    if((keys=(char**)calloc(sizeof(char*),(nkeys+1)))==NULL)
+        stat = NC_ENOMEM;
     if(!stat) {
-        if(lenp) {
-            if((lengths=(size64_t*)calloc(sizeof(size64_t),(nkeys)))==NULL)
-                stat = NC_ENOMEM;
-        }
+        if((lengths=(size64_t*)calloc(sizeof(size64_t),(nkeys)))==NULL)
+            stat = NC_ENOMEM;
     }
     if(!stat)  {
         i = 0;
         for (auto const &s3_object : list) {
-            char* cstr = NULL;
-            if(keysp) {
-                auto s = s3_object.GetKey();
-                if(prefix) {
-                    size_t klen = s.length();
-                    cstr = (char*)malloc(klen+prelen+1);
-                    strcpy(cstr,prefix);
-                    strcat(cstr,s.c_str());
-                } else              
-                    cstr = strdup(s.c_str());
-                if(cstr == NULL) 
-                    {stat = NC_ENOMEM; break;}
-                keys[i] = cstr;
-                cstr = NULL;
-	    }
-            if(!stat) {
-                if(lenp) lengths[i] = (size64_t)s3_object.GetSize();
-                i++;
-	    }
+            stat = s3objectinfo1(s3_object,&keys[i],&lengths[i]);
+            i++;
+	    if(stat) break;
 	}
     }
     if(!stat) {
-        if(keysp) keys[nkeys] = NULL;
-        if(keysp) {*keysp = keys; keys = NULL;}
+        if(keysp) {keys[nkeys] = NULL; *keysp = keys; keys = NULL;}
         if(lenp) {*lenp = lengths; lengths = NULL;}
     }
-
     if(keys != NULL) freestringenvv(keys);
     if(lengths != NULL) free(lengths);
     return stat;
@@ -495,7 +524,8 @@ getbucket(const char* pathkey, char** bucketp, const char** keyp)
     const char* p;
     assert(pathkey != NULL && pathkey[0] == '/');
     p = strchr(pathkey+1,'/'); /* find end of the bucket */
-    assert(p != NULL);
+    if(p == NULL)
+        return NC_EURL;
     if(keyp) *keyp = p+1;
     if(bucketp) {
         char* bucket = NULL;

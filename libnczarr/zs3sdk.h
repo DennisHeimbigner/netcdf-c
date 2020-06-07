@@ -24,6 +24,7 @@ int NCZ_s3sdkwriteobject(void* client0, const char* pathkey, unsigned long long 
 int NCZ_s3sdkclose(void* client0, void* config0);
 int NCZ_s3sdkgetkeys(void* s3client0, const char* prefix, size_t* nkeysp, char*** keysp, char** errmsgp);
 int NCZ_s3sdkdeletekey(void* client0, const char* pathkey, char** errmsgp);
+int NCZ_s3sdkdefineobject(void* s3client0, const char* pathkey, char** errmsgp);
 
 #ifdef __cplusplus
 }

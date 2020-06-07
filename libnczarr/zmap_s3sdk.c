@@ -66,6 +66,7 @@ static int endswith(const char* s, const char* suffix);
 static void zs3initialize(void);
 static int s3clear(ZS3MAP* z3map, const char* key);
 static int isLegalBucketName(const char* bucket);
+static int maketruekeys(const char* bucket, size_t n, char** keys);
 
 static void
 reporterr(ZS3MAP* z3map)
@@ -141,8 +142,18 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	    if((stat = NCZ_s3sdkbucketcreate(z3map->s3client,z3map->region,z3map->bucket,&z3map->errmsg)))
 	        goto done;
 	}
-        /* Delete objects in object tree */
-        s3clear(z3map,z3map->rootkey);
+	/* Does the root object exist, if not, create it */
+        switch (stat = NCZ_s3sdkinfo(z3map->s3client,z3map->rootkey,NULL,&z3map->errmsg)) {
+	case NC_ENOTFOUND: /* no such object */
+	    stat = NCZ_s3sdkdefineobject(z3map->s3client, z3map->rootkey, &z3map->errmsg);
+	    break;
+	case NC_NOERR: break; /* already exists */
+	default: goto done;
+	}
+	if(!stat) {
+            /* Delete objects inside root object tree */
+            s3clear(z3map,z3map->rootkey);
+	}
     }
     
     if(mapp) *mapp = (NCZMAP*)z3map;    
@@ -229,12 +240,15 @@ zs3define(NCZMAP* map, const char* key, size64_t len)
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
 
-    if((stat = zs3exists(map,key)) == NC_NOERR) 
-	goto done; /* Already exists */
-    else if(stat != NC_EACCESS) /* Some other kind of failure */
+    switch(stat = zs3exists(map,key)) {
+    case NC_NOERR: goto done; /* Already exists */
+    case NC_ENOTFOUND:
+        if((stat = z3createobj(z3map,key,len)))
+	    goto done;
+	break;
+    default: /* Some other kind of failure */
 	goto done;
-    if((stat = z3createobj(z3map,key,len)))
-	goto done;
+    }
 
 done:
     return (stat);
@@ -339,7 +353,8 @@ zs3close(NCZMAP* map, int deleteit)
 }
 
 /*
-Return a list of keys immediately "below" a specified prefix.
+Return a list of keys immediately "below" a specified prefix,
+but not including the prefix.
 In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
 */
@@ -354,9 +369,14 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
     if(*prefix != '/') return NC_EINTERNAL;
     if((stat = NCZ_s3sdkgetkeys(z3map->s3client,prefix,&nkeys,&list,&z3map->errmsg)))
         goto done;
-    for(i=0;i<nkeys;i++)
-	nclistpush(matches,list[i]);
-    
+    if(nkeys > 0) {
+        /* First key is same as prefix, so skip it */
+        /* returned keys do not have bucket prefix so add it */
+        if((stat = maketruekeys(z3map->bucket,nkeys-1,list+1))) goto done;
+        for(i=1;i<nkeys;i++) {
+	    nclistpush(matches,list[i]);
+        }
+    }
 done:
     nullfree(list);
     if(z3map->errmsg) reporterr(z3map);
@@ -384,9 +404,9 @@ processurl(ZS3MAP* z3map, NCURI* url)
     	{stat = NC_EURL; goto done;}
 
     /* Distinguish path-style from virtual-host style from other:
-       Virtual: https://bucket-name.s3.Region.amazonaws.com
-       Path: https://s3.Region.amazonaws.com/bucket-name
-       Other: https://<host>/bucketname
+       Virtual: https://bucket-name.s3.Region.amazonaws.com/<root>
+       Path: https://s3.Region.amazonaws.com/bucket-name/<root>
+       Other: https://<host>/bucketname/<root>
     */
     if(url->host == NULL || strlen(url->host) == 0)
         {stat = NC_EURL; goto done;}
@@ -448,6 +468,17 @@ processurl(ZS3MAP* z3map, NCURI* url)
     /* Verify bucket name */
     if(z3map->bucket != NULL && !isLegalBucketName(z3map->bucket))
 	{stat = NC_EURL; goto done;}
+    /* Verify that this refers to an object that is below the bucket.
+       That is, there must be at least one segment past the bucket in the path */
+    nclistfreeall(segments);
+    segments = nclistnew();
+    if((stat = nczm_split_delim(z3map->rootkey,'/',segments))) goto done;
+    if(nclistlength(segments) == 0
+       || strcmp(z3map->bucket,nclistget(segments,0))!=0)
+	{stat = NC_EINTERNAL; goto done;} /* oops */        
+    if(nclistlength(segments) == 1)
+	{stat = NC_EURL; goto done;} /* no dataset part */
+    
 done:
     ncbytesfree(buf);
     nclistfreeall(segments);
@@ -460,10 +491,8 @@ static int
 z3createobj(ZS3MAP* z3map, const char* key, size64_t size)
 {
     int stat = NC_NOERR;
-    unsigned char empty[1];
 
-    empty[0] = 0;
-    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, key, 1, empty, &z3map->errmsg)))
+    if((stat = NCZ_s3sdkdefineobject(z3map->s3client, key, &z3map->errmsg)))
         goto done;
 
 done:
@@ -500,20 +529,46 @@ s3clear(ZS3MAP* z3map, const char* rootkey)
     int stat = NC_NOERR;
     char** list = NULL;
     char** p;
-    size_t nkeys;
+    size_t nkeys = 0;
 
     if((stat = NCZ_s3sdkgetkeys(z3map->s3client, rootkey, &nkeys, &list, &z3map->errmsg)))
         goto done;
-    
-    for(p=list;*p;p++) {
-        if((stat = NCZ_s3sdkdeletekey(z3map->s3client, *p, &z3map->errmsg)))	
-	    goto done;
+    if(list != NULL) {
+        if((stat = maketruekeys(z3map->bucket, nkeys, list))) goto done;
+	/* The first key is the rootkey, so skip it */
+        for(p=list+1;*p;p++) {
+            if((stat = NCZ_s3sdkdeletekey(z3map->s3client, *p, &z3map->errmsg)))	
+	        goto done;
+        }
     }
 
 done:
     if(z3map->errmsg) reporterr(z3map);
     NCZ_freestringvec(nkeys,list);
     return THROW(stat);
+}
+
+/* Prefix keys with bucket to make external true key */
+static int
+maketruekeys(const char* bucket, size_t n, char** keys)
+{
+    int i, stat = NC_NOERR;
+    for(i=0;i<n;i++) {
+        char* key = keys[i];
+        size_t len = (strlen(bucket)+strlen(key)+2);
+        char* truekey = (char*)malloc(len+1);
+	if(truekey == NULL) {stat = NC_ENOMEM; goto done;}
+	truekey[0] = '\0';
+	strlcat(truekey,"/",len+1);
+	strlcat(truekey,bucket,len+1);
+	strlcat(truekey,"/",len+1);
+	strlcat(truekey,key,len+1);
+	nullfree(key);
+	keys[i] = truekey;
+    }
+
+done:
+    return stat;
 }
 
 /**************************************************/
