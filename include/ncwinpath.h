@@ -68,4 +68,8 @@ EXTERNL char* NCcwd(char* cwdbuf, size_t len);
 #define NCcwd(buf, len) getcwd(buf,len)
 #endif /*WINPATH*/
 
+/* Platform independent */
+#define NCclose(fd) close(fd)
+
+
 #endif /* _NCWINIO_H_ */

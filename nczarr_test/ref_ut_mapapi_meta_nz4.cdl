@@ -1,9 +1,9 @@
-[3] / : (0) ||
-[2] /.nczarr : (50) |{
+[0] /
+[1] /.nczarr : (50) |{
 "foo": 42,
 "bar": "apples",
 "baz": [1, 2, 3, 4]}|
-[1] /meta1 : (0) ||
-[0] /meta1/.zarray : (34) |{
+[2] /meta1
+[3] /meta1/.zarray : (34) |{
 "shape": [1,2,3],
 "dtype": "<1"}|

@@ -296,7 +296,7 @@ put_chunk(NCZChunkCache* cache, const char* key, const NCZCacheEntry* entry)
     case NC_NOERR: break;
     case NC_EACCESS:
 	/* Create the chunk */
-	if((stat = nczmap_define(map,key,cache->chunksize))) goto done;
+	if((stat = nczmap_defineobj(map,key))) goto done;
 	/* write again */
 	if((stat = nczmap_write(map,key,0,cache->chunksize,entry->data)))
 	    goto done;
@@ -350,7 +350,7 @@ create_chunk(NCZChunkCache* cache, const char* key, NCZCacheEntry* entry)
     map = zfile->map;
 
     /* Create the chunk */
-    if((stat = nczmap_define(map,key,cache->chunksize))) goto done;
+    if((stat = nczmap_defineobj(map,key))) goto done;
     entry->modified = 1; /* mark as modified */
     /* let higher function decide on fill */
 done:

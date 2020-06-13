@@ -297,6 +297,9 @@ specifying shared dimensions. It uses a special
 attribute named ''_ARRAY_DIMENSIONS''.
 The value of this attribute is a list of dimension names (strings), for example ````["time", "lon", "lat"]````.
 
+# Building NCZarr Support {#nczarr_build}
+
+
 # Examples {#nczarr_examples}
 
 Here are a couple of examples using the _ncgen_ and _ncdump_ utilities.

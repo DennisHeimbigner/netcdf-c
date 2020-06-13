@@ -194,7 +194,7 @@ NCZ_downloadjson(NCZMAP* zmap, const char* key, NCjson** jsonp)
 	goto done;
     if((content = malloc(len+1)) == NULL)
 	{stat = NC_ENOMEM; goto done;}
-    if((stat = nczmap_readmeta(zmap, key, len, content)))
+    if((stat = nczmap_read(zmap, key, 0, len, (void*)content)))
 	goto done;
     content[len] = '\0';
 
@@ -224,7 +224,7 @@ NCZ_createobject(NCZMAP* zmap, const char* key, size64_t size)
     int stat = NC_NOERR;
 
     /* create the target */
-    stat = nczmap_define(zmap, key, size);
+    stat = nczmap_defineobj(zmap, key);
     return stat;
 }
 
@@ -247,11 +247,11 @@ NCZ_uploadjson(NCZMAP* zmap, const char* key, NCjson* json)
 	goto done;
 
     /* create the target */
-    if((stat = nczmap_define(zmap, key, NCZ_ISMETA)))
+    if((stat = nczmap_defineobj(zmap, key)))
 	goto done;
 
     /* Write the metadata */
-    if((stat = nczmap_writemeta(zmap, key, strlen(content), content)))
+    if((stat = nczmap_write(zmap, key, 0, strlen(content), content)))
 	goto done;
 
 done:

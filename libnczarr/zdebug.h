@@ -12,7 +12,7 @@
 #undef ZDEBUG1 /* detailed debug */
 
 #define ZCATCH /* Warning: significant performance impact */
-#define ZTRACING /* Warning: significant performance impact */
+#undef ZTRACING /* Warning: significant performance impact */
 
 #ifdef ZCATCH
 /* Place breakpoint on zbreakpoint to catch errors close to where they occur*/

@@ -3,35 +3,6 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-/*
-This API isolates the key-value pair mapping code
-from the Zarr-based implementation of NetCDF-4.
-
-It wraps an internal C dispatch table manager
-for implementing an abstract data structurer
-loosely based on the Amazon S3 storage model.
-
-Technically, S3 is a Key-Value Pair model
-mapping a text key to an S3 *object*.
-The object has an associated small set of what
-I will call tags, which are themselves of the
-form of key-value pairs, but where the key and value
-are always text. As far as I can tell, Zarr never
-uses these tags, so we do not include them in the zmap
-data structure.
-
-In practice, S3 is actually a tree
-where the "contains" relationship is determined
-by matching prefixes of the object keys.
-So in this sense the object whose name is "/x/y/z"
-is contained in the object whose name is "/x/y".
-
-For this API, we use the prefix approach so that
-for example, creating an object contained in another
-object is defined by the common prefix model.
-
-*/
-
 #include "zincludes.h"
 
 /**************************************************/
@@ -44,8 +15,6 @@ extern NCZMAP_DS_API zmap_s3sdk;
 #endif
 
 /**************************************************/
-
-/* Create ; complain if already exists */
 int
 nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
@@ -81,12 +50,6 @@ done:
     ncurifree(uri);
     return THROW(stat);
 }
-
-/*
-Terminology:
-protocol: map implementation
-format: zarr | tiledb
-*/
 
 int
 nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
@@ -127,6 +90,9 @@ done:
     return THROW(stat);
 }
 
+/**************************************************/
+/* API Wrapper */
+
 int
 nczmap_close(NCZMAP* map, int delete)
 {
@@ -135,9 +101,6 @@ nczmap_close(NCZMAP* map, int delete)
         stat = map->api->close(map,delete);
     return THROW(stat);
 }
-
-/**************************************************/
-/* API Wrapper */
 
 int
 nczmap_exists(NCZMAP* map, const char* key)
@@ -152,9 +115,9 @@ nczmap_len(NCZMAP* map, const char* key, size64_t* lenp)
 }
 
 int
-nczmap_define(NCZMAP* map, const char* key, size64_t len)
+nczmap_defineobj(NCZMAP* map, const char* key)
 {
-    return map->api->define(map, key, len);
+    return map->api->defineobj(map, key);
 }
 
 int
@@ -170,18 +133,6 @@ nczmap_write(NCZMAP* map, const char* key, size64_t start, size64_t count, const
 }
 
 int
-nczmap_readmeta(NCZMAP* map, const char* key, size64_t count, char* content)
-{
-    return map->api->readmeta(map, key, count, content);
-}
-
-int
-nczmap_writemeta(NCZMAP* map, const char* key, size64_t count, const char* content)
-{
-    return map->api->writemeta(map, key, count, content);
-}
-
-int
 nczmap_search(NCZMAP* map, const char* prefix, NClist* matches)
 {
     return map->api->search(map, prefix, matches);
@@ -190,14 +141,12 @@ nczmap_search(NCZMAP* map, const char* prefix, NClist* matches)
 /**************************************************/
 /* Utilities */
 
-/* Split a path into pieces along '/' character; elide any leading '/' */
 int
 nczm_split(const char* path, NClist* segments)
 {
     return nczm_split_delim(path,NCZM_SEP[0],segments);
 }
 
-/* Split a path into pieces along some character; elide any leading char */
 int
 nczm_split_delim(const char* path, char delim, NClist* segments)
 {
@@ -229,33 +178,25 @@ nczm_split_delim(const char* path, char delim, NClist* segments)
     }
 
 done:
-    if(seg != NULL) free(seg);
+    nullfree(seg);
     return THROW(stat);
 }
 
-/* Join the first nseg segments into a path using delim  character */
+/* concat the the segments with each segment preceded by '/' */
 int
-nczm_join_delim(NClist* segments, int nsegs, const char* sprefix, char delim, char** pathp)
+nczm_join(NClist* segments, char** pathp)
 {
     int stat = NC_NOERR;
     int i;
     NCbytes* buf = NULL;
-    char sep[2] = {delim,'\0'};
 
     if(segments == NULL)
 	{stat = NC_EINVAL; goto done;}
     if((buf = ncbytesnew())==NULL)
 	{stat = NC_ENOMEM; goto done;}
-    if(nclistlength(segments) < nsegs)
-	nsegs = nclistlength(segments);
-    if(nsegs == 0) {
-	ncbytescat(buf,sep);
-	goto done;		
-    }
-    if(sprefix) ncbytescat(buf,sprefix);    
-    for(i=0;i<nsegs;i++) {
+    for(i=0;i<nclistlength(segments);i++) {
 	const char* seg = nclistget(segments,i);
-	if(i > 0) ncbytescat(buf,sep);
+	ncbytescat(buf,"/");
 	ncbytescat(buf,seg);		
     }
 
@@ -267,14 +208,6 @@ done:
     return THROW(stat);
 }
 
-/* Convenience: Join all segments into a path using '/' character */
-int
-nczm_join(NClist* segments, char** pathp)
-{
-    return nczm_join_delim(segments,nclistlength(segments),NULL,'/',pathp);
-}
-
-/* Convenience: concat two strings; caller frees */
 int
 nczm_concat(const char* prefix, const char* suffix, char** pathp)
 {
@@ -293,43 +226,59 @@ nczm_concat(const char* prefix, const char* suffix, char** pathp)
     return NC_NOERR;
 }
 
+/* A segment is defined as a '/' plus characters following up
+   to the end or upto the next '/'
+*/
 int
-nczm_divide(const char* key, int nsegs, char** prefixp, char** suffixp)
+nczm_divide_at(const char* key, int nsegs, char** prefixp, char** suffixp)
 {
     int stat = NC_NOERR;
     char* prefix = NULL;
     char* suffix = NULL;
-    size_t len, endp, i;
+    size_t len, i;
     ptrdiff_t delta;
     const char* p;
+    int abssegs = (nsegs >= 0 ?nsegs: -nsegs);
+    int presegs = 0;
  
     /* Special case */
     if(key == NULL || strlen(key) == 0) goto done;
+
+    p = (key[0] == '/' ? key+1 : key);
     /* Count number of segments */
-    for(p=key,len=0;;) {
+    for(len=0;;) {
         const char* q = strchr(p,'/');    
-	if(q == NULL) {len++; break;}
-	p = q+1;
 	len++;
+	if(q == NULL) break;
+	p = q+1; /* start past leading '/' of next segment */
     }
-    if(nsegs > len)
+    if(abssegs > len)
 	{stat = NC_EINVAL; goto done;}
     /* find split point */
-    endp = len - nsegs;
-    for(p=key,i=0;i<endp;i++) {
-        const char* q = strchr(p,'/');    
-	if(q == NULL) p = (p + strlen(p));
-	else p = q+1;
+    if(nsegs >= 0)
+	{presegs = abssegs;}
+    else
+	{presegs = (len - abssegs);}
+
+    /* skip past the first presegs segments */
+    for(p=key,i=0;i<presegs;i++) {
+        const char* q = strchr(p+1,'/'); 
+	if(q == NULL) {p = (p + strlen(p)); break;}
+	else p = q;
     }
-    /* p should point at split point */
+    /* p should point at the presegs+1 start point */
     delta = (p-key);    
-    prefix = malloc(delta+1);
-    memcpy(prefix,key,delta);
-    prefix[delta] = '\0';
-    suffix = strdup(p);
+    if(prefixp) {
+        prefix = malloc(delta+1);
+        memcpy(prefix,key,delta);
+        prefix[delta] = '\0';
+        *prefixp = prefix;
+    } 
+    if(suffixp) {
+        suffix = strdup(p);
+        *suffixp = suffix;
+    }
 done:
-    if(prefixp) *prefixp = prefix;
-    if(suffixp) *suffixp = suffix;
     return stat;
 }
 

@@ -1,0 +1,6 @@
+[0] /
+[1] /testmapapi
+[2] /testmapapi/.nczarr
+[3] /testmapapi/data1
+[4] /testmapapi/meta1
+[5] /testmapapi/meta1/.zarray

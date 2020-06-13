@@ -14,10 +14,8 @@ to a netcdf-4 file.
 
 For the object API, the mapping is as follows:
 1. Every object (e.g. group or array) is mapped to a netcdf-4 group.
-2. Meta data objects (e.g. .zgroup, .zarray, etc) are kept as an
-   char typed attribute of the group
-3. Actual variable data (for e.g. chunks) is stored as
-   a ubyte typed variable with the chunk name.
+2. Object content is kept as a ubyte typed variable with one
+   unlimited dimension
 */
 
 #undef DEBUG
@@ -34,9 +32,6 @@ For the object API, the mapping is as follows:
 /* Avoid creating a coordinate variable */
 #define ZCONTENTDIM "data_dim"
 
-/* Mnemonic */
-#define Z4META 0
-
 /* Define the "subclass" of NCZMAP */
 typedef struct Z4MAP {
     NCZMAP map;
@@ -51,13 +46,13 @@ static int znc4close(NCZMAP* map, int delete);
 static int zlookupgroup(Z4MAP*, NClist* segments, int nskip, int* grpidp);
 static int zlookupobj(Z4MAP*, NClist* segments, int* objidp);
 static int zcreategroup(Z4MAP* z4map, NClist* segments, int nskip, int* grpidp);
-static int zcreateobj(Z4MAP*, NClist* segments, size64_t, int* objidp);
+static int zcreateobj(Z4MAP*, NClist* segments, int* objidp);
 static int zcreatedim(Z4MAP*, int, int* dimidp);
 static int parseurl(const char* path0, NCURI** urip);
 static void nc4ify(const char* zname, char* nc4name);
 static void zify(const char* nc4name, char* zname);
 static int z4getcwd(char** cwdp);
-
+static int testcontentbearing(int grpid);
 
 /* Define the Dataset level API */
 
@@ -182,212 +177,6 @@ done:
 /* Object API */
 
 static int
-znc4exists(NCZMAP* map, const char* key)
-{
-    int stat = NC_NOERR;
-    Z4MAP* z4map = (Z4MAP*)map;
-    NClist* segments = nclistnew();
-    int grpid;
-    
-    if((stat=nczm_split(key,segments)))
-	goto done;    
-    if((stat=zlookupobj(z4map,segments,&grpid)))
-	goto done;
-done:
-    nclistfreeall(segments);
-    return (stat);
-}
-
-static int
-znc4len(NCZMAP* map, const char* key, size64_t* lenp)
-{
-    int stat = NC_NOERR;
-    Z4MAP* z4map = (Z4MAP*)map;
-    NClist* segments = nclistnew();
-    int grpid, vid;
-    size_t dimlen, attlen;
-    int dimids[1];
-
-    if((stat=nczm_split(key,segments)))
-	goto done;    
-
-    if((stat=zlookupobj(z4map,segments,&grpid)))
-	goto done;
-
-    /* Look for a variable or attribute */
-    if((stat = nc_inq_varid(grpid,ZCONTENT,&vid)) == NC_NOERR) {
-        /* Get size for this variable */
-        if((stat = nc_inq_vardimid(grpid,vid,dimids)))
-	    goto done;
-        /* Get size of the one and only dim */
-        if((stat = nc_inq_dimlen(z4map->ncid,dimids[0],&dimlen)))
-	    goto done;
-        if(lenp) *lenp = (size64_t)dimlen;
-    } else if((stat = nc_inq_att(grpid,NC_GLOBAL,ZCONTENT,NULL,&attlen)) == NC_NOERR) {
-        if(lenp) *lenp = (size64_t)attlen;	
-    } else /* Use NC_EACCESS to indicate not found */
-	{stat = NC_EACCESS; goto done;}
-
-done:
-    nclistfreeall(segments);
-    return (stat);
-}
-
-static int
-znc4define(NCZMAP* map, const char* key, size64_t len)
-{
-    int stat = NC_NOERR;
-    int grpid;
-    Z4MAP* z4map = (Z4MAP*)map; /* cast to true type */
-    NClist* segments = nclistnew();
-
-    if((stat=nczm_split(key,segments)))
-	goto done;    
-    stat = zlookupobj(z4map,segments,&grpid);
-    if(stat == NC_NOERR) /* Already exists */
-	goto done;
-    else if(stat != NC_EACCESS) /* Some other kind of failure */
-	goto done;
-
-    if((stat = zcreateobj(z4map,segments,len,&grpid)))
-	goto done;
-
-done:
-    nclistfreeall(segments);
-    return (stat);
-}
-
-static int
-znc4read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content)
-{
-    int stat = NC_NOERR;
-    int grpid,vid;
-    Z4MAP* z4map = (Z4MAP*)map; /* cast to true type */
-    size_t vstart[1];
-    size_t vcount[1];
-    NClist* segments = nclistnew();
-
-    if((stat=nczm_split(key,segments)))
-	goto done;    
-    if((stat = zlookupobj(z4map,segments,&grpid)))
-	goto done;
-
-    /* Look for the data variable */
-    if((stat = nc_inq_varid(grpid,ZCONTENT,&vid)))
-	goto done;
-
-    vstart[0] = (size_t)start;
-    vcount[0] = (size_t)count;
-    if((stat = nc_get_vara(grpid,vid,vstart,vcount,content)))
-	goto done;
-
-done:
-    nclistfreeall(segments);
-    return (stat);
-}
-
-static int
-znc4write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content)
-{
-    int stat = NC_NOERR;
-    int grpid,vid;
-    Z4MAP* z4map = (Z4MAP*)map; /* cast to true type */
-    int dimids[1];
-    size_t vstart[1];
-    size_t vcount[1];
-    NClist* segments = nclistnew();
-
-    if((stat=nczm_split(key,segments)))
-	goto done;    
-    if((stat = zlookupobj(z4map,segments,&grpid)))
-	goto done;
-
-    /* Ensure the data variable exists */
-    stat = nc_inq_varid(grpid,ZCONTENT,&vid);
-    switch (stat) {
-    case NC_NOERR: break;
-    case NC_ENOTVAR:
-        /* Create the dimension */
-	if((stat = zcreatedim(z4map,grpid,&dimids[0])))
-	    goto done;
-	/* Create the variable */
-        if((stat=nc_def_var(grpid, ZCONTENT, NC_UBYTE, 1, dimids, &vid)))
-	    goto done;
-	/* Set its properties */
-	/* Var is automatically chunked because its dim is unlimited */
-	break;
-    default: goto done;
-    }
-    
-    vstart[0] = (size_t)start;
-    vcount[0] = (size_t)count;
-    if((stat = nc_put_vara(grpid,vid,vstart,vcount,content)))
-	goto done;
-
-done:
-    nclistfreeall(segments);
-    return (stat);
-}
-
-static int
-znc4readmeta(NCZMAP* map, const char* key, size64_t avail, char* content)
-{
-    int stat = NC_NOERR;
-    int grpid;
-    Z4MAP* z4map = (Z4MAP*)map; /* cast to true type */
-    NClist* segments = nclistnew();
-    size_t alen;
-
-    if((stat=nczm_split(key,segments)))
-	goto done;    
-
-    if((stat = zlookupobj(z4map,segments,&grpid)))
-	goto done;
-
-    /* Look for data attribute */
-    if((stat = nc_inq_att(grpid,NC_GLOBAL,ZCONTENT,NULL,&alen)))
-	goto done;
-
-    /* Do some validation checks */
-    if(avail < (size64_t)alen) {
-	stat = NC_EVARSIZE; /* the content arg is too short */
-	goto done;
-    }
-    if((stat = nc_get_att_text(grpid,NC_GLOBAL,ZCONTENT,content)))
-	goto done;
-
-done:
-    nclistfreeall(segments);
-    return (stat);
-}
-
-static int
-znc4writemeta(NCZMAP* map, const char* key, size64_t count, const char* content)
-{
-    int stat = NC_NOERR;
-    int grpid;
-    Z4MAP* z4map = (Z4MAP*)map; /* cast to true type */
-    NClist* segments = nclistnew();
-
-    if(map == NULL || key == NULL || count < 0 || content == NULL)
-	{stat = NC_EINVAL; goto done;}
-
-    if((stat=nczm_split(key,segments)))
-	goto done;    
-
-    /* Test the objects existence */
-    if((stat = zlookupobj(z4map,segments,&grpid)))
-	    goto done;	    
-
-    if((stat = nc_put_att_text(grpid,NC_GLOBAL,ZCONTENT,(size_t)count,content)))
-	goto done;
-
-done:
-    nclistfreeall(segments);
-    return (stat);
-}
-
-static int
 znc4close(NCZMAP* map, int delete)
 {
     int stat = NC_NOERR;
@@ -409,6 +198,146 @@ done:
     nullfree(z4map->path);
     nczm_clear(map);
     free(z4map);
+    return (stat);
+}
+
+static int
+znc4exists(NCZMAP* map, const char* key)
+{
+    int stat = NC_NOERR;
+    Z4MAP* z4map = (Z4MAP*)map;
+    NClist* segments = nclistnew();
+    int grpid;
+    
+    if((stat=nczm_split(key,segments)))
+	goto done;    
+    switch(stat=zlookupobj(z4map,segments,&grpid)) {
+    case NC_NOERR: break;
+    case NC_ENODATA: /* Not an object */
+    case NC_ENOTFOUND: /* not exists */
+    default: break; /* other error */
+    }
+
+done:
+    nclistfreeall(segments);
+    return (stat);
+}
+
+static int
+znc4len(NCZMAP* map, const char* key, size64_t* lenp)
+{
+    int stat = NC_NOERR;
+    Z4MAP* z4map = (Z4MAP*)map;
+    NClist* segments = nclistnew();
+    int grpid, vid;
+    size_t dimlen;
+    int dimids[1];
+
+    if((stat=nczm_split(key,segments)))
+	goto done;    
+
+    switch(stat=zlookupobj(z4map,segments,&grpid)) {
+    case NC_NOERR:
+        /* Look for the data variable */
+        if((stat = nc_inq_varid(grpid,ZCONTENT,&vid))) goto done;
+        /* Get size for this variable */
+        if((stat = nc_inq_vardimid(grpid,vid,dimids))) goto done;
+        /* Get size of the one and only dim */
+        if((stat = nc_inq_dimlen(z4map->ncid,dimids[0],&dimlen))) goto done;
+        if(lenp) *lenp = (size64_t)dimlen;
+	break;
+    case NC_ENODATA: /* Not an object */
+	if(lenp) *lenp = 0;
+	break;
+    case NC_ENOTFOUND: break;
+    default: break;
+    }
+
+done:
+    nclistfreeall(segments);
+    return (stat);
+}
+
+static int
+znc4defineobj(NCZMAP* map, const char* key)
+{
+    int stat = NC_NOERR;
+    int grpid;
+    Z4MAP* z4map = (Z4MAP*)map; /* cast to true type */
+    NClist* segments = nclistnew();
+
+    if((stat=nczm_split(key,segments)))
+	goto done;    
+    switch (stat = zlookupobj(z4map,segments,&grpid)) {
+    case NC_NOERR: break; /* already exists */
+    case NC_ENODATA: break;
+    case NC_ENOTFOUND: /* Does not exist */
+        if((stat = zcreateobj(z4map,segments,&grpid))) goto done;
+	break;
+    default: break; /* other error */
+    }
+
+done:
+    nclistfreeall(segments);
+    return (stat);
+}
+
+static int
+znc4read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content)
+{
+    int stat = NC_NOERR;
+    int grpid,vid;
+    Z4MAP* z4map = (Z4MAP*)map; /* cast to true type */
+    size_t vstart[1];
+    size_t vcount[1];
+    NClist* segments = nclistnew();
+
+    if((stat=nczm_split(key,segments)))
+	goto done;    
+    switch (stat = zlookupobj(z4map,segments,&grpid)) {
+    case NC_NOERR: /* exists */
+        /* Look for the data variable */
+        if((stat = nc_inq_varid(grpid,ZCONTENT,&vid))) goto done;
+        vstart[0] = (size_t)start;
+        vcount[0] = (size_t)count;
+        if((stat = nc_get_vara(grpid,vid,vstart,vcount,content))) goto done;
+	break;
+    case NC_ENODATA: break; /* no data */
+    case NC_ENOTFOUND: break; /* Does not exist */
+    default: break; /* other error */
+    }
+
+done:
+    nclistfreeall(segments);
+    return (stat);
+}
+
+static int
+znc4write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content)
+{
+    int stat = NC_NOERR;
+    int grpid,vid;
+    Z4MAP* z4map = (Z4MAP*)map; /* cast to true type */
+    size_t vstart[1];
+    size_t vcount[1];
+    NClist* segments = nclistnew();
+
+    if((stat=nczm_split(key,segments)))
+	goto done;    
+    switch (stat = zlookupobj(z4map,segments,&grpid)) {
+    case NC_NOERR: /* exists */
+        /* Look for the data variable */
+        if((stat = nc_inq_varid(grpid,ZCONTENT,&vid))) goto done;
+        vstart[0] = (size_t)start;
+        vcount[0] = (size_t)count;
+        if((stat = nc_put_vara(grpid,vid,vstart,vcount,content))) goto done;
+	break;
+    case NC_ENODATA: break; /* no data */
+    case NC_ENOTFOUND: break; /* Does not exist */
+    default: break; /* other error */
+    }
+done:
+    nclistfreeall(segments);
     return (stat);
 }
 
@@ -454,6 +383,7 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
     /* Get grpid of the group for the prefix */
     if((stat = zlookupgroup(z4map,segments,0,&grpid)))
 	goto done;
+
     /* get subgroup ids */
     if((stat = nc_inq_grps(grpid,&ngrps,NULL)))
 	goto done;
@@ -466,8 +396,9 @@ znc4search(NCZMAP* map, const char* prefix, NClist* matches)
     for(i=0;i<ngrps;i++) {
 	char gname[NC_MAX_NAME];
 	char zname[NC_MAX_NAME];
-	if((stat = nc_inq_grpname(subgrps[i],gname))) goto done;
-	zify(gname,zname);
+	/* See if this group is content-bearing */
+        if((stat = nc_inq_grpname(subgrps[i],gname))) goto done;
+        zify(gname,zname);
 	ncbytescat(key,prefix);
 	if(!trailing) ncbytescat(key,"/");
 	ncbytescat(key,zname);
@@ -482,63 +413,30 @@ done:
     return stat;
 }
 
-#if 0
-/* Return a list of keys for all child nodes of the parent;
-   It is up to the caller to figure out the type of the node.
-   Assume that parentkey refers to a group; fail otherwise.
-   The list includes subgroups.
-*/
-int
-znc4children(NCZMAP* map, const char* parentkey, NClist* children)
+/**************************************************/
+/* Utilities */
+
+static int
+testcontentbearing(int grpid)
 {
     int stat = NC_NOERR;
-    Z4MAP* z4map = (Z4MAP*)map;
-    NClist* segments = nclistnew();
-    int grpid;
-    int ngrps;
-    int* subgrps = NULL;
-    int i;
-
-    if((stat=nczm_split(parentkey,segments)))
-	goto done;    
-    if((stat = zlookupgroup(z4map,segments,0,&grpid)))
-	goto done;
-    /* Start by getting any subgroups */
-    if((stat = nc_inq_grps(grpid,&ngrps,NULL)))
-	goto done;
-    if(ngrps > 0) {
-        if((subgrps = calloc(1,sizeof(int)*ngrps)) == NULL)
-	    {stat = NC_ENOMEM; goto done;}
-        if((stat = nc_inq_grps(grpid,&ngrps,subgrps)))
-	    goto done;
-	/* Get the names of the subgroups */
-	for(i=0;i<ngrps;i++) {
-	    char name[NC_MAX_NAME];
-	    char zname[NC_MAX_NAME];
-	    char* path = NULL;
-	    if((stat = nc_inq_grpname(subgrps[i],name)))
-		goto done;
-	    /* translate name */
-	    zify(name,zname);
-	    /* Create a full path */
-	    if((stat = nczm_concat(parentkey,zname,&path)))
-		goto done;
-	    /* Add to list of children */
-	    nclistpush(children,path);
-	    path = NULL; /* avoid mem errors */
-	}		
+    int varid;
+    
+    /* See if there is a content variable */
+    switch (stat = nc_inq_varid(grpid,ZCONTENT,&varid)) {
+    default: goto done; /* true error */
+    case NC_NOERR: /* This is a data bearing object */ 
+	return NC_NOERR;
+    case NC_ENOTVAR:		
+	return NC_ENODATA;
     }
 
 done:
     return stat;
 }
-#endif
-
-/**************************************************/
-/* Utilities */
 
 /* Lookup a group by parsed path (segments)*/
-/* Return NC_EACCESS if not found */
+/* Return NC_ENOTFOUND if not found */
 static int
 zlookupgroup(Z4MAP* z4map, NClist* segments, int nskip, int* grpidp)
 {
@@ -554,7 +452,7 @@ zlookupgroup(Z4MAP* z4map, NClist* segments, int nskip, int* grpidp)
 	char nc4name[NC_MAX_NAME];
 	nc4ify(seg,nc4name);	
 	if((stat=nc_inq_grp_ncid(grpid,nc4name,&grpid2)))
-	    {stat = NC_EACCESS; goto done;}
+	    {stat = NC_ENOTFOUND; goto done;}
 	grpid = grpid2;
     }
     /* ok, so grpid should be it */
@@ -564,8 +462,12 @@ done:
     return (stat);
 }
 
-/* Lookup an object */
-/* Return NC_EACCESS if not found */
+/* Lookup an object.
+@return NC_NOERR if found and is a content-bearing object
+@return NC_ENODATA if exists but is not-content-bearing
+@return NC_ENOTFOUND if not found
+*/
+
 static int
 zlookupobj(Z4MAP* z4map, NClist* segments, int* grpidp)
 {
@@ -573,8 +475,13 @@ zlookupobj(Z4MAP* z4map, NClist* segments, int* grpidp)
     int grpid;
 
     /* Lookup thru the final object group */
-    if((stat = zlookupgroup(z4map,segments,0,&grpid)))
+    if((stat = zlookupgroup(z4map,segments,0,&grpid))) {
 	goto done;
+    }
+    /* See if this is content-bearing */
+    if((stat = testcontentbearing(grpid)))
+	goto done;        
+
     if(grpidp) *grpidp = grpid;
 
 done:
@@ -601,7 +508,7 @@ zcreategroup(Z4MAP* z4map, NClist* segments, int nskip, int* grpidp)
 	nc4ify(seg,nc4name);	
 	/* Does this group exist? */
 	if((stat=nc_inq_grp_ncid(grpid,nc4name,&grpid2)) == NC_ENOGRP) {
-	    {stat = NC_EACCESS; goto done;} /* missing intermediate */
+	    {stat = NC_ENOTFOUND; goto done;} /* missing intermediate */
 	}
 	grpid = grpid2;
     }
@@ -643,10 +550,11 @@ done:
    necessary intermediates.
  */
 static int
-zcreateobj(Z4MAP* z4map, NClist* segments, size64_t len, int* grpidp)
+zcreateobj(Z4MAP* z4map, NClist* segments, int* grpidp)
 {
     int skip,stat = NC_NOERR;
-    int grpid;
+    int grpid, varid;
+    int dimid[1];
 
     /* Create the whole path */
     skip = nclistlength(segments);
@@ -656,7 +564,13 @@ zcreateobj(Z4MAP* z4map, NClist* segments, size64_t len, int* grpidp)
     }
     /* Last grpid should be one we want */
     if(grpidp) *grpidp = grpid;
-
+    /* Create the content-bearer */
+    /* Create the corresponding dimension */
+    if((stat = zcreatedim(z4map,grpid,&dimid[0])))
+	    goto done;
+    /* Create the variable */
+    if((stat=nc_def_var(grpid, ZCONTENT, NC_UBYTE, 1, dimid, &varid)))
+	goto done;
 done:
     return (stat);    
 }
@@ -716,13 +630,11 @@ NCZMAP_DS_API zmap_nz4 = {
 
 static NCZMAP_API zapi = {
     NCZM_NC4_V1,
+    znc4close,
     znc4exists,
     znc4len,
-    znc4define,
+    znc4defineobj,
     znc4read,
     znc4write,
-    znc4readmeta,
-    znc4writemeta,
-    znc4close,
     znc4search,
 };

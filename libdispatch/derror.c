@@ -172,7 +172,7 @@ const char *nc_strerror(int ncerr1)
       case NC_EIO:
 	 return "NetCDF: I/O failure";
       case NC_ENODATA:
-	 return "NetCDF: Variable has no data in DAP request";
+	 return "NetCDF: Variable has no data";
       case NC_EDAPSVC:
 	 return "NetCDF: DAP server error";
       case NC_EDAS:

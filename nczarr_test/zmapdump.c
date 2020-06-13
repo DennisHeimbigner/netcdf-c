@@ -24,8 +24,8 @@ struct Dumpptions {
 /* Forward */
 static int objdump(void);
 static NCZM_IMPL implfor(const char* path);
-static void printhex(size64_t len, const char* content);
-static int depthR(NCZMAP* map, const char* key, NClist* stack);
+static void printcontent(size64_t len, const char* content,int ismeta);
+static int depthR(NCZMAP* map, char* key, NClist* stack);
 static char* rootpathfor(const char* path);
 
 #define NCCHECK(expr) nccheck((expr),__LINE__)
@@ -100,8 +100,11 @@ main(int argc, char** argv)
     }    
 
 done:
+    /* Reclaim dumpoptions */
+    nullfree(dumpoptions.infile);
+    nullfree(dumpoptions.rootpath);
     if(stat)
-	nc_strerror(stat);
+	fprintf(stderr,"fail: %s\n",nc_strerror(stat));
     return (stat ? 1 : 0);    
 fail:
     stat = NC_EINVAL;
@@ -138,14 +141,40 @@ done:
 static char*
 rootpathfor(const char* path)
 {
+    int stat = NC_NOERR;
     NCURI* uri = NULL;
     char* rootpath = NULL;
+    NClist* segments = nclistnew();
+    char* p = NULL;
 
     ncuriparse(path,&uri);
     if(uri == NULL) goto done;
-    rootpath = strdup(uri->path);
+    /* Split the path part */
+    if((stat = nczm_split(uri->path,segments))) goto done;
+    switch (dumpoptions.impl) {
+    case NCZM_FILE:
+    case NCZM_NC4:
+	/* remove the root file directory name */
+	p = (char*)nclistremove(segments,0);
+	nullfree(p); p = NULL;
+	break;
+    case NCZM_S3:
+	/* remove the bucket name */
+	p = (char*)nclistremove(segments,0);
+	nullfree(p); p = NULL;
+	break;
+    default:
+        stat = NC_EINVAL;
+	goto done;
+    }
+    /* Put it back together */
+    if((stat = nczm_join(segments,&rootpath))) goto done;
+
 done:
-    ncurifree(uri);
+    nclistfreeall(segments); segments = NULL;
+    ncurifree(uri); uri = NULL;
+    if(stat)
+        {nullfree(rootpath); rootpath = NULL;}
     return rootpath;
 }
 
@@ -159,16 +188,15 @@ objdump(void)
     char* prefix = NULL;
     char* suffix = NULL;
     char* obj = NULL;
-    char* tmp = NULL;
     char* content = NULL;
     int depth;
 
     if((stat=nczmap_open(dumpoptions.impl, dumpoptions.infile, NC_NOCLOBBER, 0, NULL, &map)))
         goto done;
 
+    
     /* Depth first walk all the groups to get all keys */
-    tmp = strdup(dumpoptions.rootpath);
-    if((stat = depthR(map,tmp,stack))) goto done;
+    if((stat = depthR(map,strdup(dumpoptions.rootpath),stack))) goto done;
 
     if(dumpoptions.debug) {
 	int i;
@@ -179,35 +207,36 @@ objdump(void)
     for(depth=0;nclistlength(stack) > 0;depth++) {
         size64_t len = 0;
 	int ismeta = 0;
+	int hascontent = 0;
 	obj = nclistremove(stack,0); /* zero pos is always top of stack */
 	/* Now print info for this obj key */
-        if((stat=nczm_divide(obj,1,&prefix,&suffix))) goto done;
-        if(suffix[0] == '.') ismeta = 1;
+        if((stat=nczm_divide_at(obj,-1,&prefix,&suffix))) goto done;
         switch (stat=nczmap_len(map,obj,&len)) {
-	    case NC_NOERR: break;
-	    case NC_EACCESS: len = 0; stat = NC_NOERR; break;
+	    case NC_NOERR: hascontent = 1; break;
+	    case NC_ENODATA: /* fall thru */ /* this is not a content bearing key */
+	    case NC_EACCESS: hascontent = 0; len = 0; stat = NC_NOERR; break;
 	    default: goto done;
 	}
 	if(len > 0) {
 	    content = malloc(len+1);
-	    if(ismeta) {
-		if((stat=nczmap_readmeta(map,obj,len,content))) goto done;
-	    } else {
-		if((stat=nczmap_read(map,obj,0,len,content))) goto done;
-	    }
+  	    if((stat=nczmap_read(map,obj,0,len,content))) goto done;
 	    content[len] = '\0';
-        } else
+        } else {
 	    content = NULL;
-	if(len > 0) {
-	    assert(content != NULL);
-            printf("[%d] %s : (%llu) |",depth,obj,len);
-	    if(ismeta)
-		printf("%s",content);
-	    else
-		printhex(len,content);
-	    printf("|\n");
-	} else
-	    printf("[%d] %s : (%llu) ||\n",depth,obj,len);
+	}
+	if(hascontent) {
+	    if(len > 0) {
+	        assert(content != NULL);
+                printf("[%d] %s : (%llu) |",depth,obj,len);
+                if(suffix[0] == '.') ismeta = 1;
+	        printcontent(len,content,ismeta);
+	        printf("|\n");
+	    } else {
+	        printf("[%d] %s : (%llu) ||\n",depth,obj,len);
+	    }
+	} else {
+	    printf("[%d] %s\n",depth,obj);
+	}
 	nullfree(content); content = NULL;
 	nullfree(prefix); prefix = NULL;
 	nullfree(suffix); suffix = NULL;
@@ -218,7 +247,6 @@ done:
     nullfree(content);
     nullfree(prefix);
     nullfree(suffix);
-    nullfree(obj);
     nczmap_close(map,0);
     nclistfreeall(matches);
     nclistfreeall(stack);
@@ -227,7 +255,7 @@ done:
 
 /* Depth first walk all the groups to get all keys */
 static int
-depthR(NCZMAP* map, const char* key, NClist* stack)
+depthR(NCZMAP* map, char* key, NClist* stack)
 {
     int stat = NC_NOERR;
     NClist* nextlevel = nclistnew();
@@ -236,7 +264,7 @@ depthR(NCZMAP* map, const char* key, NClist* stack)
     if((stat=nczmap_search(map,key,nextlevel))) goto done;
     /* Push new names onto the stack and recurse */
     while(nclistlength(nextlevel) > 0) {
-        const char* subkey = nclistremove(nextlevel,0);
+        char* subkey = nclistremove(nextlevel,0);
 	if((stat = depthR(map,subkey,stack))) goto done;
     }
 done:
@@ -247,16 +275,20 @@ done:
 static char hex[16] = "0123456789abcdef";
 
 static void
-printhex(size64_t len, const char* content)
+printcontent(size64_t len, const char* content, int ismeta)
 {
     size64_t i;
     for(i=0;i<len;i++) {
-        unsigned int c0,c1;
-	c1 = (unsigned char)(content[i]);
-        c0 = c1 & 0xf;
-	c1 = (c1 >> 4);
-        c0 = hex[c0];
-        c1 = hex[c1];
-	printf("%c%c",(char)c1,(char)c0);
+	if(ismeta) {
+	    printf("%c",content[i]);
+	} else {
+            unsigned int c0,c1;
+	    c1 = (unsigned char)(content[i]);
+            c0 = c1 & 0xf;
+	    c1 = (c1 >> 4);
+            c0 = hex[c0];
+            c1 = hex[c1];
+	    printf("%c%c",(char)c1,(char)c0);
+        }
     }
 }

@@ -490,7 +490,7 @@ ncz_write_var(NC_VAR_INFO_T* var)
 	    default: goto done; /* some other error */
 	    }
             /* If we reach here, then chunk does not exist, create it with fill */
-	    if((stat=nczmap_define(map,key,zvar->cache->chunksize))) goto done;
+	    if((stat=nczmap_defineobj(map,key))) goto done;
 	    if((stat=nczmap_write(map,key,0,zvar->cache->chunksize,zvar->cache->fillchunk))) goto done;
 next:
 	    nullfree(key);

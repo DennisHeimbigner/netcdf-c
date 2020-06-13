@@ -461,8 +461,10 @@ mergekey(NClist** valuesp)
 	char* value = nclistget(newvalues,i);
 	for(j=nclistlength(newvalues)-1;j>i;j--) {/* walk backwards */
 	    char* candidate = nclistget(newvalues,j);
-	    if(strcasecmp(candidate,value)==0)
-	        nullfree(nclistremove(newvalues,j));
+	    if(strcasecmp(candidate,value)==0) {
+		char* s = nclistremove(newvalues,j);
+	        nullfree(s); /* do not nest because arg is eval'd twice */
+	     }
 	}
     }
     *valuesp = values; values = NULL;

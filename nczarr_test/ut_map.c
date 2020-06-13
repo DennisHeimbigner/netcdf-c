@@ -77,7 +77,7 @@ simplecreate(void)
 
     if((stat=nczm_concat(NULL,NCZMETAROOT,&path)))
 	goto done;
-    if((stat = nczmap_define(map, path, NCZ_ISMETA)))
+    if((stat = nczmap_defineobj(map, path)))
 	goto done;
 
     /* Do not delete so we can look at it with ncdump */
@@ -116,22 +116,21 @@ writemeta(void)
 
     if((stat=nczm_concat(NULL,NCZMETAROOT,&path)))
 	goto done;
-    if((stat = nczmap_define(map, path, NCZ_ISMETA)))
+    if((stat = nczmap_defineobj(map, path)))
 	goto done;
     free(path); path = NULL;
 
     if((stat=nczm_concat(META1,ZARRAY,&path)))
 	goto done;
-    if((stat = nczmap_define(map, path, NCZ_ISMETA)))
+    if((stat = nczmap_defineobj(map, path)))
 	goto done;
-    if((stat = nczmap_writemeta(map, path, strlen(metadata1), metadata1)))
+    if((stat = nczmap_write(map, path, 0, strlen(metadata1), metadata1)))
 	goto done;
     free(path); path = NULL;
 
-    /* Do not delete so we can look at it with ncdump */
-    if((stat = nczmap_close(map,0)))
-	goto done;
 done:
+    /* Do not delete so we can look at it with ncdump */
+    (void)nczmap_close(map,0);
     nullfree(path);
     return THROW(stat);
 }
@@ -148,15 +147,14 @@ writemeta2(void)
 
     if((stat=nczm_concat(META2,NCZVAR,&path)))
 	goto done;
-    if((stat = nczmap_define(map,path,NCZ_ISMETA)))
+    if((stat = nczmap_defineobj(map,path)))
 	goto done;
-    if((stat = nczmap_writemeta(map, path, strlen(metadata2), metadata2)))
+    if((stat = nczmap_write(map, path, 0, strlen(metadata2), metadata2)))
 	goto done;
 
-    /* Do not delete so we can look at it with ncdump */
-    if((stat = nczmap_close(map,0)))
-	goto done;
 done:
+    /* Do not delete so we can look at it with ncdump */
+    (void)nczmap_close(map,0);
     nullfree(path);
     return THROW(stat);
 }
@@ -184,7 +182,7 @@ readmeta(void)
     if((content = malloc(olen+1)) == NULL)
 	{stat = NC_ENOMEM; goto done;}
 
-    if((stat = nczmap_readmeta(map, path, olen, content)))
+    if((stat = nczmap_read(map, path, 0, olen, content)))
 	goto done;
 
     /* nul terminate */
@@ -192,9 +190,8 @@ readmeta(void)
 
     printf("%s: |%s|\n",path,content);
 
-    if((stat = nczmap_close(map,0)))
-	goto done;
 done:
+    (void)nczmap_close(map,0);
     nullfree(content);
     nullfree(path);
     return THROW(stat);
@@ -222,7 +219,7 @@ writedata(void)
     if((stat=nczm_concat(DATA1,"0",&path)))
 	goto done;
 
-    if((stat = nczmap_define(map,path,totallen)))
+    if((stat = nczmap_defineobj(map,path)))
 	goto done;
 
     /* Write in 3 slices */
@@ -239,10 +236,9 @@ writedata(void)
 	     goto done;
     }
 
-    /* Do not delete so we can look at it with ncdump */
-    if((stat = nczmap_close(map,0)))
-	goto done;
 done:
+    /* Do not delete so we can look at it with ncdump */
+    (void)nczmap_close(map,0);
     nullfree(path);
     return THROW(stat);
 }
@@ -295,10 +291,9 @@ readdata(void)
 	}
     }
 
-    /* Do not delete so we can look at it with ncdump */
-    if((stat = nczmap_close(map,0)))
-	goto done;
 done:
+    /* Do not delete so we can look at it with ncdump */
+    (void)nczmap_close(map,0);
     nullfree(path);
     return THROW(stat);
 }

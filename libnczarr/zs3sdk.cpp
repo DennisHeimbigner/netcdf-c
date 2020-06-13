@@ -23,7 +23,7 @@ static Aws::S3::Model::BucketLocationConstraint s3findregion(const char* name);
 static int s3objectinfo1(const Aws::S3::Model::Object& s3_object, char** fullkeyp, size64_t* lenp);
 static int s3objectsinfo(Aws::Vector<Aws::S3::Model::Object> list, size_t*, char*** keysp, size64_t** lenp);
 static void freestringenvv(char** ss);
-static int getbucket(const char* pathkey, char** bucketp, const char** keyp);
+static int makes3key(const char* pathkey, const char** keyp);
     
 #ifndef nullfree
 #define nullfree(x) {if(x) {free(x);}}
@@ -177,18 +177,22 @@ NCZ_s3sdkbucketdelete(void* s3client0, void* config0, const char* region, const 
 /**************************************************/
 /* Object API */
 
+/*
+@return NC_NOERR if key points to a content-bearing object.
+@return NC_ENODATA if object at key has no content.
+@return NC_EXXX return true error
+*/
 int
-NCZ_s3sdkinfo(void* s3client0, const char* pathkey, size64_t* lenp, char** errmsgp)
+NCZ_s3sdkinfo(void* s3client0, const char* bucket, const char* pathkey, size64_t* lenp, char** errmsgp)
 {
     int stat = NC_NOERR;
     Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
     Aws::S3::Model::HeadObjectRequest head_request;
-    char* bucket = NULL;
     const char* key = NULL;
 
     if(*pathkey != '/') return NC_EINTERNAL;
-    /* extract the bucket prefix */
-    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
+    /* extract the true s3 key*/
+    if((stat = makes3key(pathkey,&key))) return stat;
 
     if(errmsgp) *errmsgp = NULL;
     head_request.SetBucket(bucket);
@@ -198,40 +202,41 @@ NCZ_s3sdkinfo(void* s3client0, const char* pathkey, size64_t* lenp, char** errms
 	long long l  = head_outcome.GetResult().GetContentLength(); 
 	if(lenp) *lenp = (size64_t)l;
     } else {
-	/* Distinquish access-denied and not-found from other errors */
-        if(errmsgp) *errmsgp = makeerrmsg(head_outcome.GetError(),key);
+	/* Distinquish not-found from other errors */
 	switch (head_outcome.GetError().GetErrorType()) {
+	case Aws::S3::S3Errors::RESOURCE_NOT_FOUND:
+            stat = NC_ENODATA;
+	    break;
 	case Aws::S3::S3Errors::ACCESS_DENIED:
             stat = NC_EACCESS;
-	    break;
-	case Aws::S3::S3Errors::RESOURCE_NOT_FOUND:
-            stat = NC_ENOTFOUND;
-	    break;
+	    /* fall thru */
 	default:
-            stat = NC_ES3;
+	    if(!stat) stat = NC_ES3;
+            if(errmsgp) *errmsgp = makeerrmsg(head_outcome.GetError(),key);
 	    break;
 	}
     }
     return (stat);
 }
 
-/* Define object */
+/* Define object key 
+@return NC_NOERR if success
+@return NC_EXXX if fail
+*/
 int
-NCZ_s3sdkdefineobject(void* s3client0, const char* pathkey, char** errmsgp)
+NCZ_s3sdkcreatekey(void* s3client0, const char* bucket, const char* pathkey, char** errmsgp)
 {
     int stat = NC_NOERR;
-    char* bucket = NULL;
     const char* key = NULL;
     Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
     Aws::S3::Model::PutObjectRequest put_request;
 
     if(*pathkey != '/') return NC_EINTERNAL;
-    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
+    if((stat = makes3key(pathkey,&key))) return stat;
     
     if(errmsgp) *errmsgp = NULL;
     put_request.SetBucket(bucket);
     put_request.SetKey(key);
-    put_request.AddMetadata(".nczarr_directory",pathkey);
     auto put_result = s3client->PutObject(put_request);
     if(!put_result.IsSuccess()) {
         if(errmsgp) *errmsgp = makeerrmsg(put_result.GetError(),key);
@@ -240,18 +245,21 @@ NCZ_s3sdkdefineobject(void* s3client0, const char* pathkey, char** errmsgp)
     return (stat);
 }
 
+/*
+@return NC_NOERR if success
+@return NC_EXXX if fail
+*/
 int
-NCZ_s3sdkread(void* s3client0, const char* pathkey, size64_t start, size64_t count, void* content, char** errmsgp)
+NCZ_s3sdkread(void* s3client0, const char* bucket, const char* pathkey, size64_t start, size64_t count, void* content, char** errmsgp)
 {
     int stat = NC_NOERR;
     Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
     Aws::S3::Model::GetObjectRequest object_request;
     char range[1024];
-    char* bucket = NULL;
     const char* key = NULL;
 
     if(*pathkey != '/') return NC_EINTERNAL;
-    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
+    if((stat = makes3key(pathkey,&key))) return stat;
     
     object_request.SetBucket(bucket);
     object_request.SetKey(key);
@@ -275,19 +283,54 @@ NCZ_s3sdkread(void* s3client0, const char* pathkey, size64_t start, size64_t cou
     return (stat);
 }
 
+/*
+For S3, I can see no way to do a byterange write;
+so we are effectively writing the whole object
+*/
 int
-NCZ_s3sdkreadobject(void* s3client0, const char* pathkey, size64_t* sizep, void** contentp, char** errmsgp)
+NCZ_s3sdkwriteobject(void* s3client0, const char* bucket, const char* pathkey,  size64_t count, const void* content, char** errmsgp)
+{
+    int stat = NC_NOERR;
+    const char* key = NULL;
+    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
+    Aws::S3::Model::PutObjectRequest put_request;
+
+    if(*pathkey != '/') return NC_EINTERNAL;
+    if((stat = makes3key(pathkey,&key))) return stat;
+    
+    if(errmsgp) *errmsgp = NULL;
+    put_request.SetBucket(bucket);
+    put_request.SetKey(key);
+    put_request.SetContentLength((long long)count);
+
+    std::shared_ptr<Aws::IOStream> data = std::shared_ptr<Aws::IOStream>(new Aws::StringStream());
+    data->rdbuf()->pubsetbuf((char*)content,count);
+    put_request.SetBody(data);
+    auto put_result = s3client->PutObject(put_request);
+    if(!put_result.IsSuccess()) {
+        if(errmsgp) *errmsgp = makeerrmsg(put_result.GetError(),key);
+        stat = NC_ES3;
+    }
+    return (stat);
+}
+
+#if 0
+/*
+@return NC_NOERR if success
+@return NC_EXXX if fail
+*/
+int
+NCZ_s3sdkreadobject(void* s3client0, const char* bucket, const char* pathkey, size64_t* sizep, void** contentp, char** errmsgp)
 {
     int stat = NC_NOERR;
     Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
     Aws::S3::Model::GetObjectRequest object_request;
     size64_t size, red;
     void* content = NULL;
-    char* bucket = NULL;
     const char* key = NULL;
 
     if(*pathkey != '/') return NC_EINTERNAL;
-    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
+    if((stat = makes3key(pathkey,&key))) return stat;
 
     if(errmsgp) *errmsgp = NULL;
     object_request.SetBucket(bucket);
@@ -326,67 +369,43 @@ done:
     nullfree(content);
     return (stat);
 }
-
-/*
-For S3, I can see no way to do a byterange write;
-so we are effectively writing the whole object
-*/
-int
-NCZ_s3sdkwriteobject(void* s3client0, const char* pathkey,  size64_t count, const void* content, char** errmsgp)
-{
-    int stat = NC_NOERR;
-    char* bucket = NULL;
-    const char* key = NULL;
-    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
-    Aws::S3::Model::PutObjectRequest put_request;
-
-    if(*pathkey != '/') return NC_EINTERNAL;
-    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
-    
-    if(errmsgp) *errmsgp = NULL;
-    put_request.SetBucket(bucket);
-    put_request.SetKey(key);
-    put_request.SetContentLength((long long)count);
-
-    std::shared_ptr<Aws::IOStream> data = std::shared_ptr<Aws::IOStream>(new Aws::StringStream());
-    data->rdbuf()->pubsetbuf((char*)content,count);
-    put_request.SetBody(data);
-    auto put_result = s3client->PutObject(put_request);
-    if(!put_result.IsSuccess()) {
-        if(errmsgp) *errmsgp = makeerrmsg(put_result.GetError(),key);
-        stat = NC_ES3;
-    }
-    return (stat);
-}
+#endif /*0*/
 
 int
-NCZ_s3sdkclose(void* s3client0, void* config0)
+NCZ_s3sdkclose(void* s3client0, void* config0, const char* bucket, const char* rootkey, int deleteit, char** errmsgp)
 {
     int stat = NC_NOERR;
     Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
     Aws::Client::ClientConfiguration *config = (Aws::Client::ClientConfiguration*)config0;
+    if(deleteit) {
+        /* Delete the root key; ok it if does not exist */
+        switch (stat = NCZ_s3sdkdeletekey(s3client0,bucket,rootkey,errmsgp)) {
+        case NC_NOERR: break;
+        case NC_ENODATA: case NC_ENOTFOUND: stat = NC_NOERR; break;
+        default: break;
+        }
+    }
     delete s3client;
     delete config;
     return (stat);
 }
 
 /*
-Return a list of keys "below" a specified prefix.
+Return a list of keys for objects "below" a specified rootkey.
 In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
 */
 int
-NCZ_s3sdkgetkeys(void* s3client0, const char* prefix, size_t* nkeysp, char*** keysp, char** errmsgp)
+NCZ_s3sdkgetkeys(void* s3client0, const char* bucket, const char* rootkey0, size_t* nkeysp, char*** keysp, char** errmsgp)
 {
     int stat = NC_NOERR;
     Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
     size_t nkeys = 0;
-    char* bucket = NULL;
     const char* rootkey = NULL;
     Aws::S3::Model::ListObjectsV2Request objects_request;
 
-    if(*prefix != '/') return NC_EINTERNAL;
-    if((stat = getbucket(prefix,&bucket,&rootkey))) return stat;
+    if(*rootkey0 != '/') return NC_EINTERNAL;
+    if((stat = makes3key(rootkey0,&rootkey))) return stat;
 
     if(errmsgp) *errmsgp = NULL;
     objects_request.SetBucket(bucket);
@@ -406,16 +425,15 @@ NCZ_s3sdkgetkeys(void* s3client0, const char* prefix, size_t* nkeysp, char*** ke
 }
 
 int
-NCZ_s3sdkdeletekey(void* s3client0, const char* pathkey, char** errmsgp)
+NCZ_s3sdkdeletekey(void* s3client0, const char* bucket, const char* pathkey, char** errmsgp)
 {
     int stat = NC_NOERR;
     Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
     Aws::S3::Model::DeleteObjectRequest delete_request;
-
-#ifdef NOOP
-    char* bucket = NULL;
     const char* key = NULL;
-    if((stat = getbucket(pathkey,&bucket,&key))) return stat;
+
+    if(*pathkey != '/') return NC_EINTERNAL;
+    if((stat = makes3key(pathkey,&key))) return stat;
     /* Delete this key object */
     delete_request.SetBucket(bucket);
     delete_request.SetKey(key);
@@ -424,10 +442,6 @@ NCZ_s3sdkdeletekey(void* s3client0, const char* pathkey, char** errmsgp)
         if(errmsgp) *errmsgp = makeerrmsg(delete_result.GetError(),key);
         stat = NC_ES3;
     }
-#else
-    fprintf(stderr,"delete object: %s.%s\n",bucket,key); fflush(stderr);
-#endif
-
     return stat;
 }
 
@@ -441,8 +455,21 @@ s3objectinfo1(const Aws::S3::Model::Object& s3_object, char** fullkeyp, size64_t
     char* cstr = NULL;
 
     if(fullkeyp) {
+	const char* key = NULL;
+	char* cstr = NULL;
         auto s = s3_object.GetKey();
-        cstr = strdup(s.c_str());
+	key = s.c_str();
+	if(key[0] == '/') {
+	    cstr = strdup(key);
+	} else {
+	    size_t len = strlen(key);
+	    cstr = (char*)malloc(len+1+1);
+	    if(cstr != NULL) {
+	        cstr[0] = '/';
+	        memcpy((void*)(cstr+1),(void*)key,len);	    
+		cstr[len+1] = '\0';	    
+	    }
+	}
         if(cstr == NULL) {
             stat = NC_ENOMEM;
 	} else if(fullkeyp) {
@@ -458,7 +485,7 @@ s3objectinfo1(const Aws::S3::Model::Object& s3_object, char** fullkeyp, size64_t
 }
 
 /*
-Get Info about a vector of objects
+Get Info about a vector of objects; Keys are fixed up to start with a '/'
 */
 static int
 s3objectsinfo(Aws::Vector<Aws::S3::Model::Object> list, size_t* nkeysp, char*** keysp, size64_t** lenp)
@@ -519,21 +546,9 @@ freestringenvv(char** ss)
 }
 
 static int
-getbucket(const char* pathkey, char** bucketp, const char** keyp)
+makes3key(const char* pathkey, const char** keyp)
 {
-    const char* p;
     assert(pathkey != NULL && pathkey[0] == '/');
-    p = strchr(pathkey+1,'/'); /* find end of the bucket */
-    if(p == NULL)
-        return NC_EURL;
-    if(keyp) *keyp = p+1;
-    if(bucketp) {
-        char* bucket = NULL;
-        ptrdiff_t len = ((p - pathkey) - 1);
-        if((bucket = (char*)malloc(len+1))==NULL) {return NC_ENOMEM;}
-        memcpy(bucket,pathkey+1,len);
-        bucket[len] = '\0';
-        *bucketp = bucket; bucket = NULL;
-    }
+    if(keyp) *keyp = pathkey+1;
     return NC_NOERR;    
 }

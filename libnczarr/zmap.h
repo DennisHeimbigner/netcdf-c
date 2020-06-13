@@ -14,37 +14,60 @@ This API essentially implements a simplified variant
 of the Amazon S3 API. Specifically, we have the following
 kinds of things.
 
-1. Dataset - equivalent of the S3 bucket; root of all the data
-and metadata for a dataset. Each dataset is associated with an arbitrary
-number of "objects", where each object has a unique key (i.e. name).
-2. Object - equivalent of the S3 object; Each object has a unique key
-and "contains" data in the form of an arbitrary sequence of 8-bit bytes.
-
 As with Amazon S3, keys are utf8 strings with a specific structure:
 that of a path similar to those of a Unix path with '/' as the
 separator for the segments of the path.
 
-As with Unix, all paths have this BNF syntax:
+As with Unix, all keys have this BNF syntax:
 <pre>
-path: '/' | path segment ;
+key: '/' | key segment ;
 segment: <sequence of UTF-8 characters except control characters and '/'>
 </pre>
 
-Obviously, this path structure imposes a tree structure on the set
-of objects where one object is "contained" (possibly transitively)
-by another if one path is a prefix (in the string sense) of the other.
+Obviously, one can infer a tree structure from this key structure.
+A containment relationship is defined by key prefixes.
+Thus one key is "contained" (possibly transitively)
+by another if one key is a prefix (in the string sense) of the other.
+So in this sense the key "/x/y/z" is contained by the key  "/x/y".
+
+As with S3, a key refers to an "object" that can contain content.
+An important restriction is placed on the structure of the tree.
+Namely, keys are only defined for content-bearing objects.
+Further, all the leaves of the tree are these content-bearing objects.
+This means that the key for one content-bearing object cannot
+be a prefix of any other key.
+
+There several other concepts of note.
+1. Dataset - a dataset is the complete tree contained by the key defining
+the root of the dataset.
+2. Object - equivalent of the S3 object; Each object has a unique key
+and "contains" data in the form of an arbitrary sequence of 8-bit bytes.
 
 Notes:
-1. Implementing the search function is optional. It has two purposes:
+1. The search function is optional. It has two purposes:
    a. Support reading of pure zarr datasets (because they do not explicitly
       track their contents).
    b. Debugging to allow raw examination of the storage. See zdump
       for example.
 
+The zmap API defined here isolates the key-value pair mapping code
+from the Zarr-based implementation of NetCDF-4.
+
+It wraps an internal C dispatch table manager
+for implementing an abstract data structure
+implementing the key/object model.
+
 Issues:
 1. S3 limits key lengths to 1024 bytes. Some deeply nested netcdf files
 will almost certainly exceed this limit.
+2. Besides content, S3 objects can have an associated small set
+of what may be called tags, which are themselves of the form of
+key-value pairs, but where the key and value are always text. As
+far as it is possible to determine, Zarr never uses these tags,
+so they are not included in the zmap data structure.
 
+The current set of operations defined for zmaps are define with the
+generic nczm_xxx functions below.
 */
 
 #ifndef ZMAP_H
@@ -53,9 +76,6 @@ will almost certainly exceed this limit.
 #define NCZM_SEP "/"
 
 #define NCZM_DOT '.'
-
-/* Mnemonic */
-#define NCZ_ISMETA 0
 
 /* Forward */
 typedef struct NCZMAP_API NCZMAP_API;
@@ -98,19 +118,14 @@ typedef struct NCZMAP {
 struct NCZMAP_API {
     int version;
 
+    /* Map Operations */
+        int (*close)(NCZMAP* map, int deleteit);
     /* Object Operations */
 	int (*exists)(NCZMAP* map, const char* key);
-	int (*len)(NCZMAP* map, const char* key, size64_t* lenp);
-	/* Define an object; do nothing if already exists */
-	int (*define)(NCZMAP* map, const char* key, size64_t len);
-	/* Read/write data */
+	int (*len)(NCZMAP* map, const char* key, size64_t* sizep);
+	int (*defineobj)(NCZMAP* map, const char* key);
 	int (*read)(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
 	int (*write)(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
-	/* Read/write metadata (e.g. Json)*/
-	int (*readmeta)(NCZMAP* map, const char* key, size64_t count, char* content);
-	int (*writemeta)(NCZMAP* map, const char* key, size64_t count, const char* content);
-        int (*close)(NCZMAP* map, int deleteit);
-	/* Return the set of keys immediately "below" a specified prefix */
         int (*search)(NCZMAP* map, const char* prefix, NClist* matches);
 };
 
@@ -128,29 +143,113 @@ extern "C" {
 /* Object API Wrappers; note that there are no group operations
    because group keys do not map to directories.
    */
+
+/**
+Check if a specified content-bearing object exists or not.
+@param map -- the containing map
+@param key -- the key specifying the content-bearing object
+@return NC_NOERR if the object exists
+@return NC_ENOTFOUND if the object does not exist
+@return NC_EXXX if the operation failed for one of several possible reasons
+*/
 extern int nczmap_exists(NCZMAP* map, const char* key);
-extern int nczmap_len(NCZMAP* map, const char* key, size64_t* lenp);
-extern int nczmap_define(NCZMAP* map, const char* key, size64_t lenp);
+
+/**
+Return the current size of a specified content-bearing object exists or not.
+@param map -- the containing map
+@param key -- the key specifying the content-bearing object
+@param sizep -- the object's size is returned thru this pointer.
+@return NC_NOERR if the object exists
+@return NC_ENOTFOUND if the object does not exist
+@return NC_EXXX if the operation failed for one of several possible reasons
+*/
+extern int nczmap_len(NCZMAP* map, const char* key, size64_t* sizep);
+
+/**
+Create a specified content-bearing object.
+@param map -- the containing map
+@param key -- the key specifying the content-bearing object
+@return NC_NOERR if the object is created
+@return NC_ENOTFOUND if the object does not exist
+@return NC_EXXX if the operation failed for one of several possible reasons
+*/
+extern int nczmap_defineobj(NCZMAP* map, const char* key);
+
+/**
+Read the content of a specified content-bearing object.
+@param map -- the containing map
+@param key -- the key specifying the content-bearing object
+@param start -- offset into the content to start reading
+@param count -- number of bytes to read
+@param content -- read the data into this memory
+@return NC_NOERR if the operation succeeded
+@return NC_ENOTFOUND if the object does not exist
+@return NC_EXXX if the operation failed for one of several possible reasons
+*/
 extern int nczmap_read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
+
+/**
+Write the content of a specified content-bearing object.
+@param map -- the containing map
+@param key -- the key specifying the content-bearing object
+@param start -- offset into the content to start writing
+@param count -- number of bytes to write
+@param content -- write the data from this memory
+@return NC_NOERR if the operation succeeded
+@return NC_ENOTFOUND if the object does not exist
+@return NC_EXXX if the operation failed for one of several possible reasons
+*/
 extern int nczmap_write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
-extern int nczmap_readmeta(NCZMAP* map, const char* key, size64_t count, char* content);
-extern int nczmap_writemeta(NCZMAP* map, const char* key, size64_t count, const char* content);
-extern int nczmap_close(NCZMAP* map, int deleteit);
+
+/**
+Return a vector of keys representing the content-bearing
+objects that are immediately contained by the prefix key.
+@param map -- the containing map
+@param prefix -- the key into the tree where the search is to occur
+@param matches -- return the set of keys in this list
+@return NC_NOERR if the operation succeeded
+@return NC_EXXX if the operation failed for one of several possible reasons
+*/
 extern int nczmap_search(NCZMAP* map, const char* prefix, NClist* matches);
+
+/**
+Close a map
+@param map -- the map to close
+@param deleteit-- if true, then delete the corresponding dataset
+@return NC_NOERR if the operation succeeded
+@return NC_ENOTFOUND if the object does not exist
+@return NC_EXXX if the operation failed for one of several possible reasons
+*/
+extern int nczmap_close(NCZMAP* map, int deleteit);
 
 /* Create/open and control a dataset using a specific implementation */
 extern int nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
 extern int nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
 
 /* Utility functions */
+
+/** Split a path into pieces along '/' character; elide any leading '/' */
 extern int nczm_split(const char* path, NClist* segments);
+
+/* Split a path into pieces along some character; elide any leading char */
 extern int nczm_split_delim(const char* path, char delim, NClist* segments);
-extern int nczm_join_delim(NClist* segments, int nsegs, const char* prefix, char delim, char** pathp);
+
+/* Convenience: Join all segments into a path using '/' character */
 extern int nczm_join(NClist* segments, char** pathp);
+
+/* Convenience: concat two strings; caller frees */
 extern int nczm_concat(const char* prefix, const char* suffix, char** pathp);
-extern int nczm_divide(const char* key, int nsegs, char** prefixp, char** suffixp);
+
+/* Break a key into prefix and suffix, where prefix is the first nsegs segments;
+   nsegs can be negative to specify that suffix is |nsegs| long
+*/
+extern int nczm_divide_at(const char* key, int nsegs, char** prefixp, char** suffixp);
+
+/* Reclaim the content of a map but not the map itself */
 extern int nczm_clear(NCZMAP* map);
-extern int nczm_isabsolutepath(const char*);
+
+/* Return 1 if path is absolute; takes Windows drive letters into account */
+extern int nczm_isabsolutepath(const char* path);
 
 #ifdef __cplusplus
 }
