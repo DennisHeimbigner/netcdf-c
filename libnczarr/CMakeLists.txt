@@ -5,7 +5,7 @@
 #
 # Dennis Heimbigner
 
-add_compile_options("/showincludes")
+#add_compile_options("/showincludes")
 
 # The source files for the HDF5 dispatch layer.
 SET(libnczarr_SOURCES
@@ -16,7 +16,6 @@ zchunking.c
 zclose.c
 zcreate.c
 zcvt.c
-zdebug.c
 zdim.c
 zdispatch.c
 zfile.c
@@ -24,6 +23,9 @@ zfilter.c
 zgrp.c
 zinternal.c
 zjson.c
+zmap.c
+zmap_nz4.c
+zmap_nzf.c
 zodom.c
 zopen.c
 zprov.c
@@ -32,21 +34,23 @@ ztype.c
 zutil.c
 zvar.c
 zwalk.c
-zmap.c
-zmap_nz4.c
-zmap_nzf.c
-zdispatch.h
-zinternal.h
+zdebug.c
+zarr.h
+zcache.h
 zchunking.h
-zjson.h
+zdispatch.h
 zincludes.h
+zinternal.h
+zjson.h
 zmap.h
+zodom.h
 zprovenance.h
 zdebug.h
 )
 
 IF(ENABLE_S3_SDK) 
-SET(libnczarr_SOURCES ${libnczarr_SOURCES} zmap_s3sdk.c zs3sdkwrap.cpp)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+SET(libnczarr_SOURCES ${libnczarr_SOURCES} zs3sdk.cpp zmap_s3sdk.c awsincludes.h zs3sdk.h)
 ENDIF()
 
 # Build the Zarr dispatch layer as a library that will be included in

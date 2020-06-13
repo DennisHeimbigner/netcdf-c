@@ -1,3 +1,4 @@
+
 ## This is a CMake file, part of Unidata's netCDF package.
 # Copyright 2012-2018, see the COPYRIGHT file for more information.
 #
@@ -10,7 +11,7 @@
 cmake_minimum_required(VERSION 3.6.1)
 
 #Project Name
-project(netCDF C)
+project(netCDF LANGUAGES C CXX)
 set(PACKAGE "netCDF" CACHE STRING "")
 
 #####
@@ -232,7 +233,7 @@ IF(CMAKE_COMPILER_IS_GNUCC OR APPLE)
     MESSAGE(STATUS "Coverage Tests: On.")
   ENDIF()
 
-    # Warnings for 64-to-32 bit conversions.
+  # Warnings for 64-to-32 bit conversions.
   IF(ENABLE_CONVERSION_WARNINGS)
     CHECK_C_COMPILER_FLAG(-Wconversion CC_HAS_WCONVERSION)
     CHECK_C_COMPILER_FLAG(-Wshorten-64-to-32 CC_HAS_SHORTEN_64_32)
@@ -269,8 +270,6 @@ SET(CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/libsrc)
 ################################
 # End Compiler Configuration
 ################################
-
-
 
 ##
 # Configuration for post-install RPath
@@ -938,6 +937,7 @@ FIND_LIBRARY(AWS_C_COMMON_LIB NAMES aws-c-common)
 
 IF(ENABLE_S3)
   IF(AWS_CPP_SDK_CORE_LIB AND AWS_CPP_SDK_S3_LIB AND AWS_C_COMMON_LIB)
+      MESSAGE(STATUS "Found aws sdk libraries")
       SET(ENABLE_S3_SDK ON CACHE BOOL "")
   ELSE()
     MESSAGE(WARN "Can't find or link to one of aws-c-common, aws-cpp-sdk-s3, or aws-cpp-sdk-core libraries")
@@ -946,6 +946,13 @@ IF(ENABLE_S3)
 ELSE()
   SET(ENABLE_S3_SDK OFF CACHE BOOL "")
 ENDIF()
+
+IF(ENABLE_S3_SDK)
+IF(CMAKE_COMPILER_IS_GNUCC OR APPLE)
+#  SET(LDFLAGS "${LDFLAGS} ${AWS_CPP_SDK_CORE_LIB} ${AWS_CPP_SDK_S3_LIB} ${AWS_C_COMMON_LIB}")
+#  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lstdc++")
+ENDIF(CMAKE_COMPILER_IS_GNUCC OR APPLE)
+ENDIF(ENABLE_S3_SDK)
 
 ##
 # Enable Tests
@@ -1347,6 +1354,7 @@ CHECK_INCLUDE_FILE("winsock2.h" HAVE_WINSOCK2_H)
 CHECK_INCLUDE_FILE("ftw.h"  HAVE_FTW_H)
 CHECK_INCLUDE_FILE("libgen.h" HAVE_LIBGEN_H)
 CHECK_INCLUDE_FILE("execinfo.h" HAVE_EXECINFO_H)
+CHECK_INCLUDE_FILE("dirent.h" HAVE_DIRENT_H)
 
 # Symbol Exists
 CHECK_SYMBOL_EXISTS(isfinite "math.h" HAVE_DECL_ISFINITE)
@@ -1640,6 +1648,23 @@ MACRO(add_bin_test prefix F)
     SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG
       ${CMAKE_CURRENT_BINARY_DIR})
     SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
+      ${CMAKE_CURRENT_BINARY_DIR})
+  ENDIF()
+ENDMACRO()
+
+# Binary tests which are used by a script looking for a specific name.
+MACRO(build_bin_test_sourced F)
+  ADD_EXECUTABLE(${F} ${F}.c ${ARGN})
+  TARGET_LINK_LIBRARIES(${F} netcdf ${ALL_TLL_LIBS})
+  IF(MSVC)
+    SET_TARGET_PROPERTIES(${F}
+      PROPERTIES LINK_FLAGS_DEBUG " /NODEFAULTLIB:MSVCRT"
+      )
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
       ${CMAKE_CURRENT_BINARY_DIR})
   ENDIF()
 ENDMACRO()

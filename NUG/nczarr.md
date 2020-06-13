@@ -333,16 +333,28 @@ zarr format.
 
 # Appendix A. Building NCZarr Support {#nczarr_build}
 
-Currently only the automake build using the ./configure command is supported.
+Currently only the following build cases are supported.
+
+Operating System | Supported Build Systems
+------------------------------------------
+Linux            | Automake, CMake
+OS-X             | Automake, CMake
+Visual Studio    | N.A.
+
 There are several options relevant to NCZarr support and to Amazon S3 support.
 These are as follows.
 
-1. _--enable-zarr_ -- enable the NCZarr support. If disabled, then all of the following options are disabled or irrelevant.
+1. _--enable-nczarr_ -- enable the NCZarr support. If disabled, then all of the following options are disabled or irrelevant.
 2. &nbsp;&nbsp;_aws-c-common aws-cpp-sdk-s3_ and _aws-cpp-sdk-core_ -- if these libraries are available, then Amazon S3 support is enabled for NCZarr.
 3. _--disable-s3_ -- even if the aws libraries are available, this option will forcibly disable Amazon S3 support.
 <!--
 4. '--enable-xarray-dimension' -- this enables the xarray support described in the section on <a href="#nczarr_compatibility">compatibility</a>.
 -->
+
+The CMake equivalents are as follows:
+* _--enable-nczarr_ => ENABLE_NCZARR=ON
+* _--disable-s3_ => ENABLE_S3=OFF
+
 
 If S3 support is desired, then LDFLAGS should be properly set, namely this.
 ````

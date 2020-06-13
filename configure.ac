@@ -449,6 +449,7 @@ fi
 #fi
 if test "x$enable_nczarr" = xyes; then
    AC_DEFINE([ENABLE_NCZARR], [1], [if true, build NCZarr Client])
+   AC_SUBST(ENABLE_NCZARR)
 fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
@@ -474,6 +475,7 @@ if test "x$have_aws" = xyes ; then
 fi
 if test "x$have_aws" = xyes ; then
   AC_DEFINE([ENABLE_S3_SDK], [1], [if true, build libnczarr with S3 support enabled])
+   AC_SUBST(ENABLE_S3_SDK)
 fi
 AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$have_aws" = xyes])
 
@@ -1532,6 +1534,7 @@ AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
 AC_SUBST(RELAX_COORD_BOUND,[yes])
 AC_SUBST([HAS_PAR_FILTERS], [$hdf5_supports_par_filters])
 AC_SUBST(HAS_NCZARR,[$enable_nczarr])
+AC_SUBST(HAS_S3_SDK,[$enable_s3_sdk])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],

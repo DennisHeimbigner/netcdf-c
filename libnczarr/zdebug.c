@@ -27,7 +27,9 @@ zthrow(int err, const char* file, int line)
     fprintf(stderr,"THROW: %s/%d: (%d) %s\n",file,line,err,nc_strerror(err));
     fflush(stderr);
 #endif
+#ifdef HAVE_EXECINFO_H
     NCZbacktrace();
+#endif
     return zbreakpoint(err);
 }
 #endif

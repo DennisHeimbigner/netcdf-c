@@ -3,7 +3,25 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-#include "ut_includes.h"
+#include "config.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif
+
+#ifdef HAVE_GETOPT_H
+#include <getopt.h>
+#endif
+
+#ifdef _WIN32
+#include "XGetopt.h"
+#endif
+
+#include "zincludes.h"
 
 #define DEBUG
 
@@ -30,7 +48,7 @@ static char* rootpathfor(const char* path);
 static int ismetakey(const char* key);
 
 #define NCCHECK(expr) nccheck((expr),__LINE__)
-void nccheck(int stat, int line)
+static void nccheck(int stat, int line)
 {
     if(stat) {
 	fprintf(stderr,"%d: %s\n",line,nc_strerror(stat));

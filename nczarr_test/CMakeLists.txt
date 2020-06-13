@@ -17,31 +17,42 @@ FILE(COPY ${COPY_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/ FILE_PERMISSION
 
 IF(ENABLE_TESTS)
 
+  SET(COMMONSRC ut_util.c ut_test.c)
+
   # Base tests
   # The tests are set up as a combination of shell scripts and executables that
   # must be run in a particular order. It is painful but will use macros to help
   # keep it from being too bad.
 
-  BUILD_BIN_TEST(ut_json)
-  BUILD_BIN_TEST(ut_map)
-  BUILD_BIN_TEST(ut_projections)
+  BUILD_BIN_TEST_SOURCED(ut_map ${COMMONSRC})
+  BUILD_BIN_TEST_SOURCED(ut_mapapi ${COMMONSRC})
+  BUILD_BIN_TEST_SOURCED(ut_json ${COMMONSRC})
+  BUILD_BIN_TEST_SOURCED(ut_projections ${COMMONSRC})
+  BUILD_BIN_TEST_SOURCED(ut_chunking ${COMMONSRC})
 
-  TARGET_INCLUDE_DIRECTORIES(ut_json PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_map PUBLIC ../libnczarr)
+  TARGET_INCLUDE_DIRECTORIES(ut_mapapi PUBLIC ../libnczarr)
+  TARGET_INCLUDE_DIRECTORIES(ut_json PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_projections PUBLIC ../libnczarr)
+  TARGET_INCLUDE_DIRECTORIES(ut_chunking PUBLIC ../libnczarr)
 
-  # Integration tests
+  BUILD_BIN_TEST_SOURCED(zmapdump ${COMMONSRC})
+  TARGET_INCLUDE_DIRECTORIES(zmapdump PUBLIC ../libnczarr)
+
+# Integration tests
 #  BUILD_BIN_TEST(it_meta)
 #  TARGET_INCLUDE_DIRECTORIES(it_meta PUBLIC ../libnczarr)
 
   IF(BUILD_UTILITIES)
-    add_sh_test(nczarr_test run_unittests)
-    add_sh_test(nczarr_test run_meta_tests)
+    add_sh_test(nczarr_test run_ut_map)
+    add_sh_test(nczarr_test run_ut_mapapi)
+    add_sh_test(nczarr_test run_ut_misc)
+    add_sh_test(nczarr_test run_ut_chunk)
   ENDIF(BUILD_UTILITIES)
 
 ENDIF(ENABLE_TESTS)
 
 ## Specify files to be distributed by 'make dist'
 FILE(GLOB CUR_EXTRA_DIST RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*.c ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.sh ${CMAKE_CURRENT_SOURCE_DIR}/*.cdl)
-SET(CUR_EXTRA_DIST ${CUR_EXTRA_DIST} CMakeLists.txt Makefile.am)
+SET(CUR_EXTRA_DIST ${CUR_EXTRA_DIST} CMakeLists.txt Makefile.am zmapdump.c)
 ADD_EXTRA_DIST("${CUR_EXTRA_DIST}")

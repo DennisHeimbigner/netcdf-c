@@ -45,7 +45,6 @@ zjson.c \
 zmap.c \
 zmap_nz4.c \
 zmap_nzf.c \
-zmap_s3sdk.c \
 zodom.c \
 zopen.c \
 zprov.c \

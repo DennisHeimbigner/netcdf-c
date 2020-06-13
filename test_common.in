@@ -7,6 +7,8 @@
 
 TOPSRCDIR='@abs_top_srcdir@'
 TOPBUILDDIR='@abs_top_builddir@'
+ENABLENCZARR='@HAS_NCZARR@'
+ENABLES3='@HAS_S3_SDK@'
 
 set -e
 
