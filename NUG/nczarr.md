@@ -288,6 +288,7 @@ In order to accomodate existing implementations, certain mode tags are
 provided to tell the NCZarr code to look for information used
 by specific implementations.
 
+<!--
 ## XArray
 
 The Xarray
@@ -296,9 +297,9 @@ Zarr implementation uses its own mechanism for
 specifying shared dimensions. It uses a special
 attribute named ''_ARRAY_DIMENSIONS''.
 The value of this attribute is a list of dimension names (strings), for example ````["time", "lon", "lat"]````.
-
-# Building NCZarr Support {#nczarr_build}
-
+If enabled and detected, then these dimension names are used
+to define shared dimensions.
+-->
 
 # Examples {#nczarr_examples}
 
@@ -306,11 +307,11 @@ Here are a couple of examples using the _ncgen_ and _ncdump_ utilities.
 
 1. Create an nczarr file using a local directory tree as storage.
     ```
-    ncgen -4 -lb -o "file:///home/user/dataset.nzf#mode=nczarr" dataset.cdl
+    ncgen -4 -lb -o "file:///home/user/dataset.nzf#mode=nczarr,nzf" dataset.cdl
     ```
 1. Display the content of an nczarr file using a local directory tree as storage.
     ```
-    ncdump "file:///home/user/dataset.nzf#mode=nczarr"
+    ncdump "file:///home/user/dataset.nzf#mode=nczarr,nzf"
     ```
 1. Create an nczarr file using S3 as storage.
     ```
@@ -330,8 +331,30 @@ zarr format.
 <a name="ref_zarrv2">[4]</a> [Zarr Version 2 Specification](https://zarr.readthedocs.io/en/stable/spec/v2.html)<br>
 <a name="ref_xarray">[5]</a> [XArray Zarr Encoding Specification](http://xarray.pydata.org/en/latest/internals.html#zarr-encoding-specification)<br>
 
-Appendix A. Building aws-sdk-cpp {#nczarr_s3sdk}
-==========
+# Appendix A. Building NCZarr Support {#nczarr_build}
+
+Currently only the automake build using the ./configure command is supported.
+There are several options relevant to NCZarr support and to Amazon S3 support.
+These are as follows.
+
+1. _--enable-zarr_ -- enable the NCZarr support. If disabled, then all of the following options are disabled or irrelevant.
+2. &nbsp;&nbsp;_aws-c-common aws-cpp-sdk-s3_ and _aws-cpp-sdk-core_ -- if these libraries are available, then Amazon S3 support is enabled for NCZarr.
+3. _--disable-s3_ -- even if the aws libraries are available, this option will forcibly disable Amazon S3 support.
+<!--
+4. '--enable-xarray-dimension' -- this enables the xarray support described in the section on <a href="#nczarr_compatibility">compatibility</a>.
+-->
+
+If S3 support is desired, then LDFLAGS should be properly set, namely this.
+````
+LDFLAGS="$LDFLAGS -L/usr/local/lib -laws-cpp-sdk-s3 aws-cpp-sdk-core"
+````
+The above assumes that these libraries were installed in '/usr/local/lib', so the above
+requires modification if they were installed elsewhere.
+
+Note also that if S3 support is enabled, then you need to have a C++ compiler installed
+because part of the S3 support code is written in C++.
+
+# Appendix B. Building aws-sdk-cpp {#nczarr_s3sdk}
 
 In order to use the S3 storage driver, it is necessary to
 install the Amazon [aws-sdk-cpp library](https://github.com/aws/aws-sdk-cpp.git).
@@ -341,16 +364,13 @@ to build that library. It assumes that it is being executed
 in a build directory, `build` say, and that `build/../CMakeLists.txt exists`.
 ```
 cmake -DFORCE_CURL=ON -DBUILD_ONLY=s3 -DMINIMIZE_SIZE=ON -DBUILD_DEPS=OFF -DCMAKE_CXX_STANDARD=14 ..
-
 ```
 
 The expected set of installed libraries are as follows:
 * aws-cpp-sdk-s3
 * aws-cpp-sdk-core
 
-
-Appendix B. Amazon S3 Imposed Limits {#nczarr_s3limits}
-==========
+# Appendix C. Amazon S3 Imposed Limits {#nczarr_s3limits}
 
 The Amazon S3 cloud storage imposes some significant limits
 that are inherited by NCZarr (and Zarr also, for that matter). 
@@ -359,13 +379,11 @@ Some of the relevant limits are as follows:
 1. The maximum object size is 5 Gigabytes with a total
 for all objects limited to 5 Terabytes.
 2. S3 key names can be any UNICODE name with a maximum length of 1024
-characters. It is unclear if the 1024 refers to unicode characters or
-8-bit bytes (codepoints). This affect the depth to which groups can be
-nested because the key encodes the full path name of a group.
+bytes. Note that the limit is defined in terms of bytes and not (Unicode) characters. This affects the depth to which groups can be nested because the key encodes the full path name of a group.
 
 # __Point of Contact__ {#nczarr_poc}
 
 __Author__: Dennis Heimbigner<br>
 __Email__: dmh at ucar dot edu<br>
 __Initial Version__: 4/10/2020<br>
-__Last Revised__: 4/12/2020
+__Last Revised__: 6/8/2020

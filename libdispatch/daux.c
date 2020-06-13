@@ -66,11 +66,10 @@ static int reclaim_compound(int ncid, int xtype, size_t size, size_t nfields, Po
 static int reclaim_vlen(int ncid, int xtype, int basetype, Position* offset);
 static int reclaim_enum(int ncid, int xtype, int basetype, size_t, Position* offset);
 static int reclaim_opaque(int ncid, int xtype, size_t size, Position* offset);
-static void ncaux_freestringvec(int n, char** vec);
-
 static int computefieldinfo(struct NCAUX_CMPD* cmpd);
 #endif /* USE_NETCDF4 */
 
+static void ncaux_freestringvec(int n, char** vec);
 /**************************************************/
 
 /**

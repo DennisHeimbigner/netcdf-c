@@ -443,10 +443,10 @@ AC_MSG_ERROR([netCDF-4 disabled, so you must not enable nczarr])
 enable_nczarr=no
 fi
 fi
-if test "x$havecurloption" = xno ; then
-  AC_MSG_ERROR([nczarr support requires libcurl. Install curl or build without --enable-zarr.])
-  enable_nczarr=no
-fi
+#if test "x$havecurloption" = xno ; then
+#  AC_MSG_ERROR([nczarr support requires libcurl. Install curl or build without --enable-zarr.])
+#  enable_nczarr=no
+#fi
 if test "x$enable_nczarr" = xyes; then
    AC_DEFINE([ENABLE_NCZARR], [1], [if true, build NCZarr Client])
 fi
