@@ -194,7 +194,9 @@ nczm_join(NClist* segments, char** pathp)
 	{stat = NC_EINVAL; goto done;}
     if((buf = ncbytesnew())==NULL)
 	{stat = NC_ENOMEM; goto done;}
-    for(i=0;i<nclistlength(segments);i++) {
+    if(nclistlength(segments) == 0)
+        ncbytescat(buf,"/");
+    else for(i=0;i<nclistlength(segments);i++) {
 	const char* seg = nclistget(segments,i);
 	ncbytescat(buf,"/");
 	ncbytescat(buf,seg);		

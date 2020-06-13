@@ -27,6 +27,7 @@ static NCZM_IMPL implfor(const char* path);
 static void printcontent(size64_t len, const char* content,int ismeta);
 static int depthR(NCZMAP* map, char* key, NClist* stack);
 static char* rootpathfor(const char* path);
+static int ismetakey(const char* key);
 
 #define NCCHECK(expr) nccheck((expr),__LINE__)
 void nccheck(int stat, int line)
@@ -185,8 +186,6 @@ objdump(void)
     NCZMAP* map = NULL;
     NClist* matches = nclistnew();
     NClist* stack = nclistnew();
-    char* prefix = NULL;
-    char* suffix = NULL;
     char* obj = NULL;
     char* content = NULL;
     int depth;
@@ -210,13 +209,13 @@ objdump(void)
 	int hascontent = 0;
 	obj = nclistremove(stack,0); /* zero pos is always top of stack */
 	/* Now print info for this obj key */
-        if((stat=nczm_divide_at(obj,-1,&prefix,&suffix))) goto done;
         switch (stat=nczmap_len(map,obj,&len)) {
 	    case NC_NOERR: hascontent = 1; break;
 	    case NC_ENODATA: /* fall thru */ /* this is not a content bearing key */
 	    case NC_EACCESS: hascontent = 0; len = 0; stat = NC_NOERR; break;
 	    default: goto done;
 	}
+	if(!hascontent) goto next; /* ignore it */
 	if(len > 0) {
 	    content = malloc(len+1);
   	    if((stat=nczmap_read(map,obj,0,len,content))) goto done;
@@ -228,7 +227,8 @@ objdump(void)
 	    if(len > 0) {
 	        assert(content != NULL);
                 printf("[%d] %s : (%llu) |",depth,obj,len);
-                if(suffix[0] == '.') ismeta = 1;
+	        if(ismetakey(obj))
+		    ismeta = 1;
 	        printcontent(len,content,ismeta);
 	        printf("|\n");
 	    } else {
@@ -238,15 +238,12 @@ objdump(void)
 	    printf("[%d] %s\n",depth,obj);
 	}
 	nullfree(content); content = NULL;
-	nullfree(prefix); prefix = NULL;
-	nullfree(suffix); suffix = NULL;
+next:
 	nullfree(obj); obj = NULL;
     }
 done:
     nullfree(obj);
     nullfree(content);
-    nullfree(prefix);
-    nullfree(suffix);
     nczmap_close(map,0);
     nclistfreeall(matches);
     nclistfreeall(stack);
@@ -291,4 +288,17 @@ printcontent(size64_t len, const char* content, int ismeta)
 	    printf("%c%c",(char)c1,(char)c0);
         }
     }
+}
+
+static int
+ismetakey(const char* key)
+{
+    char* suffix = NULL;
+    int ismeta = 0;
+    if(nczm_divide_at(key,-1,NULL,&suffix) == NC_NOERR) {
+        if(suffix && suffix[0] == '/' && suffix[1] == '.')
+	    ismeta = 1;
+    }
+    nullfree(suffix);
+    return ismeta;
 }
