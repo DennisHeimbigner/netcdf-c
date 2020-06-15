@@ -465,11 +465,11 @@ mergekey(NClist** valuesp)
 
     for(i=0;i<nclistlength(values);i++) {
 	char* val1 = nclistget(values,i);
-	/* split on commas and put pieces into newvalues */
+	/* split on commas and put pieces into allvalues */
 	if((stat=parseonchar(val1,',',allvalues))) goto done;
     }
     /* Remove duplicates and "" */
-    for(i=0;i<nclistlength(allvalues);i++) {
+    while(nclistlength(allvalues) > 0) {
 	value = nclistremove(allvalues,i);
 	if(strlen(value) == 0) {
 	    nullfree(value); value = NULL;

@@ -70,11 +70,14 @@ ref_ut_testmap_create_nz4.cdl \
 ref_ut_proj.txt \
 ref_ut_map_create_nzf.cdl \
 ref_ut_mapapi_create_nz4.cdl \
-ref_ut_mapapi_writemeta_nz4.cdl \
-ref_ut_mapapi_write2meta_nz4.cdl \
-ref_ut_mapapi_meta_nz4.cdl \
+ref_ut_mapapi_create_nzf.cdl \
+ref_ut_mapapi_create_s3.cdl \
 ref_ut_mapapi_data_nz4.cdl \
-ref_ut_mapapi_search_nz4.txt
+ref_ut_mapapi_data_nzf.cdl \
+ref_ut_mapapi_data_s3.cdl \
+ref_ut_mapapi_meta_nz4.cdl \
+ref_ut_mapapi_meta_nzf.cdl \
+ref_ut_mapapi_meta_s3.cdl
 
 #CLEANFILES = \
 #	ut_map*.cdl ut_map*.txt \
