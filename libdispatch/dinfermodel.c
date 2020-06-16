@@ -415,7 +415,7 @@ static int
 processmacros(NClist** fraglenvp)
 {
     int stat = NC_NOERR;
-    const struct MACRODEF* macros = macrodefs;
+    const struct MACRODEF* macros = NULL;
     NClist*  fraglenv = NULL;
     NClist* expanded = NULL;
 
@@ -429,7 +429,7 @@ processmacros(NClist** fraglenvp)
 	key = nclistremove(fraglenv,0); /* remove from changing front */
 	value = nclistremove(fraglenv,0); /* remove from changing front */
 	if(strlen(value) == 0) { /* must be a singleton  */
-            for(;macros->name;macros++) {
+            for(macros=macrodefs;macros->name;macros++) {
                 if(strcmp(macros->name,key)==0) {
 		    nclistpush(expanded,strdup(macros->defkey));
 	            nclistpush(expanded,strdup(macros->defvalue));
@@ -470,7 +470,7 @@ mergekey(NClist** valuesp)
     }
     /* Remove duplicates and "" */
     while(nclistlength(allvalues) > 0) {
-	value = nclistremove(allvalues,i);
+	value = nclistremove(allvalues,0);
 	if(strlen(value) == 0) {
 	    nullfree(value); value = NULL;
 	} else {
@@ -487,6 +487,7 @@ mergekey(NClist** valuesp)
     *valuesp = values; values = NULL;
 
 done:
+    nclistfree(allvalues);
     nclistfreeall(values);
     nclistfreeall(newvalues);
     return check(stat);

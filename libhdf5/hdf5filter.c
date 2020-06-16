@@ -265,6 +265,7 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
 	default: goto done;
 	}
 	nullfree(idx); idx = NULL;
+
 	/* If incoming filter not already defined, then check for conflicts */
 	if(oldspec == NULL) {
 #ifdef HAVE_H5_DEFLATE
@@ -375,7 +376,11 @@ NC4_filter_actions(int ncid, int varid, int op, void* args)
 	    {stat = THROW(NC_EINDEFINE); goto done;}
         if(obj->usort != NC_FILTER_UNION_SPEC)
 	    {stat = THROW(NC_EFILTER); goto done;}
-	if((stat = NC4_filterx_remove(var,obj->u.spec.filterid))) goto done;
+	/* Lookup filter */
+	if((stat = NC4_filterx_lookup(var,obj->u.spec.filterid,&oldspec))) goto done;
+	if(oldspec && oldspec->active)/* Cannot remove */
+	    {stat = NC_EFILTER; goto done;}
+        if((stat = NC4_filterx_remove(var,obj->u.spec.filterid))) goto done;
 	} break;
     default:
 	{stat = NC_EINTERNAL; goto done;}	

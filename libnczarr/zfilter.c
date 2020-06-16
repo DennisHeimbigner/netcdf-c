@@ -235,6 +235,9 @@ NCZ_filter_actions(int ncid, int varid, int op, void* args)
     case NCFILTER_REMOVE:
         if (!(h5->flags & NC_INDEF)) return THROW(NC_EINDEFINE);
         if(obj->usort != NC_FILTER_UNION_SPEC) return THROW(NC_EFILTER);
+	if((stat = NC4_filterx_lookup(var,obj->u.spec.filterid,&spec))) goto done;
+	if(spec && spec->active)
+	    {stat = NC_EFILTER; goto done;}
 	if((stat = NC4_filterx_remove(var,obj->u.spec.filterid))) goto done;
 	break;
     default:
