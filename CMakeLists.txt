@@ -2068,7 +2068,7 @@ CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/libnetcdf.settings.in"
 # might also work on Windows.
 FILE(READ "${CMAKE_CURRENT_BINARY_DIR}/libnetcdf.settings"
   LIBNETCDF_SETTINGS)
-MESSAGE(${LIBNETCDF_SETTINGS})
+MESSAGE(STATUS ${LIBNETCDF_SETTINGS})
 
 # Install libnetcdf.settings file into same location
 # as the libraries.
