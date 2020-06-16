@@ -151,9 +151,10 @@ NC4_filterx_add(NC_VAR_INFO_T* var, int active, const char* id, int nparams, con
         NC_filterx_freestringvec(fi->nparams,fi->params); /* reclaim old values */
 	fi->params = NULL;
     }
-    assert(params != NULL);
     assert(fi->params == NULL);
-    if((stat = NC_filterx_copy(nparams,(const char**)params,&fi->params))) goto done;
+    if(params != NULL) {
+        if((stat = NC_filterx_copy(nparams,(const char**)params,&fi->params))) goto done;
+    }
     if(!olddef) {
         nclistpush(var->filters,fi);
 PRINTFILTERLIST(var,"add");
