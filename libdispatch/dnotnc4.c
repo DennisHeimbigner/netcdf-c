@@ -635,6 +635,24 @@ NC_NOTNC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
  * @author D. Heimbigner
  */
 int
+NC_NOTNC4_filter_actions(int ncid, int varid, int action, void* args)
+{
+    return NC_ENOTNC4;
+}
+
+/**
+ * @internal Carry out one of several filter actions
+ *
+ * @param ncid Containing group id
+ * @param varid Containing variable id
+ * @param action Action to perform
+ *
+ * @return ::NC_NOERR Implemented as a no-op.
+ * @return ::NC_ENOTNC4 Not implemented
+ * @return ::NC_ENOFILTER No filter defined
+ * @author D. Heimbigner
+ */
+int
 NC_NOOP_filter_actions(int ncid, int varid, int action, void* args)
 {
     NC_FILTERX_OBJ* obj = (NC_FILTERX_OBJ*)args;
@@ -648,3 +666,4 @@ NC_NOOP_filter_actions(int ncid, int varid, int action, void* args)
 	return NC_EFILTER;
     }
 }
+

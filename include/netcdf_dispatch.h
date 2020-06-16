@@ -228,6 +228,7 @@ extern "C" {
      * will fail.
      */
     EXTERNL int NC_NOOP_filter_actions(int, int, int, void*);
+    EXTERNL int NC_NOTNC4_filter_actions(int, int, int, void*);
 
     /* These functions are for dispatch layers that don't want to
      * implement the deprecated varm functions. They return
