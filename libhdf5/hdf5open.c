@@ -973,17 +973,17 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
     assert(var);
 
     if ((num_filters = H5Pget_nfilters(propid)) < 0)
-        return NC_EHDFERR;
+	{stat = NC_EHDFERR; goto done;}
 
     for (f = 0; f < num_filters; f++)
     {
 	cd_nelems = 0;
         if ((filter = H5Pget_filter2(propid, f, NULL, &cd_nelems, NULL, 0, NULL, NULL)) < 0)
-            return NC_EHDFERR;
+	    {stat = NC_EHDFERR; goto done;}
 	if((cd_values = calloc(sizeof(unsigned int),cd_nelems))==NULL)
-	    return NC_ENOMEM;
+	    {stat = NC_EHDFERR; goto done;}
         if ((filter = H5Pget_filter2(propid, f, NULL, &cd_nelems, cd_values, 0, NULL, NULL)) < 0)
-            return NC_EHDFERR;
+	    {stat = NC_EHDFERR; goto done;}
         switch (filter)
         {
         case H5Z_FILTER_SHUFFLE:
@@ -997,9 +997,9 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
         case H5Z_FILTER_DEFLATE:
             if (cd_nelems != CD_NELEMS_ZLIB ||
                 cd_values[0] > NC_MAX_DEFLATE_LEVEL)
-                return NC_EHDFERR;
+		    {stat = NC_EHDFERR; goto done;}
 	    if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,cd_values)))
-	       return stat;
+	       goto done;
             break;
 
         case H5Z_FILTER_SZIP: {
@@ -1007,35 +1007,35 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
                and changes some of the parameter values; try to compensate */
             if(cd_nelems == 0) {
 		if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,0,NULL)))
-		   return stat;
+		   goto done;
             } else {
                 /* fix up the parameters and the #params */
 		if(cd_nelems != 4)
-		    return NC_EHDFERR;
+		    {stat = NC_EHDFERR; goto done;}
 		cd_nelems = 2; /* ignore last two */		
 		/* Fix up changed params */
 		cd_values[0] &= (H5_SZIP_ALL_MASKS);
 		/* Save info */
 		stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,cd_values);
-		if(stat) return stat;
+		if(stat) goto done;
             }
             } break;
 
         default:
             if(cd_nelems == 0) {
-  	        if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,0,NULL))) return stat;
+  	        if((stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,0,NULL))) goto done;
             } else {
   	        stat = NC4_hdf5_addfilter(var,FILTERACTIVE,filter,cd_nelems,cd_values);
-		if(stat) return stat;
+		if(stat) goto done;
             }
             break;
         }
 	nullfree(cd_values); cd_values = NULL;
     }
-
+done:
     nullfree(cd_values);
     NC4_filterx_free(spec);
-    return NC_NOERR;
+    return stat;
 }
 
 /**

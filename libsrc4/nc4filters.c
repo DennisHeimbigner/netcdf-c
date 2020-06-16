@@ -139,6 +139,7 @@ NC4_filterx_add(NC_VAR_INFO_T* var, int active, const char* id, int nparams, con
         /* already exists */
 	olddef = 1;	
     } else {
+	stat = NC_NOERR;
         if((fi = calloc(1,sizeof(NC_FILTERX_SPEC))) == NULL)
 	    {stat = NC_ENOMEM; goto done;}
         if((fi->filterid = strdup(id)) == NULL)
