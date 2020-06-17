@@ -4,7 +4,6 @@ if test "x$socked" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -e
-set -x
 
 # Test misc functionality
 

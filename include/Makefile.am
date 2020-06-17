@@ -29,5 +29,4 @@ if ENABLE_BYTERANGE
 noinst_HEADERS += nchttp.h
 endif
 
-EXTRA_DIST = CMakeLists.txt XGetopt.h netcdf_meta.h.in dirent.h
-
+EXTRA_DIST = CMakeLists.txt XGetopt.h netcdf_meta.h.in

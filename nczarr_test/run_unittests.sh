@@ -4,7 +4,6 @@ if test "x$socked" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -e
-set -x
 
 # Control which test sets are executed
 # possible sets: mapnc4 json proj walk

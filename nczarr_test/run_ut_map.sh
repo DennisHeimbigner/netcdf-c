@@ -4,7 +4,6 @@ if test "x$socked" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -e
-set -x
 
 # Test those map implementations where
 # it is possible to look at the actual storage.
