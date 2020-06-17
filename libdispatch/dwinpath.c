@@ -15,6 +15,9 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#endif
 #ifdef _WIN32
 #include <io.h>
 #endif
@@ -233,6 +236,7 @@ NCopen2(const char *path, int flags)
     return NCopen3(path,flags,0);
 }
 
+#ifdef HAVE_DIRENT_H
 EXTERNL
 DIR*
 NCopendir(const char* path)
@@ -256,6 +260,7 @@ NCclosedir(DIR* ent)
     free(cvtname);    
     return stat;
 }
+#endif
 
 /*
 Provide wrappers for other file system functions

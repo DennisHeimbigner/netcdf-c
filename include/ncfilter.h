@@ -68,19 +68,19 @@ typedef struct NC_FILTERX_OBJ {
 
 struct NC_VAR_INFO;
 
-extern int NC4_filterx_lookup(struct NC_VAR_INFO* var, const char* id, NC_FILTERX_SPEC** specp);
-extern int NC4_filterx_add(struct NC_VAR_INFO* var, int active, const char* id, int nparams, const char** params);
-extern int NC4_filterx_remove(struct NC_VAR_INFO* var, const char* xid);
-extern int NC4_filterx_freelist(struct NC_VAR_INFO* var);
-extern int NC4_filterx_free(NC_FILTERX_SPEC*);
-extern int NC_cvtX2I_id(const char* xid, unsigned int* id);
-extern int NC_cvtI2X_id(unsigned int id, char** xidp, int usename);
-extern void NC_filterx_freestringvec(size_t n, char** vec);
-extern int NC_filterx_copy(size_t n, const char** vec, char*** copyp);
+EXTERNL int NC4_filterx_lookup(struct NC_VAR_INFO* var, const char* id, NC_FILTERX_SPEC** specp);
+EXTERNL int NC4_filterx_add(struct NC_VAR_INFO* var, int active, const char* id, int nparams, const char** params);
+EXTERNL int NC4_filterx_remove(struct NC_VAR_INFO* var, const char* xid);
+EXTERNL int NC4_filterx_freelist(struct NC_VAR_INFO* var);
+EXTERNL int NC4_filterx_free(NC_FILTERX_SPEC*);
+EXTERNL int NC_cvtX2I_id(const char* xid, unsigned int* id);
+EXTERNL int NC_cvtI2X_id(unsigned int id, char** xidp, int usename);
+EXTERNL void NC_filterx_freestringvec(size_t n, char** vec);
+EXTERNL int NC_filterx_copy(size_t n, const char** vec, char*** copyp);
 /* As a rule, user provides space for output */
-extern int NC_cvtI2X_idlist(int n, const unsigned int* ids, char** xid);
-extern int NC_cvtI2X_params(int n, const unsigned int* iparams, char** xparams);
-extern int NC_cvtX2I_params(size_t nparams, const char** xparamslist, unsigned int* params);
-extern int NC_cvtX2I_idlist(size_t n, const char** xidlist, unsigned int* ids);
+EXTERNL int NC_cvtI2X_idlist(int n, const unsigned int* ids, char** xid);
+EXTERNL int NC_cvtI2X_params(int n, const unsigned int* iparams, char** xparams);
+EXTERNL int NC_cvtX2I_params(size_t nparams, const char** xparamslist, unsigned int* params);
+EXTERNL int NC_cvtX2I_idlist(size_t n, const char** xidlist, unsigned int* ids);
 
 #endif /*NCFILTER_H*/

@@ -50,17 +50,17 @@ EXTERNL FILE* NCfopen(const char* path, const char* flags);
 EXTERNL int NCopen3(const char* path, int flags, int mode);
 EXTERNL int NCopen2(const char* path, int flags);
 EXTERNL int NCaccess(const char* path, int mode);
-EXTERNL DIR* NCopendir(const char* path);
-EXTERNL int NCclosedir(DIR* ent);
 EXTERNL int NCremove(const char* path);
 EXTERNL int NCmkdir(const char* path, int mode);
 EXTERNL char* NCcwd(char* cwdbuf, size_t len);
+#ifdef HAV_DIRENT_H
+EXTERNL DIR* NCopendir(const char* path);
+EXTERNL int NCclosedir(DIR* ent);
+#endif
 #else /*!WINPATH*/
 #define NCfopen(path,flags) fopen((path),(flags))
 #define NCopen3(path,flags,mode) open((path),(flags),(mode))
 #define NCopen2(path,flags) open((path),(flags))
-#define NCopendir(path) opendir(path)
-#define NCclosedir(ent) closedir(ent)
 #define NCremove(path) remove(path)
 #ifdef _WIN32
 #define NCaccess(path,mode) _access(path,mode)
@@ -69,6 +69,10 @@ EXTERNL char* NCcwd(char* cwdbuf, size_t len);
 #endif
 #define NCmkdir(path, mode) mkdir(path,mode)
 #define NCcwd(buf, len) getcwd(buf,len)
+#ifdef HAVE_DIRENT_H
+#define NCopendir(path) opendir(path)
+#define NCclosedir(ent) closedir(ent)
+#endif
 #endif /*WINPATH*/
 
 /* Platform independent */
