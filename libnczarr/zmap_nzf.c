@@ -783,32 +783,29 @@ done:
 static int
 platformcreatedir(ZFMAP* zfmap, const char* truepath)
 {
-    int stat = NC_NOERR;
+    int ret = NC_NOERR;
     int mode = zfmap->map.mode;
-    DIR* dir = NULL;
 
     errno = 0;
-    /* Try to open file as if it exists */
-    dir = NCopendir(truepath);
-    if(dir == NULL) {
-	if(errno == ENOENT) {
-	    if(fIsSet(mode,NC_WRITE)) {
-	        /* Try to create it */
-                /* Create the directory using mkdir */
-   	        if(NCmkdir(truepath,NC_DEFAULT_DIR_PERMS) < 0)
-		    {stat = platformerr(errno); goto done;}
-		/* try to re-open */
-		dir = NCopendir(truepath);
-		if(dir == NULL) 
-	          {stat = platformerr(errno); goto done;}
-	    }
+    /* Try to access file as if it exists */
+    ret = NCaccess(truepath,F_OK);
+    if(ret < 0) { /* it does not exist, then it can be anything */
+	if(fIsSet(mode,NC_WRITE)) {
+	    /* Try to create it */
+            /* Create the directory using mkdir */
+   	    if(NCmkdir(truepath,NC_DEFAULT_DIR_PERMS) < 0)
+	        {ret = platformerr(errno); goto done;}
+	    /* try to access again */
+	    ret = NCaccess(truepath);
+    	    if(ret < 0)
+	        {ret = platformerr(errno); goto done;}
 	} else
-	    {stat = platformerr(errno); goto done;}	
+	    {ret = platformerr(errno); goto done;}	
     }
+
 done:
-    if(dir) closedir(dir);
     errno = 0;
-    return THROW(stat);
+    return THROW(ret);
 }
 
 
@@ -816,46 +813,115 @@ done:
 static int
 platformopendir(ZFMAP* zfmap, const char* truepath)
 {
-    int stat = NC_NOERR;
-    DIR* dir = NULL;
+    int ret = NC_NOERR;
 
     errno = 0;
-
-#ifdef VERIFY
-    if(!verify(truepath,FLAG_ISDIR))
-        assert(!"expected dir, have file");
-#endif
-
-    /* Try to open dir */
-    dir = NCopendir(truepath);
-    if(dir == NULL)
-        {stat = platformerr(errno); goto done;} /* could not open */
-
+    /* Try to access file as if it exists */
+    ret = NCaccess(truepath,F_OK);
+    if(ret < 0)
+	{ret = platformerr(errno); goto done;}	
 done:
-    if(dir) NCclosedir(dir);
+    errno = 0;
+    return THROW(ret);
+}
+
+#ifdef _WIN32
+static int
+platformdircontent(ZFMAP* zfmap, const char* path, NClist* contents)
+{
+    int stat = NC_NOERR;
+    errno = 0;
+    WIN32_FIND_DATA FindFileData;
+    HANDLE dir;
+
+    dir = FindFirstFile(truepath, &FindFileData);
+    if(dir == INVALID_HANDLE_VALUE)
+        {stat = NC_ENOTFOUND; goto done;}    
+    do {
+	const char* name = NULL;
+        name = FindFileData.cFileName;
+	nclistpush(contents,strdup(name));
+    } while(FindNextFile(dir, &FindFileData));
+done:
+    FindClose(dir);
     errno = 0;
     return THROW(stat);
 }
 
 static int
+platformdeleter(ZFMAP* zfmap, NClist* segments)
+{
+    int ret = NC_NOERR;
+    struct stat statbuf;
+    struct dirent* entry = NULL;
+    char* path = NULL;
+    HANDLE dir;
+    WIN32_FIND_DATA FindFileData;
+
+    if((ret = nczm_join(segments,&path))) goto done;
+    errno = 0;
+    ret = stat(path, &statbuf);
+    if(ret < 0) {
+        if(errno == ENOENT) {ret = NC_NOERR; goto done;}
+	else {ret = platformerr(errno); goto done;}
+    }
+    /* process this file */
+    if(S_ISDIR(statbuf.st_mode)) {
+        dir = FindFirstFile(path, &FindFileData);
+        if(dir == INVALID_HANDLE_VALUE)
+            {stat = NC_ENOTFOUND; goto done;}    
+        do {
+	    char* seg = NULL;
+	    errno = 0;
+	    char* name = NULL;
+	    name = FindFileData.cFileName;
+	    if(name == NULL) {ret = NC_EINTERNAL break;}
+	    /* Ignore "." and ".." */
+	    if(strcmp(name,".")==0) continue;
+    	    if(strcmp(name,"..")==0) continue;
+	    /* append name to segments */
+	    if((seg = strdup(name)) == NULL)
+		{ret = NC_ENOMEM; goto done;}
+	    nclistpush(segments,seg);
+	    /* recurse */
+	    if((ret = platformdeleter(zfmap, segments))) goto done;
+	    /* remove+reclaim last segment */
+	    nclistpop(segments);
+	    nullfree(seg);	    	    
+        } while(FindNextFile(dir, &FindFileData));
+    }
+done:
+    FindClose(dir);
+    /* delete this file|dir */
+    remove(path);
+    nullfree(path);
+    errno = 0;
+    return THROW(ret);
+}
+
+#else /*!_WIN32*/
+
+static int
 platformdircontent(ZFMAP* zfmap, const char* path, NClist* contents)
 {
     int stat = NC_NOERR;
-    DIR* dir = NULL;
     errno = 0;
+    DIR* dir = NULL;
 
     dir = opendir(path);
     if(dir == NULL && errno == ENOTDIR)
 	goto done;
     else if(dir == NULL) {stat = platformerr(errno); goto done;}
     for(;;) {
+	const char* name = NULL;
 	struct dirent* de = NULL;
 	errno = 0;
         if((de = readdir(dir)) == NULL)
 	    {stat = platformerr(errno); goto done;}
 	if(strcmp(de->d_name,".")==0 || strcmp(de->d_name,"..")==0)
 	    continue;
-	nclistpush(contents,strdup(de->d_name));
+	name = de->d_name;
+	nclistpush(contents,strdup(name));
     }
 done:
     if(dir) NCclosedir(dir);
@@ -910,6 +976,7 @@ done:
     errno = 0;
     return THROW(ret);
 }
+#endif /*_WIN32*/
 
 /* Deep file/dir deletion */
 static int
@@ -1066,3 +1133,14 @@ verify(const char* path, int isdir)
     return 0;
 }
 #endif
+
+HANDLE hFind;
+WIN32_FIND_DATA FindFileData;
+
+
+if((hFind = FindFirstFile("C:/some/folder/*.txt", &FindFileData)) != INVALID_HANDLE_VALUE){
+    do{
+        printf("%s\n", FindFileData.cFileName);
+    }while(FindNextFile(hFind, &FindFileData));
+    FindClose(hFind);
+}
