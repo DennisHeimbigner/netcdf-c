@@ -14,7 +14,7 @@
 #include "ncexternl.h"
 
 #ifndef WINPATH
-#ifdef _MSC_VER
+#ifdef _WIN32
 #define WINPATH 1
 #endif
 #ifdef __MINGW32__

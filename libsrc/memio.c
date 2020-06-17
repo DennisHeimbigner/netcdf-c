@@ -15,6 +15,9 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#endif
 #ifdef _WIN32
 #include <windows.h>
 #include <winbase.h>
