@@ -796,7 +796,7 @@ platformcreatedir(ZFMAP* zfmap, const char* truepath)
    	    if(NCmkdir(truepath,NC_DEFAULT_DIR_PERMS) < 0)
 	        {ret = platformerr(errno); goto done;}
 	    /* try to access again */
-	    ret = NCaccess(truepath);
+	    ret = NCaccess(truepath,F_OK);
     	    if(ret < 0)
 	        {ret = platformerr(errno); goto done;}
 	} else
@@ -1133,14 +1133,3 @@ verify(const char* path, int isdir)
     return 0;
 }
 #endif
-
-HANDLE hFind;
-WIN32_FIND_DATA FindFileData;
-
-
-if((hFind = FindFirstFile("C:/some/folder/*.txt", &FindFileData)) != INVALID_HANDLE_VALUE){
-    do{
-        printf("%s\n", FindFileData.cFileName);
-    }while(FindNextFile(hFind, &FindFileData));
-    FindClose(hFind);
-}
