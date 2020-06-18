@@ -19,6 +19,9 @@
 /* Default is netcdf-3 mode 1 */
 #define DFALTCMODE 0
 
+/*Mnemonic*/
+#define DEPRECATED 1
+
 /* For error messages */
 char* progname; /* Global: not reclaimed */
 char* cdlname; /* Global: not reclaimed */
@@ -65,46 +68,46 @@ int main( int argc, char** argv );
 /* Define tables vs modes for legal -k values*/
 struct Kvalues legalkinds[] = {
     /* NetCDF-3 classic format (32-bit offsets) */
-    {"classic", NC_FORMAT_CLASSIC}, /* canonical format name */
-    {"nc3", NC_FORMAT_CLASSIC},	    /* short format name */
-    {"1", NC_FORMAT_CLASSIC},	/* deprecated, use "-3" or "-k nc3" instead */
+    {"classic", NC_FORMAT_CLASSIC, !DEPRECATED}, /* canonical format name */
+    {"nc3", NC_FORMAT_CLASSIC, !DEPRECATED},	    /* short format name */
+    {"1", NC_FORMAT_CLASSIC, !DEPRECATED},	/* deprecated, use "-3" or "-k nc3" instead */
 
     /* NetCDF-3 64-bit offset format */
-    {"64-bit offset", NC_FORMAT_64BIT_OFFSET}, /* canonical format name */
-    {"nc6", NC_FORMAT_64BIT_OFFSET},		/* short format name */
-    {"2", NC_FORMAT_64BIT_OFFSET},     /* deprecated, use "-6" or "-k nc6" instead */
-    {"64-bit-offset", NC_FORMAT_64BIT_OFFSET}, /* aliases */
+    {"64-bit offset", NC_FORMAT_64BIT_OFFSET, !DEPRECATED}, /* canonical format name */
+    {"nc6", NC_FORMAT_64BIT_OFFSET, !DEPRECATED},		/* short format name */
+    {"2", NC_FORMAT_64BIT_OFFSET, !DEPRECATED},     /* deprecated, use "-6" or "-k nc6" instead */
+    {"64-bit-offset", NC_FORMAT_64BIT_OFFSET, !DEPRECATED}, /* aliases */
 
     /* NetCDF-4 HDF5-based format */
-    {"netCDF-4", NC_FORMAT_NETCDF4}, /* canonical format name */
-    {"nc4", NC_FORMAT_NETCDF4},	     /* short format name */
-    {"3", NC_FORMAT_NETCDF4},   /* deprecated, use "-4" or "-k nc4" instead */
-    {"netCDF4", NC_FORMAT_NETCDF4},  /* aliases */
-    {"hdf5", NC_FORMAT_NETCDF4},
-    {"enhanced", NC_FORMAT_NETCDF4},
-    {"netcdf-4", NC_FORMAT_NETCDF4},
-    {"netcdf4", NC_FORMAT_NETCDF4},
+    {"netCDF-4", NC_FORMAT_NETCDF4, !DEPRECATED}, /* canonical format name */
+    {"nc4", NC_FORMAT_NETCDF4, !DEPRECATED},	     /* short format name */
+    {"3", NC_FORMAT_NETCDF4, !DEPRECATED},   /* deprecated, use "-4" or "-k nc4" instead */
+    {"netCDF4", NC_FORMAT_NETCDF4, !DEPRECATED},  /* aliases */
+    {"hdf5", NC_FORMAT_NETCDF4, !DEPRECATED},
+    {"enhanced", NC_FORMAT_NETCDF4, !DEPRECATED},
+    {"netcdf-4", NC_FORMAT_NETCDF4, !DEPRECATED},
+    {"netcdf4", NC_FORMAT_NETCDF4, !DEPRECATED},
 
     /* NetCDF-4 HDF5-based format, restricted to classic data model */
-    {"netCDF-4 classic model", NC_FORMAT_NETCDF4_CLASSIC}, /* canonical format name */
-    {"nc7", NC_FORMAT_NETCDF4_CLASSIC}, /* short format name */
-    {"4", NC_FORMAT_NETCDF4_CLASSIC}, /* deprecated, use "-7" or -k nc7" instead */
-    {"netCDF-4-classic", NC_FORMAT_NETCDF4_CLASSIC}, /* aliases */
-    {"netCDF-4_classic", NC_FORMAT_NETCDF4_CLASSIC},
-    {"netCDF4_classic", NC_FORMAT_NETCDF4_CLASSIC},
-    {"hdf5-nc3", NC_FORMAT_NETCDF4_CLASSIC},
-    {"enhanced-nc3", NC_FORMAT_NETCDF4_CLASSIC},
+    {"netCDF-4 classic model", NC_FORMAT_NETCDF4_CLASSIC, !DEPRECATED}, /* canonical format name */
+    {"nc7", NC_FORMAT_NETCDF4_CLASSIC, !DEPRECATED}, /* short format name */
+    {"4", NC_FORMAT_NETCDF4_CLASSIC, !DEPRECATED}, /* deprecated, use "-7" or -k nc7" instead */
+    {"netCDF-4-classic", NC_FORMAT_NETCDF4_CLASSIC, !DEPRECATED}, /* aliases */
+    {"netCDF-4_classic", NC_FORMAT_NETCDF4_CLASSIC, !DEPRECATED},
+    {"netCDF4_classic", NC_FORMAT_NETCDF4_CLASSIC, !DEPRECATED},
+    {"hdf5-nc3", NC_FORMAT_NETCDF4_CLASSIC, !DEPRECATED},
+    {"enhanced-nc3", NC_FORMAT_NETCDF4_CLASSIC, !DEPRECATED},
 
     /* CDF-5 format */
-    {"5", NC_FORMAT_64BIT_DATA},
-    {"64-bit-data", NC_FORMAT_64BIT_DATA},
-    {"64-bit data", NC_FORMAT_64BIT_DATA},
-    {"nc5", NC_FORMAT_64BIT_DATA},
-    {"cdf5", NC_FORMAT_64BIT_DATA},
-    {"cdf-5", NC_FORMAT_64BIT_DATA},
+    {"5", NC_FORMAT_64BIT_DATA, !DEPRECATED},
+    {"64-bit-data", NC_FORMAT_64BIT_DATA, !DEPRECATED},
+    {"64-bit data", NC_FORMAT_64BIT_DATA, !DEPRECATED},
+    {"nc5", NC_FORMAT_64BIT_DATA, !DEPRECATED},
+    {"cdf5", NC_FORMAT_64BIT_DATA, !DEPRECATED},
+    {"cdf-5", NC_FORMAT_64BIT_DATA, !DEPRECATED},
 
     /* null terminate*/
-    {NULL,0}
+    {NULL,0,0}
 };
 
 #ifndef _MSC_VER
@@ -293,6 +296,8 @@ main(
             for(kvalue=legalkinds;kvalue->name;kvalue++) {
                 if(strcmp(optarg,kvalue->name) == 0) {
                   k_flag = kvalue->k_flag;
+		  if(kvalue->deprecated)
+		      fprintf(stderr,"-k%s is deprecated; use corresponding -k<name> or -3|-4|-5|-6|-7\n",optarg);
                   break;
                 }
             }

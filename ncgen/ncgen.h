@@ -113,6 +113,7 @@ typedef enum Language {
 struct Kvalues {
 char* name;
 int k_flag;
+int deprecated;
 };
 
 extern struct Kvalues legalkinds[];

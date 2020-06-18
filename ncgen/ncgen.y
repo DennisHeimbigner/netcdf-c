@@ -1246,6 +1246,8 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
               globalspecials._Format = kvalue->k_flag;
 	      /*Main.*/format_attribute = 1;
               found = 1;
+	      if(kvalue->deprecated)
+		 fprintf(stderr,"_Format=%s is deprecated; use corresponding _Format=<name>\n",sdata);
               break;
             }
           }

@@ -98,7 +98,7 @@ nc_http_open(const char* objecturl, NC_HTTP_STATE** statep, size64_t* filelenp)
 	    if(strcasecmp(s,"accept-ranges")==0) {
 	        s = nclistget(state->headers,i+1);
 		if(strcasecmp(s,"bytes")!=0) /* oops! */
-		    {stat = NC_EACCESS; goto done;}
+		    {stat = NC_EURL; goto done;}
 	    }
 	}
 	headersoff(state);
@@ -195,7 +195,7 @@ nc_http_size(NC_HTTP_STATE* state, const char* objecturl, size64_t* sizep)
 	goto done;
 
     if(nclistlength(state->headers) == 0)
-	{stat = NC_EACCESS; goto done;}
+	{stat = NC_EURL; goto done;}
 
     /* Get the content length header */
     for(i=0;i<nclistlength(state->headers);i+=2) {

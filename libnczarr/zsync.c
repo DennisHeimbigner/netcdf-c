@@ -259,7 +259,8 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     NCjson* jdimrefs = NULL;
     NCjson* jtmp = NULL;
     size64_t shape[NC_MAX_VAR_DIMS];
-
+    NCZ_VAR_INFO_T* zvar = var->format_var_info;
+	
     LOG((3, "%s: dims: %s", __func__, key));
 
     zinfo = file->format_file_info;
@@ -434,8 +435,10 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 	goto done;
 
     /* flush only chunks that have been written */
-    if((stat = NCZ_flush_chunk_cache(((NCZ_VAR_INFO_T*)var->format_var_info)->cache)))
-	goto done;
+    if(zvar->cache) {
+        if((stat = NCZ_flush_chunk_cache(zvar->cache)))
+	    goto done;
+    }
 
 done:
     nullfree(fullpath);
@@ -473,8 +476,10 @@ ncz_write_var(NC_VAR_INFO_T* var)
     }
 
     /* Flush the cache */
-    if((stat = NCZ_flush_chunk_cache(zvar->cache))) goto done;
-
+    if(zvar->cache) {
+        if((stat = NCZ_flush_chunk_cache(zvar->cache))) goto done;
+    }
+    
     /* If fill is enabled, then create missing chunks */
     if(!var->no_fill) {
 	/* Iterate over all the chunks to create missing ones */
@@ -486,7 +491,7 @@ ncz_write_var(NC_VAR_INFO_T* var)
 	    if((stat = NCZ_buildchunkpath(zvar->cache,indices,&key))) goto done;
 	    switch (stat = nczmap_exists(map,key)) {
 	    case NC_NOERR: goto next; /* already exists */
-	    case NC_EACCESS: break; /* does not exist, create it with fill */
+	    case NC_EEMPTY: break; /* does not exist, create it with fill */
 	    default: goto done; /* some other error */
 	    }
             /* If we reach here, then chunk does not exist, create it with fill */
@@ -691,7 +696,7 @@ load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypesp)
     /* Download the .zattrs object: may not exist */
     switch ((stat=NCZ_downloadjson(map,key,&jattrs))) {
     case NC_NOERR: break;
-    case NC_EACCESS: stat = NC_NOERR; break; /* did not exist */
+    case NC_EEMPTY: stat = NC_NOERR; break; /* did not exist */
     default: goto done; /* failure */
     }
     nullfree(key); key = NULL;
@@ -702,7 +707,7 @@ load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypesp)
 	/* Download the NCZATTR object: may not exist if pure zarr */
 	switch((stat=NCZ_downloadjson(map,key,&jncattr))) {
 	case NC_NOERR: break;
-	case NC_EACCESS: stat = NC_NOERR; jncattr = NULL; break;
+	case NC_EEMPTY: stat = NC_NOERR; jncattr = NULL; break;
 	default: goto done; /* failure */
 	}
 	nullfree(key); key = NULL;
@@ -997,7 +1002,7 @@ define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
 	    if((stat = parse_group_content(jncgroup,dimdefs,varnames,subgrps)))
 		goto done;
 	    break;
-	case NC_EACCESS: /* probably pure zarr, so does not exist, use search */
+	case NC_EEMPTY: /* probably pure zarr, so does not exist, use search */
 	    if((stat = parse_group_content_pure(zinfo,grp,varnames,subgrps)))
 		goto done;
 	    nodimrefs = 1;
@@ -1067,7 +1072,9 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
 
     switch ((stat = load_jatts(map, container, &jattrs, &atypes))) {
     case NC_NOERR: break;
-    case NC_EACCESS: stat = NC_NOERR; break; /* container has no attributes */
+    case NC_EEMPTY:  /* container has no attributes */
+        stat = NC_NOERR;
+	break;
     default: goto done; /* true error */
     }
 
@@ -1261,7 +1268,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		    hasdimrefs = 1;
 		}
 		break;
-	    case NC_EACCESS: /* simulate it from the shape of the variable */
+	    case NC_EEMPTY: /* simulate it from the shape of the variable */
 		stat = NC_NOERR;
 		hasdimrefs = 0;
 		break;

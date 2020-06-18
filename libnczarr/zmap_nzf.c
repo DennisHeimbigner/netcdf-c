@@ -329,8 +329,12 @@ zfileexists(NCZMAP* map, const char* key)
     FD fd = FDNUL;
 
     ZTRACE("%s",key);
-    stat=zflookupobj(zfmap,key,&fd);
-
+    switch(stat=zflookupobj(zfmap,key,&fd)) {
+    case NC_NOERR: break;
+    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_EEMPTY: break;
+    default: break;
+    }
     zfrelease(zfmap,&fd);    
     return (stat);
 }
@@ -345,9 +349,15 @@ zfilelen(NCZMAP* map, const char* key, size64_t* lenp)
 
     ZTRACE("%s",key);
 
-    if((stat=zflookupobj(zfmap,key,&fd))) goto done;
-    /* Get file size */
-    if((stat=platformseek(zfmap, &fd, SEEK_END, &len))) goto done;
+    switch (stat=zflookupobj(zfmap,key,&fd)) {
+    case NC_NOERR:
+        /* Get file size */
+        if((stat=platformseek(zfmap, &fd, SEEK_END, &len))) goto done;
+	break;
+    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_EEMPTY: break;
+    default: break;
+    }
     zfrelease(zfmap,&fd);
     if(lenp) *lenp = len;
 
@@ -377,7 +387,8 @@ zfiledefineobj(NCZMAP* map, const char* key)
     switch (stat) {
     case NC_NOERR: /* Already exists */
 	goto done;
-    case NC_ENOTFOUND: /* file does not exist */
+    case NC_ENOTFOUND: stat = NC_EEMPTY; /* file does not exist */
+    case NC_EEMPTY: /* empty */
         if((stat = zfcreateobj(zfmap,key,&fd)))
             goto done;
 	break;
@@ -404,10 +415,15 @@ zfileread(NCZMAP* map, const char* key, size64_t start, size64_t count, void* co
         assert(!"expected file, have dir");
 #endif
 
-    if((stat = zflookupobj(zfmap,key,&fd)))
-	goto done;
-    if((stat = platformseek(zfmap, &fd, SEEK_SET, &start))) goto done;
-    if((stat = platformread(zfmap, &fd, count, content))) goto done;
+    switch (stat = zflookupobj(zfmap,key,&fd)) {
+    case NC_NOERR:
+        if((stat = platformseek(zfmap, &fd, SEEK_SET, &start))) goto done;
+        if((stat = platformread(zfmap, &fd, count, content))) goto done;
+	break;
+    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_EEMPTY: break;
+    default: break;
+    }
     
 done:
     zfrelease(zfmap,&fd);
@@ -428,11 +444,15 @@ zfilewrite(NCZMAP* map, const char* key, size64_t start, size64_t count, const v
         assert(!"expected file, have dir");
 #endif
 
-    if((stat = zflookupobj(zfmap,key,&fd)))
-	goto done;
-
-    if((stat = platformseek(zfmap,&fd,SEEK_SET,&start))) goto done;
-    if((stat = platformwrite(zfmap,&fd,count,content))) goto done;
+    switch (stat = zflookupobj(zfmap,key,&fd)) {
+    case NC_NOERR:
+        if((stat = platformseek(zfmap, &fd, SEEK_SET, &start))) goto done;
+        if((stat = platformwrite(zfmap, &fd, count, content))) goto done;
+	break;
+    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_EEMPTY: break;
+    default: break;
+    }
 
 done:
     zfrelease(zfmap,&fd);
@@ -508,7 +528,7 @@ done:
 /* Utilities */
 
 /* Lookup a group by parsed path (segments)*/
-/* Return NC_EACCESS if not found, NC_EINVAL if not a directory; create if create flag is set */
+/* Return NC_EEMPTY if not found, NC_EINVAL if not a directory; create if create flag is set */
 static int
 zfcreategroup(ZFMAP* zfmap, const char* key, int nskip)
 {
@@ -541,7 +561,7 @@ done:
 
 /* Lookup an object
 @return NC_NOERR if found and is a content-bearing object
-@return NC_ENODATA if exists but is not-content-bearing
+@return NC_EEMPTY if exists but is not-content-bearing
 @return NC_ENOTFOUND if not found
 */
 static int
@@ -671,7 +691,7 @@ platformerr(int err)
 {
      switch (err) {
      case ENOENT: err = NC_ENOTFOUND; break; /* File does not exist */
-     case ENOTDIR: err = NC_ENODATA; break; /* no content */
+     case ENOTDIR: err = NC_EEMPTY; break; /* no content */
      case EACCES: err = NC_EAUTH; break; /* file permissions */
      case EPERM:  err = NC_EAUTH; break; /* ditto */
      default: break;
@@ -681,7 +701,7 @@ platformerr(int err)
 
 /* Test type of the specified file.
 @return NC_NOERR if found and is a content-bearing object
-@return NC_ENODATA if exists but is not-content-bearing
+@return NC_EEMPTY if exists but is not-content-bearing
 @return NC_ENOTFOUND if not found
 */
 static int
@@ -694,7 +714,7 @@ platformtestcontentbearing(ZFMAP* zfmap, const char* truepath)
     if((ret = stat(truepath, &buf)) < 0) {
 	ret = platformerr(errno);
     } else if(S_ISDIR(buf.st_mode)) {
-        ret = NC_ENODATA;
+        ret = NC_EEMPTY;
     } else
         ret = NC_NOERR;
     errno = 0;
@@ -1027,7 +1047,7 @@ platformread(ZFMAP* zfmap, FD* fd, size64_t count, void* content)
     while(need > 0) {
         ssize_t red;
         if((red = read(fd->fd,readpoint,need)) <= 0)
-	    {stat = NC_EINVAL; goto done;}
+	    {stat = NC_EACCESS; goto done;}
         need -= red;
 	readpoint += red;
     }
@@ -1095,7 +1115,7 @@ platformclose(ZFMAP* zfmap, FD* fd)
 #if 0
 /* Test type of the specified file.
 @return NC_NOERR if found and is a content-bearing object
-@return NC_ENODATA if exists but is not-content-bearing
+@return NC_EEMPTY if exists but is not-content-bearing
 @return NC_ENOTFOUND if not found
 */
 static int

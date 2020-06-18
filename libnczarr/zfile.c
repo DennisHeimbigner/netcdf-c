@@ -95,7 +95,7 @@ NCZ_enddef(int ncid)
     NC_FILE_INFO_T* h5 = NULL;
     NC_GRP_INFO_T *grp;
     NC_VAR_INFO_T *var;
-    int i;
+    int i,j;
     int stat = NC_NOERR;
 
     LOG((1, "%s: ncid 0x%x", __func__, ncid));
@@ -105,19 +105,13 @@ NCZ_enddef(int ncid)
         return stat;
 
     /* When exiting define mode, mark all variable written. */
-    for (i = 0; i < ncindexsize(grp->vars); i++)
-    {
-	NCZ_VAR_INFO_T* zvar = NULL;
-        var = (NC_VAR_INFO_T *)ncindexith(grp->vars, i);
-        assert(var);
-        var->written_to = NC_TRUE;
-
-	/* Create a cache for it */
-	zvar = var->format_var_info;
-	if(zvar->cache == NULL) {
-            if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,&zvar->cache)))
-		return stat;
-	}
+    for (i = 0; i < nclistlength(h5->allgroups); i++) {	
+	NC_GRP_INFO_T* g = nclistget(h5->allgroups,i);
+        for (j = 0; j < ncindexsize(g->vars); j++) {
+            var = (NC_VAR_INFO_T *)ncindexith(g->vars, j);
+            assert(var);
+            var->written_to = NC_TRUE;
+        }
     }
     return ncz_enddef_netcdf4_file(h5);
 }

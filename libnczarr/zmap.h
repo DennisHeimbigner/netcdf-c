@@ -66,6 +66,33 @@ key-value pairs, but where the key and value are always text. As
 far as it is possible to determine, Zarr never uses these tags,
 so they are not included in the zmap data structure.
 
+A Note on Error Codes:
+
+This model uses the S3 concepts of keys.  All legal keys "exist"
+in that it is possible to write to them, The concept of a key
+not-existing has no meaning: all keys exist.  Normally, in S3,
+each key specifies an object, but unless that object has
+content, it does not exist.  Therefore we distinguish
+content-bearing "objects" from non-content-bearing objects.  Our
+model only hold content-bearing objects. Note that the length of
+that content may be zero.  The important point is that in this
+model, only content-bearing objects actually exist.  Note that
+this different than, say, a direvtory tree where a key will
+always lead to something: a directory or a file.
+
+In any case, the zmap API returns two distinguished error code:
+1. NC_NOERR if a content bearing object is created or referenced.
+2. NC_EEMPTY is returned when accessing a key that has no content.
+This does not preclude other errors being returned such NC_EACCESS or NC_EPERM or NC_EINVAL
+if there are permission errors or illegal function arguments, for example.
+It also does not preclude the use of other error codes internal to the zmap
+implementation. So zmap_nzf, for example, uses NC_ENOTFOUND internally
+because it is possible to detect the existence of directories and files.
+This does not propagate to the API.
+
+Note that NC_EEMPTY is a new error code to signal to that the
+caller asked for non-content-bearing key.
+
 The current set of operations defined for zmaps are define with the
 generic nczm_xxx functions below.
 */

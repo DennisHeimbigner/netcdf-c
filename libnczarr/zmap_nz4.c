@@ -103,7 +103,7 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
         truepath = NULL;
 
     if((stat=nc_create(z4map->path,mode,&ncid)))
-        {stat = NC_ENOTFOUND; goto done;} /* could not open */
+        {stat = NC_EEMPTY; goto done;} /* could not open */
     z4map->ncid = ncid;
     
     if(mapp) *mapp = (NCZMAP*)z4map;    
@@ -160,7 +160,7 @@ znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** 
         truepath = NULL;
 
     if((stat=nc_open(z4map->path,mode,&ncid)))
-        {stat = NC_ENOTFOUND; goto done;} /* could not open */
+        {stat = NC_EEMPTY; goto done;} /* could not open */
     z4map->ncid = ncid;
     
     if(mapp) *mapp = (NCZMAP*)z4map;    
@@ -213,8 +213,8 @@ znc4exists(NCZMAP* map, const char* key)
 	goto done;    
     switch(stat=zlookupobj(z4map,segments,&grpid)) {
     case NC_NOERR: break;
-    case NC_ENODATA: /* Not an object */
-    case NC_ENOTFOUND: /* not exists */
+    case NC_ENOTFOUND: stat = NC_EEMPTY; /* Does not exist */
+    case NC_EEMPTY: /* Not an object */
     default: break; /* other error */
     }
 
@@ -246,10 +246,10 @@ znc4len(NCZMAP* map, const char* key, size64_t* lenp)
         if((stat = nc_inq_dimlen(z4map->ncid,dimids[0],&dimlen))) goto done;
         if(lenp) *lenp = (size64_t)dimlen;
 	break;
-    case NC_ENODATA: /* Not an object */
+    case NC_ENOTFOUND: stat = NC_EEMPTY; /* does not exist */
+    case NC_EEMPTY: /* Not an object */
 	if(lenp) *lenp = 0;
 	break;
-    case NC_ENOTFOUND: break;
     default: break;
     }
 
@@ -270,8 +270,8 @@ znc4defineobj(NCZMAP* map, const char* key)
 	goto done;    
     switch (stat = zlookupobj(z4map,segments,&grpid)) {
     case NC_NOERR: break; /* already exists */
-    case NC_ENODATA: break;
-    case NC_ENOTFOUND: /* Does not exist */
+    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_EEMPTY:
         if((stat = zcreateobj(z4map,segments,&grpid))) goto done;
 	break;
     default: break; /* other error */
@@ -302,8 +302,8 @@ znc4read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* con
         vcount[0] = (size_t)count;
         if((stat = nc_get_vara(grpid,vid,vstart,vcount,content))) goto done;
 	break;
-    case NC_ENODATA: break; /* no data */
-    case NC_ENOTFOUND: break; /* Does not exist */
+    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_EEMPTY: break; /* no data */
     default: break; /* other error */
     }
 
@@ -332,8 +332,8 @@ znc4write(NCZMAP* map, const char* key, size64_t start, size64_t count, const vo
         vcount[0] = (size_t)count;
         if((stat = nc_put_vara(grpid,vid,vstart,vcount,content))) goto done;
 	break;
-    case NC_ENODATA: break; /* no data */
-    case NC_ENOTFOUND: break; /* Does not exist */
+    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_EEMPTY: break; /* no data */
     default: break; /* other error */
     }
 done:
@@ -428,7 +428,7 @@ testcontentbearing(int grpid)
     case NC_NOERR: /* This is a data bearing object */ 
 	return NC_NOERR;
     case NC_ENOTVAR:		
-	return NC_ENODATA;
+	return NC_EEMPTY;
     }
 
 done:
@@ -436,7 +436,7 @@ done:
 }
 
 /* Lookup a group by parsed path (segments)*/
-/* Return NC_ENOTFOUND if not found */
+/* Return NC_ENOTFUND if not found */
 static int
 zlookupgroup(Z4MAP* z4map, NClist* segments, int nskip, int* grpidp)
 {
@@ -464,7 +464,7 @@ done:
 
 /* Lookup an object.
 @return NC_NOERR if found and is a content-bearing object
-@return NC_ENODATA if exists but is not-content-bearing
+@return NC_EEMPTY if exists but is not-content-bearing
 @return NC_ENOTFOUND if not found
 */
 

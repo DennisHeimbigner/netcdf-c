@@ -366,6 +366,10 @@ testdouble(const char* word)
     int ncvt;
     double d;
     int count = 0;
+    /* Check for Nan and Infinity */
+    if(strcasecmp("nan",word)==0) return NC_NOERR;
+    if(strcasecmp("infinity",word)==0) return NC_NOERR;
+    if(strcasecmp("-infinity",word)==0) return NC_NOERR;
     /* Try to convert to number */
     ncvt = sscanf(word,"%lg%n",&d,&count);
     return (ncvt == 1 && strlen(word)==count ? NC_NOERR : NC_EINVAL);

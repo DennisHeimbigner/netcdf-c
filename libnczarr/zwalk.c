@@ -172,7 +172,7 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	memodom = nczodom_fromslices(common->rank,memslices);
         /* Read from cache */
         switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
-        case NC_EACCESS: break; /* cache created the chunk */
+        case NC_EEMPTY: /* cache created the chunk */
 	    if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
 	    break;
         case NC_NOERR: break;

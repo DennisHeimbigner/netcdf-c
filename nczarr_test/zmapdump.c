@@ -229,7 +229,7 @@ objdump(void)
 	/* Now print info for this obj key */
         switch (stat=nczmap_len(map,obj,&len)) {
 	    case NC_NOERR: hascontent = 1; break;
-	    case NC_ENODATA: /* fall thru */ /* this is not a content bearing key */
+	    case NC_EEMPTY: /* fall thru */ /* this is not a content bearing key */
 	    case NC_EACCESS: hascontent = 0; len = 0; stat = NC_NOERR; break;
 	    default: goto done;
 	}

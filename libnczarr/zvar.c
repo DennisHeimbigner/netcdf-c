@@ -481,6 +481,10 @@ var->type_info->rc++;
     zvar->chunkproduct = 1;
     for(d=0;d<var->ndims;d++) {zvar->chunkproduct *= var->chunksizes[d];}
 
+    /* Create the cache */
+    if((retval=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,&zvar->cache)))
+        BAIL(retval);
+
 #ifdef LOOK
     /* Is this a variable with a chunksize greater than the current
      * cache size? */

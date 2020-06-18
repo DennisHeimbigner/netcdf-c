@@ -167,7 +167,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	}
 	/* The root object should not exist */
         switch (stat = NCZ_s3sdkinfo(z3map->s3client,z3map->bucket,z3map->rootkey,NULL,&z3map->errmsg)) {
-	case NC_ENODATA: /* no such object */
+	case NC_EEMPTY: /* no such object */
 	    stat = NC_NOERR;  /* which is what we want */
 	    errclear(z3map);
 	    break;
@@ -237,7 +237,7 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
 	goto done;
     if(nkeys == 0) {
 	/* dataset does not actually exist */
-	stat = NC_ENOTFOUND;
+	stat = NC_EEMPTY;
 	goto done;
     }
 
@@ -285,7 +285,7 @@ zs3close(NCZMAP* map, int deleteit)
 
 /*
 @return NC_NOERR if key points to a content-bearing object.
-@return NC_ENODATA if object at key has no content.
+@return NC_EEMPTY if object at key has no content.
 @return NC_EXXX return true error
 */
 static int
@@ -296,7 +296,7 @@ zs3exists(NCZMAP* map, const char* key)
 
 /*
 @return NC_NOERR if key points to a content-bearing object.
-@return NC_ENODATA if object at key has no content.
+@return NC_EEMPTY if object at key has no content.
 @return NC_EXXX return true error
 */
 static int
@@ -309,7 +309,7 @@ zs3len(NCZMAP* map, const char* key, size64_t* lenp)
 
     switch (stat = NCZ_s3sdkinfo(z3map->s3client,z3map->bucket,key,lenp,&z3map->errmsg)) {
     case NC_NOERR: break;
-    case NC_ENODATA:
+    case NC_EEMPTY:
 	if(lenp) *lenp = 0;
 	goto done;
     default:
@@ -322,7 +322,7 @@ done:
 
 /*
 @return NC_NOERR if key points to a content-bearing object.
-@return NC_ENODATA if object at key has no content, if so, then create
+@return NC_EEMPTY if object at key has no content, if so, then create
                    a content-bearing object at that key.
 @return NC_EXXX return true error
 */
@@ -336,7 +336,7 @@ zs3defineobj(NCZMAP* map, const char* key)
 
     switch(stat = zs3exists(map,key)) {
     case NC_NOERR: goto done; /* Already exists */
-    case NC_ENODATA:
+    case NC_EEMPTY:
         if((stat = z3createobj(z3map,key)))
 	    goto done;
 	break;
@@ -351,7 +351,7 @@ done:
 
 /*
 @return NC_NOERR if object at key was read
-@return NC_ENODATA if object at key has no content.
+@return NC_EEMPTY if object at key has no content.
 @return NC_EXXX return true error
 */
 static int
@@ -365,7 +365,7 @@ zs3read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* cont
 
     switch (stat=NCZ_s3sdkinfo(z3map->s3client, z3map->bucket, key, &size, &z3map->errmsg)) {
     case NC_NOERR: break;
-    case NC_ENODATA: goto done;
+    case NC_EEMPTY: goto done;
     default: goto done; 	
     }
     /* Sanity checks */
@@ -382,7 +382,7 @@ done:
 
 /*
 @return NC_NOERR if key content was written
-@return NC_ENODATA if object at key has no content.
+@return NC_EEMPTY if object at key has no content.
 @return NC_EXXX return true error
 */
 static int
@@ -404,7 +404,7 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
     case NC_NOERR:
 	newsize = (newsize > objsize ? newsize : objsize);
         break;
-    case NC_ENODATA:
+    case NC_EEMPTY:
 	newsize = newsize;
         break;
     default: reporterr(z3map); goto done;
@@ -599,7 +599,7 @@ done:
 
 /* Create an object corresponding to a key 
 @return NC_NOERR if key points to a content-bearing object already
-@return NC_ENODATA if object at key has no content, if so, then create
+@return NC_EEMPTY if object at key has no content, if so, then create
                    a content-bearing object at that key.
 @return NC_EXXX return true error
 */

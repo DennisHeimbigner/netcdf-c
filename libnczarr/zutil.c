@@ -278,7 +278,7 @@ NCZ_createdict(NCZMAP* zmap, const char* key, NCjson** jsonp)
     /* See if it already exists */
     stat = NCZ_downloadjson(zmap,key,&json);
     if(stat != NC_NOERR) {
-	if(stat == NC_EACCESS) {/* create it */
+	if(stat == NC_EEMPTY) {/* create it */
 	    if((stat = nczmap_def(zmap,key,NCZ_ISMETA)))
 		goto done;	    
         } else
@@ -315,7 +315,7 @@ NCZ_createarray(NCZMAP* zmap, const char* key, NCjson** jsonp)
 
     stat = NCZ_downloadjson(zmap,key,&json);
     if(stat != NC_NOERR) {
-	if(stat == NC_EACCESS) {/* create it */
+	if(stat == NC_EEMPTY) {/* create it */
 	    if((stat = nczmap_def(zmap,key,NCZ_ISMETA)))
 		goto done;	    
 	    /* Create the initial array */
@@ -341,7 +341,7 @@ done:
 @param key - [in] key of the object
 @param jsonp - [out] return parsed json
 @return NC_NOERR
-@return NC_EACCESS [object did not exist]
+@return NC_EEMPTY [object did not exist]
 @author Dennis Heimbigner
 */
 int
@@ -366,7 +366,7 @@ done:
 @param key - [in] key of the object
 @param jsonp - [out] return parsed json
 @return NC_NOERR
-@return NC_EACCESS [object did not exist]
+@return NC_EEMPTY [object did not exist]
 @author Dennis Heimbigner
 */
 int

@@ -288,10 +288,10 @@ ncuriparse(const char* uri0, NCURI** durip)
         } else if(l >= 4 && p[0] == '/' && p[1] == '/' && p[2] != '/') { /* case 5 */
 	    p += 2; /* points to the start of the path */
         } else /* everything else is illegal */
-	    {THROW(NC_EACCESS);}
+	    {THROW(NC_EURL);}
     } else {
         if(p[0] != '/' || p[1] != '/') /* must be proto:// */
-	    {THROW(NC_EACCESS);}
+	    {THROW(NC_EURL);}
 	p += 2;
         hashost = 1; /* Assume we have a hostname */
     }

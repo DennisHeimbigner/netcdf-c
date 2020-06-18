@@ -69,6 +69,7 @@ done:
 size64_t
 NCZ_cache_entrysize(NCZChunkCache* cache)
 {
+    assert(cache);
     return cache->chunksize;
 }
 
@@ -76,6 +77,7 @@ NCZ_cache_entrysize(NCZChunkCache* cache)
 size64_t
 NCZ_cache_size(NCZChunkCache* cache)
 {
+    assert(cache);
     return NC_hashmapcount(cache->entries);
 }
 
@@ -110,7 +112,8 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
 	stat=get_chunk(cache,key,entry);
 	switch (stat) {
 	case NC_NOERR: break;
-	case NC_EACCESS: /*signals the chunk needs to be created */
+	case NC_EEMPTY:
+	case NC_ENOTFOUND: /*signals the chunk needs to be created */
 	    /* If the file is read-only, then fake the chunk */
 	    entry->modified = (!file->no_write);
 	    if(!file->no_write) {
@@ -294,7 +297,7 @@ put_chunk(NCZChunkCache* cache, const char* key, const NCZCacheEntry* entry)
     stat = nczmap_write(map,key,0,cache->chunksize,entry->data);
     switch(stat) {
     case NC_NOERR: break;
-    case NC_EACCESS:
+    case NC_EEMPTY:
 	/* Create the chunk */
 	if((stat = nczmap_defineobj(map,key))) goto done;
 	/* write again */

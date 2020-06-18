@@ -711,6 +711,8 @@ oc_dumpnode(conn,*rootp);
     } else if(httpcode >= 500) {
         ncstat = NC_EDAPSVC;
     } else if(httpcode == 401) {
+	ncstat = NC_EACCESS;
+    } else if(httpcode == 403) {
 	ncstat = NC_EAUTH;
     } else if(httpcode == 404) {
 	ncstat = NC_ENOTFOUND;

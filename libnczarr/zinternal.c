@@ -582,7 +582,7 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
     /* Read the attributes for this var, if any */
     switch (retval = ncz_getattlist(my_grp, varid, &my_var, &attlist)) {
     case NC_NOERR: assert(attlist); break;
-    case NC_EACCESS: retval = NC_NOERR; attlist = NULL; break; /* variable has no attributes */
+    case NC_EEMPTY: retval = NC_NOERR; attlist = NULL; break; /* variable has no attributes */
     default: return retval; /* significant error */
     }
 
