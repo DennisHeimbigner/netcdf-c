@@ -79,7 +79,7 @@ simplecreate(void)
 
     switch(stat = nczmap_create(impl,url,0,0,NULL,&map)) {
     case NC_NOERR: break; /* already exists */
-    case NC_ENOTFOUND: break; /*created*/
+    case NC_EEMPTY: break; /*created*/
     default: goto done;
     }
     
@@ -127,21 +127,21 @@ simpledelete(void)
     case NC_NOERR:
         report(PASS,"open",map);
 	break;
-    case NC_ENOTFOUND:
+    case NC_EEMPTY:
         {report(XFAIL,"open",map); stat = NC_NOERR; goto done;}
     default:
         {report(FAIL,"open",map); goto done;}
     }     
     /* Delete dataset while closing */
     if((stat = nczmap_close(map,1))) goto done;
-    report(PASS,"close",map);
+    report(PASS,"close: delete",map);
 
     switch ((stat = nczmap_open(impl,url,0,0,NULL,&map))) {
     default:
     case NC_NOERR:
         report(FAIL,"open",map);
 	break;
-    case NC_ENOTFOUND:
+    case NC_EEMPTY:
         report(XFAIL,"open",map);
 	stat = NC_NOERR;
 	break;
