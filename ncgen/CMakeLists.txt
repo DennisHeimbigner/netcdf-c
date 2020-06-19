@@ -35,6 +35,7 @@ TARGET_LINK_LIBRARIES(ncgen netcdf ${ALL_TLL_LIBS})
 # Given a netcdf4 file, dump the actual chunk contents.
 # Used to validate nczarr chunking code.
 IF(USE_NETCDF4)
+IF(NOT MSVC) 
 SET(ncdumpchunks_FILES ncdumpchunks.c)
 ADD_EXECUTABLE(ncdumpchunks ${ncdumpchunks_FILES})
 TARGET_LINK_LIBRARIES(ncdumpchunks netcdf ${ALL_TLL_LIBS})
@@ -48,6 +49,7 @@ IF(MSVC)
   SET_TARGET_PROPERTIES(ncdumpchunks
     PROPERTIES LINK_FLAGS_DEBUG " /NODEFAULTLIB:MSVCRT"
     )
+ENDIF()
 ENDIF()
 ENDIF()
 

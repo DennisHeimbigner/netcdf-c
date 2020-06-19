@@ -13,7 +13,6 @@
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
 LDADD = ${top_builddir}/liblib/libnetcdf.la
-
 noinst_PROGRAMS=
 # Note which tests depend on other tests. Necessary for make -j check.
 TEST_EXTENSIONS = .sh

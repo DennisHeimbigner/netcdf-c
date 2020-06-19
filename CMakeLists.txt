@@ -2120,13 +2120,6 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/findtestserver.c.in ${CMAK
 #####
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/pingurl.c ${CMAKE_CURRENT_SOURCE_DIR}/dap4_test/pingurl4.c @ONLY NEWLINE_STYLE LF)
 
-#####
-# Build libnczarr/ezxml.c
-#####
-IF(NOT ENABLE_DAP4)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libdap4/ezxml.c ${CMAKE_CURRENT_SOURCE_DIR}/libnczarr/ezxml.c @ONLY NEWLINE_STYLE LF)
-ENDIF()
-
 ####
 # Export files
 ####
