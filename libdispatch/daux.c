@@ -92,7 +92,7 @@ Should work for any netcdf format.
 @return error code
 */
 
-int
+EXTERNL int
 ncaux_reclaim_data(int ncid, int xtype, void* memory, size_t count)
 {
     int stat = NC_NOERR;
@@ -274,7 +274,7 @@ This code is a variant of the H5detect.c code from HDF5.
 Author: D. Heimbigner 10/7/2008
 */
 
-int
+EXTERNL int
 ncaux_begin_compound(int ncid, const char *name, int alignmode, void** tagp)
 {
 #ifdef USE_NETCDF4
@@ -306,7 +306,7 @@ fail:
 #endif
 }
 
-int
+EXTERNL int
 ncaux_abort_compound(void* tag)
 {
 #ifdef USE_NETCDF4
@@ -328,7 +328,7 @@ done:
 #endif
 }
 
-int
+EXTERNL int
 ncaux_add_field(void* tag,  const char *name, nc_type field_type,
 			   int ndims, const int* dimsizes)
 {
@@ -368,7 +368,7 @@ done:
 #endif
 }
 
-int
+EXTERNL int
 ncaux_end_compound(void* tag, nc_type* idp)
 {
 #ifdef USE_NETCDF4
@@ -653,7 +653,7 @@ Parse a filter spec string into a NC_FILTER_SPEC*
 @return NC_EINVAL otherwise
 */
 
-int
+EXTERNL int
 ncaux_filterspec_parse(const char* txt, NC_Filterspec** specp)
 {
     int i,stat = NC_NOERR;
@@ -742,7 +742,7 @@ Parse a string containing multiple '|' separated filter specs.
 @return NC_EINVAL if bad parameters or parse failed
 */
 
-int
+EXTERNL int
 ncaux_filterspec_parselist(const char* txt0, char** formatp, size_t* nspecsp, NC_Filterspec*** vectorp)
 {
     int stat = NC_NOERR;
@@ -845,7 +845,7 @@ Convert an NC_Filterspec to equivalent NC_H5_Filterspec.
 @return NC_EINVAL if bad parameters or parse failed
 */
 
-int
+EXTERNL int
 ncaux_filterspec_cvt(const NC_Filterspec* spec, NC_H5_Filterspec** spech5p)
 {
     int i,stat = NC_NOERR;
@@ -964,7 +964,7 @@ Parse a filter spec string into a NC_H5_Filterspec*
 @return NC_EINVAL otherwise
 */
 
-int
+EXTERNL int
 ncaux_filter_parsespec(const char* txt, NC_H5_Filterspec** h5specp)
 {
     int stat = NC_NOERR;
@@ -1001,7 +1001,7 @@ Parse a string containing multiple '|' separated filter specs.
 @return NC_EINVAL if bad parameters or parse failed
 */
 
-int
+EXTERNL int
 ncaux_filter_parselist(const char* txt0, size_t* nspecsp, NC_H5_Filterspec*** vectorp)
 {
     int stat = NC_NOERR;
