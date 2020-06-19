@@ -386,6 +386,11 @@ ncuriparse(const char* uri0, NCURI** durip)
     duri->fragment = NULL; /* let ensurefrag fix this */
     duri->fraglist = tmp.fraglist; tmp.fraglist = NULL;
     duri->querylist = tmp.querylist; tmp.querylist = NULL;
+
+    /* make sure query and fragment strings are defined */
+    ensurequerylist(duri);
+    ensurefraglist(duri);
+
     if(durip)
       *durip = duri;
     else

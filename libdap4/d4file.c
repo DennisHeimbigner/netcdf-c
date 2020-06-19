@@ -78,7 +78,7 @@ NCD4_open(const char * path, int mode,
 
     /* fail if we are unconstrainable but have constraints */
     if(FLAGSET(d4info->controls.flags,NCF_UNCONSTRAINABLE)) {
-	if(d4info->uri->query != NULL) {
+	if(d4info->uri != NULL && d4info->uri->query != NULL) {
 	    nclog(NCLOGWARN,"Attempt to constrain an unconstrainable data source: %s",
 		   d4info->uri->query);
 	    ret = THROW(NC_EDAPCONSTRAINT);
