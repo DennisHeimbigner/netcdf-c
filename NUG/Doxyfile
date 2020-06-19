@@ -794,7 +794,7 @@ WARN_LOGFILE           =
 INPUT                  = guide.dox \
                          bestpractices.md \
                          install.md \
-			 NCZARR.md \
+			 nczarr.md \
  			 DAP2.dox \
                          DAP4.dox \
                          OPeNDAP.dox \

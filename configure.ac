@@ -1,4 +1,3 @@
-
 #                                               -*- Autoconf -*-
 ## Process this file with autoconf to produce a configure script.
 
@@ -443,10 +442,6 @@ AC_MSG_ERROR([netCDF-4 disabled, so you must not enable nczarr])
 enable_nczarr=no
 fi
 fi
-#if test "x$havecurloption" = xno ; then
-#  AC_MSG_ERROR([nczarr support requires libcurl. Install curl or build without --enable-zarr.])
-#  enable_nczarr=no
-#fi
 if test "x$enable_nczarr" = xyes; then
    AC_DEFINE([ENABLE_NCZARR], [1], [if true, build NCZarr Client])
    AC_SUBST(ENABLE_NCZARR)
@@ -1626,7 +1621,6 @@ AC_CONFIG_FILES([h5_test/run_par_tests.sh], [chmod ugo+x h5_test/run_par_tests.s
 AC_CONFIG_FILES([nc_test4/run_par_test.sh], [chmod ugo+x nc_test4/run_par_test.sh])
 AC_CONFIG_FILES([nc_perf/run_par_bm_test.sh], [chmod ugo+x nc_perf/run_par_bm_test.sh])
 AC_CONFIG_FILES([examples/C/run_par_test.sh], [chmod ugo+x examples/C/run_par_test.sh])
-AC_CONFIG_FILES(libnczarr/ezxml.c:libdap4/ezxml.c)
 AC_CONFIG_FILES([nc-config], [chmod 755 nc-config])
 AC_CONFIG_FILES([Makefile
                  netcdf.pc
