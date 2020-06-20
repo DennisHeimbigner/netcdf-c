@@ -1,4 +1,4 @@
-
+s
 ## This is a CMake file, part of Unidata's netCDF package.
 # Copyright 2012-2018, see the COPYRIGHT file for more information.
 #
@@ -994,6 +994,10 @@ IF(ENABLE_TESTS)
   ###
 
   OPTION(ENABLE_FAILING_TESTS "Run tests which are known to fail, check to see if any have been fixed." OFF)
+
+  # There is a special class of tests that currently fail because of memory leaks.
+  # As with failing tests, they can be enabled to work on them
+  OPTION(ENABLE_UNFIXED_MEMORY_LEAKS "Run tests with unfixed memory leaks" OFF)
 
   ###
   # Option to turn on unit testing. See
@@ -2057,6 +2061,7 @@ is_enabled(ENABLE_ERANGE_FILL HAS_ERANGE_FILL)
 is_enabled(HAVE_H5Z_SZIP HAS_SZLIB)
 is_enabled(HDF5_HAS_PAR_FILTERS HAS_PAR_FILTERS)
 is_enabled(ENABLE_NCZARR HAS_NCZARR)
+is_enabled(ENABLE_S3_SDK HAS_NCZARR_S3)
 
 # Generate file from template.
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/libnetcdf.settings.in"

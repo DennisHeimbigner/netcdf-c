@@ -2021,6 +2021,7 @@ NC_open(const char *path0, int omode, int basepe, size_t *chunksizehintp,
     if(newpath) {
         nullfree(path);
         path = newpath;
+	newpath = NULL;
     }
 
     /* Still no implementation, give up */
@@ -2115,8 +2116,8 @@ NC_open(const char *path0, int omode, int basepe, size_t *chunksizehintp,
             dispatcher = NC3_dispatch_table;
             break;
         default:
-            nullfree(path);
-            return NC_ENOTNC;
+            stat = NC_ENOTNC;
+	    goto done;
         }
     }
 
@@ -2142,6 +2143,7 @@ NC_open(const char *path0, int omode, int basepe, size_t *chunksizehintp,
 
 done:
     nullfree(path);
+    nullfree(newpath);
     return stat;
 }
 

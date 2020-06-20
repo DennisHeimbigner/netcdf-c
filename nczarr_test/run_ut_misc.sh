@@ -3,6 +3,8 @@
 if test "x$socked" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
+. "$srcdir/test_nczarr.sh"
+
 set -e
 
 # Test misc functionality
@@ -12,16 +14,6 @@ set -e
 TESTS=json
 
 # Functions
-
-extfor() {
-    case "$1" in
-    nc4) zext="nz4" ;;
-    nz4) zext="nz4" ;;
-    nzf) zext="nzf" ;;
-    *) echo "unknown kind: $1" ; exit 1;;
-    esac
-}
-
 
 testjson() {
   file="ut_json_build.txt"

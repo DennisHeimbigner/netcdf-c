@@ -1,7 +1,9 @@
 #!/bin/sh
 
-if test "x$socked" = x ; then srcdir=`pwd`; fi
+if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
+
+. "$srcdir/test_nczarr.sh"
 
 set -e
 
@@ -11,48 +13,6 @@ set -e
 # cannot easily look inside S3 storage
 # except using the aws-cli, if available
 
-
-# Functions
-
-extfor() {
-    case "$1" in
-    nc4) zext="nz4" ;;
-    nz4) zext="nz4" ;;
-    nzf) zext="nzf" ;;
-    *) echo "unknown kind: $1" ; exit 1;;
-    esac
-}
-
-dumpmap1() {
-    tmp=
-    if test -f $1 ; then
-      ftype=`file -b $1`
-      case "$ftype" in
-      [Aa][Ss][Cc]*) tmp=`cat $1 | tr '\r\n' '  '` ;;
-      data*) tmp=`hexdump -v -e '1/1 " %1x"' ./testmap.nzf/data1/0` ;;
-      empty*) unset tmp ;;
-      *) echo fail ; exit 1 ;;
-      esac
-      echo "$1 : |$tmp|" >> $2
-    else
-      echo "$1" >> $2
-    fi
-}
-
-dumpmap() {
-    case "$1" in
-    nz4) rm -f $3 ; ${NCDUMP} $2 > $3 ;;
-    nzf)
-	rm -f $3;
-	lr=`find $2 | tr  '\r\n' '  '`
-	for f in $lr ; do  dumpmap1 $f $3 ; done
-	;;
-    esac
-}
-
-deletemap() {
-    rm -fr $2
-}
 
 # Common
 CMD="${execdir}/ut_map${ext}"

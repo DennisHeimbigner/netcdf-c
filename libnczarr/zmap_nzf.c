@@ -303,9 +303,13 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     zfmap->cwd = zfcwd; zfcwd = NULL;
     
     /* Verify root dir exists */
-    if((stat = platformopendir(zfmap,zfmap->root)))
+    switch (stat = platformopendir(zfmap,zfmap->root)) {
+    case NC_NOERR: break;
+    case NC_ENOTFOUND: stat = NC_EEMPTY; /* fall thru */
+    default:
 	goto done;
-
+    }
+    
     /* Dataset superblock will be read by higher layer */
     
     if(mapp) *mapp = (NCZMAP*)zfmap;    
@@ -928,7 +932,7 @@ platformdircontent(ZFMAP* zfmap, const char* path, NClist* contents)
     errno = 0;
     DIR* dir = NULL;
 
-    dir = opendir(path);
+    dir = NCopendir(path);
     if(dir == NULL && errno == ENOTDIR)
 	goto done;
     else if(dir == NULL) {stat = platformerr(errno); goto done;}
@@ -967,7 +971,7 @@ platformdeleter(ZFMAP* zfmap, NClist* segments)
     }
     /* process this file */
     if(S_ISDIR(statbuf.st_mode)) {
-        if((dir = opendir(path)) == NULL)
+        if((dir = NCopendir(path)) == NULL)
 	     {ret = platformerr(errno); goto done;}
         for(;;) {
 	    char* seg = NULL;
@@ -1106,7 +1110,7 @@ platformclose(ZFMAP* zfmap, FD* fd)
         if(fd->fd >=0) close(fd->u,fd);
 	fd->fd = -1;
     } else if(fd->type == FDDIR) {
-	if(fd->u.dir) closedir(fd->u,dir);
+	if(fd->u.dir) NCclosedir(fd->u,dir);
     }
     fd->typ = FDNONE;
 }

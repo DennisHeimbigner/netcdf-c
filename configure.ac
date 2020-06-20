@@ -184,12 +184,23 @@ if test "x$enable_jna" = xyes ; then
 AC_DEFINE([JNA], [1], [if true, include jna bug workaround code])
 fi
 
+# Should tests with unfixed memory leaks be run?
+AC_MSG_CHECKING([if unfixed tests with memory leaks should be enabled])
+AC_ARG_ENABLE([unfixed-memory-leaks],
+  [AS_HELP_STRING([--enable-unfixed-memory-leaks],
+    [Enable tests in the ncdump directory that have unfixed memory leaks])])
+test "x$enable_unfixed_memory_leaks" = xyes || enable_unfixed_memory_leaks=no
+AC_MSG_RESULT($enable_unfixed_memory_leaks)
+AM_CONDITIONAL([ENABLE_UNFIXED_MEMORY_LEAKS], [test "x$enable_unfixed_memory_leaks" = xyes])
+
 # Does the user want to turn off unit tests (useful for test coverage
 # analysis).
+AC_MSG_CHECKING([if unit tests should be disabled])
 AC_ARG_ENABLE([unit-tests],
   [AS_HELP_STRING([--disable-unit-tests],
     [Disable tests in unit_test directory. Other tests still run.])])
 test "x$enable_unit_tests" = xno || enable_unit_tests=yes
+AC_MSG_RESULT($enable_unit_tests)
 AM_CONDITIONAL([BUILD_UNIT_TESTS], [test "x$enable_unit_tests" = xyes])
 
 # Does the user want to build netcdf-4?
@@ -453,8 +464,8 @@ AC_MSG_CHECKING([whether netcdf zarr S3 storage should be enabled])
 AC_ARG_ENABLE([s3],
               [AS_HELP_STRING([--enable-s3],
                               [enable netcdf zarr S3 storage])])
-test "x$enable_s3" = xno || enable_s3=yes
-AC_MSG_RESULT($enable_s3)
+test "x$enable_s3_sdk" = xno || enable_s3_sdk=yes
+AC_MSG_RESULT($enable_s3_sdk)
 
 # Check for the AWS S3 SDK library
 AC_LANG_PUSH([C++])
@@ -463,16 +474,15 @@ AC_LANG_POP
 AC_MSG_CHECKING([whether AWS S3 SDK library is available])
 AC_MSG_RESULT([$have_aws])
 if test "x$have_aws" = xyes ; then
-  if test "x$enable_s3" = xno ; then
-    AC_MSG_WARN([--disable-s3 overrides access to aws -s3 libraries])
+  if test "x$enable_s3_sdk" = xno ; then
+    AC_MSG_WARN([--disable-s3 overrides access to aws s3 libraries])
     have_aws=no
   fi
 fi
-if test "x$have_aws" = xyes ; then
+if test "x$enable_s3_sdk" = xyes ; then
   AC_DEFINE([ENABLE_S3_SDK], [1], [if true, build libnczarr with S3 support enabled])
-   AC_SUBST(ENABLE_S3_SDK)
 fi
-AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$have_aws" = xyes])
+AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$enable_s3_sdk" = xyes])
 
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
@@ -1526,7 +1536,7 @@ AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
 AC_SUBST(RELAX_COORD_BOUND,[yes])
 AC_SUBST([HAS_PAR_FILTERS], [$hdf5_supports_par_filters])
 AC_SUBST(HAS_NCZARR,[$enable_nczarr])
-AC_SUBST(HAS_S3_SDK,[$enable_s3_sdk])
+AC_SUBST(HAS_NCZARR_S3,[$enable_s3_sdk])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],
@@ -1597,8 +1607,9 @@ AX_SET_META([NC_HAS_CDF5],[$enable_cdf5],[yes])
 AX_SET_META([NC_HAS_ERANGE_FILL], [$enable_erange_fill],[yes])
 AX_SET_META([NC_HAS_PAR_FILTERS], [$hdf5_supports_par_filters],[yes])
 AX_SET_META([NC_HAS_BYTERANGE],[$enable_byterange],[yes])
-AC_SUBST([NC_DISPATCH_VERSION], [2])
 AX_SET_META([NC_HAS_NCZARR],[$enable_nczarr],[yes])
+AX_SET_META([NC_HAS_NCZARR_S3],[$enable_s3_sdk],[yes])
+AC_SUBST([NC_DISPATCH_VERSION], [2])
 
 #####
 # End netcdf_meta.h definitions.
