@@ -461,9 +461,9 @@ AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
 # Check for forced disabling of S3 support
 AC_MSG_CHECKING([whether netcdf zarr S3 storage should be enabled])
-AC_ARG_ENABLE([s3],
-              [AS_HELP_STRING([--enable-s3],
-                              [enable netcdf zarr S3 storage])])
+AC_ARG_ENABLE([s3-sdk],
+              [AS_HELP_STRING([--disable-s3-sdk],
+                              [forcibly disable usage of netcdf zarr S3 sdk])])
 test "x$enable_s3_sdk" = xno || enable_s3_sdk=yes
 AC_MSG_RESULT($enable_s3_sdk)
 

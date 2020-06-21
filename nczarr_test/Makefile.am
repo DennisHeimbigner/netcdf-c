@@ -41,6 +41,7 @@ TESTS += run_ut_map.sh
 TESTS += run_ut_mapapi.sh
 TESTS += run_ut_misc.sh
 TESTS += run_ut_chunk.sh
+TESTS += tst_chunks tst_chunks2
 
 ignorec = ut_allslices.c ut_transfer.c ut_vars.c ut_walk.c
 ignoresh = run_meta_tests.sh run_unittests.sh
@@ -50,6 +51,7 @@ noinst_PROGRAMS = zmapdump
 zmapdump_SOURCES = zmapdump.c
 
 EXTRA_DIST = \
+test_nczarr_util.h \
 ref_ut_map_readmeta_nzf.txt \
 ref_ut_map_writedata_nzf.cdl \
 ref_ut_map_writemeta_nzf.cdl \
