@@ -7,26 +7,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
-TESTSET="\
-ref_dimscope \
-ref_tst_group_data \
-ref_tst_solar_1 \
-ref_tst_nans \
-ref_tst_nul4 \
-"       
-
-cdl="${TOPSRCDIR}/ncdump/cdl"
-KFLAG=4
-
 # Functions
-
-checkxfail() {
-   # determine if this is an xfailtest
-   isxfail=
-   for t in ${ALLXFAIL} ; do
-     if test "x${t}" = "x${x}" ; then isxfail=1; fi
-   done
-}
 
 diffcycle() {
 echo ""; echo "*** Test cycle zext=$1"
@@ -52,34 +33,32 @@ for x in ${TESTSET} ; do
      if diff -b -w ${expected}/${x}.dmp ${x}.dmp ; then ok=1; else ok=0; fi
    fi
    if test "x$ok" = "x1" ; then
-     test $verbose = 1 && echo "*** SUCCEED: ${x}"
-     passcount=`expr $passcount + 1`
+     echo "*** SUCCEED: ${x}"
    elif test "x${isxfail}" = "x1" ; then
      echo "*** XFAIL : ${x}"
-     xfailcount=`expr $xfailcount + 1`
    else
      echo "*** FAIL: ${x}"
-     failcount=`expr $failcount + 1`
+     exit 1
    fi
 done
 }
 
-echo "*** Testing ncgen with -${KFLAG} and zmap=${zext}"
 
 main() {
 extfor $1
-RESULTSDIR="results.${zext}"
-mkdir -p ${RESULTSDIR}
-cd ${RESULTSDIR}
-diffcycle
-cd ..
-totalcount=`expr $passcount + $failcount + $xfailcount`
-okcount=`expr $passcount + $xfailcount`
-echo "*** PASSED: zext=${zext} ${okcount}/${totalcount} ; ${xfailcount} expected failures ; ${failcount} unexpected failures"
+${execdir}/tst_chunks $1
+#${execdir}/tst_chunks2 $1
 }
 
-rm -rf ${RESULTSDIR}
+# check settings
+checksetting "NCZarr Support"
+if test "x$HAVE_SETTING" = x1 ; then HAVENCZARR=1; fi
+checksetting "NCZarr S3"
+if test "x$HAVE_SETTING" = x1 ; then HAVES3=1; fi
+
 main nz4
 main nzf
 
-if test $failcount -gt 0 ; then exit 1; else  exit 0; fi
+if test "x$HAVENCZARR" = x1 -a "x$HAVES3" = x1 ; then
+main s3
+fi
