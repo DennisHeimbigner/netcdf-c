@@ -42,8 +42,11 @@ extern int NCJparse(const char* text, unsigned flags, NCjson** jsonp);
 /* Build */
 extern int NCJnew(int sort, NCjson** object);
 
-/* Convert a string value to an NCjson object */
+/* Convert a nul terminated string value to an NCjson object */
 extern int NCJnewstring(int sort, const char* value, NCjson** jsonp);
+
+/* Convert a counted string value to an NCjson object (+ nul term)*/
+extern int NCJnewstringn(int sort, size_t len, const char* value, NCjson** jsonp);
 
 /* Insert key-value pair into a dict object.
    key will be strdup'd.

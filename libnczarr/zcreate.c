@@ -124,7 +124,7 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
     if(ncuriparse(path,&uri)) goto done;
 
     /* Create the file */
-    stat = ncz_create_file(path, cmode, initialsz, ncurifragmentparams(uri), ncid);
+   stat = ncz_create_file(path, cmode, initialsz, ncurifragmentparams(uri), ncid);
 
 done:
     ncurifree(uri);

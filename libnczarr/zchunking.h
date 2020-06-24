@@ -81,7 +81,7 @@ extern int NCZ_compute_all_slice_projections(int rank, const NCZSlice* slices, c
 extern int ncz_chunking_init(void);
 extern int NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 		  size64_t* start, size64_t* count, size64_t* stride,
-		  void* memory, size_t typesize);
+		  void* memory, nc_type typecode);
 extern int NCZ_transfer(struct Common* common, NCZSlice* slices);
 extern size64_t NCZ_computelinearoffset(size_t, const size64_t*, const size64_t*);
 

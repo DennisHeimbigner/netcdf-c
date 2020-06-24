@@ -248,7 +248,7 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
                 if (!(*(char **)fill_valuep = calloc(1, sizeof(char *))))
                     return NC_ENOMEM;
 
-                if ((retval = nc4_get_default_fill_value(var->type_info, (char **)fill_valuep)))
+                if ((retval = nc4_get_default_fill_value(var->type_info->hdr.id, (char **)fill_valuep)))
                 {
                     free(*(char **)fill_valuep);
                     return retval;
@@ -256,7 +256,7 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
             }
             else
             {
-                if ((retval = nc4_get_default_fill_value(var->type_info, fill_valuep)))
+                if ((retval = nc4_get_default_fill_value(var->type_info->hdr.id, fill_valuep)))
                     return retval;
             }
         }
@@ -1316,7 +1316,7 @@ nc4_get_fill_value(NC_FILE_INFO_T *h5, NC_VAR_INFO_T *var, void **fillp)
     }
     else
     {
-        if (nc4_get_default_fill_value(var->type_info, *fillp))
+        if (nc4_get_default_fill_value(var->type_info->hdr.id, *fillp))
         {
             /* Note: release memory, but don't return error on failure */
             free(*fillp);
@@ -1339,9 +1339,9 @@ nc4_get_fill_value(NC_FILE_INFO_T *h5, NC_VAR_INFO_T *var, void **fillp)
  * @author Ed Hartnett
  */
 int
-nc4_get_default_fill_value(const NC_TYPE_INFO_T *type_info, void *fill_value)
+nc4_get_default_fill_value(nc_type typecode, void *fill_value)
 {
-    switch (type_info->hdr.id)
+    switch (typecode)
     {
     case NC_CHAR:
         *(char *)fill_value = NC_FILL_CHAR;

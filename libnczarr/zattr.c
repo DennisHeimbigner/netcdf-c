@@ -11,6 +11,8 @@
 
 #include "zincludes.h"
 
+#undef ADEBUG
+
 /**
  * @internal Get the attribute list for either a varid or NC_GLOBAL
  *
@@ -696,8 +698,11 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
             /* [Re]allocate memory for the attribute data */
             if (!new_att)
                 free (att->data);
-            if (!(att->data = malloc(att->len * type_size)))
+	    if (!(att->data = malloc(att->len * type_size)))
                 BAIL(NC_ENOMEM);
+#ifdef ADEBUG
+	fprintf(stderr,"new attr: %s: len=%d alloc=%d\n",att->hdr.name,(int)att->len,(int)(att->len*type_size));
+#endif
 
             /* Just copy the data, for non-atomic types */
             if (type_class == NC_OPAQUE || type_class == NC_COMPOUND || type_class == NC_ENUM)

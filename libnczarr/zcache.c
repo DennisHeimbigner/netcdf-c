@@ -21,6 +21,89 @@ static int put_chunk(NCZChunkCache* cache, const char* key, const NCZCacheEntry*
 static int create_chunk(NCZChunkCache* cache, const char* key, NCZCacheEntry* entry);
 static int buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp);
 
+/**************************************************/
+/* Dispatch table per-var cache functions */
+
+/**
+ * @internal Set chunk cache size for a variable. This is the internal
+ * function called by nc_set_var_chunk_cache().
+ *
+ * @param ncid File ID.
+ * @param varid Variable ID.
+ * @param size Size in bytes to set cache.
+ * @param nelems Number of elements in cache.
+ * @param preemption Controls cache swapping.
+ *
+ * @returns ::NC_NOERR No error.
+ * @returns ::NC_EBADID Bad ncid.
+ * @returns ::NC_ENOTVAR Invalid variable ID.
+ * @returns ::NC_ESTRICTNC3 Attempting netcdf-4 operation on strict
+ * nc3 netcdf-4 file.
+ * @returns ::NC_EINVAL Invalid input.
+ * @returns ::NC_EHDFERR HDF5 error.
+ * @author Ed Hartnett
+ */
+int
+NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems, float preemption)
+{
+    NC_GRP_INFO_T *grp;
+    NC_FILE_INFO_T *h5;
+    NC_VAR_INFO_T *var;
+    NCZ_VAR_INFO_T *zvar;
+    int retval;
+
+    /* Check input for validity. */
+    if (preemption < 0 || preemption > 1)
+        return NC_EINVAL;
+
+    /* Find info for this file and group, and set pointer to each. */
+    if ((retval = nc4_find_nc_grp_h5(ncid, NULL, &grp, &h5)))
+        return retval;
+    assert(grp && h5);
+
+    /* Find the var. */
+    if (!(var = (NC_VAR_INFO_T *)ncindexith(grp->vars, varid)))
+        return NC_ENOTVAR;
+    assert(var && var->hdr.id == varid);
+
+    zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
+    assert(zvar != NULL && zvar->cache != NULL);
+
+    /* Set the values. */
+    var->chunk_cache_nelems = nelems;
+    var->chunk_cache_size = nelems * zvar->cache->chunksize;
+    var->chunk_cache_preemption = preemption;
+    zvar->chunk_cache_nelems = nelems;
+
+#ifdef LOOK
+    /* Reopen the dataset to bring new settings into effect. */
+    if ((retval = nc4_reopen_dataset(grp, var)))
+        return retval;
+#endif
+    return NC_NOERR;
+}
+
+/**
+ * @internal Adjust the chunk cache of a var for better
+ * performance.
+ *
+ * @note For contiguous and compact storage vars, or when parallel I/O
+ * is in use, this function will do nothing and return ::NC_NOERR;
+ *
+ * @param grp Pointer to group info struct.
+ * @param var Pointer to var info struct.
+ *
+ * @return ::NC_NOERR No error.
+ * @author Ed Hartnett
+ */
+int
+NCZ_adjust_var_cache(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
+{
+    return NC_NOERR;
+}
+
+/**************************************************/
+
 /**
  * Create a chunk cache object
  *
@@ -33,17 +116,24 @@ static int buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp);
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, NCZChunkCache** cachep)
+NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, size_t nchunks, NCZChunkCache** cachep)
 {
     int stat = NC_NOERR;
     NCZChunkCache* cache = NULL;
     NC_FILE_INFO_T* file = var->container->nc4_info;
     void* fill = NULL;
 
+    if(nchunks == 0 || chunksize == 0) return NC_EINVAL;
+
+#ifdef FLUSH
+    nchunks = 1;
+#endif
+
     if((cache = calloc(1,sizeof(NCZChunkCache))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
     cache->var = var;
     cache->chunksize = chunksize;
+
     {
 	size_t i;
 	unsigned char* p;
@@ -57,13 +147,30 @@ NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, NCZChunkCache** c
 	for(p=cache->fillchunk,i=0;i<cache->chunksize;i+=typesize,p+=typesize) 		
 	    memcpy(p,fill,typesize);
     }
-    if((cache->entries = NC_hashmapnew(0)) == NULL)
+
+    if((cache->entries = nclistnew()) == NULL)
 	{stat = NC_ENOMEM; goto done;}
+    nclistsetalloc(cache->entries,nchunks+1);
     if(cachep) {*cachep = cache; cache = NULL;}
 done:
     nullfree(fill);
     nullfree(cache);
     return THROW(stat);
+}
+
+void
+NCZ_free_chunk_cache(NCZChunkCache* cache)
+{
+    if(cache == NULL) return;
+    /* Iterate over the entries */
+    while(nclistlength(cache->entries) > 0) {
+        NCZCacheEntry* entry = nclistremove(cache->entries,0);
+	nullfree(entry->data); nullfree(entry->key); nullfree(entry);
+    }
+    nclistfree(cache->entries);
+    cache->entries = NULL;
+    nullfree(cache->fillchunk);
+    nullfree(cache);
 }
 
 size64_t
@@ -78,29 +185,33 @@ size64_t
 NCZ_cache_size(NCZChunkCache* cache)
 {
     assert(cache);
-    return NC_hashmapcount(cache->entries);
+    return nclistlength(cache->entries);
 }
 
 int
 NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap)
 {
     int stat = NC_NOERR;
-    char* chunkkey = NULL;
-    char* varkey = NULL;
     char* key = NULL;
-    NCZCacheEntry* entry = NULL;
     int rank = cache->var->ndims;
     NC_FILE_INFO_T* file = cache->var->container->nc4_info;
-
+    NCZCacheEntry* entry = NULL;
+    int i;
+	
     /* Create the key for this cache */
     if((stat = NCZ_buildchunkpath(cache,indices,&key))) goto done;
 
-    /* See if already in cache */
-    if(NC_hashmapget(cache->entries, key, strlen(key), (uintptr_t*)&entry)) { /* found */
-        if(datap) *datap = entry->data;
-	entry = NULL; /*avoid reclaiming */
-	goto done;
-    } else { /*!found*/
+    /* See if already in cache try MRU */
+    for(i=nclistlength(cache->entries)-1;i>=0;i--) {
+	entry = (NCZCacheEntry*)nclistget(cache->entries,i);
+	if(strcmp(key,entry->key)==0) {
+            if(datap) *datap = entry->data;
+	    /* Move to keep MRU at end */
+	    nclistremove(cache->entries,i);	    
+	    break;
+        } else entry = NULL;
+    }
+    if(entry == NULL) { /*!found*/
 	/* Create a new entry */
 	if((entry = calloc(1,sizeof(NCZCacheEntry)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
@@ -108,8 +219,9 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
 	/* Create the local copy space */
 	if((entry->data = calloc(1,cache->chunksize)) == NULL)
 	    {stat = NC_ENOMEM; goto done;}
+	entry->key= key; key = NULL;
 	/* Try to read the object in toto */
-	stat=get_chunk(cache,key,entry);
+	stat=get_chunk(cache,entry->key,entry);
 	switch (stat) {
 	case NC_NOERR: break;
 	case NC_EEMPTY:
@@ -117,59 +229,78 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
 	    /* If the file is read-only, then fake the chunk */
 	    entry->modified = (!file->no_write);
 	    if(!file->no_write) {
-                if((stat = create_chunk(cache,key,entry))) goto done;
+                if((stat = create_chunk(cache,entry->key,entry))) goto done;
 	    }
 	    /* apply fill value */
 	    memcpy(entry->data,cache->fillchunk,cache->chunksize);
 	    break;
 	default: goto done;
 	}
-	/* Put entry into hashmap */
-        if(!NC_hashmapadd(cache->entries, (uintptr_t)entry, key, strlen(key)))
-	    {stat = NC_EINTERNAL; goto done;}
+	nclistpush(cache->entries,entry);
         if(datap) *datap = entry->data;
 	entry = NULL;
     }
 
 done:
-    if(entry) nullfree(entry->data);
+    if(entry) {nullfree(entry->data); nullfree(entry->key);}
     nullfree(entry);
     nullfree(key);
-    nullfree(varkey);
-    nullfree(chunkkey);
     return THROW(stat);
 }
 
 int
-NCZ_write_cache_chunk(NCZChunkCache* cache, const size64_t* indices, const void* data)
+NCZ_write_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap)
 {
     int stat = NC_NOERR;
     char* key = NULL;
+    int i,rank = cache->var->ndims;
     NCZCacheEntry* entry = NULL;
-    int rank = cache->var->ndims;
-
+    size_t nelems = cache->var->chunk_cache_nelems;
+    
     /* Create the key for this cache */
-    if((stat=buildchunkkey(rank, indices, &key))) goto done;
-    /* See if already in cache */
-    if(!NC_hashmapget(cache->entries, key, strlen(key), (uintptr_t*)&entry)) { /* !found */
+    if((stat = NCZ_buildchunkpath(cache,indices,&key))) goto done;
+
+    /* See if already in cache try MRU */
+    for(i=nclistlength(cache->entries)-1;i>=0;i--) {
+	entry = (NCZCacheEntry*)nclistget(cache->entries,i);
+	if(strcmp(key,entry->key)==0) {
+            if(datap) *datap = entry->data;
+	    /* Move to keep MRU at end */
+	    nclistremove(cache->entries,i);	    
+	    break;
+        } else entry = NULL;
+    }
+    if(entry == NULL) { /*!found*/
 	/* Create a new entry */
 	if((entry = calloc(1,sizeof(NCZCacheEntry)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
 	memcpy(entry->indices,indices,rank*sizeof(size64_t));
+	/* Create the local copy space */
 	if((entry->data = calloc(1,cache->chunksize)) == NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	memcpy(entry->data,data,cache->chunksize);
+	entry->key= key; key = NULL;
     }
-    /* Mark entry as modified */
-    entry->modified = 1;    
-#ifdef FLUSH
-    if((stat=put_chunk(cache,key,entry))) goto done;
-#endif
+    entry->modified = 1;
+    /* Flush from LRU end if we are at capacity */
+    while(nclistlength(cache->entries) >= nelems) {
+	NCZCacheEntry* e = nclistremove(cache->entries,0);
+	assert(e != NULL);
+	if(e->modified) /* flush to file */
+	    stat=put_chunk(cache,e->key,e);
+	/* reclaim */
+        nullfree(entry->data); nullfree(entry->key); nullfree(entry);
+    }
+    if(stat) goto done;
+    nclistpush(cache->entries,entry); /* MRU order */
+    entry = NULL;
 
 done:
+    if(entry) {nullfree(entry->data); nullfree(entry->key);}
+    nullfree(entry);
     nullfree(key);
     return THROW(stat);
 }
+
 
 int
 NCZ_flush_chunk_cache(NCZChunkCache* cache)
@@ -180,23 +311,14 @@ NCZ_flush_chunk_cache(NCZChunkCache* cache)
     if(NCZ_cache_size(cache) == 0) goto done;
     
     /* Iterate over the entries in hashmap */
-    for(i=0;;i++) {
-        NCZCacheEntry* entry = NULL;
-        uintptr_t data = 0;
-	const char* key;
-	/* get ith entry key */
-	if(NC_hashmapith(cache->entries,i,NULL,&key) == NC_EINVAL) break;
-	if(key != NULL) {
-	    /* It exists  */
-	    (void)NC_hashmapget(cache->entries,key,strlen(key),&data);
-	    entry = (NCZCacheEntry*)data;
-	    if(entry->modified) {
-	        /* Write out this chunk in toto*/
-  	        if((stat=put_chunk(cache,key,entry)))
-	            goto done;
-	    }
-	    entry->modified = 0;
+    for(i=0;i<nclistlength(cache->entries);i++) {
+        NCZCacheEntry* entry = nclistget(cache->entries,i);
+        if(entry->modified) {
+	    /* Write out this chunk in toto*/
+  	    if((stat=put_chunk(cache,entry->key,entry)))
+	        goto done;
 	}
+        entry->modified = 0;
     }
 
 done:
@@ -358,32 +480,6 @@ create_chunk(NCZChunkCache* cache, const char* key, NCZCacheEntry* entry)
     /* let higher function decide on fill */
 done:
     return THROW(stat);
-}
-
-void
-NCZ_free_chunk_cache(NCZChunkCache* cache)
-{
-    size_t i;
-
-    if(cache == NULL) return;
-    /* Iterate over the entries in hashmap */
-    for(i=0;;i++) {
-        NCZCacheEntry* entry = NULL;
-        uintptr_t data = 0;
-	const char* key;
-	/* get ith entry key */
-	if(NC_hashmapith(cache->entries,i,&data,&key) == NC_EINVAL) break;
-	if(key != NULL) {
-	    /* It exists; reclaim entry  */
-	    entry = (NCZCacheEntry*)data;
-	    nullfree(entry->data);
-	    nullfree(entry);
-	}
-    }
-    NC_hashmapfree(cache->entries);
-    cache->entries = NULL;
-    nullfree(cache->fillchunk);
-    nullfree(cache);
 }
 
 int

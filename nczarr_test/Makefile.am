@@ -13,7 +13,7 @@ include $(top_srcdir)/lib_flags.am
 #LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #TESTS_ENVIRONMENT = export SETX=1;
 
-AM_CPPFLAGS += -I${top_builddir}/libnczarr
+AM_CFLAGS += -I${top_srcdir} -I${top_srcdir}/libnczarr
 AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
 LDADD = ${top_builddir}/liblib/libnetcdf.la
 
@@ -37,18 +37,21 @@ HDRS = ut_includes.h ut_test.h ut_util.h
 # Integration Tests
 #check_PROGRAMS += it_meta
 
+check_PROGRAMS += tst_chunks tst_chunks2
+
 TESTS += run_ut_map.sh
 TESTS += run_ut_mapapi.sh
 TESTS += run_ut_misc.sh
 TESTS += run_ut_chunk.sh
-TESTS += tst_chunks tst_chunks2
+
+TESTS += run_it_test1.sh run_it_test2.sh
 
 ignorec = ut_allslices.c ut_transfer.c ut_vars.c ut_walk.c
 ignoresh = run_meta_tests.sh run_unittests.sh
 ignoreh = ut_varstest.h
 
-noinst_PROGRAMS = zmapdump
-zmapdump_SOURCES = zmapdump.c
+noinst_PROGRAMS = zmapio
+zmapio_SOURCES = zmapio.c
 
 EXTRA_DIST = \
 test_nczarr_util.h \

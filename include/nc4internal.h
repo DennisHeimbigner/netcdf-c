@@ -423,7 +423,7 @@ int nc4_check_dup_name(NC_GRP_INFO_T *grp, char *norm_name);
 int nc4_get_fill_value(NC_FILE_INFO_T *h5, NC_VAR_INFO_T *var, void **fillp);
 
 /* Find default fill value. */
-int nc4_get_default_fill_value(const NC_TYPE_INFO_T *type_info, void *fill_value);
+int nc4_get_default_fill_value(nc_type typecode, void *fill_value);
 
 /* Get an att given pointers to file, group, and perhaps ver info. */
 int nc4_get_att_ptrs(NC_FILE_INFO_T *h5, NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var,

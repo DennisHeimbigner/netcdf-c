@@ -4,6 +4,8 @@
  *********************************************************************/
 #include "zincludes.h"
 
+#undef WDEBUG
+
 static int initialized = 0;
 
 /* Forward */
@@ -12,6 +14,8 @@ static int rangecount(NCZChunkRange range);
 static int readfromcache(void* source, size64_t* chunkindices, void** chunkdata);
 static int NCZ_fillchunk(void* chunkdata, struct Common* common);
 static int transfern(NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, unsigned char* slpptr0, unsigned char* memptr0);    
+
+
 const char*
 astype(int typesize, void* ptr)
 {
@@ -25,7 +29,6 @@ astype(int typesize, void* ptr)
     }
     return "?";
 }
-
 
 /**************************************************/
 int
@@ -50,14 +53,14 @@ Note that we do not actually pass NCZSlice but rather
 @param stop stop vector
 @param stride stride vector
 @param memory target or source of data
-@param typesize Size of type being written
+@param typecode nc_type of type being written
 @param walkfcn fcn parameter to actually transfer data
 */
 
 int
 NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 		  size64_t* start, size64_t* count, size64_t* stride,
-		  void* memory, size_t typesize)
+		  void* memory, nc_type typecode)
 {
     int r,stat = NC_NOERR;
     size64_t dimlens[NC_MAX_VAR_DIMS];
@@ -65,6 +68,9 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     NCZSlice slices[NC_MAX_VAR_DIMS];
     struct Common common;
     NCZ_FILE_INFO_T* zfile = NULL;
+    size_t typesize;
+
+    if((stat = NC4_inq_atomic_type(typecode, NULL, &typesize))) goto done;
 
     for(r=0;r<var->ndims;r++) {
 	dimlens[r] = var->dim[r]->len;
@@ -224,14 +230,20 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
             /* transfer data */
             memptr0 = ((unsigned char*)common->memory)+(memoffset * common->typesize);
             slpptr0 = ((unsigned char*)chunkdata)+(slpoffset * common->typesize);
-#if 0
-fprintf(stderr,"xx.x: |%s|=%llu |%s|=%llu",
-nczprint_vector(slpodom->rank,slpodom->index), slpoffset,
-nczprint_vector(memodom->rank,memodom->index), memoffset);
-if(common->reading)
-fprintf(stderr," %d->%d\n",*((int*)slpptr0),*((int*)memptr0));
-else
-fprintf(stderr," %d->%d\n",*((int*)memptr0),*((int*)slpptr0));
+#ifdef WDEBUG
+fprintf(stderr,"xx.slp: odom: %s ptr=%d\n",
+nczprint_odom(slpodom),(int)(slpptr0-(unsigned char*)chunkdata));
+fflush(stderr);
+fprintf(stderr,"xx.mem: odom: %s ptr=%d\n",
+nczprint_odom(memodom),(int)(memptr0-(unsigned char*)common->memory));
+fflush(stderr);
+if(common->reading) {
+fprintf(stderr,"\t%d->",*((int*)slpptr0));
+fprintf(stderr,"%d\n",*((int*)memptr0));
+} else {/* writing */
+fprintf(stderr,"\t%d->",*((int*)memptr0));
+fprintf(stderr,"%d\n",*((int*)slpptr0));
+}
 fflush(stderr);
 #endif
 

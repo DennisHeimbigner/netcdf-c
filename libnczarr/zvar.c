@@ -49,47 +49,6 @@ reportchunking(const char* title, NC_VAR_INFO_T* var)
 #define NC_TEMP_NAME "_netcdf4_temporary_variable_name_for_rename"
 
 /**
- * @internal If the ZARR dataset for this variable is open, then close
- * it and reopen it, with the perhaps new settings for chunk caching.
- *
- * @param grp Pointer to the group info.
- * @param var Pointer to the var info.
- *
- * @returns ::NC_NOERR No error.
- * @returns ::NC_EHDFERR ZARR error.
- * @author Dennis Heimbigner, Ed Hartnett
- */
-int
-ncz_reopen_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
-{
-    assert(var && var->format_var_info && grp && grp->format_grp_info);
-
-#ifdef LOOK
-    if (ncz_var->hdf_datasetid)
-    {
-        /* Get the ZARR group id. */
-        grpid = ((NCZ_GRP_INFO_T *)(grp->format_grp_info))->hdf_grpid;
-
-
-        if ((access_pid = H5Pcreate(H5P_DATASET_ACCESS)) < 0)
-            return NC_EHDFERR;
-        if (H5Pset_chunk_cache(access_pid, var->chunk_cache_nelems,
-                               var->chunk_cache_size,
-                               var->chunk_cache_preemption) < 0)
-            return NC_EHDFERR;
-        if (H5Dclose(ncz_var->hdf_datasetid) < 0)
-            return NC_EHDFERR;
-        if ((ncz_var->hdf_datasetid = H5Dopen2(grpid, var->hdr.name, access_pid)) < 0)
-            return NC_EHDFERR;
-        if (H5Pclose(access_pid) < 0)
-            return NC_EHDFERR;
-    }
-#endif
-
-    return NC_NOERR;
-}
-
-/**
  * @internal Check a set of chunksizes to see if they specify a chunk
  * that is too big.
  *
@@ -343,7 +302,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     assert(grp && grp->format_grp_info && h5);
 
 #ifdef LOOK
-    /* ZARR allows maximum of 32 dimensions. */
+    /* HDF5 allows maximum of 32 dimensions. */
     if (ndims > H5S_MAX_RANK)
         BAIL(NC_EMAXDIMS);
 #endif
@@ -445,22 +404,19 @@ var->type_info->rc++;
      * same name as one of its dimensions. If it is a coordinate var,
      * is it a coordinate var in the same group as the dim? Also, check
      * whether we should use contiguous or chunked storage. */
-    var->storage = NC_CONTIGUOUS;
+    var->storage = NC_CHUNKED;
     for (d = 0; d < ndims; d++)
     {
         NC_GRP_INFO_T *dim_grp;
-
         /* Look up each dimension */
         if ((retval = nc4_find_dim(grp, dimidsp[d], &dim, &dim_grp)))
             BAIL(retval);
         assert(dim && dim->format_dim_info);
-
 #ifdef UNLIMITED
         /* Check for unlimited dimension and turn off contiguous storage. */
         if (dim->unlimited)
             var->contiguous = NC_FALSE;
 #endif
-
         /* Track dimensions for variable */
         var->dimids[d] = dimidsp[d];
         var->dim[d] = dim;
@@ -470,27 +426,32 @@ var->type_info->rc++;
      * variables which may be contiguous.) */
     LOG((4, "allocating array of %d size_t to hold chunksizes for var %s",
          var->ndims, var->hdr.name));
-    if (var->ndims)
+    if (var->ndims) {
         if (!(var->chunksizes = calloc(var->ndims, sizeof(size_t))))
             BAIL(NC_ENOMEM);
-
-    if ((retval = ncz_find_default_chunksizes2(grp, var)))
-        BAIL(retval);
-
+        if ((retval = ncz_find_default_chunksizes2(grp, var)))
+            BAIL(retval);
+    } else {
+	/* Pretend that scalars are like var[1] */
+        if (!(var->chunksizes = calloc(1, sizeof(size_t))))
+            BAIL(NC_ENOMEM);
+	var->chunksizes[0] = 1;
+    }
+    
     /* Compute the chunksize cross product */
     zvar->chunkproduct = 1;
     for(d=0;d<var->ndims;d++) {zvar->chunkproduct *= var->chunksizes[d];}
 
+    /* Copy cache parameters */
+    zvar->chunk_cache_nelems = var->chunk_cache_nelems;
+
     /* Create the cache */
-    if((retval=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,&zvar->cache)))
+    if((retval=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,zvar->chunk_cache_nelems,&zvar->cache)))
         BAIL(retval);
 
-#ifdef LOOK
-    /* Is this a variable with a chunksize greater than the current
-     * cache size? */
-    if ((retval = ncz_adjust_var_cache(grp, var)))
+    /* Is this a variable with a chunksize greater than the current cache size? */
+    if ((retval = NCZ_adjust_var_cache(grp, var)))
         BAIL(retval);
-#endif
 
     /* Return the varid. */
     if (varidp)
@@ -538,7 +499,7 @@ exit:
  */
 static int
 ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
-                 int *unused2, int *fletcher32, int *storage,
+                 int *unused2, int *fletcher32, int *storagep,
                  const size_t *chunksizes, int *no_fill,
                  const void *fill_value, int *endianness)
 {
@@ -548,6 +509,7 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
     NCZ_VAR_INFO_T *zvar;
     int d;
     int retval;
+    int storage = NC_CHUNKED;
 
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
@@ -637,25 +599,26 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 #endif /* USE_PARALLEL */
 
     /* Handle storage settings. */
-    if (storage)
+    if (storagep)
     {
+	storage = *storagep;
         /* Does the user want a contiguous or compact dataset? Not so
          * fast! Make sure that there are no unlimited dimensions, and
          * no filters in use for this data. */
-        if (*storage != NC_CHUNKED)
+        if (storage != NC_CHUNKED)
         {
             if (nclistlength(var->filters) > 0 || var->fletcher32 || var->shuffle)
                 return NC_EINVAL;
-
             for (d = 0; d < var->ndims; d++)
                 if (var->dim[d]->unlimited)
                     return NC_EINVAL;
+	    storage = NC_CHUNKED; /*only chunked supported */
         }
 
         /* Handle chunked storage settings. */
-        if (*storage == NC_CHUNKED && var->ndims == 0) {
+        if (storage == NC_CHUNKED && var->ndims == 0) {
 	    return THROW(NC_EINVAL);
-        } else if (*storage == NC_CHUNKED && var->ndims > 0) {
+        } else if (storage == NC_CHUNKED && var->ndims > 0) {
             var->storage = NC_CHUNKED;
 
             /* If the user provided chunksizes, check that they are valid
@@ -673,24 +636,9 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
                         return NC_EBADCHUNK;
             }
         }
-        else if (*storage == NC_CONTIGUOUS)
+        else if (storage == NC_CONTIGUOUS || storage == NC_COMPACT)
         {
-            var->storage = NC_CONTIGUOUS;
-        }
-        else if (*storage == NC_COMPACT)
-        {
-            size_t ndata = 1;
-
-            /* Find the number of elements in the data. */
-            for (d = 0; d < var->ndims; d++)
-                ndata *= var->dim[d]->len;
-
-            /* Ensure var is small enough to fit in compact
-             * storage. It must be <= 64 KB. */
-            if (ndata * var->type_info->size > SIXTY_FOUR_KB)
-                return NC_EVARSIZE;
-
-            var->storage = NC_COMPACT;
+            var->storage = NC_CHUNKED;
         }
     }
 
@@ -698,16 +646,20 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
      * cache size? */
     if (var->storage == NC_CHUNKED)
     {
+        zvar = var->format_var_info;
+        assert(zvar->cache != NULL);
 	if(chunksizes) {
-	    zvar = var->format_var_info;
-	    assert(zvar->cache == NULL);
-            /* Set the chunksizes and product for this variable. */
-	    zvar->chunkproduct = 1;
-            for (d = 0; d < var->ndims; d++) {
+            for (d = 0; d < var->ndims; d++)
                 var->chunksizes[d] = chunksizes[d];
-		zvar->chunkproduct *= chunksizes[d];
-	    }
- 	}
+ 	} else { /* Use default chunking */
+            if ((retval = ncz_find_default_chunksizes2(grp, var)))
+		return THROW(retval);
+        }
+        assert(var->chunksizes != NULL);
+        /* Set the chunksize product for this variable. */
+        zvar->chunkproduct = 1;
+        for (d = 0; d < var->ndims; d++)
+	    zvar->chunkproduct *= var->chunksizes[d];
 #ifdef LOOK
         /* Adjust the cache. */
         if ((retval = ncz_adjust_var_cache(grp, var)))
@@ -2160,59 +2112,6 @@ NCZ_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
                            shufflep, unused4, unused5, fletcher32p,
                            storagep, chunksizesp, no_fill, fill_valuep,
                            endiannessp, unused1, unused2, unused3);
-}
-
-/**
- * @internal Set chunk cache size for a variable. This is the internal
- * function called by nc_set_var_chunk_cache().
- *
- * @param ncid File ID.
- * @param varid Variable ID.
- * @param size Size in bytes to set cache.
- * @param nelems Number of elements in cache.
- * @param preemption Controls cache swapping.
- *
- * @returns ::NC_NOERR No error.
- * @returns ::NC_EBADID Bad ncid.
- * @returns ::NC_ENOTVAR Invalid variable ID.
- * @returns ::NC_ESTRICTNC3 Attempting netcdf-4 operation on strict
- * nc3 netcdf-4 file.
- * @returns ::NC_EINVAL Invalid input.
- * @returns ::NC_EHDFERR ZARR error.
- * @author Dennis Heimbigner, Ed Hartnett
- */
-int
-NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems,
-                             float preemption)
-{
-    NC_GRP_INFO_T *grp;
-    NC_FILE_INFO_T *h5;
-    NC_VAR_INFO_T *var;
-    int retval;
-
-    /* Check input for validity. */
-    if (preemption < 0 || preemption > 1)
-        return THROW(NC_EINVAL);
-
-    /* Find info for this file and group, and set pointer to each. */
-    if ((retval = nc4_find_nc_grp_h5(ncid, NULL, &grp, &h5)))
-        return THROW(retval);
-    assert(grp && h5);
-
-    /* Find the var. */
-    if (!(var = (NC_VAR_INFO_T *)ncindexith(grp->vars, varid)))
-        return THROW(NC_ENOTVAR);
-    assert(var && var->hdr.id == varid);
-
-    /* Set the values. */
-    var->chunk_cache_size = size;
-    var->chunk_cache_nelems = nelems;
-    var->chunk_cache_preemption = preemption;
-
-    /* Reopen the dataset to bring new settings into effect. */
-    if ((retval = ncz_reopen_dataset(grp, var)))
-        return THROW(retval);
-    return THROW(NC_NOERR);
 }
 
 #ifdef LOOK

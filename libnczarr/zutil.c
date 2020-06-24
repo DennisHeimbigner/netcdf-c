@@ -16,7 +16,7 @@
 /* Static zarr type name table */
 
 static const char* znames_little[NUM_ATOMIC_TYPES] = {
-NULL,  /*NC_NAT*/ "<i1", /*NC_BYTE*/ "<u1", /*NC_CHAR*/ "<i2", /*NC_SHORT*/
+NULL,  /*NC_NAT*/ "<i1", /*NC_BYTE*/ "<U1", /*NC_CHAR*/ "<i2", /*NC_SHORT*/
 "<i4", /*NC_INT*/ "<f4", /*NC_FLOAT*/ "<f8", /*NC_DOUBLE*/ "<u1", /*NC_UBYTE*/
 "<u2", /*NC_USHORT*/ "<u4", /*NC_UINT*/ "<i8", /*NC_INT64*/ "<u8", /*NC_UINT64*/
 NULL,  /*NC_STRING*/
@@ -24,12 +24,13 @@ NULL,  /*NC_STRING*/
 
 static const char* znames_big[NUM_ATOMIC_TYPES] = {
 NULL,  /*NC_NAT*/
-">i1", /*NC_BYTE*/   ">u1", /*NC_CHAR*/   ">i2", /*NC_SHORT*/ ">i4", /*NC_INT*/
+">i1", /*NC_BYTE*/   ">U1", /*NC_CHAR*/   ">i2", /*NC_SHORT*/ ">i4", /*NC_INT*/
 ">f4", /*NC_FLOAT*/  ">f8", /*NC_DOUBLE*/ ">u1", /*NC_UBYTE*/
 ">u2", /*NC_USHORT*/ ">u4", /*NC_UINT*/   ">i8", /*NC_INT64*/ ">u8", /*NC_UINT64*/
 NULL,  /*NC_STRING*/
 };
 
+#if 0
 static const char* zfillvalue[NUM_ATOMIC_TYPES] = {
 NULL, /*NC_NAT*/
 "-127", /*NC_BYTE*/
@@ -44,6 +45,7 @@ NULL, /*NC_NAT*/
 "-9223372036854775806", /*NC_INT64*/
 "18446744073709551614", /*NC_UINT64*/
 };
+#endif
 
 /* map nc_type -> NCJ_SORT */
 static int zjsonsort[NUM_ATOMIC_TYPES] = {
@@ -201,11 +203,10 @@ NCZ_downloadjson(NCZMAP* zmap, const char* key, NCjson** jsonp)
     if((stat = NCJparse(content,0,&json)))
 	goto done;
 
-    if(jsonp) *jsonp = json;
-    json = NULL;
+    if(jsonp) {*jsonp = json; json = NULL;}
 
 done:
-    if(stat) NCJreclaim(json);
+    NCJreclaim(json);
     nullfree(content);
     return stat;
 }
@@ -291,10 +292,9 @@ NCZ_createdict(NCZMAP* zmap, const char* key, NCjson** jsonp)
     /* Create the empty dictionary */
     if((stat = NCJnew(NCJ_DICT,&json)))
 	goto done;
-    if(jsonp) *jsonp = json;
-    json = NULL;
+    if(jsonp) {*jsonp = json; json = NULL;}
 done:
-    if(stat) NCJreclaim(json);
+    NCJreclaim(json);
     return stat;
 }
 
@@ -327,10 +327,9 @@ NCZ_createarray(NCZMAP* zmap, const char* key, NCjson** jsonp)
 	}
     }
     if(json->sort != NCJ_ARRAY) {stat = NC_ENCZARR; goto done;}
-    if(jsonp) *jsonp = json;
-    json = NULL;
+    if(jsonp) {*jsonp = json; json = NULL;}
 done:
-    if(stat) NCJreclaim(json);
+    NCJreclaim(json);
     return stat;
 }
 #endif /*0*/
@@ -353,10 +352,9 @@ NCZ_readdict(NCZMAP* zmap, const char* key, NCjson** jsonp)
     if((stat = NCZ_downloadjson(zmap,key,&json)))
 	goto done;
     if(json->sort != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
-    if(jsonp) *jsonp = json;
-    json = NULL;
+    if(jsonp) {*jsonp = json; json = NULL;}
 done:
-    if(stat) NCJreclaim(json);
+    NCJreclaim(json);
     return stat;
 }
 
@@ -378,10 +376,9 @@ NCZ_readarray(NCZMAP* zmap, const char* key, NCjson** jsonp)
     if((stat = NCZ_downloadjson(zmap,key,&json)))
 	goto done;
     if(json->sort != NCJ_ARRAY) {stat = NC_ENCZARR; goto done;}
-    if(jsonp) *jsonp = json;
-    json = NULL;
+    if(jsonp) {*jsonp = json; json = NULL;}
 done:
-    if(stat) NCJreclaim(json);
+    NCJreclaim(json);
     return stat;
 }
 
@@ -407,6 +404,7 @@ ncz_zarr_type_name(nc_type nctype, int little, const char** znamep)
     return NC_NOERR;	        
 }
 
+#if 0
 /**
 @internal Given an nc_type, produce the corresponding
 default fill value as a string.
@@ -423,6 +421,7 @@ ncz_default_fill_value(nc_type nctype, const char** dfaltp)
     if(dfaltp) *dfaltp = zfillvalue[nctype];
     return NC_NOERR;	        
 }
+#endif
 
 /**
 @internal Given an nc_type, produce the corresponding
@@ -531,6 +530,7 @@ ncz_dtype2typeinfo(const char* dtype, nc_type* nctypep, int* endianp)
 	switch (tchar) {
 	case 'i': nctype = NC_BYTE; break;
 	case 'u': nctype = NC_UBYTE; break;
+	case 'U': nctype = NC_CHAR; break;
 	default: goto zerr;
 	}
 	break;

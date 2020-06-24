@@ -27,13 +27,26 @@
 
 #define DATANAME "data"
 
-#define OPT_NONE	0
-#define OPT_OBJDUMP	1
+typedef enum Mapop {
+MOP_NONE=0,
+MOP_OBJDUMP=1,
+MOP_CLEAR=2
+} Mapop;
+
+static struct Mops {
+    Mapop mapop;
+    const char* opname;
+} mapops[] = {
+{MOP_NONE,"none"},
+{MOP_OBJDUMP,"objdump"},
+{MOP_CLEAR,"clear"},
+{MOP_NONE,NULL}
+};
 
 /* Command line options */
 struct Dumpptions {
     int debug;
-    int action;
+    Mapop mop;
     char* infile;
     NCZM_IMPL impl;    
     char* rootpath;
@@ -58,10 +71,20 @@ static void nccheck(int stat, int line)
 }
 
 static void
-Usage(void)
+zmapusage(void)
 {
-    fprintf(stderr,"usage: zmapdump <options> <file>\n");
+    fprintf(stderr,"usage: zmapio [-d][-v][-x] <file>\n");
     exit(1);
+}
+
+static Mapop
+decodeop(const char* name)
+{
+    struct Mops* p = mapops;
+    while(p->opname != NULL) {
+	if(strcasecmp(p->opname,name)==0) return p->mapop;
+    }
+    return MOP_NONE;
 }
 
 int
@@ -73,16 +96,20 @@ main(int argc, char** argv)
     memset((void*)&dumpoptions,0,sizeof(dumpoptions));
 
     /* Set defaults */
-    dumpoptions.action = OPT_OBJDUMP;
+    dumpoptions.mop = MOP_OBJDUMP;
 
-    while ((c = getopt(argc, argv, "dv")) != EOF) {
+    while ((c = getopt(argc, argv, "dvx:")) != EOF) {
 	switch(c) {
 	case 'd': 
 	    dumpoptions.debug = 1;	    
 	    break;
 	case 'v': 
-	    Usage();
+	    zmapusage();
 	    goto done;
+	case 'x': 
+	    dumpoptions.mop = decodeop(optarg);
+	    if(dumpoptions.mop == MOP_NONE) zmapusage();
+	    break;
 	case '?':
 	   fprintf(stderr,"unknown option\n");
 	   goto fail;
@@ -94,23 +121,23 @@ main(int argc, char** argv)
     argv += optind;
 
     if (argc > 1) {
-	fprintf(stderr, "zmapdump: only one input file argument permitted\n");
+	fprintf(stderr, "zmapio: only one input file argument permitted\n");
 	goto fail;
     }
     if (argc == 0) {
-	fprintf(stderr, "zmapdump: no input file specified\n");
+	fprintf(stderr, "zmapio: no input file specified\n");
 	goto fail;
     }
     dumpoptions.infile = strdup(argv[0]);
 
     if((dumpoptions.impl = implfor(dumpoptions.infile))== NCZM_UNDEF)
-        Usage();
+        zmapusage();
 
     if((dumpoptions.rootpath = rootpathfor(dumpoptions.infile))== NULL)
-        Usage();
+        zmapusage();
 
-    switch (dumpoptions.action) {
-    case OPT_OBJDUMP:
+    switch (dumpoptions.mop) {
+    case MOP_OBJDUMP:
 	if((stat = objdump())) goto done;
 	break;
     default:
@@ -168,26 +195,24 @@ rootpathfor(const char* path)
 
     ncuriparse(path,&uri);
     if(uri == NULL) goto done;
-    /* Split the path part */
-    if((stat = nczm_split(uri->path,segments))) goto done;
     switch (dumpoptions.impl) {
     case NCZM_FILE:
     case NCZM_NC4:
-	/* remove the root file directory name */
-	p = (char*)nclistremove(segments,0);
-	nullfree(p); p = NULL;
+	rootpath = strdup("/"); /*constant*/
 	break;
     case NCZM_S3:
+        /* Split the path part */
+        if((stat = nczm_split(uri->path,segments))) goto done;
 	/* remove the bucket name */
 	p = (char*)nclistremove(segments,0);
 	nullfree(p); p = NULL;
+        /* Put it back together */
+        if((stat = nczm_join(segments,&rootpath))) goto done;
 	break;
     default:
         stat = NC_EINVAL;
 	goto done;
     }
-    /* Put it back together */
-    if((stat = nczm_join(segments,&rootpath))) goto done;
 
 done:
     nclistfreeall(segments); segments = NULL;

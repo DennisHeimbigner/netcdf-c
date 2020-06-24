@@ -319,7 +319,7 @@ NCZ_stringconvert(nc_type typeid, size_t len, void* data0, NCjson** jdatap)
     /* Handle char type specially */
     if(typeid == NC_CHAR) {
 	/* Create a string valued json object */
-	if((stat = NCJnewstring(NCJ_STRING,src,&jdata)))
+	if((stat = NCJnewstringn(NCJ_STRING,len,src,&jdata)))
 	    goto done;
     } else { /* for all other values, create an array of values */
 	if((stat = NCJnew(NCJ_ARRAY,&jdata))) goto done;
@@ -353,5 +353,4 @@ done:
     NCJreclaim(jvalue);
     NCJreclaim(jdata);
     return stat;
-
 }

@@ -1536,7 +1536,7 @@ AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
 AC_SUBST(RELAX_COORD_BOUND,[yes])
 AC_SUBST([HAS_PAR_FILTERS], [$hdf5_supports_par_filters])
 AC_SUBST(HAS_NCZARR,[$enable_nczarr])
-AC_SUBST(HAS_NCZARR_S3,[$enable_s3_sdk])
+AC_SUBST(HAS_S3_SDK,[$enable_s3_sdk])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],

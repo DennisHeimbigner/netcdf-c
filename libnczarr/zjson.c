@@ -81,6 +81,7 @@ NCJparse(const char* text, unsigned flags, NCjson** jsonp)
     parser->pos = &parser->text[0];
     if((stat=NCJparseR(parser,&json))) goto done;
     *jsonp = json;
+    json = NULL;
 
 done:
     if(parser != NULL) {
@@ -88,8 +89,7 @@ done:
 	nullfree(parser->yytext);
 	free(parser);
     }
-    if(stat != NC_NOERR)
-	(void)NCJreclaim(json);
+    (void)NCJreclaim(json);
     return THROW(stat);
 }
 
@@ -158,8 +158,7 @@ NCJparseR(NCJparser* parser, NCjson** jsonp)
     if(jsonp && json) {*jsonp = json; json = NULL;}
 
 done:
-    if(stat)
-	NCJreclaim(json);
+    NCJreclaim(json);
     return THROW(stat);
 }
 
@@ -537,13 +536,22 @@ done:
 int
 NCJnewstring(int sort, const char* value, NCjson** jsonp)
 {
+    return NCJnewstringn(sort,strlen(value),value,jsonp);
+}
+
+int
+NCJnewstringn(int sort, size_t len, const char* value, NCjson** jsonp)
+{
     int stat = NC_NOERR;
     NCjson* json = NULL;
 
     if(jsonp) *jsonp = NULL;
     if((stat = NCJnew(sort,&json)))
 	goto done;
-    json->value = nulldup(value);
+    if((json->value = malloc(len+1))==NULL)
+        {stat = NC_ENOMEM; goto done;}
+    memcpy(json->value,value,len);
+    json->value[len] = '\0';
     if(jsonp) *jsonp = json;
     json = NULL; /* avoid memory errors */
 done:
@@ -669,6 +677,7 @@ NCJunescape(NCJparser* parser)
 	}
 	*q++ = c;
     }
+    *q = '\0';
     return NC_NOERR;    
 }
 

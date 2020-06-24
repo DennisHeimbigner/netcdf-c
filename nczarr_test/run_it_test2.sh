@@ -46,8 +46,8 @@ done
 
 main() {
 extfor $1
-${execdir}/tst_chunks $1
-#${execdir}/tst_chunks2 $1
+${execdir}/tst_chunks -e $1
+#${execdir}/tst_chunks2 -e $1
 }
 
 # check settings

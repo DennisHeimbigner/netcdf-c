@@ -334,7 +334,6 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     
     /* fill_value key */
     if(!var->no_fill) {
-	const char* strfill = NULL;
 	int fillsort;
 	int atomictype = var->type_info->hdr.id;
 	NCjson* jfill = NULL;
@@ -344,13 +343,15 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 	assert(atomictype > 0 && atomictype <= NC_MAX_ATOMIC_TYPE && atomictype != NC_STRING);
 	if((stat = ncz_fill_value_sort(atomictype,&fillsort))) goto done;
 	if(var->fill_value == NULL) { /* use default */
-	    if((stat = ncz_default_fill_value(atomictype,&strfill))) goto done;
-	    if((stat = NCJnewstring(fillsort,strfill,&jfill))) goto done;
-	} else { /* use fill_value */
-	    /* Convert var->fill_value to a string */
-	    if((stat = NCZ_stringconvert(atomictype,1,var->fill_value,&jfill)))
-		goto done;
+	    size_t typelen;
+            if((stat = NC4_inq_atomic_type(atomictype, NULL, &typelen))) goto done;
+	    var->fill_value = (atomictype == NC_CHAR ? malloc(typelen+1) : malloc(typelen));
+	    if(var->fill_value == NULL) {stat = NC_ENOMEM; goto done;}
+	    if((stat = nc4_get_default_fill_value(atomictype,var->fill_value))) goto done;
 	}
+        /* Convert var->fill_value to a string */
+	if((stat = NCZ_stringconvert(atomictype,1,var->fill_value,&jfill)))
+	    goto done;
 	if((stat = NCJinsert(jvar,"fill_value",jfill))) goto done;
     }
 
@@ -650,6 +651,7 @@ done:
     NCJreclaim(akey);
     NCJreclaim(jdata);
     NCJreclaim(jattrs);
+    NCJreclaim(jdata);
     return THROW(stat);
 }
 
@@ -824,7 +826,7 @@ static int
 computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap)
 {
     int stat = NC_NOERR;
-    size_t len;
+    size_t datalen;
     void* data = NULL;
     size_t typelen;
     nc_type typeid = NC_NAT;
@@ -832,32 +834,37 @@ computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap)
     /* Get assumed type */
     if(typeidp) typeid = *typeidp;
     if(typeid == NC_NAT) inferattrtype(values,&typeid);
+    if(typeid == NC_NAT) {stat = NC_EBADTYPE; goto done;}
 
     /* Collect the length of the attribute */
     switch (values->sort) {
     case NCJ_DICT: stat = NC_EINTERNAL; goto done;
     case NCJ_ARRAY:
-	len = nclistlength(values->contents);
+	datalen = nclistlength(values->contents);
 	break;
     case NCJ_STRING: /* requires special handling as an array of characters */
-	len = strlen(values->value);
+	datalen = strlen(values->value);
 	break;
     default:
-	len = 1;
+	datalen = 1;
 	break;
     }
 
     /* Allocate data space */
     if((stat = NC4_inq_atomic_type(typeid, NULL, &typelen)))
 	goto done;
-    if((data = malloc(typelen*len)) == NULL)
+    if(typeid == NC_CHAR)
+        data = malloc(typelen*(datalen+1));
+    else
+        data = malloc(typelen*datalen);
+    if(data == NULL)
 	{stat = NC_ENOMEM; goto done;}
 
     /* convert to target type */	
     if((stat = zconvert(typeid, typelen, data, values)))
 	goto done;
 
-    if(lenp) *lenp = len;
+    if(lenp) *lenp = datalen;
     if(datap) {*datap = data; data = NULL;}
 
 done:
@@ -1191,7 +1198,6 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     NCZ_FILE_INFO_T* zinfo = NULL;
     NCZ_VAR_INFO_T* zvar = NULL;
     NCZMAP* map = NULL;
-    NClist* segments = nclistnew();
     NCjson* jvar = NULL;
     NCjson* jncvar = NULL;
     NCjson* jdimrefs = NULL;
@@ -1207,10 +1213,6 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     for(i = 0; i < nclistlength(varnames); i++) {
 	NC_VAR_INFO_T* var;
 	const char* varname = nclistget(varnames,i);
-
-	/* Clean up from last cycle */
-	nclistfreeall(dimrefs);
-	dimrefs = nclistnew();
 
 	/* Create the NC_VAR_INFO_T object */
 	if((stat = nc4_var_list_add2(grp, varname, &var)))
@@ -1261,6 +1263,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    case NC_NOERR: /* Extract the dimref names */
 		assert((jdimrefs->sort == NCJ_ARRAY));
 		hasdimrefs = 0; /* until we have one */	    
+		dimrefs = nclistnew();
 		for(j=0;j<nclistlength(jdimrefs->contents);j++) {
 		    const NCjson* dimpath = nclistget(jdimrefs->contents,j);
 		    assert(dimpath->sort == NCJ_STRING);
@@ -1318,7 +1321,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    /* Set the rank of the variable */
 	    if((stat = nc4_var_set_ndims(var, rank))) goto done;
 	    if(hasdimrefs) {
-		if((stat = parsedimrefs(file,dimrefs, var->dim)))
+		if((stat = parsedimrefs(file, dimrefs, var->dim)))
 		    goto done;
 	    } else { /* simulate the dimrefs */
 		size64_t shapes[NC_MAX_VAR_DIMS];
@@ -1356,7 +1359,8 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		    zvar->chunkproduct *= chunks[j];
 		}
 		/* Create the cache */
-		if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,&zvar->cache)))
+		zvar->chunk_cache_nelems = var->chunk_cache_nelems;
+		if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,zvar->chunk_cache_nelems,&zvar->cache)))
 		    goto done;
 	    }
 	}
@@ -1393,12 +1397,16 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    if((stat = NCJdictget(jvar,"filters",&jvalue))) goto done;
 	    /* ignore */
 	}
+	/* Clean up from last cycle */
+	nclistfreeall(dimrefs); dimrefs = NULL;
+        nullfree(varpath); varpath = NULL;
+	NCJreclaim(jvar); jvar = NULL;
+	NCJreclaim(jncvar); jncvar = NULL;
     }
 
 done:
     nullfree(varpath);
     nullfree(key);
-    nclistfreeall(segments);
     nclistfreeall(dimrefs);
     NCJreclaim(jvar);
     NCJreclaim(jncvar);

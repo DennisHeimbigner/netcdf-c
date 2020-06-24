@@ -7,12 +7,13 @@
    modified version of nc_test4/tst_chunks.c
 */
 
-#include <nc_tests.h>
-#include "err_macros.h"
-
 #include "test_nczarr_utils.h"
 
-#define FILE_NAME "tst_chunks.nc"
+#define PRINT_DEFAULT_CHUNKSIZE_TABLE
+
+#undef FILTERS
+
+#define FILE_NAME "tst_chunks"
 #define NDIMS1 1
 #define D_SMALL "small_dim"
 #define D_SMALL_LEN 16
@@ -30,7 +31,7 @@ main(int argc, char **argv)
    processoptions(argc,argv,FILE_NAME);
 
    printf("\n*** Testing netcdf-4 variable chunking.\n");
-   printf("**** testing that fixed vars with filter end up being chunked, with good sizes...");
+   printf("**** testing that fixed vars with forced chunking end up being chunked, with good sizes...");
    {
 
       int ncid;
@@ -44,22 +45,28 @@ main(int argc, char **argv)
       nc_type xtype_in;
 
       /* Create a netcdf-4 file with three dimensions. */
-      if (nc_create(path, NC_NETCDF4, &ncid)) ERR;
+      if (nc_create(options.path, NC_NETCDF4, &ncid)) ERR;
       if (nc_def_dim(ncid, D_SMALL, D_SMALL_LEN, &small_dimid)) ERR;
       if (nc_def_dim(ncid, D_MEDIUM, D_MEDIUM_LEN, &medium_dimid)) ERR;
       if (nc_def_dim(ncid, D_LARGE, D_LARGE_LEN, &large_dimid)) ERR;
 
-      /* Add three vars, with filters to force chunking. */
+      /* Add three vars, with forced chunking. */
       if (nc_def_var(ncid, V_SMALL, NC_INT64, NDIMS1, &small_dimid, &small_varid)) ERR;
-      if (nc_def_var_deflate(ncid, small_varid, 0, 1, 4)) ERR;
       if (nc_def_var(ncid, V_MEDIUM, NC_INT64, NDIMS1, &medium_dimid, &medium_varid)) ERR;
-      if (nc_def_var_deflate(ncid, medium_varid, 1, 0, 0)) ERR;
       if (nc_def_var(ncid, V_LARGE, NC_INT64, NDIMS1, &large_dimid, &large_varid)) ERR;
+#ifdef FILTERS
+      if (nc_def_var_deflate(ncid, small_varid, 0, 1, 4)) ERR;
+      if (nc_def_var_deflate(ncid, medium_varid, 1, 0, 0)) ERR;
       if (nc_def_var_fletcher32(ncid, large_varid, 1)) ERR;
+#else
+      if(nc_def_var_chunking(ncid,small_varid,NC_CHUNKED,NULL)) ERR;
+      if(nc_def_var_chunking(ncid,medium_varid,NC_CHUNKED,NULL)) ERR;
+      if(nc_def_var_chunking(ncid,large_varid,NC_CHUNKED,NULL)) ERR;
+#endif
       if (nc_close(ncid)) ERR;
 
       /* Open the file and check. */
-      if (nc_open(path, NC_WRITE, &ncid)) ERR;
+      if (nc_open(options.path, NC_WRITE, &ncid)) ERR;
       if (nc_inq(ncid, &ndims, &nvars, &ngatts, &unlimdimid)) ERR;
       if (nvars != 3 || ndims != 3 || ngatts != 0 || unlimdimid != -1) ERR;
       if (nc_inq_var(ncid, 0, var_name_in, &xtype_in, &ndims_in, &dimids_in, &natts_in)) ERR;
@@ -84,20 +91,21 @@ main(int argc, char **argv)
 #define NUM_DIM 4
 #define NUM_TYPE 2
       int ncid;
-      int dim_len[NUM_DIM] = {NC_UNLIMITED, 100, 1000, 2000};
+      int dim_len[NUM_DIM] = {1, 100, 1000, 2000};
       size_t chunksize_in[NUM_DIM];
       int type_id[NUM_TYPE] = {NC_BYTE, NC_INT};
       int dimid[NUM_DIM], varid[NUM_TYPE];
+      char* varidname[NUM_TYPE];
       char dim_name[NC_MAX_NAME + 1], var_name[NC_MAX_NAME + 1];
       int d, t;
 
       /* Create a netcdf-4 file with NUM_DIM dimensions. */
-      if (nc_create(path, NC_NETCDF4, &ncid)) ERR;
+      if (nc_create(options.path, NC_NETCDF4, &ncid)) ERR;
       for (d = 0; d < NUM_DIM; d++)
       {
 	 sprintf(dim_name, "dim_%d", dim_len[d]);
 #ifdef PRINT_DEFAULT_CHUNKSIZE_TABLE
-	 printf("creating dim %s\n", dim_name);
+	 printf("creating dim[%d] %s = %d\n", d,  dim_name, dim_len[d]);
 #endif
 	 if (nc_def_dim(ncid, dim_name, dim_len[d], &dimid[d])) ERR;
       }
@@ -105,11 +113,13 @@ main(int argc, char **argv)
       for (t = 0; t < NUM_TYPE; t++)
       {
 	 sprintf(var_name, "var_%d", type_id[t]);
+	 varidname[t] = strdup(var_name);
 	 if (nc_def_var(ncid, var_name, type_id[t], NUM_DIM, dimid, &varid[t])) ERR;
 	 if (nc_inq_var_chunking(ncid, varid[t], &contig, chunksize_in)) ERR;
 #ifdef PRINT_DEFAULT_CHUNKSIZE_TABLE
-	 printf("chunksizes for %d x %d x %d x %d var: %d x %d x %d x %d (=%d)\n",
+	 printf("chunksizes for %d x %d x %d x %d var %s: %d x %d x %d x %d (=%d)\n",
 		dim_len[0], dim_len[1], dim_len[2], dim_len[3],
+		varidname[t],
 		(int)chunksize_in[0], (int)chunksize_in[1], (int)chunksize_in[2],
 		(int)chunksize_in[3],
 		(int)(chunksize_in[0] * chunksize_in[1] * chunksize_in[2] * chunksize_in[3]));
@@ -119,10 +129,11 @@ main(int argc, char **argv)
       if (nc_close(ncid)) ERR;
 
       /* Open the file and check. */
-      if (nc_open(path, NC_WRITE, &ncid)) ERR;
+      if (nc_open(options.path, NC_WRITE, &ncid)) ERR;
       if (nc_inq(ncid, &ndims, &nvars, &ngatts, &unlimdimid)) ERR;
-      if (nvars != NUM_TYPE || ndims != NUM_DIM || ngatts != 0 || unlimdimid != 0) ERR;
+      if (nvars != NUM_TYPE || ndims != NUM_DIM || ngatts != 0 || unlimdimid == 0) ERR;
 
+     
       for (t = 0; t < NUM_TYPE; t++)
       {
 	 sprintf(var_name, "var_%d", type_id[t]);
@@ -154,7 +165,7 @@ main(int argc, char **argv)
       nc_type xtype_in;
 
       /* Create a netcdf-4 file with three dimensions. */
-      if (nc_create(path, NC_NETCDF4, &ncid)) ERR;
+      if (nc_create(options.path, NC_NETCDF4, &ncid)) ERR;
       if (nc_def_dim(ncid, D_SMALL, D_SMALL_LEN2, &small_dimid)) ERR;
       if (nc_def_dim(ncid, D_MEDIUM, D_MEDIUM_LEN, &medium_dimid)) ERR;
       if (nc_def_dim(ncid, D_LARGE, D_LARGE_LEN, &large_dimid)) ERR;
@@ -166,16 +177,19 @@ main(int argc, char **argv)
       if (nc_def_var(ncid, V_MEDIUM, NC_INT64, NDIMS1, &medium_dimid, &medium_varid)) ERR;
       chunks[0] = D_MEDIUM_LEN / 100;
       if (nc_def_var_chunking(ncid, medium_varid, 0, chunks)) ERR;
+#ifdef FILTERS
       if (nc_def_var_deflate(ncid, medium_varid, 1, 0, 0)) ERR;
-
+#endif
       if (nc_def_var(ncid, V_LARGE, NC_INT64, NDIMS1, &large_dimid, &large_varid)) ERR;
       chunks[0] = D_LARGE_LEN / 1000;
       if (nc_def_var_chunking(ncid, large_varid, 0, chunks)) ERR;
+#ifdef FILTERS
       if (nc_def_var_fletcher32(ncid, large_varid, 1)) ERR;
+#endif
       if (nc_close(ncid)) ERR;
 
       /* Open the file and check. */
-      if (nc_open(path, NC_WRITE, &ncid)) ERR;
+      if (nc_open(options.path, NC_WRITE, &ncid)) ERR;
       if (nc_inq(ncid, &ndims, &nvars, &ngatts, &unlimdimid)) ERR;
       if (nvars != 3 || ndims != 3 || ngatts != 0 || unlimdimid != -1) ERR;
       if (nc_inq_var(ncid, 0, var_name_in, &xtype_in, &ndims_in, &dimids_in, &natts_in)) ERR;
@@ -213,7 +227,7 @@ main(int argc, char **argv)
       int i, j;
 
       /* Create a netcdf-4 file with three dimensions. */
-      if (nc_create(path, NC_NETCDF4, &ncid)) ERR;
+      if (nc_create(options.path, NC_NETCDF4, &ncid)) ERR;
       if (nc_def_dim(ncid, D_SNEAKINESS, D_SNEAKINESS_LEN, &dimids[0])) ERR;
       if (nc_def_dim(ncid, D_CLEVERNESS, D_CLEVERNESS_LEN, &dimids[1])) ERR;
       if (nc_def_dim(ncid, D_EFFECTIVENESS, D_EFFECTIVENESS_LEN, &dimids[2])) ERR;
@@ -242,7 +256,7 @@ main(int argc, char **argv)
       if (nc_close(ncid)) ERR;
 
       /* Open the file and check. */
-      if (nc_open(path, NC_WRITE, &ncid)) ERR;
+      if (nc_open(options.path, NC_WRITE, &ncid)) ERR;
       /* Check the chunking. */
       for (i = 0; i < NUM_PLANS; i++)
       {
@@ -268,7 +282,7 @@ main(int argc, char **argv)
       size_t chunks[1];
 
       /* Create a netcdf-4 file with three dimensions. */
-      if (nc_create(path, NC_NETCDF4, &ncid)) ERR;
+      if (nc_create(options.path, NC_NETCDF4, &ncid)) ERR;
       if (nc_def_dim(ncid, D_SMALL, D_SMALL_LEN2, &small_dimid)) ERR;
 
       /* Add one var. */
@@ -317,7 +331,7 @@ main(int argc, char **argv)
       float cache_preemption_in;
 
       /* Create a netcdf-4 file with two dimensions. */
-      if (nc_create(path, NC_NETCDF4, &ncid)) ERR;
+      if (nc_create(options.path, NC_NETCDF4, &ncid)) ERR;
       if (nc_def_dim(ncid, DIM_NAME_X_CACHE_CHUNK, DIM_X_LEN, &dimid[0])) ERR;
       if (nc_def_dim(ncid, DIM_NAME_Y_CACHE_CHUNK, DIM_Y_LEN, &dimid[1])) ERR;
 
@@ -367,11 +381,12 @@ main(int argc, char **argv)
       if (nc_close(ncid)) ERR;
 
       /* Reopen the file. */
-      if (nc_open(path, NC_NOWRITE, &ncid)) ERR;
+      if (nc_open(options.path, NC_NOWRITE, &ncid)) ERR;
       
       /* Close the file. */
       if (nc_close(ncid)) ERR;
    }
+   clearoptions();
    SUMMARIZE_ERR;
    FINAL_RESULTS;
 }
