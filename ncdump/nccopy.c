@@ -905,6 +905,7 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
     size_t ichunkp[NC_MAX_VAR_DIMS];
     size_t ochunkp[NC_MAX_VAR_DIMS];
     size_t dimlens[NC_MAX_VAR_DIMS];
+    size_t dfaltchunkp[NC_MAX_VAR_DIMS]; /* default chunking for ovarid */
     int is_unlimited = 0;
 
     /* First, check the file kinds */
@@ -914,6 +915,7 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
     memset(ichunkp,0,sizeof(ichunkp));
     memset(ochunkp,0,sizeof(ochunkp));
     memset(dimlens,0,sizeof(dimlens));
+    memset(dfaltchunkp,0,sizeof(dfaltchunkp));
 
     /* Get the chunking, if any, on the current input variable */
     if(innc4) {
@@ -1000,11 +1002,29 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
                     dimlens[idim] = mb4dimsize;
             }
 	}
-	/* compute the final ochunksizes: precedence is output, input, dimeln */
+
+        /* Get the current default chunking on the output variable */
+        /* Unfortunately, there is no way to get this info except by 
+           forcing chunking */
+        if(ocontig == NC_CHUNKED) {
+	    /* this may fail if chunking is not possible, in which case ignore */
+            int ret = nc_def_var_chunking(ogrp, o_varid, NC_CHUNKED, dfaltchunkp);
+	    if(ret == NC_NOERR) {
+		int storage;
+	        NC_CHECK(nc_inq_var_chunking(ogrp, o_varid, &storage, dfaltchunkp));
+		if(storage != NC_CHUNKED) return NC_EINTERNAL;
+	    }
+        }
+
+	/* compute the final ochunksizes: precedence is output, input, defaults, dimelen */
         for(idim = 0; idim < ndims; idim++) {
 	    if(ochunkp[idim] == 0) {
 	        if(ichunkp[idim] != 0)
 		    ochunkp[idim] = ichunkp[idim];
+	    }
+	    if(ochunkp[idim] == 0) {
+	        if(dfaltchunkp[idim] != 0)
+		    ochunkp[idim] = dfaltchunkp[idim];
 	    }
 	    if(ochunkp[idim] == 0) {
 	        if(dimlens[idim] != 0)
