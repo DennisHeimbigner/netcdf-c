@@ -24,15 +24,13 @@ TESTS =
 # Unit Tests
 check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking
 
-commonsrc = ut_util.c ut_test.c
+commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
 
 ut_map_SOURCES = ut_map.c ${commonsrc}
 ut_mapapi_SOURCES = ut_mapapi.c ${commonsrc}
 ut_json_SOURCES = ut_json.c ${commonsrc}
 ut_projections_SOURCES = ut_projections.c ${commonsrc}
 ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
-
-HDRS = ut_includes.h ut_test.h ut_util.h
 
 # Integration Tests
 #check_PROGRAMS += it_meta
@@ -54,7 +52,6 @@ noinst_PROGRAMS = zmapio
 zmapio_SOURCES = zmapio.c
 
 EXTRA_DIST = \
-test_nczarr_utils.h \
 ref_ut_map_readmeta_nzf.txt \
 ref_ut_map_writedata_nzf.cdl \
 ref_ut_map_writemeta_nzf.cdl \
