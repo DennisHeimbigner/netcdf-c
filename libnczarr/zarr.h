@@ -62,5 +62,6 @@ extern int NCZ_comma_parse(const char* s, NClist* list);
 extern int NCZ_swapatomicdata(size_t datalen, void* data, int typesize);
 extern char** NCZ_clonestringvec(size_t len, const char** vec);
 extern void NCZ_freestringvec(size_t len, char** vec);
+extern int NCZ_create_fill_chunk(size64_t chunksize, size_t typesize, void* fill, void** fillchunkp);
 
 #endif /*ZARR_H*/

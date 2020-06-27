@@ -36,8 +36,8 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(ut_projections PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_chunking PUBLIC ../libnczarr)
 
-  BUILD_BIN_TEST_SOURCED(zmapdump ${COMMONSRC})
-  TARGET_INCLUDE_DIRECTORIES(zmapdump PUBLIC ../libnczarr)
+  BUILD_BIN_TEST_SOURCED(zmapio ${COMMONSRC})
+  TARGET_INCLUDE_DIRECTORIES(zmapio PUBLIC ../libnczarr)
 
 # Integration tests
 #  BUILD_BIN_TEST(it_meta)
@@ -54,5 +54,5 @@ ENDIF(ENABLE_TESTS)
 
 ## Specify files to be distributed by 'make dist'
 FILE(GLOB CUR_EXTRA_DIST RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*.c ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.sh ${CMAKE_CURRENT_SOURCE_DIR}/*.cdl)
-SET(CUR_EXTRA_DIST ${CUR_EXTRA_DIST} CMakeLists.txt Makefile.am zmapdump.c)
+SET(CUR_EXTRA_DIST ${CUR_EXTRA_DIST} CMakeLists.txt Makefile.am zmapio.c)
 ADD_EXTRA_DIST("${CUR_EXTRA_DIST}")

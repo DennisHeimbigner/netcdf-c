@@ -5,6 +5,8 @@
 
 #include "zincludes.h"
 
+#undef FILLONCLOSE
+
 /* Forward */
 static int ncz_collect_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jdimsp);
 static int ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
@@ -458,31 +460,32 @@ and fill as needed.
 int
 ncz_write_var(NC_VAR_INFO_T* var)
 {
-    int i, stat = NC_NOERR;
-    NCZOdometer* chunkodom =  NULL;
-    size64_t start[NC_MAX_VAR_DIMS];
-    size64_t stop[NC_MAX_VAR_DIMS];
-    size64_t stride[NC_MAX_VAR_DIMS];
-    NC_FILE_INFO_T* file = var->container->nc4_info;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    int stat = NC_NOERR;
     NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
-    NCZMAP* map = zfile->map;	 
-    char* key = NULL;
-
-    for(i=0;i<var->ndims;i++) {
-	size64_t nchunks = ceildiv(var->dim[i]->len,var->chunksizes[i]);
-	start[i] = 0;
-	stop[i] = nchunks;
-	stride[i] = 1;
-    }
 
     /* Flush the cache */
     if(zvar->cache) {
         if((stat = NCZ_flush_chunk_cache(zvar->cache))) goto done;
     }
     
+#ifdef FILLONCLOSE
     /* If fill is enabled, then create missing chunks */
     if(!var->no_fill) {
+        int i;
+    NCZOdometer* chunkodom =  NULL;
+    NC_FILE_INFO_T* file = var->container->nc4_info;
+    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    NCZMAP* map = zfile->map;	 
+    size64_t start[NC_MAX_VAR_DIMS];
+    size64_t stop[NC_MAX_VAR_DIMS];
+    size64_t stride[NC_MAX_VAR_DIMS];
+    char* key = NULL;
+        for(i=0;i<var->ndims;i++) {
+	    size64_t nchunks = ceildiv(var->dim[i]->len,var->chunksizes[i]);
+	    start[i] = 0;
+	    stop[i] = nchunks;
+	    stride[i] = 1;
+        }
 	/* Iterate over all the chunks to create missing ones */
 	if((chunkodom = nczodom_new(var->ndims,start,stop,stride,stop))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
@@ -497,16 +500,28 @@ ncz_write_var(NC_VAR_INFO_T* var)
 	    }
             /* If we reach here, then chunk does not exist, create it with fill */
 	    if((stat=nczmap_defineobj(map,key))) goto done;
+	    /* ensure fillchunk exists */
+	    if(zvar->cache->fillchunk == NULL) {
+		nc_type typecode;
+		size_t typesize;
+	        void* fillvalue = NULL;
+		typecode = var->type_info->hdr.id;
+		if((stat = NC4_inq_atomic_type(typecode, NULL, &typesize))) goto done;
+	        if((stat = ncz_get_fill_value(file, var, &fillvalue))) goto done;
+		if((stat = NCZ_create_fill_chunk(zvar->cache->chunksize, typesize, fillvalue, &zvar->cache->fillchunk)))
+		    goto done;
+	    }
 	    if((stat=nczmap_write(map,key,0,zvar->cache->chunksize,zvar->cache->fillchunk))) goto done;
 next:
 	    nullfree(key);
 	    key = NULL;
 	}
-    }
-
-done:
     nczodom_free(chunkodom);
     nullfree(key);
+    }
+#endif /*FILLONCLOSE*/
+
+done:
     return THROW(stat);
 }
 
@@ -1360,7 +1375,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		}
 		/* Create the cache */
 		zvar->chunk_cache_nelems = var->chunk_cache_nelems;
-		if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,zvar->chunk_cache_nelems,&zvar->cache)))
+		if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,&zvar->cache)))
 		    goto done;
 	    }
 	}

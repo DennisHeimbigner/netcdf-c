@@ -52,13 +52,13 @@ testmapmeta() {
   dumpmap $zext ./$file ./$cdl
   diff -wb ${srcdir}/ref_$cdl ./$cdl
 
-  $CMD -k$1 -x writemeta2 -o ${srcdir}/$file
+  $CMD -k$1 -x writemeta2 -o ./$file
   cdl="ut_${tag}_write2meta_${zext}.cdl"
   dumpmap $zext ./$file ./$cdl
   diff -wb ${srcdir}/ref_$cdl ./$cdl
 
   output="ut_${tag}_readmeta_$zext.txt"
-  $CMD -k$1 -x readmeta -f $file > ${srcdir}/$output
+  $CMD -k$1 -x readmeta -f $file > ./$output
   diff -wb ${srcdir}/ref_$output ./$output
 }
 
@@ -95,7 +95,7 @@ echo "*** Map Unit Testing"
 
 echo ""; echo "*** Test zmap_nz4"
 testmapcreate nz4; testmapmeta nz4; testmapdata nz4; testmapsearch nz4
-echo ""; echo "*** Test zmap_nzf"
-testmapcreate nzf; testmapmeta nzf; testmapdata nzf; testmapsearch nzf
+#echo ""; echo "*** Test zmap_nzf"
+#testmapcreate nzf; testmapmeta nzf; testmapdata nzf; testmapsearch nzf
 
 exit 0

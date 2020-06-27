@@ -733,3 +733,43 @@ NCZ_freestringvec(size_t len, char** vec)
     }
     nullfree(vec);
 }
+
+/* create a fill chunk */
+int
+NCZ_create_fill_chunk(size64_t chunksize, size_t typesize, void* fill, void** fillchunkp)
+{
+    int i;
+    void* fillchunk = NULL;
+    if((fillchunk = malloc(chunksize))==NULL)
+        return NC_ENOMEM;
+    switch (typesize) {
+    case 1: {
+        unsigned char c = *((unsigned char*)fill);
+        memset(fillchunk,c,chunksize);
+        } break;
+    case 2: {
+        unsigned short fv = *((unsigned short*)fill);
+        unsigned short* p2 = (unsigned short*)fillchunk;
+        for(i=0;i<chunksize;i+=typesize) *p2++ = fv;
+        } break;
+    case 4: {
+        unsigned int fv = *((unsigned int*)fill);
+        unsigned int* p4 = (unsigned int*)fillchunk;
+        for(i=0;i<chunksize;i+=typesize) *p4++ = fv;
+        } break;
+    case 8: {
+        unsigned long long fv = *((unsigned long long*)fill);
+        unsigned long long* p8 = (unsigned long long*)fillchunk;
+        for(i=0;i<chunksize;i+=typesize) *p8++ = fv;
+        } break;
+    default: {
+        unsigned char* p;
+        for(p=fillchunk,i=0;i<chunksize;i+=typesize,p+=typesize)
+            memcpy(p,fill,typesize);
+        } break;
+    }
+    if(fillchunkp) {*fillchunkp = fillchunk; fillchunk = NULL;}
+    nullfree(fillchunk);
+    return NC_NOERR;
+}
+    

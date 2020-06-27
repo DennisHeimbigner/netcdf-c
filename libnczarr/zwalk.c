@@ -68,6 +68,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     NCZSlice slices[NC_MAX_VAR_DIMS];
     struct Common common;
     NCZ_FILE_INFO_T* zfile = NULL;
+    NCZ_VAR_INFO_T* zvar = NULL;
     size_t typesize;
 
     if((stat = NC4_inq_atomic_type(typecode, NULL, &typesize))) goto done;
@@ -87,13 +88,15 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     common.var = var;
     common.file = (var->container)->nc4_info;
     zfile = common.file->format_file_info;
+    zvar = common.var->format_var_info;
+
     common.reading = reading;
     common.memory = memory;
     common.typesize = typesize;
-    if(var->fill_value) {
-        if((stat = ncz_get_fill_value(common.file, common.var, &common.fillvalue))) goto done;
-    } else
-        common.fillvalue = NULL;
+    common.cache = zvar->cache;
+
+    if((stat = ncz_get_fill_value(common.file, common.var, &common.fillvalue))) goto done;
+
     common.rank = var->ndims;
     common.swap = (zfile->native_endianness == var->endianness ? 0 : 1);
     common.dimlens = dimlens;
@@ -281,20 +284,21 @@ transfern(NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* commo
 static int
 NCZ_fillchunk(void* chunkdata, struct Common* common)
 {
-#if 1
-NC_UNUSED(chunkdata); NC_UNUSED(common);
-#else
-    if(common->fillvalue == NULL)
+    int stat = NC_NOERR;    
+
+    if(common->fillvalue == NULL) {
         memset(chunkdata,0,common->chunksize*common->typesize);
-    else {
-	unsigned char* dst = (unsigned char*)chunkdata; /* so we can do arithmetic */
-	size64_t i;
-	for(i=0;i<common->chunksize;i++) {
-	    memcpy(&dst[i*common->typesize],common->fillvalue,common->typesize);
-	}
+	goto done;
+    }	
+
+    if(common->cache->fillchunk == NULL) {
+        /* Get fill chunk*/
+        if((stat = NCZ_create_fill_chunk(common->cache->chunksize, common->typesize, common->fillvalue, &common->cache->fillchunk)))
+	    goto done;
     }
-#endif
-    return NC_NOERR;    
+    memcpy(chunkdata,common->cache->fillchunk,common->cache->chunksize);
+done:
+    return stat;
 }
 
 /* Break out this piece so we can use it for unit testing */

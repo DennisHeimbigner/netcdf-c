@@ -55,6 +55,7 @@ typedef struct NCZSliceProjections {
 struct Common {
     NC_FILE_INFO_T* file;
     NC_VAR_INFO_T* var;
+    struct NCZChunkCache* cache;
     int reading; /* 1=> read, 0 => write */
     int rank;
     size64_t* dimlens;

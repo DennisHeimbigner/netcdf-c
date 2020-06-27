@@ -446,7 +446,7 @@ var->type_info->rc++;
     zvar->chunk_cache_nelems = var->chunk_cache_nelems;
 
     /* Create the cache */
-    if((retval=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,zvar->chunk_cache_nelems,&zvar->cache)))
+    if((retval=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,&zvar->cache)))
         BAIL(retval);
 
     /* Is this a variable with a chunksize greater than the current cache size? */

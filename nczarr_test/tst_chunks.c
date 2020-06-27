@@ -9,7 +9,8 @@
 
 #include "test_nczarr_utils.h"
 
-#define PRINT_DEFAULT_CHUNKSIZE_TABLE
+#define DEBUGNOFILL
+#undef PRINT_DEFAULT_CHUNKSIZE_TABLE
 
 #undef FILTERS
 
@@ -36,7 +37,7 @@ main(int argc, char **argv)
 
       int ncid;
       int nvars, ndims, ngatts, unlimdimid;
-      int contig;
+      int storage;
       int ndims_in, natts_in, dimids_in;
       int small_dimid, medium_dimid, large_dimid;
       int small_varid, medium_varid, large_varid;
@@ -74,33 +75,38 @@ main(int argc, char **argv)
 	  natts_in != 0) ERR;
 
       /* Make sure chunking sizes are what we expect. */
-      if (nc_inq_var_chunking(ncid, small_varid, &contig, chunksize_in)) ERR;
-      if (contig || chunksize_in[0] != D_SMALL_LEN) ERR;
-      if (nc_inq_var_chunking(ncid, medium_varid, &contig, chunksize_in)) ERR;
-      if (contig || chunksize_in[0] * sizeof(long long) > DEFAULT_CHUNK_SIZE) ERR;
-      if (nc_inq_var_chunking(ncid, large_varid, &contig, chunksize_in)) ERR;
-      if (contig || chunksize_in[0] * sizeof(long long) > DEFAULT_CHUNK_SIZE) ERR;
+      if (nc_inq_var_chunking(ncid, small_varid, &storage, chunksize_in)) ERR;
+      if (storage || chunksize_in[0] != D_SMALL_LEN) ERR;
+      if (nc_inq_var_chunking(ncid, medium_varid, &storage, chunksize_in)) ERR;
+      if (storage || chunksize_in[0] * sizeof(long long) > DEFAULT_CHUNK_SIZE) ERR;
+      if (nc_inq_var_chunking(ncid, large_varid, &storage, chunksize_in)) ERR;
+      if (storage || chunksize_in[0] * sizeof(long long) > DEFAULT_CHUNK_SIZE) ERR;
 
       if (nc_close(ncid)) ERR;
    }
    SUMMARIZE_ERR;
+
    printf("**** testing default chunksizes...");
    {
       int nvars, ndims, ngatts, unlimdimid;
-      int contig;
+      int storage;
 #define NUM_DIM 4
 #define NUM_TYPE 2
       int ncid;
       int dim_len[NUM_DIM] = {1, 100, 1000, 2000};
+//      int dim_len[NUM_DIM] = {1, 50, 100, 200};
       size_t chunksize_in[NUM_DIM];
       int type_id[NUM_TYPE] = {NC_BYTE, NC_INT};
       int dimid[NUM_DIM], varid[NUM_TYPE];
-      char* varidname[NUM_TYPE];
       char dim_name[NC_MAX_NAME + 1], var_name[NC_MAX_NAME + 1];
       int d, t;
 
       /* Create a netcdf-4 file with NUM_DIM dimensions. */
       if (nc_create(options.path, NC_NETCDF4, &ncid)) ERR;
+#ifdef DEBUGNOFILL
+	 if(nc_set_fill(ncid,NC_NOFILL,&d)) ERR;
+#endif
+
       for (d = 0; d < NUM_DIM; d++)
       {
 	 sprintf(dim_name, "dim_%d", dim_len[d]);
@@ -113,13 +119,12 @@ main(int argc, char **argv)
       for (t = 0; t < NUM_TYPE; t++)
       {
 	 sprintf(var_name, "var_%d", type_id[t]);
-	 varidname[t] = strdup(var_name);
 	 if (nc_def_var(ncid, var_name, type_id[t], NUM_DIM, dimid, &varid[t])) ERR;
-	 if (nc_inq_var_chunking(ncid, varid[t], &contig, chunksize_in)) ERR;
+	 if (nc_inq_var_chunking(ncid, varid[t], &storage, chunksize_in)) ERR;
 #ifdef PRINT_DEFAULT_CHUNKSIZE_TABLE
 	 printf("chunksizes for %d x %d x %d x %d var %s: %d x %d x %d x %d (=%d)\n",
 		dim_len[0], dim_len[1], dim_len[2], dim_len[3],
-		varidname[t],
+		var_name,
 		(int)chunksize_in[0], (int)chunksize_in[1], (int)chunksize_in[2],
 		(int)chunksize_in[3],
 		(int)(chunksize_in[0] * chunksize_in[1] * chunksize_in[2] * chunksize_in[3]));
@@ -137,8 +142,8 @@ main(int argc, char **argv)
       for (t = 0; t < NUM_TYPE; t++)
       {
 	 sprintf(var_name, "var_%d", type_id[t]);
-	 if (nc_inq_var_chunking(ncid, varid[t], &contig, chunksize_in)) ERR;
-	 if (contig) ERR;
+	 if (nc_inq_var_chunking(ncid, varid[t], &storage, chunksize_in)) ERR;
+	 if (storage) ERR;
 #ifdef PRINT_DEFAULT_CHUNKSIZE_TABLE
 	 printf("chunksizes for %d x %d x %d x %d var: %d x %d x %d x %d (=%d)\n",
 		dim_len[0], dim_len[1], dim_len[2], dim_len[3],
@@ -151,12 +156,13 @@ main(int argc, char **argv)
       if (nc_close(ncid)) ERR;
    }
    SUMMARIZE_ERR;
+
    printf("**** testing that chunking works on classic mode files...");
    {
 #define D_SMALL_LEN2 66
       int ncid;
       int nvars, ndims, ngatts, unlimdimid;
-      int contig;
+      int storage;
       int ndims_in, natts_in, dimids_in;
       int small_dimid, medium_dimid, large_dimid;
       int small_varid, medium_varid, large_varid;
@@ -197,17 +203,17 @@ main(int argc, char **argv)
 	  natts_in != 0) ERR;
 
       /* Make sure chunking settings are what we expect. */
-      if (nc_inq_var_chunking(ncid, small_varid, &contig, &chunksize_in)) ERR;
-      if (!contig) ERR;
-      if (nc_inq_var_chunking(ncid, medium_varid, &contig, &chunksize_in)) ERR;
-      if (contig || chunksize_in != D_MEDIUM_LEN / 100) ERR;
-      if (nc_inq_var_chunking(ncid, large_varid, &contig, &chunksize_in)) ERR;
-      if (contig || chunksize_in != D_LARGE_LEN / 1000) ERR;
+      if (nc_inq_var_chunking(ncid, small_varid, &storage, &chunksize_in)) ERR;
+      if (storage != NC_CHUNKED) ERR;
+      if (nc_inq_var_chunking(ncid, medium_varid, &storage, &chunksize_in)) ERR;
+      if (storage || chunksize_in != D_MEDIUM_LEN / 100) ERR;
+      if (nc_inq_var_chunking(ncid, large_varid, &storage, &chunksize_in)) ERR;
+      if (storage || chunksize_in != D_LARGE_LEN / 1000) ERR;
 
       if (nc_close(ncid)) ERR;
    }
    SUMMARIZE_ERR;
-   printf("**** testing many chunking and contiguous variables...");
+   printf("**** testing many chunking variables...");
    {
 #define NDIMS_3 3
 #define NUM_PLANS 30
@@ -222,7 +228,7 @@ main(int argc, char **argv)
       size_t chunksize[NDIMS_3] = {D_SNEAKINESS_LEN, D_CLEVERNESS_LEN,
 				   D_EFFECTIVENESS_LEN};
       char plan_name[NC_MAX_NAME + 1];
-      int contig;
+      int storage;
       size_t chunksize_in[NDIMS_3];
       int i, j;
 
@@ -238,20 +244,17 @@ main(int argc, char **argv)
 	 sprintf(plan_name, "Richelieu_sneaky_plan_%d", i);
 	 if (nc_def_var(ncid, plan_name, i % (NC_STRING - 1) + 1, NDIMS_3,
 			dimids, &varid[i])) ERR;
-	 if (i % 2 && nc_def_var_chunking(ncid, varid[i], 0, chunksize)) ERR;
+	 if (nc_def_var_chunking(ncid, varid[i], 0, chunksize)) ERR;
       }
 
       /* Check the chunking. */
       for (i = 0; i < NUM_PLANS; i++)
       {
-	 if (nc_inq_var_chunking(ncid, varid[i], &contig, chunksize_in)) ERR;
-	 if (i % 2)
+	 if (nc_inq_var_chunking(ncid, varid[i], &storage, chunksize_in)) ERR;
 	 {
 	    for (j = 0; j < NDIMS_3; j++)
 	       if (chunksize_in[j] != chunksize[j]) ERR;
 	 }
-	 else
-	    if (!contig) ERR;
       }
       if (nc_close(ncid)) ERR;
 
@@ -260,14 +263,11 @@ main(int argc, char **argv)
       /* Check the chunking. */
       for (i = 0; i < NUM_PLANS; i++)
       {
-	 if (nc_inq_var_chunking(ncid, varid[i], &contig, chunksize_in)) ERR;
-	 if (i % 2)
+	 if (nc_inq_var_chunking(ncid, varid[i], &storage, chunksize_in)) ERR;
 	 {
 	    for (j = 0; j < NDIMS_3; j++)
 	       if (chunksize_in[j] != chunksize[j]) ERR;
 	 }
-	 else
-	    if (!contig) ERR;
       }
       if (nc_close(ncid)) ERR;
    }
@@ -322,7 +322,7 @@ main(int argc, char **argv)
       size_t chunks[NDIM2] = {100, 100};
       size_t chunks_big[NDIM2] = {DIM_X_LEN, DIM_Y_LEN};
       size_t chunks_in[NDIM2];
-      int contiguous;
+      int storage;
       size_t cache_size = 16;
       size_t cache_nelems = 1;
       float cache_preemption = 0.5;
@@ -346,14 +346,14 @@ main(int argc, char **argv)
 
       /* Set the chunking. */
       if (nc_def_var_chunking(ncid, varid, NC_CHUNKED, chunks)) ERR;
-      if (nc_inq_var_chunking(ncid, varid, &contiguous, chunks_in)) ERR;
-      if (contiguous || chunks_in[0] != chunks[0] || chunks_in[1] != chunks[1]) ERR;
+      if (nc_inq_var_chunking(ncid, varid, &storage, chunks_in)) ERR;
+      if (storage || chunks_in[0] != chunks[0] || chunks_in[1] != chunks[1]) ERR;
       if (nc_def_var_chunking(ncid, varid2, NC_CHUNKED, chunks)) ERR;
-      if (nc_inq_var_chunking(ncid, varid2, &contiguous, chunks_in)) ERR;
-      if (contiguous || chunks_in[0] != chunks[0] || chunks_in[1] != chunks[1]) ERR;
+      if (nc_inq_var_chunking(ncid, varid2, &storage, chunks_in)) ERR;
+      if (storage || chunks_in[0] != chunks[0] || chunks_in[1] != chunks[1]) ERR;
       if (nc_def_var_chunking(ncid, varid3, NC_CHUNKED, chunks_big)) ERR;
-      if (nc_inq_var_chunking(ncid, varid3, &contiguous, chunks_in)) ERR;
-      if (contiguous || chunks_in[0] != chunks_big[0] || chunks_in[1] != chunks_big[1]) ERR;
+      if (nc_inq_var_chunking(ncid, varid3, &storage, chunks_in)) ERR;
+      if (storage || chunks_in[0] != chunks_big[0] || chunks_in[1] != chunks_big[1]) ERR;
 
       /* Get the var cache values. */
       if (nc_get_var_chunk_cache(ncid, varid, &cache_size_in, &cache_nelems_in,
@@ -372,10 +372,6 @@ main(int argc, char **argv)
       if (cache_nelems_in != CHUNK_CACHE_NELEMS ||
           cache_preemption_in != CHUNK_CACHE_PREEMPTION) ERR;
       /* printf("cache_size_in %ld\n", cache_size_in); */
-#ifndef USE_PARALLEL
-      /* THe cache size does not change under parallel. Not sure why. */
-      if (cache_size_in <= CHUNK_CACHE_SIZE) ERR;
-#endif
 
       /* Close the file. */
       if (nc_close(ncid)) ERR;
