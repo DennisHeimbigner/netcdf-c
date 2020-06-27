@@ -934,12 +934,24 @@ FIND_LIBRARY(AWS_CPP_SDK_CORE_LIB NAMES aws-cpp-sdk-core)
 FIND_LIBRARY(AWS_CPP_SDK_S3_LIB NAMES aws-cpp-sdk-s3)
 FIND_LIBRARY(AWS_C_COMMON_LIB NAMES aws-c-common)
 
+IF(NOT AWS_CPP_SDK_CORE_LIB)
+  SET(AWS_CPP_SDK_CORE_LIB OFF)
+ENDIF()
+IF(NOT AWS_CPP_SDK_S3_LIB)
+  SET(AWS_CPP_SDK_S3_LIB OFF)
+ENDIF()
+IF(NOT AWS_C_COMMON_LIB)
+  SET(AWS_C_COMMON_LIB OFF)
+ENDIF()
+
 IF(ENABLE_S3_SDK)
-  IF(AWS_CPP_SDK_CORE_LIB AND AWS_CPP_SDK_S3_LIB AND AWS_C_COMMON_LIB)
-      MESSAGE(STATUS "Found aws sdk libraries")
+  IF(NOT AWS_CPP_SDK_CORE_LIB
+     OR NOT AWS_CPP_SDK_S3_LIB
+     OR NOT AWS_C_COMMON_LIB)
+    MESSAGE(WARNING "One of aws-c-common, aws-cpp-sdk-s3, aws-cpp-sdk-core libraries is not available: Turning off S3 support")
+    SET(ENABLE_S3_SDK OFF)
   ELSE()
-    MESSAGE(WARN "Can't find or link to one of aws-c-common, aws-cpp-sdk-s3, or aws-cpp-sdk-core libraries")
-    SET(ENABLE_S3_SDK OFF CACHE BOOL "")
+      MESSAGE(STATUS "Found aws sdk libraries")
   ENDIF()
 ENDIF()
 
