@@ -12,6 +12,8 @@
 
 #include "zincludes.h"
 
+#undef DEBUG
+
 /**************************************************/
 /* Static zarr type name table */
 
@@ -242,7 +244,9 @@ NCZ_uploadjson(NCZMAP* zmap, const char* key, NCjson* json)
 {
     int stat = NC_NOERR;
     char* content = NULL;
-    
+#ifdef DEBUG
+fprintf(stderr,"uploadjson: %s\n",key); fflush(stderr);
+#endif
     /* Unparse the modified json tree */
     if((stat = NCJunparse(json,0,&content)))
 	goto done;

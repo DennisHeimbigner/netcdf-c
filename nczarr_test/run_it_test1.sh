@@ -68,6 +68,7 @@ echo "*** Testing ncgen with -${KFLAG} and zmap=${zext}"
 
 main() {
 extfor $1
+if test 'x$2' != x ; then CLOUD=$2; fi
 RESULTSDIR="results.${zext}"
 mkdir -p ${RESULTSDIR}
 cd ${RESULTSDIR}
@@ -83,10 +84,9 @@ if test "x$HAVE_SETTING" = x1 ; then HAVES3=1; fi
 
 rm -rf ${RESULTSDIR}
 
-main nz4
-main nzf
+#main nz4
+#main nzf
 
 if test "x$HAVENCZARR" = x1 -a "x$HAVES3" = x1 ; then
-main s3
+  main s3 'https://stratus.ucar.edu/unidata-netcdf-zarr-testing'
 fi
-

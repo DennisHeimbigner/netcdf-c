@@ -46,8 +46,9 @@ done
 
 main() {
 extfor $1
-${execdir}/tst_chunks -e $1
-#${execdir}/tst_chunks2 -e $1
+if test "x$2" != x ; then CLOUD="-c $2"; fi
+${execdir}/tst_chunks -e $1 $CLOUD
+${execdir}/tst_chunks2 -e $1 $CLOUD
 }
 
 # check settings
@@ -60,5 +61,5 @@ main nz4
 main nzf
 
 if test "x$HAVENCZARR" = x1 -a "x$HAVES3" = x1 ; then
-main s3
+main s3 'https://stratus.ucar.edu/unidata-netcdf-zarr-testing'
 fi

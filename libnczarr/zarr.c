@@ -66,10 +66,6 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const char** contr
     /* Apply client controls */
     if((stat = applycontrols(zinfo))) goto done;
 
-    /* initialize map handle*/
-    if((stat = nczmap_create(zinfo->features.mapimpl,nc->path,nc->mode,zinfo->features.flags,NULL,&zinfo->map)))
-	goto done;
-
     /* Load auth info from rc file */
     if((zinfo->auth = calloc(1,sizeof(NCauth)))==NULL)
 	{stat = NC_ENOMEM; goto done;}
@@ -78,6 +74,13 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const char** contr
 	if((stat = NC_authsetup(zinfo->auth, uri)))
 	    goto done;
     }
+
+    /* initialize map handle*/
+    if((stat = nczmap_create(zinfo->features.mapimpl,nc->path,nc->mode,zinfo->features.flags,NULL,&zinfo->map)))
+	goto done;
+
+    /* Create super block (NCZMETAROOT) */
+    if((stat = ncz_create_superblock(zinfo))) goto done;
 
 done:
     ncurifree(uri);

@@ -40,6 +40,7 @@ extern int ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container);
 extern int ncz_read_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp);
 extern int ncz_read_file(NC_FILE_INFO_T* file);
 extern int ncz_write_var(NC_VAR_INFO_T* var);
+extern int ncz_create_superblock(NCZ_FILE_INFO_T* zinfo);
 
 /* zutil.c */
 extern int NCZ_grpkey(const NC_GRP_INFO_T* grp, char** pathp);

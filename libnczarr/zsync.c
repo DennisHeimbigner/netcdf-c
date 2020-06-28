@@ -54,38 +54,9 @@ int
 ncz_sync_file(NC_FILE_INFO_T* file)
 {
     int stat = NC_NOERR;
-    char version[1024];
     NCjson* json = NULL;
-    NCZMAP* map = NULL;
-    NCZ_FILE_INFO_T* zinfo = NULL;
 
     LOG((3, "%s: file: %s", __func__, file->controller->path));
-
-    zinfo = file->format_file_info;
-    map = zinfo->map;
-
-    /* Overwrite in all cases */
-    if((stat = NCJnew(NCJ_DICT,&json)))
-	goto done;
-
-    /* fill */
-    snprintf(version,sizeof(version),"%d",zinfo->zarr.zarr_version);
-    if((stat = NCJaddstring(json,NCJ_STRING,"zarr_format"))) goto done;
-    if((stat = NCJaddstring(json,NCJ_INT,version))) goto done;
-    if((stat = NCJaddstring(json,NCJ_STRING,"nczarr_version"))) goto done;
-    {
-	char ver[1024];
-	snprintf(ver,sizeof(ver),"%lu.%lu.%lu",
-	   zinfo->zarr.nczarr_version.major,
-	   zinfo->zarr.nczarr_version.minor,
-	   zinfo->zarr.nczarr_version.release);
-	if((stat = NCJaddstring(json,NCJ_STRING,ver))) goto done;
-    }
-    if(!(zinfo->features.flags & FLAG_PUREZARR)) {
-	/* Write back to map */
-	if((stat=NCZ_uploadjson(map,NCZMETAROOT,json)))
-	    goto done;
-    }
 
     /* Write out root group recursively */
     if((stat = ncz_sync_grp(file, file->root_grp)))
@@ -1842,3 +1813,39 @@ ncz_get_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     return retval;
 }
 
+int
+ncz_create_superblock(NCZ_FILE_INFO_T* zinfo)
+{
+    int stat = NC_NOERR;
+    NCjson* json = NULL;
+    NCZMAP* map = NULL;
+    char version[1024];
+
+    map = zinfo->map;
+
+    /* create superblock json */
+    if((stat = NCJnew(NCJ_DICT,&json)))
+	goto done;
+
+    /* fill */
+    snprintf(version,sizeof(version),"%d",zinfo->zarr.zarr_version);
+    if((stat = NCJaddstring(json,NCJ_STRING,"zarr_format"))) goto done;
+    if((stat = NCJaddstring(json,NCJ_INT,version))) goto done;
+    if((stat = NCJaddstring(json,NCJ_STRING,"nczarr_version"))) goto done;
+    {
+	char ver[1024];
+	snprintf(ver,sizeof(ver),"%lu.%lu.%lu",
+	   zinfo->zarr.nczarr_version.major,
+	   zinfo->zarr.nczarr_version.minor,
+	   zinfo->zarr.nczarr_version.release);
+	if((stat = NCJaddstring(json,NCJ_STRING,ver))) goto done;
+    }
+    if(!(zinfo->features.flags & FLAG_PUREZARR)) {
+	/* Write back to map */
+	if((stat=NCZ_uploadjson(map,NCZMETAROOT,json)))
+	    goto done;
+    }
+done:
+    NCJreclaim(json);
+    return THROW(stat);
+}

@@ -55,7 +55,7 @@ main(int argc, char** argv)
     if(options.file == NULL && options.output != NULL) options.file = strdup(options.output);
     if(options.output == NULL && options.file != NULL)options.output = strdup(options.file);
     impl = kind2impl(options.kind);
-    if(impl == NCZM_S3) setkeyprefix(options.file);
+//    if(impl == NCZM_S3) setkeyprefix(options.file);
     url = makeurl(options.file,impl);
 
     if((stat = runtests((const char**)options.cmds,tests))) goto done;
@@ -388,6 +388,7 @@ done:
     return THROW(stat);
 }
 
+#if 0
 /* S3 requires knowledge of the bucket+dataset root in order to create the true key */
 static void
 setkeyprefix(const char* file)
@@ -405,7 +406,7 @@ setkeyprefix(const char* file)
     nczm_split_delim(uri->path,'/',segments);
     /* Extract the first two segments */
     if(nclistlength(segments) < 1) return; /* not enough to qualify */
-    /* Prefix is the root key path, so remove the bucket */
+    /* Remove the bucket */
     { char* s = nclistremove(segments,0);
     nullfree(s); /* do not nest because arg is eval'd twice */
     }
@@ -413,6 +414,7 @@ setkeyprefix(const char* file)
     nclistfreeall(segments);
     ncurifree(uri);
 }
+#endif
 
 static char*
 makekey(const char* key)

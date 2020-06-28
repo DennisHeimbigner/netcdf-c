@@ -238,7 +238,9 @@ objdump(void)
 
     
     /* Depth first walk all the groups to get all keys */
-    if((stat = depthR(map,strdup(dumpoptions.rootpath),stack))) goto done;
+    obj = strdup("/");
+    if((stat = depthR(map,obj,stack))) goto done;
+    obj = NULL; /* its now in the stack */
 
     if(dumpoptions.debug) {
 	int i;

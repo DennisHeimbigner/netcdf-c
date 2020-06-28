@@ -7,6 +7,8 @@
 #include "zmap.h"
 #include "zs3sdk.h"
 
+#undef S3DEBUG
+
 /*
 Map our simplified map model to an S3 bucket + objects.
 
@@ -73,6 +75,8 @@ static void zs3initialize(void);
 static int s3clear(ZS3MAP* z3map, const char* key);
 static int isLegalBucketName(const char* bucket);
 
+static int maketruekey(const char* rootpath, const char* key, char** truekeyp);
+
 static void
 errclear(ZS3MAP* z3map)
 {
@@ -127,6 +131,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     ZS3MAP* z3map = NULL;
     NCURI* url = NULL;
     char* prefix = NULL;
+    char* truekey = NULL;
 	
     NC_UNUSED(flags);
     NC_UNUSED(parameters);
@@ -186,6 +191,7 @@ done:
     reporterr(z3map);
     ncurifree(url);
     nullfree(prefix);
+    nullfree(truekey);
     if(stat) nczmap_close((NCZMAP*)z3map,1);
     return (stat);
 }
@@ -304,10 +310,13 @@ zs3len(NCZMAP* map, const char* key, size64_t* lenp)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map;
+    char* truekey = NULL;
 
     ZTRACE("","");
 
-    switch (stat = NCZ_s3sdkinfo(z3map->s3client,z3map->bucket,key,lenp,&z3map->errmsg)) {
+    if((stat = maketruekey(z3map->rootkey,key,&truekey))) goto done;
+
+    switch (stat = NCZ_s3sdkinfo(z3map->s3client,z3map->bucket,truekey,lenp,&z3map->errmsg)) {
     case NC_NOERR: break;
     case NC_EEMPTY:
 	if(lenp) *lenp = 0;
@@ -316,6 +325,7 @@ zs3len(NCZMAP* map, const char* key, size64_t* lenp)
         goto done;
     }
 done:
+    nullfree(truekey);
     reporterr(z3map);
     return (stat);
 }
@@ -331,7 +341,7 @@ zs3defineobj(NCZMAP* map, const char* key)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
-
+    
     ZTRACE("%s",key);
 
     switch(stat = zs3exists(map,key)) {
@@ -360,10 +370,13 @@ zs3read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* cont
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
     size64_t size = 0;
+    char* truekey = NULL;
  
     ZTRACE("%s",key);
 
-    switch (stat=NCZ_s3sdkinfo(z3map->s3client, z3map->bucket, key, &size, &z3map->errmsg)) {
+    if((stat = maketruekey(z3map->rootkey,key,&truekey))) goto done;
+    
+    switch (stat=NCZ_s3sdkinfo(z3map->s3client, z3map->bucket, truekey, &size, &z3map->errmsg)) {
     case NC_NOERR: break;
     case NC_EEMPTY: goto done;
     default: goto done; 	
@@ -372,10 +385,11 @@ zs3read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* cont
     if(start >= size || start+count > size)
         {stat = NC_EEDGE; goto done;}
     if(count > 0)  {
-        if((stat = NCZ_s3sdkread(z3map->s3client, z3map->bucket, key, start, count, content, &z3map->errmsg)))
+        if((stat = NCZ_s3sdkread(z3map->s3client, z3map->bucket, truekey, start, count, content, &z3map->errmsg)))
             goto done;
     }
 done:
+    nullfree(truekey);
     reporterr(z3map);
     return (stat);
 }
@@ -393,14 +407,17 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
     void* chunk = NULL;
     size64_t objsize = 0;
     size64_t newsize = start+count;
+    char* truekey = NULL;
 	
     ZTRACE("%s",key);
 
     if(count == 0) {stat = NC_EEDGE; goto done;}
 
+    if((stat = maketruekey(z3map->rootkey,key,&truekey))) goto done;
+
     /* Apparently S3 has no write byterange operation, so we need to read the whole object,
        copy data, and then rewrite */       
-    switch (stat=NCZ_s3sdkinfo(z3map->s3client, z3map->bucket, key, &objsize, &z3map->errmsg)) {
+    switch (stat=NCZ_s3sdkinfo(z3map->s3client, z3map->bucket, truekey, &objsize, &z3map->errmsg)) {
     case NC_NOERR:
 	newsize = (newsize > objsize ? newsize : objsize);
         break;
@@ -413,7 +430,7 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
     if(chunk == NULL)
 	{stat = NC_ENOMEM; goto done;}
     if(objsize > 0) {
-        if((stat = NCZ_s3sdkread(z3map->s3client, z3map->bucket, key, 0, objsize, chunk, &z3map->errmsg)))
+        if((stat = NCZ_s3sdkread(z3map->s3client, z3map->bucket, truekey, 0, objsize, chunk, &z3map->errmsg)))
             goto done;
     }
     if(newsize > objsize) {
@@ -423,10 +440,11 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
     }
     /* overwrite with the contents */
     memcpy(chunk+start,content,count); /* remember there may be data above start+count */
-    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, z3map->bucket, key, objsize, chunk, &z3map->errmsg)))
+    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, z3map->bucket, truekey, objsize, chunk, &z3map->errmsg)))
         goto done;
 
 done:
+    nullfree(truekey);
     reporterr(z3map);
     nullfree(chunk);
     return (stat);
@@ -448,33 +466,36 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
     char** list = NULL;
     size_t nkeys;
     NClist* tmp = NULL;
+    char* trueprefix = NULL;
 
     ZTRACE("%s",prefix);
     
-    if(*prefix != '/') return NC_EINTERNAL;
-    if((stat = NCZ_s3sdkgetkeys(z3map->s3client,z3map->bucket,prefix,&nkeys,&list,&z3map->errmsg)))
+    if((stat = maketruekey(z3map->rootkey,prefix,&trueprefix))) goto done;
+    
+    if(*trueprefix != '/') return NC_EINTERNAL;
+    if((stat = NCZ_s3sdkgetkeys(z3map->s3client,z3map->bucket,trueprefix,&nkeys,&list,&z3map->errmsg)))
         goto done;
     if(nkeys > 0) {
-	int j;
-	size_t nprefix;
-	/* compute the no. of segments in the prefix */
+	size_t tplen = strlen(trueprefix);
 	tmp = nclistnew();
-        if((stat = nczm_split(prefix,tmp))) goto done;	
-	nprefix = nclistlength(tmp);
-	nclistfreeall(tmp);
-	tmp = nclistnew();
-	/* Now, the returned keys may be of any depth, so capture and prune the keys */
+	/* Remove the trueprefix from the front of all the returned keys */
+	/* The returned keys may be of any depth, so capture and prune the keys */
         for(i=0;i<nkeys;i++) {
 	    char* newkey = NULL;
-   	    /* If the key is same as prefix, ignore it */
-	    if(strcmp(prefix,list[i])==0) continue;
-	    /* Divide so that prefix segs +1 is found; note that a segment
-	       includes the leading '/'. */
-	    if((stat = nczm_divide_at(list[i],nprefix+1,&newkey,NULL))) goto done;
-	    nclistpush(tmp,newkey); newkey = NULL;
+	    if(memcmp(trueprefix,list[i],tplen)==0) {
+		newkey = list[i];
+		newkey = newkey+tplen; /* Point to start of suffix */
+		/* If the key is same as trueprefix, ignore it */
+		if(*newkey == '\0') continue;
+		newkey--; /* Point to trailing '/' */
+		assert(newkey[0] == '/');
+	        newkey = strdup(newkey);
+	        nclistpush(tmp,newkey); newkey = NULL;
+	    }
         }
 	/* Now remove duplicates */
 	for(i=0;i<nclistlength(tmp);i++) {
+	    int j;
 	    int duplicate = 0;
 	    const char* is = nclistget(tmp,i);
 	    for(j=0;j<nclistlength(matches);j++) {
@@ -495,6 +516,7 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
 #endif
 
 done:
+    nullfree(trueprefix);
     reporterr(z3map);
     nclistfreeall(tmp);
     freevector(nkeys,list);
@@ -607,13 +629,15 @@ static int
 z3createobj(ZS3MAP* z3map, const char* key)
 {
     int stat = NC_NOERR;
+    char* truekey = NULL;
+    
+    if((stat = maketruekey(z3map->rootkey,key,&truekey))) goto done;
+    stat = NCZ_s3sdkcreatekey(z3map->s3client, z3map->bucket, truekey, &z3map->errmsg);
 
-    stat = NCZ_s3sdkcreatekey(z3map->s3client, z3map->bucket, key, &z3map->errmsg);
-
+done:
+    nullfree(truekey);
     reporterr(z3map);
     return THROW(stat);
-    
-
 }
 
 /**************************************************/
@@ -632,10 +656,9 @@ endswith(const char* s, const char* suffix)
     return 1;
 }
 
-
 /*
 Remove all objects with keys which have
-rootkey as prefix
+rootkey as prefix; rootkey is a truekey
 */
 static int
 s3clear(ZS3MAP* z3map, const char* rootkey)
@@ -651,7 +674,9 @@ s3clear(ZS3MAP* z3map, const char* rootkey)
         for(p=list;*p;p++) {
 	    /* If the key is the rootkey, skip it */
 	    if(strcmp(rootkey,*p)==0) continue;
+#ifdef S3DEBUG
 fprintf(stderr,"s3clear: %s\n",*p);
+#endif
             if((stat = NCZ_s3sdkdeletekey(z3map->s3client, z3map->bucket, *p, &z3map->errmsg)))	
 	        goto done;
         }
@@ -663,30 +688,37 @@ done:
     return THROW(stat);
 }
 
-#if 0
-/* Prefix keys with bucket to make external true key */
+/* Prefix key with path to root to make true key */
 static int
-maketruekeys(const char* bucket, size_t n, char** keys)
+maketruekey(const char* rootpath, const char* key, char** truekeyp)
 {
-    int i, stat = NC_NOERR;
-    for(i=0;i<n;i++) {
-        char* key = keys[i];
-        size_t len = (strlen(bucket)+strlen(key)+2);
-        char* truekey = (char*)malloc(len+1);
-	if(truekey == NULL) {stat = NC_ENOMEM; goto done;}
-	truekey[0] = '\0';
-	strlcat(truekey,"/",len+1);
-	strlcat(truekey,bucket,len+1);
-	strlcat(truekey,"/",len+1);
-	strlcat(truekey,key,len+1);
-	nullfree(key);
-	keys[i] = truekey;
-    }
+    int  stat = NC_NOERR;
+    char* truekey = NULL;
+    size_t len, rootlen, keylen;
+
+    if(truekeyp == NULL) goto done;
+    rootlen = strlen(rootpath);
+    keylen = strlen(key);
+    len = (rootlen+keylen+1+1+1);
+    
+    truekey = (char*)malloc(len+1);
+    if(truekey == NULL) {stat = NC_ENOMEM; goto done;}
+    truekey[0] = '\0';
+    if(rootpath[0] != '/')    
+        strlcat(truekey,"/",len+1);
+    strlcat(truekey,rootpath,len+1);
+    if(rootpath[rootlen-1] != '/')
+        strlcat(truekey,"/",len+1);
+    if(key[0] == '/') key++;
+    strlcat(truekey,key,len+1);
+    if(key[keylen-1] == '/') /* remove any trailing '/' */
+	truekey[strlen(truekey)-1] = '\0';
+    *truekeyp = truekey; truekey = NULL;       
 
 done:
+    nullfree(truekey);
     return stat;
 }
-#endif
 
 static void
 freevector(size_t nkeys, char** list)
