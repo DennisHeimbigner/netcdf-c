@@ -57,6 +57,10 @@ ENDIF()
 # the netCDF library.
 add_library(nczarr OBJECT ${libnczarr_SOURCES})
 
+#SET(libnczarr_LIBS ${AWSSDK_LINK_LIBRARIES})
+#target_link_libraries(nczarr ${AWSSDK_LINK_LIBRARIES})
+#MESSAGE(STATUS "xxx: AWSSDK_LINK_LIBRARIES=${AWSSDK_LINK_LIBRARIES}")
+
 # Remember to package this file for CMake builds.
 ADD_EXTRA_DIST(${libnczarr_SOURCES} CMakeLists.txt)
 
