@@ -6,13 +6,13 @@ NCC="c:/tools/hdf5"
 NCZARR=1
 NC4=1
 DAP=1
+S3=1
 #CDF5=1
-HDF4=1
-#S3=1
+#HDF4=1
 
 #TR=--trace
 
-#export SETX=1
+export SETX=1
 
 for arg in "$@" ; do
 case "$arg" in
@@ -82,16 +82,20 @@ if test "x$TESTSERVERS" != x ; then
 FLAGS="$FLAGS -DREMOTETESTSERVERS=${TESTSERVERS}"
 fi
 
+if test "x$S3" = x1 ; then
+AWSSDKDIR='c:/Program Files (x86)/aws-cpp-sdk-all/lib/cmake/AWSSDK'
+#AWSSDKDIR='c:/Program Files (x86)/aws-cpp-sdk-all'
+#FLAGS="$FLAGS -DAWSSDK_DIR=\"${AWSSDKDIR}\""
+#FLAGS="$FLAGS -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:${AWSSDKDIR}"
+FLAGS="$FLAGS -DENABLE_S3_SDK=true"
+fi
+
 # Enables
 FLAGS="$FLAGS -DENABLE_DAP_REMOTE_TESTS=true"
 FLAGS="$FLAGS -DENABLE_LOGGING=true"
 #FLAGS="$FLAGS -DENABLE_DOXYGEN=true -DENABLE_INTERNAL_DOCS=true"
 #FLAGS="$FLAGS -DENABLE_LARGE_FILE_TESTS=true"
-FLAGS="$FLAGS -DENABLE_FILTER_TESTING=true"
-
-if test "x$S3" = x ; then
-FLAGS="$FLAGS -DENABLE_S3_SDK=false"
-fi
+#FLAGS="$FLAGS -DENABLE_FILTER_TESTING=true"
 
 # Disables
 FLAGS="$FLAGS -DENABLE_EXAMPLES=false"
@@ -99,8 +103,9 @@ FLAGS="$FLAGS -DENABLE_CONVERSION_WARNINGS=false"
 #FLAGS="$FLAGS -DENABLE_TESTS=false"
 #FLAGS="$FLAGS -DENABLE_DISKLESS=false"
 FLAGS="$FLAGS -DBUILD_UTILITIES=true"
+FLAGS="$FLAGS -DENABLE_FILTER_TESTING=false"
 
-#FLAGS="$FLAGS -DCURL_NO_CURL_CMAKE=TRUE"
+FLAGS="$FLAGS -DCURL_NO_CURL_CMAKE=TRUE"
 
 # Withs
 FLAGS="$FLAGS -DNCPROPERTIES_EXTRA=\"key1=value1|key2=value2\""
@@ -135,7 +140,7 @@ NCLIB="${NCLIB}/build/liblib"
 #T="--trace-expand"
 cmake "${G}" $FLAGS ..
 if test "x$NOBUILD" = x ; then
-make VERBOSE=1 all
+make all
 fi
 if test "x$NOTEST" = x ; then
 make test
