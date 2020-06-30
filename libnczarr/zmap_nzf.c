@@ -10,15 +10,6 @@
 #include "zincludes.h"
 
 #include <errno.h>
-#if 0
-#ifdef _WIN32
-#ifndef __cplusplus
-#include <windows.h>
-#include <io.h>
-#include <iostream>
-#endif
-#endif
-#endif
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -34,6 +25,16 @@
 #endif
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>
+#endif
+
+#ifdef _WIN32
+#include <windows.h>
+#if 0
+#ifndef __cplusplus
+#include <io.h>
+#include <iostream>
+#endif
+#endif
 #endif
 
 #include "fbits.h"
@@ -812,7 +813,7 @@ platformcreatedir(ZFMAP* zfmap, const char* truepath)
 
     errno = 0;
     /* Try to access file as if it exists */
-    ret = NCaccess(truepath,F_OK);
+    ret = NCaccess(truepath,ACCESS_MODE_EXISTS);
     if(ret < 0) { /* it does not exist, then it can be anything */
 	if(fIsSet(mode,NC_WRITE)) {
 	    /* Try to create it */
@@ -820,7 +821,7 @@ platformcreatedir(ZFMAP* zfmap, const char* truepath)
    	    if(NCmkdir(truepath,NC_DEFAULT_DIR_PERMS) < 0)
 	        {ret = platformerr(errno); goto done;}
 	    /* try to access again */
-	    ret = NCaccess(truepath,F_OK);
+	    ret = NCaccess(truepath,ACCESS_MODE_EXISTS);
     	    if(ret < 0)
 	        {ret = platformerr(errno); goto done;}
 	} else
@@ -841,7 +842,7 @@ platformopendir(ZFMAP* zfmap, const char* truepath)
 
     errno = 0;
     /* Try to access file as if it exists */
-    ret = NCaccess(truepath,F_OK);
+    ret = NCaccess(truepath,ACCESS_MODE_EXISTS);
     if(ret < 0)
 	{ret = platformerr(errno); goto done;}	
 done:
@@ -858,7 +859,7 @@ platformdircontent(ZFMAP* zfmap, const char* path, NClist* contents)
     WIN32_FIND_DATA FindFileData;
     HANDLE dir;
 
-    dir = FindFirstFile(truepath, &FindFileData);
+    dir = FindFirstFile(path, &FindFileData);
     if(dir == INVALID_HANDLE_VALUE)
         {stat = NC_ENOTFOUND; goto done;}    
     do {
@@ -893,13 +894,13 @@ platformdeleter(ZFMAP* zfmap, NClist* segments)
     if(S_ISDIR(statbuf.st_mode)) {
         dir = FindFirstFile(path, &FindFileData);
         if(dir == INVALID_HANDLE_VALUE)
-            {stat = NC_ENOTFOUND; goto done;}    
+            {ret = NC_ENOTFOUND; goto done;}    
         do {
 	    char* seg = NULL;
 	    errno = 0;
 	    char* name = NULL;
 	    name = FindFileData.cFileName;
-	    if(name == NULL) {ret = NC_EINTERNAL break;}
+	    if(name == NULL) {ret = NC_EINTERNAL; break;}
 	    /* Ignore "." and ".." */
 	    if(strcmp(name,".")==0) continue;
     	    if(strcmp(name,"..")==0) continue;
@@ -1147,7 +1148,7 @@ verify(const char* path, int isdir)
     int ret = 0;
     struct stat buf;
 
-    ret = NCaccess(path,F_OK);
+    ret = NCaccess(path,ACCESS_MODE_EXISTS);
     if(ret < 0)
         return 1; /* If it does not exist, then it can be anything */
     ret = stat(path,&buf);
