@@ -182,7 +182,7 @@ makeurl(const char* file, NCZM_IMPL impl)
 	case NCZM_FILE:
             ncbytescat(buf,"file://");
             if(file[0] != '/') {
-                (void)NCgetcwd(wd, sizeof(wd));
+                (void)NCcwd(wd, sizeof(wd));
                 ncbytescat(buf,wd);
                 ncbytescat(buf,"/");
             }
