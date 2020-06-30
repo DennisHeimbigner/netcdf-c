@@ -123,7 +123,7 @@ canonicalfile(char** fp)
     ncuriparse(f,&uri);
     if(uri != NULL) {ncurifree(uri); return;} /* its a url */
 #ifdef _WIN32
-    for(f32=0,p=f;*p;p++) {if(*p == '\\') {*p = '/'; f32 = 1;}}
+    for(p=f;*p;p++) {if(*p == '\\') {*p = '/';}}
 #endif
     if(len >= 2 && memcmp(f,"./",2)==0) {
 	offset = 1; /* leave the '/' */
@@ -182,7 +182,7 @@ makeurl(const char* file, NCZM_IMPL impl)
 	case NCZM_FILE:
             ncbytescat(buf,"file://");
             if(file[0] != '/') {
-                (void)getcwd(wd, sizeof(wd));
+                (void)NCgetcwd(wd, sizeof(wd));
                 ncbytescat(buf,wd);
                 ncbytescat(buf,"/");
             }

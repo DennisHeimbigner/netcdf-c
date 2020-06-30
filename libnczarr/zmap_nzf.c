@@ -29,6 +29,10 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#ifndef S_ISDIR
+#define S_ISDIR(mode) ((mode) & _S_IFDIR)
+#define S_ISREG(mode) ((mode) & _S_IFREG)
+#endif
 #if 0
 #ifndef __cplusplus
 #include <io.h>

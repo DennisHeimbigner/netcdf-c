@@ -83,10 +83,6 @@ FLAGS="$FLAGS -DREMOTETESTSERVERS=${TESTSERVERS}"
 fi
 
 if test "x$S3" = x1 ; then
-AWSSDKDIR='c:/Program Files (x86)/aws-cpp-sdk-all/lib/cmake/AWSSDK'
-#AWSSDKDIR='c:/Program Files (x86)/aws-cpp-sdk-all'
-#FLAGS="$FLAGS -DAWSSDK_DIR=\"${AWSSDKDIR}\""
-#FLAGS="$FLAGS -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:${AWSSDKDIR}"
 FLAGS="$FLAGS -DENABLE_S3_SDK=true"
 fi
 

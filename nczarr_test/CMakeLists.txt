@@ -24,11 +24,11 @@ IF(ENABLE_TESTS)
   # must be run in a particular order. It is painful but will use macros to help
   # keep it from being too bad.
 
-  BUILD_BIN_TEST_SOURCED(ut_map ${COMMONSRC})
-  BUILD_BIN_TEST_SOURCED(ut_mapapi ${COMMONSRC})
-  BUILD_BIN_TEST_SOURCED(ut_json ${COMMONSRC})
-  BUILD_BIN_TEST_SOURCED(ut_projections ${COMMONSRC})
-  BUILD_BIN_TEST_SOURCED(ut_chunking ${COMMONSRC})
+  BUILD_BIN_TEST(ut_map ${COMMONSRC})
+  BUILD_BIN_TEST(ut_mapapi ${COMMONSRC})
+  BUILD_BIN_TEST(ut_json ${COMMONSRC})
+  BUILD_BIN_TEST(ut_projections ${COMMONSRC})
+  BUILD_BIN_TEST(ut_chunking ${COMMONSRC})
 
   TARGET_INCLUDE_DIRECTORIES(ut_map PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_mapapi PUBLIC ../libnczarr)
@@ -36,7 +36,7 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(ut_projections PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_chunking PUBLIC ../libnczarr)
 
-  BUILD_BIN_TEST_SOURCED(zmapio ${COMMONSRC})
+  BUILD_BIN_TEST(zmapio ${COMMONSRC})
   TARGET_INCLUDE_DIRECTORIES(zmapio PUBLIC ../libnczarr)
 
 # Integration tests
