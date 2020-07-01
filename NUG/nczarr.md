@@ -339,7 +339,7 @@ Operating System | Build System | S3 Support
 --------------------------------------------
 Linux            | Automake     | yes
 Linux            | CMake        | yes
-Visual Studio    | CMake        | yes
+Visual Studio    | CMake        | no
 OSX              | Unknown      | unknown
 
 # Automake

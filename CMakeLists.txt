@@ -928,7 +928,7 @@ ENDIF()
 
 # Option to Build NCZarr clients
 OPTION(ENABLE_NCZARR "Enable NCZarr Client." OFF)
-OPTION(ENABLE_S3_SDK "Enable NCZarr S3 support." ON)
+OPTION(ENABLE_S3_SDK "Enable NCZarr S3 support." OFF)
 
 # See if aws-s3-sdk is available
 IF(ENABLE_S3_SDK)

@@ -51,7 +51,8 @@ zdebug.h
 IF(ENABLE_S3_SDK) 
 SET(libnczarr_SOURCES ${libnczarr_SOURCES} zs3sdk.cpp zmap_s3sdk.c awsincludes.h zs3sdk.h)
 IF(NOT MSVC)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+target_compile_features(zs3sdk.cpp PUBLIC cxx_std_11)
 ENDIF()
 ENDIF()
 
@@ -61,7 +62,7 @@ add_library(nczarr OBJECT ${libnczarr_SOURCES})
 
 IF(ENABLE_S3_SDK) 
 target_include_directories(nczarr PRIVATE ${AWSSDK_INCLUDE_DIR})
-ENDIF()
+ENDIF(ENABLE_S3_SDK)
 
 # Remember to package this file for CMake builds.
 ADD_EXTRA_DIST(${libnczarr_SOURCES} CMakeLists.txt)
