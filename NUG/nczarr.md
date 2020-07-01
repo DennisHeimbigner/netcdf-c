@@ -381,6 +381,22 @@ C:/Program Files (x86)/aws-cpp-sdk-all
 If so, then these libraries will be found automatically by _find_package_
 in _CMakeLists.txt_.
 
+## Testing S3 Support
+
+Currently testing of S3 with NCzarr is supported only for
+Unidata members of the NetCDF Development Group. This is because
+it uses a specific bucket on a specific internal S3 appliance that
+is inaccessible to the general user. This is controlled by
+an environment variable via this shell command:
+````
+export NETCDF_S3_TESTS=1
+````
+If that environment variable is set and the aws libraries are
+available, and --enable-s3-sdk is set, then the S3 tests will be
+attempted.  If someone else wants to attempt these tests, then
+they will need to modify the tests
+_nczarr_test/run_ut_mapapi.sh_ and _nczarr_test/run_it_test2.sh_.
+
 # Appendix B. Building aws-sdk-cpp {#nczarr_s3sdk}
 
 In order to use the S3 storage driver, it is necessary to
