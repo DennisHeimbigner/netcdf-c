@@ -52,6 +52,7 @@ noinst_PROGRAMS = zmapio
 zmapio_SOURCES = zmapio.c
 
 EXTRA_DIST = \
+test_nczarr.sh \
 ref_ut_map_readmeta_nzf.txt \
 ref_ut_map_writedata_nzf.cdl \
 ref_ut_map_writemeta_nzf.cdl \
