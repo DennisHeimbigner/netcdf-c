@@ -959,7 +959,7 @@ done:
 }
 
 static int
-platformdeleter(ZFMAP* zfmap, NClist* segments)
+platformdeleter(ZFMAP* zfmap, NClist* segments, int depth)
 {
     int ret = NC_NOERR;
     struct stat statbuf;
@@ -991,11 +991,16 @@ platformdeleter(ZFMAP* zfmap, NClist* segments)
 		{ret = NC_ENOMEM; goto done;}
 	    nclistpush(segments,seg);
 	    /* recurse */
-	    if((ret = platformdeleter(zfmap, segments))) goto done;
+	    if((ret = platformdeleter(zfmap, segments, depth+1))) goto done;
 	    /* remove+reclaim last segment */
 	    nclistpop(segments);
 	    nullfree(seg);	    	    
         }
+	/* Delete this file */
+	rmdir(path);
+    } else {
+	assert(S_ISREG(statbuf.st_mode));
+	unlink(path);
     }
 done:
     if(dir) NCclosedir(dir);
@@ -1007,7 +1012,7 @@ done:
 }
 #endif /*_WIN32*/
 
-/* Deep file/dir deletion */
+/* Deep file/dir deletion; depth first */
 static int
 platformdelete(ZFMAP* zfmap, const char* path)
 {
@@ -1016,7 +1021,7 @@ platformdelete(ZFMAP* zfmap, const char* path)
     if(path == NULL || strlen(path) == 0) goto done;
     segments = nclistnew();
     nclistpush(segments,strdup(path));
-    stat = platformdeleter(zfmap,segments);
+    stat = platformdeleter(zfmap,segments,0);
 done:
     nclistfreeall(segments);
     errno = 0;
