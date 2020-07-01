@@ -335,36 +335,51 @@ zarr format.
 
 Currently only the following build cases are supported.
 
-Operating System | Supported Build Systems
-------------------------------------------
-Linux            | Automake, CMake
-OS-X             | Automake, CMake
-Visual Studio    | N.A.
+Operating System | Build System | S3 Support
+--------------------------------------------
+Linux            | Automake     | yes
+Linux            | CMake        | yes
+Visual Studio    | CMake        | yes
+OSX              | Unknown      | unknown
+
+# Automake
 
 There are several options relevant to NCZarr support and to Amazon S3 support.
 These are as follows.
 
 1. _--enable-nczarr_ -- enable the NCZarr support. If disabled, then all of the following options are disabled or irrelevant.
-2. &nbsp;&nbsp;_aws-c-common aws-cpp-sdk-s3_ and _aws-cpp-sdk-core_ -- if these libraries are available, then Amazon S3 support is enabled for NCZarr.
-3. _--disable-s3_ -- even if the aws libraries are available, this option will forcibly disable Amazon S3 support.
+2. _--disable-s3-sdk_ -- even if the aws libraries are available, this option will forcibly disable Amazon S3 support.
 <!--
-4. '--enable-xarray-dimension' -- this enables the xarray support described in the section on <a href="#nczarr_compatibility">compatibility</a>.
+3. '--enable-xarray-dimension' -- this enables the xarray support described in the section on <a href="#nczarr_compatibility">compatibility</a>.
 -->
 
-The CMake equivalents are as follows:
-* _--enable-nczarr_ => ENABLE_NCZARR=ON
-* _--disable-s3_ => ENABLE_S3=OFF
-
-
-If S3 support is desired, then LDFLAGS should be properly set, namely this.
+If S3 support is desired, and using Automake, then LDFLAGS
+should be properly set, namely this.
 ````
 LDFLAGS="$LDFLAGS -L/usr/local/lib -laws-cpp-sdk-s3 aws-cpp-sdk-core"
 ````
-The above assumes that these libraries were installed in '/usr/local/lib', so the above
-requires modification if they were installed elsewhere.
+The above assumes that these libraries were installed in
+'/usr/local/lib', so the above requires modification if they
+were installed elsewhere.
 
-Note also that if S3 support is enabled, then you need to have a C++ compiler installed
-because part of the S3 support code is written in C++.
+Note also that if S3 support is enabled, then you need to have a
+C++ compiler installed because part of the S3 support code is
+written in C++.
+
+# CMake
+
+The necessary CMake flags are as follows:
+
+1. -DENABLE_NCZARR=0 -- equivalent to the Automake _--enable-nczarr_ option.
+2. -DENABLE_S3_SDK=off -- equivalent to the Automake _--disable-s3-sdk_ option.
+
+For CMake with Visual Studio, it is assumed that the aws sdk
+is installed in its default location, namely here:
+````
+C:/Program Files (x86)/aws-cpp-sdk-all
+````
+If so, then these libraries will be found automatically by _find_package_
+in _CMakeLists.txt_.
 
 # Appendix B. Building aws-sdk-cpp {#nczarr_s3sdk}
 
@@ -375,8 +390,8 @@ As a starting point, here are the CMake options used by Unidata
 to build that library. It assumes that it is being executed
 in a build directory, `build` say, and that `build/../CMakeLists.txt exists`.
 ```
-cmake -DFORCE_CURL=ON -DBUILD_ONLY=s3 -DMINIMIZE_SIZE=ON -DBUILD_DEPS=OFF -DCMAKE_CXX_STANDARD=14 ..
-```
+cmake -DBUILD_ONLY=s3
+````
 
 The expected set of installed libraries are as follows:
 * aws-cpp-sdk-s3

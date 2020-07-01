@@ -302,7 +302,7 @@ NCmkdir(const char* path, int mode)
     int status = 0;
     char* cvtname = NCpathcvt(path);
     if(cvtname == NULL) return -1;
-    status = _mkdir(cvtname,mode);
+    status = mkdir(cvtname,mode);
     free(cvtname);    
     return status;
 }

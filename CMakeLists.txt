@@ -1639,23 +1639,6 @@ MACRO(add_bin_test prefix F)
   ENDIF()
 ENDMACRO()
 
-# Binary tests which are used by a script looking for a specific name.
-MACRO(build_bin_test_sourced F)
-  ADD_EXECUTABLE(${F} ${F}.c ${ARGN})
-  TARGET_LINK_LIBRARIES(${F} netcdf ${ALL_TLL_LIBS})
-  IF(MSVC)
-    SET_TARGET_PROPERTIES(${F}
-      PROPERTIES LINK_FLAGS_DEBUG " /NODEFAULTLIB:MSVCRT"
-      )
-    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-      ${CMAKE_CURRENT_BINARY_DIR})
-    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG
-      ${CMAKE_CURRENT_BINARY_DIR})
-    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
-      ${CMAKE_CURRENT_BINARY_DIR})
-  ENDIF()
-ENDMACRO()
-
 # A cmake script to print out information at the end of the configuration step.
 MACRO(print_conf_summary)
   MESSAGE("")

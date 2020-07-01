@@ -6,6 +6,14 @@
 #include "ut_includes.h"
 #include "ncwinpath.h"
 
+#ifdef HAVE_GETOPT_H
+#include <getopt.h>
+#endif
+
+#ifdef _MSC_VER
+#include "XGetopt.h"
+#endif
+
 struct Options options;
 
 /*Forward*/

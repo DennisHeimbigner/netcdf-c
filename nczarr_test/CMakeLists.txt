@@ -18,6 +18,9 @@ FILE(COPY ${COPY_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/ FILE_PERMISSION
 IF(ENABLE_TESTS)
 
   SET(COMMONSRC ut_util.c ut_test.c)
+IF(USE_X_GETOPT)
+  SET(COMMONSRC ${COMMONSRC} XGetopt.c)
+ENDIF()
 
   # Base tests
   # The tests are set up as a combination of shell scripts and executables that
@@ -35,6 +38,7 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(ut_json PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_projections PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_chunking PUBLIC ../libnczarr)
+#  TARGET_LINK_LIBRARIES(ut_chunking PUBLIC ${NC_LIBS})
 
   BUILD_BIN_TEST(zmapio ${COMMONSRC})
   TARGET_INCLUDE_DIRECTORIES(zmapio PUBLIC ../libnczarr)
