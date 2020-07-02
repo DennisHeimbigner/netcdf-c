@@ -25,5 +25,6 @@ extern size64_t computelinearoffset(int R, const size64_t* indices, const size64
 extern void slices2vector(int rank, NCZSlice* slices, size64_t** startp, size64_t** stopp, size64_t** stridep, size64_t** maxp);
 extern void printoptions(struct Options* opts);
 extern int hasdriveletter(const char* f);
+extern void ut_sortlist(NClist* l);
 
 #endif /*UT_UTIL_H*/

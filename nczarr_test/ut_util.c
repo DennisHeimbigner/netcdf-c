@@ -470,3 +470,28 @@ hasdriveletter(const char* f)
         return 1;
     return 0;
 }
+
+/* bubble sort a list of strings */
+void
+ut_sortlist(NClist* l)
+{
+    int i, switched;
+
+    if(nclistlength(l) <= 1) return;
+    do {
+	switched = 0;
+        for(i=0;i<nclistlength(l)-1;i++) {
+	    char* ith = nclistget(l,i);
+	    char* ith1 = nclistget(l,i+1);
+	    if(strcmp(ith,ith1) > 0) {
+	        nclistset(l,i,ith1);
+    	        nclistset(l,i+1,ith);
+	        switched = 1;
+	    }
+	}
+    } while(switched);
+#if 0
+for(i=0;i<nclistlength(l);i++)
+fprintf(stderr,"sorted: [%d] %s\n",i,(const char*)nclistget(l,i));
+#endif
+}

@@ -335,6 +335,8 @@ search(void)
     /* Do a recursive search on root to get all object keys */
     if((stat=searchR(map,0,"/",objects)))
 	goto done;
+    /* Sort */
+    ut_sortlist(objects);
     /* Print out the list */
     for(i=0;i<nclistlength(objects);i++) {
 	const char* key = nclistget(objects,i);

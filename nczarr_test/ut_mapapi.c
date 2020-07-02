@@ -28,7 +28,6 @@ static char* keyprefix = NULL; /* Hold, e.g. S3 bucket name */
 static void title(const char*);
 static int report(int pf, const char* op, NCZMAP*);
 static int reportx(int pf, const char* tag, const char* op, NCZMAP*);
-static void setkeyprefix(const char* path);
 static char* makekey(const char* key);
 
 static int simplecreate(void);
@@ -374,6 +373,8 @@ search(void)
     /* Do a recursive search on root to get all object keys */
     if((stat=searchR(map,0,"/",objects)))
 	goto done;
+    /* sort list */
+    ut_sortlist(objects);
     /* Print out the list */
     for(i=0;i<nclistlength(objects);i++) {
 	const char* key = nclistget(objects,i);
