@@ -79,8 +79,9 @@ dumpmap() {
     case "$1" in
     nz4) rm -f $3 ; ${NCDUMP} $2 > $3 ;;
     nzf)
-	rm -f $3;
-	lr=`find $2 | tr  '\r\n' '  '`
+	rm -f $3
+	export LC_ALL=C
+	lr=`find $2 | sort| tr  '\r\n' '  '`
 	for f in $lr ; do  dumpmap1 $f $3 ; done
 	;;
     s3) ad ;;
