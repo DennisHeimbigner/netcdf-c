@@ -335,12 +335,14 @@ zarr format.
 
 Currently only the following build cases are supported.
 
-Operating System | Build System | S3 Support
+Operating System | Build System | NCZarr | S3 Support
 --------------------------------------------
-Linux            | Automake     | yes
-Linux            | CMake        | yes
-Visual Studio    | CMake        | no
-OSX              | Unknown      | unknown
+Linux            | Automake     | yes     | yes
+Linux            | CMake        | yes     | yes
+Cygwin           | Automake     | yes     | unknown
+Visual Studio    | CMake        | yes     | no
+OSX              | Automake     | unknown | unknown
+OSX              | CMake        | unknown | unknown
 
 # Automake
 

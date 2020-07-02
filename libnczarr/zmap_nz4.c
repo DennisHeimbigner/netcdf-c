@@ -68,6 +68,7 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
     
     if((stat=parseurl(path,&url)))
 	goto done;
+fprintf(stderr,"xxx: %s %s\n",path,url->path);
 
     /* Fix up mode */
     mode = (NC_NETCDF4 | NC_WRITE | mode);

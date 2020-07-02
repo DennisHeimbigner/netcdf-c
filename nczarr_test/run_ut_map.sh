@@ -95,6 +95,7 @@ echo "*** Map Unit Testing"
 
 echo ""; echo "*** Test zmap_nz4"
 testmapcreate nz4; testmapmeta nz4; testmapdata nz4; testmapsearch nz4
+unset NETCDF_LOG_LEVEL
 echo ""; echo "*** Test zmap_nzf"
 testmapcreate nzf; testmapmeta nzf; testmapdata nzf; testmapsearch nzf
 
