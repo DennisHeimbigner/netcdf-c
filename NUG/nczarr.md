@@ -56,7 +56,9 @@ NCZarr support can be disabled using the _--disable-dap_.
 
 In order to access a NCZarr data source through the netCDF API, the
 file name normally used is replaced with a URL with a specific
-format.
+format. Note specifically that there is no NC_NCZARR flag for
+the mode argument of _nc_create_ or _nc_open_. In this case, it is
+indicated by the URL path.
 
 ## URL Format
 The URL is the usual scheme:://host:port/path?query#fragment format.

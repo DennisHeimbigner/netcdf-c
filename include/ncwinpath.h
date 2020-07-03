@@ -41,6 +41,9 @@
 /* Path Converter */
 EXTERNL char* NCpathcvt(const char* path);
 
+/* path -> URL Path converter */
+EXTERNL char* NCurlpath(const char* path);
+
 /* Fix path in case it was escaped by shell */
 EXTERNL char* NCdeescape(const char* name);
 

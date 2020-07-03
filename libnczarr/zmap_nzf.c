@@ -290,7 +290,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 
     /* Make the root path be absolute */
     if(!nczm_isabsolutepath(url->path)) {
-	if((stat = nczm_concat(zfcwd,url->path,&truepath))) goto done;
+ 	if((stat = nczm_concat(zfcwd,url->path,&truepath))) goto done;
     } else
 	truepath = strdup(url->path);
 
@@ -750,24 +750,25 @@ platformcreatefile(ZFMAP* zfmap, const char* truepath, FD* fd)
 #ifdef O_BINARY
     fSet(ioflags, O_BINARY);
 #endif
+
     if(fIsSet(mode, NC_NOCLOBBER))
         fSet(createflags, O_EXCL);
     else
 	fSet(createflags, O_TRUNC);
-    /* Try to open file as if it exists */
+
+    if(fIsSet(mode,NC_WRITE))
+        createflags = (ioflags|O_CREAT);
+
+    /* Try to create file */
+fprintf(stderr,"xx2: createflags=%x permissions=%x\n",createflags,permissions);
+fprintf(stderr,"xx2: mode=%x ioflags=%x\n",mode,ioflags);
+fprintf(stderr,"xx2: truepath=%s\n",truepath);
     fd->fd = NCopen3(truepath, createflags, permissions);
-    if(fd->fd < 0) {
-	if(errno == ENOENT) {
-	    if(fIsSet(mode,NC_WRITE)) {
-	        /* Try to create it */
-                createflags = (ioflags|O_CREAT);
-		fd->fd = NCopen3(truepath, createflags, permissions);
-	        if(fd->fd < 0) goto done; /* could not create */
-	    }
-	}
+    if(fd->fd < 0) { /* could not create */
+fprintf(stderr,"xx3: errno(%d) %s\n",errno,nc_strerror(errno));
+        stat = platformerr(errno);
+        goto done; /* could not open */
     }
-    if(fd->fd < 0)
-        {stat = platformerr(errno); goto done;} /* could not open */
 done:
     errno = 0;
     return THROW(stat);
@@ -800,6 +801,7 @@ platformopenfile(ZFMAP* zfmap, const char* truepath, FD* fd)
 #endif
 
     /* Try to open file  */
+fprintf(stderr,"x5: truepath=%s\n",truepath);
     fd->fd = NCopen3(truepath, ioflags, permissions);
     if(fd->fd < 0)
         {stat = platformerr(errno); goto done;} /* could not open */
@@ -937,6 +939,7 @@ platformdircontent(ZFMAP* zfmap, const char* path, NClist* contents)
     errno = 0;
     DIR* dir = NULL;
 
+fprintf(stderr,"x5: path=%s\n",path);
     dir = NCopendir(path);
     if(dir == NULL && errno == ENOTDIR)
 	goto done;
@@ -976,6 +979,7 @@ platformdeleter(ZFMAP* zfmap, NClist* segments, int depth)
     }
     /* process this file */
     if(S_ISDIR(statbuf.st_mode)) {
+fprintf(stderr,"x6: path=%s\n",path);
         if((dir = NCopendir(path)) == NULL)
 	     {ret = platformerr(errno); goto done;}
         for(;;) {

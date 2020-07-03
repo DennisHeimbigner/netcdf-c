@@ -157,6 +157,19 @@ done:
     return outpath;
 }
 
+/* Make path suitable for inclusion in url */
+EXTERNL
+char* /* caller frees */
+NCurlpath(const char* path)
+{
+    char* upath = NCpathcvt(path);
+    char* p = upath;
+    for(;*p;p++) {
+	if(*p == '\\') {*p = '/';}
+    }
+    return upath;    
+}
+
 static char*
 makeabsolute(const char* relpath)
 {
@@ -224,6 +237,7 @@ NCopen3(const char* path, int flags, int mode)
     int fd = -1;
     char* cvtname = NCpathcvt(path);
     if(cvtname == NULL) return -1;
+fprintf(stderr,"zz1: cvtname=%s\n",cvtname);
     fd = open(cvtname,flags,mode);
     free(cvtname);    
     return fd;

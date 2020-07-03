@@ -178,23 +178,20 @@ nccheck(int stat, int line)
 char*
 makeurl(const char* file, NCZM_IMPL impl)
 {
-    char wd[4096];
     char* url = NULL;
     NCbytes* buf = ncbytesnew();
     NCURI* uri = NULL;
     const char* kind = impl2kind(impl);
+    char* path = NULL;
 
     if(file && strlen(file) > 0) {
 	switch (impl) {
 	case NCZM_NC4: /* fall thru */
 	case NCZM_FILE:
+            /* Massage file to make it usable as URL path */
+            if((path = NCurlpath(file))==NULL) return NULL;
             ncbytescat(buf,"file://");
-            if(file[0] != '/') {
-                (void)NCcwd(wd, sizeof(wd));
-                ncbytescat(buf,wd);
-                ncbytescat(buf,"/");
-            }
-            ncbytescat(buf,file);
+            ncbytescat(buf,path);
             ncbytescat(buf,"#mode=nczarr"); /* => use default file: format */
 	    ncbytescat(buf,",");
 	    ncbytescat(buf,kind);
@@ -214,6 +211,7 @@ makeurl(const char* file, NCZM_IMPL impl)
     }
     ncurifree(uri);
     ncbytesfree(buf);
+    nullfree(path);
     fprintf(stderr,"url=|%s|\n",url);
     fflush(stderr);
     return url;
