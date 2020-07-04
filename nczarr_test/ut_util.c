@@ -5,6 +5,8 @@
 
 #include "ut_includes.h"
 
+#undef DEBUG
+
 #define OPEN "[{("
 #define CLOSE "]})"
 
@@ -490,7 +492,7 @@ ut_sortlist(NClist* l)
 	    }
 	}
     } while(switched);
-#if 0
+#ifdef DEBUG
 for(i=0;i<nclistlength(l);i++)
 fprintf(stderr,"sorted: [%d] %s\n",i,(const char*)nclistget(l,i));
 #endif

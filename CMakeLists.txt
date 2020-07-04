@@ -414,7 +414,6 @@ ENDIF()
 # to link against, similar to automakes 'LIBS' variable.
 ###
 SET(NC_EXTRA_DEPS "" CACHE STRING "Additional libraries to link against.")
-
 IF(NC_EXTRA_DEPS)
   STRING(REPLACE " " ";" DEPS_LIST ${NC_EXTRA_DEPS})
   FOREACH(_DEP ${DEPS_LIST})
@@ -927,8 +926,8 @@ IF(NOT WIN32)
 ENDIF()
 
 # Option to Build NCZarr clients
-OPTION(ENABLE_NCZARR "Enable NCZarr Client." OFF)
-OPTION(ENABLE_S3_SDK "Enable NCZarr S3 support." OFF)
+OPTION(ENABLE_NCZARR "Enable NCZarr Client." ON)
+OPTION(ENABLE_S3_SDK "Enable NCZarr S3 support." ON)
 
 # See if aws-s3-sdk is available
 IF(ENABLE_S3_SDK)
@@ -1829,7 +1828,6 @@ ENDIF()
 
 # Enable tests
 IF(ENABLE_TESTS)
-IF(OFF) 
   IF(ENABLE_V2_API)
     ADD_SUBDIRECTORY(nctest)
   ENDIF()
@@ -1854,7 +1852,6 @@ IF(OFF)
   IF(ENABLE_UNIT_TESTS)
     ADD_SUBDIRECTORY(unit_test)
   ENDIF(ENABLE_UNIT_TESTS)
-ENDIF()
   IF(ENABLE_NCZARR)
     ADD_SUBDIRECTORY(nczarr_test)
   ENDIF()

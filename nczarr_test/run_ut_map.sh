@@ -85,8 +85,6 @@ testmapsearch() {
 
   txt=ut_${tag}_search_$zext.txt
   rm -f $txt
-echo "file=$file"
-ls -d *.nzf
   $CMD -k$1 -x "search" -f $file > $txt
   diff -wb ${srcdir}/ref_$txt ./$txt
 }
@@ -95,8 +93,8 @@ echo ""
 
 echo "*** Map Unit Testing"
 
-#echo ""; echo "*** Test zmap_nz4"
-#testmapcreate nz4; testmapmeta nz4; testmapdata nz4; testmapsearch nz4
+echo ""; echo "*** Test zmap_nz4"
+testmapcreate nz4; testmapmeta nz4; testmapdata nz4; testmapsearch nz4
 echo ""; echo "*** Test zmap_nzf"
 testmapcreate nzf; testmapmeta nzf; testmapdata nzf; testmapsearch nzf
 

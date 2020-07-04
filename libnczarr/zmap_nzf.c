@@ -1057,9 +1057,7 @@ platformdelete(ZFMAP* zfmap, const char* path)
 {
     int stat = NC_NOERR;
     NClist* segments = NULL;
-#ifdef _WIN32
-    char drive = 0;
-#endif
+
     if(path == NULL || strlen(path) == 0) goto done;
     segments = nclistnew();
     nclistpush(segments,strdup(path));

@@ -25,7 +25,7 @@ IF(NOT EXISTS ${netCDF_SOURCE_DIR}/ncgen3/ncgentab.c AND NOT EXISTS
 ENDIF()
 
 ADD_EXECUTABLE(ncgen3 ${ncgen3_FILES})
-TARGET_LINK_LIBRARIES(ncgen3 netcdf ${ALL_TLL_LIBS}  ${AWSSDK_LINK_LIBRARIES})
+TARGET_LINK_LIBRARIES(ncgen3 netcdf ${ALL_TLL_LIBS})
 
 ####
 # We have to do a little tweaking

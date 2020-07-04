@@ -58,7 +58,6 @@ add_library(nczarr OBJECT ${libnczarr_SOURCES})
 
 IF(ENABLE_S3_SDK) 
 IF(NOT MSVC)
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 target_compile_features(nczarr PUBLIC cxx_std_11)
 ENDIF()
 target_include_directories(nczarr PRIVATE ${AWSSDK_INCLUDE_DIR})
