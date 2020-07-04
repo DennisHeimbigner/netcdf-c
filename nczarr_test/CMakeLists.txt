@@ -32,6 +32,8 @@ ENDIF()
   BUILD_BIN_TEST(ut_json ${COMMONSRC})
   BUILD_BIN_TEST(ut_projections ${COMMONSRC})
   BUILD_BIN_TEST(ut_chunking ${COMMONSRC})
+  BUILD_BIN_TEST(tst_chunks)
+  BUILD_BIN_TEST(tst_chunks2)
 
   TARGET_INCLUDE_DIRECTORIES(ut_map PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_mapapi PUBLIC ../libnczarr)
