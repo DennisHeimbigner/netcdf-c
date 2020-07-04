@@ -41,7 +41,6 @@ TESTS += run_ut_map.sh
 TESTS += run_ut_mapapi.sh
 TESTS += run_ut_misc.sh
 TESTS += run_ut_chunk.sh
-
 TESTS += run_it_test1.sh run_it_test2.sh
 
 ignorec = ut_allslices.c ut_transfer.c ut_vars.c ut_walk.c

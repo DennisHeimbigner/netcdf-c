@@ -45,7 +45,6 @@ Rules:
 All other cases are passed thru unchanged
 */
 
-
 /* Define legal windows drive letters */
 static const char* windrive = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -212,6 +211,18 @@ NCdeescape(const char* name)
     return ename;
 }
 
+
+int
+NChasdriveletter(const char* path)
+{
+    /* Check for windows drive letter */
+    if(path == NULL || strlen(path) < 2)
+        return 0;
+    if(strchr(windrive,path[0]) != NULL && path[1] == ':')
+        return 1; /* windows path with drive letter */
+    return 0;
+}
+
 #ifdef WINPATH
 
 /*
@@ -237,7 +248,6 @@ NCopen3(const char* path, int flags, int mode)
     int fd = -1;
     char* cvtname = NCpathcvt(path);
     if(cvtname == NULL) return -1;
-fprintf(stderr,"zz1: cvtname=%s\n",cvtname);
     fd = open(cvtname,flags,mode);
     free(cvtname);    
     return fd;
@@ -341,5 +351,4 @@ done:
     if(errno) return NULL;
     return cwdbuf;
 }
-
 #endif /*WINPATH*/

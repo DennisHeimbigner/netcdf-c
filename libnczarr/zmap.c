@@ -4,6 +4,7 @@
  */
 
 #include "zincludes.h"
+#include "ncwinpath.h"
 
 /**************************************************/
 /* Import the current implementations */
@@ -293,8 +294,6 @@ nczm_clear(NCZMAP* map)
     return NC_NOERR;
 }
 
-static const char* driveletter = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
 int
 nczm_isabsolutepath(const char* path)
 {
@@ -305,9 +304,32 @@ nczm_isabsolutepath(const char* path)
     case '\0': break;
     default:
 	/* Check for windows drive letter */
-	if(strchr(driveletter,path[0]) != NULL && path[1] == ':')
-	    return 1; /* windows path with drive letter */
+	if(NChasdriveletter(path)) return 1;
         break;
     }
     return 0;
 }
+
+/* Fix up a path created via join;
+use with any platform that can accept drive letters:
+CYGWIN, Visual Studio, MSYS, Mingw */
+int
+nczm_fixpath(const char* path, char** fixedpathp)
+{
+    int stat = NC_NOERR;
+    char* fixedpath = NULL;
+    int offset = 0;
+
+    if(path == NULL) 
+	fixedpath = NULL;
+    if(NChasdriveletter(path+1))
+	offset = 1;
+    if((fixedpath = strdup(path+offset)) == NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if(fixedpathp) {*fixedpathp = fixedpath; fixedpath = NULL;}
+
+done:
+    nullfree(fixedpath);
+    return stat;
+}
+

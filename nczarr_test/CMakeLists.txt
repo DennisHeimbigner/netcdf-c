@@ -49,9 +49,9 @@ ENDIF()
 
   IF(BUILD_UTILITIES)
     add_sh_test(nczarr_test run_ut_map)
-    add_sh_test(nczarr_test run_ut_mapapi)
-    add_sh_test(nczarr_test run_ut_misc)
-    add_sh_test(nczarr_test run_ut_chunk)
+#    add_sh_test(nczarr_test run_ut_mapapi)
+#    add_sh_test(nczarr_test run_ut_misc)
+#    add_sh_test(nczarr_test run_ut_chunk)
   ENDIF(BUILD_UTILITIES)
 
 ENDIF(ENABLE_TESTS)

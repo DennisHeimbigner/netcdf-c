@@ -81,5 +81,6 @@ EXTERNL int NCclosedir(DIR* ent);
 /* Platform independent */
 #define NCclose(fd) close(fd)
 
+EXTERNL int NChasdriveletter(const char* path);
 
 #endif /* _NCWINIO_H_ */

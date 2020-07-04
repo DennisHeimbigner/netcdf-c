@@ -306,17 +306,18 @@ searchR(NCZMAP* map, int depth, const char* prefix, NClist* objects)
     
     /* add this prefix to object list */
     nclistpush(objects,strdup(prefix));
-    
     /* get next level object keys **below** the prefix */
-    if((stat = nczmap_search(map, prefix, matches)))
-	goto done;
+    switch (stat = nczmap_search(map, prefix, matches)) {
+    case NC_NOERR: break;
+    case NC_ENOTFOUND: stat = NC_NOERR; break;/* prefix is not a dir */
+    default: goto done;
+    }
     for(i=0;i<nclistlength(matches);i++) {
 	const char* key = nclistget(matches,i);
         if((stat = searchR(map,depth+1,key,objects))) goto done;
 	if(stat != NC_NOERR)
 	    goto done;
     }
-
 done:
     nclistfreeall(matches);
     return stat;

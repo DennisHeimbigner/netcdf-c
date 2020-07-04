@@ -760,12 +760,8 @@ platformcreatefile(ZFMAP* zfmap, const char* truepath, FD* fd)
         createflags = (ioflags|O_CREAT);
 
     /* Try to create file */
-fprintf(stderr,"xx2: createflags=%x permissions=%x\n",createflags,permissions);
-fprintf(stderr,"xx2: mode=%x ioflags=%x\n",mode,ioflags);
-fprintf(stderr,"xx2: truepath=%s\n",truepath);
     fd->fd = NCopen3(truepath, createflags, permissions);
     if(fd->fd < 0) { /* could not create */
-fprintf(stderr,"xx3: errno(%d) %s\n",errno,nc_strerror(errno));
         stat = platformerr(errno);
         goto done; /* could not open */
     }
@@ -801,7 +797,6 @@ platformopenfile(ZFMAP* zfmap, const char* truepath, FD* fd)
 #endif
 
     /* Try to open file  */
-fprintf(stderr,"x5: truepath=%s\n",truepath);
     fd->fd = NCopen3(truepath, ioflags, permissions);
     if(fd->fd < 0)
         {stat = platformerr(errno); goto done;} /* could not open */
@@ -858,23 +853,48 @@ done:
 
 #ifdef _WIN32
 static int
-platformdircontent(ZFMAP* zfmap, const char* path, NClist* contents)
+platformdircontent(ZFMAP* zfmap, const char* path0, NClist* contents)
 {
     int stat = NC_NOERR;
     errno = 0;
     WIN32_FIND_DATA FindFileData;
     HANDLE dir;
+    char* wpath = NULL;
+    char* path = NULL;
+    size_t len;
+    char* d = NULL;
+
+    /* We need to process the path to make it work with FindFirstFile */
+    if((wpath = NCpathcvt(path0))==NULL) {stat = NC_ENOMEM; goto done;}
+    len = strlen(wpath);
+    /* Need to terminate path with '\*' */
+    path = (char*)malloc(len+2+1);
+    memcpy(path,wpath,len);
+    if(wpath[len-1] != '\\') {
+	path[len] = '\\';	
+	len++;
+    }
+    path[len] = '*';
+    len++;
+    path[len] = '\0';
 
     dir = FindFirstFile(path, &FindFileData);
     if(dir == INVALID_HANDLE_VALUE)
-        {stat = NC_ENOTFOUND; goto done;}    
+        {stat = NC_ENOTFOUND; goto done;} /* Not a directory */    
     do {
+	char* p = NULL;
 	const char* name = NULL;
         name = FindFileData.cFileName;
+	if(strcmp(name,".")==0 || strcmp(name,"..")==0)
+	    continue;
 	nclistpush(contents,strdup(name));
     } while(FindNextFile(dir, &FindFileData));
+
 done:
-    FindClose(dir);
+    if(dir) FindClose(dir);
+    nullfree(wpath);
+    nullfree(path);
+    nullfree(d);
     errno = 0;
     return THROW(stat);
 }
@@ -888,8 +908,15 @@ platformdeleter(ZFMAP* zfmap, NClist* segments)
     char* path = NULL;
     HANDLE dir;
     WIN32_FIND_DATA FindFileData;
+    char* tmp = NULL;
 
     if((ret = nczm_join(segments,&path))) goto done;
+
+    /* When running on any platform that can accept drive letters */
+    if((ret = nczm_fixpath(path,&tmp))) goto done;
+    nullfree(path); path = NULL;
+    if((path = NCpathcvt(tmp))==NULL) {ret = NC_ENOMEM; goto done;}
+
     errno = 0;
     ret = stat(path, &statbuf);
     if(ret < 0) {
@@ -926,6 +953,7 @@ done:
     /* delete this file|dir */
     remove(path);
     nullfree(path);
+    nullfree(tmp);
     errno = 0;
     return THROW(ret);
 }
@@ -939,7 +967,6 @@ platformdircontent(ZFMAP* zfmap, const char* path, NClist* contents)
     errno = 0;
     DIR* dir = NULL;
 
-fprintf(stderr,"x5: path=%s\n",path);
     dir = NCopendir(path);
     if(dir == NULL && errno == ENOTDIR)
 	goto done;
@@ -948,7 +975,8 @@ fprintf(stderr,"x5: path=%s\n",path);
 	const char* name = NULL;
 	struct dirent* de = NULL;
 	errno = 0;
-        if((de = readdir(dir)) == NULL)
+        de = readdir(dir);
+        if(de == NULL)
 	    {stat = platformerr(errno); goto done;}
 	if(strcmp(de->d_name,".")==0 || strcmp(de->d_name,"..")==0)
 	    continue;
@@ -969,8 +997,15 @@ platformdeleter(ZFMAP* zfmap, NClist* segments, int depth)
     struct dirent* entry = NULL;
     DIR* dir = NULL;
     char* path = NULL;
+    char* tmp = NULL;
 
     if((ret = nczm_join(segments,&path))) goto done;
+
+    /* When running on any platform that can accept drive letters */
+    if((ret = nczm_fixpath(path,&tmp))) goto done;
+    nullfree(path); path = NULL;
+    if((path = NCpathcvt(tmp))==NULL) {ret = NC_ENOMEM; goto done;}
+
     errno = 0;
     ret = stat(path, &statbuf);
     if(ret < 0) {
@@ -979,7 +1014,6 @@ platformdeleter(ZFMAP* zfmap, NClist* segments, int depth)
     }
     /* process this file */
     if(S_ISDIR(statbuf.st_mode)) {
-fprintf(stderr,"x6: path=%s\n",path);
         if((dir = NCopendir(path)) == NULL)
 	     {ret = platformerr(errno); goto done;}
         for(;;) {
@@ -1011,6 +1045,7 @@ done:
     /* delete this file|dir */
     remove(path);
     nullfree(path);
+    nullfree(tmp);
     errno = 0;
     return THROW(ret);
 }
@@ -1022,6 +1057,9 @@ platformdelete(ZFMAP* zfmap, const char* path)
 {
     int stat = NC_NOERR;
     NClist* segments = NULL;
+#ifdef _WIN32
+    char drive = 0;
+#endif
     if(path == NULL || strlen(path) == 0) goto done;
     segments = nclistnew();
     nclistpush(segments,strdup(path));

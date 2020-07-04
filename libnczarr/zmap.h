@@ -266,6 +266,11 @@ EXTERNL int nczm_split_delim(const char* path, char delim, NClist* segments);
 /* Convenience: Join all segments into a path using '/' character */
 EXTERNL int nczm_join(NClist* segments, char** pathp);
 
+/* Convenience: Join all segments into a path using '/' character
+   but taking possible lead windows drive letter into account
+*/
+EXTERNL int nczm_joinpath(NClist* segments, char** pathp);
+
 /* Convenience: concat two strings; caller frees */
 EXTERNL int nczm_concat(const char* prefix, const char* suffix, char** pathp);
 
@@ -279,6 +284,9 @@ EXTERNL int nczm_clear(NCZMAP* map);
 
 /* Return 1 if path is absolute; takes Windows drive letters into account */
 EXTERNL int nczm_isabsolutepath(const char* path);
+
+/* Fix up windows path created from join */
+EXTERNL int nczm_fixpath(const char* path, char** fixedpathp);
 
 #ifdef __cplusplus
 }

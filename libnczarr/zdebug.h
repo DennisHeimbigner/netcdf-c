@@ -14,19 +14,20 @@
 #undef ZCATCH /* Warning: significant performance impact */
 #undef ZTRACING /* Warning: significant performance impact */
 
+#include "ncexternl.h"
+#include "nclog.h"
+
 #ifdef ZCATCH
 /* Place breakpoint on zbreakpoint to catch errors close to where they occur*/
 #define THROW(e) zthrow((e),__FILE__,__LINE__)
 #define ZCHECK(e) if((e)) {THROW(stat); goto done;} else {}
-extern int zbreakpoint(int err);
-extern int zthrow(int err, const char* fname, int line);
+EXTERNL int zbreakpoint(int err);
+EXTERNL int zthrow(int err, const char* fname, int line);
 #else
 #define ZCHECK(e) {if((e)) {goto done;}}
 #define THROW(e) (e)
 #endif
 
-#include "ncexternl.h"
-#include "nclog.h"
 #ifdef ZTRACING
 #define ZLOG(level,msg,...) nclog(level,msg,__VA_ARGS__)
 #define ZTRACE(fmt,...) nclog(NCLOGDBG,"trace: %s:%s " fmt,__FILE__,__func__,__VA_ARGS__)
