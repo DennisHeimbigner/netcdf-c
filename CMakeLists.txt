@@ -927,14 +927,15 @@ ENDIF()
 
 # Option to Build NCZarr clients
 OPTION(ENABLE_NCZARR "Enable NCZarr Client." ON)
-OPTION(ENABLE_S3_SDK "Enable NCZarr S3 support." ON)
+OPTION(ENABLE_S3_TESTS "Enable NCZarr S3 tests." OFF)
 
 # See if aws-s3-sdk is available
-IF(ENABLE_S3_SDK)
 find_package(AWSSDK REQUIRED)
 set(SERVICE s3)
 AWSSDK_DETERMINE_LIBS_TO_LINK(SERVICE AWSSDK_LINK_LIBRARIES)
-ENDIF(ENABLE_S3_SDK)
+IF(AWSSDK_LINK_LIBARARIES)
+set(HAVE_AWS yes)
+ENDIF()
 
 ##
 # Enable Tests
@@ -2026,7 +2027,7 @@ is_enabled(ENABLE_ERANGE_FILL HAS_ERANGE_FILL)
 is_enabled(HAVE_H5Z_SZIP HAS_SZLIB)
 is_enabled(HDF5_HAS_PAR_FILTERS HAS_PAR_FILTERS)
 is_enabled(ENABLE_NCZARR HAS_NCZARR)
-is_enabled(ENABLE_S3_SDK HAS_S3_SDK)
+is_enabled(HAVE_AWS HAS_S3_SDK)
 
 # Generate file from template.
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/libnetcdf.settings.in"

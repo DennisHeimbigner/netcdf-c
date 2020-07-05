@@ -465,35 +465,27 @@ AC_SEARCH_LIBS([aws_allocator_is_valid],[aws-c-common aws-cpp-sdk-s3 aws-cpp-sdk
 AC_LANG_POP
 AC_MSG_CHECKING([whether AWS S3 SDK library is available])
 AC_MSG_RESULT([$have_aws])
-
-# Check for forced disabling of S3 support
-AC_MSG_CHECKING([whether netcdf zarr S3 support should be enabled])
-AC_ARG_ENABLE([s3-sdk],
-              [AS_HELP_STRING([--disable-s3-sdk],
-                              [forcibly disable usage of netcdf zarr S3 sdk])])
-test "x$enable_s3_sdk" = xno || enable_s3_sdk=yes
-AC_MSG_RESULT($enable_s3_sdk)
-
-if test "x$have_aws" = xno -a "x$enable_s3_sdk" = xno; then
-  have_aws=no
-  enable_s3_sdk=no
-elif test "x$have_aws" = xno -a "x$enable_s3_sdk" = xyes; then
-  AC_MSG_WARN([aws libraries not found, so default to --disable-s3-sdk])
-  have_aws=no
-  enable_s3_sdk=no
-elif test "x$have_aws" = xyes -a "x$enable_s3_sdk" = xno; then
-  AC_MSG_WARN([--disable-s3-sdk overrides presence of aws s3 libraries])
-  have_aws=no
-  enable_s3_sdk=no
-elif test "x$have_aws" = xyes -a "x$enable_s3_sdk" = xyes; then
-  have_aws=yes
-  enable_s3_sdk=yes
+if test "x$have_aws" = xyes ; then
+AC_DEFINE([ENABLE_S3_SDK], [1], [If true, then S3 sdk was found])
 fi
 
-if test "x$enable_s3_sdk" = xyes ; then
-  AC_DEFINE([ENABLE_S3_SDK], [1], [if true, build libnczarr with S3 support enabled])
+# Check for enabling S3 testing
+AC_MSG_CHECKING([whether netcdf zarr S3 testing should be enabled])
+AC_ARG_ENABLE([s3-tests],
+              [AS_HELP_STRING([--enable-s3-tests],
+                              [enable netcdf zarr S3 testing])])
+test "x$enable_s3_tests" = xyes || enable_s3_tests=no
+AC_MSG_RESULT($enable_s3_tests)
+
+if test "x$have_aws" = xno ; then
+  AC_MSG_WARN([aws libraries not found, so default to --disable-s3-tests])
+  enable_s3_tests=no
 fi
-AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$enable_s3_sdk" = xyes])
+
+if test "x$enable_s3_tests" = xyes ; then
+  AC_DEFINE([ENABLE_S3_TESTS], [1], [if true, build libnczarr with S3 tests enabled])
+fi
+AM_CONDITIONAL(ENABLE_S3_TESTS, [test "x$enable_s3_tests" = xyes])
 
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
@@ -1386,6 +1378,7 @@ AM_CONDITIONAL(ENABLE_BYTERANGE, [test "x$enable_byterange" = xyes])
 AM_CONDITIONAL(RELAX_COORD_BOUND, [test "xyes" = xyes])
 AM_CONDITIONAL(HAS_PAR_FILTERS, [test x$hdf5_supports_par_filters = xyes ])
 AM_CONDITIONAL(ENABLE_NCZARR, [test "x$enable_nczarr" = xyes])
+AM_CONDITIONAL(HAVE_AWS, [test "x$have_aws" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
@@ -1547,7 +1540,7 @@ AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
 AC_SUBST(RELAX_COORD_BOUND,[yes])
 AC_SUBST([HAS_PAR_FILTERS], [$hdf5_supports_par_filters])
 AC_SUBST(HAS_NCZARR,[$enable_nczarr])
-AC_SUBST(HAS_S3_SDK,[$enable_s3_sdk])
+AC_SUBST(HAS_S3_SDK,[$have_aws])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],
@@ -1619,7 +1612,8 @@ AX_SET_META([NC_HAS_ERANGE_FILL], [$enable_erange_fill],[yes])
 AX_SET_META([NC_HAS_PAR_FILTERS], [$hdf5_supports_par_filters],[yes])
 AX_SET_META([NC_HAS_BYTERANGE],[$enable_byterange],[yes])
 AX_SET_META([NC_HAS_NCZARR],[$enable_nczarr],[yes])
-AX_SET_META([NC_HAS_NCZARR_S3],[$enable_s3_sdk],[yes])
+AX_SET_META([NC_S3_SDK],[$have_aws],[yes])
+
 AC_SUBST([NC_DISPATCH_VERSION], [2])
 
 #####

@@ -6,12 +6,18 @@
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
 
+TESTS_ENVIRONMENT =
+
 #TEST_EXTENSIONS = .sh
 
 #SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #TESTS_ENVIRONMENT = export SETX=1;
+
+if ENABLE_S3_TESTS
+TESTS_ENVIRONMENT += export ENABLE_S3_TESTS=1;
+endif
 
 AM_CFLAGS += -I${top_srcdir} -I${top_srcdir}/libnczarr
 AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la

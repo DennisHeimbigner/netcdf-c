@@ -48,7 +48,7 @@ zprovenance.h
 zdebug.h
 )
 
-IF(ENABLE_S3_SDK) 
+IF(HAVE_AWS) 
 SET(libnczarr_SOURCES ${libnczarr_SOURCES} zs3sdk.cpp zmap_s3sdk.c awsincludes.h zs3sdk.h)
 ENDIF()
 
@@ -56,7 +56,7 @@ ENDIF()
 # the netCDF library.
 add_library(nczarr OBJECT ${libnczarr_SOURCES})
 
-IF(ENABLE_S3_SDK) 
+IF(HAVE_AWS) 
 IF(NOT MSVC)
 target_compile_features(nczarr PUBLIC cxx_std_11)
 ENDIF()

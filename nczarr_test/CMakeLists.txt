@@ -18,9 +18,9 @@ FILE(COPY ${COPY_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/ FILE_PERMISSION
 IF(ENABLE_TESTS)
 
   SET(COMMONSRC ut_util.c ut_test.c)
-IF(USE_X_GETOPT)
-  SET(COMMONSRC ${COMMONSRC} XGetopt.c)
-ENDIF()
+  IF(USE_X_GETOPT)
+    SET(COMMONSRC ${COMMONSRC} XGetopt.c)
+  ENDIF()
 
   # Base tests
   # The tests are set up as a combination of shell scripts and executables that
@@ -40,13 +40,11 @@ ENDIF()
   TARGET_INCLUDE_DIRECTORIES(ut_json PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_projections PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_chunking PUBLIC ../libnczarr)
+  TARGET_INCLUDE_DIRECTORIES(tst_chunks PUBLIC ../libnczarr)
+  TARGET_INCLUDE_DIRECTORIES(tst_chunks2 PUBLIC ../libnczarr)
 
   BUILD_BIN_TEST(zmapio ${COMMONSRC})
   TARGET_INCLUDE_DIRECTORIES(zmapio PUBLIC ../libnczarr)
-
-# Integration tests
-#  BUILD_BIN_TEST(it_meta)
-#  TARGET_INCLUDE_DIRECTORIES(it_meta PUBLIC ../libnczarr)
 
   IF(BUILD_UTILITIES)
     add_sh_test(nczarr_test run_ut_map)
@@ -55,6 +53,13 @@ ENDIF()
     add_sh_test(nczarr_test run_ut_chunk)
     add_sh_test(nczarr_test run_it_test1)
     add_sh_test(nczarr_test run_it_test2)
+    if ENABLE_S3_TESTS
+      add_sh_test(nczarr run_ut_mapapi_s3)
+      add_sh_test(nczarr run_it_test1_s3)
+      add_sh_test(nczarr run_it_test2_s3)
+    endif()
+endif
+
   ENDIF(BUILD_UTILITIES)
 
 ENDIF(ENABLE_TESTS)
