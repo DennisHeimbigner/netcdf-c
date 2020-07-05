@@ -47,19 +47,15 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(zmapio PUBLIC ../libnczarr)
 
   IF(BUILD_UTILITIES)
+    if(ENABLE_S3_TESTS)
+        set(ENV{ENABLE_S3_TESTS} "1")
+    endif()
     add_sh_test(nczarr_test run_ut_map)
     add_sh_test(nczarr_test run_ut_mapapi)
     add_sh_test(nczarr_test run_ut_misc)
     add_sh_test(nczarr_test run_ut_chunk)
     add_sh_test(nczarr_test run_it_test1)
     add_sh_test(nczarr_test run_it_test2)
-    if ENABLE_S3_TESTS
-      add_sh_test(nczarr run_ut_mapapi_s3)
-      add_sh_test(nczarr run_it_test1_s3)
-      add_sh_test(nczarr run_it_test2_s3)
-    endif()
-endif
-
   ENDIF(BUILD_UTILITIES)
 
 ENDIF(ENABLE_TESTS)
