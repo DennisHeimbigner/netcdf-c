@@ -66,7 +66,7 @@ zodom.h \
 zprovenance.h \
 zdebug.h
 
-if HAVE_AWS
+if ENABLE_S3_SDK
 libnczarr_la_SOURCES += zmap_s3sdk.c
 libnczarr_la_SOURCES += zs3sdk.cpp awsincludes.h zs3sdk.h
 AM_CXXFLAGS += -std=c++11

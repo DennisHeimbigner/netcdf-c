@@ -14,7 +14,7 @@
 #include "XGetopt.h"
 #endif
 
-struct Options options;
+struct UTOptions utoptions;
 
 /*Forward*/
 static void canonicalfile(char** fp);
@@ -41,7 +41,7 @@ usage(int err)
 }
 
 int
-ut_init(int argc, char** argv, struct Options * options)
+ut_init(int argc, char** argv, struct UTOptions * options)
 {
     int stat = NC_NOERR;
     int c;

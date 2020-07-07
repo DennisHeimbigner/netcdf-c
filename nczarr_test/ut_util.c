@@ -418,7 +418,7 @@ slices2vector(int rank, NCZSlice* slices, size64_t** startp, size64_t** stopp, s
 }
 
 void
-printoptions(struct Options* opts)
+printoptions(struct UTOptions* opts)
 {
     char** p;
     int i;

@@ -62,8 +62,15 @@ NCpathcvt(const char* path)
     char* p;
     char* q;
     size_t pathlen;
+    int forwardslash;
 
     if(path == NULL) goto done; /* defensive driving */
+
+#ifdef _WIN32
+    forwardslash = 0;
+#else
+    forwardslash = 1;
+#endif
 
     /* Check for path debug env vars */
     if(pathdebug < 0) {
@@ -109,6 +116,7 @@ NCpathcvt(const char* path)
     }
 
     /* 3. Look for leading D: where D is a single-char drive letter */
+    /* This could be cygwin or Windows or mingw */
     if(pathlen >= 2
 	&& strchr(windrive,path[0]) != NULL
 	&& path[1] == ':'
@@ -128,23 +136,24 @@ NCpathcvt(const char* path)
     goto done;
 
 slashtrans:
-      /* In order to help debugging, and if not using MSC_VER or MINGW,
+      /* In order to help debugging, and if not using MSC_VER or MINGW or CYGWIN,
 	 convert back slashes to forward, else convert forward to back
       */
-    p = outpath;
-    /* In all #1 or #2 cases, translate '/' -> '\\' */
-    for(;*p;p++) {
-	if(*p == '/') {*p = '\\';}
+    if(!forwardslash) {
+        p = outpath;
+        /* In all #1 or #2 cases, translate '/' -> '\\' */
+        for(;*p;p++) {
+	    if(*p == '/') {*p = '\\';}
+	}
     }
 #ifdef PATHFORMAT
-#ifndef _WIN32
+    if(forwardslash) {
 	p = outpath;
         /* Convert '\' back to '/' */
         for(;*p;p++) {
             if(*p == '\\') {*p = '/';}
 	}
     }
-#endif /*!_WIN32*/
 #endif /*PATHFORMAT*/
 
 done:

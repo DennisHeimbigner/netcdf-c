@@ -48,7 +48,7 @@ zprovenance.h
 zdebug.h
 )
 
-IF(HAVE_AWS) 
+IF(ENABLE_S3_SDK) 
 SET(libnczarr_SOURCES ${libnczarr_SOURCES} zs3sdk.cpp zmap_s3sdk.c awsincludes.h zs3sdk.h)
 ENDIF()
 
@@ -56,12 +56,12 @@ ENDIF()
 # the netCDF library.
 add_library(nczarr OBJECT ${libnczarr_SOURCES})
 
-IF(HAVE_AWS) 
+IF(ENABLE_S3_SDK) 
 IF(NOT MSVC)
 target_compile_features(nczarr PUBLIC cxx_std_11)
 ENDIF()
 target_include_directories(nczarr PRIVATE ${AWSSDK_INCLUDE_DIR})
-ENDIF(ENABLE_S3_SDK)
+ENDIF()
 
 # Remember to package this file for CMake builds.
 ADD_EXTRA_DIST(${libnczarr_SOURCES} CMakeLists.txt)

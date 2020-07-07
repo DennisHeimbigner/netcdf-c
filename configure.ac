@@ -468,6 +468,7 @@ AC_MSG_RESULT([$have_aws])
 if test "x$have_aws" = xyes ; then
 AC_DEFINE([ENABLE_S3_SDK], [1], [If true, then S3 sdk was found])
 fi
+AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$enable_s3_sdk" = xyes])
 
 # Check for enabling S3 testing
 AC_MSG_CHECKING([whether netcdf zarr S3 testing should be enabled])
