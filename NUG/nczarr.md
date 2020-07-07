@@ -337,14 +337,15 @@ zarr format.
 
 Currently only the following build cases are supported.
 
-Operating System | Build System | NCZarr | S3 Support
---------------------------------------------
-Linux            | Automake     | yes     | yes
-Linux            | CMake        | yes     | yes
-Cygwin           | Automake     | yes     | unknown
-Visual Studio    | CMake        | yes     | no
-OSX              | Automake     | unknown | unknown
-OSX              | CMake        | unknown | unknown
+Operating System | Build System | NCZarr       | S3 Support
+-----------------------------------------------------------
+Linux            | Automake     | yes          | yes
+Linux            | CMake        | yes          | yes
+Cygwin           | Automake     | yes          | unknown
+OSX              | Automake     | unknown      | unknown
+OSX              | CMake        | unknown      | unknown
+Visual Studio    | CMake        | no*          | no
+                 |              |  *tests fail |
 
 # Automake
 
