@@ -180,7 +180,6 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
 {
     int stat = NC_NOERR;
     char* truepath = NULL; /* Might be a URL */
-    char* zfcwd = NULL;
     ZFMAP* zfmap = NULL;
     NCURI* url = NULL;
 	
@@ -203,15 +202,8 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
     if(strcasecmp(url->protocol,"file") != 0)
         {stat = NC_EURL; goto done;}
 
-    /* Get cwd so we can use absolute paths
-       in case user gives us a relative path*/
-    if((stat = platformcwd(&zfcwd))) goto done;
-
-    /* Make the root path be absolute */
-    if(!nczm_isabsolutepath(url->path)) {
- 	if((stat = nczm_concat(zfcwd,url->path,&truepath))) goto done;
-    } else
-	truepath = strdup(url->path);
+    /* Canonicalize the root path */
+    if((stat = nczm_canonicalpath(url->path,&truepath))) goto done;
 
 #ifdef CHECKNESTEDDATASETS
     if(isnesteddataset(truepath))
@@ -290,11 +282,8 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     if(strcasecmp(url->protocol,"file") != 0)
         {stat = NC_EURL; goto done;}
 
-    /* Make the root path be absolute */
-    if(!nczm_isabsolutepath(url->path)) {
- 	if((stat = nczm_concat(zfcwd,url->path,&truepath))) goto done;
-    } else
-	truepath = strdup(url->path);
+    /* Canonicalize the root path */
+    if((stat = nczm_canonicalpath(url->path,&truepath))) goto done;
 
     /* Build the z4 state */
     if((zfmap = calloc(1,sizeof(ZFMAP))) == NULL)
@@ -505,7 +494,7 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
     int i;
     ZFMAP* zfmap = (ZFMAP*)map;
     char* truepath = NULL;
-    NClist* segments = nclistnew();
+    NClist* nextlevel = nclistnew();
     NCbytes* buf = ncbytesnew();
     int trailing;
 
@@ -517,8 +506,8 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
     else if((stat = nczm_concat(zfmap->root,prefixkey,&truepath))) goto done;
 
     trailing = (prefixkey[strlen(prefixkey)-1] == '/');
-    /* get names of the next level path segments */
-    switch (stat = platformdircontent(zfmap, truepath, segments)) {
+    /* get names of the next level path entries */
+    switch (stat = platformdircontent(zfmap, truepath, nextlevel)) {
     case NC_NOERR: /* ok */
 	break;
     case NC_EEMPTY: /* not a dir */
@@ -528,8 +517,8 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
     default:
 	goto done;
     }
-    for(i=0;i<nclistlength(segments);i++) {
-	const char* segment = nclistget(segments,i);
+    for(i=0;i<nclistlength(nextlevel);i++) {
+	const char* segment = nclistget(nextlevel,i);
 	ncbytescat(buf,prefixkey);
 	if(!trailing) ncbytescat(buf,"/");
 	ncbytescat(buf,segment);
@@ -719,8 +708,8 @@ platformerr(int err)
 }
 
 /* Test type of the specified file.
-@return NC_NOERR if found and is a content-bearing object
-@return NC_EEMPTY if exists but is not-content-bearing
+@return NC_NOERR if found and is a content-bearing object (file)
+@return NC_EEMPTY if exists but is not-content-bearing (a directory)
 @return NC_ENOTFOUND if not found
 */
 static int
@@ -728,14 +717,20 @@ platformtestcontentbearing(ZFMAP* zfmap, const char* truepath)
 {
     int ret = 0;
     struct stat buf;
+    char* local = NULL;
     
+    /* Localize */
+    if((ret = nczm_localize(truepath,&local,LOCALIZE))) goto done;
+
     errno = 0;
-    if((ret = stat(truepath, &buf)) < 0) {
+    if((ret = stat(local, &buf)) < 0) {
 	ret = platformerr(errno);
     } else if(S_ISDIR(buf.st_mode)) {
         ret = NC_EEMPTY;
     } else
         ret = NC_NOERR;
+done:
+    nullfree(local);
     errno = 0;
     return ret;
 }
@@ -769,7 +764,7 @@ platformcreatefile(ZFMAP* zfmap, const char* truepath, FD* fd)
     if(fIsSet(mode,NC_WRITE))
         createflags = (ioflags|O_CREAT);
 
-    /* Try to create file */
+    /* Try to create file (will also localize) */
     fd->fd = NCopen3(truepath, createflags, permissions);
     if(fd->fd < 0) { /* could not create */
         stat = platformerr(errno);
@@ -806,7 +801,7 @@ platformopenfile(ZFMAP* zfmap, const char* truepath, FD* fd)
         assert(!"expected file, have dir");
 #endif
 
-    /* Try to open file  */
+    /* Try to open file  (will localize) */
     fd->fd = NCopen3(truepath, ioflags, permissions);
     if(fd->fd < 0)
         {stat = platformerr(errno); goto done;} /* could not open */
@@ -844,7 +839,6 @@ done:
     return THROW(ret);
 }
 
-
 /* Open a dir; fail if it does not exist */
 static int
 platformopendir(ZFMAP* zfmap, const char* truepath)
@@ -876,36 +870,38 @@ There are several possibilities:
 
 #ifdef _WIN32
 static int
-platformdircontent(ZFMAP* zfmap, const char* path0, NClist* contents)
+platformdircontent(ZFMAP* zfmap, const char* truepath, NClist* contents)
 {
     int ret = NC_NOERR;
     errno = 0;
     WIN32_FIND_DATA FindFileData;
     HANDLE dir;
     char* ffpath = NULL;
-    char* wpath = NULL;
+    char* lpath = NULL;
     size_t len;
     char* d = NULL;
-    int isdir = 0;
 
-    /* check properties and canonicalize */
-    if((ret = testifdir(path0,&isdir,&wpath)))
-	goto done;
+    switch (ret = platformtestcontentbearing(zfmap, truepath)) {
+    case NC_EEMPTY: ret = NC_NOERR; break; /* directory */    
+    case NC_NOERR: ret = NC_EEMPTY; goto done;
+    default: goto done;
+    }
 
     /* We need to process the path to make it work with FindFirstFile */
-    len = strlen(wpath);
-    /* Need to terminate path with '\*' */
+    len = strlen(truepath);
+    /* Need to terminate path with '/*' */
     ffpath = (char*)malloc(len+2+1);
-    memcpy(ffpath,wpath,len);
-    if(wpath[len-1] != '\\') {
-	ffpath[len] = '\\';	
+    memcpy(ffpath,truepath,len);
+    if(truepath[len-1] != '/') {
+	ffpath[len] = '/';	
 	len++;
     }
-    ffpath[len] = '*';
-    len++;
+    ffpath[len] = '*'; len++;
     ffpath[len] = '\0';
 
-    dir = FindFirstFile(ffpath, &FindFileData);
+    /* localize it */
+    if((stat = nczm_localize(ffpath,&lpath,LOCALIZE))) goto done;
+    dir = FindFirstFile(lpath, &FindFileData);
     if(dir == INVALID_HANDLE_VALUE) {
 	/* Distinquish not-a-directory from no-matching-file */
         switch (GetLastError()) {
@@ -929,7 +925,7 @@ platformdircontent(ZFMAP* zfmap, const char* path0, NClist* contents)
 
 done:
     if(dir) FindClose(dir);
-    nullfree(wpath);
+    nullfree(lpath);
     nullfree(ffpath);
     nullfree(d);
     errno = 0;
@@ -939,20 +935,19 @@ done:
 #else /*!_WIN32*/
 
 static int
-platformdircontent(ZFMAP* zfmap, const char* path, NClist* contents)
+platformdircontent(ZFMAP* zfmap, const char* truepath, NClist* contents)
 {
     int ret = NC_NOERR;
     errno = 0;
     DIR* dir = NULL;
-    char* tmp = NULL;
-    char* wpath = NULL;
-    int isdir = 0;
 
-    if((ret = testifdir(path,&isdir,&wpath))) goto done;
-    if(!isdir)
-	{ret = NC_EEMPTY; goto done;}
+    switch (ret = platformtestcontentbearing(zfmap, truepath)) {
+    case NC_EEMPTY: ret = NC_NOERR; break; /* directory */    
+    case NC_NOERR: ret = NC_EEMPTY; goto done; 
+    default: goto done;
+    }
 
-    dir = NCopendir(wpath);
+    dir = NCopendir(truepath);
     if(dir == NULL)
         {ret = platformerr(errno); goto done;}
     for(;;) {
@@ -969,8 +964,6 @@ platformdircontent(ZFMAP* zfmap, const char* path, NClist* contents)
     }
 done:
     if(dir) NCclosedir(dir);
-    nullfree(tmp);
-    nullfree(wpath);
     errno = 0;
     return THROW(ret);
 }
@@ -1040,38 +1033,38 @@ done:
 #endif /*0*/
 
 static int
-platformdeleter(ZFMAP* zfmap, NClist* segments, int depth)
+platformdeleter(ZFMAP* zfmap, NCbytes* truepath, int delroot, int depth)
 {
     int ret = NC_NOERR;
     int i;
     NClist* contents = nclistnew();
-    char* path = NULL;
-    char* tmp = NULL;
-    char* wpath = NULL;
+    size_t tpathlen = ncbyteslength(truepath);
+    char* local = NULL;
 
-    if((ret = nczm_join(segments,&path))) goto done;
-
-    /* Fixup the path */
-    if((ret = nczm_fixpath(path,&tmp))) goto done;
-    if((wpath = NCpathcvt(tmp))==NULL) {ret = NC_ENOMEM; goto done;}
-
-    ret = platformdircontent(zfmap, wpath, contents);
+    ret = platformdircontent(zfmap, truepath, contents);
     switch (ret) {
     case NC_NOERR: /* recurse to remove levels below */
         for(i=0;i<nclistlength(contents);i++) {
 	    const char* name = nclistget(contents,i);
-            /* append name to segments */
-            nclistpush(segments, name);
+            /* append name to current path */
+            ncbytescat(truepath, "/");
+            ncbytescat(truepath, name);
             /* recurse */
-            if ((ret = platformdeleter(zfmap, segments, depth+1))) goto done;
-            /* removelast segment */
-            nclistpop(segments);
+            if ((ret = platformdeleter(zfmap, truepath,delroot,depth+1))) goto done;
+            ncbytessetlength(truepath,tpathlen); /* reset */
 	}
-        rmdir(wpath);
+	if(depth > 0 || delroot) {
+	    /* localize and delete */
+	    if((ret = nczm_localize(ncbytescontents(truepath),&local))) goto done;
+            rmdir(local); /* kill this dir */
+	}
 	break;    
     case NC_EEMPTY: /* Not a directory */
 	ret = NC_NOERR;
-	unlink(wpath);
+        /* localize and delete */
+	if(local) {nullfree(local); local = NULL;}
+	if((ret = nczm_localize(ncbytescontents(truepath),&local))) goto done;
+        unlink(local); /* kill this file */
 	break;
     case NC_ENOTFOUND:
     default:
@@ -1079,36 +1072,25 @@ platformdeleter(ZFMAP* zfmap, NClist* segments, int depth)
     }
 
 done:
-    nullfree(path);
-    nullfree(wpath);
-    nullfree(tmp);
-    errno = 0;
+    nullfree(local);
+    ncbytessetlength(truepath,tpathlen);
     return THROW(ret);
 }
 
 /* Deep file/dir deletion; depth first */
 static int
-platformdelete(ZFMAP* zfmap, const char* path, int delroot)
+platformdelete(ZFMAP* zfmap, const char* rootpath, int delroot)
 {
     int stat = NC_NOERR;
-    char* wpath = NULL;
-    NClist* segments = NULL;
-    int isdir = 0;
+    NCbytes* truepath = ncbytesnew();
 
-    if(path == NULL || strlen(path) == 0) goto done;
-
-    if((stat = testifdir(path,&isdir,&wpath))) goto done;    
-
-    if(isdir) {
-        segments = nclistnew();
-        nclistpush(segments,strdup(wpath));
-        stat = platformdeleter(zfmap,segments,0);
-        /* Optionally delete root */
-        if(delroot) rmdir(wpath);
-    } else if(delroot)
-	unlink(wpath);
+    if(rootpath == NULL || strlen(rootpath) == 0) goto done;
+    ncbytescat(truepath,rootpath);
+    if(rootpath[strlen(rootpath)-1] == '/') /* elide trailing '/' */
+	ncbytessetlength(truepath,ncbytelength(truepath)-1);
+    if((stat = platformdeleter(zfmap,truepath,delroot,0))) goto done;
 done:
-    nclistfreeall(segments);
+    ncbytesfree(truepath);
     errno = 0;
     return THROW(stat);
 }
@@ -1228,7 +1210,6 @@ verify(const char* path, int isdir)
     if(!isdir && S_ISREG(buf.st_mode)) return 1;           
     return 0;
 }
-#endif
 
 /* Return NC_EINVAL if path does not exist; els 1/0 in isdirp and local path in truepathp */
 static int
@@ -1263,3 +1244,4 @@ done:
     nullfree(truepath);
     return THROW(ret);    
 }
+#endif /* 0 */

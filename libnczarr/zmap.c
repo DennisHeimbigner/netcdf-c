@@ -310,26 +310,49 @@ nczm_isabsolutepath(const char* path)
     return 0;
 }
 
-/* Fix up a path created via join;
-use with any platform that can accept drive letters:
-CYGWIN, Visual Studio, MSYS, Mingw */
+/* Convert forward slash to backslash or vice-versa */
 int
-nczm_fixpath(const char* path, char** fixedpathp)
+nczm_localize(const char* path, char** localpathp, int forward)
 {
     int stat = NC_NOERR;
-    char* fixedpath = NULL;
-    int offset = 0;
-
-    if(path == NULL) 
-	fixedpath = NULL;
-    if(NChasdriveletter(path+1))
-	offset = 1;
-    if((fixedpath = strdup(path+offset)) == NULL)
-	{stat = NC_ENOMEM; goto done;}
-    if(fixedpathp) {*fixedpathp = fixedpath; fixedpath = NULL;}
-
-done:
-    nullfree(fixedpath);
+    char* localpath = NULL;
+    char* p;
+    if((localpath = strdup(path))==NULL) return NC_ENOMEM;
+    for(p=localpath;*p;p++) {
+	if(forward && *p == '\\') *p = '/';
+	else if(!forward && *p == '/') *p = '\\';
+    }
+    if(localpathp) {*localpathp = localpath; localpath = NULL;}
+    nullfree(localpath);
     return stat;
 }
 
+/* Convert path0 to be:
+1. absolute -- including drive letters
+2. forward slashed -- we will convert back to back slash in
+   nczm_fixpath
+*/
+
+int
+nczm_canonicalpath(const char* path, char** cpathp)
+{
+    int ret = NC_NOERR;
+    char* cpath = NULL
+    char* tmp = NULL
+
+    if(path == NULL) 
+	{cpath = NULL; goto done;}
+
+    /* Process path to make it be windows compatible */
+    if((tmp = NCpathcvt(path))==NULL) {ret = NC_ENOMEM; goto done;}
+
+    /* Fix slashes to be forward for now */
+    if((stat = nczm_localize(tmp,&cpath,LOCALIZE_FORWARD)))
+
+    if(cpathp) {*cpathp = cpath; cpath = NULL;}
+done:
+    nullfree(tmp);
+    nullfree(cpath);
+    return THROW(ret);    
+    return stat;
+}

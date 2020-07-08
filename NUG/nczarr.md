@@ -377,6 +377,7 @@ The necessary CMake flags are as follows:
 
 1. -DENABLE_NCZARR=0 -- equivalent to the Automake _--enable-nczarr_ option.
 2. -DENABLE_S3_TESTS=off -- equivalent to the Automake _--enable-s3-tests_ option.
+3. -DENABLE_S3_SDK=off -- look for the aws s3 libraries only if this is enabled; default is off -- this flag is necessary to keep CMake from failing.
 
 For CMake with Visual Studio, it is assumed that the aws sdk
 is installed in its default location, namely here:

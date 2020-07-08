@@ -140,6 +140,7 @@ znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** 
     if(flags & FLAG_BYTERANGE)    
 	truepath = ncuribuild(url,NULL,NULL,NCURIALL);	
     else {
+	/* Process the path in case it has drive letters */
         /* Make the root path be absolute */
         if(!nczm_isabsolutepath(url->path)) {
 	    if((stat = nczm_concat(z4cwd,url->path,&truepath))) goto done;
