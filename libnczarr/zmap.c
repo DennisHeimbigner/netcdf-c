@@ -310,13 +310,19 @@ nczm_isabsolutepath(const char* path)
     return 0;
 }
 
-/* Convert forward slash to backslash or vice-versa */
+/* Convert forward slash to backslash ( !localize) or vice-versa (localize)*/
 int
-nczm_localize(const char* path, char** localpathp, int forward)
+nczm_localize(const char* path, char** localpathp, int localize)
 {
     int stat = NC_NOERR;
     char* localpath = NULL;
     char* p;
+    int forward = 1;
+
+#ifdef _MSC_VER
+    forward = (localize?0:1);
+#endif
+
     if((localpath = strdup(path))==NULL) return NC_ENOMEM;
     for(p=localpath;*p;p++) {
 	if(forward && *p == '\\') *p = '/';
@@ -337,8 +343,8 @@ int
 nczm_canonicalpath(const char* path, char** cpathp)
 {
     int ret = NC_NOERR;
-    char* cpath = NULL
-    char* tmp = NULL
+    char* cpath = NULL;
+    char* tmp = NULL;
 
     if(path == NULL) 
 	{cpath = NULL; goto done;}
@@ -347,12 +353,11 @@ nczm_canonicalpath(const char* path, char** cpathp)
     if((tmp = NCpathcvt(path))==NULL) {ret = NC_ENOMEM; goto done;}
 
     /* Fix slashes to be forward for now */
-    if((stat = nczm_localize(tmp,&cpath,LOCALIZE_FORWARD)))
+    if((ret = nczm_localize(tmp,&cpath,!LOCALIZE))) goto done;
 
     if(cpathp) {*cpathp = cpath; cpath = NULL;}
 done:
     nullfree(tmp);
     nullfree(cpath);
     return THROW(ret);    
-    return stat;
 }
