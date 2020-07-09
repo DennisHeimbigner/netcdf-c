@@ -318,12 +318,17 @@ nczm_localize(const char* path, char** localpathp, int localize)
     char* localpath = NULL;
     char* p;
     int forward = 1;
+    int offset = 0;
 
 #ifdef _MSC_VER
     forward = (localize?0:1);
 #endif
+    /* If path comes from a url, then it may start with: /x:/...
+       where x is a drive letter. If so, then remove leading / */
+    if(path[0] == '/' && NChasdriveletter(path+1))
+	offset = 1;
+    if((localpath = strdup(path+offset))==NULL) return NC_ENOMEM;
 
-    if((localpath = strdup(path))==NULL) return NC_ENOMEM;
     for(p=localpath;*p;p++) {
 	if(forward && *p == '\\') *p = '/';
 	else if(!forward && *p == '/') *p = '\\';

@@ -176,7 +176,7 @@ static int
 zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
-    char* truepath = NULL; /* Might be a URL */
+    char* truepath = NULL;
     ZFMAP* zfmap = NULL;
     NCURI* url = NULL;
 	
@@ -887,7 +887,7 @@ platformdircontent(ZFMAP* zfmap, const char* truepath, NClist* contents)
     ffpath[len] = '\0';
 
     /* localize it */
-    if((stat = nczm_localize(ffpath,&lpath,LOCALIZE))) goto done;
+    if((ret = nczm_localize(ffpath,&lpath,LOCALIZE))) goto done;
     dir = FindFirstFile(lpath, &FindFileData);
     if(dir == INVALID_HANDLE_VALUE) {
 	/* Distinquish not-a-directory from no-matching-file */

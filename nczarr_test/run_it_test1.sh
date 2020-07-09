@@ -68,10 +68,6 @@ ittest() {
 extfor $1
 if test "x$2" != x ; then CLOUD=$2; fi
 echo "*** Testing ncgen with -${KFLAG} and zmap=${zext}"
-RESULTSDIR="results.${zext}"
-rm -rf ${RESULTSDIR}
-mkdir -p ${RESULTSDIR}
-cd ${RESULTSDIR}
 diffcycle
 cd ..
 }

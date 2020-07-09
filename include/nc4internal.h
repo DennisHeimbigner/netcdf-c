@@ -459,4 +459,5 @@ extern const NC_reservedatt* NC_findreserved(const char* name);
 #define NC_ATT_FORMAT "_Format"
 #define NC_ATT_DIMID_NAME "_Netcdf4Dimid"
 #define NC_ATT_NC3_STRICT_NAME "_nc3_strict"
+
 #endif /* _NC4INTERNAL_ */
