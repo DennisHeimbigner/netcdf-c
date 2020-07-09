@@ -7,16 +7,19 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 if test -f tst_comp2${ext} ; then ${execdir}/tst_comp2 ; fi
 
-
 set -e
 echo ""
+
+UNISTRING=$(echo '\xe6\xb5\xb7')
 
 # These files are actually in $srcdir in distcheck builds, so they
 # need to be handled differently.
 # ref_tst_compounds2 ref_tst_compounds3 ref_tst_compounds4
 TESTFILES='tst_comp tst_comp2 tst_enum_data tst_fillbug
  tst_group_data tst_nans tst_opaque_data tst_solar_1 tst_solar_2
- tst_solar_cmp tst_special_atts tst_string_data tst_unicode'
+ tst_solar_cmp tst_special_atts tst_string_data'
+
+TESTFILES="${TESTFILES} tst_unicode_${UNISTRING}"
 
 if test "x$NC_VLEN_NOTEST" = x ; then
 TESFILES="$TESTFILES tst_vlen_data"

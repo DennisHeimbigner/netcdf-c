@@ -13,19 +13,20 @@
 #include <stdio.h>
 #include <netcdf.h>
 
-/* The data file we will create. */
-#define FILE7_NAME "tst_unicode.nc"
+/* The prefix for the data file we will create. */
+
 #define UNITS "units"
 #define NDIMS 1
 #define UTF8_BYTES 18
 
-int
-main(int argc, char **argv)
-{
-   int ncid, dimid, varid;
-   int dimids[NDIMS];
+static const unsigned char filename8[] = {
+'t','s','t','_','u','t','f','8','_',
+'\xe6', '\xb5', '\xb7', /* Must match tst_unicode_dir.sh */
+'.','n','c','\0'
+};
 
-   unsigned char name_utf8[] = {
+/* Unnormalized UTF-8 for Unicode 8-character "Hello" in Greek */
+static const unsigned char name_utf8[] = {
        0xCE, 0x9A,	  /* GREEK CAPITAL LETTER KAPPA  : 2-bytes utf8 */
        0xCE, 0xB1,	  /* GREEK SMALL LETTER LAMBDA   : 2-bytes utf8 */
        0xCE, 0xBB,	  /* GREEK SMALL LETTER ALPHA    : 2-bytes utf8 */
@@ -35,19 +36,41 @@ main(int argc, char **argv)
                              WITH TONOS                  : 3-bytes utf8 */
        0xCF, 0x81,	  /* GREEK SMALL LETTER RHO      : 2-bytes utf8 */
        0xCE, 0xB1, 0x00	  /* GREEK SMALL LETTER ALPHA    : 2-bytes utf8 */
-   };
-
+};
 /* Name used for dimension, variable, and attribute value */
 #define UNAME ((char *) name_utf8)
 #define UNAMELEN (sizeof name_utf8)
 
+/* NFC normalized UTF-8 for Unicode 8-character "Hello" in Greek */
+static const unsigned char norm_utf8[] = {
+	   0xCE, 0x9A,	  /* GREEK CAPITAL LETTER KAPPA  : 2-bytes utf8 */
+	   0xCE, 0xB1,	  /* GREEK SMALL LETTER LAMBDA   : 2-bytes utf8 */
+	   0xCE, 0xBB,	  /* GREEK SMALL LETTER ALPHA    : 2-bytes utf8 */
+	   0xCE, 0xB7,	  /* GREEK SMALL LETTER ETA      : 2-bytes utf8 */
+	   0xCE, 0xBC,	  /* GREEK SMALL LETTER MU       : 2-bytes utf8 */
+	   0xCE, 0xAD,    /* GREEK SMALL LETTER EPSILON WITH TONOS
+			                                 : 2-bytes utf8 */
+	   0xCF, 0x81,	  /* GREEK SMALL LETTER RHO      : 2-bytes utf8 */
+	   0xCE, 0xB1,	  /* GREEK SMALL LETTER ALPHA    : 2-bytes utf8 */
+	   0x00
+};
+#define NNAME ((char *) norm_utf8)
+#define NNAMELEN (sizeof norm_utf8)
+
+int
+main(int argc, char **argv)
+{
+   int ncid, dimid, varid;
+   int dimids[NDIMS];
    char name_in[UNAMELEN + 1], strings_in[UNAMELEN + 1];
    nc_type att_type;
    size_t att_len;
+//   int mode = NC_NETCDF4;
+   int mode = 0;
 
    printf("\n*** Testing UTF-8.\n");
-   printf("*** creating UTF-8 test file %s...", FILE7_NAME);
-   if (nc_create(FILE7_NAME, NC_NETCDF4, &ncid)) ERR;
+   printf("*** creating UTF-8 test file %s...", (char*)filename8);
+   if (nc_create((char*)filename8, (NC_CLOBBER|mode), &ncid)) ERR;
 
    /* Define dimension with Unicode UTF-8 encoded name */
    if (nc_def_dim(ncid, UNAME, UTF8_BYTES, &dimid)) ERR;
@@ -69,29 +92,10 @@ main(int argc, char **argv)
    /* Check it out. */
 
    /* Reopen the file. */
-   if (nc_open(FILE7_NAME, NC_NOWRITE, &ncid)) ERR;
+   if (nc_open((char*)filename8, NC_NOWRITE, &ncid)) ERR;
    if (nc_inq_varid(ncid, UNAME, &varid)) ERR;
    if (nc_inq_varname(ncid, varid, name_in)) ERR;
    {
-       /* Note, name was normalized before storing, so retrieved name
-	  won't match original unnormalized name.  Check that we get
-	  normalized version, instead.  */
-
-       /* NFC normalized UTF-8 for Unicode 8-character "Hello" in Greek */
-       unsigned char norm_utf8[] = {
-	   0xCE, 0x9A,	  /* GREEK CAPITAL LETTER KAPPA  : 2-bytes utf8 */
-	   0xCE, 0xB1,	  /* GREEK SMALL LETTER LAMBDA   : 2-bytes utf8 */
-	   0xCE, 0xBB,	  /* GREEK SMALL LETTER ALPHA    : 2-bytes utf8 */
-	   0xCE, 0xB7,	  /* GREEK SMALL LETTER ETA      : 2-bytes utf8 */
-	   0xCE, 0xBC,	  /* GREEK SMALL LETTER MU       : 2-bytes utf8 */
-	   0xCE, 0xAD,    /* GREEK SMALL LETTER EPSILON WITH TONOS
-			                                 : 2-bytes utf8 */
-	   0xCF, 0x81,	  /* GREEK SMALL LETTER RHO      : 2-bytes utf8 */
-	   0xCE, 0xB1,	  /* GREEK SMALL LETTER ALPHA    : 2-bytes utf8 */
-	   0x00
-       };
-#define NNAME ((char *) norm_utf8)
-#define NNAMELEN (sizeof norm_utf8)
        if (strncmp(NNAME, name_in, NNAMELEN) != 0) ERR;
    }
    if (nc_inq_att(ncid, varid, UNITS, &att_type, &att_len)) ERR;
