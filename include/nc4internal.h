@@ -374,7 +374,7 @@ extern int nc4_get_typeclass(const NC_FILE_INFO_T *h5, nc_type xtype,
                       int *type_class);
 
 /* Free various types */
-int nc4_type_free(NC_TYPE_INFO_T *type);
+extern int nc4_type_free(NC_TYPE_INFO_T *type);
 
 /* These list functions add and delete vars, atts. */
 extern int nc4_nc4f_list_add(NC *nc, const char *path, int mode);
@@ -441,7 +441,7 @@ extern void nc4_hdf5_finalize(void);
 /* This is only included if --enable-logging is used for configure; it
    prints info about the metadata to stderr. */
 #ifdef LOGGING
-int log_metadata_nc(NC_FILE_INFO_T *h5);
+extern int log_metadata_nc(NC_FILE_INFO_T *h5);
 #endif
 
 /** @internal Names of atomic types. */
