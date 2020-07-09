@@ -8,7 +8,7 @@
 
 #ifdef _WIN32
 #include <float.h>
-#include "../ncdump/isnan.h"
+#include "isnan.h"
 #define strcasecmp _stricmp
 #endif
 
