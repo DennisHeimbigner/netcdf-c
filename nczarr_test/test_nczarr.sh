@@ -65,7 +65,7 @@ dumpmap1() {
       ftype=`file -b $1`
       case "$ftype" in
       [Aa][Ss][Cc]*) tmp=`cat $1 | tr '\r\n' '  '` ;;
-      [Jj][Aa][Oo][Nn]*) tmp=`cat $1 | tr '\r\n' '  '` ;;
+      [Jj][S][Oo][Nn]*) tmp=`cat $1 | tr '\r\n' '  '` ;;
       data*) tmp=`hexdump -v -e '1/1 " %1x"' testmap.nzf/data1/0` ;;
       empty*) unset tmp ;;
       *) echo fail ; exit 1 ;;
