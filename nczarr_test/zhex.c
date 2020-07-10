@@ -5,6 +5,9 @@
 
 #include "config.h"
 
+#include "stdlib.h"
+#include "stdio.h"
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -12,9 +15,6 @@
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
 #endif
-
-#include "zincludes.h"
-#include "ncwinpath.h"
 
 #define DEBUG
 
@@ -26,7 +26,6 @@ main(int argc, char** argv)
     unsigned char c;
     unsigned int c0,c1;
 
-//hexdump -v -e '1/1 " %1x"' ./testmap.nzf/data1/0` ;;
     for(;;) {
 	int ret = fread(&c, 1, 1, stdin);
 	if(ret != 1) break;
