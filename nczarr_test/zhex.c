@@ -12,10 +12,6 @@
 #include <unistd.h>
 #endif
 
-#ifdef HAVE_STDARG_H
-#include <stdarg.h>
-#endif
-
 #define DEBUG
 
 static char hex[16] = "0123456789abcdef";

@@ -60,16 +60,15 @@ fileargs() {
 
 
 dumpmap1() {
+    local ISJSON
     tmp=
     if test -f $1 ; then
-      ftype=`file -b $1`
-      case "$ftype" in
-      [Aa][Ss][Cc]*) tmp=`cat $1 | tr '\r\n' '  '` ;;
-      [Jj][S][Oo][Nn]*) tmp=`cat $1 | tr '\r\n' '  '` ;;
-      data*) tmp=`cat testmap.nzf/data1/0 | ${execdir}/zhex` ;;
-      empty*) unset tmp ;;
-      *) echo fail ; exit 1 ;;
-      esac
+      ISJSON=`${execdir}/zisjson <$1`
+      if test "x$ISJSON" = x1 ; then
+	  tmp=`tr '\r\n' '  ' <$1`
+      else
+	  tmp=`${execdir}/zhex <$1`
+      fi
       echo "$1 : |$tmp|" >> $2
     else
       echo "$1" >> $2

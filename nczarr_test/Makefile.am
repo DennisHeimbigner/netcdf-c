@@ -53,10 +53,14 @@ ignorec = ut_allslices.c ut_transfer.c ut_vars.c ut_walk.c
 ignoresh = run_meta_tests.sh run_unittests.sh
 ignoreh = ut_varstest.h
 
+# These programs are used by the test cases
 noinst_PROGRAMS = zmapio
 zmapio_SOURCES = zmapio.c
 noinst_PROGRAMS += zhex
 zhex_SOURCES = zhex.c
+noinst_PROGRAMS += zisjson
+zisjson_SOURCES = zisjson.c
+
 
 EXTRA_DIST = \
 test_nczarr.sh \

@@ -6,7 +6,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . "$srcdir/test_nczarr.sh"
 
 set -e
-set -x
+
 # Test those map implementations where
 # it is possible to look at the actual storage.
 # .ncz and .nzf specifically. Note that we

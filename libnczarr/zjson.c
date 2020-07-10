@@ -69,7 +69,8 @@ NCJparse(const char* text, unsigned flags, NCjson** jsonp)
     NCJparser* parser = NULL;
     NCjson* json = NULL;
 
-    if(text == NULL)
+    /* Need at least 1 character of input */
+    if(text == NULL || text[0] == '\0')
 	{stat = NC_EINVAL; goto done;}
     if(jsonp == NULL) goto done;
     parser = calloc(1,sizeof(NCJparser));
