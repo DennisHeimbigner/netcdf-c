@@ -43,9 +43,11 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(tst_chunks PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(tst_chunks2 PUBLIC ../libnczarr)
 
+  # Helper programs for testing
   BUILD_BIN_TEST(zmapio ${COMMONSRC})
   TARGET_INCLUDE_DIRECTORIES(zmapio PUBLIC ../libnczarr)
   BUILD_BIN_TEST(zhex)
+  BUILD_BIN_TEST(zisjson)
 
   IF(BUILD_UTILITIES)
     if(ENABLE_S3_TESTS)
