@@ -63,6 +63,7 @@ zisjson_SOURCES = zisjson.c
 
 
 EXTRA_DIST = \
+run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_it_test1.sh run_it_test2.sh \
 test_nczarr.sh \
 ref_ut_map_readmeta_nzf.txt \
 ref_ut_map_writedata_nzf.cdl \
