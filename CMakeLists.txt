@@ -435,8 +435,30 @@ ENDIF()
 # End user-specified dependent libraries.
 ###
 
-# Option to use HDF4
+################################
+# Format Option checks
+################################
+
+OPTION(ENABLE_NETCDF_4 "Use HDF5." ON)
+OPTION(ENABLE_NETCDF4 "Use HDF5." ON)
+OPTION(ENABLE_HDF5 "Use HDF5." ON)
+IF(NOT ENABLE_NETCDF4 OR NOT ENABLE_NETCDF_4)
+  SET(ENABLE_HDF5 OFF CACHE BOOL "Use HDF5" FORCE)
+ENDIF()
 OPTION(ENABLE_HDF4 "Build netCDF-4 with HDF4 read capability(HDF4, HDF5 and Zlib required)." OFF)
+OPTION(ENABLE_DAP "Enable DAP2 and DAP4 Client." ON)
+OPTION(ENABLE_NCZARR "Enable NCZarr Client." ON)
+OPTION(ENABLE_PNETCDF "Build with parallel I/O for CDF-1, 2, and 5 files using PnetCDF." OFF)
+SET(ENABLE_CDF5 AUTO CACHE STRING "AUTO")
+OPTION(ENABLE_CDF5 "Enable CDF5 support" ON)
+
+# Netcdf-4 support (i.e. libsrc4) is required by more thanb just HDF5 (e.g. NCZarr)
+# So depending on what above formats are enabled, enable netcdf-4
+if(USE_HDF5 OR ENABLE_HDF4 OR ENABLE_NCZARR)
+SET(FORCENC4 ON)
+endif()
+OPTION(ENABLE_NETCDF_4 "Enable netCDF-4" ${FORCENC4})
+
 IF(ENABLE_HDF4)
   SET(USE_HDF4 ON)
   # Check for include files, libraries.
@@ -508,8 +530,6 @@ ENDIF()
 # Did the user specify a default minimum blocksize for posixio?
 SET(NCIO_MINBLOCKSIZE 256 CACHE STRING "Minimum I/O Blocksize for netCDF classic and 64-bit offset format files.")
 
-# Build netCDF4
-OPTION(ENABLE_NETCDF_4 "Enable netCDF-4" ON)
 IF(ENABLE_NETCDF_4)
   SET(USE_NETCDF4 ON CACHE BOOL "")
   SET(ENABLE_NETCDF_4 ON CACHE BOOL "")
@@ -547,10 +567,10 @@ IF(ENABLE_STRICT_NULL_BYTE_HEADER_PADDING)
 ENDIF(ENABLE_STRICT_NULL_BYTE_HEADER_PADDING)
 
 # Option for building RPC
-OPTION(ENABLE_RPC "Enable RPC Client and Server." OFF)
-IF(ENABLE_RPC)
-  SET(BUILD_RPC ON CACHE BOOL "")
-ENDIF()
+#OPTION(ENABLE_RPC "Enable RPC Client and Server." OFF)
+#IF(ENABLE_RPC)
+#  SET(BUILD_RPC ON CACHE BOOL "")
+#ENDIF()
 
 ##
 # Option to Enable HDF5
@@ -569,7 +589,7 @@ ENDIF()
 # * HDF5_INCLUDE_DIR
 # *
 ##
-OPTION(USE_HDF5 "Use HDF5." ${ENABLE_NETCDF_4})
+SET(USE_HDF5 ${ENABLE_HDF5})
 IF(USE_HDF5 OR ENABLE_NETCDF_4)
   SET(USE_HDF5 ON)
   SET(USE_NETCDF4 ON)
@@ -839,8 +859,6 @@ int main() {
 #endif
 }" HAVE_LIBCURL_766)
 
-# Option to Build DAP2+DAP4 Clients
-OPTION(ENABLE_DAP "Enable DAP2 and DAP4 Client." ON)
 IF(ENABLE_DAP)
   SET(USE_DAP ON CACHE BOOL "")
   SET(ENABLE_DAP2 ON CACHE BOOL "")
@@ -925,8 +943,7 @@ IF(NOT WIN32)
   ENDIF()
 ENDIF()
 
-# Option to Build NCZarr clients
-OPTION(ENABLE_NCZARR "Enable NCZarr Client." ON)
+# Options to Extend NCZarr support
 OPTION(ENABLE_S3_SDK "Enable Search for AWS libraries." OFF)
 OPTION(ENABLE_S3_TESTS "Enable NCZarr S3 tests." OFF)
 
@@ -1087,8 +1104,6 @@ ENDIF()
 
 # Options to enable parallel IO for classic formats with PnetCDF library.
 SET(STATUS_PNETCDF "OFF")
-OPTION(ENABLE_PNETCDF "Build with parallel I/O for CDF-1, 2, and 5 files using PnetCDF." OFF)
-
 IF(ENABLE_PNETCDF)
   # Check for ncmpi_create in libpnetcdf, define USE_PNETCDF
   # Does the user want to turn on PnetCDF read ability?
@@ -1287,7 +1302,6 @@ ENDIF()
 # Always enable DISKLESS
 OPTION(ENABLE_DISKLESS "Enable in-memory files" ON)
 
-
 # By default, MSVC has a stack size of 1000000.
 # Allow a user to override this.
 IF(MSVC)
@@ -1400,8 +1414,6 @@ CHECK_TYPE_SIZE("_Bool"     SIZEOF__BOOL)
 CHECK_TYPE_SIZE("size_t"    SIZEOF_SIZE_T)
 
 # Check whether to turn on or off CDF5 support.
-SET(ENABLE_CDF5 AUTO CACHE STRING "AUTO")
-OPTION(ENABLE_CDF5 "Enable CDF5 support" ON)
 IF(SIZEOF_SIZE_T EQUAL 4)
    IF(ENABLE_CDF5) # enable or auto
       STRING(TOUPPER ${ENABLE_CDF5} ENABLE_CDF5)
@@ -1794,6 +1806,7 @@ IF(USE_PNETCDF)
 ENDIF(USE_PNETCDF)
 
 IF(USE_NETCDF4)
+message(status "XXXXX")
   add_subdirectory(libsrc4)
 ENDIF()
 
