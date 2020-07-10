@@ -92,7 +92,10 @@ ref_ut_mapapi_data_nzf.cdl \
 ref_ut_mapapi_data_s3.cdl \
 ref_ut_mapapi_meta_nz4.cdl \
 ref_ut_mapapi_meta_nzf.cdl \
-ref_ut_mapapi_meta_s3.cdl
+ref_ut_mapapi_meta_s3.cdl \
+ref_ut_mapapi_search_nz4.txt \
+ref_ut_mapapi_search_nzf.txt \
+ref_ut_mapapi_search_s3.txt
 
 #CLEANFILES = \
 #	ut_map*.cdl ut_map*.txt \
