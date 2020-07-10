@@ -55,6 +55,8 @@ ignoreh = ut_varstest.h
 
 noinst_PROGRAMS = zmapio
 zmapio_SOURCES = zmapio.c
+noinst_PROGRAMS += zhex
+zhex_SOURCES = zhex.c
 
 EXTRA_DIST = \
 test_nczarr.sh \
