@@ -1793,8 +1793,11 @@ IF(USE_PNETCDF)
   add_subdirectory(libsrcp)
 ENDIF(USE_PNETCDF)
 
-IF(USE_HDF5)
+IF(USE_NETCDF4)
   add_subdirectory(libsrc4)
+ENDIF()
+
+IF(USE_HDF5)
   add_subdirectory(libhdf5)
 ENDIF(USE_HDF5)
 
