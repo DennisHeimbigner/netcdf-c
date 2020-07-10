@@ -452,12 +452,12 @@ OPTION(ENABLE_PNETCDF "Build with parallel I/O for CDF-1, 2, and 5 files using P
 SET(ENABLE_CDF5 AUTO CACHE STRING "AUTO")
 OPTION(ENABLE_CDF5 "Enable CDF5 support" ON)
 
-# Netcdf-4 support (i.e. libsrc4) is required by more thanb just HDF5 (e.g. NCZarr)
+# Netcdf-4 support (i.e. libsrc4) is required by more than just HDF5 (e.g. NCZarr)
 # So depending on what above formats are enabled, enable netcdf-4
-if(USE_HDF5 OR ENABLE_HDF4 OR ENABLE_NCZARR)
-SET(FORCENC4 ON)
+if(ENABLE_HDF5 OR ENABLE_HDF4 OR ENABLE_NCZARR)
+SET(ENABLE_NETCDF_4 ON CACHE BOOL "Enable netCDF-4 API" FORCE)
+SET(ENABLE_NETCDF4 ON CACHE BOOL "Enable netCDF4 Alias" FORCE)
 endif()
-OPTION(ENABLE_NETCDF_4 "Enable netCDF-4" ${FORCENC4})
 
 IF(ENABLE_HDF4)
   SET(USE_HDF4 ON)
@@ -1806,7 +1806,6 @@ IF(USE_PNETCDF)
 ENDIF(USE_PNETCDF)
 
 IF(USE_NETCDF4)
-message(status "XXXXX")
   add_subdirectory(libsrc4)
 ENDIF()
 
