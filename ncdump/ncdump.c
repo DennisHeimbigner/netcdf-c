@@ -335,11 +335,7 @@ fileopen(const char* path, void** memp, size_t* sizep)
     oflags |= O_BINARY;
 #endif
     oflags |= O_EXCL;
-#ifdef vms
-    fd = open(path, oflags, 0, "ctx=stm");
-#else
     fd  = NCopen2(path, oflags);
-#endif
     if(fd < 0) {
 	status = errno;
 	goto done;
