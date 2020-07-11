@@ -46,6 +46,7 @@ main(int argc, char** argv)
 	stat = NC_EEMPTY;
     } else {
         stat = NCJparse(text,0,&json);
+	NCJreclaim(json);
     }
     printf("%d",(stat==NC_NOERR?1:0)); /* parse success|failure */    
     return 0;

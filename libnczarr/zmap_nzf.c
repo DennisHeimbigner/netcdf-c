@@ -514,6 +514,7 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
     }
     
 done:
+    nclistfreeall(nextlevel);
     ncbytesfree(buf);
     nullfree(truepath);
     return THROW(stat);
@@ -1060,6 +1061,7 @@ platformdeleter(ZFMAP* zfmap, NCbytes* truepath, int delroot, int depth)
     }
 
 done:
+    nclistfreeall(contents);
     nullfree(local);
     ncbytessetlength(truepath,tpathlen);
     ncbytesnull(truepath);
