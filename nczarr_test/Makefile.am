@@ -97,6 +97,9 @@ ref_ut_mapapi_search_nz4.txt \
 ref_ut_mapapi_search_nzf.txt \
 ref_ut_mapapi_search_s3.txt
 
-#CLEANFILES = \
-#	ut_map*.cdl ut_map*.txt \
-#        ut_mapapi*.cdl ut_mapapi*.txt
+CLEANFILES = test.nzf test.nz4 test.nz4 tst_chunks.nc.nzf tst_chunks.nc.nz4 \
+testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
+tst_chunks.nz4 tst_chunks.nzf tst_chunks2.nc.nz4 \
+ut_*.txt ut*.cdl
+
+#tst_group_data.dmp tst_nans.dmp tst_solar_1.dmp tst_nul4.dmp dimscope.dmp
