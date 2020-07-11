@@ -4,9 +4,10 @@ NCC="c:/tools/hdf5"
 
 # Is netcdf-4 and/or DAP enabled?
 NCZARR=1
-NC4=1
+HDF5=1
 DAP=1
 S3=1
+#S3TEST=1
 #CDF5=1
 #HDF4=1
 
@@ -60,8 +61,8 @@ if test "x$DAP" = x ; then
 FLAGS="$FLAGS -DENABLE_DAP=false"
 fi
 
-if test "x$NC4" = x ; then
-FLAGS="$FLAGS -DENABLE_NETCDF_4=false"
+if test "x$HDF5" = x ; then
+FLAGS="$FLAGS -DENABLE_HDF5=false"
 else
 ignore=1
 #FLAGS="$FLAGS -DDEFAULT_API_VERSION:STRING=v110"
@@ -82,8 +83,13 @@ if test "x$TESTSERVERS" != x ; then
 FLAGS="$FLAGS -DREMOTETESTSERVERS=${TESTSERVERS}"
 fi
 
-if test "x$S3" = x1 ; then
+if test "x$S3" != x ; then
 FLAGS="$FLAGS -DENABLE_S3_SDK=true"
+else
+FLAGS="$FLAGS -DENABLE_S3_SDK=false"
+fi
+if test "x$S3TEST" != x ; then
+FLAGS="$FLAGS -DENABLE_S3_TESTS=true"
 fi
 
 # Enables
