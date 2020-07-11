@@ -1,7 +1,5 @@
 #!/bin/sh
 
-alias ad='aws s3api list-objects --endpoint-url=https://stratus.ucar.edu --bucket=unidata-netcdf-zarr-testing'
-
 # Check settings
 checksetting() {
 if test -f ${TOPBUILDDIR}/libnetcdf.settings ; then
@@ -50,11 +48,19 @@ mapexists() {
 
 fileargs() {
   if test "x$zext" = xs3 ; then
-      fileurl="https://stratus.ucar.edu/unidata-netcdf-zarr-testing/test$tag#mode=nczarr,$zext"
-      file=$fileurl
+    if test "x$NCS3PATH" = x ; then
+	S3PATH="https://stratus.ucar.edu/unidata-netcdf-zarr-testing"
+    else
+	S3PATH="${NCS3PATH}"
+    fi
+    fileurl="${S3PATH}/test$tag#mode=nczarr,$zext"
+    file=$fileurl
+    S3HOST=`zs3parse -h $S3PATH`
+    S3BUCKET=`zs3parse -b $S3PATH`
+    S3PREFIX=`zs3parse -p $S3PATH`
   else
-      file="test$tag.$zext"
-      fileurl="file://test$tag.$zext#mode=nczarr,$zext"
+    file="test$tag.$zext"
+    fileurl="file://test$tag.$zext#mode=nczarr,$zext"
   fi
 }
 
@@ -84,7 +90,9 @@ dumpmap() {
 	lr=`find $2 | sort| tr  '\r\n' '  '`
 	for f in $lr ; do  dumpmap1 $f $3 ; done
 	;;
-    s3) ad ;;
+    s3)
+        aws s3api list-objects --endpoint-url=$S3HOST --bucket=$S3BUCKET'
+	;;
     *) echo "dumpmap failed" ; exit 1;
     esac
 }

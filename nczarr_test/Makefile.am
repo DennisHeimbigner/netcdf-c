@@ -60,6 +60,8 @@ noinst_PROGRAMS += zhex
 zhex_SOURCES = zhex.c
 noinst_PROGRAMS += zisjson
 zisjson_SOURCES = zisjson.c
+noinst_PROGRAMS += zs3parse
+zs3parse_SOURCES = zs3parse.c
 
 
 EXTRA_DIST = \

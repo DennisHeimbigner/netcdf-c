@@ -390,14 +390,35 @@ in _CMakeLists.txt_.
 
 ## Testing S3 Support
 
-Currently testing of S3 with NCzarr is supported only for
+The relevant tests for S3 support are
+_nczarr_test/run_ut_mapapi.sh_ and _nczarr_test/run_it_test2.sh_.
+
+Currently, by default, testing of S3 with NCzarr is supported only for
 Unidata members of the NetCDF Development Group. This is because
 it uses a specific bucket on a specific internal S3 appliance that
 is inaccessible to the general user. This is controlled by
 the _--enable_s3_tests_ option.
-If someone else wants to attempt these tests, then
-they will need to modify the tests
-_nczarr_test/run_ut_mapapi.sh_ and _nczarr_test/run_it_test2.sh_.
+
+However, an untested mechanism exists by which others may be able
+to run the tests. If someone else wants to attempt these tests, then
+they need to define the environment variable name _NCS3PATH_.
+The form of this variable is as follows:
+````
+NCS3PATH="https://<host>/<bucket>/<prefix>
+````
+This assumes a Path Style address (see above) where
+* host -- the complete host part of the url
+* bucket -- a bucket in which testing can occur without fear of
+damaging anything.
+* prefix - prefix of the key; the actual root, typically _test_,
+is appended to this to get the root key used by the test.
+
+Example:
+````
+s3.us-west.amazonaws.com/testingbucket/segment1/segment2
+````
+If anyone tries to use this mechanism, it would be appreciated
+it any difficulties were reported to Unidata.
 
 # Appendix B. Building aws-sdk-cpp {#nczarr_s3sdk}
 
