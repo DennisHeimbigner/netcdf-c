@@ -354,15 +354,17 @@ There are several options relevant to NCZarr support and to Amazon S3 support.
 These are as follows.
 
 1. _--enable-nczarr_ -- enable the NCZarr support. If disabled, then all of the following options are disabled or irrelevant.
+2. _--enable-s3-sdk_ -- enable the use of the aws s3 sdk.
 2. _--enable-s3-tests_ -- the s3 tests are currently only usable by Unidata personnel, so they are disabled by default.
 <!--
 3. '--enable-xarray-dimension' -- this enables the xarray support described in the section on <a href="#nczarr_compatibility">compatibility</a>.
 -->
 
-If S3 support is desired, and using Automake, then LDFLAGS
-should be properly set, namely this.
+A note about using S3 with Automake. Automake does not handle C++ libraries, so
+if S3 support is desired, and using Automake, then LDFLAGS
+must be properly set, namely to this.
 ````
-LDFLAGS="$LDFLAGS -L/usr/local/lib -laws-cpp-sdk-s3 aws-cpp-sdk-core"
+LDFLAGS="$LDFLAGS -L/usr/local/lib -laws-cpp-sdk-s3"
 ````
 The above assumes that these libraries were installed in
 '/usr/local/lib', so the above requires modification if they
@@ -374,19 +376,19 @@ written in C++.
 
 # CMake
 
-The necessary CMake flags are as follows:
+The necessary CMake flags are as follows (with defaults)
 
-1. -DENABLE_NCZARR=0 -- equivalent to the Automake _--enable-nczarr_ option.
-2. -DENABLE_S3_TESTS=off -- equivalent to the Automake _--enable-s3-tests_ option.
-3. -DENABLE_S3_SDK=off -- look for the aws s3 libraries only if this is enabled; default is off -- this flag is necessary to keep CMake from failing.
+1. -DENABLE_NCZARR=on -- equivalent to the Automake _--enable-nczarr_ option.
+2. -DENABLE_S3_SDK=off -- quivalent to the Automake _--enable-s3-sdk_ option.
+3. -DENABLE_S3_TESTS=off -- equivalent to the Automake _--enable-s3-tests_ option.
 
-For CMake with Visual Studio, it is assumed that the aws sdk
-is installed in its default location, namely here:
+Note that unlike Automake, CMake can properly locate C++ libraries,
+so it should not be necessary to specify _-laws-cpp-sdk-s3_ assuming
+that the aws s3 libraries are installed in the default location.
+For CMake with Visual Studio, the default location is here:
 ````
 C:/Program Files (x86)/aws-cpp-sdk-all
 ````
-If so, then these libraries will be found automatically by _find_package_
-in _CMakeLists.txt_.
 
 ## Testing S3 Support
 
