@@ -8,15 +8,9 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-
-#ifdef HAVE_STDARG_H
-#include <stdarg.h>
-#endif
-
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif
-
 #ifdef _WIN32
 #include "XGetopt.h"
 #endif
