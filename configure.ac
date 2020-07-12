@@ -483,12 +483,8 @@ AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 # Check for the AWS S3 SDK library
 AC_LANG_PUSH([C++])
 AC_SEARCH_LIBS([aws_common_library_init],[aws-c-common], [have_aws=yes],[have_aws=no])
-aclocal --print
-pushd /usr
-find . -name pkg.m4
-popd
-#AC_SEARCH_LIBS([],[aws-cpp-sdk-core], [have_aws=yes],[have_aws=no])
-#AC_SEARCH_LIBS([],[aws-cpp-sdk-s3], [have_aws=yes],[have_aws=no])
+AX_CXX_CHECK_LIB([aws-cpp-sdk-core], [], [], [have_aws=no])
+AX_CXX_CHECK_LIB([aws-cpp-sdk-s3], [], [], [have_aws=no])
 AC_LANG_POP
 AC_MSG_CHECKING([whether AWS S3 SDK library is available])
 AC_MSG_RESULT([$have_aws])
