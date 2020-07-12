@@ -39,21 +39,11 @@ S3_PREFIX=3,
 struct S3options {
     int debug;
     S3op op;
-    char* s3url;
+    char* url;
 } s3options;
 
 /*Forward*/
 static int processurl(S3op op, const char* url, char** piece);
-
-#define NCCHECK(expr) nccheck((expr),__LINE__)
-static void nccheck(int stat, int line)
-{
-    if(stat) {
-	fprintf(stderr,"%d: %s\n",line,nc_strerror(stat));
-	fflush(stderr);
-	exit(1);
-    }
-}
 
 static void
 zs3usage(void)
@@ -108,7 +98,7 @@ main(int argc, char** argv)
     stat = processurl(s3options.op, s3options.url, &piece);
     if(stat == NC_NOERR) {
         if(piece == NULL) goto fail;
-	printf("%s",piece)
+	printf("%s",piece);
     }    
 done:
     /* Reclaim s3options */
@@ -122,22 +112,23 @@ fail:
 }
 
 static int
-processurl(S3op op, const char* url, char** piece)
+processurl(S3op op, const char* surl, char** piece)
 {
     int stat = NC_NOERR;
     NClist* segments = NULL;
     NCbytes* buf = ncbytesnew();
-    URLFORMAT format = UF_NONE;
     char* value = NULL;    
     char* host = NULL;    
     char* bucket = NULL;    
     char* prefix = NULL;    
+    NCURI* url = NULL;
 
-    ncuriparse(url);
+    ncuriparse(surl,&url);
     if(url == NULL)
         {stat = NC_EURL; goto done;}
     /* do some verification */
-    if(strcmp(url->protocol,"https") != 0)
+    if(strcmp(url->protocol,"https") != 0
+       && strcmp(url->protocol,"http") != 0)
         {stat = NC_EURL; goto done;}
 
     /* Path better look absolute */
@@ -169,7 +160,7 @@ processurl(S3op op, const char* url, char** piece)
     default: stat = NC_EURL; goto done;
     }
     
-    printf("%s",value);
+    if(piece) {*piece = value; value = NULL;}
 
 done:
     nullfree(value); 

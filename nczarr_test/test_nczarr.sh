@@ -1,5 +1,7 @@
 #!/bin/sh
 
+if test "x$SETX" != x; then set -x; fi
+
 # Check settings
 checksetting() {
 if test -f ${TOPBUILDDIR}/libnetcdf.settings ; then
@@ -55,15 +57,14 @@ fileargs() {
     fi
     fileurl="${S3PATH}/test$tag#mode=nczarr,$zext"
     file=$fileurl
-    S3HOST=`zs3parse -h $S3PATH`
-    S3BUCKET=`zs3parse -b $S3PATH`
-    S3PREFIX=`zs3parse -p $S3PATH`
+    S3HOST=`${execdir}/zs3parse -h $S3PATH`
+    S3BUCKET=`${execdir}/zs3parse -b $S3PATH`
+    S3PREFIX=`${execdir}/zs3parse -p $S3PATH`
   else
     file="test$tag.$zext"
     fileurl="file://test$tag.$zext#mode=nczarr,$zext"
   fi
 }
-
 
 dumpmap1() {
     local ISJSON
@@ -91,7 +92,7 @@ dumpmap() {
 	for f in $lr ; do  dumpmap1 $f $3 ; done
 	;;
     s3)
-        aws s3api list-objects --endpoint-url=$S3HOST --bucket=$S3BUCKET'
+        aws s3api list-objects --endpoint-url=$S3HOST --bucket=$S3BUCKET
 	;;
     *) echo "dumpmap failed" ; exit 1;
     esac
