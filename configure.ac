@@ -484,12 +484,10 @@ AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 AC_LANG_PUSH([C++])
 AC_SEARCH_LIBS([aws_common_library_init],[aws-c-common], [have_aws=yes],[have_aws=no])
 # Look for the rest only if common was found
-echo "xxx: $have_aws"
-if test "x$have_aws" = xyes ; then
-# Cannot assume that AX_CXX_CHECK_LIBS is installed, so try pkg-config
+AS_IF([test "x$have_aws" = xyes], [
 PKG_CHECK_MODULES([aw_cpp_sdk_core], [aws-cpp-sdk-core],  [],[have_aws=no])
 PKG_CHECK_MODULES([aws_cpp_sdk_s3], [aws-cpp-sdk-s3],  [],[have_aws=no])
-fi
+])
 AC_LANG_POP
 AC_MSG_CHECKING([whether AWS S3 SDK library is available])
 AC_MSG_RESULT([$have_aws])
