@@ -344,7 +344,7 @@ Linux            | CMake        | yes          | yes
 Cygwin           | Automake     | yes          | unknown
 OSX              | Automake     | unknown      | unknown
 OSX              | CMake        | unknown      | unknown
-Visual Studio    | CMake        | yes          | no
+Visual Studio    | CMake        | yes          | unknown
 
 Note: S3 support includes both compiling the S3 support code as well as running the S3 tests.
 
