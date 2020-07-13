@@ -197,6 +197,10 @@ nc4_create_file(const char *path, int cmode, size_t initialsz,
         BAIL(NC_EHDFERR);
 #endif
 
+    /* Use UTF8 */
+    if (H5Pset_char_encoding(fcpl_id, H5T_CSET_UTF8) < 0)
+        BAIL(NC_EHDFERR);
+
     if(nc4_info->mem.inmemory) {
         retval = NC4_create_image_file(nc4_info,initialsz);
         if(retval)

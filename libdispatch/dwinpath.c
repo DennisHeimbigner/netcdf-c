@@ -19,10 +19,11 @@
 #include <dirent.h>
 #endif
 #ifdef _WIN32
+#include <windows.h>
 #include <io.h>
 #endif
 
-#include "ncexternl.h"
+#include "netcdf.h"
 #include "ncwinpath.h"
 
 extern char *realpath(const char *path, char *resolved_path);
@@ -45,6 +46,7 @@ Rules:
 All other cases are passed thru unchanged
 */
 
+
 /* Define legal windows drive letters */
 static const char* windrive = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -53,6 +55,9 @@ static const size_t cdlen = 10; /* strlen("/cygdrive/") */
 static int pathdebug = -1;
 
 static char* makeabsolute(const char* relpath);
+#ifdef WINPATH
+static wchar_t* utf8towide(const char* utf8, wchar_t** u16p);
+#endif
 
 EXTERNL
 char* /* caller frees */
@@ -220,7 +225,6 @@ NCdeescape(const char* name)
     return ename;
 }
 
-
 int
 NChasdriveletter(const char* path)
 {
@@ -244,9 +248,30 @@ NCfopen(const char* path, const char* flags)
 {
     FILE* f = NULL;
     char* cvtname = NCpathcvt(path);
+    int stat = NC_NOERR;
+#ifdef _WIN32
+    wchar_t* wpath = NULL;
+    wchar_t* wflags = NULL;
+#endif
+
+    cvtname = NCpathcvt(path);
     if(cvtname == NULL) return NULL;
+
+#ifdef _WIN32
+    stat = utf8towide(cvtname,&wpath);
+    if(stat) goto done;
+    stat = utf8towide(flags,wflags);
+    if(stat) goto done;
+    f = _wfopen(wpath,wflags);
+#else
     f = fopen(cvtname,flags);
+#endif
+done:
     free(cvtname);    
+#ifdef _WIN32
+    nullfree(wpath);
+    nullfree(wflags);
+#endif
     return f;
 }
 
@@ -254,11 +279,28 @@ EXTERNL
 int
 NCopen3(const char* path, int flags, int mode)
 {
+    int stat = NC_NOERR;
     int fd = -1;
-    char* cvtname = NCpathcvt(path);
+    char* cvtname = NULL;
+#ifdef _WIN32
+    wchar_t* wpath = NULL;
+#endif
+
+    cvtname = NCpathcvt(path);
     if(cvtname == NULL) return -1;
+
+#ifdef _WIN32
+    stat = utf8towide(cvtname,&wpath);
+    if(stat) goto done;
+    fd = _wopen(wpath,flags,mode);
+#else
     fd = open(cvtname,flags,mode);
+#endif
+done:
     free(cvtname);    
+#ifdef _WIN32
+    nullfree(wpath);
+#endif
     return fd;
 }
 
@@ -305,14 +347,25 @@ int
 NCaccess(const char* path, int mode)
 {
     int status = 0;
-    char* cvtname = NCpathcvt(path);
-    if(cvtname == NULL) return -1;
+    char* cvtname = NULL;
 #ifdef _WIN32
-    status = _access(cvtname,mode);
+    wchar_t* wpath = NULL;
+#endif
+
+    cvtname = NCpathcvt(path);
+    if(cvtname == NULL) return -1;
+
+#ifdef _WIN32
+    if((status = utf8towide(cvtname,&wpath))) goto done;
+    status = _waccess(wpath,mode);
 #else
     status = access(cvtname,mode);
 #endif
+done:    
     free(cvtname);    
+#ifdef _WIN32
+    nullfree(wpath);
+#endif
     return status;
 }
 
@@ -321,10 +374,24 @@ int
 NCremove(const char* path)
 {
     int status = 0;
-    char* cvtname = NCpathcvt(path);
+    char* cvtname = NULL;
+#ifdef _WIN32
+    wchar_t* wpath = NULL;
+#endif
+
+    cvtname = NCpathcvt(path);
     if(cvtname == NULL) return ENOENT;
+#ifdef _WIN32
+    if((status = utf8towide(cvtname,&wpath))) goto done;
+    status = _wremove(wpath);
+#else
     status = remove(cvtname);
+#endif
+done:
     free(cvtname);    
+#ifdef _WIN32
+    nullfree(wpath);
+#endif
     return status;
 }
 
@@ -333,10 +400,24 @@ int
 NCmkdir(const char* path, int mode)
 {
     int status = 0;
-    char* cvtname = NCpathcvt(path);
-    if(cvtname == NULL) return -1;
-    status = mkdir(cvtname,mode);
+    char* cvtname = NULL;
+#ifdef _WIN32
+    wchar_t* wpath = NULL;
+#endif
+
+    cvtname = NCpathcvt(path);
+    if(cvtname == NULL) return ENOENT;
+#ifdef _WIN32
+    if((status = utf8towide(cvtname,&wpath))) goto done;
+    status = _wmkdir(wpath);
+#else
+    status = _mkdir(cvtname,mode);
+#endif
+done:
     free(cvtname);    
+#ifdef _WIN32
+    nullfree(wpath);
+#endif
     return status;
 }
 
@@ -360,4 +441,31 @@ done:
     if(errno) return NULL;
     return cwdbuf;
 }
+
+static wchar_t*
+utf8towide(const char* utf8, wchar_t** u16p)
+{
+    int stat = NC_NOERR;
+    size_t u8len, u16len, u16lenactual;
+    wchar_t* u16 = NULL;
+    if(utf8 == NULL) {stat = NC_EINVAL; goto done;}
+    u8len = strlen(utf8);
+    u16len =(u8len+1)*4; /* overkill */
+    u16 = malloc(u16len);
+    if(u16 == NULL) {stat = NC_ENOMEM; goto done;}
+    u16lenactual = MultiByteToWideChar(
+		CP_UTF8,
+		MB_ERR_INVALID_CHARS,
+		utf8,
+		-1,
+		u16,
+		u16len
+		);
+    if(u16lenactual == 0) {stat = NC_EINVAL; goto done;}
+    if(u16p) {*u16p = u16; u16 = NULL;}
+done:
+     nullfree(u16);
+     return stat;
+}
+
 #endif /*WINPATH*/

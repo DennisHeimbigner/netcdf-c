@@ -771,6 +771,10 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
     if ((access_plistid = H5Pcreate(H5P_DATASET_ACCESS)) < 0)
         BAIL(NC_EHDFERR);
 
+    /* Use UTF8 */
+    if (H5Pset_char_encoding(plistid, H5T_CSET_UTF8) < 0)
+        BAIL(NC_EHDFERR);
+
     /* Turn off object tracking times in HDF5. */
     if (H5Pset_obj_track_times(plistid, 0) < 0)
         BAIL(NC_EHDFERR);
@@ -1325,6 +1329,10 @@ create_group(NC_GRP_INFO_T *grp)
     if ((gcpl_id = H5Pcreate(H5P_GROUP_CREATE)) < 0)
         BAIL(NC_EHDFERR);
 
+    /* Use UTF8 */
+    if (H5Pset_char_encoding(gcpl_id, H5T_CSET_UTF8) < 0)
+        BAIL(NC_EHDFERR);
+
     /* Set track_times to be FALSE. */
     if (H5Pset_obj_track_times(gcpl_id, 0) < 0)
         BAIL(NC_EHDFERR);
@@ -1735,6 +1743,10 @@ nc4_create_dim_wo_var(NC_DIM_INFO_T *dim)
 
     /* Create a property list. */
     if ((create_propid = H5Pcreate(H5P_DATASET_CREATE)) < 0)
+        BAIL(NC_EHDFERR);
+
+    /* Use UTF8 */
+    if (H5Pset_char_encoding(create_propid, H5T_CSET_UTF8) < 0)
         BAIL(NC_EHDFERR);
 
     /* Turn off recording of times associated with this object. */
