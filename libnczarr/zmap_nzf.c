@@ -37,7 +37,7 @@
 #endif
 
 #include "fbits.h"
-#include "ncwinpath.h"
+#include "ncpathmgr.h"
 
 #define VERIFY
 

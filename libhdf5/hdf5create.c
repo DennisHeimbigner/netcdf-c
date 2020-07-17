@@ -9,6 +9,8 @@
  */
 
 #include "config.h"
+#include "netcdf.h"
+#include "ncpathmgr.h"
 #include "hdf5internal.h"
 
 /* From hdf5file.c. */
@@ -114,7 +116,7 @@ nc4_create_file(const char *path, int cmode, size_t initialsz,
     /* If this file already exists, and NC_NOCLOBBER is specified,
        return an error (unless diskless|inmemory) */
     if (!nc4_info->mem.diskless && !nc4_info->mem.inmemory) {
-        if ((cmode & NC_NOCLOBBER) && (fp = fopen(path, "r"))) {
+        if ((cmode & NC_NOCLOBBER) && (fp = NCfopen(path, "r"))) {
             fclose(fp);
             BAIL(NC_EEXIST);
         }
@@ -328,14 +330,15 @@ NC4_create(const char* path, int cmode, size_t initialsz, int basepe,
 static hid_t
 nc4_H5Fcreate(const char *filename, unsigned flags, hid_t fcpl_id, hid_t fapl_id)
 {
-    pathbuf_t pb;
+    int stat = NC_NOERR;
     hid_t hid;
+    char* u8filename = NULL;
 
-    filename = nc4_ndf5_ansi_to_utf8(&pb, filename);
-    if (!filename)
-        return H5I_INVALID_HID;
-    hid = H5Fcreate(filename, flags, fcpl_id, fapl_id);
-    nc4_hdf5_free_pathbuf(&pb);
+    if((stat = NCpath2utf8(filename,&u8filename))) 
+	{hid = H5I_INVALID_HID; goto done;}
+    hid = H5Fcreate(u8filename, flags, fcpl_id, fapl_id);
+    nullfree(u8filename);
+done:
     return hid;
 }
 

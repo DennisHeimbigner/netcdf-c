@@ -78,5 +78,6 @@ EXTERNL int NCclosedir(DIR* ent);
 /* Platform independent */
 #define NCclose(fd) close(fd)
 
+EXTERNL int NCpath2utf8(const char* path, char** u8p);
 
 #endif /* _NCWINIO_H_ */

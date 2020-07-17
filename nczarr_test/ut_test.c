@@ -4,7 +4,7 @@
  */
 
 #include "ut_includes.h"
-#include "ncwinpath.h"
+#include "ncpathmgr.h"
 
 struct Options options;
 

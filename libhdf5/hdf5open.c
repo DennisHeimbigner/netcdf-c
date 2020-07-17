@@ -2728,14 +2728,15 @@ exit:
 static hid_t
 nc4_H5Fopen(const char *filename, unsigned flags, hid_t fapl_id)
 {
-    pathbuf_t pb;
+    int stat = NC_NOERR;
     hid_t hid;
+    char* u8filename = NULL;
 
-    filename = nc4_ndf5_ansi_to_utf8(&pb, filename);
-    if (!filename)
-        return H5I_INVALID_HID;
-    hid = H5Fopen(filename, flags, fapl_id);
-    nc4_hdf5_free_pathbuf(&pb);
+    if((stat = NCpath2utf8(filename,&u8filename))) 
+	{hid = H5I_INVALID_HID; goto done;}
+    hid = H5Fopen(u8filename, flags, fapl_id);
+    nullfree(u8filename);
+done:
     return hid;
 }
 

@@ -43,7 +43,7 @@ Research/Unidata. See \ref copyright file for more info.  */
 #include "isnan.h"
 #include "cdl.h"
 #include "nclog.h"
-#include "ncwinpath.h"
+#include "ncpathmgr.h"
 #include "nclist.h"
 #include "ncuri.h"
 #include "nc_provenance.h"
@@ -336,7 +336,7 @@ fileopen(const char* path, void** memp, size_t* sizep)
 #endif
     oflags |= O_EXCL;
 #ifdef vms
-    fd = open(path, oflags, 0, "ctx=stm");
+    fd = NCopen3(path, oflags, 0, "ctx=stm");
 #else
     fd  = NCopen2(path, oflags);
 #endif
