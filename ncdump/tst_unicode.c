@@ -14,7 +14,13 @@
 #include <netcdf.h>
 
 /* The data file we will create. */
-#define FILE7_NAME "tst_unicode.nc"
+static const unsigned char filename8[] = {
+'t','s','t','_','u','t','f','8','_',
+'\xe6', '\xb5', '\xb7', /* Must match tst_unicode_dir.sh */
+'.','n','c','\0'
+};
+
+/* Other meta-data */
 #define UNITS "units"
 #define NDIMS 1
 #define UTF8_BYTES 18
@@ -44,10 +50,13 @@ main(int argc, char **argv)
    char name_in[UNAMELEN + 1], strings_in[UNAMELEN + 1];
    nc_type att_type;
    size_t att_len;
+   char* canonname = NULL;
 
    printf("\n*** Testing UTF-8.\n");
-   printf("*** creating UTF-8 test file %s...", FILE7_NAME);
-   if (nc_create(FILE7_NAME, NC_NETCDF4, &ncid)) ERR;
+   printf("*** creating UTF-8 test file %s...", filename8);
+   if((canonname = NCpathcvt(filename8))==NULL) ERR;
+
+   if (nc_create(canonname, NC_NETCDF4, &ncid)) ERR;
 
    /* Define dimension with Unicode UTF-8 encoded name */
    if (nc_def_dim(ncid, UNAME, UTF8_BYTES, &dimid)) ERR;
@@ -69,7 +78,7 @@ main(int argc, char **argv)
    /* Check it out. */
 
    /* Reopen the file. */
-   if (nc_open(FILE7_NAME, NC_NOWRITE, &ncid)) ERR;
+   if (nc_open(canonname, NC_NOWRITE, &ncid)) ERR;
    if (nc_inq_varid(ncid, UNAME, &varid)) ERR;
    if (nc_inq_varname(ncid, varid, name_in)) ERR;
    {
@@ -100,6 +109,7 @@ main(int argc, char **argv)
    strings_in[att_len] = '\0';	/* null terminate, because nc_get_att_text doesn't */
    if (strncmp(UNAME, strings_in, UNAMELEN) != 0) ERR;
    if (nc_close(ncid)) ERR;
+   nullfree(canonname);
 
    SUMMARIZE_ERR;
    FINAL_RESULTS;

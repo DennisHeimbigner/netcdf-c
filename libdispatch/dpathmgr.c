@@ -25,6 +25,7 @@
 
 #include "netcdf.h"
 #include "ncpathmgr.h"
+#include "nclog.h"
 
 extern char *realpath(const char *path, char *resolved_path);
 
@@ -46,6 +47,13 @@ Rules:
 All other cases are passed thru unchanged
 */
 
+#define ISUNKNOWN 0
+#define ISNIX 1
+#define ISMSYS 2
+#define ISCYGWIN 3 
+#define ISWIN 4
+#define ISREL 5
+
 /* Define legal windows drive letters */
 static const char* windrive = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -53,7 +61,18 @@ static const size_t cdlen = 10; /* strlen("/cygdrive/") */
 
 static int pathdebug = -1;
 
-static char* makeabsolute(const char* relpath);
+static struct Path {
+    int kind;
+    int drive;
+    char* path;
+} wdpath = {ISUNKNOWN,0,NULL};
+
+struct Path empty = {ISUNKNOWN,0,NULL};
+
+static int localkind = ISUNKNOWN;    
+
+static int parsepath(const char* inpath, struct Path* path);
+static int getwdpath(struct Path* wd);
 #ifdef WINPATH
 static wchar_t* utf8towide(const char* utf8, wchar_t** u16p);
 static char* localtoutf8(const char* local, char** u8p);
@@ -62,118 +81,216 @@ static char* localtowide(const char* local, char** u8p);
 
 EXTERNL
 char* /* caller frees */
-NCpathcvt(const char* path)
+NCpathcvt(const char* inpath)
 {
-    char* outpath = NULL; 
+    int stat = NC_NOERR;
+    char* tmp1 = NULL;
     char* p;
-    char* q;
-    size_t pathlen;
+    size_t len;
+    struct Path canon = empty;
+    char sdrive[2] = "\0\0";
 
-    if(path == NULL) goto done; /* defensive driving */
+    if(inpath == NULL) goto done; /* defensive driving */
 
     /* Check for path debug env vars */
     if(pathdebug < 0) {
 	const char* s = getenv("NCPATHDEBUG");
         pathdebug = (s == NULL ? 0 : 1);
     }
-
-    pathlen = strlen(path);
-
-    /* 1. look for MSYS path /D/... */
-    if(pathlen >= 2
-	&& (path[0] == '/' || path[0] == '\\')
-	&& strchr(windrive,path[1]) != NULL
-	&& (path[2] == '/' || path[2] == '\\' || path[2] == '\0')) {
-	/* Assume this is a mingw path */
-	outpath = (char*)malloc(pathlen+3); /* conservative */
-	if(outpath == NULL) goto done;
-	q = outpath;
-	*q++ = path[1];
-	*q++ = ':';
-	strncpy(q,&path[2],pathlen);
-	if(strlen(outpath) == 2)
-	    strcat(outpath,"/");
-	goto slashtrans;
+    /* Get the local wd */
+    if(wdpath.kind == ISUNKNOWN) {
+        if((stat = getwdpath(&wdpath))) goto done;
     }
 
-    /* 2. Look for leading /cygdrive/D where D is a single-char drive letter */
-    if(pathlen >= (cdlen+1)
-	&& memcmp(path,"/cygdrive/",cdlen)==0
-	&& strchr(windrive,path[cdlen]) != NULL
-	&& (path[cdlen+1] == '/'
-	    || path[cdlen+1] == '\\'
-	    || path[cdlen+1] == '\0')) {
-	/* Assume this is a cygwin path */
-	outpath = (char*)malloc(pathlen+1); /* conservative */
-	if(outpath == NULL) goto done;
-	outpath[0] = path[cdlen]; /* drive letter */
-	outpath[1] = ':';
-	strcpy(&outpath[2],&path[cdlen+1]);
-	if(strlen(outpath) == 2)
-	    strcat(outpath,"/");
-	goto slashtrans;
+    if((stat = parsepath(inpath,&canon))) goto done;
+    if(canon.kind == ISREL) {
+	/* prepend the wd path to the inpath */
+	len = strlen(wdpath.path)+strlen(canon.path)+1+1;
+	if((tmp1 = (char*)malloc(len))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	tmp1[0] = '\0';
+	strlcat(tmp1,wdpath.path,len);
+	strlcat(tmp1,"/",len);
+	strlcat(tmp1,canon.path,len);
+	nullfree(canon.path);
+	canon.path = tmp1; tmp1 = NULL;
+	canon.kind = wdpath.kind;
+	canon.drive = wdpath.drive;
     }
 
-    /* 3. Look for leading D: where D is a single-char drive letter */
-    if(pathlen >= 2
-	&& strchr(windrive,path[0]) != NULL
-	&& path[1] == ':'
-	&& (path[2] == '\0' || path[2] == '/'  || path[2] == '\\')) {
-	outpath = strdup(path);
-	goto slashtrans;
+    /* Figure out the local platform kind */
+    if(localkind == ISUNKNOWN)
+#ifdef __CYGWIN__
+	localkind = ISCYGWIN;
+#elif __MSYS__
+	localkind = ISMSYS;
+#elif _MSC_VER /* not _WIN32 */
+	localkind = ISWIN;
+#else
+	localkind = ISNIX;
+#endif
+    if(localkind != canon.kind) {
+	nclog(NCLOGWARN,"NCpathcvt: path mismatch: platform=%d inpath=%d\n",
+		localkind,canon.kind);
     }
 
-    /* 4. Look for relative path */
-    if(pathlen > 1 && path[0] == '.') {
-	outpath = makeabsolute(path);
-	goto slashtrans;
+    switch (localkind) {
+    case ISNIX:
+	/* If there is a drive letter, then pretend we have cygwin */
+	if(canon.drive == 0) break; /* nothing to do */
+	/* Fall thru */
+    case ISCYGWIN:
+	if(canon.drive == 0) canon.drive = wdpath.drive;
+	assert(tmp1 == NULL);
+	tmp1 = canon.path;
+	len = strlen(tmp1)+cdlen+1+1;
+	if((canon.path = (char*)malloc(len))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	canon.path[0] = '\0';
+	strlcat(canon.path,"/cygdrive/",len);
+	sdrive[0] = canon.drive;
+	strlcat(canon.path,sdrive,len);
+	strlcat(canon.path,tmp1,len);
+	break;
+    case ISWIN:
+	if(canon.drive == 0) canon.drive = wdpath.drive;
+	assert(tmp1 == NULL);
+	tmp1 = canon.path;
+	len = strlen(tmp1)+2+1;
+	if((canon.path = (char*)malloc(len))==NULL)
+	    {stat = NC_ENOMEM; goto done;}	
+	canon.path[0] = '\0';
+	sdrive[0] = canon.drive;
+	strlcat(canon.path,sdrive,len);
+	strlcat(canon.path,":",len);
+	strlcat(canon.path,tmp1,len);
+	/* Convert forward to back */ 
+        for(p=canon.path;*p;p++) {if(*p == '/') *p = '\\';}
+	break;
+    case ISMSYS:
+	if(canon.drive == 0) canon.drive = wdpath.drive;
+	assert(tmp1 == NULL);
+	tmp1 = canon.path;
+	len = strlen(tmp1)+2+1;
+	if((canon.path = (char*)malloc(len))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	canon.path[0] = '\0';
+	sdrive[0] = canon.drive;
+	strlcat(canon.path,"/",len);
+	strlcat(canon.path,sdrive,len);
+	strlcat(canon.path,tmp1,len);
+	break;
+    default: stat = NC_EINTERNAL; goto done;
     }
-
-    /* Other: just pass thru */
-    outpath = strdup(path);
-    goto done;
-
-slashtrans:
-      /* In order to help debugging, and if not using MSC_VER or MINGW,
-	 convert back slashes to forward, else convert forward to back
-      */
-    p = outpath;
-    /* In all #1 or #2 cases, translate '/' -> '\\' */
-    for(;*p;p++) {
-	if(*p == '/') {*p = '\\';}
-    }
-#ifdef PATHFORMAT
-#ifndef _WIN32
-	p = outpath;
-        /* Convert '\' back to '/' */
-        for(;*p;p++) {
-            if(*p == '\\') {*p = '/';}
-	}
-    }
-#endif /*!_WIN32*/
-#endif /*PATHFORMAT*/
 
 done:
     if(pathdebug) {
         fprintf(stderr,"XXXX: inpath=|%s| outpath=|%s|\n",
-            path?path:"NULL",outpath?outpath:"NULL");
+            inpath?inpath:"NULL",canon.path?canon.path:"NULL");
         fflush(stderr);
     }
-    return outpath;
+    nullfree(tmp1);
+    if(stat) {
+	nclog(NCLOGERR,"NCpathcvt: stat=%d (%s)",
+		stat,nc_strerror(stat));
+    }
+    return canon.path;
 }
 
-static char*
-makeabsolute(const char* relpath)
+/* Parse a path */
+static int
+parsepath(const char* inpath, struct Path* path)
 {
-    char* path = NULL;
+    int stat = NC_NOERR;
+    char* tmp1 = NULL;
+    size_t len;
+    char* p;
+    
+    assert(path);
+    memset(path,0,sizeof(struct Path));
+
+    if(inpath == NULL) goto done; /* defensive driving */
+
+    /* Convert to UTF8 */
+    if((stat = NCpath2utf8(inpath,&tmp1))) goto done;
+
+    /* Convert to forward slash */
+    for(p=tmp1;*p;p++) {if(*p == '\\') *p = '/';}
+
+    /* parse all paths to 2-parts:
+	1. drive letter (optional)
+	2. path after drive letter
+    */
+
+    len = strlen(tmp1);
+
+    /* 1. look for MSYS path /D/... */
+    if(len >= 2
+	&& (tmp1[0] == '/')
+	&& strchr(windrive,tmp1[1]) != NULL
+	&& (tmp1[2] == '/' || tmp1[2] == '\0')) {
+	/* Assume this is a mingw path */
+	path->drive = tmp1[1];
+	/* Remainder */
+	if((path->path = strdup(tmp1+2))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	path->kind = ISMSYS;
+    }
+    /* 2. Look for leading /cygdrive/D where D is a single-char drive letter */
+    else if(len >= (cdlen+1)
+	&& memcmp(tmp1,"/cygdrive/",cdlen)==0
+	&& strchr(windrive,tmp1[cdlen]) != NULL
+	&& (tmp1[cdlen+1] == '/'
+	    || tmp1[cdlen+1] == '\0')) {
+	/* Assume this is a cygwin path */
+	path->drive = tmp1[cdlen];
+	/* Remainder */
+	if((path->path = strdup(tmp1+cdlen+1))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	path->kind = ISCYGWIN;
+    }
+    /* 3. Look for windows path:  D:/... where D is a single-char
+          drive letter */
+    else if(len >= 2
+	&& strchr(windrive,tmp1[0]) != NULL
+	&& tmp1[1] == ':'
+	&& (tmp1[2] == '\0' || tmp1[2] == '/')) {
+	/* Assume this is a windows path */
+	path->drive = tmp1[0];
+	/* Remainder */
+	if((path->path = strdup(tmp1+2))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	path->kind = ISWIN;
+    }
+    /* look for *nix path */
+    else if(len >= 1 && tmp1[0] == '/') {
+	/* Assume this is a *nix path */
+	path->drive = 0; /* no drive letter */
+	/* Remainder */
+	if((path->path = strdup(tmp1+2))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	path->kind = ISNIX;	
+    } else {
+	path->kind = ISREL;
+    }
+
+done:
+    nullfree(tmp1);
+    if(stat) {nullfree(path->path); path->path = NULL;}
+    return stat;
+}
+
+static int
+getwdpath(struct Path* wd)
+{
+    int stat = NC_NOERR;
+    memset(wd,0,sizeof(struct Path));
 #ifdef _WIN32
-    path = _fullpath(NULL,relpath,8192);
+    wd->path = _getcwd(NULL,8192);
 #else
-    path = realpath(relpath, NULL);
+    wd->path = getcwd(NULL,8192);
 #endif
-    if(path == NULL)
-	path = strdup(relpath);
-    return path;    
+    return stat;
 }
 
 /* Fix up a path in case extra escapes were added by shell */

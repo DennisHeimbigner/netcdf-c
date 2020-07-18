@@ -13,13 +13,6 @@
 #define DLL_EXPORT
 #endif
 
-#if NOOP_INSTANCE == 1
-const static int instance1 = 1;
-#endif
-#if NOOP_INSTANCE == 0
-const static int instance0 = 1;
-#endif
-
 /* use a temporary */
 #define H5Z_FILTER_NOOP 40000
 

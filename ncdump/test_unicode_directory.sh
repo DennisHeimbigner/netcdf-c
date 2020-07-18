@@ -8,26 +8,24 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
+set -e
 
-ERR() {
-    RES=$?
-    if [ $RES -ne 0 ]; then
-        echo "Error found: $RES"
-        exit $RES
-    fi
-}
-
-UNISTRING=$(echo '\xe6\xb5\xb7')
+UNIDIR="海"
+UNIFILE="tst_utf8_${UNIDIR}.nc"
 
 echo ""
 echo "Creating Unicode String Directory ${UNISTRING}"
-mkdir -p ${UNISTRING}; ERR
+rm -fr ${UNIDIR}
+mkdir -p ${UNIDIR}
+ls -ld ${UNIDIR}
 
-echo "*** Generating binary file ${UNISTRING}/tst_utf.nc..."
-${NCGEN} -b -o "${UNISTRING}/tst_utf.nc" "${srcdir}/ref_tst_utf8.cdl"; ERR
-echo "*** Accessing binary file ${UNISTRING}/tst_utf.nc..."
-${NCDUMP} -h "${UNISTRING}/tst_utf.nc"; ERR
+echo "*** Generating binary file ${UNIDIR}/$UNIFILE..."
+${NCGEN} -b -o "${UNIDIR}/${UNIFILE}" "${srcdir}/ref_tst_utf8.cdl"
+echo "*** Accessing binary file ${UNIDIR}/${UNIFILE}..."
+${NCDUMP} -h "${UNIDIR}/${UNIPATH}"
 
 echo "Test Passed. Cleaning up."
-rm "${UNISTRING}/tst_utf.nc"; ERR
-rmdir "${UNISTRING}"; ERR
+#rm "${UNIDIR}/${UNIFILE}"
+#rmdir "${UNIDIR}"
+
+

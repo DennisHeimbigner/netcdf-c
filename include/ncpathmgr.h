@@ -38,7 +38,14 @@
 #define ACCESS_MODE_RW (R_OK|W_OK)
 #endif
 
-/* Path Converter */
+/* This function does 2 things:
+1. converts the character set from platform character set to utf8
+2. normalizes the incoming path to match the platform
+   (e.g. cygwin, windows, mingw, linux)
+It returns the converted path.
+Note that this function is intended to be Idempotent: f(f(x) == f(x).
+This means it is ok to call it repeatedly with no harm.
+*/
 EXTERNL char* NCpathcvt(const char* path);
 
 /* Fix path in case it was escaped by shell */
