@@ -22,10 +22,10 @@ ls -ld ${UNIDIR}
 echo "*** Generating binary file ${UNIDIR}/$UNIFILE..."
 ${NCGEN} -b -o "${UNIDIR}/${UNIFILE}" "${srcdir}/ref_tst_utf8.cdl"
 echo "*** Accessing binary file ${UNIDIR}/${UNIFILE}..."
-${NCDUMP} -h "${UNIDIR}/${UNIPATH}"
+${NCDUMP} -h "${UNIDIR}/${UNIFILE}"
 
 echo "Test Passed. Cleaning up."
-#rm "${UNIDIR}/${UNIFILE}"
-#rmdir "${UNIDIR}"
+rm "${UNIDIR}/${UNIFILE}"
+rmdir "${UNIDIR}"
 
 

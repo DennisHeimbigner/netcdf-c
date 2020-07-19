@@ -16,7 +16,7 @@ echo ""
 # ref_tst_compounds2 ref_tst_compounds3 ref_tst_compounds4
 TESTFILES='tst_comp tst_comp2 tst_enum_data tst_fillbug
  tst_group_data tst_nans tst_opaque_data tst_solar_1 tst_solar_2
- tst_solar_cmp tst_special_atts tst_string_data tst_unicode'
+ tst_solar_cmp tst_special_atts tst_string_data tst_utf8_海'
 
 if test "x$NC_VLEN_NOTEST" = x ; then
 TESFILES="$TESTFILES tst_vlen_data"
@@ -68,7 +68,7 @@ rm tst_deflated.nc tst_inflated.nc tst_inflated4.nc tmp.nc tmp.cdl
 echo "*** Testing nccopy -d1 -s on ncdump/*.nc files"
 for i in $TESTFILES ; do
     echo "*** Test nccopy -d1 -s $i.nc copy_of_$i.nc ..."
-    ${NCCOPY} -d1 -s $i.nc copy_of_$i.nc
+    ${NCCOPY} -d1 -s ${srcdir}/$i.nc copy_of_$i.nc
 ${NCDUMP} -n copy_of_$i $i.nc > tmp.cdl
 ${NCDUMP} copy_of_$i.nc > copy_of_$i.cdl
 #    echo "*** compare " with copy_of_$i.cdl

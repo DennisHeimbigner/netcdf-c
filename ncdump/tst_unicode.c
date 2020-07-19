@@ -11,7 +11,8 @@
 #include "err_macros.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include <netcdf.h>
+#include "netcdf.h"
+#include "ncpathmgr.h"
 
 /* The data file we will create. */
 static const unsigned char filename8[] = {
@@ -54,7 +55,7 @@ main(int argc, char **argv)
 
    printf("\n*** Testing UTF-8.\n");
    printf("*** creating UTF-8 test file %s...", filename8);
-   if((canonname = NCpathcvt(filename8))==NULL) ERR;
+   if((canonname = NCpathcvt((char*)filename8)) == NULL) ERR;
 
    if (nc_create(canonname, NC_NETCDF4, &ncid)) ERR;
 
