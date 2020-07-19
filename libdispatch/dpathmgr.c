@@ -26,6 +26,8 @@
 #include "netcdf.h"
 #include "ncpathmgr.h"
 #include "nclog.h"
+#include "nclist.h"
+#include "ncuri.h"
 
 extern char *realpath(const char *path, char *resolved_path);
 
@@ -47,13 +49,6 @@ Rules:
 All other cases are passed thru unchanged
 */
 
-#define ISUNKNOWN 0
-#define ISNIX 1
-#define ISMSYS 2
-#define ISCYGWIN 3 
-#define ISWIN 4
-#define ISREL 5
-
 /* Define legal windows drive letters */
 static const char* windrive = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -61,18 +56,21 @@ static const size_t cdlen = 10; /* strlen("/cygdrive/") */
 
 static int pathdebug = -1;
 
+static int utkind = NCPD_UNKNOWN;
+
 static struct Path {
     int kind;
     int drive;
     char* path;
-} wdpath = {ISUNKNOWN,0,NULL};
+} wdpath = {NCPD_UNKNOWN,0,NULL};
 
-struct Path empty = {ISUNKNOWN,0,NULL};
-
-static int localkind = ISUNKNOWN;    
+struct Path empty = {NCPD_UNKNOWN,0,NULL};
 
 static int parsepath(const char* inpath, struct Path* path);
+static int unparsepath(struct Path* p, char** pathp);
 static int getwdpath(struct Path* wd);
+static int getlocalkind(void);
+static int string2kind(const char* s);
 #ifdef WINPATH
 static wchar_t* utf8towide(const char* utf8, wchar_t** u16p);
 static char* localtoutf8(const char* local, char** u8p);
@@ -85,10 +83,9 @@ NCpathcvt(const char* inpath)
 {
     int stat = NC_NOERR;
     char* tmp1 = NULL;
-    char* p;
     size_t len;
     struct Path canon = empty;
-    char sdrive[2] = "\0\0";
+    int localkind;
 
     if(inpath == NULL) goto done; /* defensive driving */
 
@@ -98,12 +95,12 @@ NCpathcvt(const char* inpath)
         pathdebug = (s == NULL ? 0 : 1);
     }
     /* Get the local wd */
-    if(wdpath.kind == ISUNKNOWN) {
+    if(wdpath.path == NULL) {
         if((stat = getwdpath(&wdpath))) goto done;
     }
 
     if((stat = parsepath(inpath,&canon))) goto done;
-    if(canon.kind == ISREL) {
+    if(canon.kind == NCPD_REL) {
 	/* prepend the wd path to the inpath */
 	len = strlen(wdpath.path)+strlen(canon.path)+1+1;
 	if((tmp1 = (char*)malloc(len))==NULL)
@@ -119,82 +116,28 @@ NCpathcvt(const char* inpath)
     }
 
     /* Figure out the local platform kind */
-    if(localkind == ISUNKNOWN)
-#ifdef __CYGWIN__
-	localkind = ISCYGWIN;
-#elif __MSYS__
-	localkind = ISMSYS;
-#elif _MSC_VER /* not _WIN32 */
-	localkind = ISWIN;
-#else
-	localkind = ISNIX;
-#endif
+    localkind = getlocalkind();
     if(localkind != canon.kind) {
 	nclog(NCLOGWARN,"NCpathcvt: path mismatch: platform=%d inpath=%d\n",
 		localkind,canon.kind);
+	canon.kind = localkind;
     }
-
-    switch (localkind) {
-    case ISNIX:
-	/* If there is a drive letter, then pretend we have cygwin */
-	if(canon.drive == 0) break; /* nothing to do */
-	/* Fall thru */
-    case ISCYGWIN:
-	if(canon.drive == 0) canon.drive = wdpath.drive;
-	assert(tmp1 == NULL);
-	tmp1 = canon.path;
-	len = strlen(tmp1)+cdlen+1+1;
-	if((canon.path = (char*)malloc(len))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	canon.path[0] = '\0';
-	strlcat(canon.path,"/cygdrive/",len);
-	sdrive[0] = canon.drive;
-	strlcat(canon.path,sdrive,len);
-	strlcat(canon.path,tmp1,len);
-	break;
-    case ISWIN:
-	if(canon.drive == 0) canon.drive = wdpath.drive;
-	assert(tmp1 == NULL);
-	tmp1 = canon.path;
-	len = strlen(tmp1)+2+1;
-	if((canon.path = (char*)malloc(len))==NULL)
-	    {stat = NC_ENOMEM; goto done;}	
-	canon.path[0] = '\0';
-	sdrive[0] = canon.drive;
-	strlcat(canon.path,sdrive,len);
-	strlcat(canon.path,":",len);
-	strlcat(canon.path,tmp1,len);
-	/* Convert forward to back */ 
-        for(p=canon.path;*p;p++) {if(*p == '/') *p = '\\';}
-	break;
-    case ISMSYS:
-	if(canon.drive == 0) canon.drive = wdpath.drive;
-	assert(tmp1 == NULL);
-	tmp1 = canon.path;
-	len = strlen(tmp1)+2+1;
-	if((canon.path = (char*)malloc(len))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	canon.path[0] = '\0';
-	sdrive[0] = canon.drive;
-	strlcat(canon.path,"/",len);
-	strlcat(canon.path,sdrive,len);
-	strlcat(canon.path,tmp1,len);
-	break;
-    default: stat = NC_EINTERNAL; goto done;
-    }
+    if(canon.drive == 0) canon.drive = wdpath.drive;
+    if((stat = unparsepath(&canon,&tmp1))) goto done;
 
 done:
     if(pathdebug) {
         fprintf(stderr,"XXXX: inpath=|%s| outpath=|%s|\n",
-            inpath?inpath:"NULL",canon.path?canon.path:"NULL");
+            inpath?inpath:"NULL",tmp1?tmp1:"NULL");
         fflush(stderr);
     }
-    nullfree(tmp1);
     if(stat) {
+        nullfree(tmp1); tmp1 = NULL;
 	nclog(NCLOGERR,"NCpathcvt: stat=%d (%s)",
 		stat,nc_strerror(stat));
     }
-    return canon.path;
+    nullfree(canon.path);
+    return tmp1;
 }
 
 /* Parse a path */
@@ -205,6 +148,7 @@ parsepath(const char* inpath, struct Path* path)
     char* tmp1 = NULL;
     size_t len;
     char* p;
+    NCURI* url = NULL;
     
     assert(path);
     memset(path,0,sizeof(struct Path));
@@ -232,9 +176,13 @@ parsepath(const char* inpath, struct Path* path)
 	/* Assume this is a mingw path */
 	path->drive = tmp1[1];
 	/* Remainder */
-	if((path->path = strdup(tmp1+2))==NULL)
+	if(tmp1[2] == '\0')
+	    path->path = NULL;
+	else
+	    path->path = strdup(tmp1+2);
+	if(path == NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	path->kind = ISMSYS;
+	path->kind = NCPD_MSYS;
     }
     /* 2. Look for leading /cygdrive/D where D is a single-char drive letter */
     else if(len >= (cdlen+1)
@@ -245,9 +193,13 @@ parsepath(const char* inpath, struct Path* path)
 	/* Assume this is a cygwin path */
 	path->drive = tmp1[cdlen];
 	/* Remainder */
-	if((path->path = strdup(tmp1+cdlen+1))==NULL)
+	if(tmp1[cdlen+1] == '\0')
+	    path->path = NULL;
+	else
+	    path->path = strdup(tmp1+cdlen+1);
+	if(path == NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	path->kind = ISCYGWIN;
+	path->kind = NCPD_CYGWIN;
     }
     /* 3. Look for windows path:  D:/... where D is a single-char
           drive letter */
@@ -258,25 +210,118 @@ parsepath(const char* inpath, struct Path* path)
 	/* Assume this is a windows path */
 	path->drive = tmp1[0];
 	/* Remainder */
-	if((path->path = strdup(tmp1+2))==NULL)
+	if(tmp1[2] == '\0')
+	    path->path = NULL;
+	else
+	    path->path = strdup(tmp1+2);
+	if(path == NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	path->kind = ISWIN;
+	path->kind = NCPD_WIN;
     }
     /* look for *nix path */
     else if(len >= 1 && tmp1[0] == '/') {
 	/* Assume this is a *nix path */
 	path->drive = 0; /* no drive letter */
 	/* Remainder */
-	if((path->path = strdup(tmp1+2))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	path->kind = ISNIX;	
+	path->path = tmp1; tmp1 = NULL;
+	path->kind = NCPD_NIX;	
     } else {
-	path->kind = ISREL;
+	/* See if this looks like a url */
+	ncuriparse(tmp1,&url);
+	if(url != NULL) {
+	    path->kind = NCPD_URL;
+	    path->drive = 0;
+	    path->path = tmp1; tmp1 = NULL;
+	} else {
+	    path->kind = NCPD_REL;
+	    path->path = tmp1; tmp1 = NULL;
+	}
     }
 
 done:
+    ncurifree(url);
     nullfree(tmp1);
     if(stat) {nullfree(path->path); path->path = NULL;}
+    return stat;
+}
+
+static int
+unparsepath(struct Path* xp, char** pathp)
+{
+    int stat = NC_NOERR;
+    size_t len;
+    char* path = NULL;
+    char sdrive[2] = {'\0','\0'};
+    char* p = NULL;
+    int kind = xp->kind;
+    
+    if(utkind != NCPD_UNKNOWN)    
+	kind = utkind;
+
+    switch (kind) {
+    case NCPD_NIX:
+	len = nulllen(xp->path);
+	if(xp->drive != 0) {
+	    len += 2;
+	    sdrive[0] = xp->drive;
+	}
+	len++; /* nul terminate */
+	if((path = (char*)malloc(len))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	path[0] = '\0';
+	if(xp->drive != 0) {
+	    strlcat(path,"/",len);
+	    strlcat(path,sdrive,len);
+	}	
+	if(xp->path != NULL)
+	    strlcat(path,xp->path,len);
+        break;
+    case NCPD_CYGWIN:
+	if(xp->drive == 0) {stat = NC_EINVAL; goto done;} /*requires a drive */
+	len = nulllen(xp->path)+cdlen+1+1;
+	if((path = (char*)malloc(len))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	path[0] = '\0';
+	strlcat(path,"/cygdrive/",len);
+	sdrive[0] = xp->drive;
+	strlcat(path,sdrive,len);
+	if(xp->path)
+	    strlcat(path,xp->path,len);
+	break;
+    case NCPD_WIN:
+	if(xp->drive == 0) {stat = NC_EINVAL; goto done;} /*requires a drive */
+	len = nulllen(xp->path)+2+1;
+	if((path = (char*)malloc(len))==NULL)
+	    {stat = NC_ENOMEM; goto done;}	
+	path[0] = '\0';
+	sdrive[0] = xp->drive;
+	strlcat(path,sdrive,len);
+	strlcat(path,":",len);
+	if(xp->path)
+	    strlcat(path,xp->path,len);
+	/* Convert forward to back */ 
+        for(p=path;*p;p++) {if(*p == '/') *p = '\\';}
+	break;
+    case NCPD_MSYS:
+	if(xp->drive == 0) {stat = NC_EINVAL; goto done;} /*requires a drive */
+	len = nulllen(xp->path)+2+1;
+	if((path = (char*)malloc(len))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	path[0] = '\0';
+	sdrive[0] = xp->drive;
+	strlcat(path,"/",len);
+	strlcat(path,sdrive,len);
+	if(xp->path)
+	    strlcat(path,xp->path,len);
+	break;
+    case NCPD_URL:
+    	path = strdup(xp->path);
+	break;
+    default: stat = NC_EINTERNAL; goto done;
+    }
+    if(pathp) {*pathp = path; path = NULL;}
+done:
+    nullfree(path);
     return stat;
 }
 
@@ -284,13 +329,30 @@ static int
 getwdpath(struct Path* wd)
 {
     int stat = NC_NOERR;
+    char* path = NULL;
     memset(wd,0,sizeof(struct Path));
 #ifdef _WIN32
-    wd->path = _getcwd(NULL,8192);
+    path = _getcwd(NULL,8192);
 #else
-    wd->path = getcwd(NULL,8192);
+    path = getcwd(NULL,8192);
 #endif
+    stat = parsepath(path,wd);
+    nullfree(path); path = NULL;
     return stat;
+}
+
+static int
+getlocalkind(void)
+{
+#ifdef __CYGWIN__
+	return NCPD_CYGWIN;
+#elif __MSYS__
+	return NCPD_MSYS;
+#elif _MSC_VER /* not _WIN32 */
+	return NCPD_WIN;
+#else
+	return NCPD_NIX;
+#endif
 }
 
 /* Fix up a path in case extra escapes were added by shell */
@@ -319,6 +381,26 @@ NCdeescape(const char* name)
     }
     *q++ = '\0';
     return ename;
+}
+
+/* Testing support */
+EXTERNL
+char* /* caller frees */
+NCpathcvt_test(const char* inpath, const char* skind)
+{
+    utkind = string2kind(skind);
+    return NCpathcvt(inpath);
+}
+
+static int
+string2kind(const char* s)
+{
+    if(strcasecmp("nix",s)==0) return NCPD_NIX;
+    if(strcasecmp("msys",s)==0) return NCPD_MSYS;
+    if(strcasecmp("cygwin",s)==0) return NCPD_CYGWIN;
+    if(strcasecmp("win",s)==0) return NCPD_WIN;
+    if(strcasecmp("rel",s)==0) return NCPD_REL;
+    return NCPD_UNKNOWN;
 }
 
 #ifdef WINPATH
@@ -479,7 +561,7 @@ done:
 #endif
     return f;
 }
-#endif
+#endif /*0*/
 
 
 /**
@@ -559,7 +641,7 @@ localtowide(const char* local, wchar_t** u16p)
     if((u16 = malloc(sizeof(wchar_t) * n))==NULL)
 	{stat = NC_ENOMEM; goto done;}
     /* do the conversion */
-    if (!MultiByteToWideChar(CP_ACP, dwFlags, local, -1, u16, n)) {
+    if (!MultiByteToWideChar(CP_ACP, dwFlags, local, -1, u16, n))
         {stat = NC_EINAL; goto done;}
     if(u16p) {*u16p = u16; u16 = NULL;}
 done:

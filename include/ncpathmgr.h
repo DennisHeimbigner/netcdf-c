@@ -48,6 +48,9 @@ This means it is ok to call it repeatedly with no harm.
 */
 EXTERNL char* NCpathcvt(const char* path);
 
+/* Provide a version for testing; DO NOT USE */
+EXTERNL char* NCpathcvt_test(const char* path, const char* kind);
+
 /* Fix path in case it was escaped by shell */
 EXTERNL char* NCdeescape(const char* name);
 
@@ -86,5 +89,14 @@ EXTERNL int NCclosedir(DIR* ent);
 #define NCclose(fd) close(fd)
 
 EXTERNL int NCpath2utf8(const char* path, char** u8p);
+
+/* Possible Kinds Of Output */
+#define NCPD_UNKNOWN 0
+#define NCPD_NIX 1
+#define NCPD_MSYS 2
+#define NCPD_CYGWIN 3 
+#define NCPD_WIN 4
+#define NCPD_REL 5
+#define NCPD_URL 6
 
 #endif /* _NCWINIO_H_ */
