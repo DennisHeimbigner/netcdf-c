@@ -9,6 +9,7 @@
 #include        "dump.h"
 #include        "ncoffsets.h"
 #include        "netcdf_aux.h"
+#include	"ncpathmgr.h"
 
 #define floordiv(x,y) ((x) / (y))
 #define ceildiv(x,y) (((x) % (y)) == 0 ? ((x) / (y)) : (((x) / (y)) + 1))
@@ -1143,13 +1144,16 @@ static char*
 createfilename(void)
 {
     char filename[4096];
+    char* u8 = NULL;
     filename[0] = '\0';
     if(netcdf_name) { /* -o flag name */
-      strlcat(filename,netcdf_name,sizeof(filename));
+      NCstring2utf8(netcdf_name, &u8); /* Convert to utf8 */
+      strlcat(filename,u8,sizeof(filename));
     } else { /* construct a usable output file name */
 	if (cdlname != NULL && strcmp(cdlname,"-") != 0) {/* cmd line name */
 	    char* p;
-	    strlcat(filename,cdlname,sizeof(filename));
+            NCstring2utf8(cdlname, &u8); /* Convert to utf8 */
+	    strlcat(filename,u8,sizeof(filename));
 	    /* remove any suffix and prefix*/
 	    p = strrchr(filename,'.');
 	    if(p != NULL) {*p= '\0';}
@@ -1160,7 +1164,8 @@ createfilename(void)
 		while((*q++ = *p++));
 	    }
        } else {/* construct name from dataset name */
-	    strlcat(filename,datasetname,sizeof(filename));
+            NCstring2utf8(datasetname, &u8); /* Convert to utf8 */
+	    strlcat(filename,u8,sizeof(filename));
         }
         /* Append the proper extension */
 	strlcat(filename,binary_ext,sizeof(filename));

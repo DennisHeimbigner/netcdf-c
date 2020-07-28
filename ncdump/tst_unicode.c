@@ -14,6 +14,13 @@
 #include "netcdf.h"
 #include "ncpathmgr.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#include <locale.h>
+#endif
+
+#define DEBUG
+
 /* The data file we will create. */
 static const unsigned char filename8[] = {
 't','s','t','_','u','t','f','8','_',

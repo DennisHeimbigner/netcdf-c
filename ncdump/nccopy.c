@@ -2389,9 +2389,9 @@ main(int argc, char**argv)
     if (argc != 2) {
 	error("one input file and one output file required");
     }
-    /* Escape the file names in case bash escaped them */
-    inputfile = NCdeescape(argv[0]);
-    outputfile = NCdeescape(argv[1]);
+    /* Canonicalize the input and output files names */
+    inputfile = NCpathcvt(argv[0]);
+    outputfile = NCpathcvt(argv[1]);
 
     if(strcmp(inputfile, outputfile) == 0) {
 	error("output would overwrite input");

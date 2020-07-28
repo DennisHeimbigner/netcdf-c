@@ -14,6 +14,7 @@
 #include "ncrc.h"
 #include "ncmodel.h"
 #include "ncfilter.h"
+#include "ncpathmgr.h"
 
 #ifdef ENABLE_BYTERANGE
 #include "H5FDhttp.h"
@@ -61,12 +62,6 @@ extern int NC4_open_image_file(NC_FILE_INFO_T* h5);
 
 /* Defined later in this file. */
 static int rec_read_metadata(NC_GRP_INFO_T *grp);
-
-#ifdef _WIN32
-static hid_t nc4_H5Fopen(const char *filename, unsigned flags, hid_t fapl_id);
-#else
-#define nc4_H5Fopen  H5Fopen
-#endif
 
 /**
  * @internal Struct to track HDF5 object info, for
@@ -2714,8 +2709,6 @@ exit:
     return retval;
 }
 
-#ifdef _WIN32
-
 /**
  * Wrapper function for H5Fopen.
  * Converts the filename from ANSI to UTF-8 as needed before calling H5Fopen.
@@ -2725,19 +2718,18 @@ exit:
  * @param fapl_id File access property list identifier.
  * @return A file identifier if succeeded. A negative value if failed.
  */
-static hid_t
+hid_t
 nc4_H5Fopen(const char *filename, unsigned flags, hid_t fapl_id)
 {
-    int stat = NC_NOERR;
     hid_t hid;
-    char* u8filename = NULL;
+    char* localname = NULL;
 
-    if((stat = NCpath2utf8(filename,&u8filename))) 
+fprintf(stderr,"xxx: open filename=|%s|\n",filename);
+    if((localname = NCpathcvt(filename))==NULL)
 	{hid = H5I_INVALID_HID; goto done;}
-    hid = H5Fopen(u8filename, flags, fapl_id);
-    nullfree(u8filename);
+fprintf(stderr,"xxx: localname=|%s|\n",localname);
+    hid = H5Fopen(localname, flags, fapl_id);
+    nullfree(localname);
 done:
     return hid;
 }
-
-#endif /* _WIN32 */

@@ -16,7 +16,7 @@
 #endif
 
 #include "zincludes.h"
-#include "ncwinpath.h"
+#include "ncpathmgr.h"
 
 #define DEBUG
 
@@ -87,7 +87,7 @@ main(int argc, char** argv)
 	fprintf(stderr, "zs3parse: no url specified\n");
 	goto fail;
     }
-    s3options.url = NCdeescape(argv[0]);
+    s3options.url = NCpathcvt(argv[0]);
 
     stat = processurl(s3options.op, s3options.url, &piece);
     if(stat == NC_NOERR) {
@@ -124,10 +124,6 @@ processurl(S3op op, const char* surl, char** piece)
     if(strcmp(url->protocol,"https") != 0
        && strcmp(url->protocol,"http") != 0)
         {stat = NC_EURL; goto done;}
-
-    /* Path better look absolute */
-    if(!nczm_isabsolutepath(url->path))
-    	{stat = NC_EURL; goto done;}
 
     if(url->host == NULL || strlen(url->host) == 0)
         {stat = NC_EURL; goto done;}

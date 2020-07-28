@@ -11,6 +11,7 @@
 #include "config.h"
 #include "netcdf.h"
 #include "ncpathmgr.h"
+#include "ncpathmgr.h"
 #include "hdf5internal.h"
 
 /* From hdf5file.c. */
@@ -23,12 +24,6 @@ static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_64BIT_OFFSET|NC_C
 
 /* From nc4mem.c */
 extern int NC4_create_image_file(NC_FILE_INFO_T* h5, size_t);
-
-#ifdef _WIN32
-static hid_t nc4_H5Fcreate(const char *filename, unsigned flags, hid_t fcpl_id, hid_t fapl_id);
-#else
-#define nc4_H5Fcreate  H5Fcreate
-#endif
 
 /**
  * @internal Create a netCDF-4/HDF5 file.
@@ -315,8 +310,6 @@ NC4_create(const char* path, int cmode, size_t initialsz, int basepe,
     return res;
 }
 
-#ifdef _WIN32
-
 /**
  * Wrapper function for H5Fcreate.
  * Converts the filename from ANSI to UTF-8 as needed before calling H5Fcreate.
@@ -327,19 +320,19 @@ NC4_create(const char* path, int cmode, size_t initialsz, int basepe,
  * @param fapl_id File access property list identifier.
  * @return A file identifier if succeeded. A negative value if failed.
  */
-static hid_t
+hid_t
 nc4_H5Fcreate(const char *filename, unsigned flags, hid_t fcpl_id, hid_t fapl_id)
 {
     int stat = NC_NOERR;
     hid_t hid;
-    char* u8filename = NULL;
+    char* localname = NULL;
 
-    if((stat = NCpath2utf8(filename,&u8filename))) 
+fprintf(stderr,"xxx: create filename=|%s|\n",filename);
+    if((localname = NCpathcvt(filename))==NULL)
 	{hid = H5I_INVALID_HID; goto done;}
-    hid = H5Fcreate(u8filename, flags, fcpl_id, fapl_id);
-    nullfree(u8filename);
+fprintf(stderr,"xxx: localname=|%s|\n",localname);
+    hid = H5Fcreate(localname, flags, fcpl_id, fapl_id);
+    nullfree(localname);
 done:
     return hid;
 }
-
-#endif /* _WIN32 */

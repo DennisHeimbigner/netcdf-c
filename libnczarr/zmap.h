@@ -106,9 +106,6 @@ generic nczm_xxx functions below.
 
 #define NCZM_DOT '.'
 
-/*Mnemonic*/
-#define LOCALIZE 1
-
 /* Forward */
 typedef struct NCZMAP_API NCZMAP_API;
 
@@ -287,10 +284,6 @@ EXTERNL int nczm_clear(NCZMAP* map);
 
 /* Return 1 if path is absolute; takes Windows drive letters into account */
 EXTERNL int nczm_isabsolutepath(const char* path);
-
-/* Convert forward to back slash if needed */
-EXTERNL int nczm_localize(const char* path, char** newpathp, int local);
-EXTERNL int nczm_canonicalpath(const char* path, char** cpathp);
 
 #ifdef __cplusplus
 }

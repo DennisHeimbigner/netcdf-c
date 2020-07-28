@@ -60,7 +60,6 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
 {
     int stat = NC_NOERR;
     char* truepath = NULL;
-    char* local = NULL; /* localized truepath */
     Z4MAP* z4map = NULL;
     int ncid;
     NCURI* url = NULL;
@@ -77,9 +76,7 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
 	goto done;
 
     /* Canonicalize the root path */
-    if((stat = nczm_canonicalpath(url->path,&truepath))) goto done;
-    /* Also get local path */
-    if((stat = nczm_localize(truepath,&local,LOCALIZE))) goto done;
+    truepath = NCpathcvt(url->path);
 
     /* Build the z4 state */
     if((z4map = calloc(1,sizeof(Z4MAP))) == NULL)
@@ -93,7 +90,7 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
     z4map->root= truepath;
         truepath = NULL;
 
-    if((stat=nc_create(local,mode,&ncid)))
+    if((stat=nc_create(z4map->root,mode,&ncid)))
         {stat = NC_EEMPTY; goto done;} /* could not open */
     z4map->ncid = ncid;
     
@@ -102,7 +99,6 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
 done:
     ncurifree(url);
     nullfree(truepath);
-    nullfree(local);
     if(stat) znc4close((NCZMAP*)z4map,1);
     return (stat);
 }
@@ -112,7 +108,6 @@ znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** 
 {
     int stat = NC_NOERR;
     char* truepath = NULL;
-    char* local = NULL;
     Z4MAP* z4map = NULL;
     int ncid;
     NCURI* url = NULL;
@@ -126,9 +121,7 @@ znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** 
 	goto done;
 
     /* Canonicalize the root path */
-    if((stat = nczm_canonicalpath(url->path,&truepath))) goto done;
-    /* Also get local path */
-    if((stat = nczm_localize(truepath,&local,LOCALIZE))) goto done;
+    truepath = NCpathcvt(url->path);
 
     /* Build the z4 state */
     if((z4map = calloc(1,sizeof(Z4MAP))) == NULL)
@@ -142,7 +135,7 @@ znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** 
     z4map->root = truepath;
         truepath = NULL;
 
-    if((stat=nc_open(local,mode,&ncid)))
+    if((stat=nc_open(z4map->root,mode,&ncid)))
         {stat = NC_EEMPTY; goto done;} /* could not open */
     z4map->ncid = ncid;
     
@@ -150,7 +143,6 @@ znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** 
 
 done:
     nullfree(truepath);
-    nullfree(local);
     ncurifree(url);
     if(stat) znc4close((NCZMAP*)z4map,0);
     return (stat);

@@ -4,7 +4,6 @@
 
 # Ed Hartnett, Dennis Heimbigner, Ward Fisher
 
-
 #SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
@@ -65,7 +64,7 @@ bom tst_dimsizes nctrunc
 # Tests for classic and 64-bit offset files.
 TESTS = tst_inttags.sh run_tests.sh tst_64bit.sh ref_ctest	\
 ref_ctest64 tst_output.sh tst_lengths.sh tst_calendars.sh	\
-run_utf8_tests.sh test_unicode_directory.sh tst_nccopy3.sh tst_nccopy3_subset.sh		\
+run_utf8_tests.sh test_unicode_path.sh tst_nccopy3.sh tst_nccopy3_subset.sh		\
 tst_charfill.sh tst_iter.sh tst_formatx3.sh tst_bom.sh		\
 tst_dimsizes.sh run_ncgen_tests.sh tst_ncgen4_classic.sh test_radix.sh
 
@@ -154,7 +153,7 @@ tst_ncgen4_cycle.sh tst_null_byte_padding.sh				\
 ref_null_byte_padding_test.nc ref_tst_irish_rover.nc			\
 ref_provenance_v1.nc ref_tst_radix.cdl tst_radix.cdl test_radix.sh	\
 ref_nccopy_w.cdl tst_nccopy_w3.sh tst_nccopy_w4.sh			\
-ref_no_ncproperty.nc test_unicode_directory.sh				\
+ref_no_ncproperty.nc test_unicode_path.sh				\
 ref_roman_szip_simple.cdl ref_roman_szip_unlim.cdl
 
 # The L512.bin file is file containing exactly 512 bytes each of value 0.

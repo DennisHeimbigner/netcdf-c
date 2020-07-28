@@ -59,6 +59,7 @@ genbin_netcdf(void)
         cmode_modifier |= NC_NETCDF4;
 #endif
 
+fprintf(stderr,"xxx: filename=%d|%s|\n",(int)strlen(filename),filename);
     stat = nc_create(filename, cmode_modifier, &ncid);
     CHECK_ERR(stat);
 

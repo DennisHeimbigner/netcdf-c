@@ -189,7 +189,7 @@ makeurl(const char* file, NCZM_IMPL impl)
 	case NCZM_NC4: /* fall thru */
 	case NCZM_FILE:
             /* Massage file to make it usable as URL path */
-            if((path = NCurlpath(file))==NULL) return NULL;
+            if((path = NCpathcvt(file))==NULL) return NULL;
             ncbytescat(buf,"file://");
             ncbytescat(buf,path);
             ncbytescat(buf,"#mode=nczarr"); /* => use default file: format */

@@ -353,7 +353,8 @@ main(
 	  break;
 	case 'o':		/* to explicitly specify output name */
 	  if(netcdf_name) efree(netcdf_name);
-	  netcdf_name = NCdeescape(optarg);
+	  netcdf_name = NCpathcvt(optarg);
+fprintf(stderr,"yyy: netcdf_name=%d |%s|\n",(int)strlen(netcdf_name),netcdf_name); fflush(stderr);
 	  break;
 	case 'P': /* diskless with persistence */
 	  diskless = 1;

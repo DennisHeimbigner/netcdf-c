@@ -197,4 +197,7 @@ extern int NC4_isnetcdf4(struct NC_FILE_INFO*); /*libsrc4/nc4hdf.c*/
 
 extern int nc4_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 
+EXTERNL hid_t nc4_H5Fopen(const char *filename, unsigned flags, hid_t fapl_id);
+EXTERNL hid_t nc4_H5Fcreate(const char *filename, unsigned flags, hid_t fcpl_id, hid_t fapl_id);
+
 #endif /* _HDF5INTERNAL_ */

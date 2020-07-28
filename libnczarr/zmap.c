@@ -4,7 +4,7 @@
  */
 
 #include "zincludes.h"
-#include "ncwinpath.h"
+#include "ncpathmgr.h"
 
 /**************************************************/
 /* Import the current implementations */
@@ -292,77 +292,4 @@ nczm_clear(NCZMAP* map)
     if(map) 
 	nullfree(map->url);
     return NC_NOERR;
-}
-
-int
-nczm_isabsolutepath(const char* path)
-{
-    if(path == NULL) return 0;
-    switch (path[0]) {
-    case '\\': return 1;
-    case '/': return 1;
-    case '\0': break;
-    default:
-	/* Check for windows drive letter */
-	if(NChasdriveletter(path)) return 1;
-        break;
-    }
-    return 0;
-}
-
-/* Convert forward slash to backslash ( !localize) or vice-versa (localize)*/
-int
-nczm_localize(const char* path, char** localpathp, int localize)
-{
-    int stat = NC_NOERR;
-    char* localpath = NULL;
-    char* p;
-    int forward = 1;
-    int offset = 0;
-
-#ifdef _MSC_VER
-    forward = (localize?0:1);
-#endif
-    /* If path comes from a url, then it may start with: /x:/...
-       where x is a drive letter. If so, then remove leading / */
-    if(path[0] == '/' && NChasdriveletter(path+1))
-	offset = 1;
-    if((localpath = strdup(path+offset))==NULL) return NC_ENOMEM;
-
-    for(p=localpath;*p;p++) {
-	if(forward && *p == '\\') *p = '/';
-	else if(!forward && *p == '/') *p = '\\';
-    }
-    if(localpathp) {*localpathp = localpath; localpath = NULL;}
-    nullfree(localpath);
-    return stat;
-}
-
-/* Convert path0 to be:
-1. absolute -- including drive letters
-2. forward slashed -- we will convert back to back slash in
-   nczm_fixpath
-*/
-
-int
-nczm_canonicalpath(const char* path, char** cpathp)
-{
-    int ret = NC_NOERR;
-    char* cpath = NULL;
-    char* tmp = NULL;
-
-    if(path == NULL) 
-	{cpath = NULL; goto done;}
-
-    /* Process path to make it be windows compatible */
-    if((tmp = NCpathcvt(path))==NULL) {ret = NC_ENOMEM; goto done;}
-
-    /* Fix slashes to be forward for now */
-    if((ret = nczm_localize(tmp,&cpath,!LOCALIZE))) goto done;
-
-    if(cpathp) {*cpathp = cpath; cpath = NULL;}
-done:
-    nullfree(tmp);
-    nullfree(cpath);
-    return THROW(ret);    
 }

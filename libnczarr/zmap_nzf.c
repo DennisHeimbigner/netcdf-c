@@ -42,7 +42,7 @@
 #endif
 
 #include "fbits.h"
-#include "ncwinpath.h"
+#include "ncpathmgr.h"
 
 #define VERIFY
 
@@ -200,7 +200,7 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
         {stat = NC_EURL; goto done;}
 
     /* Canonicalize the root path */
-    if((stat = nczm_canonicalpath(url->path,&truepath))) goto done;
+    truepath = NCpathcvt(url->path);
 
 #ifdef CHECKNESTEDDATASETS
     if(isnesteddataset(truepath))
@@ -274,7 +274,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
         {stat = NC_EURL; goto done;}
 
     /* Canonicalize the root path */
-    if((stat = nczm_canonicalpath(url->path,&truepath))) goto done;
+    truepath = NCpathcvt(url->path);
 
     /* Build the z4 state */
     if((zfmap = calloc(1,sizeof(ZFMAP))) == NULL)
@@ -318,6 +318,7 @@ zfileexists(NCZMAP* map, const char* key)
     FD fd = FDNUL;
 
     ZTRACE("%s",key);
+
     switch(stat=zflookupobj(zfmap,key,&fd)) {
     case NC_NOERR: break;
     case NC_ENOTFOUND: stat = NC_EEMPTY;
@@ -660,7 +661,8 @@ zffullpath(ZFMAP* zfmap, const char* key, char** pathp)
 	if(strcmp(key,"/") != 0)
             strlcat(path,key,flen);
     }
-    if(pathp) {*pathp = path; path = NULL;}
+    /* Convert to local form */
+    if(pathp) {*pathp = NCpathcvt(path);}
 done:
     nullfree(path)
     return stat;
@@ -705,20 +707,14 @@ platformtestcontentbearing(ZFMAP* zfmap, const char* truepath)
 {
     int ret = 0;
     struct stat buf;
-    char* local = NULL;
     
-    /* Localize */
-    if((ret = nczm_localize(truepath,&local,LOCALIZE))) goto done;
-
     errno = 0;
-    if((ret = stat(local, &buf)) < 0) {
+    if((ret = stat(truepath, &buf)) < 0) {
 	ret = platformerr(errno);
     } else if(S_ISDIR(buf.st_mode)) {
         ret = NC_EEMPTY;
     } else
         ret = NC_NOERR;
-done:
-    nullfree(local);
     errno = 0;
     return ret;
 }
@@ -887,8 +883,6 @@ platformdircontent(ZFMAP* zfmap, const char* truepath, NClist* contents)
     ffpath[len] = '*'; len++;
     ffpath[len] = '\0';
 
-    /* localize it */
-    if((ret = nczm_localize(ffpath,&lpath,LOCALIZE))) goto done;
     dir = FindFirstFile(lpath, &FindFileData);
     if(dir == INVALID_HANDLE_VALUE) {
 	/* Distinquish not-a-directory from no-matching-file */
@@ -1027,7 +1021,6 @@ platformdeleter(ZFMAP* zfmap, NCbytes* truepath, int delroot, int depth)
     int i;
     NClist* contents = nclistnew();
     size_t tpathlen = ncbyteslength(truepath);
-    char* local = NULL;
 
     ret = platformdircontent(zfmap, ncbytescontents(truepath), contents);
     switch (ret) {
@@ -1043,17 +1036,12 @@ platformdeleter(ZFMAP* zfmap, NCbytes* truepath, int delroot, int depth)
 	    ncbytesnull(truepath);
 	}
 	if(depth > 0 || delroot) {
-	    /* localize and delete */
-	    if((ret = nczm_localize(ncbytescontents(truepath),&local,LOCALIZE))) goto done;
-            rmdir(local); /* kill this dir */
+            rmdir(ncbytescontents(truepath)); /* kill this dir */
 	}
 	break;    
     case NC_EEMPTY: /* Not a directory */
 	ret = NC_NOERR;
-        /* localize and delete */
-	if(local) {nullfree(local); local = NULL;}
-	if((ret = nczm_localize(ncbytescontents(truepath),&local,LOCALIZE))) goto done;
-        unlink(local); /* kill this file */
+        unlink(ncbytescontents(truepath)); /* kill this file */
 	break;
     case NC_ENOTFOUND:
     default:
@@ -1062,7 +1050,6 @@ platformdeleter(ZFMAP* zfmap, NCbytes* truepath, int delroot, int depth)
 
 done:
     nclistfreeall(contents);
-    nullfree(local);
     ncbytessetlength(truepath,tpathlen);
     ncbytesnull(truepath);
     return THROW(ret);

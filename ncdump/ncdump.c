@@ -2345,8 +2345,8 @@ main(int argc, char *argv[])
 
     init_epsilons();
 
-    /* Deescape the user name */
-    path = NCdeescape(argv[i]);
+    /* Canonicalize the user name */
+    path = NCpathcvt(argv[i]);
     if(path == NULL) {
 	snprintf(errmsg,sizeof(errmsg),"out of memory copying argument %s", argv[i]);
 	goto fail;

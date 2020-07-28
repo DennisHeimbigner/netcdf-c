@@ -38,22 +38,35 @@
 #define ACCESS_MODE_RW (R_OK|W_OK)
 #endif
 
-/* This function does 2 things:
-1. converts the character set from platform character set to utf8
+/* This function attempts to take an arbitrary path and convert
+   it to a canonical form. It does several things:
+1. converts the character set from platform character set to UTF-8
 2. normalizes the incoming path to match the platform
-   (e.g. cygwin, windows, mingw, linux)
+   (e.g. cygwin, windows, mingw, linux). So for example
+   using a cygwin path under visual studio will convert e.g.
+   /cygdrive/d/x/y to d:\x\y. See ../unit_test/test_pathcvt.c
+   for example conversions.
+3. It converts doubly escaped characters to singly escaped.
+   So for example it converts 'test\\xab' to 'test\xab'.
+   This is because shell scripts typically attempt to handle
+   escaped characters.
+
 It returns the converted path.
+
 Note that this function is intended to be Idempotent: f(f(x) == f(x).
 This means it is ok to call it repeatedly with no harm.
 */
 EXTERNL char* NCpathcvt(const char* path);
 
+/* Canonicalize and make absolute */
+EXTERNL char* NCpathabsolute(const char* name);
+
 /* Provide a version for testing; DO NOT USE */
-EXTERNL char* NCpathcvt_test(const char* path, const char* kind);
+EXTERNL char* NCpathcvt_test(const char* path, int ukind, int udrive);
 
-/* Fix path in case it was escaped by shell */
-EXTERNL char* NCdeescape(const char* name);
-
+/* Wrap various stdio and unistd IO functions.
+It is especially important to use for windows so that
+NCpathcvt (above) is invoked on the path */
 #ifdef WINPATH
 /* path converter wrappers*/
 EXTERNL FILE* NCfopen(const char* path, const char* flags);
@@ -88,7 +101,7 @@ EXTERNL int NCclosedir(DIR* ent);
 /* Platform independent */
 #define NCclose(fd) close(fd)
 
-EXTERNL int NCpath2utf8(const char* path, char** u8p);
+EXTERNL int NCstring2utf8(const char* path, char** u8p);
 
 /* Possible Kinds Of Output */
 #define NCPD_UNKNOWN 0
@@ -96,7 +109,6 @@ EXTERNL int NCpath2utf8(const char* path, char** u8p);
 #define NCPD_MSYS 2
 #define NCPD_CYGWIN 3 
 #define NCPD_WIN 4
-#define NCPD_REL 5
-#define NCPD_URL 6
+#define NCPD_REL 5 /* actual kind is unknown */
 
 #endif /* _NCWINIO_H_ */

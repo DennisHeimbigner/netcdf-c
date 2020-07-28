@@ -16,7 +16,7 @@
 #endif
 
 #include "zincludes.h"
-#include "ncwinpath.h"
+#include "ncpathmgr.h"
 
 #define DEBUG
 
@@ -124,7 +124,7 @@ main(int argc, char** argv)
 	fprintf(stderr, "zmapio: no input file specified\n");
 	goto fail;
     }
-    dumpoptions.infile = NCdeescape(argv[0]);
+    dumpoptions.infile = NCpathcvt(argv[0]);
 
     if((dumpoptions.impl = implfor(dumpoptions.infile))== NCZM_UNDEF)
         zmapusage();
