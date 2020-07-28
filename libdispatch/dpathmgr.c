@@ -30,6 +30,7 @@
 #include "nclist.h"
 #include "ncbytes.h"
 #include "ncuri.h"
+#include "ncutf8.h"
 
 #undef PATHFORMAT
 
@@ -663,6 +664,10 @@ localtoutf8(const char* local, char** u8p)
     int n;
     wchar_t* u16 = NULL;
 
+#ifdef _WIN32
+fprintf(stderr,"www: ACP=%d\n",GetACP());
+#endif
+
     {
         /* Get length of the converted string */
         n = MultiByteToWideChar(CP_ACP, 0,  local, -1, NULL, 0);
@@ -672,6 +677,7 @@ localtoutf8(const char* local, char** u8p)
         /* do the conversion */
         if (!MultiByteToWideChar(CP_ACP, 0, local, -1, u16, n))
             {stat = NC_EINVAL; goto done;}
+fwprintf(stderr,L"www: u16=|%ls|\n",u16);
         /* Now reverse the process to produce utf8 */
         n = WideCharToMultiByte(CP_UTF8, 0, u16, -1, NULL, 0, NULL, NULL);
         if (!n) {stat = NC_EINVAL; goto done;}
@@ -679,6 +685,15 @@ localtoutf8(const char* local, char** u8p)
 	    {stat = NC_ENOMEM; goto done;}
         if (!WideCharToMultiByte(CP_UTF8, 0, u16, -1, u8, n, NULL, NULL))
             {stat = NC_EINVAL; goto done;}
+fprintf(stderr,"www: u8=%d |%s|\n",strlen(u8),u8);
+#ifdef _WIN32
+	{
+	char* normal = NULL;
+	stat = nc_utf8_normalize(u8,(unsigned char**)&normal);
+fprintf(stderr,"www: normal=%d |%s|\n",strlen(normal),normal);
+	nullfree(normal);
+        }
+#endif
     }
     if(u8p) {*u8p = u8; u8 = NULL;}
 done:
