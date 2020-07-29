@@ -16,7 +16,7 @@ if test "x$FP_ISMSVC" = x ; then
 UNIFILE="tst_utf8_\xe6\xb5\xb7.nc"
 else
 UNIFILE='tst_utf8_海.nc'
-#UNIFILE="tst_utf8_\xe6\xb5\xb7.nc"
+UNIFILE="tst_utf8_\xe6\xb5\xb7.nc"
 fi
 
 echo ""

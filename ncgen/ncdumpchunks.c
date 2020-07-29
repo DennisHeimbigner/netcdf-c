@@ -49,11 +49,9 @@ usage(int err)
 int
 main(int argc, char** argv)
 {
-    int i,r,stat = NC_NOERR;
+    int i,stat = NC_NOERR;
     hid_t fileid, grpid, datasetid;
-    hid_t dxpl_id = H5P_DEFAULT; /*data transfer property list */
     int* chunkdata = NULL; /*[CHUNKPROD];*/
-    unsigned int filter_mask = 0;
     const char* file_name = NULL;
     const char* var_name = NULL;
     int ncid, varid, dimids[NC_MAX_VAR_DIMS];
@@ -64,6 +62,11 @@ main(int argc, char** argv)
     size_t chunkprod;
     Odometer* odom = NULL;
     hsize_t offset[NC_MAX_VAR_DIMS];
+#ifdef HDF5_SUPPORTS_PAR_FILTERS
+    hid_t dxpl_id = H5P_DEFAULT; /*data transfer property list */
+    int r;
+    unsigned int filter_mask = 0;
+#endif
     
     if(argc < 3)
 	usage(0);

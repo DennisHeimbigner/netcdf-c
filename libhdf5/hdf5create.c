@@ -323,7 +323,6 @@ NC4_create(const char* path, int cmode, size_t initialsz, int basepe,
 hid_t
 nc4_H5Fcreate(const char *filename, unsigned flags, hid_t fcpl_id, hid_t fapl_id)
 {
-    int stat = NC_NOERR;
     hid_t hid;
     char* localname = NULL;
 

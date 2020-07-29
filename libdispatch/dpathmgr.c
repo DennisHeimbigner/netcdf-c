@@ -74,6 +74,7 @@ static char* printPATH(struct Path* p);
 static int getlocalpathkind(void);
 static void clearPath(struct Path* path);
 static void pathinit(void);
+static int hexfor(int c);
 #ifdef WINPATH
 static int localtoutf8(const char* local, char** u8p);
 static int localtowide(const char* local, wchar_t** u16p);
@@ -177,15 +178,23 @@ NCdeescape(const char* name)
     ename = strdup(name);
     if(ename == NULL) return NULL;
     for(p=name,q=ename;*p;) {
-	switch (*p) {
+	int c = *p;
+	switch (c) {
 	case '\0': break;
 	case '\\':
-#if 0
-	    if(p[1] == '#' || p[1] == 'x')
-#endif
-	    {
-	        p++;
-		break;
+	    switch (p[1]) {
+	    case 'x': {
+		int c0, c1;
+		if(p[2] == '\0' || p[3] == '\0')
+		    {p++; break;} /* not hex */
+		if((c0 = hexfor(p[2])) < 0 || (c1 = hexfor(p[2])) < 0)
+		    {p++; break;} /* not hex */
+		/* Convert to hex char */
+		c = ((c0 | 0xff) << 4) | (c1 |0xff);
+fprintf(stderr,"zzz: \\x%c%c -> %2u\n",p[2],p[3],c);
+		} break;		
+	    case '#': /* fall thru */
+	    default: p++; break;
 	    }
 	    /* fall thru */
         default: *q++ = *p++; break;
@@ -437,11 +446,11 @@ parsepath(const char* inpath, struct Path* path)
 
     if(inpath == NULL) goto done; /* defensive driving */
 
-fprintf(stderr,"xxx: parsepath: inpath= %d |%s|\n",strlen(inpath),inpath);
+fprintf(stderr,"xxx: parsepath: inpath= %d |%s|\n",(int)strlen(inpath),inpath);
 
     /* Convert to UTF8 */
     if((stat = NCstring2utf8(inpath,&tmp1))) goto done;
-fprintf(stderr,"xxx: parsepath: tmp1= %d |%s|\n",strlen(tmp1),tmp1);
+fprintf(stderr,"xxx: parsepath: tmp1= %d |%s|\n",(int)strlen(tmp1),tmp1);
     /* Convert to forward slash */
     for(p=tmp1;*p;p++) {if(*p == '\\') *p = '/';}
 
@@ -530,7 +539,7 @@ unparsepath(struct Path* xp, char** pathp)
     char* p = NULL;
     int kind = xp->kind;
     
-fprintf(stderr,"xxx: unparsepath: xp->path= %d |%s|\n",strlen(xp->path),xp->path);
+fprintf(stderr,"xxx: unparsepath: xp->path= %d |%s|\n",(int)strlen(xp->path),xp->path);
     switch (kind) {
     case NCPD_NIX:
 	len = nulllen(xp->path);
@@ -597,7 +606,7 @@ fprintf(stderr,"xxx: unparsepath: xp->path= %d |%s|\n",strlen(xp->path),xp->path
 	break;
     default: stat = NC_EINTERNAL; goto done;
     }
-fprintf(stderr,"xxx: unparsepath: path= %d |%s|\n",strlen(path),path);
+fprintf(stderr,"xxx: unparsepath: path= %d |%s|\n",(int)strlen(path),path);
     if(pathp) {*pathp = path; path = NULL;}
 done:
     nullfree(path);
@@ -773,6 +782,15 @@ printPATH(struct Path* p)
     snprintf(buf,sizeof(buf),"Path{kind=%d drive='%c' path=|%s|}",
 	p->kind,(p->drive > 0?p->drive:'0'),p->path);
     return buf;
+}
+
+static int
+hexfor(int c)
+{
+    if(c >= '0' && c <= '9') return c - '0';
+    if(c >= 'a' && c <= 'f') return (c - 'a')+10;
+    if(c >= 'A' && c <= 'F') return (c - 'A')+10;
+    return -1;
 }
 
 /**************************************************/
