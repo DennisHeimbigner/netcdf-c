@@ -213,6 +213,9 @@ main(
     argv += optind;
 
     if (argc > 1) {
+int i;
+for(i=0;i<argc;i++)
+fprintf(stderr,"xarg(%d): |%s|\n",i,argv[i]);
 	derror ("%s: only one input file argument permitted",progname);
 	return(6);
     }

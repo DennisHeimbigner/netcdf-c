@@ -37,6 +37,10 @@ static Test PATHTESTS[] = {
     "d:\\git\\netcdf-c\\dap4_test\\test_anon_dim.2.syn"}},
 /* Test relative path */
 {"x/y",{ "x/y", "x/y", "x/y",  "x\\y"}},
+#ifndef _WIN32
+/* Test utf8 path */
+{"/海/海",{ "/海/海", "/c/海/海", "/cygdrive/c/海/海",  "c:\\海/海"}},
+#endif
 {NULL, {NULL, NULL, NULL, NULL}}
 };
 

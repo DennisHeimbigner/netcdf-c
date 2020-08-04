@@ -76,10 +76,10 @@ static void clearPath(struct Path* path);
 static void pathinit(void);
 static int hexfor(int c);
 #ifdef WINPATH
-static int localtoutf8(const char* local, char** u8p);
-static int localtowide(const char* local, wchar_t** u16p);
-static int utf8towide(const char* utf8, wchar_t** u16p);
-static int widetoutf8(const wchar_t* u16, char** u8p);
+static int ansi2utf8(const char* local, char** u8p);
+static int ansi2wide(const char* local, wchar_t** u16p);
+static int utf82wide(const char* utf8, wchar_t** u16p);
+static int wide2utf8(const wchar_t* u16, char** u8p);
 #endif
 
 EXTERNL
@@ -256,7 +256,7 @@ clearPath(struct Path* path)
 #ifdef WINPATH
 
 /*
-Provide wrappers for open and fopen
+Provide wrappers for Path-related functions
 */
 
 EXTERNL
@@ -271,8 +271,8 @@ NCfopen(const char* path, const char* flags)
     cvtpath = NCpathcvt(path);
     if(cvtpath == NULL) return NULL;
     /* Convert from local to wide */
-    if((stat = utf8towide(cvtpath,&wpath))) goto done;    
-    if((stat = localtowide(flags,&wflags))) goto done;    
+    if((stat = utf82wide(cvtpath,&wpath))) goto done;    
+    if((stat = ansi2wide(flags,&wflags))) goto done;    
     f = _wfopen(wpath,wflags);
 done:
     nullfree(cvtpath);    
@@ -292,7 +292,7 @@ NCopen3(const char* path, int flags, int mode)
     cvtpath = NCpathcvt(path);
     if(cvtpath == NULL) goto done;
     /* Convert from utf8 to wide */
-    if((stat = utf8towide(cvtpath,&wpath))) goto done;    
+    if((stat = utf82wide(cvtpath,&wpath))) goto done;    
     fd = _wopen(wpath,flags,mode);
 done:
     nullfree(cvtpath);    
@@ -321,7 +321,7 @@ NCaccess(const char* path, int mode)
     wchar_t* wpath = NULL;
     if((cvtpath = NCpathcvt(path)) == NULL) 
         {status = EINVAL; goto done;}
-    if((status = utf8towide(cvtpath,&wpath))) {status = ENOENT; goto done;}
+    if((status = utf82wide(cvtpath,&wpath))) {status = ENOENT; goto done;}
     if(_waccess(wpath,mode) < 0) {status = errno; goto done;}
 done:
     free(cvtpath);    
@@ -338,7 +338,7 @@ NCremove(const char* path)
     char* cvtpath = NULL;
     wchar_t* wpath = NULL;
     if((cvtpath = NCpathcvt(path)) == NULL) {status=ENOMEM; goto done;}
-    if((status = utf8towide(cvtpath,&wpath))) {status = ENOENT; goto done;}
+    if((status = utf82wide(cvtpath,&wpath))) {status = ENOENT; goto done;}
     if(_wremove(wpath) < 0) {status = errno; goto done;}
 done:
     free(cvtpath);    
@@ -355,7 +355,7 @@ NCmkdir(const char* path, int mode)
     char* cvtpath = NULL;
     wchar_t* wpath = NULL;
     if((cvtpath = NCpathcvt(path)) == NULL) {status=ENOMEM; goto done;}
-    if((status = utf8towide(cvtpath,&wpath))) {status = ENOENT; goto done;}
+    if((status = utf82wide(cvtpath,&wpath))) {status = ENOENT; goto done;}
     if(_wmkdir(wpath) < 0) {status = errno; goto done;}
 done:
     free(cvtpath);    
@@ -391,13 +391,94 @@ done:
 }
 
 int
-NCstring2utf8(const char* s, char** u8p)
+NCpath2utf8(const char* s, char** u8p)
 {
-    return localtoutf8(s,u8p);
+    return ansi2utf8(s,u8p);
 }
 #else /*!WINPATH*/
+
+#ifdef NCPATHDEBUG
+/*
+Provide wrappers for Path-related functions
+when debugging
+*/
+
+FILE*
+NCfopen(const char* path, const char* flags)
+{
+    FILE* f = NULL;
+    char* cvtpath = NCpathcvt(path);
+    f = fopen(cvtpath,flags);
+    return f;
+}
+
 int
-NCstring2utf8(const char* path, char** u8p)
+NCopen3(const char* path, int flags, int mode)
+{
+    int fd = -1;
+    char* cvtpath = NCpathcvt(path);
+    fd = open(cvtpath,flags,mode);
+    return fd;
+}
+
+int
+NCopen2(const char *path, int flags)
+{
+    return NCopen3(path,flags,0);
+}
+
+/*
+Provide wrappers for other file system functions
+*/
+
+/* Return access applied to path+mode */
+int
+NCaccess(const char* path, int mode)
+{
+    char* cvtpath = NCpathcvt(path);
+    return access(cvtpath,mode);
+}
+
+int
+NCremove(const char* path)
+{
+    char* cvtpath = NCpathcvt(path);
+    return remove(cvtpath);
+}
+
+int
+NCmkdir(const char* path, int mode)
+{
+    char* cvtpath = NCpathcvt(path);
+    return mkdir(cvtpath,mode);
+}
+
+char*
+NCcwd(char* cwdbuf, size_t cwdlen)
+{
+    return getcwd(cwdbuf,cwdlen);
+}
+
+#ifdef HAVE_DIRENT_H
+DIR*
+NCopendir(const char* path)
+{
+    char* cvtpath = NCpathcvt(path);
+    return opendir(cvtpath);
+}
+
+EXTERNL
+int
+NCclosedir(DIR* ent)
+{
+    return closedir(ent);
+}
+#endif
+
+#endif /*NCPATHDEBUG*/
+
+int
+NCpath2utf8(const char* path, char** u8p)
 {
     int stat = NC_NOERR;
     char* u8 = NULL;
@@ -446,11 +527,12 @@ parsepath(const char* inpath, struct Path* path)
 
     if(inpath == NULL) goto done; /* defensive driving */
 
-fprintf(stderr,"xxx: parsepath: inpath= %d |%s|\n",(int)strlen(inpath),inpath);
-
     /* Convert to UTF8 */
-    if((stat = NCstring2utf8(inpath,&tmp1))) goto done;
-fprintf(stderr,"xxx: parsepath: tmp1= %d |%s|\n",(int)strlen(tmp1),tmp1);
+#if 0
+    if((stat = NCpath2utf8(inpath,&tmp1))) goto done;
+#else
+    tmp1 = strdup(inpath);
+#endif
     /* Convert to forward slash */
     for(p=tmp1;*p;p++) {if(*p == '\\') *p = '/';}
 
@@ -539,7 +621,6 @@ unparsepath(struct Path* xp, char** pathp)
     char* p = NULL;
     int kind = xp->kind;
     
-fprintf(stderr,"xxx: unparsepath: xp->path= %d |%s|\n",(int)strlen(xp->path),xp->path);
     switch (kind) {
     case NCPD_NIX:
 	len = nulllen(xp->path);
@@ -606,7 +687,6 @@ fprintf(stderr,"xxx: unparsepath: xp->path= %d |%s|\n",(int)strlen(xp->path),xp-
 	break;
     default: stat = NC_EINTERNAL; goto done;
     }
-fprintf(stderr,"xxx: unparsepath: path= %d |%s|\n",(int)strlen(path),path);
     if(pathp) {*pathp = path; path = NULL;}
 done:
     nullfree(path);
@@ -624,7 +704,7 @@ getwdpath(struct Path* wd)
 #ifdef _WIN32   
         wchar_t* wpath = NULL;
         wpath = _wgetcwd(NULL,8192);
-        if((stat = widetoutf8(wpath,&path)))
+        if((stat = wide2utf8(wpath,&path)))
             {nullfree(wpath); wpath = NULL; return stat;}
 #else
         path = getcwd(NULL,8192);
@@ -666,16 +746,12 @@ getlocalpathkind(void)
  * 
  */
 static int
-localtoutf8(const char* local, char** u8p)
+ansi2utf8(const char* local, char** u8p)
 {
     int stat=NC_NOERR;
     char* u8 = NULL;
     int n;
     wchar_t* u16 = NULL;
-
-#ifdef _WIN32
-fprintf(stderr,"www: ACP=%d\n",GetACP());
-#endif
 
     {
         /* Get length of the converted string */
@@ -686,7 +762,6 @@ fprintf(stderr,"www: ACP=%d\n",GetACP());
         /* do the conversion */
         if (!MultiByteToWideChar(CP_ACP, 0, local, -1, u16, n))
             {stat = NC_EINVAL; goto done;}
-fwprintf(stderr,L"www: u16=|%ls|\n",u16);
         /* Now reverse the process to produce utf8 */
         n = WideCharToMultiByte(CP_UTF8, 0, u16, -1, NULL, 0, NULL, NULL);
         if (!n) {stat = NC_EINVAL; goto done;}
@@ -694,15 +769,6 @@ fwprintf(stderr,L"www: u16=|%ls|\n",u16);
 	    {stat = NC_ENOMEM; goto done;}
         if (!WideCharToMultiByte(CP_UTF8, 0, u16, -1, u8, n, NULL, NULL))
             {stat = NC_EINVAL; goto done;}
-fprintf(stderr,"www: u8=%d |%s|\n",strlen(u8),u8);
-#ifdef _WIN32
-	{
-	char* normal = NULL;
-	stat = nc_utf8_normalize(u8,(unsigned char**)&normal);
-fprintf(stderr,"www: normal=%d |%s|\n",strlen(normal),normal);
-	nullfree(normal);
-        }
-#endif
     }
     if(u8p) {*u8p = u8; u8 = NULL;}
 done:
@@ -711,7 +777,7 @@ done:
 }
 
 static int
-localtowide(const char* local, wchar_t** u16p)
+ansi2wide(const char* local, wchar_t** u16p)
 {
     int stat=NC_NOERR;
     wchar_t* u16 = NULL;
@@ -732,7 +798,7 @@ done:
 }
 
 static int
-utf8towide(const char* utf8, wchar_t** u16p)
+utf82wide(const char* utf8, wchar_t** u16p)
 {
     int stat=NC_NOERR;
     wchar_t* u16 = NULL;
@@ -753,7 +819,7 @@ done:
 }
 
 static int
-widetoutf8(const wchar_t* u16, char** u8p)
+wide2utf8(const wchar_t* u16, char** u8p)
 {
     int stat=NC_NOERR;
     char* u8 = NULL;
@@ -791,6 +857,27 @@ hexfor(int c)
     if(c >= 'a' && c <= 'f') return (c - 'a')+10;
     if(c >= 'A' && c <= 'F') return (c - 'A')+10;
     return -1;
+}
+
+static char hexdigit[] = "0123456789abcdef";
+
+EXTERNL void
+printutf8hex(const char* s, char* sx)
+{
+    const char* p;
+    char* q;
+    for(q=sx,p=s;*p;p++) {    
+	unsigned int c = (unsigned char)*p;
+	if(c >= ' ' && c <= 127)	
+	    *q++ = (char)c;
+	else {
+	    *q++ = '\\';
+	    *q++ = 'x';
+	    *q++ = hexdigit[(c>>4)&0xf];
+	    *q++ = hexdigit[(c)&0xf];
+	}
+    }
+    *q = '\0';
 }
 
 /**************************************************/

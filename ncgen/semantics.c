@@ -1147,12 +1147,12 @@ createfilename(void)
     char* u8 = NULL;
     filename[0] = '\0';
     if(netcdf_name) { /* -o flag name */
-      NCstring2utf8(netcdf_name, &u8); /* Convert to utf8 */
+      NCpath2utf8(netcdf_name, &u8); /* Convert to utf8 */
       strlcat(filename,u8,sizeof(filename));
     } else { /* construct a usable output file name */
 	if (cdlname != NULL && strcmp(cdlname,"-") != 0) {/* cmd line name */
 	    char* p;
-            NCstring2utf8(cdlname, &u8); /* Convert to utf8 */
+            NCpath2utf8(cdlname, &u8); /* Convert to utf8 */
 	    strlcat(filename,u8,sizeof(filename));
 	    /* remove any suffix and prefix*/
 	    p = strrchr(filename,'.');
@@ -1164,7 +1164,7 @@ createfilename(void)
 		while((*q++ = *p++));
 	    }
        } else {/* construct name from dataset name */
-            NCstring2utf8(datasetname, &u8); /* Convert to utf8 */
+            NCpath2utf8(datasetname, &u8); /* Convert to utf8 */
 	    strlcat(filename,u8,sizeof(filename));
         }
         /* Append the proper extension */

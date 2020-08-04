@@ -2719,17 +2719,25 @@ exit:
  * @return A file identifier if succeeded. A negative value if failed.
  */
 hid_t
-nc4_H5Fopen(const char *filename, unsigned flags, hid_t fapl_id)
+nc4_H5Fopen(const char *filename0, unsigned flags, hid_t fapl_id)
 {
     hid_t hid;
     char* localname = NULL;
+    char* filename = NULL;
 
-fprintf(stderr,"xxx: open filename=|%s|\n",filename);
+#ifdef HDF5_UTF8_PATHS
+    NCpath2utf8(filename0,&filename);
+#else    
+    filename = strdup(filename0);
+#endif
     if((localname = NCpathcvt(filename))==NULL)
 	{hid = H5I_INVALID_HID; goto done;}
-fprintf(stderr,"xxx: localname=|%s|\n",localname);
+char x[4096];
+printutf8hex(localname,x);
+fprintf(stderr,"yyy: open: localname=%d |%s|\n",(int)strlen(x),x);
     hid = H5Fopen(localname, flags, fapl_id);
-    nullfree(localname);
 done:
+    nullfree(filename);
+    nullfree(localname);
     return hid;
 }

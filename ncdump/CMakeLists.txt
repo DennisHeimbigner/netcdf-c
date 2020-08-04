@@ -76,7 +76,6 @@ IF(MSVC)
 
 ENDIF()
 
-
 IF(ENABLE_TESTS)
   ADD_EXECUTABLE(rewrite-scalar rewrite-scalar.c)
   ADD_EXECUTABLE(bom bom.c)
@@ -146,6 +145,7 @@ ENDIF(MSVC)
   add_sh_test(ncdump tst_calendars)
   build_bin_test_no_prefix(tst_utf8)
   add_sh_test(ncdump run_utf8_tests)
+  add_bin_test_no_prefix(tst_unicode)
   IF(USE_NETCDF4)
     add_sh_test(ncdump run_utf8_nc4_tests)
     add_sh_test(ncdump tst_fileinfo)
@@ -221,8 +221,6 @@ ENDIF(MSVC)
       add_sh_test(ncdump tst_netcdf4)
       build_bin_test_no_prefix(tst_h_rdc0)
     ENDIF()
-
-    build_bin_test_no_prefix(tst_unicode)
 
     build_bin_test_no_prefix(tst_fillbug)
     add_sh_test(ncdump_sh tst_fillbug)

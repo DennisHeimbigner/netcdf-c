@@ -772,6 +772,16 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     SET(HAS_PAR_FILTERS no CACHE STRING "")
   ENDIF()
 
+  # Check to see if HDF5 library is 1.10.6 or greater.
+  # Used to control path name conversion
+  SET(H5TESTVERSION "HDF5_VERSION_STRING")
+  IF(${HDF5_VERSION_STRING} VERSION_GREATER_EQUAL "1.10.6")
+    SET(HDF5_UTF8_PATHS TRUE)
+  ELSE()
+    SET(HDF5_UTF8_PATHS FALSE)
+  ENDIF()
+  MESSAGE("-- Checking for HDF5 version 1.10.6 or later: ${HDF5_UTF8_PATHS}")
+
   SET(H5_USE_16_API 1)
   OPTION(NC_ENABLE_HDF_16_API "Enable HDF5 1.6.x Compatibility(Required)" ON)
   IF(NOT NC_ENABLE_HDF_16_API)

@@ -1156,8 +1156,7 @@ if test "x$enable_hdf5" = xyes; then
 
    # H5Pset_fapl_mpiposix and H5Pget_fapl_mpiposix have been removed since HDF5 1.8.12.
    # Use H5Pset_fapl_mpio and H5Pget_fapl_mpio, instead.
-   AC_CHECK_FUNCS([H5Pget_fapl_mpio H5Pset_deflate H5Z_SZIP H5free_memory H5resize_memory H5allocate_memory H5Pset_libver_bounds H5Pset_all_coll_metadata_ops H5Dread_chunk H5P_GET_FAPL_HDFS])
-
+   AC_CHECK_FUNCS([H5Pget_fapl_mpio H5Pset_deflate H5Z_SZIP H5free_memory H5resize_memory H5allocate_memory H5Pset_libver_bounds H5Pset_all_coll_metadata_ops H5Dread_chunk])
    # Check to see if HDF5 library has collective metadata APIs, (HDF5 >= 1.10.0)
    if test "x$ac_cv_func_H5Pset_all_coll_metadata_ops" = xyes; then
       AC_DEFINE([HDF5_HAS_COLL_METADATA_OPS], [1], [if true, use collective metadata ops in parallel netCDF-4])
@@ -1199,11 +1198,16 @@ if test "x$enable_hdf5" = xyes; then
 
    # Check to see if HDF5 library is 1.10.6 or greater.
    # Used to control path name conversion
-   if test "x$ac_cv_func_H5P_GET_FAPL_HDFS" = xyes; then
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <H5public.h>]], [[
+#if (H5_VERS_MAJOR*10000 + H5_VERS_MINOR*100 + H5_VERS_RELEASE < 11006)
+      choke me
+#endif
+  ]])], [hdf5_version_1106=yes], [hdf5_version_1106=no])
+  AC_MSG_CHECKING([whether HDF5 library is version 1.10.6 or later])
+  AC_MSG_RESULT([$hdf5_version_1106])
+  if test "x$hdf5_version_1106" = xyes; then
       AC_DEFINE([HDF5_UTF8_PATHS], [1], [if true, HDF5 paths can be utf-8])
    fi
-   AC_MSG_CHECKING([whether HDF5 can use utf-8 paths])
-   AC_MSG_RESULT([$ac_cv_func_H5P_GET_FAPL_HDFS])
 
 fi
 

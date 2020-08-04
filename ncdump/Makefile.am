@@ -59,14 +59,19 @@ man_MANS = ncdump.1 nccopy.1
 if BUILD_TESTSETS
 # C programs needed by shell scripts for classic tests.
 check_PROGRAMS = rewrite-scalar ref_ctest ref_ctest64 ncdump tst_utf8   \
-bom tst_dimsizes nctrunc
+bom tst_dimsizes nctrunc tst_unicode
 
 # Tests for classic and 64-bit offset files.
 TESTS = tst_inttags.sh run_tests.sh tst_64bit.sh ref_ctest	\
 ref_ctest64 tst_output.sh tst_lengths.sh tst_calendars.sh	\
-run_utf8_tests.sh test_unicode_path.sh tst_nccopy3.sh tst_nccopy3_subset.sh		\
+run_utf8_tests.sh tst_nccopy3.sh tst_nccopy3_subset.sh		\
 tst_charfill.sh tst_iter.sh tst_formatx3.sh tst_bom.sh		\
 tst_dimsizes.sh run_ncgen_tests.sh tst_ncgen4_classic.sh test_radix.sh
+
+# Unicode tests only work for linux|cygwin|mac A separate test
+# is provided to test unicode paths under visual studio
+# (see CMakeLists.txt)
+TESTS += test_unicode_path.sh
 
 # The tst_nccopy3.sh test uses output from a bunch of other
 # tests. This records the dependency so parallel builds work.
@@ -88,7 +93,7 @@ if USE_HDF5
 check_PROGRAMS += tst_fileinfo tst_create_files tst_h_rdc0	\
 tst_group_data tst_enum_data tst_opaque_data tst_string_data	\
 tst_vlen_data tst_comp tst_comp2 tst_nans tst_special_atts	\
-tst_unicode tst_fillbug tst_compress tst_chunking tst_h_scalar
+tst_fillbug tst_compress tst_chunking tst_h_scalar
 
 check_PROGRAMS += tst_vlen_demo
 
@@ -114,6 +119,9 @@ if USE_HDF5
 # Re-activate the ncgen -lc tests
 TESTS += tst_ctests.sh
 endif
+
+# Run tst_unicode as a standalone test
+TESTS += tst_unicode
 
 endif BUILD_TESTSETS
 
@@ -156,6 +164,10 @@ ref_nccopy_w.cdl tst_nccopy_w3.sh tst_nccopy_w4.sh			\
 ref_no_ncproperty.nc test_unicode_path.sh				\
 ref_roman_szip_simple.cdl ref_roman_szip_unlim.cdl
 
+# This test is Windows specific, but include in the distribution
+EXTRA_DIST += 
+
+
 # The L512.bin file is file containing exactly 512 bytes each of value 0.
 # It is used for creating hdf5 files with varying offsets for testing.
 EXTRA_DIST += L512.bin
@@ -190,4 +202,4 @@ tst_ncf199.cdl tst_tst_gattenum.cdl tst_tst_usuffix.cdl ctest.c		\
 ctest64.c nccopy3_subset_out.nc camrun.c tst_ncf213.cdl tst_ncf213.nc	\
 tst_radix.nc tmp_radix.cdl ctest_small_3.c ctest_small_4.c		\
 ctest_special_atts_4.c tst_roman_szip_simple.cdl			\
-tst_roman_szip_unlim.cdl
+tst_roman_szip_unlim.cdl tst_utf8_*.nc
