@@ -13,12 +13,12 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 # Build ncgen from the listed sources.
 bin_PROGRAMS = ncgen3
 ncgen3_SOURCES = main.c load.c escapes.c getfill.c init.c	\
-genlib.c generic.h ncgen.h genlib.h ncgeny.c ncgeny.h
+genlib.c generic.h ncgen.h genlib.h ncgeny.h ncgeny.c
 
 man_MANS = ncgen3.1
 
 # These files all need to be distributed.
-EXTRA_DIST = ncgen.y ncgen.l c0.cdl run_tests.sh ncgeny.c ncgeny.h \
+EXTRA_DIST = ncgen.y ncgen.l ncgenl.c c0.cdl run_tests.sh	\
 run_nc4_tests.sh $(man_MANS) CMakeLists.txt
 
 # There is a netcdf classic and netcdf-4 test script, but don't run
@@ -34,15 +34,15 @@ endif # USE_HDF5
 CLEANFILES = c0.nc c0_64.nc c0_4.nc c0_4c.nc
 
 
-# This is used if someone wants to rebuild ncgeny.c or ncgeny.h or ncgenl.c
-# Otherwise never invoked, but records how to do it. Don't forget to
-# manually insert #include "config.h" in ncgeny.c!
+# This is used if someone wants to rebuild the parser and lexer
+# Otherwise never invoked, but records how to do it.
 makeparser::
 	rm -f ncgenl.c lex.ncg.c
 	flex -Pncg -8 ncgen.l
+	rm -f ncgenl.c
 	sed -e s/lex.ncg.c/ncgenl.c/g <lex.ncg.c >ncgenl.c
 	bison -pncg -t -d ncgen.y
-	rm -f ncgeny.c ncgeny.h 
+	rm -f ncgeny.c ncgeny.h
 	sed -e s/ncgen.tab.c/ncgeny.c/g -e s/ncgen.tab.h/ncgeny.h/g <ncgen.tab.c >ncgeny.c
 	sed -e s/ncgen.tab.c/ncgeny.c/g -e s/ncgen.tab.h/ncgeny.h/g <ncgen.tab.h >ncgeny.h
-	rm -f lex.ncg.c ncgen.tab.h ncgen.tab.c
+	rm -f ncgen.tab.c ncgen.tab.h

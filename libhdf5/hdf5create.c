@@ -336,6 +336,7 @@ nc4_H5Fcreate(const char *filename0, unsigned flags, hid_t fcpl_id, hid_t fapl_i
 	{hid = H5I_INVALID_HID; goto done;}
 char x[4096];
 printutf8hex(localname,x);
+fprintf(stderr,"yyy: create: filename=%d |%s|\n",(int)strlen(filename),filename);
 fprintf(stderr,"yyy: create: localname=%d |%s| x=%d |%s|\n",(int)strlen(localname),localname,(int)strlen(x),x);
     hid = H5Fcreate(localname, flags, fcpl_id, fapl_id);
 done:

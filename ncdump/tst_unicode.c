@@ -161,8 +161,9 @@ _getcwd(wd,sizeof(wd));
 #endif
 
 #ifdef HAVE_LOCALE_H
-   setlocale(LC_ALL,"");
+setlocale(LC_ALL,"C.UTF-8");
 #endif
+
    /* Run the utf8 test both for netcdf-4 and netcdf-3 */
    if(test(0,"classic")) ERR;
 #ifdef USE_NETCDF4

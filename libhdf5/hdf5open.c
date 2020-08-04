@@ -2734,6 +2734,7 @@ nc4_H5Fopen(const char *filename0, unsigned flags, hid_t fapl_id)
 	{hid = H5I_INVALID_HID; goto done;}
 char x[4096];
 printutf8hex(localname,x);
+fprintf(stderr,"yyy: create: filename=%d |%s|\n",(int)strlen(filename),filename);
 fprintf(stderr,"yyy: open: localname=%d |%s|\n",(int)strlen(x),x);
     hid = H5Fopen(localname, flags, fapl_id);
 done:
