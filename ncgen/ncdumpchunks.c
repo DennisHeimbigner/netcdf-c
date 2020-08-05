@@ -52,6 +52,11 @@ main(int argc, char** argv)
     int i,stat = NC_NOERR;
     hid_t fileid, grpid, datasetid;
     int* chunkdata = NULL; /*[CHUNKPROD];*/
+#ifdef HDF5_SUPPORTS_PAR_FILTERS
+    int r;
+    hid_t dxpl_id = H5P_DEFAULT; /*data transfer property list */
+    unsigned int filter_mask = 0;
+#endif
     const char* file_name = NULL;
     const char* var_name = NULL;
     int ncid, varid, dimids[NC_MAX_VAR_DIMS];
