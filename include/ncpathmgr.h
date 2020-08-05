@@ -64,6 +64,7 @@ properties:
    using a cygwin path under visual studio will convert e.g.
    /cygdrive/d/x/y to d:\x\y. See ../unit_test/test_pathcvt.c
    for example conversions.
+It returns the converted path.
 
 Note that this function is intended to be Idempotent: f(f(x) == f(x).
 This means it is ok to call it repeatedly with no harm.
@@ -92,7 +93,7 @@ EXTERNL int NCaccess(const char* path, int mode);
 EXTERNL int NCremove(const char* path);
 EXTERNL int NCmkdir(const char* path, int mode);
 EXTERNL char* NCcwd(char* cwdbuf, size_t len);
-#ifdef HAV_DIRENT_H
+#ifdef HAVE_DIRENT_H
 EXTERNL DIR* NCopendir(const char* path);
 EXTERNL int NCclosedir(DIR* ent);
 #endif

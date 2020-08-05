@@ -13,6 +13,13 @@
 #define DLL_EXPORT
 #endif
 
+#if NOOP_INSTANCE == 1
+const static int instance1 = 1;
+#endif
+#if NOOP_INSTANCE == 0
+const static int instance0 = 1;
+#endif
+
 /* use a temporary */
 #define H5Z_FILTER_NOOP 40000
 
@@ -90,11 +97,11 @@ H5Z_filter_noop(unsigned int flags, size_t cd_nelmts,
     void* newbuf;
     size_t i;    
     
-#if NOOP_INSTANCE == 0
-    NC_UNUSED(instance0);
-#endif
 #if NOOP_INSTANCE == 1
     NC_UNUSED(instance1);
+#endif
+#if NOOP_INSTANCE == 0
+    NC_UNUSED(instance0);
 #endif
 
     printf("cd_nelmts=%lu cd_values=",(unsigned long)cd_nelmts);

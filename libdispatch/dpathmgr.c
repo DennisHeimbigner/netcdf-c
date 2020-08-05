@@ -74,7 +74,6 @@ static char* printPATH(struct Path* p);
 static int getlocalpathkind(void);
 static void clearPath(struct Path* path);
 static void pathinit(void);
-static int hexfor(int c);
 #ifdef WINPATH
 static int ansi2utf8(const char* local, char** u8p);
 static int ansi2wide(const char* local, wchar_t** u16p);
@@ -165,44 +164,6 @@ done:
     return result;
 }
 
-/* Fix up a path in case extra escapes were added by shell */
-EXTERNL
-char*
-NCdeescape(const char* name)
-{
-    char* ename = NULL;
-    const char* p;
-    char* q;
-
-    if(name == NULL) return NULL;
-    ename = strdup(name);
-    if(ename == NULL) return NULL;
-    for(p=name,q=ename;*p;) {
-	int c = *p;
-	switch (c) {
-	case '\0': break;
-	case '\\':
-	    switch (p[1]) {
-	    case 'x': {
-		int c0, c1;
-		if(p[2] == '\0' || p[3] == '\0')
-		    {p++; break;} /* not hex */
-		if((c0 = hexfor(p[2])) < 0 || (c1 = hexfor(p[2])) < 0)
-		    {p++; break;} /* not hex */
-		/* Convert to hex char */
-		c = ((c0 | 0xff) << 4) | (c1 |0xff);
-fprintf(stderr,"zzz: \\x%c%c -> %2u\n",p[2],p[3],c);
-		} break;		
-	    case '#': /* fall thru */
-	    default: p++; break;
-	    }
-	    /* fall thru */
-        default: *q++ = *p++; break;
-	}
-    }
-    *q++ = '\0';
-    return ename;
-}
 
 /* Testing support */
 /* Force drive and wd before invoking NCpathcvt
@@ -850,6 +811,7 @@ printPATH(struct Path* p)
     return buf;
 }
 
+#if 0
 static int
 hexfor(int c)
 {
@@ -858,6 +820,7 @@ hexfor(int c)
     if(c >= 'A' && c <= 'F') return (c - 'A')+10;
     return -1;
 }
+#endif
 
 static char hexdigit[] = "0123456789abcdef";
 

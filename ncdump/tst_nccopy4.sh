@@ -22,10 +22,9 @@ UNIFILE='tst_utf8_海.nc'
 UNIFILE='tst_utf8_\xe6\xb5\xb7.nc'
 UNIFILE='tst_utf8_\xce\x9a\xce\xb1'
 UNIFILE='tst_utf8_Κα'
-LC_ALL="en_US.UTF-8"
 LC_ALL="C.UTF-8"
-export LC_ALL
 fi
+export LC_ALL
 
 # These files are actually in $srcdir in distcheck builds, so they
 # need to be handled differently.
@@ -49,9 +48,9 @@ for i in $TESTFILES ; do
     ${NCCOPY} $i.nc copy_of_$i.nc
 ${NCDUMP} -n copy_of_$i $i.nc > tmp.cdl
 ${NCDUMP} copy_of_$i.nc > copy_of_$i.cdl
-#    echo "*** compare " with copy_of_$i.cdl
+    echo "*** compare " with copy_of_$i.cdl
     diff copy_of_$i.cdl tmp.cdl
-#    rm copy_of_$i.nc copy_of_$i.cdl tmp.cdl
+    rm copy_of_$i.nc copy_of_$i.cdl tmp.cdl
 done
 exit
 # echo "*** Testing compression of deflatable files ..."

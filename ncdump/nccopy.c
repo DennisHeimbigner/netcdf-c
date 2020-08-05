@@ -1994,7 +1994,6 @@ copy(char* infile, char* outfile)
 	open_mode |= NC_DISKLESS;
     }
 
-fprintf(stderr,"xxx: nccopy: open: %d |%s|\n",(int)strlen(infile),infile);
     NC_CHECK(nc_open(infile, open_mode, &igrp));
 
     NC_CHECK(nc_inq_format(igrp, &inkind));
@@ -2083,7 +2082,6 @@ fprintf(stderr,"xxx: nccopy: open: %d |%s|\n",(int)strlen(infile),infile);
 	error("bad value for option specifying desired output format, see usage\n");
 	break;
     }
-fprintf(stderr,"xxx: nccopy: create: %d |%s|\n",(int)strlen(outfile),outfile);
     NC_CHECK(nc_create(outfile, create_mode, &ogrp));
     NC_CHECK(nc_set_fill(ogrp, NC_NOFILL, NULL));
 

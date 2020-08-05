@@ -105,7 +105,6 @@ test(int flags, const char* model)
    printf("*** creating UTF-8 test file |%s|...", filename);
    if((canonname = NCpathcvt((char*)filename)) == NULL)
       CHECK(NC_ENOMEM);
-fprintf(stderr,"xxx: tst_unicode: canonname=%d |%s|\n",(int)strlen(canonname), canonname);
 
    CHECK(nc_create(canonname, flags, &ncid));
 
@@ -127,10 +126,6 @@ fprintf(stderr,"xxx: tst_unicode: canonname=%d |%s|\n",(int)strlen(canonname), c
    CHECK(nc_close(ncid));
 
    /* Check it out. */
-
-char sx[4092];
-printutf8hex(canonname,sx);
-fprintf(stderr,"xxx: tst_unicode: canonname=%d |%s| sx=|%s|\n",(int)strlen(canonname), canonname, sx);
 
    /* Reopen the file. */
    CHECK(nc_open(canonname, NC_NOWRITE, &ncid));
