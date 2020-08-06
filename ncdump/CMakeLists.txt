@@ -150,8 +150,12 @@ ENDIF(MSVC)
     add_sh_test(ncdump run_utf8_nc4_tests)
     add_sh_test(ncdump tst_fileinfo)
     add_sh_test(ncdump tst_hdf5_offset)
+    add_sh_test(ncdump test_unicode_directory)
+    IF(MSVC)
+      # This test does not work under windows
+      add_sh_test(ncdump test_unicode_path)
+    ENDIF()
   ENDIF(USE_NETCDF4)
-  add_sh_test(ncdump test_unicode_path)
 
   add_sh_test(ncdump tst_null_byte_padding)
   IF(USE_STRICT_NULL_BYTE_HEADER_PADDING)

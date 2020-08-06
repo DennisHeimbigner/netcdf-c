@@ -26,7 +26,7 @@
 #endif
 
 /* If set, then always wrap call */
-#define NCPATHDEBUG
+#undef NCPATHDEBUG
 
 /* Define wrapper constants for use with NCaccess */
 #ifdef _WIN32
@@ -76,7 +76,7 @@ EXTERNL char* NCpathabsolute(const char* name);
 
 /* Convert from the local coding (e.g. ANSI) to utf-8;
    note that this can produce unexpected results for Windows
-   because it convert to wide character and then to utf8. */
+   because it first converts to wide character and then to utf8. */
 EXTERNL int NCpath2utf8(const char* path, char** u8p);
 
 /* Wrap various stdio and unistd IO functions.

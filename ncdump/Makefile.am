@@ -68,9 +68,17 @@ run_utf8_tests.sh tst_nccopy3.sh tst_nccopy3_subset.sh		\
 tst_charfill.sh tst_iter.sh tst_formatx3.sh tst_bom.sh		\
 tst_dimsizes.sh run_ncgen_tests.sh tst_ncgen4_classic.sh test_radix.sh
 
-# Unicode tests only work for linux|cygwin|mac A separate test
-# is provided to test unicode paths under visual studio
-# (see CMakeLists.txt)
+# Unicode tests
+
+# This test works everywhere
+TESTS += tst_unicode
+
+# This test works for everything although
+# technically it is wrong since it does not actually use
+# unicode directory name under windows.
+TESTS += test_unicode_directory.sh
+
+# This test only works for linux|cygwin|mac
 TESTS += test_unicode_path.sh
 
 # The tst_nccopy3.sh test uses output from a bunch of other
