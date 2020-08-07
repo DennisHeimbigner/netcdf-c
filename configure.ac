@@ -624,8 +624,8 @@ AC_ARG_ENABLE([benchmarks],
                               are timed. We use these tests to check netCDF performance.])])
 test "x$enable_benchmarks" = xyes || enable_benchmarks=no
 AC_MSG_RESULT($enable_benchmarks)
-if test "x$enable_netcdf4" = xno -a "x$enable_benchmarks" = xyes; then
-AC_MSG_ERROR([Can't use benchmarks if netCDF-4 is disabled.])
+if test "x$enable_HDF5" = xno -a "x$enable_benchmarks" = xyes; then
+AC_MSG_ERROR([Can't use benchmarks if HDF5 is disabled.])
 fi
 AM_CONDITIONAL(BUILD_BENCHMARKS, [test x$enable_benchmarks = xyes])
 
@@ -1103,10 +1103,10 @@ AC_CHECK_SIZEOF(ssize_t)
 $SLEEPCMD
 AC_CHECK_SIZEOF([void*])
 
-if test "x$enable_netcdf_4" = xyes || test "x$enable_dap" = xyes; then
+if test "x$enable_hdf5" = xyes || test "x$enable_dap" = xyes; then
    AC_SEARCH_LIBS([deflate], [zlibwapi zlibstat zlib zlib1 z], [], [
      AC_MSG_ERROR([Can't find or link to the z library. Turn off netCDF-4 and \
-     DAP clients with --disable-netcdf-4 --disable-dap, or see config.log for errors.])])
+     DAP clients with --disable-hdf5 --disable-dap, or see config.log for errors.])])
    AC_SEARCH_LIBS([dlopen], [dl dld], [], [])
 fi
 
