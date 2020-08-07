@@ -272,3 +272,81 @@ NCZ_inq_unlimdims(int ncid, int *ndimsp, int *unlimdimidsp)
     return NC_NOERR;
 }
 
+/**
+ * @internal Find out name and len of a dim. For an unlimited
+ * dimension, the length is the largest length so far written. If the
+ * name of lenp pointers are NULL, they will be ignored.
+ *
+ * @param ncid File and group ID.
+ * @param dimid Dimension ID.
+ * @param name Pointer that gets name of the dimension.
+ * @param lenp Pointer that gets length of dimension.
+ *
+ * @return ::NC_NOERR No error.
+ * @return ::NC_EBADID Bad ncid.
+ * @return ::NC_EDIMSIZE Dimension length too large.
+ * @return ::NC_EBADDIM Dimension not found.
+ * @author Ed Hartnett
+ */
+int
+NC4_inq_dim(int ncid, int dimid, char *name, size_t *lenp)
+{
+    NC *nc;
+    NC_FILE_INFO_T *h5;
+    NC_GRP_INFO_T *grp, *dim_grp;
+    NC_DIM_INFO_T *dim;
+    int ret = NC_NOERR;
+
+    LOG((2, "%s: ncid 0x%x dimid %d", __func__, ncid, dimid));
+
+    /* Find our global metadata structure. */
+    if ((ret = nc4_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
+        return ret;
+    assert(h5 && nc && grp);
+
+    /* Find the dimension and its home group. */
+    if ((ret = nc4_find_dim(grp, dimid, &dim, &dim_grp)))
+        return ret;
+    assert(dim);
+
+    /* Return the dimension name, if the caller wants it. */
+    if (name && dim->hdr.name)
+        strcpy(name, dim->hdr.name);
+
+    /* Return the dimension length, if the caller wants it. */
+    if (lenp)
+    {
+#ifdef UNLIMITED
+        if (dim->unlimited)
+        {
+            /* Since this is an unlimited dimension, go to the file
+               and see how many records there are. Take the max number
+               of records from all the vars that share this
+               dimension. */
+            *lenp = 0;
+            if (dim->len == 0) {
+              if ((ret = nc4_find_dim_len(dim_grp, dimid, &lenp)))
+                 return ret;
+              if (h5->no_write == NC_TRUE) {
+                dim->len = *lenp;
+              }
+            }
+            else {
+              *lenp = dim->len;
+            }
+        } else
+#endif /*UNLIMITED*/
+        {
+            if (dim->too_long)
+            {
+                ret = NC_EDIMSIZE;
+                *lenp = NC_MAX_UINT;
+            }
+            else
+                *lenp = dim->len;
+        }
+    }
+
+    return ret;
+}
+
