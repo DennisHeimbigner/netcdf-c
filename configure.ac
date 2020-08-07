@@ -76,7 +76,7 @@ AC_CONFIG_SRCDIR([include/netcdf.h])
 
 AC_MSG_NOTICE([checking supported formats])
 
-# An explicit setting of netcdf-4 | netcdf4 is treated as if it was enable-hdf5
+# An explicit disable of netcdf-4 | netcdf4 is treated as if it was disable-hdf5
 AC_MSG_CHECKING([whether we should build with netcdf4 (alias for HDF5)])
 AC_ARG_ENABLE([netcdf4], [AS_HELP_STRING([--disable-netcdf4],
               [(synonym for --enable-hdf5)])])
@@ -87,6 +87,7 @@ AC_ARG_ENABLE([netcdf-4], [AS_HELP_STRING([--disable-netcdf-4],
               [(synonym for --disable-netcdf4)])])
 test "x$enable_netcdf_4" = xno || enable_netcdf_4=yes
 AC_MSG_RESULT([$enable_netcdf_4])
+# Propagate the alias
 if test "x$enable_netcdf_4" = xno ; then enable_netcdf4=no; fi
 if test "x$enable_netcdf4" = xno ; then enable_netcdf_4=no; fi
 
@@ -96,7 +97,7 @@ AC_ARG_ENABLE([hdf5], [AS_HELP_STRING([--disable-hdf5],
               [do not build with HDF5])])
 test "x$enable_hdf5" = xno || enable_hdf5=yes
 if test "x$enable_netcdf4" = xno ; then enable_hdf5=no ; fi
-# netcdf4 is synonym for setting hdf5
+# disable-netcdf4 is synonym for disable-hdf5
 AC_MSG_RESULT([$enable_hdf5])
 
 # Check whether we want to enable CDF5 support.
