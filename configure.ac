@@ -1473,48 +1473,6 @@ AC_ARG_ENABLE([filter-testing],
 test "x$enable_filter_testing" = xno || enable_filter_testing=yes
 AC_MSG_RESULT($enable_filter_testing)
 
-# Control client filters
-AC_MSG_CHECKING([whether client filters should be enabled])
-AC_ARG_ENABLE([client-filters],
-              [AS_HELP_STRING([--enable-clientfilters],
-                              [Enable client side filters; default off])])
-test "x$enable_client_filters" = xyes || enable_client_filters=no
-AC_MSG_RESULT($enable_client_filters)
-
-if test "x$enable_netcdf_4" = xno ; then
-AC_MSG_WARN([netCDF-4 disabled => --disable-filter-testing && --disable-client-filters])
-enable_filter_testing=no
-enable_client_filters=no
-fi
-
-if test "x$enable_hdf5" = xno ; then
-AC_MSG_WARN([HDF5 disabled => --disable-filter-testing])
-enable_filter_testing=no
-fi
-
-if test "x$enable_shared" = xno ; then
-AC_MSG_WARN([Shared libraries are disabled => --disable-filter-testing])
-enable_filter_testing=no
-fi
-AM_CONDITIONAL(ENABLE_CLIENT_FILTERS, [test x$enable_client_filters = xyes])
-
-if test "x$enable_netcdf_4" = xno ; then
-AC_MSG_WARN([netCDF-4 disabled => --disable-filter-testing && --disable-client-filters])
-enable_filter_testing=no
-enable_client_filters=no
-fi
-
-if test "x$enable_hdf5" = xno ; then
-AC_MSG_WARN([HDF5 disabled => --disable-filter-testing])
-enable_filter_testing=no
-fi
-
-if test "x$enable_shared" = xno ; then
-AC_MSG_WARN([Shared libraries are disabled => --disable-filter-testing])
-enable_filter_testing=no
-fi
-AM_CONDITIONAL(ENABLE_FILTER_TESTING, [test x$enable_filter_testing = xyes])
-
 # Enable client side filter registration
 AC_MSG_CHECKING([If client-side filters are enabled (default off)])
 AC_ARG_ENABLE([clientside-filters],
@@ -1527,7 +1485,20 @@ AC_MSG_RESULT($enable_clientside_filters)
 if test "x$enable_clientside_filters" = xyes ; then
 AC_DEFINE([ENABLE_CLIENTSIDE_FILTERS], [1], [if true, enable client-side filters])
 fi
+
+if test "x$enable_hdf5" = xno ; then
+AC_MSG_WARN([HDF5 disabled => --disable-filter-testing && --disable-client-filters])
+enable_filter_testing=no
+enable_clientside_filters=no
+fi
+
 AM_CONDITIONAL(ENABLE_CLIENTSIDE_FILTERS, [test x$enable_clientside_filters = xyes])
+
+if test "x$enable_shared" = xno ; then
+AC_MSG_WARN([Shared libraries are disabled => --disable-filter-testing])
+enable_filter_testing=no
+fi
+AM_CONDITIONAL(ENABLE_CLIENT_FILTERS, [test x$enable_client_filters = xyes])
 
 AC_SUBST(NC_LIBS,[$NC_LIBS])
 AC_SUBST(HAS_DAP,[$enable_dap])
