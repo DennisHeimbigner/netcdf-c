@@ -8,7 +8,7 @@
 TOPSRCDIR='@abs_top_srcdir@'
 TOPBUILDDIR='@abs_top_builddir@'
 FP_ISCMAKE=@ISCMAKE@
-FP_ISMSVC=@MSVC@
+FP_ISMSVC=@ISMSVC@
 
 set -e
 

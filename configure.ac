@@ -1026,18 +1026,23 @@ AC_TYPE_UINTPTR_T
 AC_C_CHAR_UNSIGNED
 AC_C_BIGENDIAN
 
+# Figure out platforms of special interest
+case "`uname`" in
+  CYGWIN*) ISCYGWIN=yes;;
+  WIN*) ISMSVC=yes;;
+esac
+AM_CONDITIONAL(ISCYGWIN, [test "x$ISCYGWIN" = xyes])
+AM_CONDITIONAL(ISMSVC, [test "x$ISMSVC" = xyes])
+
 ###
 # Crude hack to work around an issue
 # in Cygwin.
 ###
 SLEEPCMD=""
-PLTFORMOUT="$(uname | cut -d '_' -f 1)"
-if test "$PLTFORMOUT" = "CYGWIN"; then
-   ISCYGWIN=yes
+if test "x$ISCYGWIN" = "xyes"; then
    SLEEPCMD="sleep 5"
    AC_MSG_NOTICE([Pausing between sizeof() checks to mitigate a Cygwin issue.])
 fi
-AM_CONDITIONAL(ISCYGWIN, [test "x$ISCYGWIN" = xyes])
 
 $SLEEPCMD
 AC_CHECK_SIZEOF(short)
@@ -1413,7 +1418,6 @@ AM_CONDITIONAL(ENABLE_BYTERANGE, [test "x$enable_byterange" = xyes])
 AM_CONDITIONAL(RELAX_COORD_BOUND, [test "xyes" = xyes])
 AM_CONDITIONAL(HAS_PAR_FILTERS, [test x$hdf5_supports_par_filters = xyes ])
 AM_CONDITIONAL(ENABLE_NCZARR, [test "x$enable_nczarr" = xyes])
-AM_CONDITIONAL(HAVE_AWS, [test "x$have_aws" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
@@ -1658,11 +1662,10 @@ AC_SUBST([NC_DISPATCH_VERSION], [2])
 # End netcdf_meta.h definitions.
 #####
 
+# This would be true for a visual studio build.
+AC_SUBST([ISMSVC], [${ISMSVC}])
 # This would be true for a cmake build.
 AC_SUBST([ISCMAKE], [])
-
-# This would be true for a visual studio build.
-AC_SUBST([MSVC], [])
 
 AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)

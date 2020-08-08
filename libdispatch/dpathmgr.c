@@ -327,7 +327,7 @@ done:
 
 EXTERNL
 char*
-NCcwd(char* cwdbuf, size_t cwdlen)
+NCgetcwd(char* cwdbuf, size_t cwdlen)
 {
     int status = NC_NOERR;
     struct Path wd = empty;
@@ -356,87 +356,8 @@ NCpath2utf8(const char* s, char** u8p)
 {
     return ansi2utf8(s,u8p);
 }
+
 #else /*!WINPATH*/
-
-#ifdef NCPATHDEBUG
-/*
-Provide wrappers for Path-related functions
-when debugging
-*/
-
-FILE*
-NCfopen(const char* path, const char* flags)
-{
-    FILE* f = NULL;
-    char* cvtpath = NCpathcvt(path);
-    f = fopen(cvtpath,flags);
-    return f;
-}
-
-int
-NCopen3(const char* path, int flags, int mode)
-{
-    int fd = -1;
-    char* cvtpath = NCpathcvt(path);
-    fd = open(cvtpath,flags,mode);
-    return fd;
-}
-
-int
-NCopen2(const char *path, int flags)
-{
-    return NCopen3(path,flags,0);
-}
-
-/*
-Provide wrappers for other file system functions
-*/
-
-/* Return access applied to path+mode */
-int
-NCaccess(const char* path, int mode)
-{
-    char* cvtpath = NCpathcvt(path);
-    return access(cvtpath,mode);
-}
-
-int
-NCremove(const char* path)
-{
-    char* cvtpath = NCpathcvt(path);
-    return remove(cvtpath);
-}
-
-int
-NCmkdir(const char* path, int mode)
-{
-    char* cvtpath = NCpathcvt(path);
-    return mkdir(cvtpath,mode);
-}
-
-char*
-NCcwd(char* cwdbuf, size_t cwdlen)
-{
-    return getcwd(cwdbuf,cwdlen);
-}
-
-#ifdef HAVE_DIRENT_H
-DIR*
-NCopendir(const char* path)
-{
-    char* cvtpath = NCpathcvt(path);
-    return opendir(cvtpath);
-}
-
-EXTERNL
-int
-NCclosedir(DIR* ent)
-{
-    return closedir(ent);
-}
-#endif
-
-#endif /*NCPATHDEBUG*/
 
 int
 NCpath2utf8(const char* path, char** u8p)

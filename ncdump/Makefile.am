@@ -79,7 +79,11 @@ TESTS += tst_unicode
 TESTS += test_unicode_directory.sh
 
 # This test only works for linux|cygwin|mac
-TESTS += test_unicode_path.sh
+# Because passing a utf8 string from bash to a windows
+# program does not work correctly
+if ! ISMSVC
+TESTS += test_unicode_path.sh tst_nccopy4.sh
+endif
 
 # The tst_nccopy3.sh test uses output from a bunch of other
 # tests. This records the dependency so parallel builds work.
@@ -107,7 +111,7 @@ check_PROGRAMS += tst_vlen_demo
 
 # Tests for netCDF-4 behavior.
 TESTS += tst_fileinfo.sh tst_hdf5_offset.sh tst_inttags4.sh		\
-tst_netcdf4.sh tst_fillbug.sh tst_netcdf4_4.sh tst_nccopy4.sh		\
+tst_netcdf4.sh tst_fillbug.sh tst_netcdf4_4.sh 		\
 tst_nccopy5.sh tst_grp_spec.sh tst_mud.sh tst_h_scalar.sh tst_formatx4.sh		\
 run_utf8_nc4_tests.sh run_back_comp_tests.sh run_ncgen_nc4_tests.sh	\
 tst_ncgen4.sh
@@ -169,7 +173,7 @@ tst_ncgen4_cycle.sh tst_null_byte_padding.sh				\
 ref_null_byte_padding_test.nc ref_tst_irish_rover.nc			\
 ref_provenance_v1.nc ref_tst_radix.cdl tst_radix.cdl test_radix.sh	\
 ref_nccopy_w.cdl tst_nccopy_w3.sh tst_nccopy_w4.sh			\
-ref_no_ncproperty.nc test_unicode_path.sh				\
+ref_no_ncproperty.nc test_unicode_directory.sh test_unicode_path.sh     \
 ref_roman_szip_simple.cdl ref_roman_szip_unlim.cdl
 
 # This test is Windows specific, but include in the distribution

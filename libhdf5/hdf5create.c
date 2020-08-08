@@ -332,6 +332,7 @@ nc4_H5Fcreate(const char *filename0, unsigned flags, hid_t fcpl_id, hid_t fapl_i
 #else    
     filename = strdup(filename0);
 #endif
+    /* Canonicalize it since we are not opening the file ourselves */
     if((localname = NCpathcvt(filename))==NULL)
 	{hid = H5I_INVALID_HID; goto done;}
     hid = H5Fcreate(localname, flags, fcpl_id, fapl_id);

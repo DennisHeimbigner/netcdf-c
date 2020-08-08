@@ -199,8 +199,7 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
     if(strcasecmp(url->protocol,"file") != 0)
         {stat = NC_EURL; goto done;}
 
-    /* Canonicalize the root path */
-    truepath = NCpathcvt(url->path);
+    truepath = strdup(url->path);
 
 #ifdef CHECKNESTEDDATASETS
     if(isnesteddataset(truepath))
@@ -273,8 +272,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     if(strcasecmp(url->protocol,"file") != 0)
         {stat = NC_EURL; goto done;}
 
-    /* Canonicalize the root path */
-    truepath = NCpathcvt(url->path);
+    truepath = strdup(url->path);
 
     /* Build the z4 state */
     if((zfmap = calloc(1,sizeof(ZFMAP))) == NULL)
@@ -661,8 +659,7 @@ zffullpath(ZFMAP* zfmap, const char* key, char** pathp)
 	if(strcmp(key,"/") != 0)
             strlcat(path,key,flen);
     }
-    /* Convert to local form */
-    if(pathp) {*pathp = NCpathcvt(path);}
+    if(pathp) {*pathp = path; path = NULL;}
 done:
     nullfree(path)
     return stat;
@@ -967,7 +964,7 @@ platformdeleter(ZFMAP* zfmap, NClist* segments, int depth)
     /* When running on any platform that can accept drive letters */
     if((ret = nczm_fixpath(path,&tmp))) goto done;
     nullfree(path); path = NULL;
-    if((path = NCpathcvt(tmp))==NULL) {ret = NC_ENOMEM; goto done;}
+    if((path = strdup(tmp))==NULL) {ret = NC_ENOMEM; goto done;}
 
     errno = 0;
     ret = stat(path, &statbuf);
@@ -1204,7 +1201,7 @@ testifdir(const char* path, int* isdirp, char** truepathp)
 
     /* Make path be windows compatible */
     if((ret = nczm_fixpath(path,&tmp))) goto done;
-    if((truepath = NCpathcvt(tmp))==NULL) {ret = NC_ENOMEM; goto done;}
+    if((truepath = strdup(tmp))==NULL) {ret = NC_ENOMEM; goto done;}
 
     errno = 0;
     ret = stat(truepath, &statbuf);

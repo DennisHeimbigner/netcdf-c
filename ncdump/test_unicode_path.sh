@@ -41,4 +41,4 @@ c:/Windows/System32/chcp $CP
 fi
 
 echo "Test Passed. Cleaning up."
-#rm ${UNIFILE}
+rm ${UNIFILE}

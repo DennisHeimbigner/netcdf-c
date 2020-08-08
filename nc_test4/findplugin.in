@@ -26,7 +26,7 @@ FP_NAME="$1"
 
 # Figure out the compiler (some values from ./configure)
 FP_ISCMAKE=@ISCMAKE@
-FP_ISMSVC=@MSVC@
+FP_ISMSVC=@ISMSVC@
 
 # And topsrcdir
 topbuilddir='@abs_top_builddir@'

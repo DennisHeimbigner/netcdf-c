@@ -75,8 +75,7 @@ znc4create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP*
     if((stat=parseurl(path,&url)))
 	goto done;
 
-    /* Canonicalize the root path */
-    truepath = NCpathcvt(url->path);
+    truepath = strdup(url->path);
 
     /* Build the z4 state */
     if((z4map = calloc(1,sizeof(Z4MAP))) == NULL)
@@ -121,7 +120,7 @@ znc4open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** 
 	goto done;
 
     /* Canonicalize the root path */
-    truepath = NCpathcvt(url->path);
+    truepath = strdup(url->path);
 
     /* Build the z4 state */
     if((z4map = calloc(1,sizeof(Z4MAP))) == NULL)

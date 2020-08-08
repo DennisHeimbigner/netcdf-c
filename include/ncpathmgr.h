@@ -25,9 +25,6 @@
 #endif
 #endif
 
-/* If set, then always wrap call */
-#undef NCPATHDEBUG
-
 /* Define wrapper constants for use with NCaccess */
 #ifdef _WIN32
 #define ACCESS_MODE_EXISTS 0
@@ -42,6 +39,9 @@
 #endif
 
 /*
+WARNING: you should never need to explictly call this function;
+rather it is invoked as part of the wrappers for e.g. NCfopen, etc.
+
 This function attempts to take an arbitrary path and convert
 it to a canonical form.
 Assumptions about Input path:
@@ -82,9 +82,8 @@ EXTERNL int NCpath2utf8(const char* path, char** u8p);
 /* Wrap various stdio and unistd IO functions.
 It is especially important to use for windows so that
 NCpathcvt (above) is invoked on the path.
-When NCPATHDEBUG is set, then also wrap non-windows calls.
 */
-#if defined(WINPATH) || defined(NCPATHDEBUG)
+#if defined(WINPATH)
 /* path converter wrappers*/
 EXTERNL FILE* NCfopen(const char* path, const char* flags);
 EXTERNL int NCopen3(const char* path, int flags, int mode);
@@ -97,7 +96,7 @@ EXTERNL char* NCcwd(char* cwdbuf, size_t len);
 EXTERNL DIR* NCopendir(const char* path);
 EXTERNL int NCclosedir(DIR* ent);
 #endif
-#else /*!WINPATH && !NCPATHDEBUG*/
+#else /*!WINPATH*/
 #define NCfopen(path,flags) fopen((path),(flags))
 #define NCopen3(path,flags,mode) open((path),(flags),(mode))
 #define NCopen2(path,flags) open((path),(flags))
@@ -108,12 +107,12 @@ EXTERNL int NCclosedir(DIR* ent);
 #define NCaccess(path,mode) access(path,mode)
 #endif
 #define NCmkdir(path, mode) mkdir(path,mode)
-#define NCcwd(buf, len) getcwd(buf,len)
+#define NCgetcwd(buf, len) getcwd(buf,len)
 #ifdef HAVE_DIRENT_H
 #define NCopendir(path) opendir(path)
 #define NCclosedir(ent) closedir(ent)
 #endif
-#endif /*WINPATH||NCCPATHDEBUG*/
+#endif /*WINPATH*/
 
 /* Platform independent */
 #define NCclose(fd) close(fd)

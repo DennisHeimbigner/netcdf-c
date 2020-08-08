@@ -95,7 +95,6 @@ test(int flags, const char* model)
    char name_in[UNAMELEN + 1], strings_in[UNAMELEN + 1];
    nc_type att_type;
    size_t att_len;
-   char* canonname = NULL;
    char filename[4096];
 
    /* Construct the file name */
@@ -103,10 +102,8 @@ test(int flags, const char* model)
 
    printf("\n*** Testing UTF-8: %s model\n",model);
    printf("*** creating UTF-8 test file |%s|...", filename);
-   if((canonname = NCpathcvt((char*)filename)) == NULL)
-      CHECK(NC_ENOMEM);
 
-   CHECK(nc_create(canonname, flags, &ncid));
+   CHECK(nc_create(filename, flags, &ncid));
 
    /* Define dimension with Unicode UTF-8 encoded name */
    CHECK(nc_def_dim(ncid, UNAME, UTF8_BYTES, &dimid));
@@ -128,7 +125,7 @@ test(int flags, const char* model)
    /* Check it out. */
 
    /* Reopen the file. */
-   CHECK(nc_open(canonname, NC_NOWRITE, &ncid));
+   CHECK(nc_open(filename, NC_NOWRITE, &ncid));
    CHECK(nc_inq_varid(ncid, UNAME, &varid));
    CHECK(nc_inq_varname(ncid, varid, name_in));
    {
@@ -143,22 +140,12 @@ test(int flags, const char* model)
        {CHECK(NC_EBADNAME);}
    CHECK(nc_close(ncid));
 done:
-   nullfree(canonname);
    return ret; 
 }  
 
 int
 main(int argc, char **argv)
 {
-#ifdef _WIN32
-char wd[4096];
-_getcwd(wd,sizeof(wd));
-#endif
-
-#ifdef HAVE_LOCALE_H
-setlocale(LC_ALL,"C.UTF-8");
-#endif
-
    /* Run the utf8 test both for netcdf-4 and netcdf-3 */
    if(test(0,"classic")) ERR;
 #ifdef USE_NETCDF4

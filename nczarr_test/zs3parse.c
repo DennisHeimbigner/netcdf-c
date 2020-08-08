@@ -87,7 +87,7 @@ main(int argc, char** argv)
 	fprintf(stderr, "zs3parse: no url specified\n");
 	goto fail;
     }
-    s3options.url = NCpathcvt(argv[0]);
+    s3options.url = strdup(argv[0]);
 
     stat = processurl(s3options.op, s3options.url, &piece);
     if(stat == NC_NOERR) {

@@ -353,7 +353,7 @@ main(
 	  break;
 	case 'o':		/* to explicitly specify output name */
 	  if(netcdf_name) efree(netcdf_name);
-	  netcdf_name = NCpathcvt(optarg);
+	  netcdf_name = strdup(optarg);
 	  break;
 	case 'P': /* diskless with persistence */
 	  diskless = 1;

@@ -94,7 +94,7 @@ makeurl(const char* file)
     char wd[4096];
     NCbytes* buf = ncbytesnew();
     ncbytescat(buf,"file://");
-    (void)getcwd(wd, sizeof(wd));
+    (void)NCgetcwd(wd, sizeof(wd));
     ncbytescat(buf,wd);
     ncbytescat(buf,"/");
     ncbytescat(buf,file);
