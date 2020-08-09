@@ -78,7 +78,7 @@ TESTS += tst_unicode
 # unicode directory name under windows.
 TESTS += test_unicode_directory.sh
 
-# This test only works for linux|cygwin|mac
+# These tests only work for linux|cygwin|mac
 # Because passing a utf8 string from bash to a windows
 # program does not work correctly
 if ! ISMSVC

@@ -1,4 +1,4 @@
-*
+/*
  *      Copyright 2018, University Corporation for Atmospheric Research
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
@@ -105,7 +105,7 @@ static void
 getpathcwd(char** cwdp)
 {
     char buf[4096];
-    (void)NCcwd(buf,sizeof(buf));
+    (void)NCgetcwd(buf,sizeof(buf));
     if(cwdp) *cwdp = strdup(buf);
 }
 

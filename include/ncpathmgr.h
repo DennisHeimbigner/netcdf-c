@@ -117,6 +117,8 @@ EXTERNL int NCclosedir(DIR* ent);
 /* Platform independent */
 #define NCclose(fd) close(fd)
 
+EXTERNL void NCfinalizepathmgr(void);
+
 /**************************************************/
 /* Following definitions are for testing only */
 

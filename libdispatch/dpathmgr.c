@@ -58,14 +58,15 @@ static int pathinitialized = 0;
 
 static int pathdebug = -1;
 
-static struct Path {
+static const struct Path {
     int kind;
-    int relative; /* 1=> relative path */
     int drive;
     char* path;
-} wdpath = {NCPD_UNKNOWN,0,0,NULL};
+} empty = {NCPD_UNKNOWN,0,NULL};
 
-struct Path empty = {NCPD_UNKNOWN,0,0,NULL};
+/* Keep the working directory kind and drive */
+static struct Path wdpath = {NCPD_UNKNOWN,0,NULL};
+static char wdstaticpath[8192];
 
 static int parsepath(const char* inpath, struct Path* path);
 static int unparsepath(struct Path* p, char** pathp);
@@ -198,12 +199,14 @@ pathinit(void)
 	const char* s = getenv("NCPATHDEBUG");
         pathdebug = (s == NULL ? 0 : 1);
     }
-    
-    /* Get the local wd */
-    if(wdpath.path == NULL) {
-        getwdpath(&wdpath);
-        if(pathdebug > 0) fprintf(stderr,"xxx: wdpath=%s\n",printPATH(&wdpath));
-    }
+
+    (void)getwdpath(&wdpath);
+    /* make the path static but remember to never free it (Ugh!) */
+    wdstaticpath[0] = '\0';
+    strlcat(wdstaticpath,wdpath.path,sizeof(wdstaticpath));
+    clearPath(&wdpath);
+    wdpath.path = wdstaticpath;
+
     pathinitialized = 1;
 }
 
@@ -336,6 +339,7 @@ NCgetcwd(char* cwdbuf, size_t cwdlen)
 
     errno = 0;
     if(cwdlen == 0) {status = ENAMETOOLONG; goto done;}
+    if(!pathinitialized) pathinit();
     if((status = getwdpath(&wd))) {status = ENOENT; goto done;}
     if((status = unparsepath(&wd,&path))) {status = EINVAL; goto done;}
     len = strlen(path);
@@ -380,12 +384,15 @@ NChasdriveletter(const char* path)
     int stat = NC_NOERR;
     int hasdl = 0;    
     struct Path canon = empty;
-    /* Get the local wd */
-    if(wdpath.path == NULL) {
-        if((stat = getwdpath(&wdpath))) goto done;
-    }
+
+    if(!pathinitialized) pathinit();     
+
     if((stat = parsepath(path,&canon))) goto done;
-    if(canon.drive == 0) canon.drive = wdpath.drive;
+    if(canon.kind == NCPD_REL) {
+	clearPath(&canon);
+        /* Get the drive letter (if any) from the local wd */
+	canon.drive = wdpath.drive;	
+    }
     hasdl = (canon.drive != 0);
 done:
     clearPath(&canon);

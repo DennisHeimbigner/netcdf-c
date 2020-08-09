@@ -28,8 +28,7 @@
 /* The data file we will create. */
 static const unsigned char prefix[] = {
 't','s','t','_','u','t','f','8','_',
-'\xce', '\x9a', '\xce', '\xb1',
-//'\xe6', '\xb5', '\xb7',
+'\xe6', '\xb5', '\xb7',
 '\0'
 };
 

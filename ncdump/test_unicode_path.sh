@@ -16,16 +16,9 @@ export LC_ALL
 # Passing a utf8 name using either \x or actual characters
 # to Visual Studio does not work well.
 if test "x$FP_ISMSVC" = x ; then
-UNIFILE='tst_utf8_海.nc'
-UNIFILE="tst_utf8_\xce\x9a\xce\xb1"
-UNIFILE='tst_utf8_Κα'
-UNIFILE="tst_utf8_\0316\0232\0316\0261"
+UNIFILE='tst_utf8_\xe6\xb5\xb7.nc'
 UNIFILE='tst_utf8_海.nc'
 else
-UNIFILE='tst_utf8_\xe6\xb5\xb7.nc'
-UNIFILE="tst_utf8_\xce\x9a\xce\xb1"
-UNIFILE='tst_utf8_Κα'
-UNIFILE="tst_utf8_\0316\0232\0316\0261"
 UNIFILE='tst_utf8_海.nc'
 fi
 

@@ -10,6 +10,7 @@ Test the NCpathcvt
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "netcdf.h"
 #include "ncpathmgr.h"
 
 #define DEBUG
@@ -56,6 +57,8 @@ main(int argc, char** argv)
     int k;
     int drive = 'c';
 
+    nc_initialize();
+
     /* Test localkind X path kind */
     for(k=0;k<NKINDS;k++) {
 	int kind = kinds[k];
@@ -97,6 +100,7 @@ main(int argc, char** argv)
     }
     nullfree(cvt);
     fprintf(stderr,"%s test_pathcvt\n",failcount > 0 ? "***FAIL":"***PASS");
+    nc_finalize();
     return (failcount > 0 ? 1 : 0);
 }
 

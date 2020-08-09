@@ -58,18 +58,16 @@ NCDISPATCH_initialize(void)
     /* Capture temp dir*/
     {
 	char* tempdir = NULL;
-	char cwd[4096];
-#if defined _WIN32 || defined __CYGWIN__ || defined __MSYS__
+#if defined _WIN32 || defined __MSYS__
         tempdir = getenv("TEMP");
 #else
 	tempdir = "/tmp";
 #endif
         if(tempdir == NULL) {
 	    fprintf(stderr,"Cannot find a temp dir; using ./\n");
-	    tempdir = NCgetcwd(cwd,sizeof(cwd));
-	    if(tempdir == NULL || *tempdir == '\0') tempdir = ".";
+	    tempdir = ".";
 	}
-        globalstate->tempdir= tempdir; tempdir = NULL;
+	globalstate->tempdir= strdup(tempdir);
     }
 
     /* Capture $HOME */
@@ -80,7 +78,7 @@ NCDISPATCH_initialize(void)
 	    /* use tempdir */
 	    home = globalstate->tempdir;
 	}
-        globalstate->home = NCpathcvt(home);
+        globalstate->home = strdup(home);
     }
 
     /* Now load RC File */
