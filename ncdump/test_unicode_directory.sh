@@ -17,11 +17,20 @@ ERR() {
     fi
 }
 
-UNISTRING=$(echo '\xe6\xb5\xb7')
+LC_ALL="C.UTF-8"
+export LC_ALL
+
+if test "x$FP_ISMSVC" = x ; then # *nix*
+#UNISTRING=$(echo '\xe6\xb5\xb7')
+#UNISTRING='tst_utf8_\xe6\xb5\xb7.nc'
+UNISTRING='tst_utf8_海.nc'
+else
+UNISTRING='tst_utf8_海.nc'
+fi
 
 echo ""
 echo "Creating Unicode String Directory ${UNISTRING}"
-mkdir -p ${UNISTRING}; ERR
+mkdir -p "${UNISTRING}"; ERR
 
 echo "*** Generating binary file ${UNISTRING}/tst_utf.nc..."
 ${NCGEN} -4 -b -o "${UNISTRING}/tst_utf.nc" "${srcdir}/ref_tst_utf8.cdl"; ERR
@@ -29,5 +38,4 @@ echo "*** Accessing binary file ${UNISTRING}/tst_utf.nc..."
 ${NCDUMP} -h "${UNISTRING}/tst_utf.nc"; ERR
 
 echo "Test Passed. Cleaning up."
-rm "${UNISTRING}/tst_utf.nc"; ERR
-rmdir "${UNISTRING}"; ERR
+rm -fr "${UNISTRING}"; ERR
