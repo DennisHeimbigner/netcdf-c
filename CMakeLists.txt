@@ -653,7 +653,6 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     IF(HDF5_VERSION_STRING AND NOT HDF5_VERSION)
       SET(HDF5_VERSION ${HDF5_VERSION_STRING})
     ENDIF()
-
     IF("${HDF5_VERSION}" STREQUAL "")
       MESSAGE(STATUS "Unable to determine hdf5 version.  NetCDF requires at least version ${HDF5_VERSION_REQUIRED}")
     ELSE()
@@ -774,11 +773,10 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
 
   # Check to see if HDF5 library is 1.10.6 or greater.
   # Used to control path name conversion
-  SET(H5TESTVERSION "HDF5_VERSION_STRING")
-  IF(${HDF5_VERSION_STRING} VERSION_GREATER_EQUAL "1.10.6")
-    SET(HDF5_UTF8_PATHS TRUE)
-  ELSE()
+  IF(${HDF5_VERSION} VERSION_LESS "1.10.6")
     SET(HDF5_UTF8_PATHS FALSE)
+  ELSE()
+    SET(HDF5_UTF8_PATHS TRUE)
   ENDIF()
   MESSAGE("-- Checking for HDF5 version 1.10.6 or later: ${HDF5_UTF8_PATHS}")
 

@@ -84,7 +84,7 @@ rm tst_deflated.nc tst_inflated.nc tst_inflated4.nc tmp.nc tmp.cdl
 echo "*** Testing nccopy -d1 -s on ncdump/*.nc files"
 for i in $TESTFILES ; do
     echo "*** Test nccopy -d1 -s $i.nc copy_of_$i.nc ..."
-    ${NCCOPY} -d1 -s ${srcdir}/$i.nc copy_of_$i.nc
+    ${NCCOPY} -d1 -s $i.nc copy_of_$i.nc
 ${NCDUMP} -n copy_of_$i $i.nc > tmp.cdl
 ${NCDUMP} copy_of_$i.nc > copy_of_$i.cdl
 #    echo "*** compare " with copy_of_$i.cdl
