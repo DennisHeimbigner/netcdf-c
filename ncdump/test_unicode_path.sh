@@ -26,9 +26,10 @@ fi
 echo ""
 
 echo "*** Generating binary file $UNIFILE..."
-ls -lrtd *
+echo pwd= `pwd`
+ls -lrtd tst_utf8*.nc
 ${NCGEN} -4 -b -o "${UNIFILE}" "${srcdir}/ref_tst_utf8.cdl"
-ls -lrtd *
+ls -lrtd tst_utf8*.nc
 echo "*** Accessing binary file ${UNIFILE}..."
 ${NCDUMP} -h "${UNIFILE}"
 
