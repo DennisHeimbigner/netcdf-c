@@ -445,6 +445,7 @@ OPTION(ENABLE_NETCDF4 "Use HDF5." ON)
 OPTION(ENABLE_HDF5 "Use HDF5." ON)
 IF(NOT ENABLE_HDF5 OR NOT ENABLE_NETCDF4 OR NOT ENABLE_NETCDF_4)
   SET(ENABLE_HDF5 OFF CACHE BOOL "Use HDF5" FORCE)
+message("xxx: ${ENABLE_HDF5}")
 ENDIF()
 OPTION(ENABLE_HDF4 "Build netCDF-4 with HDF4 read capability(HDF4, HDF5 and Zlib required)." OFF)
 OPTION(ENABLE_DAP "Enable DAP2 and DAP4 Client." ON)
@@ -591,9 +592,7 @@ ENDIF(ENABLE_STRICT_NULL_BYTE_HEADER_PADDING)
 # *
 ##
 SET(USE_HDF5 ${ENABLE_HDF5})
-IF(USE_HDF5 OR ENABLE_NETCDF_4)
-  SET(USE_HDF5 ON)
-  SET(USE_NETCDF4 ON)
+IF(USE_HDF5)
   ##
   # Accommodate developers who have hdf5 libraries and
   # headers on their system, but do not have a the hdf
@@ -809,8 +808,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   #option to include HDF5 High Level header file (hdf5_hl.h) in case we are not doing a make install
   INCLUDE_DIRECTORIES(${HDF5_HL_INCLUDE_DIR})
 
-
-ENDIF(USE_HDF5 OR ENABLE_NETCDF_4)
+ENDIF(USE_HDF5)
 
 # See if we have libcurl
 FIND_PACKAGE(CURL)
@@ -2042,7 +2040,7 @@ is_enabled(BUILD_SHARED_LIBS enable_shared)
 is_enabled(ENABLE_V2_API HAS_NC2)
 is_enabled(ENABLE_NETCDF_4 HAS_NC4)
 is_enabled(ENABLE_HDF4 HAS_HDF4)
-is_enabled(ENABLE_NETCDF_4 HAS_HDF5)
+is_enabled(ENABLE_HDF5 HAS_HDF5)
 is_enabled(USE_SZIP HAS_SZIP)
 is_enabled(USE_SZIP HAS_SZIP_WRITE)
 is_enabled(STATUS_PNETCDF HAS_PNETCDF)

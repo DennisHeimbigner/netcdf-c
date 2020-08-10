@@ -32,10 +32,20 @@ echo ""
 echo "Creating Unicode String Directory ${UNISTRING}"
 mkdir -p "${UNISTRING}"; ERR
 
-echo "*** Generating binary file ${UNISTRING}/tst_utf.nc..."
+# Do test for netcdf-3 and (optionally) netcdf-4
+
+echo "*** Generating netcdf-3 binary file ${UNISTRING}/tst_utf.nc..."
+${NCGEN} -b -o "${UNISTRING}/tst_utf.nc" "${srcdir}/ref_tst_utf8.cdl"; ERR
+echo "*** Accessing binary file ${UNISTRING}/tst_utf.nc..."
+${NCDUMP} -h "${UNISTRING}/tst_utf.nc"; ERR
+
+if test "x$FEATURE_HDF5" != x ; then
+echo "*** Generating netcdf-4 binary file ${UNISTRING}/tst_utf.nc..."
+rm -f "${UNISTRING}/tst_utf.nc"
 ${NCGEN} -4 -b -o "${UNISTRING}/tst_utf.nc" "${srcdir}/ref_tst_utf8.cdl"; ERR
 echo "*** Accessing binary file ${UNISTRING}/tst_utf.nc..."
 ${NCDUMP} -h "${UNISTRING}/tst_utf.nc"; ERR
+fi
 
 echo "Test Passed. Cleaning up."
 rm -fr "${UNISTRING}"; ERR
