@@ -89,6 +89,8 @@ endif
 # tests. This records the dependency so parallel builds work.
 tst_nccopy3.log: tst_calendars.log run_utf8_tests.log tst_output.log	\
 tst_64bit.log run_tests.log tst_lengths.log
+# tst_vlen_data dependency
+tst_nccopy4.log: tst_netcdf4.log 
 
 TESTS += tst_null_byte_padding.sh
 if USE_STRICT_NULL_BYTE_HEADER_PADDING

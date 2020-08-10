@@ -22,10 +22,9 @@ export LC_ALL
 
 if test "x$FP_ISMSVC" = x ; then # *nix*
 #UNISTRING=$(echo '\xe6\xb5\xb7')
-#UNISTRING='tst_utf8_\xe6\xb5\xb7.nc'
-UNISTRING='tst_utf8_海.nc'
+UNISTRING='海'
 else
-UNISTRING='tst_utf8_海.nc'
+UNISTRING='海'
 fi
 
 echo ""
