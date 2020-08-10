@@ -25,12 +25,9 @@ fi
 
 echo ""
 
-ls -ld ${NCGEN}
-ls -ld ${srcdir}/ref_tst_utf8.cdl
-ls -ld "${UNIFILE}*"
-
 echo "*** Generating binary file $UNIFILE..."
 ${NCGEN} -4 -b -o "${UNIFILE}" "${srcdir}/ref_tst_utf8.cdl"
+ls -ld "${UNIFILE}*"
 echo "*** Accessing binary file ${UNIFILE}..."
 ${NCDUMP} -h "${UNIFILE}"
 
