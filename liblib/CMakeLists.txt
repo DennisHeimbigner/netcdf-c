@@ -10,7 +10,7 @@ SET(liblib_LIBS dispatch netcdf3)
 # Add target objects/modules based on options.
 #####
 
-IF(USE_HDF5)
+IF(USE_NETCDF4)
   SET(liblib_LIBS ${liblib_LIBS} netcdf4)
 ENDIF()
 IF(USE_HDF5)
