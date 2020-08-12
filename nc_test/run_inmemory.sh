@@ -24,9 +24,7 @@ echo "*** Testing in-memory operations"
 
 # Execute the core of the inmemory tests
 ${execdir}/tst_inmemory
-if test "x$FEATURE_HDF5" = xyes ; then
 ${execdir}/tst_open_mem ${srcdir}/${OMEMFILE}
-fi
 
 echo "**** Test ncdump of the resulting inmemory data"
 ${NCDUMP} -n "${FILE3}" ${FILE3}.nc > ${FILE3}.cdl
