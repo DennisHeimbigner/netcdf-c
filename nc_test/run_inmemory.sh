@@ -5,6 +5,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -e
+set -x
 
 # Get the target OS and CPU
 CPU=`uname -p`
@@ -26,12 +27,13 @@ echo "*** Testing in-memory operations"
 ${execdir}/tst_inmemory
 ${execdir}/tst_open_mem ${srcdir}/${OMEMFILE}
 
-echo "**** Test ncdump of the resulting inmemory data"
+echo "**** Test ncdump of the resulting inmemory data: netcdf-3"
 ${NCDUMP} -n "${FILE3}" ${FILE3}.nc > ${FILE3}.cdl
 ${NCDUMP} -n "${FILE3}" ${CREATE3}.nc > ${CREATE3}.cdl
 diff -wb ${FILE3}.cdl ${CREATE3}.cdl
 
 if test "x$FEATURE_HDF5" = "xyes" ; then
+echo "**** Test ncdump of the resulting inmemory data: netcdf-4"
 ${NCDUMP} ${FILE4}.nc > ${FILE4}.cdl
 ${NCDUMP} -n ${FILE4} ${CREATE4}.nc > ${CREATE4}.cdl
 diff -wb ${FILE4}.cdl ${CREATE4}.cdl
