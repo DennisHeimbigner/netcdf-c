@@ -12,7 +12,7 @@
 #include "err_macros.h"
 #include "netcdf.h"
 #include "nc4dispatch.h"
-#include "HDF5dispatch.h"
+#include "hdf5dispatch.h"
 #include "netcdf_dispatch.h"
 
 #define FILE_NAME "tst_udf.nc"
