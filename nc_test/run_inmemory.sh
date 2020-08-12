@@ -1,11 +1,9 @@
 #!/bin/sh
 
-
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -e
-set -x
 
 # Get the target OS and CPU
 CPU=`uname -p`
