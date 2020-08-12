@@ -12,6 +12,7 @@
 #include "err_macros.h"
 #include "netcdf.h"
 #include "nc4dispatch.h"
+#include "HDF5dispatch.h"
 #include "netcdf_dispatch.h"
 
 #define FILE_NAME "tst_udf.nc"
@@ -181,7 +182,7 @@ static NC_Dispatch tst_dispatcher_bad_version = {
 
     NC_RO_def_dim,
     NC4_inq_dimid,
-    NC4_inq_dim,
+    HDF5_inq_dim,
     NC4_inq_unlimdim,
     NC_RO_rename_dim,
 
