@@ -72,7 +72,7 @@ IF(HAVE_LIBDL)
   SET(TLL_LIBS ${LIBDL} ${TLL_LIBS})
 ENDIF()
 
-IF(USE_HDF5 OR USE_NETCDF4)
+IF(USE_HDF5)
   IF(NOT MSVC)
     # Some version of cmake define HDF5_hdf5_LIBRARY instead of
     # HDF5_LIBRARY. Same with HDF5_HL_LIBRARIES
