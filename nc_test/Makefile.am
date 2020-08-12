@@ -66,9 +66,9 @@ check_PROGRAMS += $(TESTPROGRAMS)
 
 # Build Diskless test helpers
 check_PROGRAMS += tst_diskless tst_diskless3 tst_diskless4 \
-tst_diskless5 tst_inmemory
+tst_diskless5
 if USE_HDF5
-check_PROGRAMS += tst_diskless2 tst_open_mem
+check_PROGRAMS += tst_diskless2 tst_open_mem tst_inmemory
 endif
 
 TESTS = $(TESTPROGRAMS)
