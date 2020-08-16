@@ -7,6 +7,7 @@
 #undef WDEBUG
 
 static int initialized = 0;
+static unsigned int benchmarklevel = 0;
 
 /* Forward */
 static int NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, void* chunkdata);
@@ -34,6 +35,11 @@ astype(int typesize, void* ptr)
 int
 ncz_chunking_init(void)
 {
+    const char* eval = getenv("NCZ_BENCHMARK_LEVEL");
+    if(eval != NULL) {
+	if(sscanf(eval,"%u",&benchmarklevel)!=1)
+	    benchmarklevel = 0;
+    }
     initialized = 1;
     return NC_NOERR;
 }
