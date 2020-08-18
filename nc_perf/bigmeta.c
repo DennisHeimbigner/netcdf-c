@@ -24,6 +24,9 @@ Create a netcdf-4 file with horrendously large metadata.
 #include <getopt.h>
 #endif
 
+#include "perfutils.h"
+
+
 #undef DEBUG
 
 /*
@@ -75,6 +78,8 @@ static int nvars = NVARS;
 static int varrank = VARRANK;
 static int nvarattrs = NVARATTRS;
 
+static int formatx = 0;
+
 /* Define the getopt tags */
 #define OPT_UNKNOWN 0
 #define OPT_TREEDEPTH 1
@@ -85,6 +90,7 @@ static int nvarattrs = NVARATTRS;
 #define OPT_NVARS 6
 #define OPT_VARRANK 7
 #define OPT_NVARATTRS 8
+#define OPT_FORMATX 9
 
 static struct option options[] = {
 {"treedepth", 1, NULL, OPT_TREEDEPTH},
@@ -95,6 +101,7 @@ static struct option options[] = {
 {"nvars", 1, NULL, OPT_NVARS},
 {"varrank", 1, NULL, OPT_VARRANK},
 {"nvarattrs", 1, NULL, OPT_NVARATTRS},
+{"format", 1, NULL, OPT_FORMATX},
 {NULL, 0, NULL, 0}
 };
 
@@ -111,6 +118,7 @@ reportparameters(void)
     fprintf(stderr,"--nvars=%d\n",nvars);
     fprintf(stderr,"--varrank=%d\n",varrank);
     fprintf(stderr,"--nvarattrs=%d\n",nvarattrs);
+    fprintf(stderr,"--format=%d\n",formatx);
     fflush(stderr);
 }
 
@@ -207,6 +215,7 @@ main(int argc, char **argv)
     time_t starttime, endtime;
     long long delta;
     int tag;
+    const char* path = NULL;
 
     if(argc > 1) {
 	while ((tag = getopt_long_only(argc, argv, "", options, NULL)) >= 0) {
@@ -238,6 +247,9 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
 	    case OPT_NVARATTRS:
 		nvarattrs = atoi(optarg);
 		break;
+	    case OPT_FORMATX:
+		formatx = string2formatx(optarg);
+		break;
 	    case ':':
 		fprintf(stderr,"missing argument\n");
 		exit(1);
@@ -249,6 +261,8 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
 	}
     }
 
+    if(formatx == 0) CHECK(NC_EINVAL);
+
     reportparameters();
 
     starttime = 0;
@@ -256,7 +270,9 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
 
     time(&starttime);
 
-    CHECK(nc_create(FILE, NC_NETCDF4, &ncid));
+    CHECK(nc4_buildpath(FILE,formatx,&path));
+
+    CHECK(nc_create(path, NC_NETCDF4, &ncid));
     /* Build subgroups */
     for(i=0;i<NGROUPS;i++) {
 	buildgroup(ncid,i,TREEDEPTH - 1);
@@ -269,7 +285,7 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
     /* Compute the delta 1 second resolution is fine for this */
     delta = (long long)(endtime - starttime);
     printf("create delta=%lld\n",delta);
-    return 0;
 
+    nullfree(path);
     return 0;
 }
