@@ -289,7 +289,7 @@ NCZ_inq_unlimdims(int ncid, int *ndimsp, int *unlimdimidsp)
  * @author Ed Hartnett
  */
 int
-NC4_inq_dim(int ncid, int dimid, char *name, size_t *lenp)
+NCZ_inq_dim(int ncid, int dimid, char *name, size_t *lenp)
 {
     NC *nc;
     NC_FILE_INFO_T *h5;
@@ -349,4 +349,3 @@ NC4_inq_dim(int ncid, int dimid, char *name, size_t *lenp)
 
     return ret;
 }
-
