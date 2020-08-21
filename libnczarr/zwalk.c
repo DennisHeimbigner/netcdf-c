@@ -6,6 +6,9 @@
 
 #undef WDEBUG
 
+/*Mnemonic*/
+#define DIRECTXFER 1
+
 static int initialized = 0;
 static unsigned int benchmarklevel = 0;
 
@@ -15,7 +18,7 @@ static int rangecount(NCZChunkRange range);
 static int readfromcache(void* source, size64_t* chunkindices, void** chunkdata);
 static int NCZ_fillchunk(void* chunkdata, struct Common* common);
 static int transfern(NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, unsigned char* slpptr0, unsigned char* memptr0);    
-
+static int iswholechunk(NCZOdometer* odom, struct Common* common);
 
 const char*
 astype(int typesize, void* ptr)
@@ -185,21 +188,24 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 
 	slpodom = nczodom_fromslices(common->rank,slpslices);
 	memodom = nczodom_fromslices(common->rank,memslices);
-        /* Read from cache */
-        switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
-        case NC_EEMPTY: /* cache created the chunk */
-	    if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
-	    break;
-        case NC_NOERR: break;
-        default: goto done;
-        }
 
-	/* This is the key action: walk this set of slices and transfer data */
-	if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
-
+	if(benchmarklevel > 0 && iswholechunk(slpodom, common)) {
+   	    /*  we are transfering the whole chunk */
+            if(stat = NCZ_readwholechunk(chunkindices, slpodom, memodom, common)) goto done;
+        } else {/* else walk the odometer */
+            /* Read from cache */
+            switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata, !DIRECTXFER))) {
+            case NC_EEMPTY: /* cache created the chunk */
+	        if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
+	        break;
+            case NC_NOERR: break;
+            default: goto done;
+            }
+  	    /* This is the key action: walk this set of slices and transfer data */
+  	    if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
+	}
         nczodom_free(slpodom); slpodom = NULL;
         nczodom_free(memodom); memodom = NULL;
-
         nczodom_next(chunkodom);
     }
 
@@ -231,6 +237,7 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
             size64_t memoffset = 0;
             unsigned char* memptr0 = NULL;
             unsigned char* slpptr0 = NULL;
+	    size64_t blocksize = common->typesize;
 
             /* Convert the indices to a linear offset WRT to chunk */
             slpoffset = nczodom_offset(slpodom);
@@ -451,9 +458,9 @@ done:
 }
 
 static int
-readfromcache(void* source, size64_t* chunkindices, void** chunkdatap)
+readfromcache(void* source, size64_t* chunkindices, void** chunkdatap, int directxfer)
 {
-    return NCZ_read_cache_chunk((struct NCZChunkCache*)source, chunkindices, chunkdatap);
+    return NCZ_read_cache_chunk((struct NCZChunkCache*)source, chunkindices, chunkdatap, directxfer);
 }
 
 void
@@ -462,4 +469,44 @@ NCZ_clearcommon(struct Common* common)
     NCZ_clearsliceprojections(common->rank,common->allprojections);
     nullfree(common->allprojections);
     nullfree(common->fillvalue);
+}
+
+/* Does this odometer cover the whole chunk? */
+static int
+iswholechunk(NCZOdometer* odom, struct Common* common)
+{
+    int i;
+    for(i=0;i<odom->rank;i++) {
+	if(odom->stride[i] != 1 || odom->start[i] != 0 || odom->stop[i] != common->chunklens[i])
+	    return 0;
+    }
+    return 1;
+}
+
+
+static int
+NCZ_readwholechunk(size64_t* chunkindices, NCZOdometer* slpodom, NCZOdometer* memodom, struct Common* common)
+{
+    int stat = NC_NOERR;
+    size64_t memoffset;
+    char* memptr = 0;
+
+    /* Figure out memory address */
+    memoffset = nczodom_offset(memodom); /* byte offset */
+    memptr = ((unsigned char*)common->memory)+(memoffset * common->chunksize);
+
+    /* Read from cache directly into memory */
+    switch ((stat = common->reader.read(common->reader.source, chunkindices, &memptr, DIRECTXFER))) {
+    case NC_EEMPTY: /* cache created the chunk */
+        if((stat = NCZ_fillchunk(memptr,common))) goto done;
+        break;
+    case NC_NOERR: break;
+    default: goto done;
+    }
+    
+    /* Increment the memory odometer by 
+
+
+done:
+    return stat;
 }
