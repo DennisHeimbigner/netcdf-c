@@ -30,6 +30,8 @@
 #include "nc_tests.h"		/* The ERR macro is here... */
 #include "netcdf.h"
 
+#include "tst_utils.h"
+
 #define FILENAME "tst_chunks3.nc"
 
 /*
@@ -163,11 +165,10 @@ emalloc(size_t bytes) {
     return memory;
 }
 
-
 /* compare contiguous, chunked, and compressed performance */
 int
-main(int argc, char *argv[]) {
-
+main(int argc, char *argv[])
+{
     int  stat;  /* return status */
     int  ncid;  /* netCDF id */
     int i, j, k;
@@ -175,7 +176,6 @@ main(int argc, char *argv[]) {
     int varid_g;		  /* varid for contiguous */
     int varid_k;		  /* varid for chunked */
     int varid_x;		  /* varid for compressed */
-
     float *varxy, *varxz, *varyz;    /* 2D memory slabs used for I/O */
     int mm;
     size_t dims[] = {256, 256, 256}; /* default dim lengths */
@@ -192,12 +192,17 @@ main(int argc, char *argv[]) {
     size_t cache_size = 0;	    /* use library default */
     size_t cache_hash = 0;	    /* use library default */
     float cache_pre = -1.0f;	    /* use library default */
+    char* path = NULL;
+    struct Defaults dfalts;
 
     /* rank (number of dimensions) for each variable */
 #   define RANK_var1 3
 
     /* variable shapes */
     int var_dims[RANK_var1];
+
+    CHECK(getdefaultoptions(&argc,&argv,&dfalts));
+    CHECK(nc4_buildpath(FILENAME,dfalts.formatx,&path));
 
     TIMING_DECLS(TMsec) ;
 
@@ -255,7 +260,7 @@ main(int argc, char *argv[]) {
 	}
     }
 
-    if((stat = nc_create(FILENAME, NC_NETCDF4 | NC_CLASSIC_MODEL, &ncid)))
+    if((stat = nc_create(path, NC_NETCDF4 | NC_CLASSIC_MODEL, &ncid)))
 	ERR1(stat);
 
     /* define dimensions */
@@ -618,6 +623,9 @@ main(int argc, char *argv[]) {
 
     if((stat = nc_close(ncid)))
 	ERR1(stat);
+
+    nullfree(path);
+    cleardefaults(&dfalts);
 
     return 0;
 }

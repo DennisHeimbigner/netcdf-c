@@ -1,17 +1,9 @@
-/*! \file Utility functions for tests.
+/*********************************************************************
+ *   Copyright 2018, UCAR/Unidata
+ *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
+ *********************************************************************/
 
-\internal
-Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014,
-2015, 2016, 2017, 2018
-University Corporation for Atmospheric Research/Unidata.
-
-See \ref copyright file for more info.
-
-
-*/
-
-
+/*! \file Utility functions for tests. */
 
 #include <nc_tests.h>
 #include <time.h>
@@ -21,8 +13,7 @@ See \ref copyright file for more info.
    RESULT.  Return 1 if the difference is negative, otherwise 0.  This
    function from the GNU documentation. */
 int
-nc4_timeval_subtract (result, x, y)
-   struct timeval *result, *x, *y;
+nc4_timeval_subtract (struct timeval *result, struct timeval *x, struct timeval*y);
 {
    /* Perform the carry for the later subtraction by updating Y. */
    if (x->tv_usec < y->tv_usec) {
@@ -43,4 +34,87 @@ nc4_timeval_subtract (result, x, y)
 
    /* Return 1 if result is negative. */
    return x->tv_sec < y->tv_sec;
+}
+
+int
+nc4_buildpath(const char* base, int formatx, char** pathp)
+{
+    char* path = NULL;
+    size_t len;
+
+    switch (formatx) {
+    case NC_FORMATX_NCZARR:
+	len = strlen(base) + strlen(S3PREFIX) + strlen("/") + 1;
+	path = (char*)malloc(len+1);
+	path[0] = '\0';
+	strlcat(path,S3PREFIX,len);
+	strlcat(path,"/",len);
+	strlcat(path,base,len);
+	break;
+    default:
+        path = strdup(base);
+	break;
+    }
+    if(path == NULL) return NC_ENOMEM;
+    if(pathp) {*pathp = path; path = NULL;}
+    nullfree(path);
+    return NC_NOERR;
+}
+
+EXTERNL int
+string2formatx(const char* fmt)
+{
+    if(strcasecmp("nc3",fmt)==0) return NC_FORMATX_NC3;
+    if(strcasecmp("cdf5",fmt)==0) return NC_FORMATX_CDF5;
+    if(strcasecmp("hdf5",fmt)==0) return NC_FORMATX_NC_HDF5:;
+    if(strcasecmp("nc4",fmt)==0) return NC_FORMATX_NC_HDF5:;
+    if(strcasecmp("hdf4",fmt)==0) return NC_FORMATX_NC_HDF4:;
+    if(strcasecmp("pnetcdf",fmt)==0) return NC_FORMATX_PNETCDF:;
+    if(strcasecmp("nczarr",fmt)==0) return NC_FORMATX_NCZARR:;
+    return NC_FORMATX_UNDEFINED;
+}
+
+static struct option options[] = {
+{"format", 1, NULL, OPT_FORMATX},
+{NULL, 0, NULL, 0}
+};
+
+EXTERNL int
+getdefaultoptions(int* argcp, char*** argvp, struct Defaults* dfalts)
+{
+    int tag;
+    int argc = *argcp;
+    char** argv = *argvp;
+
+    memset(dfalts,0,sizeof(struct Defaults));
+    if(argc <= 1) return NC_NOERR;
+    while ((tag = getopt_long_only(argc, argv, "", options, NULL)) >= 0) {
+#ifdef DEBUG
+fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
+#endif
+        switch (tag) {
+	case OPT_FORMATX:
+	    dfalts->formatx = string2formatx(optarg);
+	    break;
+	case ':':
+	    fprintf(stderr,"missing argument\n");
+	    return NC_EINVAL;
+        case '?':
+	default:
+	    fprintf(stderr,"unknown option\n");
+	    return NC_EINVAL;
+	}
+    }
+
+    argc -= optind;
+    argv += optind;
+
+    *argcp = argc;
+    *argvp = argv;
+    return NC_NOERR;
+}
+
+EXTERNL void
+cleardefaults(struct Defaults* dfalts)
+{
 }
