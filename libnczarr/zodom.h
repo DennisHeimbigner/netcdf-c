@@ -29,5 +29,6 @@ extern void nczodom_reset(NCZOdometer* odom);
 extern void nczodom_free(NCZOdometer*);
 extern size64_t nczodom_avail(NCZOdometer*);
 extern void nczodom_incr(NCZOdometer*,size64_t);
+extern void nczodom_reducerank(NCZOdometer* odom);
 
 #endif /*ZODOM_H*/

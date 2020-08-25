@@ -16,13 +16,14 @@
 #include <time.h>
 #include <sys/time.h> /* Extra high precision time info. */
 
-#include "tst_utils.h"
-
 /* We will create this file. */
 #define FILE_NAME "bm_many_atts.nc"
 
-int
-main(int argc, char **argv)
+/* Prototype from tst_utils.c. */
+int nc4_timeval_subtract(struct timeval *result, struct timeval *x,
+                         struct timeval *y);
+
+int main(int argc, char **argv)
 {
     struct timeval start_time, end_time, diff_time;
     double sec;
@@ -33,10 +34,6 @@ main(int argc, char **argv)
     int g, grp, numgrp;
     char gname[16];
     int a, numatt, an, aleft, natts;
-    char* path = NULL;
-    struct Defaults dfalts;
-
-    CHECK(getdefaultoptions(&argc,&argv,&dfalts));
 
     if(argc > 2) { 	/* Usage */
 	printf("NetCDF performance test, writing many groups, variables, and attributes.\n");
@@ -48,10 +45,8 @@ main(int argc, char **argv)
 	nitem = atoi(argv[i]);
     }
 
-    CHECK(nc4_buildpath(FILE_NAME,dfalts.formatx,&path));
-
     /*  create new file */
-    if (nc_create(path, NC_NETCDF4, &ncid)) ERR;
+    if (nc_create(FILE_NAME, NC_NETCDF4, &ncid)) ERR;
     /* create N group/global attributes, printing time after every 100.
      * Because only NC_MAX_ATTRS are permitted per group, create the
      * necessary number of groups to hold nitem attributes. */
@@ -80,7 +75,5 @@ main(int argc, char **argv)
 	}
     }
     nc_close(ncid);
-    nullfree(path);
-    cleardefaults(&dfalts);
     FINAL_RESULTS;
 }

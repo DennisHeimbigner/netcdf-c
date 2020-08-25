@@ -152,3 +152,9 @@ nczodom_incr(NCZOdometer* odom, size64_t count)
     }
 }
 
+void
+nczodom_reducerank(NCZOdometer* odom)
+{
+    odom->rank--;
+}
+

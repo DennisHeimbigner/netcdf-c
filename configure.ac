@@ -1613,6 +1613,9 @@ AC_SUBST([ISCMAKE], [])
 # This would be true for a visual studio build.
 AC_SUBST([MSVC], [])
 
+# Provide  conditional to temporarily suppress tests and such
+AM_CONDITIONAL([AX_IGNORE], [test xno = xyes])
+
 AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)
 AC_CONFIG_FILES(nc_test4/findplugin.sh:nc_test4/findplugin.in)

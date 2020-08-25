@@ -65,7 +65,8 @@ struct Common {
     void* memory;
     size_t typesize;
     void* fillvalue;
-    size64_t chunksize; /* computed product of chunklens */
+    size64_t chunkcount; /* computed product of chunklens; warning indices, not bytes */
+    size64_t blocksize; /* amount to read per odometer increment */
     int swap; /* var->format_info_file->native_endianness == var->endianness */
     size64_t shape[NC_MAX_VAR_DIMS]; /* shape of the output hyperslab */
     NCZSliceProjections* allprojections;

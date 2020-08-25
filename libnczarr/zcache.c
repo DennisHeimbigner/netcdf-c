@@ -195,7 +195,7 @@ NCZ_cache_size(NCZChunkCache* cache)
 }
 
 int
-NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap, int directxfer)
+NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap)
 {
     int stat = NC_NOERR;
     char* key = NULL;

@@ -16,10 +16,12 @@
 #include <time.h>
 #include <sys/time.h> /* Extra high precision time info. */
 
-#include "tst_utils.h"
-
 /* We will create this file. */
 #define FILE_NAME "bm_many_objs.nc"
+
+/* Prototype from tst_utils.c. */
+int nc4_timeval_subtract(struct timeval *result, struct timeval *x,
+                         struct timeval *y);
 
 int main(int argc, char **argv)
 {
@@ -32,10 +34,6 @@ int main(int argc, char **argv)
     int g, grp, numgrp;
     char gname[16];
     int v, var, numvar, vn, vleft, nvars;
-    char* path = NULL;
-    struct Defaults dfalts;
-
-    CHECK(getdefaultoptions(&argc,&argv,&dfalts));
 
     if(argc > 2) { 	/* Usage */
 	printf("NetCDF performance test, writing many groups and variables.\n");
@@ -47,10 +45,8 @@ int main(int argc, char **argv)
 	nitem = atoi(argv[i]);
     }
 
-    CHECK(nc4_buildpath(FILE_NAME,dfalts.formatx,&path));
-
     /*  create new file */
-    if (nc_create(path, NC_NETCDF4, &ncid)) ERR;
+    if (nc_create(FILE_NAME, NC_NETCDF4, &ncid)) ERR;
     if (gettimeofday(&start_time, NULL))
 	ERR;
     /* create N groups, printing time after every 1000 */
@@ -71,7 +67,7 @@ int main(int argc, char **argv)
     nc_close(ncid);
 
     /*  create new file */
-    if (nc_create(path, NC_NETCDF4, &ncid)) ERR;
+    if (nc_create(FILE_NAME, NC_NETCDF4, &ncid)) ERR;
     /* create N variables, printing time after every 1000.
      * Put NC_MAX_VARS variables per group (even though netcdf4 non-classic
      * format does not limit variable count), create the necessary number
@@ -103,7 +99,5 @@ int main(int argc, char **argv)
 	}
     }
     nc_close(ncid);
-    nullfree(path);
-    cleardefaults(&dfalts);
     FINAL_RESULTS;
 }

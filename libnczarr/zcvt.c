@@ -355,9 +355,9 @@ NCZ_stringconvert(nc_type typeid, size_t len, void* data0, NCjson** jdatap)
 #else
 		if(isnan(d))
 		     special = "NaN";
-		else if(isinf(d) < 0)
+		else if(isinf(d) && d < 0)
 		      special = "-Infinity";
-		else if(isinf(d) > 0)
+		else if(isinf(d) && d > 0)
 		      special = "Infinity";
 		else {}
 #endif

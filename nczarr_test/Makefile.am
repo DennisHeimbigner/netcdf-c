@@ -10,12 +10,14 @@ TESTS_ENVIRONMENT =
 
 #TEST_EXTENSIONS = .sh
 
-#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-#sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-#TESTS_ENVIRONMENT = export SETX=1;
+if AX_IGNORE
+SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+TESTS_ENVIRONMENT += export SETX=1;
+endif
 
-AM_CFLAGS += -I${top_srcdir} -I${top_srcdir}/libnczarr
+AM_CPPFLAGS += -I${top_srcdir} -I${top_srcdir}/libnczarr
 AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
 LDADD = ${top_builddir}/liblib/libnetcdf.la
 
@@ -23,8 +25,10 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 check_PROGRAMS =
 TESTS =
 
+if AX_IGNORE
 # Unit Tests
 check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking
+endif
 
 commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
 
@@ -39,6 +43,7 @@ ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
 
 check_PROGRAMS += tst_chunks tst_chunks2
 
+if AX_IGNORE
 TESTS += run_ut_map.sh
 TESTS += run_ut_mapapi.sh
 TESTS += run_ut_misc.sh
@@ -46,6 +51,7 @@ TESTS += run_ut_chunk.sh
 TESTS += run_it_test2.sh
 if USE_HDF5
 TESTS += run_it_test1.sh
+endif
 endif
 
 ignorec = ut_allslices.c ut_transfer.c ut_vars.c ut_walk.c
@@ -103,4 +109,31 @@ testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
 tst_chunks.nz4 tst_chunks.nzf tst_chunks2.nc.nz4 \
 ut_*.txt ut*.cdl
 
-#tst_group_data.dmp tst_nans.dmp tst_solar_1.dmp tst_nul4.dmp dimscope.dmp
+#if BUILD_BENCHMARKS
+
+BMCOMMON=bm_utils.c ut_util.c ut_test.c
+
+if AX_IGNORE
+BENCHMARKS = bm_chunks3 bm_bigmeta bm_openbigmeta bm_many_atts bm_many_objs
+bm_chunks3_SOURCES = bm_chunks3.c ${BMCOMMON}
+bm_many_atts_SOURCES = bm_many_atts.c ${BMCOMMON}
+bm_many_objs_SOURCES = bm_many_objs.c ${BMCOMMON}
+else
+BENCHMARKS = bm_bigmeta
+endif
+
+bm_bigmeta_SOURCES = bm_bigmeta.c ${BMCOMMON}
+bm_bigmeta_CFLAGS = -pg
+bm_bigmeta_LDFLAGS = -pg
+if AX_IGNORE
+bm_openbigmeta_SOURCES = bm_openbigmeta.c ${BMCOMMON}
+bm_openbigmeta_CFLAGS = -pg
+bm_openbigmeta_LDFLAGS = -pg
+endif
+
+check_PROGRAMS += ${BENCHMARKS}
+TESTS += bm_perftest.sh
+
+EXTRA_DIST += bm_perftest.sh
+
+#endif
