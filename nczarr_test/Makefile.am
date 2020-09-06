@@ -10,12 +10,10 @@ TESTS_ENVIRONMENT =
 
 #TEST_EXTENSIONS = .sh
 
-if AX_IGNORE
-SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-TESTS_ENVIRONMENT += export SETX=1;
-endif
+#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#TESTS_ENVIRONMENT += export SETX=1;
 
 AM_CPPFLAGS += -I${top_srcdir} -I${top_srcdir}/libnczarr
 AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
@@ -25,10 +23,7 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 check_PROGRAMS =
 TESTS =
 
-if AX_IGNORE
-# Unit Tests
-check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking
-endif
+check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking 
 
 commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
 
@@ -38,21 +33,24 @@ ut_json_SOURCES = ut_json.c ${commonsrc}
 ut_projections_SOURCES = ut_projections.c ${commonsrc}
 ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
 
-# Integration Tests
-#check_PROGRAMS += it_meta
-
-check_PROGRAMS += tst_chunks tst_chunks2
+check_PROGRAMS += tst_chunks tst_chunks2 tst_chunks3
 
 if AX_IGNORE
 TESTS += run_ut_map.sh
 TESTS += run_ut_mapapi.sh
 TESTS += run_ut_misc.sh
 TESTS += run_ut_chunk.sh
-TESTS += run_it_test2.sh
+
+if BUILD_UTILITIES
+
 if USE_HDF5
+TESTS += tst_nccopyz.sh
 TESTS += run_it_test1.sh
 endif
-endif
+TESTS += run_it_test2.sh
+
+endif #BUILD_UTILITIES
+endif #AX_IGNORE
 
 ignorec = ut_allslices.c ut_transfer.c ut_vars.c ut_walk.c
 ignoresh = run_meta_tests.sh run_unittests.sh
@@ -68,10 +66,9 @@ zisjson_SOURCES = zisjson.c
 noinst_PROGRAMS += zs3parse
 zs3parse_SOURCES = zs3parse.c
 
-
 EXTRA_DIST = \
 run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_it_test1.sh run_it_test2.sh \
-test_nczarr.sh \
+test_nczarr.sh tst_nccopyz.sh \
 ref_ut_map_readmeta_nzf.txt \
 ref_ut_map_writedata_nzf.cdl \
 ref_ut_map_writemeta_nzf.cdl \
@@ -102,38 +99,35 @@ ref_ut_mapapi_meta_nzf.cdl \
 ref_ut_mapapi_meta_s3.cdl \
 ref_ut_mapapi_search_nz4.txt \
 ref_ut_mapapi_search_nzf.txt \
-ref_ut_mapapi_search_s3.txt
+ref_ut_mapapi_search_s3.txt \
+ref_perdimspecs.cdl
 
 CLEANFILES = test.nzf test.nz4 test.nz4 tst_chunks.nc.nzf tst_chunks.nc.nz4 \
 testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
 tst_chunks.nz4 tst_chunks.nzf tst_chunks2.nc.nz4 \
-ut_*.txt ut*.cdl
+ut_*.txt ut*.cdl tmp*.nc tmp*.cdl
 
 #if BUILD_BENCHMARKS
 
 BMCOMMON=bm_utils.c ut_util.c ut_test.c
 
 if AX_IGNORE
-BENCHMARKS = bm_chunks3 bm_bigmeta bm_openbigmeta bm_many_atts bm_many_objs
+BENCHMARKS = bm_chunks3 bm_metatest  bm_many_atts bm_many_objs
 bm_chunks3_SOURCES = bm_chunks3.c ${BMCOMMON}
+bm_metatest_SOURCES = bm_metatest.c ${BMCOMMON}
 bm_many_atts_SOURCES = bm_many_atts.c ${BMCOMMON}
 bm_many_objs_SOURCES = bm_many_objs.c ${BMCOMMON}
 else
-BENCHMARKS = bm_bigmeta
+BENCHMARKS = bm_many_atts
+bm_many_atts_SOURCES = bm_many_atts.c ${BMCOMMON}
 endif
 
-bm_bigmeta_SOURCES = bm_bigmeta.c ${BMCOMMON}
-bm_bigmeta_CFLAGS = -pg
-bm_bigmeta_LDFLAGS = -pg
-if AX_IGNORE
-bm_openbigmeta_SOURCES = bm_openbigmeta.c ${BMCOMMON}
-bm_openbigmeta_CFLAGS = -pg
-bm_openbigmeta_LDFLAGS = -pg
-endif
+PG = -pg
+
+AM_CFLAGS += ${PG}
+AM_LDFLAGS += ${PG}
 
 check_PROGRAMS += ${BENCHMARKS}
-TESTS += bm_perftest.sh
+TESTS += bm_many_atts.sh
 
-EXTRA_DIST += bm_perftest.sh
-
-#endif
+EXTRA_DIST += bm_common.sh bm_metatest.sh bm_many_atts.sh

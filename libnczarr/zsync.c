@@ -1152,7 +1152,8 @@ define_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* diminfo)
 
 	/* Create the NC_DIM_INFO_T object */
 	sscanf(value,"%lld",&len); /* Get length */
-	if(len < 0) {stat = NC_EDIMSIZE; goto done;}
+	if(len <= 0)
+	    {stat = NC_EDIMSIZE; goto done;}
 	if((stat = nc4_dim_list_add(grp, name, (size_t)len, -1, &dim)))
 	    goto done;
 	if((dim->format_dim_info = calloc(1,sizeof(NCZ_DIM_INFO_T))) == NULL)
@@ -1463,7 +1464,7 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
 		{stat = NC_EBADNAME; goto done;}
 	    /* check the length */
 	    sscanf(jlen->value,"%lld",&len);
-	    if(len <= 0)
+	    if(len < 0)
 		{stat = NC_EDIMSIZE; goto done;}		
 	    nclistpush(dimdefs,strdup(norm_name));
 	    nclistpush(dimdefs,strdup(jlen->value));

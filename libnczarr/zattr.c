@@ -707,7 +707,9 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
             /* Just copy the data, for non-atomic types */
             if (type_class == NC_OPAQUE || type_class == NC_COMPOUND || type_class == NC_ENUM)
                 memcpy(att->data, data, len * type_size);
-            else
+            else if(mem_type == file_type) {
+                memcpy(att->data, data, len * type_size);
+	    } else /* need to convert */
             {
                 /* Data types are like religions, in that one can convert.  */
                 if ((retval = nc4_convert_type(data, att->data, mem_type, file_type,
