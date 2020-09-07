@@ -20,7 +20,8 @@ ERR() {
 LC_ALL="C.UTF-8"
 export LC_ALL
 
-UNISTRING='海'
+#UNISTRING='海'
+UNISTRING=$(echo '\xe6\xb5\xb7')
 
 echo ""
 echo "Creating Unicode String Directory ${UNISTRING}"
