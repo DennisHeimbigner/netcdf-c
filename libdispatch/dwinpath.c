@@ -208,7 +208,10 @@ NCdeescape(const char* name)
 	switch (*p) {
 	case '\0': break;
 	case '\\':
+	    if(p[1] == '#') {
 	        p++;
+		break;
+	    }
 	    /* fall thru */
         default: *q++ = *p++; break;
 	}
