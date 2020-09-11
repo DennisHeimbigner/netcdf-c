@@ -99,7 +99,8 @@ ref_ut_mapapi_meta_s3.cdl \
 ref_ut_mapapi_search_nz4.txt \
 ref_ut_mapapi_search_nzf.txt \
 ref_ut_mapapi_search_s3.txt \
-ref_perdimspecs.cdl
+ref_perdimspecs.cdl \
+ref_fillonly.cdl
 
 CLEANFILES = test.nzf test.nz4 test.nz4 tst_chunks.nc.nzf tst_chunks.nc.nz4 \
 testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
