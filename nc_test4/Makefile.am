@@ -103,7 +103,7 @@ ref_szip.cdl tst_filter.sh bzip2.cdl ref_filtered.cdl			\
 ref_unfiltered.cdl ref_bzip2.c findplugin.in ref_unfilteredvv.cdl	\
 ref_filteredvv.cdl ref_multi.cdl                                        \
 ref_ncgenF.cdl ref_nccopyF.cdl                                          \
-ref_filter_order.txt ref_filter_repeat.txt ref_fillonly.sh
+ref_filter_order.txt ref_filter_repeat.txt ref_fillonly.cdl
 
 CLEANFILES = tst_mpi_parallel.bin cdm_sea_soundings.nc bm_chunking.nc	\
 tst_floats_1D.cdl floats_1D_3.nc floats_1D.cdl tst_*.nc			\
