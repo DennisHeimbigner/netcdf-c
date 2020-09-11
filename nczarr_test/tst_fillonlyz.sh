@@ -7,6 +7,9 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 # https://github.com/Unidata/netcdf-c/issues/1826
 
 set -e
+set -x
+ls -l
+df .
 
 echo ""
 echo "*** Testing data conversions when a variable has fill value but never written"
