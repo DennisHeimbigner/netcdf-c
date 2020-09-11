@@ -22,7 +22,7 @@ main(int argc, char *argv[] )
     size_t  dimlen[1];
     float   *fdat;
     int     *idat;
-    const char* filename = "empty.nc";
+    const char* filename = "tmp_fillonly.nc";
     const char* varname = "f";
     const char* dimname = "x";
     size_t i;
