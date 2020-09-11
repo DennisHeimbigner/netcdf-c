@@ -2132,7 +2132,7 @@ NC4_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
             else
                 memcpy(filldata, fillvalue, file_type_size);
             filldata = (char *)filldata + file_type_size;
-        }
+	}        
     }
 
     /* Convert data type if needed. */
