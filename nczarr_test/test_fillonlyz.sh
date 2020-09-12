@@ -6,18 +6,14 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 # This shell script tests bug reported in github issue 
 # https://github.com/Unidata/netcdf-c/issues/1826
 
-set -x
-ls -l
-df .
-
 set -e
 
 echo ""
 echo "*** Testing data conversions when a variable has fill value but never written"
 
-${NCGEN} -4 -b -o tmp_fillonly.nc $srcdir/ref_fillonly.cdl
-df .
-${execdir}/test_fillonly${ext}
-df .
+${NCGEN} -4 -b -o 'file://tmp_fillonly.nc#mode=nczarr,nzf' $srcdir/ref_fillonly.cdl
+${execdir}/test_fillonlyz${ext}
+
+rm -fr ./tmp_fillonly.nc
 
 exit 0

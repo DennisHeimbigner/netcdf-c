@@ -7,16 +7,11 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 # https://github.com/Unidata/netcdf-c/issues/1826
 
 set -e
-set -x
-ls -l
-df .
 
 echo ""
 echo "*** Testing data conversions when a variable has fill value but never written"
 
-${NCGEN} -4 -b -o 'file://tmp_fillonly.nc#mode=nczarr,nzf' $srcdir/ref_fillonly.cdl
-${execdir}/test_fillonlyz${ext}
-
-rm -fr ./tmp_fillonly.nc
+${NCGEN} -4 -b -o tmp_fillonly.nc $srcdir/ref_fillonly.cdl
+${execdir}/test_fillonly${ext}
 
 exit 0

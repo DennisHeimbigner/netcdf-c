@@ -34,7 +34,7 @@ ut_json_SOURCES = ut_json.c ${commonsrc}
 ut_projections_SOURCES = ut_projections.c ${commonsrc}
 ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
 
-check_PROGRAMS += tst_chunks tst_chunks2 tst_chunks3 test_fillonlyz
+check_PROGRAMS += tst_chunks tst_chunks2 tst_chunks3 tst_fillonlyz
 
 TESTS += run_ut_map.sh
 TESTS += run_ut_mapapi.sh
@@ -45,7 +45,7 @@ if BUILD_UTILITIES
 if USE_HDF5
 TESTS += tst_nccopyz.sh
 TESTS += run_it_test1.sh
-TESTS += tst_fillonlyz.sh
+TESTS += test_fillonlyz.sh
 endif
 TESTS += run_it_test2.sh
 endif
@@ -100,7 +100,7 @@ ref_ut_mapapi_search_nz4.txt \
 ref_ut_mapapi_search_nzf.txt \
 ref_ut_mapapi_search_s3.txt \
 ref_perdimspecs.cdl \
-ref_fillonly.cdl
+ref_fillonly.cdl test_fillonlyz.sh
 
 CLEANFILES = test.nzf test.nz4 test.nz4 tst_chunks.nc.nzf tst_chunks.nc.nz4 \
 testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
