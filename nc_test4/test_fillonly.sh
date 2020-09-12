@@ -12,6 +12,6 @@ echo ""
 echo "*** Testing data conversions when a variable has fill value but never written"
 
 ${NCGEN} -4 -b -o tmp_fillonly.nc $srcdir/ref_fillonly.cdl
-${execdir}/test_fillonly${ext}
+${execdir}/tst_fillonly${ext}
 
 exit 0
