@@ -6,8 +6,8 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 # This shell script tests bug reported in github issue 
 # https://github.com/Unidata/netcdf-c/issues/1826
 
-set -e
 set -x
+set -e
 ls -l
 df .
 
