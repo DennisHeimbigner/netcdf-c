@@ -27,8 +27,9 @@ main(int argc, char** argv)
     if((stat = ut_init(argc, argv, &utoptions))) goto done;
 
     /* Set the printer */
-    zutest.tests = UTEST_RANGE;
-    zutest.print = ut_chunk_print;
+    zutester.tests = UTEST_RANGE;
+    zutester.print = ut_chunk_print;
+    zutest = &zutester;
 
     var = nclistget(utoptions.vardefs,0);
 

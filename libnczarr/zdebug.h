@@ -66,7 +66,7 @@ struct ZUTEST {
     int tests;
     void (*print)(int sort,...);
 };
-EXTERNL struct ZUTEST zutest;
+EXTERNL struct ZUTEST* zutest;
 
 #endif /*ZDEBUG_H*/
 

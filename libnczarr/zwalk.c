@@ -172,8 +172,8 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	    slpslices[r] = proj[r]->chunkslice;
 	    memslices[r] = proj[r]->memslice;
 	}
-	if(zutest.tests & UTEST_TRANSFER)
-	    zutest.print(UTEST_TRANSFER, common, chunkodom, slpslices, memslices);
+	if(zutest && zutest.tests & UTEST_TRANSFER)
+	    zutest->print(UTEST_TRANSFER, common, chunkodom, slpslices, memslices);
 
 	slpodom = nczodom_fromslices(common->rank,slpslices);
 	memodom = nczodom_fromslices(common->rank,memslices);
@@ -249,8 +249,8 @@ fflush(stderr);
 #endif
 
 	    LOG((1,"%s: slpptr0=%p memptr0=%p slpoffset=%llu memoffset=%lld",__func__,slpptr0,memptr0,slpoffset,memoffset));
-	    if(zutest.tests & UTEST_WALK)
-		zutest.print(UTEST_WALK, common, chunkodom, slpodom, memodom);
+	    if(zutest && zutest->tests & UTEST_WALK)
+		zutest->print(UTEST_WALK, common, chunkodom, slpodom, memodom);
 	    if((stat = transfern(slpodom,memodom,common,slpptr0,memptr0))) goto done;
             nczodom_next(memodom);
         } else break; /* slpodom exhausted */
