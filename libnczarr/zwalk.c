@@ -172,7 +172,7 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	    slpslices[r] = proj[r]->chunkslice;
 	    memslices[r] = proj[r]->memslice;
 	}
-	if(zutest && zutest.tests & UTEST_TRANSFER)
+	if(zutest && zutest->tests & UTEST_TRANSFER)
 	    zutest->print(UTEST_TRANSFER, common, chunkodom, slpslices, memslices);
 
 	slpodom = nczodom_fromslices(common->rank,slpslices);
