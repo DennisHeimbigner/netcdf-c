@@ -3,8 +3,6 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-#define ZUT
-
 #include "ut_includes.h"
 
 void ut_chunk_print(int sort, ...);
