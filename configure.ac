@@ -397,10 +397,103 @@ AC_MSG_RESULT($enable_set_log_level_func)
 
 # We need curl for DAP and byterange
 AC_CHECK_LIB([curl],[curl_easy_setopt],[found_curl=yes],[found_curl=no])
-if test "x$enable_dap" = "xyes" ; then
-   AC_SEARCH_LIBS([curl_easy_setopt],[curl curl.dll], [],
-      [AC_MSG_ERROR([curl required for remote access. Install curl or build with --disable-dap.])])
+if test "x$found_curl" = "xyes" ; then
+   AC_SEARCH_LIBS([curl_easy_setopt],[curl curl.dll cygcurl.dll], [],
+      [AC_MSG_ERROR([curl required for remote access. Install curl or disable relevant options.])])
 fi
+
+# CURLOPT_USERNAME is not defined until curl version 7.19.1
+# CURLOPT_PASSWORD is not defined until curl version 7.19.1
+# CURLOPT_KEYPASSWD is not defined until curl version 7.16.4
+# CURLINFO_RESPONSE_CODE is not defined until curl version 7.10.7
+# CURLOPT_CHUNK_BGN_FUNCTION is not defined until curl version 7.21.0
+# CURL_MAX_READ_SIZE is not defined until 7.59
+
+# Save/restore CFLAGS
+SAVECFLAGS="$CFLAGS"
+CFLAGS="${curl_cflags}"
+
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[#include "curl/curl.h"],
+[[int x = CURLOPT_USERNAME;]])],
+                   [haveusername=yes],
+                   [haveusername=no])
+AC_MSG_CHECKING([whether CURLOPT_USERNAME is defined])
+AC_MSG_RESULT([${haveusername}])
+if test $haveusername = yes; then
+  AC_DEFINE([HAVE_CURLOPT_USERNAME],[1],[Is CURLOPT_USERNAME defined])
+fi
+
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[#include "curl/curl.h"],
+[[int x = CURLOPT_PASSWORD;]])],
+                   [havepassword=yes],
+                   [havepassword=no])
+AC_MSG_CHECKING([whether CURLOPT_PASSWORD is defined])
+AC_MSG_RESULT([${havepassword}])
+if test $havepassword = yes; then
+  AC_DEFINE([HAVE_CURLOPT_PASSWORD],[1],[Is CURLOPT_PASSWORD defined])
+fi
+
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[#include "curl/curl.h"],
+[[int x = CURLOPT_KEYPASSWD;]])],
+                   [havekeypassword=yes],
+                   [havekeypassword=no])
+AC_MSG_CHECKING([whether CURLOPT_KEYPASSWD is defined])
+AC_MSG_RESULT([${havekeypassword}])
+if test $havekeypassword = yes; then
+  AC_DEFINE([HAVE_CURLOPT_KEYPASSWD],[1],[Is CURLOPT_KEYPASSWD defined])
+fi
+
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[#include "curl/curl.h"],
+[[int x = CURLINFO_RESPONSE_CODE;]])],
+                   [haveresponsecode=yes],
+                   [haveresponsecode=no])
+AC_MSG_CHECKING([whether CURLINFO_RESPONSE_CODE is defined])
+AC_MSG_RESULT([${haveresponsecode}])
+if test $haveresponsecode = yes; then
+  AC_DEFINE([HAVE_CURLINFO_RESPONSE_CODE],[1],[Is CURLINFO_RESPONSE_CODE defined])
+fi
+
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[#include "curl/curl.h"],
+[[int x = CURLOPT_BUFFERSIZE;]])],
+                   [havecurloption=yes],
+                   [havecurloption=no])
+AC_MSG_CHECKING([whether CURLOPT_BUFFERSIZE is defined])
+AC_MSG_RESULT([${havecurloption}])
+if test $havecurloption = yes; then
+  AC_DEFINE([HAVE_CURLOPT_BUFFERSIZE],[1],[Is CURLOPT_BUFFERSIZE defined])
+fi
+
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[#include "curl/curl.h"],
+[[int x = CURLOPT_TCP_KEEPALIVE;]])],
+                   [havecurloption=yes],
+                   [havecurloption=no])
+AC_MSG_CHECKING([whether CURLOPT_TCP_KEEPALIVE is defined])
+AC_MSG_RESULT([${havecurloption}])
+if test $havecurloption = yes; then
+  AC_DEFINE([HAVE_CURLOPT_KEEPALIVE],[1],[Is CURLOPT_TCP_KEEPALIVE defined])
+fi
+# CURLOPT_VERIFYHOST semantics differ depending on version
+AC_MSG_CHECKING([whether libcurl is version 7.66 or later?])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[#include "curl/curl.h"],
+[[
+#if LIBCURL_VERSION_NUM < 0x074200
+error "<7.66";
+#endif
+]])], [libcurl766=yes], [libcurl766=no])
+
+AC_MSG_RESULT([$libcurl766])
+if test x$libcurl66 = xno; then
+  AC_DEFINE([HAVE_LIBCURL_766],[1],[Is libcurl version 7.66 or later])
+fi
+
+CFLAGS="$SAVECFLAGS"
 
 # --enable-dap => enable-dap4
 enable_dap4=$enable_dap
@@ -465,8 +558,6 @@ if test "x$enable_dap_remote_tests" = "xno" ; then
   enable_dap_long_tests=no
 fi
 AC_MSG_RESULT([$enable_dap_long_tests])
-
-AM_CONDITIONAL(INTERNAL_OCLIB,[test "x" = "x"])
 
 # Control zarr storage
 if test "x$enable_nczarr" = xyes ; then
@@ -581,7 +672,7 @@ else
    AC_DEFINE_UNQUOTED(USE_NETCDF_2, 1, [build the netCDF version 2 API])
 fi
 
-# Does the user want to disable ncgen/ncdump/nccopy?
+# Does the user want to disable ncgen/ncdump/nccopy/...?
 AC_MSG_CHECKING([whether the ncgen/ncdump/nccopy should be built])
 AC_ARG_ENABLE([utilities],
               [AS_HELP_STRING([--disable-utilities],
@@ -757,99 +848,6 @@ AC_PROG_CC
 AC_PROG_CXX
 AM_PROG_CC_C_O
 AC_C_CONST
-
-# CURLOPT_USERNAME is not defined until curl version 7.19.1
-# CURLOPT_PASSWORD is not defined until curl version 7.19.1
-# CURLOPT_KEYPASSWD is not defined until curl version 7.16.4
-# CURLINFO_RESPONSE_CODE is not defined until curl version 7.10.7
-# CURLOPT_CHUNK_BGN_FUNCTION is not defined until curl version 7.21.0
-# CURL_MAX_READ_SIZE is not defined until 7.59
-
-# Save/restore CFLAGS
-SAVECFLAGS="$CFLAGS"
-CFLAGS="${curl_cflags}"
-
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[#include "curl/curl.h"],
-[[int x = CURLOPT_USERNAME;]])],
-                   [haveusername=yes],
-                   [haveusername=no])
-AC_MSG_CHECKING([whether CURLOPT_USERNAME is defined])
-AC_MSG_RESULT([${haveusername}])
-if test $haveusername = yes; then
-  AC_DEFINE([HAVE_CURLOPT_USERNAME],[1],[Is CURLOPT_USERNAME defined])
-fi
-
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[#include "curl/curl.h"],
-[[int x = CURLOPT_PASSWORD;]])],
-                   [havepassword=yes],
-                   [havepassword=no])
-AC_MSG_CHECKING([whether CURLOPT_PASSWORD is defined])
-AC_MSG_RESULT([${havepassword}])
-if test $havepassword = yes; then
-  AC_DEFINE([HAVE_CURLOPT_PASSWORD],[1],[Is CURLOPT_PASSWORD defined])
-fi
-
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[#include "curl/curl.h"],
-[[int x = CURLOPT_KEYPASSWD;]])],
-                   [havekeypassword=yes],
-                   [havekeypassword=no])
-AC_MSG_CHECKING([whether CURLOPT_KEYPASSWD is defined])
-AC_MSG_RESULT([${havekeypassword}])
-if test $havekeypassword = yes; then
-  AC_DEFINE([HAVE_CURLOPT_KEYPASSWD],[1],[Is CURLOPT_KEYPASSWD defined])
-fi
-
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[#include "curl/curl.h"],
-[[int x = CURLINFO_RESPONSE_CODE;]])],
-                   [haveresponsecode=yes],
-                   [haveresponsecode=no])
-AC_MSG_CHECKING([whether CURLINFO_RESPONSE_CODE is defined])
-AC_MSG_RESULT([${haveresponsecode}])
-if test $haveresponsecode = yes; then
-  AC_DEFINE([HAVE_CURLINFO_RESPONSE_CODE],[1],[Is CURLINFO_RESPONSE_CODE defined])
-fi
-
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[#include "curl/curl.h"],
-[[int x = CURLOPT_BUFFERSIZE;]])],
-                   [havecurloption=yes],
-                   [havecurloption=no])
-AC_MSG_CHECKING([whether CURLOPT_BUFFERSIZE is defined])
-AC_MSG_RESULT([${havecurloption}])
-if test $havecurloption = yes; then
-  AC_DEFINE([HAVE_CURLOPT_BUFFERSIZE],[1],[Is CURLOPT_BUFFERSIZE defined])
-fi
-
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[#include "curl/curl.h"],
-[[int x = CURLOPT_TCP_KEEPALIVE;]])],
-                   [havecurloption=yes],
-                   [havecurloption=no])
-AC_MSG_CHECKING([whether CURLOPT_TCP_KEEPALIVE is defined])
-AC_MSG_RESULT([${havecurloption}])
-if test $havecurloption = yes; then
-  AC_DEFINE([HAVE_CURLOPT_KEEPALIVE],[1],[Is CURLOPT_TCP_KEEPALIVE defined])
-fi
-# CURLOPT_VERIFYHOST semantics differ depending on version
-AC_MSG_CHECKING([whether libcurl is version 7.66 or later?])
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[#include "curl/curl.h"],
-[[
-#if LIBCURL_VERSION_NUM < 0x074200
-error "<7.66";
-#endif
-]])], [libcurl766=yes], [libcurl766=no])
-
-AC_MSG_RESULT([$libcurl766])
-if test x$libcurl66 = xno; then
-  AC_DEFINE([HAVE_LIBCURL_766],[1],[Is libcurl version 7.66 or later])
-fi
-
-CFLAGS="$SAVECFLAGS"
 
 # Set up libtool.
 AC_MSG_NOTICE([setting up libtool])
@@ -1122,6 +1120,7 @@ fi
 hdf5_parallel=no
 hdf5_supports_par_filters=no
 enable_szlib=no
+has_ross3=no
 
 if test "x$enable_hdf5" = xyes; then
 
@@ -1146,7 +1145,7 @@ if test "x$enable_hdf5" = xyes; then
 
    # H5Pset_fapl_mpiposix and H5Pget_fapl_mpiposix have been removed since HDF5 1.8.12.
    # Use H5Pset_fapl_mpio and H5Pget_fapl_mpio, instead.
-   AC_CHECK_FUNCS([H5Pget_fapl_mpio H5Pset_deflate H5Z_SZIP H5free_memory H5resize_memory H5allocate_memory H5Pset_libver_bounds H5Pset_all_coll_metadata_ops H5Dread_chunk])
+   AC_CHECK_FUNCS([H5Pget_fapl_mpio H5Pset_deflate H5Z_SZIP H5free_memory H5resize_memory H5allocate_memory H5Pset_libver_bounds H5Pset_all_coll_metadata_ops])
 
    # Check to see if HDF5 library has collective metadata APIs, (HDF5 >= 1.10.0)
    if test "x$ac_cv_func_H5Pset_all_coll_metadata_ops" = xyes; then
@@ -1157,19 +1156,27 @@ if test "x$enable_hdf5" = xyes; then
    if test "x$ac_cv_func_H5Pget_fapl_mpio" = xyes -o "x$ac_cv_func_H5Pget_fapl_mpiposix" = xyes; then
       hdf5_parallel=yes
    fi
-
    AC_MSG_CHECKING([whether parallel io is enabled in hdf5])
    AC_MSG_RESULT([$hdf5_parallel])
+
+   # See if H5Dread_chunk is available
+   AC_SEARCH_LIBS([H5Dread_chunk],[hdf5_hldll hdf5_hl], [has_readchunks=yes], [has_readdhunks=no])
+
+   # See if hdf5 library supports Read-Only S3 (byte-range) driver 
+   AC_SEARCH_LIBS([H5Pset_fapl_ros3],[hdf5_hldll hdf5_hl], [has_ros3=yes], [has_ros3=no])
+   if test "x$has_ros3" = xyes; then
+    AC_DEFINE([ENABLE_HDF5_ROS3], [1], [if true, support byte-range using hdf5 virtual file driver.])
+   fi
 
    # Check to see if HDF5 library is 1.10.3 or greater. If so, allows
    # parallel I/O with filters. This allows zlib/szip compression to
    # be used with parallel I/O, which is very helpful to HPC users.
-   if test "x$ac_cv_func_H5Dread_chunk" = xyes; then
+   if test "x$has_readchunks" = xyes; then
       AC_DEFINE([HDF5_SUPPORTS_PAR_FILTERS], [1], [if true, HDF5 is at least version 1.10.3 and allows parallel I/O with zip])
       hdf5_supports_par_filters=yes
    fi
    AC_MSG_CHECKING([whether HDF5 allows parallel filters])
-   AC_MSG_RESULT([$ac_cv_func_H5Dread_chunk])
+   AC_MSG_RESULT([$has_readchunks])
 
    # Check to see if user asked for parallel build, but HDF5 does not support it.
    if test "x$hdf5_parallel" = "xno"; then
@@ -1186,7 +1193,9 @@ if test "x$enable_hdf5" = xyes; then
       AC_DEFINE([USE_SZIP], [1], [if true, compile in szip compression in netCDF-4 variables])
    fi
    AC_MSG_RESULT([$enable_szlib])
+
 fi
+AM_CONDITIONAL(ENABLE_NCDUMPCHUNKS, [test "x$has_readchunks" = xyes ])
 
 # If the user wants hdf4 built in, check it out.
 if test "x$enable_hdf4" = xyes; then
@@ -1492,13 +1501,14 @@ enable_filter_testing=no
 enable_clientside_filters=no
 fi
 
-AM_CONDITIONAL(ENABLE_CLIENTSIDE_FILTERS, [test x$enable_clientside_filters = xyes])
-AM_CONDITIONAL(ENABLE_FILTER_TESTING, [test x$enable_filter_testing = xyes])
-
 if test "x$enable_shared" = xno ; then
 AC_MSG_WARN([Shared libraries are disabled => --disable-filter-testing])
 enable_filter_testing=no
 fi
+
+AM_CONDITIONAL(ENABLE_CLIENTSIDE_FILTERS, [test x$enable_clientside_filters = xyes])
+AM_CONDITIONAL(ENABLE_FILTER_TESTING, [test x$enable_filter_testing = xyes])
+
 
 AC_SUBST(NC_LIBS,[$NC_LIBS])
 AC_SUBST(HAS_DAP,[$enable_dap])
