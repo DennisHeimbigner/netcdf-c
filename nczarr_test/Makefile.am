@@ -104,11 +104,6 @@ ref_ut_mapapi_search_s3.txt \
 ref_perdimspecs.cdl \
 ref_fillonly.cdl test_fillonlyz.sh
 
-CLEANFILES = test.nzf test.nz4 test.nz4 tst_chunks.nc.nzf tst_chunks.nc.nz4 \
-testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
-tst_chunks.nz4 tst_chunks.nzf tst_chunks2.nc.nz4 \
-ut_*.txt ut*.cdl tmp*.nc tmp*.cdl
-
 #if BUILD_BENCHMARKS
 
 BMCOMMON=bm_utils.c ut_util.c ut_test.c
@@ -133,3 +128,13 @@ check_PROGRAMS += ${BENCHMARKS}
 TESTS += bm_many_atts.sh
 
 EXTRA_DIST += bm_common.sh bm_metatest.sh bm_many_atts.sh
+
+CLEANFILES = test.nzf test.nz4 test.nz4 \
+testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
+tst_chunks.nz4 tst_chunks2.nc.nz4 \
+ut_*.txt ut*.cdl tmp*.nc tmp*.cdl *.dmp test.nzf \
+tst_chunks3.nc
+
+# Remove directories
+clean-local:
+	rm -fr tst_chunks.nzf tst_chunks2.nzf tst_perdimspecs.nzf testmap.nzf testmapapi.nzf test.nzf
