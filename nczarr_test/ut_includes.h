@@ -21,4 +21,6 @@
 #include "ut_test.h"
 #include "ut_util.h"
 
+static struct ZUTEST zutester;
+
 #endif /*UT_INCLUDES_H*/

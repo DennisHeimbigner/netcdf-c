@@ -179,10 +179,8 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	    slpslices[r] = proj[r]->chunkslice;
 	    memslices[r] = proj[r]->memslice;
 	}
-#ifdef ZUT
-	if(zutest.tests & UTEST_TRANSFER)
-	    zutest.print(UTEST_TRANSFER, common, chunkodom, slpslices, memslices);
-#endif
+	if(zutest && zutest->tests & UTEST_TRANSFER)
+	    zutest->print(UTEST_TRANSFER, common, chunkodom, slpslices, memslices);
 
         /* Read from cache */
         switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
@@ -278,10 +276,8 @@ fflush(stderr);
 #endif
 
 	    LOG((1,"%s: slpptr0=%p memptr0=%p slpoffset=%llu memoffset=%lld",__func__,slpptr0,memptr0,slpoffset,memoffset));
-#ifdef ZUT
-	    if(zutest.tests & UTEST_WALK)
-		zutest.print(UTEST_WALK, common, chunkodom, slpodom, memodom);
-#endif
+	    if(zutest && zutest->tests & UTEST_WALK)
+		zutest->print(UTEST_WALK, common, chunkodom, slpodom, memodom);
 	    if((stat = transfern(slpodom,memodom,common,slpptr0,memptr0))) goto done;
             nczodom_next(memodom);
         } else break; /* slpodom exhausted */
