@@ -115,8 +115,8 @@ bm_metatest_SOURCES = bm_metatest.c ${BMCOMMON}
 bm_many_atts_SOURCES = bm_many_atts.c ${BMCOMMON}
 bm_many_objs_SOURCES = bm_many_objs.c ${BMCOMMON}
 else
-BENCHMARKS = bm_many_atts
-bm_many_atts_SOURCES = bm_many_atts.c ${BMCOMMON}
+BENCHMARKS = bm_many_objs
+bm_many_objs_SOURCES = bm_many_objs.c ${BMCOMMON}
 endif
 
 PG = -pg
@@ -125,7 +125,7 @@ AM_CFLAGS += ${PG}
 AM_LDFLAGS += ${PG}
 
 check_PROGRAMS += ${BENCHMARKS}
-TESTS += bm_many_atts.sh
+TESTS += bm_many_objs.sh
 
 EXTRA_DIST += bm_common.sh bm_metatest.sh bm_many_atts.sh
 
