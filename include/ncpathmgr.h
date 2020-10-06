@@ -2,8 +2,8 @@
  *	Copyright 2018, University Corporation for Atmospheric Research
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
-#ifndef _NCWINIO_H_
-#define _NCWINIO_H_
+#ifndef _NCPATHMGR_H_
+#define _NCPATHMGR_H_
 
 #include "config.h"
 #include <stdlib.h>
@@ -13,6 +13,9 @@
 #endif
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>
+#endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
 #endif
 #include "ncexternl.h"
 
@@ -26,11 +29,20 @@
 #endif
 
 /* Define wrapper constants for use with NCaccess */
+/* Define wrapper constants for use with NCaccess */
 #ifdef _WIN32
 #define ACCESS_MODE_EXISTS 0
 #define ACCESS_MODE_R 4
 #define ACCESS_MODE_W 2
 #define ACCESS_MODE_RW 6
+#ifndef O_RDONLY
+#define O_RDONLY _O_RDONLY
+#define O_RDWR _O_RDWR
+#define O_APPEND _O_APPEND
+#define O_BINARY _O_BINARY
+#define O_CREAT _O_CREAT
+#define O_EXCL _O_EXCL
+#endif
 #else
 #define ACCESS_MODE_EXISTS (F_OK)
 #define ACCESS_MODE_R (R_OK)
@@ -117,8 +129,6 @@ EXTERNL int NCclosedir(DIR* ent);
 /* Platform independent */
 #define NCclose(fd) close(fd)
 
-EXTERNL void NCfinalizepathmgr(void);
-
 /**************************************************/
 /* Following definitions are for testing only */
 
@@ -134,4 +144,4 @@ EXTERNL char* NCpathcvt_test(const char* path, int ukind, int udrive);
 
 EXTERNL void printutf8hex(const char* s, char* sx);
 
-#endif /* _NCWINIO_H_ */
+#endif /* _NCPATHMGR_H_ */

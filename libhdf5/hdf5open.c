@@ -67,8 +67,6 @@ extern int NC4_open_image_file(NC_FILE_INFO_T* h5);
 /* Defined later in this file. */
 static int rec_read_metadata(NC_GRP_INFO_T *grp);
 
-<<<<<<< HEAD
-=======
 #ifdef _WIN32
 static hid_t nc4_H5Fopen(const char *filename, unsigned flags, hid_t fapl_id);
 #else
@@ -79,7 +77,6 @@ static hid_t nc4_H5Fopen(const char *filename, unsigned flags, hid_t fapl_id);
 static int ros3info(NCURI* uri, char** hostportp, char** regionp);
 #endif
 
->>>>>>> master
 /**
  * @internal Struct to track HDF5 object info, for
  * rec_read_metadata(). We get this info for every object in the
@@ -2767,8 +2764,6 @@ exit:
     return retval;
 }
 
-<<<<<<< HEAD
-=======
 #ifdef ENABLE_HDF5_ROS3
 static int
 ros3info(NCURI* uri, char** hostportp, char** regionp)
@@ -2813,9 +2808,6 @@ done:
 }
 #endif /*ENABLE_HDF5_ROS3*/
 
-#ifdef _WIN32
-
->>>>>>> master
 /**
  * Wrapper function for H5Fopen.
  * Converts the filename from ANSI to UTF-8 as needed before calling H5Fopen.
