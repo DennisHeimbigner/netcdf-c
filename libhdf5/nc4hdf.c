@@ -18,7 +18,6 @@
 #include "netcdf.h"
 #include "nc4internal.h"
 #include "ncdispatch.h"
-#include "ncfilter.h"
 #include "hdf5internal.h"
 #include "hdf5debug.h"
 #include <math.h>
@@ -843,45 +842,38 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
      * has specified a filter, it will be applied here. */
     if(var->filters != NULL) {
 	int j;
-	for(j=0;j<nclistlength(var->filters);j++) {
-	    NC_FILTERX_SPEC* fi = (NC_FILTERX_SPEC*)nclistget(var->filters,j);
-	    unsigned int filterid;
-	    size_t nparams;
-
-	    if(!fi->active) {
-	        nparams = fi->nparams;
-  	        /* Do the conversions */
-	        if((retval = NC_cvtX2I_id(fi->filterid,&filterid))) BAIL(retval);
-	        if((params = malloc(nparams*sizeof(unsigned int)))==NULL)
-	            BAIL(NC_ENOMEM);
-    	        if((retval = NC_cvtX2I_params(nparams,(const char**)fi->params,params))) BAIL(retval);
-                if(filterid == H5Z_FILTER_DEFLATE) {/* Handle zip case here */
+	NClist* filters = (NClist*)var->filters;
+	for(j=0;j<nclistlength(filters);j++) {
+	    struct NC_HDF5_Filter* fi = (struct NC_HDF5_Filter*)nclistget(filters,j);
+	    {
+                if(fi->filterid == H5Z_FILTER_DEFLATE) {/* Handle zip case here */
                     unsigned level;
-                    if(nparams != 1)
+                    if(fi->nparams != 1)
                         BAIL(NC_EFILTER);
-                    level = (int)params[0];
+                    level = (int)fi->params[0];
                     if(H5Pset_deflate(plistid, level) < 0)
                         BAIL(NC_EFILTER);
-		    fi->active = 1;
-  	        } else if(filterid == H5Z_FILTER_SZIP) {/* Handle szip case here */
+  	        } else if(fi->filterid == H5Z_FILTER_SZIP) {/* Handle szip case here */
                     int options_mask;
                     int bits_per_pixel;
-                    if(nparams != 2)
+                    if(fi->nparams != 2)
                         BAIL(NC_EFILTER);
-                    options_mask = (int)params[0];
-                    bits_per_pixel = (int)params[1];
+                    options_mask = (int)fi->params[0];
+                    bits_per_pixel = (int)fi->params[1];
                     if(H5Pset_szip(plistid, options_mask, bits_per_pixel) < 0)
                         BAIL(NC_EFILTER);
-		    fi->active = 1;
                 } else {
-                    herr_t code = H5Pset_filter(plistid, filterid, H5Z_FLAG_MANDATORY, nparams, params);
+                    herr_t code = H5Pset_filter(plistid, fi->filterid,
+#if 0
+		    				H5Z_FLAG_MANDATORY,
+#else
+		    				H5Z_FLAG_OPTIONAL,
+#endif
+						fi->nparams, fi->params);
                     if(code < 0)
                         BAIL(NC_EFILTER);
-		    fi->active = 1;
 		}
             }
-	    /* reclaim */
-	    nullfree(params); params = NULL;
         }
     }
 
@@ -904,7 +896,7 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
         /* If there are no unlimited dims, and no filters, and the user
          * has not specified chunksizes, use contiguous variable for
          * better performance. */
-        if (!var->shuffle && !var->fletcher32 && nclistlength(var->filters) == 0 &&
+        if (!var->shuffle && !var->fletcher32 && nclistlength((NClist*)var->filters) == 0 &&
             (var->chunksizes == NULL || !var->chunksizes[0]) && !unlimdim)
 	    var->storage = NC_CONTIGUOUS;
 
@@ -2235,78 +2227,6 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
 }
 
 /**
- * @internal Get the class of a type
- *
- * @param h5 Pointer to the HDF5 file info struct.
- * @param xtype NetCDF type ID.
- * @param type_class Pointer that gets class of type, NC_INT,
- * NC_FLOAT, NC_CHAR, or NC_STRING, NC_ENUM, NC_VLEN, NC_COMPOUND, or
- * NC_OPAQUE.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
-int
-nc4_get_typeclass(const NC_FILE_INFO_T *h5, nc_type xtype, int *type_class)
-{
-    int retval = NC_NOERR;
-
-    LOG((4, "%s xtype: %d", __func__, xtype));
-    assert(type_class);
-
-    /* If this is an atomic type, the answer is easy. */
-    if (xtype <= NC_STRING)
-    {
-        switch (xtype)
-        {
-        case NC_BYTE:
-        case NC_UBYTE:
-        case NC_SHORT:
-        case NC_USHORT:
-        case NC_INT:
-        case NC_UINT:
-        case NC_INT64:
-        case NC_UINT64:
-            /* NC_INT is class used for all integral types */
-            *type_class = NC_INT;
-            break;
-
-        case NC_FLOAT:
-        case NC_DOUBLE:
-            /* NC_FLOAT is class used for all floating-point types */
-            *type_class = NC_FLOAT;
-            break;
-
-        case NC_CHAR:
-            *type_class = NC_CHAR;
-            break;
-
-        case NC_STRING:
-            *type_class = NC_STRING;
-            break;
-
-        default:
-            BAIL(NC_EBADTYPE);
-        }
-    }
-    else
-    {
-        NC_TYPE_INFO_T *type;
-
-        /* See if it's a used-defined type */
-        if ((retval = nc4_find_type(h5, xtype, &type)))
-            BAIL(retval);
-        if (!type)
-            BAIL(NC_EBADTYPE);
-
-        *type_class = type->nc_type_class;
-    }
-
-exit:
-    return retval;
-}
-
-/**
  * @internal Report information about an open HDF5 object. This is
  * called on any still-open objects when a HDF5 file close is
  * attempted.
@@ -2643,24 +2563,3 @@ NC4_walk(hid_t gid, int* countp)
     return ncstat;
 }
 
-int
-NC4_hdf5_remove_filter(NC_VAR_INFO_T* var, const char* filterid)
-{
-    int stat = NC_NOERR;
-    NC_HDF5_VAR_INFO_T *hdf5_var;
-    hid_t propid = -1;
-    herr_t herr = -1;
-    H5Z_filter_t hft;
-    unsigned int id;
-
-    hdf5_var = (NC_HDF5_VAR_INFO_T *)var->format_var_info;
-    if ((propid = H5Dget_create_plist(hdf5_var->hdf_datasetid)) < 0)
-	{stat = NC_EHDFERR; goto done;}
-
-    if((stat = NC_cvtX2I_id(filterid,&id))) goto done;    
-    hft = id;
-    if((herr = H5Premove_filter(propid,hft)) < 0)
-	{stat = NC_EHDFERR; goto done;}
-done:
-    return stat;
-}

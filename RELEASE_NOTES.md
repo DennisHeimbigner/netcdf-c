@@ -7,6 +7,16 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.8.0 - TBD
 
+* [Bug Fix] Revert the internal filter code to simplify it. From
+the user's point of view, the only visible change should be that
+(1) the functions that convert text to filter specs have had
+their signature reverted and renamed and have been moved to
+netcdf_aux.h, and (2) Some filter API functions now return
+NC_ENOFILTER when inquiry is made about some filter. Internally,
+the dispatch table has been modified to get rid of the complex
+structures.
+* [Bug Fix] If the HDF5 byte-range Virtual File Driver is available )HDf5 1.10.6 or later) then use
+it because it has better performance than the one currently built into the netcdf library.
 * [Bug Fix] Fixed byte-range support with cURL > 7.69. See [https://github.com/Unidata/netcdf-c/pull/1798].
 * [Enhancement] Added new test for using compression with parallel I/O: nc_test4/tst_h_par_compress.c. See [https://github.com/Unidata/netcdf-c/pull/1784].
 * [Bug Fix] Don't return error for extra calls to nc_redef() for netCDF/HDF5 files, unless classic model is in use. See [https://github.com/Unidata/netcdf-c/issues/1779].
@@ -14,7 +24,16 @@ This file contains a high-level description of this package's evolution. Release
 * [Bug Fix] Now allow szip to be used on variables with unlimited dimension [https://github.com/Unidata/netcdf-c/issues/1774].
 * [Enhancement] Add support for cloud storage using a variant of the Zarr storage format. Warning: this feature is highly experimental and is subject to rapid evolution [https://www.unidata.ucar.edu/blogs/developer/en/entry/overview-of-zarr-support-in].
 * [Bug Fix] Fix nccopy to properly set default chunking parameters when not otherwise specified. This can significantly improve performance in selected cases. Note that if seeing slow performance with nccopy, then, as a work-around, specifically set the chunking parameters. [https://github.com/Unidata/netcdf-c/issues/1763].
-* [Bug Fix] Fix some protocol bugs/differences between the netcdf-c library and the OPeNDAP Hyrax server. Also cleanup checksum handling [https://github.com/Unidata/netcdf-c/issues/1712].
+* [Bug Fix] Fix some protocol bugs/differences between the netcdf-c library and the OPeNDAP Hyrax server. Also cleanup checksum handling [https://github.com/Unidata/netcdf-c/issues/1712].* [Bug Fix] IMPORTANT: Ncgen was not properly handling large
+data sections. The problem manifests as incorrect ordering of
+data in the created file. Aside from examining the file with
+ncdump, the error can be detected by running ncgen with the -lc
+flag (to produce a C file). Examine the file to see if any
+variable is written in pieces as opposed to a single call to
+nc_put_vara. If multiple calls to nc_put_vara are used to write
+a variable, then it is probable that the data order is
+incorrect. Such multiple writes can occur for large variables
+and especially when one of the dimensions is unlimited.
 * [Bug Fix] Add necessary __declspec declarations to allow compilation
 of netcdf library without causing errors or (_declspec related)
 warnings [https://github.com/Unidata/netcdf-c/issues/1725].

@@ -21,12 +21,8 @@ ERR() {
 LC_ALL="C.UTF-8"
 export LC_ALL
 
-if test "x$FP_ISMSVC" = x ; then # *nix*
-#UNISTRING=$(echo '\xe6\xb5\xb7')
-UNISTRING='海'
-else
-UNISTRING='海'
-fi
+#UNISTRING='海'
+UNISTRING=$(echo '\xe6\xb5\xb7')
 
 echo ""
 echo "Creating Unicode String Directory ${UNISTRING}"

@@ -43,12 +43,14 @@ ncvalidator_SOURCES = ncvalidator.c
 
 # A simple netcdf-4 metadata -> xml printer. Do not install.
 if USE_HDF5
+bin_PROGRAMS += nc4print
 noinst_PROGRAMS += nc4print
-nc4print_SOURCES = nc4print.c
+nc4print_SOURCES = nc4print.c nc4printer.c
 endif
 
 # Conditionally build the ocprint program, but do not install
 if ENABLE_DAP
+bin_PROGRAMS += ocprint
 noinst_PROGRAMS += ocprint
 ocprint_SOURCES = ocprint.c
 endif
@@ -102,7 +104,7 @@ TESTS += tst_iter.sh
 endif
 
 if USE_HDF5
-# NetCDF-4 has some extra C programs to build. These will be run by
+# HDF5 has some extra C programs to build. These will be run by
 # the shell script tests.
 check_PROGRAMS += tst_fileinfo tst_create_files tst_h_rdc0	\
 tst_group_data tst_enum_data tst_opaque_data tst_string_data	\
@@ -175,8 +177,9 @@ tst_ncgen4_cycle.sh tst_null_byte_padding.sh				\
 ref_null_byte_padding_test.nc ref_tst_irish_rover.nc			\
 ref_provenance_v1.nc ref_tst_radix.cdl tst_radix.cdl test_radix.sh	\
 ref_nccopy_w.cdl tst_nccopy_w3.sh tst_nccopy_w4.sh			\
-ref_no_ncproperty.nc test_unicode_directory.sh test_unicode_path.sh     \
-ref_roman_szip_simple.cdl ref_roman_szip_unlim.cdl
+ref_no_ncproperty.nc test_unicode_directory.sh				\
+ref_roman_szip_simple.cdl ref_roman_szip_unlim.cdl                      \
+ref_tst_perdimspecs.cdl test_unicode_path.sh
 
 # This test is Windows specific, but include in the distribution
 EXTRA_DIST += 
@@ -216,4 +219,4 @@ tst_ncf199.cdl tst_tst_gattenum.cdl tst_tst_usuffix.cdl ctest.c		\
 ctest64.c nccopy3_subset_out.nc camrun.c tst_ncf213.cdl tst_ncf213.nc	\
 tst_radix.nc tmp_radix.cdl ctest_small_3.c ctest_small_4.c		\
 ctest_special_atts_4.c tst_roman_szip_simple.cdl			\
-tst_roman_szip_unlim.cdl tst_utf8_*.nc
+tst_roman_szip_unlim.cdl tst_perdimpspecs.nc tmppds.* tst_utf8_*.nc

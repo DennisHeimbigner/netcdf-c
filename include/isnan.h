@@ -25,7 +25,6 @@
 #ifndef INFINITYF
 #define INFINITYF ((float)INFINITY)
 #endif
-
 #if ! (defined(isinf) || HAVE_DECL_ISINF)
 #define isinf(x) (DBL_MAX/((double)(x))==0.0)
 #endif /* !HAVE_DECL_ISINF */

@@ -67,7 +67,7 @@ typedef struct VarID {
 struct FilterOption {
     char* fqn; /* Of variable */
     int nofilter; /* 1=> do not apply any filters to this variable */
-    NC_Filterspec pfs;
+    NC_H5_Filterspec pfs;
 };
 
 static List* filteroptions = NULL;
@@ -78,7 +78,7 @@ extern int nc__testurl(const char*,char**);
 /* Forward declaration, because copy_type, copy_vlen_type call each other */
 static int copy_type(int igrp, nc_type typeid, int ogrp);
 static void freefilteroptlist(List* specs);
-static void freefilterlist(size_t nfilters, NC_Filterspec** filters);
+static void freefilterlist(size_t nfilters, NC_H5_Filterspec** filters);
 
 #endif
 
@@ -293,7 +293,7 @@ parsefilterspec(const char* optarg0, List* speclist)
     int i;
     int isnone = 0;
     size_t nfilters = 0;
-    NC_Filterspec** filters = NULL;
+    NC_H5_Filterspec** filters = NULL;
 
     if(optarg0 == NULL || strlen(optarg0) == 0 || speclist == NULL) return 0;
     optarg = strdup(optarg0);
@@ -312,15 +312,15 @@ parsefilterspec(const char* optarg0, List* speclist)
 
     if(strcasecmp(remainder,"none") != 0) {
         /* Collect the id+parameters */
-        if((stat=ncaux_filterspec_parselist(remainder,NULL,&nfilters,&filters))) goto done;
+        if((stat=ncaux_h5filterspec_parselist(remainder,NULL,&nfilters,&filters))) goto done;
     } else {
         isnone = 1;
         if(nfilters == 0) {
 	    /* Add a fake filter */
-	    NC_Filterspec* nilspec = (NC_Filterspec*)calloc(1,sizeof(NC_Filterspec));
+	    NC_H5_Filterspec* nilspec = (NC_H5_Filterspec*)calloc(1,sizeof(NC_H5_Filterspec));
 	    if(nilspec == NULL) {stat = NC_ENOMEM; goto done;}
 	    nfilters = 1;
-	    filters = calloc(1,sizeof(NC_Filterspec**));
+	    filters = calloc(1,sizeof(NC_H5_Filterspec**));
 	    if(filters == NULL) {free(nilspec); stat = NC_ENOMEM; goto done;}
 	    filters[0] = nilspec; nilspec = NULL;
 	}
@@ -335,7 +335,7 @@ parsefilterspec(const char* optarg0, List* speclist)
 	if(var == NULL || strlen(var) == 0) continue;
 	vlen = strlen(var);
 	for(k=0;k<nfilters;k++) {
-	    NC_Filterspec* nsf = filters[k];
+	    NC_H5_Filterspec* nsf = filters[k];
 	    if((filtopt = calloc(1,sizeof(struct FilterOption)))==NULL)
 	       {stat = NC_ENOMEM; goto done;}
 	    filtopt->fqn = malloc(vlen+1+1); /* make room for nul and possible prefix '/' */
@@ -347,14 +347,11 @@ parsefilterspec(const char* optarg0, List* speclist)
 	        filtopt->nofilter = 1;
 	    else {
  	        filtopt->pfs = *nsf;
-		filtopt->pfs.filterid = strdup(filtopt->pfs.filterid);
 		if(nsf->nparams != 0) {
-		    int f;
 	            /* Duplicate the params */
-	            filtopt->pfs.params = calloc(filtopt->pfs.nparams,sizeof(char*));
+	            filtopt->pfs.params = calloc(filtopt->pfs.nparams,sizeof(unsigned int));
 	            if(filtopt->pfs.params == NULL) {stat = NC_ENOMEM; goto done;}
-		    for(f=0;f<filtopt->pfs.nparams;f++) 
-	                filtopt->pfs.params[f] = strdup(nsf->params[f]);
+		    memcpy(filtopt->pfs.params,nsf->params,sizeof(unsigned int)*filtopt->pfs.nparams);
 		} else
 		    filtopt->pfs.params = NULL;
 	    }
@@ -802,23 +799,23 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
     /* Only bother to look if input is netcdf-4 variant */
     if(innc4) {
       size_t nfilters;
-      char** ids = NULL;      
+      unsigned int* ids = NULL;      
       int k;
-      if((stat = nc_inq_var_filterx_ids(vid.grpid,vid.varid,&nfilters,NULL)))
+      if((stat = nc_inq_var_filter_ids(vid.grpid,vid.varid,&nfilters,NULL)))
 	goto done;
-      if(nfilters > 0) ids = calloc(nfilters,sizeof(char*));
-      if((stat = nc_inq_var_filterx_ids(vid.grpid,vid.varid,&nfilters,ids)))
+      if(nfilters > 0) ids = (unsigned int*)calloc(nfilters,sizeof(unsigned int));
+      if((stat = nc_inq_var_filter_ids(vid.grpid,vid.varid,&nfilters,ids)))
 	goto done;
       memset(&inspec,0,sizeof(inspec));
       
       for(k=0;k<nfilters;k++) {
-	  inspec.pfs.filterid = ids[k]; ids[k] = NULL;
-          stat=nc_inq_var_filterx_info(vid.grpid,vid.varid,inspec.pfs.filterid,&inspec.pfs.nparams,NULL);
+	  inspec.pfs.filterid = ids[k];
+          stat=nc_inq_var_filter_info(vid.grpid,vid.varid,inspec.pfs.filterid,&inspec.pfs.nparams,NULL);
           if(stat && stat != NC_ENOFILTER)
 	    goto done; /* true error */
           if(inspec.pfs.nparams > 0) {
-	    inspec.pfs.params = (char**)calloc(sizeof(char*),inspec.pfs.nparams);
-            if((stat=nc_inq_var_filterx_info(vid.grpid,vid.varid,inspec.pfs.filterid,NULL,inspec.pfs.params)))
+	    inspec.pfs.params = (unsigned int*)calloc(sizeof(char*),inspec.pfs.nparams);
+            if((stat=nc_inq_var_filter_info(vid.grpid,vid.varid,inspec.pfs.filterid,NULL,inspec.pfs.params)))
 	       goto done;
 	  }
           tmp = malloc(sizeof(struct FilterOption));
@@ -878,10 +875,10 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
 	int k;
 	for(k=0;k<listlength(actualspecs);k++) {
 	    struct FilterOption* actual = (struct FilterOption*)listget(actualspecs,k);
-	    if((stat=nc_def_var_filterx(ovid.grpid,ovid.varid,
+	    if((stat=nc_def_var_filter(ovid.grpid,ovid.varid,
 				   actual->pfs.filterid,
 				   actual->pfs.nparams,
-				   (const char**)actual->pfs.params)))
+				   actual->pfs.params)))
 	        goto done;
 	}
     }
@@ -910,6 +907,7 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
     size_t ichunkp[NC_MAX_VAR_DIMS];
     size_t ochunkp[NC_MAX_VAR_DIMS];
     size_t dimlens[NC_MAX_VAR_DIMS];
+    size_t perdimchunklen[NC_MAX_VAR_DIMS]; /* the values of relevant -c dim/n specifications */
     size_t dfaltchunkp[NC_MAX_VAR_DIMS]; /* default chunking for ovarid */
     int is_unlimited = 0;
 
@@ -920,6 +918,7 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
     memset(ichunkp,0,sizeof(ichunkp));
     memset(ochunkp,0,sizeof(ochunkp));
     memset(dimlens,0,sizeof(dimlens));
+    memset(perdimchunklen,0,sizeof(perdimchunklen));
     memset(dfaltchunkp,0,sizeof(dfaltchunkp));
 
     /* Get the chunking, if any, on the current input variable */
@@ -959,7 +958,7 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
     if(option_deflate_level >= 0 || hasfilteroptforvar(ofqn))
 	ocontig = NC_CHUNKED;
 
-    /* See about dim-specific chunking; does not override -c spec*/
+    /* See about dim-specific chunking; does not override specific variable chunk spec*/
     {
 	int idim;
 	/* size of a chunk: product of dimension chunksizes and size of value */
@@ -968,8 +967,10 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
 	int dimids[NC_MAX_VAR_DIMS];
 
 	/* See if dim-specific chunking was suppressed */
-	if(dimchunkspec_omit()) /* use input chunksizes */
+	if(dimchunkspec_omit()) { /* no chunking at all on output, except as overridden by e.g. compression */
+	   ocontig = NC_CONTIGUOUS;
     	    goto next2;
+	}
 
 	/* Setup for possible output chunking */
 	typesize = val_size(igrp, i_varid);
@@ -979,8 +980,8 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
 	/* Prepare to iterate over the dimids of this input variable */
 	NC_CHECK(nc_inq_vardimid(igrp, i_varid, dimids));
 
-        /* Capture dimension lengts for all dimensions of variable;
-	   even if we decide to not chunk */
+        /* Capture dimension lengths for all dimensions of variable */
+	/* Also, capture per-dimension -c specs even if we decide to not chunk */
         for(idim = 0; idim < ndims; idim++) {
             int idimid = dimids[idim];
             int odimid = dimmap_odimid(idimid);
@@ -995,8 +996,8 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
 	    }
 
 	    if(dimchunkspec_exists(idimid)) {
-                /* If the -c set a chunk size for this dimension, use it */
-                dimlens[idim] = dimchunkspec_size(idimid); /* Save it */
+                /* If the -c set a chunk size for this dimension, capture it */
+                perdimchunklen[idim] = dimchunkspec_size(idimid); /* Save it */
 		ocontig = NC_CHUNKED; /* force chunking */
 	    }
 
@@ -1021,17 +1022,21 @@ copy_chunking(int igrp, int i_varid, int ogrp, int o_varid, int ndims, int inkin
 	    }
         }
 
-	/* compute the final ochunksizes: precedence is output, input, defaults, dimelen */
+	/* compute the final ochunksizes: precedence is output, per-dim-spec, input, defaults, dimlen */
         for(idim = 0; idim < ndims; idim++) {
-	    if(ochunkp[idim] == 0) {
+	    if(ochunkp[idim] == 0) { /* use -c dim/n if specified */
+	        if(perdimchunklen[idim] != 0)
+		    ochunkp[idim] = perdimchunklen[idim];
+	    }
+	    if(ochunkp[idim] == 0) { /* use input chunk size */
 	        if(ichunkp[idim] != 0)
 		    ochunkp[idim] = ichunkp[idim];
 	    }
-	    if(ochunkp[idim] == 0) {
+	    if(ochunkp[idim] == 0) { /* use chunk defaults */
 	        if(dfaltchunkp[idim] != 0)
 		    ochunkp[idim] = dfaltchunkp[idim];
 	    }
-	    if(ochunkp[idim] == 0) {
+	    if(ochunkp[idim] == 0) { /* last resort: use full dimension size */
 	        if(dimlens[idim] != 0)
 		    ochunkp[idim] = dimlens[idim];
 	    }
@@ -1104,7 +1109,6 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
 	    NC_CHECK(copy_chunking(igrp, varid, ogrp, o_varid, ndims, inkind, outkind));
 	}
     }
-
     if(ndims > 0)
     { /* handle compression parameters, copying from input, overriding
        * with command-line options */
@@ -1136,7 +1140,6 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
 	    deflated = deflate_out;
 	}
     }
-
     if(innc4 && outnc4 && ndims > 0)
     {				/* handle checksum parameters */
 	int fletcher32 = 0;
@@ -1145,7 +1148,6 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
 	    NC_CHECK(nc_def_var_fletcher32(ogrp, o_varid, fletcher32));
 	}
     }
-
     if(innc4 && outnc4)
     {				/* handle endianness */
 	int endianness = 0;
@@ -1159,7 +1161,6 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
         /* handle other general filters */
         NC_CHECK(copy_var_filter(igrp, varid, ogrp, o_varid, inkind, outkind));
     }
-
     return stat;
 }
 
@@ -2438,23 +2439,21 @@ freefilteroptlist(List* specs)
     for(i=0;i<listlength(specs);i++) {
         struct FilterOption* spec = (struct FilterOption*)listget(specs,i);
         if(spec->fqn) free(spec->fqn);
-        nullfree(spec->pfs.filterid);
-        NC_filterx_freestringvec(spec->pfs.nparams,spec->pfs.params);
+        nullfree(spec->pfs.params);
         free(spec);
     }
     listfree(specs);
 }
 
 static void
-freefilterlist(size_t nfilters, NC_Filterspec** filters)
+freefilterlist(size_t nfilters, NC_H5_Filterspec** filters)
 {
     int i;
     if(filters != NULL) {
         for(i=0;i<nfilters;i++)
-            ncaux_filterspec_free(filters[i]);
+            ncaux_h5filterspec_free(filters[i]);
         nullfree(filters);
     }
 }
 
 #endif
-
