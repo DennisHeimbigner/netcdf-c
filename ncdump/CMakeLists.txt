@@ -145,8 +145,8 @@ IF(ENABLE_TESTS)
       SET_TARGET_PROPERTIES(tst_fileinfo PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
         ${CMAKE_CURRENT_BINARY_DIR})
 
-  ENDIF(USE_HDF5)
-ENDIF(MSVC)
+    ENDIF(USE_HDF5)
+  ENDIF(MSVC)
 
   # Base tests
   # The tests are set up as a combination of shell scripts and executables that
@@ -163,21 +163,11 @@ ENDIF(MSVC)
   add_sh_test(ncdump tst_calendars)
   build_bin_test_no_prefix(tst_utf8)
   add_sh_test(ncdump run_utf8_tests)
-  add_bin_test_no_prefix(tst_unicode)
   IF(USE_HDF5)
     add_sh_test(ncdump run_utf8_nc4_tests)
     add_sh_test(ncdump tst_fileinfo)
     add_sh_test(ncdump tst_hdf5_offset)
-    add_sh_test(ncdump test_unicode_directory)
-    IF(NOT MSVC)
-      # This test does not work under windows
-      add_sh_test(ncdump test_unicode_path)
-      add_sh_test(ncdump tst_nccopy4)
-      IF(HAVE_BASH)
-        SET_TESTS_PROPERTIES(ncdump_tst_nccopy4 PROPERTIES RUN_SERIAL TRUE)
-      ENDIF(HAVE_BASH)
-    ENDIF()
-  ENDIF(USE_NETCDF4)
+  ENDIF(USE_HDF5)
 
   add_sh_test(ncdump tst_null_byte_padding)
   IF(USE_STRICT_NULL_BYTE_HEADER_PADDING)
@@ -269,6 +259,11 @@ ENDIF(MSVC)
     add_sh_test(ncdump tst_mud)
     add_sh_test(ncdump_shell tst_h_scalar)
 
+    add_sh_test(ncdump tst_nccopy4)
+    IF(HAVE_BASH)
+      SET_TESTS_PROPERTIES(ncdump_tst_nccopy4 PROPERTIES RUN_SERIAL TRUE)
+    ENDIF(HAVE_BASH)
+
     add_sh_test(ncdump tst_nccopy5)
     IF(HAVE_BASH)
       SET_TESTS_PROPERTIES(ncdump_tst_nccopy5 PROPERTIES RUN_SERIAL TRUE)
@@ -292,9 +287,21 @@ ENDIF(MSVC)
                        PROPERTIES ENVIRONMENT NC_VLEN_NOTEST=1)
   ENDIF()
 
-ENDIF()
+  # The unicode tests are complicated
+  IF(USE_HDF5)
+    IF(HAVE_BASH)
+      build_bin_test_no_prefix(tst_unicode)
+      add_sh_test(ncdump test_unicode_directory)
+      IF(NOT MSVC)
+        # This test does not work under windows
+        add_sh_test(ncdump test_unicode_path)
+      ENDIF(NOT MSVC)
+    ENDIF(HAVE_BASH)
+  ENDIF(USE_HDF5)
 
-ENDIF()
+ENDIF(USE_HDF5)
+
+ENDIF(ENABLE_TESTS)
 
 #IF(MSVC)
 #  SET_TARGET_PROPERTIES(ncdump

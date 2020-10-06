@@ -282,9 +282,6 @@ EXTERNL int nczm_divide_at(const char* key, int nsegs, char** prefixp, char** su
 /* Reclaim the content of a map but not the map itself */
 EXTERNL int nczm_clear(NCZMAP* map);
 
-/* Return 1 if path is absolute; takes Windows drive letters into account */
-EXTERNL int nczm_isabsolutepath(const char* path);
-
 #ifdef __cplusplus
 }
 #endif

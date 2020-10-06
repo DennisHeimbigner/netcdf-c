@@ -539,10 +539,6 @@ processurl(ZS3MAP* z3map, NCURI* url)
     if(strcmp(url->protocol,"https") != 0)
         {stat = NC_EURL; goto done;}
 
-    /* Path better look absolute */
-    if(!nczm_isabsolutepath(url->path))
-    	{stat = NC_EURL; goto done;}
-
     /* Distinguish path-style from virtual-host style from other:
        Virtual: https://bucket-name.s3.Region.amazonaws.com/<root>
        Path: https://s3.Region.amazonaws.com/bucket-name/<root>

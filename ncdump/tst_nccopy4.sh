@@ -28,24 +28,28 @@ TESTFILES='tst_comp tst_comp2 tst_enum_data tst_fillbug
  tst_group_data tst_nans tst_opaque_data tst_solar_1 tst_solar_2
  tst_solar_cmp tst_special_atts tst_string_data'
 
+if test "x$NC_VLEN_NOTEST" = x ; then
+TESTFILES="$TESTFILES tst_vlen_data"
+fi
+
 # Using a cygwin bash shell to pass
 # a utf8 name depends on whether we are
 # using Visual Studio or not.
 TESTFILES="$TESTFILES ${UNIFILE}_classic"
 
-if test "x$NC_VLEN_NOTEST" = x ; then
-TESTFILES="$TESTFILES tst_vlen_data"
-fi
-
 echo "*** Testing netCDF-4 features of nccopy on ncdump/*.nc files"
 for i in $TESTFILES ; do
     echo "*** Test nccopy $i.nc copy_of_$i.nc ..."
+    if test "x$i" = xtst_vlen_data ; then
+	ls -l tst_vlen_data*
+	ls -l *.nc
+    fi
     ${NCCOPY} $i.nc copy_of_$i.nc
-${NCDUMP} -n copy_of_$i $i.nc > tmp.cdl
+${NCDUMP} -n copy_of_$i $i.nc > tmp_$i.cdl
 ${NCDUMP} copy_of_$i.nc > copy_of_$i.cdl
     echo "*** compare " with copy_of_$i.cdl
-    diff copy_of_$i.cdl tmp.cdl
-    rm copy_of_$i.nc copy_of_$i.cdl tmp.cdl
+    diff copy_of_$i.cdl tmp_$i.cdl
+    rm copy_of_$i.nc copy_of_$i.cdl tmp_$i.cdl
 done
 
 # echo "*** Testing compression of deflatable files ..."

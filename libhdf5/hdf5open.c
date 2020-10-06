@@ -67,14 +67,10 @@ extern int NC4_open_image_file(NC_FILE_INFO_T* h5);
 /* Defined later in this file. */
 static int rec_read_metadata(NC_GRP_INFO_T *grp);
 
-#ifdef _WIN32
-static hid_t nc4_H5Fopen(const char *filename, unsigned flags, hid_t fapl_id);
-#else
-#define nc4_H5Fopen  H5Fopen
-#endif
-
+#ifdef ENABLE_BYTERANGE
 #ifdef ENABLE_HDF5_ROS3
 static int ros3info(NCURI* uri, char** hostportp, char** regionp);
+#endif
 #endif
 
 /**
@@ -2764,6 +2760,7 @@ exit:
     return retval;
 }
 
+#ifdef ENABLE_BYTERANGE
 #ifdef ENABLE_HDF5_ROS3
 static int
 ros3info(NCURI* uri, char** hostportp, char** regionp)
@@ -2807,6 +2804,7 @@ done:
     return stat;
 }
 #endif /*ENABLE_HDF5_ROS3*/
+#endif /*ENABLE_BYTERANGE*/
 
 /**
  * Wrapper function for H5Fopen.
