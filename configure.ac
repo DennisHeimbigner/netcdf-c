@@ -572,14 +572,28 @@ if test "x$enable_nczarr" = xyes; then
 fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
-# Check for enabling S3 support
+
+
+# Check for forced disabling of S3 support
 AC_MSG_CHECKING([whether netcdf zarr S3 support should be enabled])
-AC_ARG_ENABLE([s3-sdk],
-              [AS_HELP_STRING([--enable-s3-sdk],
+AC_ARG_ENABLE([nczarr-s3],
+              [AS_HELP_STRING([--enable-nczarr-s3],
                               [enable netcdf zarr S3 support; make sure to set LDFLAGS])])
-test "x$enable_s3_sdk" = xyes || enable_s3_sdk=no
-have_aws=${enable_s3_sdk}
-AC_MSG_RESULT($enable_s3_sdk)
+test "x$enable_nczarr_s3" = xyes || enable_nczarr_s3=no
+AC_MSG_RESULT($enable_nczarr_s3)
+
+# See if we have the s3 aws library
+if test "x$enable_nczarr_s3" = xyes ; then
+# Check for the AWS S3 SDK library
+AC_LANG_PUSH([C++])
+AC_SEARCH_LIBS([aws_allocator_is_valid],[aws-c-common aws-cpp-sdk-s3 aws-cpp-sdk-core], [have_aws=yes],[have_aws=no])
+AC_LANG_POP
+AC_MSG_CHECKING([whether AWS S3 SDK library is available])
+AC_MSG_RESULT([$have_aws])
+else
+have_aws=no
+fi
+
 if test "x$have_aws" = xyes ; then
 AC_DEFINE([ENABLE_S3_SDK], [1], [If true, then S3 sdk was found])
 fi
@@ -1020,18 +1034,23 @@ AC_TYPE_UINTPTR_T
 AC_C_CHAR_UNSIGNED
 AC_C_BIGENDIAN
 
+# Figure out platforms of special interest
+case "`uname`" in
+  CYGWIN*) ISCYGWIN=yes;;
+  WIN*) ISMSVC=yes;;
+esac
+AM_CONDITIONAL(ISCYGWIN, [test "x$ISCYGWIN" = xyes])
+AM_CONDITIONAL(ISMSVC, [test "x$ISMSVC" = xyes])
+
 ###
 # Crude hack to work around an issue
 # in Cygwin.
 ###
 SLEEPCMD=""
-PLTFORMOUT="$(uname | cut -d '_' -f 1)"
-if test "$PLTFORMOUT" = "CYGWIN"; then
-   ISCYGWIN=yes
+if test "x$ISCYGWIN" = "xyes"; then
    SLEEPCMD="sleep 5"
    AC_MSG_NOTICE([Pausing between sizeof() checks to mitigate a Cygwin issue.])
 fi
-AM_CONDITIONAL(ISCYGWIN, [test "x$ISCYGWIN" = xyes])
 
 $SLEEPCMD
 AC_CHECK_SIZEOF(short)
@@ -1200,6 +1219,18 @@ if test "x$enable_hdf5" = xyes; then
    fi
    AC_MSG_RESULT([$enable_szlib])
 
+   # Check to see if HDF5 library is 1.10.6 or greater.
+   # Used to control path name conversion
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <H5public.h>]], [[
+#if (H5_VERS_MAJOR*10000 + H5_VERS_MINOR*100 + H5_VERS_RELEASE < 11006)
+      choke me
+#endif
+  ]])], [hdf5_version_1106=yes], [hdf5_version_1106=no])
+  AC_MSG_CHECKING([whether HDF5 library is version 1.10.6 or later])
+  AC_MSG_RESULT([$hdf5_version_1106])
+  if test "x$hdf5_version_1106" = xyes; then
+      AC_DEFINE([HDF5_UTF8_PATHS], [1], [if true, HDF5 paths can be utf-8])
+   fi
 fi
 AM_CONDITIONAL(ENABLE_NCDUMPCHUNKS, [test "x$has_readchunks" = xyes ])
 
@@ -1615,11 +1646,10 @@ AC_SUBST([NC_DISPATCH_VERSION], [2])
 # End netcdf_meta.h definitions.
 #####
 
+# This would be true for a visual studio build.
+AC_SUBST([ISMSVC], [${ISMSVC}])
 # This would be true for a cmake build.
 AC_SUBST([ISCMAKE], [])
-
-# This would be true for a visual studio build.
-AC_SUBST([MSVC], [])
 
 # Provide  conditional to temporarily suppress tests and such
 AM_CONDITIONAL([AX_IGNORE], [test xno = xyes])
