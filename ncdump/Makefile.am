@@ -113,8 +113,8 @@ run_utf8_nc4_tests.sh run_back_comp_tests.sh run_ncgen_nc4_tests.sh	\
 tst_ncgen4.sh
 
 # Record interscript dependencies so parallel builds work.
-tst_nccopy4.log: run_ncgen_tests.log tst_output.log tst_ncgen4.log	\
-tst_fillbug.log tst_netcdf4_4.log tst_h_scalar.log                      \
+tst_nccopy4.log: run_ncgen_tests.log tst_output.log tst_ncgen4.log \
+	tst_fillbug.log tst_netcdf4_4.log tst_h_scalar.log
 tst_nccopy5.log: tst_nccopy4.log
 endif #!USE_HDF5
 
