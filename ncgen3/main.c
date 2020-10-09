@@ -20,10 +20,6 @@
 #define snprintf _snprintf
 #endif
 
-#ifdef __hpux
-#include <locale.h>
-#endif
-    
 #include "netcdf.h"
 #include "ncpathmgr.h"
 
@@ -91,10 +87,6 @@ main(
     int c;
     FILE *fp;
 
-#ifdef __hpux
-    setlocale(LC_CTYPE,"");
-#endif
-    
 #ifdef MDEBUG
 	malloc_debug(2) ;	/* helps find malloc/free errors on Sun */
 #endif /* MDEBUG */

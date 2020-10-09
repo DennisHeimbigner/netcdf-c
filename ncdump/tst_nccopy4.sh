@@ -10,17 +10,6 @@ if test -f tst_comp2${ext} ; then ${execdir}/tst_comp2 ; fi
 set -e
 echo ""
 
-LC_ALL="C.UTF-8"
-export LC_ALL
-
-# Passing a utf8 name using either \x or actual characters
-# to Visual Studio does not work well.
-if test "x$FP_ISMSVC" = x ; then
-UNIFILE='tst_utf8_海'
-else
-UNIFILE='tst_utf8_海'
-fi
-
 # These files are actually in $srcdir in distcheck builds, so they
 # need to be handled differently.
 # ref_tst_compounds2 ref_tst_compounds3 ref_tst_compounds4
@@ -32,11 +21,6 @@ if test "x$NC_VLEN_NOTEST" = x ; then
 TESTFILES="$TESTFILES tst_vlen_data"
 fi
 
-# Using a cygwin bash shell to pass
-# a utf8 name depends on whether we are
-# using Visual Studio or not.
-TESTFILES="$TESTFILES ${UNIFILE}_classic"
-
 echo "*** Testing netCDF-4 features of nccopy on ncdump/*.nc files"
 for i in $TESTFILES ; do
     echo "*** Test nccopy $i.nc copy_of_$i.nc ..."
@@ -45,8 +29,8 @@ for i in $TESTFILES ; do
 	ls -l *.nc
     fi
     ${NCCOPY} $i.nc copy_of_$i.nc
-${NCDUMP} -n copy_of_$i $i.nc > tmp_$i.cdl
-${NCDUMP} copy_of_$i.nc > copy_of_$i.cdl
+    ${NCDUMP} -n copy_of_$i $i.nc > tmp_$i.cdl
+    ${NCDUMP} copy_of_$i.nc > copy_of_$i.cdl
     echo "*** compare " with copy_of_$i.cdl
     diff copy_of_$i.cdl tmp_$i.cdl
     rm copy_of_$i.nc copy_of_$i.cdl tmp_$i.cdl

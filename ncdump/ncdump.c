@@ -25,9 +25,6 @@ Research/Unidata. See \ref copyright file for more info.  */
 #include <ctype.h>
 #include <assert.h>
 #include <math.h>
-#ifdef HAVE_LOCALE_H
-#include <locale.h>
-#endif	/* HAVE_LOCALE_H */
 
 #include "netcdf.h"
 #include "netcdf_mem.h"
@@ -47,6 +44,7 @@ Research/Unidata. See \ref copyright file for more info.  */
 #include "nclist.h"
 #include "ncuri.h"
 #include "nc_provenance.h"
+#include "ncpathmgr.h"
 
 #ifdef USE_NETCDF4
 #include "nc4internal.h" /* to get name of the special properties file */
@@ -2185,9 +2183,6 @@ main(int argc, char *argv[])
     putenv("PRINTF_EXPONENT_DIGITS=2"); /* Enforce unix/linux style exponent formatting. */
 #endif
 
-#ifdef HAVE_LOCALE_H
-    setlocale(LC_ALL, "C");     /* CDL may be ambiguous with other locales */
-#endif /* HAVE_LOCALE_H */
     progname = argv[0];
     set_formats(FLT_DIGITS, DBL_DIGITS); /* default for float, double data */
 
@@ -2345,9 +2340,11 @@ main(int argc, char *argv[])
 
     init_epsilons();
 
-    path = strdup(argv[i]);
+    /* We need to look for escape characters because the argument
+       may have come in via a shell script */
+    path = NC_backslashUnescape(argv[i]);
     if(path == NULL) {
-	snprintf(errmsg,sizeof(errmsg),"out of memory copying argument %s", argv[i]);
+	snprintf(errmsg,sizeof(errmsg),"out of memory un-escaping argument %s", argv[i]);
 	goto fail;
     }
 

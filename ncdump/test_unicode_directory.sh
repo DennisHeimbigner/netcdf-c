@@ -16,15 +16,13 @@ ERR() {
     fi
 }
 
-LC_ALL="C.UTF-8"
-export LC_ALL
-
-UNISTRING='海'
 #UNISTRING=$(echo '\xe6\xb5\xb7')
+UNISTRING='海'
 
 echo ""
 echo "Creating Unicode String Directory ${UNISTRING}"
 mkdir -p "${UNISTRING}"; ERR
+ls -ld "${UNISTRING}"
 
 # Do test for netcdf-3 and (optionally) netcdf-4
 

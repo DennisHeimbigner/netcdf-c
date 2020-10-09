@@ -22,8 +22,12 @@
 #include <windows.h>
 #include <io.h>
 #include <wchar.h>
+#include <locale.h>
 #endif
-
+#ifdef __hpux
+#include <locale.h>
+#endif
+    
 #include "netcdf.h"
 #include "ncpathmgr.h"
 #include "nclog.h"
@@ -75,6 +79,9 @@ static char* printPATH(struct Path* p);
 static int getlocalpathkind(void);
 static void clearPath(struct Path* path);
 static void pathinit(void);
+static int iscygwinspecial(const char* path);
+static int testurl(const char* path);
+
 #ifdef WINPATH
 static int ansi2utf8(const char* local, char** u8p);
 static int ansi2wide(const char* local, wchar_t** u16p);
@@ -94,13 +101,25 @@ NCpathcvt(const char* inpath)
 
     if(!pathinitialized) pathinit();
 
+    if(testurl(inpath)) { /* Pass thru URLs */
+	if((tmp1 = strdup(inpath))==NULL) stat = NC_ENOMEM;
+	goto done;
+    }
+
     if((stat = parsepath(inpath,&canon))) {goto done;}
+
+    /* Special check for special cygwin paths: /tmp,usr etc */
+    if(getlocalpathkind() == NCPD_CYGWIN
+       && iscygwinspecial(canon.path)
+       && canon.kind == NCPD_NIX)
+	canon.kind = NCPD_CYGWIN;
 
     if(canon.kind != NCPD_REL && wdpath.kind != canon.kind) {
 	nclog(NCLOGWARN,"NCpathcvt: path mismatch: platform=%d inpath=%d\n",
 		wdpath.kind,canon.kind);
 	canon.kind = wdpath.kind; /* override */
     }
+
     if((stat = unparsepath(&canon,&tmp1))) {goto done;}
 done:
     if(pathdebug) {
@@ -215,6 +234,41 @@ clearPath(struct Path* path)
 {
     nullfree(path->path);
     path->path = NULL;    
+}
+
+static const char* cygwinspecial[] = 
+    {"/bin/","/dev/","/etc/","/home/",
+     "/lib/","/proc/","/sbin/","/tmp/",
+     "/usr/","/var/",NULL};
+
+/* Unfortunately, not all cygwin paths start with /cygdrive.
+   So see if the path starts with one of the special paths.
+*/
+static int
+iscygwinspecial(const char* path)
+{
+    const char** p;
+    if(path == NULL) return 0;
+    for(p=cygwinspecial;*p;p++) {
+        if(strncmp(*p,path,strlen(*p))==0) return 1;
+    }
+    return 0;
+}
+
+/* return 1 if path looks like a url; 0 otherwise */
+static int
+testurl(const char* path)
+{
+    int isurl = 0;
+    NCURI* tmpurl = NULL;
+
+    if(path == NULL) return 0;
+
+    /* Ok, try to parse as a url */
+    ncuriparse(path,&tmpurl);
+    isurl = (tmpurl == NULL?0:1);
+    ncurifree(tmpurl);
+    return isurl;
 }
 
 #ifdef WINPATH
@@ -509,6 +563,7 @@ unparsepath(struct Path* xp, char** pathp)
     char sdrive[2] = {'\0','\0'};
     char* p = NULL;
     int kind = xp->kind;
+    int cygspecial = 0;
     
     switch (kind) {
     case NCPD_NIX:
@@ -529,15 +584,19 @@ unparsepath(struct Path* xp, char** pathp)
 	    strlcat(path,xp->path,len);
         break;
     case NCPD_CYGWIN:
-	if(xp->drive == 0) {xp->drive = wdpath.drive;} /*requires a drive */
-	len = nulllen(xp->path)+cdlen+1+1;
-	if((path = (char*)malloc(len))==NULL)
+	/* Is this one of the special cygwin paths? */
+	cygspecial = iscygwinspecial(xp->path);
+        if(xp->drive == 0) {xp->drive = wdpath.drive;} /*may require a drive */
+        len = nulllen(xp->path)+cdlen+1+1;
+        if((path = (char*)malloc(len))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
 	path[0] = '\0';
-	strlcat(path,"/cygdrive/",len);
-	sdrive[0] = xp->drive;
-	strlcat(path,sdrive,len);
-	if(xp->path)
+	if(!cygspecial) {
+            strlcat(path,"/cygdrive/",len);
+	    sdrive[0] = xp->drive;
+	    strlcat(path,sdrive,len);
+	}
+  	if(xp->path)
 	    strlcat(path,xp->path,len);
 	break;
     case NCPD_WIN:
@@ -727,6 +786,18 @@ done:
     nullfree(u8);
     return stat;
 }
+
+/* Set locale */
+void
+nc_setlocale_utf8(void)
+{
+#ifdef __hpux
+    setlocale(LC_CTYPE,"");
+#else
+    setlocale(LC_ALL,"C.UTF8");
+#endif
+}
+
 #endif /*WINPATH*/
 
 static char*

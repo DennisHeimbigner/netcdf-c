@@ -2391,9 +2391,8 @@ main(int argc, char**argv)
 	error("one input file and one output file required");
     }
     /* Canonicalize the input and output files names */
-    inputfile = strdup(argv[0]);
-    outputfile = strdup(argv[1]);
-
+    inputfile = NC_backslashUnescape(argv[0]); /* Remove shell added escapes */
+    outputfile = NC_backslashUnescape(argv[1]);
     if(strcmp(inputfile, outputfile) == 0) {
 	error("output would overwrite input");
     }

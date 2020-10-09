@@ -144,4 +144,9 @@ EXTERNL char* NCpathcvt_test(const char* path, int ukind, int udrive);
 
 EXTERNL void printutf8hex(const char* s, char* sx);
 
+/**************************************************/
+/* From dutil.c */
+EXTERNL char* NC_backslashEscape(const char* s);
+EXTERNL char* NC_backslashUnescape(const char* esc);
+
 #endif /* _NCPATHMGR_H_ */

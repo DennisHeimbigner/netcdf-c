@@ -72,19 +72,12 @@ tst_dimsizes.sh run_ncgen_tests.sh tst_ncgen4_classic.sh test_radix.sh
 
 # Unicode tests
 
-# This test works everywhere
-TESTS += tst_unicode
-
-# This test works for everything although
-# technically it is wrong since it does not actually use
-# unicode directory name under windows.
-TESTS += test_unicode_directory.sh
-
 # These tests only work for linux|cygwin|mac
 # Because passing a utf8 string from bash to a windows
 # program does not work correctly
 if ! ISMSVC
-TESTS += test_unicode_path.sh tst_nccopy4.sh
+TESTS += test_unicode_directory.sh
+TESTS += test_unicode_path.sh
 endif
 
 # The tst_nccopy3.sh test uses output from a bunch of other
@@ -92,7 +85,6 @@ endif
 tst_nccopy3.log: tst_calendars.log run_utf8_tests.log tst_output.log	\
 tst_64bit.log run_tests.log tst_lengths.log
 # tst_vlen_data dependency
-tst_nccopy4.log: tst_netcdf4.log 
 
 TESTS += tst_null_byte_padding.sh
 if USE_STRICT_NULL_BYTE_HEADER_PADDING
@@ -114,15 +106,15 @@ tst_fillbug tst_compress tst_chunking tst_h_scalar
 check_PROGRAMS += tst_vlen_demo
 
 # Tests for netCDF-4 behavior.
-TESTS += tst_fileinfo.sh tst_hdf5_offset.sh tst_inttags4.sh		\
-tst_netcdf4.sh tst_fillbug.sh tst_netcdf4_4.sh 		\
+TESTS += tst_fileinfo.sh tst_hdf5_offset.sh tst_inttags4.sh	\
+tst_netcdf4.sh tst_fillbug.sh tst_netcdf4_4.sh 	tst_nccopy4.sh  \
 tst_nccopy5.sh tst_grp_spec.sh tst_mud.sh tst_h_scalar.sh tst_formatx4.sh		\
 run_utf8_nc4_tests.sh run_back_comp_tests.sh run_ncgen_nc4_tests.sh	\
 tst_ncgen4.sh
 
 # Record interscript dependencies so parallel builds work.
 tst_nccopy4.log: run_ncgen_tests.log tst_output.log tst_ncgen4.log	\
-tst_fillbug.log tst_netcdf4_4.log tst_h_scalar.log
+tst_fillbug.log tst_netcdf4_4.log tst_h_scalar.log                      \
 tst_nccopy5.log: tst_nccopy4.log
 endif #!USE_HDF5
 

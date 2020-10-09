@@ -291,9 +291,9 @@ IF(ENABLE_TESTS)
   IF(USE_HDF5)
     IF(HAVE_BASH)
       build_bin_test_no_prefix(tst_unicode)
-      add_sh_test(ncdump test_unicode_directory)
       IF(NOT MSVC)
-        # This test does not work under windows
+        # These tests do not work under windows
+        add_sh_test(ncdump test_unicode_directory)
         add_sh_test(ncdump test_unicode_path)
       ENDIF(NOT MSVC)
     ENDIF(HAVE_BASH)

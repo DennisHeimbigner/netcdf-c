@@ -473,11 +473,16 @@ the string ````#mode=bytes````.
 An examination of the test program _nc_test/test_byterange.sh_ shows simple examples
 using the _ncdump_ program. One such test is specified as follows:
 ````
-https://noaa-goes16.s3.amazonaws.com/ABI-L1b-RadC/2017/059/03/OR_ABI-L1b-RadC-M3C13_G16_s20170590337505_e20170590340289_c20170590340316.nc#mode=bytes
+https://s3.us-east-1.amazonaws.com/noaa-goes16/ABI-L1b-RadC/2017/059/03/OR_ABI-L1b-RadC-M3C13_G16_s20170590337505_e20170590340289_c20170590340316.nc#mode=bytes
 ````
 
-This mechanism generalizes to work with most servers that support byte-range access.
-Specifically, Thredds servers support such access using the HttpServer access method
+Note that for S3 access, it is expected that the URL is in what is called
+"path" format where the bucket, _noaa-goes16_ in this case, is part
+of the URL path instead of the host.
+
+The _#mode=byterange_ mechanism generalizes to work with most
+servers that support byte-range access.  Specifically, Thredds
+servers support such access using the HttpServer access method
 as can be seen from this URL taken from the above test program.
 ````
 https://thredds-test.unidata.ucar.edu/thredds/fileServer/irma/metar/files/METAR_20170910_0000.nc#bytes
