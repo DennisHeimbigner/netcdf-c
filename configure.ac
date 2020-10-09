@@ -572,7 +572,7 @@ if test "x$enable_nczarr" = xyes; then
 fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
-if test "x$enable_s3_sdk" = xyes ; then
+if test "x$enable_nczarr" = xyes ; then
 # Check for the AWS S3 SDK library
 AC_LANG_PUSH([C++])
 AC_SEARCH_LIBS([aws_allocator_is_valid],[aws-c-common aws-cpp-sdk-s3 aws-cpp-sdk-core], [have_aws=yes],[have_aws=no])
