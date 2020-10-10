@@ -67,7 +67,7 @@ testmapsearch() {
   fileargs
   txt=ut_${tag}_search_$zext.txt
   rm -f $txt
-  $CMD -k$1 -x "search" -f $file > $txt
+  $CMD -k$1 -x "search" -f $file |tr -d '\r' > $txt
   diff -wb ${srcdir}/ref_$txt ./$txt
 }
 

@@ -58,7 +58,7 @@ testmapmeta() {
   diff -wb ${srcdir}/ref_$cdl ./$cdl
 
   output="ut_${tag}_readmeta_$zext.txt"
-  $CMD -k$1 -x readmeta -f $file > ./$output
+  $CMD -k$1 -x readmeta -f $file | tr -d '\r' > ./$output
   diff -wb ${srcdir}/ref_$output ./$output
 }
 
@@ -85,7 +85,7 @@ testmapsearch() {
 
   txt=ut_${tag}_search_$zext.txt
   rm -f $txt
-  $CMD -k$1 -x "search" -f $file > $txt
+  $CMD -k$1 -x "search" -f $file | tr -d '\r' > $txt
   diff -wb ${srcdir}/ref_$txt ./$txt
 }
 
