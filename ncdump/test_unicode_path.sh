@@ -27,12 +27,12 @@ UNIFILE="tst_utf8_${UNISTRING}"
 echo ""
 
 echo "*** Generating netcdf-3 binary file ${UNIFILE}.nc ..."
-${NCGEN} -4 -b -o "${UNIFILE}.nc" "${srcdir}/ref_tst_utf8.cdl"
+${NCGEN} -3 -b -o "${UNIFILE}.nc" "${srcdir}/ref_tst_utf8.cdl"
 echo "*** Accessing binary file ${UNIFILE}.nc ..."
 ${NCDUMP} -h "${UNIFILE}.nc"
 
-if test "x$FEATURE_HDF5" != x ; then
-echo "*** Generating netcdf-3 binary file ${UNIFILE}.nc ..."
+if test "x$FEATURE_HDF5" = xyes ; then
+echo "*** Generating netcdf-4 binary file ${UNIFILE}.nc ..."
 rm -f "${UNIFILE}.nc"
 ${NCGEN} -4 -b -o "${UNIFILE}.nc" "${srcdir}/ref_tst_utf8.cdl"
 echo "*** Accessing binary file ${UNIFILE}.nc ..."

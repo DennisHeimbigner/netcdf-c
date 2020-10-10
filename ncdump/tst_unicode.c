@@ -147,7 +147,7 @@ main(int argc, char **argv)
 {
    /* Run the utf8 test both for netcdf-4 and netcdf-3 */
    if(test(0,"classic")) ERR;
-#ifdef USE_NETCDF4
+#ifdef USE_HDF5
    if(test(NC_NETCDF4,"enhanced")) ERR;
 #endif
 
