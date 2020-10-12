@@ -12,6 +12,9 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -155,7 +158,7 @@ NCpathabsolute(const char* relpath)
     
     /* See if relative */
     if(canon.kind == NCPD_REL) {
-	/* prepend the wd path to the inpath */
+	/* prepend the wd path to the inpath, including drive letter, if any */
 	len = strlen(wdpath.path)+strlen(canon.path)+1+1;
 	if((tmp1 = (char*)malloc(len))==NULL)
 	    {stat = NC_ENOMEM; {goto done;}}
@@ -165,6 +168,8 @@ NCpathabsolute(const char* relpath)
 	strlcat(tmp1,canon.path,len);
        	nullfree(canon.path);
 	canon.path = tmp1; tmp1 = NULL;
+	canon.drive = wdpath.drive;
+	canon.kind = wdpath.kind;
     }
     /* rebuild */
     if((stat=unparsepath(&canon,&result))) goto done;
@@ -408,6 +413,25 @@ done:
     errno = status;
     return cwdbuf;
 }
+
+#ifdef HAVE_SYS_STAT_H
+EXTERNL
+int
+NCstat(char* path, struct stat* buf)
+{
+    int status = 0;
+    char* cvtpath = NULL;
+    wchar_t* wpath = NULL;
+    if((cvtpath = NCpathcvt(path)) == NULL) {status=ENOMEM; goto done;}
+    if((status = utf82wide(cvtpath,&wpath))) {status = ENOENT; goto done;}
+    if(_wstat(wpath,buf) < 0) {status = errno; goto done;}
+done:
+    free(cvtpath);    
+    free(wpath);    
+    errno = status;
+    return (errno?-1:0);
+}
+#endif /*HAVE_SYS_STAT_H*/
 
 int
 NCpath2utf8(const char* s, char** u8p)

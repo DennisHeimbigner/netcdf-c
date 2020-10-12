@@ -29,10 +29,6 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#ifndef S_ISDIR
-#define S_ISDIR(mode) ((mode) & _S_IFDIR)
-#define S_ISREG(mode) ((mode) & _S_IFREG)
-#endif
 #if 0
 #ifndef __cplusplus
 #include <io.h>
@@ -493,6 +489,7 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
     else if((stat = nczm_concat(zfmap->root,prefixkey,&truepath))) goto done;
 
     trailing = (prefixkey[strlen(prefixkey)-1] == '/');
+
     /* get names of the next level path entries */
     switch (stat = platformdircontent(zfmap, truepath, nextlevel)) {
     case NC_NOERR: /* ok */
@@ -706,7 +703,7 @@ platformtestcontentbearing(ZFMAP* zfmap, const char* truepath)
     struct stat buf;
     
     errno = 0;
-    if((ret = stat(truepath, &buf)) < 0) {
+    if((ret = NCstat(truepath, &buf)) < 0) {
 	ret = platformerr(errno);
     } else if(S_ISDIR(buf.st_mode)) {
         ret = NC_EEMPTY;
@@ -880,6 +877,10 @@ platformdircontent(ZFMAP* zfmap, const char* truepath, NClist* contents)
     ffpath[len] = '*'; len++;
     ffpath[len] = '\0';
 
+    /* Localize */
+    if((lpath = NCpathcvt(ffpath))==NULL)
+	{ret = NC_ENOMEM; goto done;}
+
     dir = FindFirstFile(lpath, &FindFileData);
     if(dir == INVALID_HANDLE_VALUE) {
 	/* Distinquish not-a-directory from no-matching-file */
@@ -904,8 +905,8 @@ platformdircontent(ZFMAP* zfmap, const char* truepath, NClist* contents)
 
 done:
     if(dir) FindClose(dir);
-    nullfree(lpath);
     nullfree(ffpath);
+    nullfree(lpath);
     nullfree(d);
     errno = 0;
     return THROW(ret);
@@ -967,7 +968,7 @@ platformdeleter(ZFMAP* zfmap, NClist* segments, int depth)
     if((path = strdup(tmp))==NULL) {ret = NC_ENOMEM; goto done;}
 
     errno = 0;
-    ret = stat(path, &statbuf);
+    ret = NCstat(path, &statbuf);
     if(ret < 0) {
         if(errno == ENOENT) {ret = NC_NOERR; goto done;}
 	else {ret = platformerr(errno); goto done;}
@@ -1080,7 +1081,7 @@ platformseek(ZFMAP* zfmap, FD* fd, int pos, size64_t* sizep)
     assert(fd && fd->fd >= 0);
     
     errno = 0;
-    ret = fstat(fd->fd, &statbuf);    
+    ret = NCfstat(fd->fd, &statbuf);    
     if(ret < 0)
 	{ret = platformerr(errno); goto done;}
     if(sizep) size = *sizep; else size = 0;
@@ -1181,7 +1182,7 @@ verify(const char* path, int isdir)
     ret = NCaccess(path,ACCESS_MODE_EXISTS);
     if(ret < 0)
         return 1; /* If it does not exist, then it can be anything */
-    ret = stat(path,&buf);
+    ret = NCstat(path,&buf);
     if(ret < 0) abort();
     if(isdir && S_ISDIR(buf.st_mode)) return 1;
     if(!isdir && S_ISREG(buf.st_mode)) return 1;           
@@ -1204,7 +1205,7 @@ testifdir(const char* path, int* isdirp, char** truepathp)
     if((truepath = strdup(tmp))==NULL) {ret = NC_ENOMEM; goto done;}
 
     errno = 0;
-    ret = stat(truepath, &statbuf);
+    ret = NCstat(truepath, &statbuf);
     if(ret < 0) {
         if(errno == ENOENT)
 	    ret = NC_ENOTFOUND;  /* path does not exist */

@@ -50,6 +50,17 @@
 #define ACCESS_MODE_RW (R_OK|W_OK)
 #endif
 
+#ifdef _WIN32
+#ifndef S_IFDIR
+#define S_IFDIR _S_IFDIR
+#define S_IFREG _S_IFREG
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(mode) ((mode) & _S_IFDIR)
+#define S_ISREG(mode) ((mode) & _S_IFREG)
+#endif
+#endif /*_WIN32*/
+
 /*
 WARNING: you should never need to explictly call this function;
 rather it is invoked as part of the wrappers for e.g. NCfopen, etc.
@@ -104,6 +115,10 @@ EXTERNL int NCaccess(const char* path, int mode);
 EXTERNL int NCremove(const char* path);
 EXTERNL int NCmkdir(const char* path, int mode);
 EXTERNL char* NCcwd(char* cwdbuf, size_t len);
+EXTERNL char* NCcwd(char* cwdbuf, size_t len);
+#ifdef HAVE_SYS_STAT_H
+EXTERNL int NCstat(char* path, struct stat* buf);
+#endif
 #ifdef HAVE_DIRENT_H
 EXTERNL DIR* NCopendir(const char* path);
 EXTERNL int NCclosedir(DIR* ent);
@@ -118,8 +133,11 @@ EXTERNL int NCclosedir(DIR* ent);
 #else
 #define NCaccess(path,mode) access(path,mode)
 #endif
-#define NCmkdir(path, mode) mkdir(path,mode)
-#define NCgetcwd(buf, len) getcwd(buf,len)
+#define NCmkdir(path,mode) mkdir(path,mode)
+#define NCgetcwd(buf,len) getcwd(buf,len)
+#ifdef HAVE_SYS_STAT_H
+#define NCstat(path,buf) stat(path,buf)
+#endif
 #ifdef HAVE_DIRENT_H
 #define NCopendir(path) opendir(path)
 #define NCclosedir(ent) closedir(ent)
@@ -128,6 +146,7 @@ EXTERNL int NCclosedir(DIR* ent);
 
 /* Platform independent */
 #define NCclose(fd) close(fd)
+#define NCfstat(fd,buf) fstat(fd,buf)
 
 /**************************************************/
 /* Following definitions are for testing only */
