@@ -33,9 +33,9 @@ if test "x$K" != "x$EXPECTED" ; then
 fi
 rm -f tst_http_$TAG.cdl
 # Now test the reading of at least the metadata
-#${NCDUMP} -h "$U" >tst_http_$TAG.cdl
+${NCDUMP} -h "$U" >tst_http_$TAG.cdl
 # compare
-#diff -wb tst_http_$TAG.cdl ${srcdir}/ref_tst_http_$TAG.cdl 
+diff -wb tst_http_$TAG.cdl ${srcdir}/ref_tst_http_$TAG.cdl 
 }
 
 echo "*** Testing reading NetCDF-3 file with http"
