@@ -572,9 +572,7 @@ if test "x$enable_nczarr" = xyes; then
 fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
-
-
-# Check for forced disabling of S3 support
+# Check for enabling of S3 support
 AC_MSG_CHECKING([whether netcdf zarr S3 support should be enabled])
 AC_ARG_ENABLE([nczarr-s3],
               [AS_HELP_STRING([--enable-nczarr-s3],
@@ -582,46 +580,56 @@ AC_ARG_ENABLE([nczarr-s3],
 test "x$enable_nczarr_s3" = xyes || enable_nczarr_s3=no
 AC_MSG_RESULT($enable_nczarr_s3)
 
+# Check for enabling S3 testing
+AC_MSG_CHECKING([whether netcdf zarr S3 testing should be enabled])
+AC_ARG_ENABLE([nczarr-s3-tests],
+              [AS_HELP_STRING([--enable-nczarr-s3-tests],
+                              [enable netcdf zarr S3 testing])])
+test "x$enable_nczarr_s3_tests" = xyes || enable_nczarr_s3_tests=no
+AC_MSG_RESULT($enable_nczarr_s3_tests)
+
+# Disable S3 tests if S3 support is disabled
+if test "x$enable_nczarr_s3" = xno && test "x$enable_nczarr_s3_tests" = xyes ; then
+    AC_MSG_ERROR([NCZarr S3 support is disabled; please specify option --disable-nczarr-s3-tests])
+    enable_nczarr_s3_tests=no
+fi
+
 # See if we have the s3 aws library
-if test "x$enable_nczarr_s3" = xyes ; then
 # Check for the AWS S3 SDK library
 AC_LANG_PUSH([C++])
 AC_SEARCH_LIBS([aws_allocator_is_valid],[aws-c-common aws-cpp-sdk-s3 aws-cpp-sdk-core], [have_aws=yes],[have_aws=no])
 AC_LANG_POP
 AC_MSG_CHECKING([whether AWS S3 SDK library is available])
 AC_MSG_RESULT([$have_aws])
-else
-have_aws=no
-fi
 
 if test "x$have_aws" = xyes ; then
 AC_DEFINE([ENABLE_S3_SDK], [1], [If true, then S3 sdk was found])
 fi
 AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$have_aws" = xyes])
 
-# Check for enabling S3 testing
-AC_MSG_CHECKING([whether netcdf zarr S3 testing should be enabled])
-AC_ARG_ENABLE([s3-tests],
-              [AS_HELP_STRING([--enable-s3-tests],
-                              [enable netcdf zarr S3 testing])])
-test "x$enable_s3_tests" = xyes || enable_s3_tests=no
-AC_MSG_RESULT($enable_s3_tests)
-
 if test "x$have_aws" = xno ; then
-  AC_MSG_WARN([aws libraries not found, so default to --disable-s3-tests])
-  enable_s3_tests=no
+  if test "x$enable_nczarr_s3" = xyes || test "x$enable_nczarr_s3_tests" = xyes ; then
+    AC_MSG_ERROR([AWS S3 libraries not found; please specify options --disable-nczarr-s3 and --disable-nczarr-s3-tests])
+    enable_nczarr_s3_tests=no
+    enable_nczarr_s3=no
+  fi
 fi
 
-if test "x$enable_s3_tests" = xyes ; then
-  AC_DEFINE([ENABLE_S3_TESTS], [1], [if true, build libnczarr with S3 tests enabled])
+if test "x$enable_nczarr_s3" = xyes ; then
+  AC_DEFINE([ENABLE_NCZARR_S3], [1], [if true, build libnczarr with S3 support enabled])
 fi
-AM_CONDITIONAL(ENABLE_S3_TESTS, [test "x$enable_s3_tests" = xyes])
+AM_CONDITIONAL(ENABLE_NCZARR_S3, [test "x$enable_nczarr_s3" = xyes])
+
+if test "x$enable_nczarr_s3_tests" = xyes ; then
+  AC_DEFINE([ENABLE_NCZARR_S3_TESTS], [1], [if true, build libnczarr with S3 tests enabled])
+fi
+AM_CONDITIONAL(ENABLE_NCZARR_S3_TESTS, [test "x$enable_nczarr_s3_tests" = xyes])
 
 # This has multiversion capability
 AC_MSG_CHECKING([whether multi-filter support is enabled])
-have_multifilters=yes
-AC_MSG_RESULT($have_multifilters)
-AC_DEFINE([HAVE_MULTIFILTERS], [1], [if true, multi-filter support enabled])
+has_multifilters=yes
+AC_MSG_RESULT($has_multifilters)
+AC_DEFINE([HAS_MULTIFILTERS], [1], [if true, multi-filter support enabled])
 
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
@@ -1232,6 +1240,7 @@ if test "x$enable_hdf5" = xyes; then
       AC_DEFINE([HDF5_UTF8_PATHS], [1], [if true, HDF5 paths can be utf-8])
    fi
 fi
+
 AM_CONDITIONAL(ENABLE_NCDUMPCHUNKS, [test "x$has_readchunks" = xyes ])
 
 # If the user wants hdf4 built in, check it out.
@@ -1437,7 +1446,7 @@ AM_CONDITIONAL(RELAX_COORD_BOUND, [test "xyes" = xyes])
 AM_CONDITIONAL(HAS_PAR_FILTERS, [test x$hdf5_supports_par_filters = xyes ])
 AM_CONDITIONAL(ENABLE_NCZARR, [test "x$enable_nczarr" = xyes])
 AM_CONDITIONAL(HAVE_AWS, [test "x$have_aws" = xyes])
-AM_CONDITIONAL(HAVE_MULTIFILTERS, [test "x$have_multifilters" = xyes])
+AM_CONDITIONAL(HAS_MULTIFILTERS, [test "x$has_multifilters" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
@@ -1560,8 +1569,8 @@ AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
 AC_SUBST(RELAX_COORD_BOUND,[yes])
 AC_SUBST([HAS_PAR_FILTERS], [$hdf5_supports_par_filters])
 AC_SUBST(HAS_NCZARR,[$enable_nczarr])
-AC_SUBST(DO_S3_TESTS,[$enable_s3_tests])
-AC_SUBST(HAS_MULTIFILTERS,[$have_multifilters])
+AC_SUBST(DO_NCZARR_S3_TESTS,[$enable_nczarr_s3_tests])
+AC_SUBST(HAS_MULTIFILTERS,[$has_multifilters])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],
@@ -1633,7 +1642,7 @@ AX_SET_META([NC_HAS_ERANGE_FILL], [$enable_erange_fill],[yes])
 AX_SET_META([NC_HAS_PAR_FILTERS], [$hdf5_supports_par_filters],[yes])
 AX_SET_META([NC_HAS_BYTERANGE],[$enable_byterange],[yes])
 AX_SET_META([NC_HAS_NCZARR],[$enable_nczarr],[yes])
-AX_SET_META([NC_HAS_MULTIFILTERS],[$have_multifilters],[yes])
+AX_SET_META([NC_HAS_MULTIFILTERS],[$has_multifilters],[yes])
 
 # This is the version of the dispatch table. If the dispatch table is
 # changed, this should be incremented, so that user-defined format
