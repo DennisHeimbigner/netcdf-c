@@ -104,6 +104,12 @@ ref_ut_mapapi_search_s3.txt \
 ref_perdimspecs.cdl \
 ref_fillonly.cdl test_fillonlyz.sh
 
+CLEANFILES = test.nzf test.nz4 test.nz4 \
+testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
+tst_chunks.nz4 tst_chunks2.nc.nz4 \
+ut_*.txt ut*.cdl tmp*.nc tmp*.cdl *.dmp test.nzf \
+tst_chunks3.nc
+
 #if BUILD_BENCHMARKS
 
 BMCOMMON=bm_utils.c ut_util.c ut_test.c
@@ -115,7 +121,8 @@ bm_metatest_SOURCES = bm_metatest.c ${BMCOMMON}
 bm_many_atts_SOURCES = bm_many_atts.c ${BMCOMMON}
 bm_many_objs_SOURCES = bm_many_objs.c ${BMCOMMON}
 else
-BENCHMARKS = bm_many_objs
+BENCHMARKS = bm_many_atts bm_many_objs
+bm_many_atts_SOURCES = bm_many_atts.c ${BMCOMMON}
 bm_many_objs_SOURCES = bm_many_objs.c ${BMCOMMON}
 endif
 
@@ -125,15 +132,15 @@ AM_CFLAGS += ${PG}
 AM_LDFLAGS += ${PG}
 
 check_PROGRAMS += ${BENCHMARKS}
+TESTS += bm_many_atts.sh
 TESTS += bm_many_objs.sh
 
-EXTRA_DIST += bm_common.sh bm_metatest.sh bm_many_atts.sh
+EXTRA_DIST += bm_common.sh bm_metatest.sh bm_many_atts.sh bm_many_objs.sh
 
-CLEANFILES = test.nzf test.nz4 test.nz4 \
-testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
-tst_chunks.nz4 tst_chunks2.nc.nz4 \
-ut_*.txt ut*.cdl tmp*.nc tmp*.cdl *.dmp test.nzf \
-tst_chunks3.nc
+CLEANFILES += bm_many_atts.nc4 bm_many_atts.nzf
+CLEANFILES += bm_many_objs.nc4 bm_many_objs.nzf
+
+#endif
 
 # Remove directories
 clean-local:

@@ -127,6 +127,7 @@ typedef struct NCZ_VAR_INFO {
     NCZcommon common;
     size64_t chunkproduct; /* product of chunksizes */
     int order; /* 1=>column major, 0=>row major (default); not currently enforced */
+    size_t scalar;
     struct NCZChunkCache* cache;
     /* Following are duplicates of NC_VAR_INFO_T equivalents */
     size_t chunk_cache_nelems;   /**< Number of slots in var chunk cache. */
