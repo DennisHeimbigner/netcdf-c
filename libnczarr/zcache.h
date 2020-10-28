@@ -15,6 +15,7 @@ typedef struct NCZCacheEntry {
 
 typedef struct NCZChunkCache {
     const NC_VAR_INFO_T* var; /* backlink */
+    size64_t ndims; /* true ndims == var->ndims + scalar */
     size64_t chunksize;
     void* fillchunk; /* enough fillvalues to fill a chunk */
     size_t maxentries; /* Max number of entries allowed */

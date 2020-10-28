@@ -92,12 +92,16 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 
     if((stat = ncz_get_fill_value(common.file, common.var, &common.fillvalue))) goto done;
 
-    common.rank = var->ndims;
+    /* We need to talk scalar into account */
+    common.rank = var->ndims + zvar->scalar;
     common.swap = (zfile->native_endianness == var->endianness ? 0 : 1);
 
     common.chunkcount = 1;
-    for(r=0;r<var->ndims;r++) {
-	dimlens[r] = var->dim[r]->len;
+    for(r=0;r<common.rank;r++) {
+	if(zvar->scalar)
+	    dimlens[r] = 1;
+	else
+	    dimlens[r] = var->dim[r]->len;
 	chunklens[r] = var->chunksizes[r];
 	slices[r].start = start[r];
 	slices[r].stride = stride[r];
