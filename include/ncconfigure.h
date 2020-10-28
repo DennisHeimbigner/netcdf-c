@@ -104,6 +104,10 @@ typedef unsigned short ushort;
 typedef unsigned int uint;
 #endif
 
+#ifndef HAVE_UINT64
+typedef unsigned long long uint64;
+#endif
+
 #ifndef _WIN32
 #ifndef HAVE_UINTPTR_T
 #if SIZEOF_VOIDP == 8
