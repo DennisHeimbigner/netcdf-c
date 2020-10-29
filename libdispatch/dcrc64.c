@@ -211,13 +211,21 @@ static inline uint64 crc64_big(uint64 crc, void *buf, size_t len)
    at compile time if it can, and get rid of the unused code and table.  If the
    endianess can be changed at run time, then this code will handle that as
    well, initializing and using two tables, if called upon to do so. */
+
+static int littlendian = -1;
+
 uint64
 NC_crc64(uint64 crc, void *buf, unsigned int len)
 {
-    uint64 n = 1;
+    /* Is this machine big vs little endian? */
+    if(littleendian < 0) {
+	unsigned char* p = &littleendian;
+	littleendian = 1;
+	if(*p == 0) littleendian = 0; /* big endian */
+    }
 
-    return *(char *)&n ? crc64_little(crc, buf, (size_t)len) :
-                         crc64_big(crc, buf, (size_t)len);
+    return littleendian ? crc64_little(crc, buf, (size_t)len) :
+                          crc64_big(crc, buf, (size_t)len);
 }
 
 #define GF2_DIM 64      /* dimension of GF(2) vectors (length of CRC) */
