@@ -21,7 +21,7 @@ dvarinq.c dinternal.c ddispatch.c dutf8.c nclog.c dstring.c ncuri.c	\
 nclist.c ncbytes.c nchashmap.c nctime.c nc.c nclistmgr.c dauth.c	\
 doffsets.c dpathmgr.c dutil.c dreadonly.c dnotnc4.c dnotnc3.c           \
 daux.c dinfermodel.c \
-dcrc32.c dcrc64.c  ncexhash.c
+dcrc32.c dcr32c.h dcrc64.c  ncexhash.c
 
 # Add the utf8 codebase
 libdispatch_la_SOURCES += utf8proc.c utf8proc.h
@@ -29,7 +29,7 @@ libdispatch_la_SOURCES += utf8proc.c utf8proc.h
 # The rc code is currently only used by libdap2 and libdap4,
 # but in the future, it will be expanded to be used as the
 # general .rc file for the netcdf-c library. So, always compile it.
-libdispatch_la_SOURCES += drc.c
+libdispatch_la_SOURCES += drc.c 
 
 # Add functions only found in netCDF-4.
 # They are always defined, even if they just return an error

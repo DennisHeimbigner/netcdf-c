@@ -29,7 +29,7 @@ Test the Extendible Hash Implementation of ncexhash
 
 #define HMODE 3
 
-#define VERBOSE
+#undef VERBOSE
 
 #if EXHASHKEYBITS == 64
 #define CRC NC_crc64
@@ -37,8 +37,7 @@ Test the Extendible Hash Implementation of ncexhash
 #define CRC NC_crc32
 #endif
 
-//static unsigned N[] = {1000, 10000, 100000, 1000000, 0};
-static unsigned N[] = {100, 0};
+static unsigned N[] = {1000, 10000, 100000, 1000000, 0};
 
 #define CHECK(expr) check((expr),__LINE__)
 void check(int stat, int line)
@@ -121,7 +120,7 @@ main(int argc, char** argv)
 
     fprintf(stderr,"insert:\n");
 
-#if 0
+#ifdef VERBOSE
     {
     long microcvt, seccvt;
     struct timespec res;
@@ -196,7 +195,6 @@ main(int argc, char** argv)
 
     /* Test iterator */
     /* Test removal */
-abort();
 
     ncexhashfree(map);
 

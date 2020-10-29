@@ -36,14 +36,17 @@ R. Fagin, J. Nievergelt, N. Pippenger, and H. Strong, "Extendible Hashing -·a fa
 /*! Hashmap-related structs.
   NOTES:
   1. 'data' is the an arbitrary uintptr_t integer or void* pointer.
-  2. hashkey is a crc32 hash of key -- it is assumed to be unique for keys.
+  2. hashkey is a crc64 hash of key -- it is assumed to be unique for keys.
     
   WARNINGS:
   1. It is critical that |uintptr_t| == |void*|
 */
 
+#define exhashkey_t unsigned long long
+#define EXHASHKEYBITS 64
+
 typedef struct NCexentry {
-    unsigned hashkey; /* Hash id */
+    exhashkey_t hashkey; /* Hash id */
     uintptr_t data;
 } NCexentry;
 
@@ -62,7 +65,7 @@ typedef struct NCexhash {
     NCexleaf* leaves; /* head of the linked list of leaves */
     int nactive; /* # of active entries in whole table */
     NCexleaf** directory; /* |directory| == 2^depth */
-    unsigned uid;
+    unsigned uid; /* unique id counter */
     /* Allow a single iterator over the entries */
     struct {
 	int walking; /* 0=>not in use */
@@ -83,19 +86,19 @@ EXTERNL int ncexhashcount(NCexhash*);
 /* Hash key based API */
 
 /* Lookup by Hash Key */
-EXTERNL int ncexhashget(NCexhash*, unsigned hkey, uintptr_t*);
+EXTERNL int ncexhashget(NCexhash*, exhashkey_t hkey, uintptr_t*);
 
 /* Insert by Hash Key */
-EXTERNL int ncexhashput(NCexhash*, unsigned hkey, uintptr_t data);
+EXTERNL int ncexhashput(NCexhash*, exhashkey_t hkey, uintptr_t data);
 
 /* Remove by Hash Key */
-EXTERNL int ncexhashrem(NCexhash*, unsigned hkey, uintptr_t* datap);
+EXTERNL int ncexhashrem(NCexhash*, exhashkey_t hkey, uintptr_t* datap);
 
 /** Change the data for the specified key; takes hashkey. */
-EXTERNL int ncexhashsetdata(NCexhash*, unsigned hkey, uintptr_t newdata);
+EXTERNL int ncexhashsetdata(NCexhash*, exhashkey_t hkey, uintptr_t newdata);
 
 /* Return the hash key for specified key; takes key+size*/
-EXTERNL unsigned ncexhashkey(const char* key, size_t size);
+EXTERNL exhashkey_t ncexhashkey(const char* key, size_t size);
 
 /* Walk the entries in some order */
 /*
@@ -103,7 +106,7 @@ EXTERNL unsigned ncexhashkey(const char* key, size_t size);
 @return NC_ERANGE if iteration is finished
 @return NC_EINVAL for all other errors
 */
-EXTERNL int ncexhashiterate(NCexhash* map, unsigned* keyp, uintptr_t* datap);
+EXTERNL int ncexhashiterate(NCexhash* map, exhashkey_t* keyp, uintptr_t* datap);
 
 /* Debugging */
 EXTERNL void ncexhashprint(NCexhash*);
@@ -111,7 +114,7 @@ EXTERNL void ncexhashprintstats(NCexhash*);
 EXTERNL void ncexhashprintdir(NCexhash*, NCexleaf** dir);
 EXTERNL void ncexhashprintleaf(NCexhash*, NCexleaf* leaf);
 EXTERNL void ncexhashprintentry(NCexhash* map, NCexentry* entry);
-EXTERNL char* ncexbinstr(unsigned hkey, int depth);
+EXTERNL char* ncexbinstr(exhashkey_t hkey, int depth);
 
 #endif /*NCEXHASH_H*/
 

@@ -11,6 +11,7 @@ See LICENSE.txt for license information.
 
 #include "netcdf.h"
 #include "ncexhash.h"
+#include "nccrc.h"
 
 /* 0 => no debug */
 #define DEBUG 0
@@ -55,17 +56,17 @@ static int throw(int x)
 static int ncexinitialized = 0;
 
 /* Define a vector of bit masks */
-unsigned bitmasks[32];
+exhashkey_t bitmasks[EXHASHKEYBITS];
 
 /* Extract the leftmost n bits from h */
 #if 1
-#define MSB(h,d) (((h) >> (32 - (d))) & bitmasks[d])
+#define MSB(h,d) (((h) >> (EXHASHKEYBITS - (d))) & bitmasks[d])
 #else
-static unsigned
-MSB(unsigned h, int d)
+static exhashkey_t
+MSB(exhashkey_t h, int d)
 {
-    unsigned bm = bitmasks[d];
-    unsigned hkey = h >> (32 - d);
+    exhashkey_t bm = bitmasks[d];
+    exhashkey_t hkey = h >> (EXHASHKEYBITS - d);
     hkey = hkey & bm;
     return hkey;
 }
@@ -73,17 +74,14 @@ MSB(unsigned h, int d)
 
 /* Provide a mask to get the rightmost bit
    of the left n bits of our hash key */
-#define MSBMASK(d) (1 << (32 - d))
+#define MSBMASK(d) (1 << (EXHASHKEYBITS - d))
 
-/* Prototype for the crc32 function */
-extern unsigned int NC_crc32(unsigned int crc, const unsigned char* buf, unsigned int len);
-
-static int exhashlookup(NCexhash* map, unsigned hkey, NCexleaf** leafp, int* indexp);
-static int exhashlocate(NCexhash* map, unsigned hkey, NCexleaf** leafp, int* indexp);
-static int exhashsplit(NCexhash* map, unsigned hkey, NCexleaf* leaf);
+static int exhashlookup(NCexhash* map, exhashkey_t hkey, NCexleaf** leafp, int* indexp);
+static int exhashlocate(NCexhash* map, exhashkey_t hkey, NCexleaf** leafp, int* indexp);
+static int exhashsplit(NCexhash* map, exhashkey_t hkey, NCexleaf* leaf);
 static int exhashdouble(NCexhash* map);
-static int exbinsearch(unsigned hkey, NCexleaf* leaf, int* indexp);
-static void exhashnewentry(NCexhash* map, NCexleaf* leaf, unsigned hkey, int* indexp);
+static int exbinsearch(exhashkey_t hkey, NCexleaf* leaf, int* indexp);
+static void exhashnewentry(NCexhash* map, NCexleaf* leaf, exhashkey_t hkey, int* indexp);
 
 /**************************************************/
 
@@ -92,7 +90,7 @@ ncexinit(void)
 {
     int i;
     bitmasks[0] = 0;
-    for(i=1;i<32;i++)
+    for(i=1;i<EXHASHKEYBITS;i++)
 	bitmasks[i] = (1 << i) - 1;
     ncexinitialized = 1;
 }
@@ -186,7 +184,7 @@ ncexhashcount(NCexhash* map)
 
 /* Lookup by Hash Key */
 int
-ncexhashget(NCexhash* map, unsigned hkey, uintptr_t* datap)
+ncexhashget(NCexhash* map, exhashkey_t hkey, uintptr_t* datap)
 {
     int stat = NC_NOERR;
     NCexleaf* leaf;
@@ -204,7 +202,7 @@ ncexhashget(NCexhash* map, unsigned hkey, uintptr_t* datap)
 
 /* Insert by Hash Key */
 int
-ncexhashput(NCexhash* map, unsigned hkey, uintptr_t data)
+ncexhashput(NCexhash* map, exhashkey_t hkey, uintptr_t data)
 {
     int stat = NC_NOERR;
     NCexleaf* leaf;
@@ -227,11 +225,11 @@ ncexhashput(NCexhash* map, unsigned hkey, uintptr_t data)
 }
 
 static int
-exhashlookup(NCexhash* map, unsigned hkey, NCexleaf** leafp, int* indexp)
+exhashlookup(NCexhash* map, exhashkey_t hkey, NCexleaf** leafp, int* indexp)
 {
     int stat = NC_NOERR;
     NCexleaf* leaf;
-    unsigned offset;
+    exhashkey_t offset;
     int index;
 
     TRACE("exhashlookup");
@@ -253,10 +251,10 @@ exhashlookup(NCexhash* map, unsigned hkey, NCexleaf** leafp, int* indexp)
 }
 
 static int
-exhashlocate(NCexhash* map, unsigned hkey, NCexleaf** leafp, int* indexp)
+exhashlocate(NCexhash* map, exhashkey_t hkey, NCexleaf** leafp, int* indexp)
 {
     int stat = NC_NOERR;
-    unsigned offset;
+    exhashkey_t offset;
     NCexleaf* leaf = NULL;
     int index = -1;
     int iter;
@@ -311,7 +309,7 @@ exhashdouble(NCexhash* map)
     NCexleaf** olddir = NULL;
     NCexleaf** newdir = NULL;
     size_t oldcount,newcount;
-    unsigned iold, inew;
+    exhashkey_t iold, inew;
 
     TRACE("exhashdouble");
 
@@ -351,7 +349,7 @@ exhashdouble(NCexhash* map)
 }
 
 static int
-exhashsplit(NCexhash* map, unsigned hkey, NCexleaf* leaf)
+exhashsplit(NCexhash* map, exhashkey_t hkey, NCexleaf* leaf)
 {
     int stat = NC_NOERR;
     NCexleaf* newleaf = NULL;
@@ -475,7 +473,7 @@ done:
  * @author Dennis Heimbigner
  */
 static int
-exbinsearch(unsigned hkey, NCexleaf* leaf, int* indexp)
+exbinsearch(exhashkey_t hkey, NCexleaf* leaf, int* indexp)
 {
     int stat = NC_NOERR;
     int n = leaf->active;
@@ -514,7 +512,7 @@ exbinsearch(unsigned hkey, NCexleaf* leaf, int* indexp)
 
 /* Create new entry at position index */
 static void
-exhashnewentry(NCexhash* map, NCexleaf* leaf, unsigned hkey, int* indexp)
+exhashnewentry(NCexhash* map, NCexleaf* leaf, exhashkey_t hkey, int* indexp)
 {
     int stat;
     int dst,src;
@@ -535,7 +533,7 @@ exhashnewentry(NCexhash* map, NCexleaf* leaf, unsigned hkey, int* indexp)
 #if 0
     leaf->entries[index].hashkey = hkey;
 #else
-    leaf->entries[index].hashkey = (unsigned)0xffffffffffffffff;
+    leaf->entries[index].hashkey = (exhashkey_t)0xffffffffffffffff;
 #endif
     leaf->entries[index].data = 0;
     leaf->active++;
@@ -544,7 +542,7 @@ exhashnewentry(NCexhash* map, NCexleaf* leaf, unsigned hkey, int* indexp)
 
 /* Remove by Hash Key */
 int
-ncexhashrem(NCexhash* map, unsigned hkey, uintptr_t* datap)
+ncexhashrem(NCexhash* map, exhashkey_t hkey, uintptr_t* datap)
 {
      int stat = NC_NOERR;
      NCexleaf* leaf;
@@ -563,10 +561,10 @@ ncexhashrem(NCexhash* map, unsigned hkey, uintptr_t* datap)
 }
 
 /* Return the hash key for specified key; takes key+size*/
-unsigned
+exhashkey_t
 ncexhashkey(const char* key, size_t size)
 {
-    return NC_crc32(0,(unsigned char*)key,(unsigned int)size);
+    return NC_crc64(0,(unsigned char*)key,(unsigned int)size);
 }
 
 /* Walk the entries in some order */
@@ -576,7 +574,7 @@ ncexhashkey(const char* key, size_t size)
 @return NC_EINVAL for all other errors
 */
 int
-ncexhashiterate(NCexhash* map, unsigned* keyp, uintptr_t* datap)
+ncexhashiterate(NCexhash* map, exhashkey_t* keyp, uintptr_t* datap)
 {
     int stat = NC_NOERR;
 
@@ -629,7 +627,7 @@ ncexhashprint(NCexhash* hm)
 		(unsigned)(0xffff & (uintptr_t)leaf),
 		leaf->uid, leaf->depth);
 	for(index=0;index<leaf->active;index++) {
-	    unsigned hkey, bits;
+	    exhashkey_t hkey, bits;
 	    const char* s;
 	    hkey = leaf->entries[index].hashkey;
 	    /* Reduce to the leaf->hash MSB */
@@ -638,9 +636,9 @@ ncexhashprint(NCexhash* hm)
 	    fprintf(stderr,"%s(%s/",(index==0?":":" "),s);
 	    bits = MSB(hkey,leaf->depth);
 	    s = ncexbinstr(bits,leaf->depth);
-	    fprintf(stderr,"%s|0x%x,%lu)",
+	    fprintf(stderr,"%s|0x%llx,%lu)",
 		    s,
-	  	    hkey,
+	  	    (unsigned long long)hkey,
 		    (uintptr_t)leaf->entries[index].data);
 	}
 	fprintf(stderr,"]\n");
@@ -669,7 +667,7 @@ ncexhashprintleaf(NCexhash* map, NCexleaf* leaf)
 	(unsigned)(0xffff & (uintptr_t)leaf),
 	leaf->uid, leaf->depth,leaf->active);
     for(index=0;index<leaf->active;index++) {
-	unsigned hkey, bits;
+	exhashkey_t hkey, bits;
 	const char* s;
 	hkey = leaf->entries[index].hashkey;
 	/* Reduce to the leaf->hash MSB */
@@ -678,7 +676,8 @@ ncexhashprintleaf(NCexhash* map, NCexleaf* leaf)
         fprintf(stderr,"%s(%s/",(index==0?":":" "),s);
 	bits = MSB(hkey,leaf->depth);
 	s = ncexbinstr(bits,leaf->depth);
-	fprintf(stderr,"%s|0x%x,%lu)", s, hkey, (uintptr_t)leaf->entries[index].data);
+	fprintf(stderr,"%s|0x%llx,%lu)",
+        s, (unsigned long long)hkey, (uintptr_t)leaf->entries[index].data);
     }
     fprintf(stderr,"]\n");
 }
@@ -687,16 +686,16 @@ void
 ncexhashprintentry(NCexhash* map, NCexentry* entry)
 {
 
-    fprintf(stderr,"{0x%x,%lu)",entry->hashkey,(uintptr_t)entry->data);
+    fprintf(stderr,"{0x%llx,%lu)",(unsigned long long)entry->hashkey,(uintptr_t)entry->data);
 }
 
 char*
-ncexbinstr(unsigned hkey, int depth)
+ncexbinstr(exhashkey_t hkey, int depth)
 {
     int i;
-    static char bits[33];
-    memset(bits,'0',33);
-    bits[32] = '\0';
+    static char bits[EXHASHKEYBITS+1];
+    memset(bits,'0',EXHASHKEYBITS+1);
+    bits[EXHASHKEYBITS] = '\0';
     for(i=0;i<depth;i++)
         bits[(depth-1)-i] = ((hkey >> i) & 0x1) == 0 ? '0' : '1';
     bits[depth] = '\0';
@@ -725,8 +724,8 @@ ncexhashprintstats(NCexhash* map)
     if(nactive != map->nactive) {
 	fprintf(stderr,"nactive mismatch: map->active=%d actual=%d\n",map->nactive,nactive);
     }
-    fprintf(stderr,"|directory|=%u nleaves=%d nactive=%d",
-	(unsigned)(1<<(map->depth)),nleaves,nactive);
+    fprintf(stderr,"|directory|=%llu nleaves=%d nactive=%d",
+	(unsigned long long)(1<<(map->depth)),nleaves,nactive);
     fprintf(stderr," |leaf|=%d nactive/nleaves=%g", map->leaflen, leafavg);
     fprintf(stderr," load=%g",leafload);
     fprintf(stderr,"]\n");
