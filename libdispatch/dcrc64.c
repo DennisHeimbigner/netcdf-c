@@ -212,14 +212,14 @@ static inline uint64 crc64_big(uint64 crc, void *buf, size_t len)
    endianess can be changed at run time, then this code will handle that as
    well, initializing and using two tables, if called upon to do so. */
 
-static int littlendian = -1;
+static int littleendian = -1;
 
 uint64
 NC_crc64(uint64 crc, void *buf, unsigned int len)
 {
     /* Is this machine big vs little endian? */
     if(littleendian < 0) {
-	unsigned char* p = &littleendian;
+	unsigned char* p = (void*)&littleendian;
 	littleendian = 1;
 	if(*p == 0) littleendian = 0; /* big endian */
     }

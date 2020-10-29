@@ -37,12 +37,16 @@ e.g. crc64 or such.  Needs some thought.
   1. It is critical that |uintptr_t| == |void*|
 */
 
-#define hashkey_t unsigned long long
+/** The type and # bits in a hashkey */
+#ifndef nchashkey_t
+#define nchashkey_t unsigned
+#define NCHASHKEYBITS (sizeof(nchashkey_t)*8)
+#endif
 
 typedef struct NC_hentry {
     int flags;
     uintptr_t data;
-    hashkey_t hashkey; /* Hash id (crc64)*/
+    nchashkey_t hashkey; /* Hash id (crc)*/
     size_t keysize;
     char* key; /* copy of the key string; kept as unsigned char */
 } NC_hentry;
@@ -94,7 +98,7 @@ extern size_t NC_hashmapcount(NC_hashmap*);
 extern int NC_hashmapfree(NC_hashmap*);
 
 /* Return the hash key for specified key; takes key+size*/
-extern hashkey_t NC_hashmapkey(const char* key, size_t size);
+extern nchashkey_t NC_hashmapkey(const char* key, size_t size);
 
 /* Return the ith entry info:
 @param map

@@ -29,7 +29,13 @@ Test the Extendible Hash Implementation of ncexhash
 
 #define HMODE 3
 
-#undef VERBOSE
+#define VERBOSE
+
+#if EXHASHKEYBITS == 64
+#define CRC NC_crc64
+#else
+#define CRC NC_crc32
+#endif
 
 //static unsigned N[] = {1000, 10000, 100000, 1000000, 0};
 static unsigned N[] = {100, 0};
@@ -52,18 +58,19 @@ hkeyfor(unsigned key)
 
     switch (HMODE) {
     case 1:
-        hashkey = ncexhashkey((char*)&key,4);
+        hashkey = ncexhashkey((char*)&key,sizeof(key));
 	break;
     case 2:
-        for(i=0;i<32;i++) {
+        for(i=0;i<EXHASHKEYBITS;i++) {
 	    hashkey |= (key & 0x1) << (31-i);
 	    key = key >> 1;
         }
         break;
-    case 3: /* Convert key to a random number using crc32 */
-	hashkey = NC_crc64(0,(void*)&key,sizeof(exhashkey_t));
+    case 3: /* Convert key to a random number using crc */
+	hashkey = CRC(0,(void*)&key,sizeof(key));
 	break;
-    default: abort();
+    default:
+	abort();
     }
     return hashkey;
 }
@@ -104,7 +111,7 @@ int
 main(int argc, char** argv)
 {
     NCexhash* map = NULL;
-    exhashkey_t key;
+    unsigned key;
     struct rusage ru;
     clockid_t clk_id = CLOCK_MONOTONIC;
     struct timespec xinserttime[2];
@@ -143,7 +150,7 @@ main(int argc, char** argv)
     for(key=0;key<*np;key++) {
 	exhashkey_t hashkey = hkeyfor(key);
 #ifdef VERBOSE
-        fprintf(stderr,"insert[%08x|%s->%u]:\n",hashkey,ncexbinstr(hashkey,32),key);
+        fprintf(stderr,"insert[%08llx|%s->%u]:\n",hashkey,ncexbinstr(hashkey,EXHASHKEYBITS),key);
 #endif
 	CHECK(ncexhashput(map,hashkey,(uintptr_t)key));
     }
@@ -168,7 +175,7 @@ main(int argc, char** argv)
 	exhashkey_t hashkey = hkeyfor(key);
 	CHECK(ncexhashget(map,hashkey,&data));
 #ifdef VERBOSE
-        fprintf(stderr,"read[%08x|%s->%u]:\n",hashkey,ncexbinstr(hashkey,EXHASHKEYBITS),(unsigned)data);
+        fprintf(stderr,"read[%08llx|%s->%u]:\n",hashkey,ncexbinstr(hashkey,EXHASHKEYBITS),(unsigned)data);
 #endif
 	if(data != key) fprintf(stderr,"\tMISMATCH\n");
     }

@@ -49,7 +49,7 @@ we will only do string comparisons when they will match.
 #define SEED 37
 
 /* See lookup3.c */
-extern hashkey_t hash_fast(const char*, size_t length);
+extern nchashkey_t hash_fast(const char*, size_t length);
 
 /* this should be prime */
 #ifdef SMALLTABLE
@@ -108,7 +108,7 @@ rehash(NC_hashmap* hm)
    return invariant: return == 0 || *indexp is defined
  */
 static int
-locate(NC_hashmap* hash, hashkey_t hashkey, const char* key, size_t keysize, size_t* indexp, int deletedok)
+locate(NC_hashmap* hash, nchashkey_t hashkey, const char* key, size_t keysize, size_t* indexp, int deletedok)
 {
     size_t i;
     size_t index;
@@ -153,7 +153,7 @@ locate(NC_hashmap* hash, hashkey_t hashkey, const char* key, size_t keysize, siz
 
 /* Return the hash key for specified key; takes key+size*/
 /* Wrapper for crc64*/
-hashkey_t
+nchashkey_t
 NC_hashmapkey(const char* key, size_t size)
 {
     return NC_crc64(0,(void*)key,(unsigned int)size);
@@ -185,7 +185,7 @@ int
 NC_hashmapadd(NC_hashmap* hash, uintptr_t data, const char* key, size_t keysize)
 {
   NC_hentry* entry;
-  hashkey_t hashkey;
+  nchashkey_t hashkey;
 
     Trace("NC_hashmapadd");
 
@@ -226,7 +226,7 @@ NC_hashmapadd(NC_hashmap* hash, uintptr_t data, const char* key, size_t keysize)
 int
 NC_hashmapremove(NC_hashmap* hash, const char* key, size_t keysize, uintptr_t* datap)
 {
-    hashkey_t hashkey;
+    nchashkey_t hashkey;
     size_t index;
     NC_hentry* h;
 
@@ -254,7 +254,7 @@ NC_hashmapremove(NC_hashmap* hash, const char* key, size_t keysize, uintptr_t* d
 int
 NC_hashmapget(NC_hashmap* hash, const char* key, size_t keysize, uintptr_t* datap)
 {
-    hashkey_t hashkey;
+    nchashkey_t hashkey;
 
     Trace("NC_hashmapget");
 
@@ -284,7 +284,7 @@ NC_hashmapsetdata(NC_hashmap* hash, const char* key, size_t keysize, uintptr_t n
 {
     size_t index;
     NC_hentry* h;
-    hashkey_t hashkey;
+    nchashkey_t hashkey;
 
     Trace("NC_hashmapsetdata");
 

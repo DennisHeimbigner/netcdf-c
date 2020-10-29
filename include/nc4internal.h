@@ -21,7 +21,7 @@
 #include "nc_logging.h"
 #include "ncindex.h"
 #include "nc_provenance.h"
-
+#include "nchashmap.h"
 
 #include "netcdf_f.h"
 #include "netcdf_mem.h"
@@ -133,7 +133,7 @@ typedef struct NC_OBJ
     NC_SORT sort; /**< Type of object. */
     char* name;   /**< Name, assumed to be null terminated. */
     size_t id;    /**< This objects ID. */
-    unsigned int hashkey; /**< The hash key, crc(name). */
+    nchashkey_t hashkey; /**< The hash key, crc(name). */
 } NC_OBJ;
 
 /**
