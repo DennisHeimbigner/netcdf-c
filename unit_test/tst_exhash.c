@@ -20,6 +20,7 @@ Test the Extendible Hash Implementation of ncexhash
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
+#include <assert.h>
 
 #include "netcdf.h"
 #include "ncexhash.h"
@@ -31,7 +32,7 @@ Test the Extendible Hash Implementation of ncexhash
 
 #undef VERBOSE
 
-#if EXHASHKEYBITS == 64
+#if NCEXHASHKEYBITS == 64
 #define CRC NC_crc64
 #else
 #define CRC NC_crc32
@@ -49,10 +50,10 @@ void check(int stat, int line)
     }
 }
 
-static exhashkey_t
+static ncexhashkey_t
 hkeyfor(unsigned key)
 {
-    exhashkey_t hashkey = 0;
+    ncexhashkey_t hashkey = 0;
     int i;
 
     switch (HMODE) {
@@ -60,7 +61,7 @@ hkeyfor(unsigned key)
         hashkey = ncexhashkey((char*)&key,sizeof(key));
 	break;
     case 2:
-        for(i=0;i<EXHASHKEYBITS;i++) {
+        for(i=0;i<NCEXHASHKEYBITS;i++) {
 	    hashkey |= (key & 0x1) << (31-i);
 	    key = key >> 1;
         }
@@ -109,14 +110,18 @@ xreporttime(unsigned nelems, struct timespec* times, const char* tag)
 int
 main(int argc, char** argv)
 {
-    NCexhash* map = NULL;
+    int stat = NC_NOERR;
+    NCexhashmap* map = NULL;
     unsigned key;
     struct rusage ru;
     clockid_t clk_id = CLOCK_MONOTONIC;
     struct timespec xinserttime[2];
     struct timespec xreadtime[2];
-    long  inserttime[2], readtime[2] ;	/* elapsed time in microseconds */
+    struct timespec xremtime[2];
+    long  inserttime[2], readtime[2], remtime[2]; /* elapsed time in microseconds */
     unsigned* np;
+    uintptr_t data;
+    ncexhashkey_t hashkey;
 
     fprintf(stderr,"insert:\n");
 
@@ -147,9 +152,9 @@ main(int argc, char** argv)
     fprintf(stderr,"new:\n"); ncexhashprint(map);    
 #endif
     for(key=0;key<*np;key++) {
-	exhashkey_t hashkey = hkeyfor(key);
+	ncexhashkey_t hashkey = hkeyfor(key);
 #ifdef VERBOSE
-        fprintf(stderr,"insert[%08llx|%s->%u]:\n",hashkey,ncexbinstr(hashkey,EXHASHKEYBITS),key);
+        fprintf(stderr,"insert[%08llx|%s->%u]:\n",hashkey,ncexbinstr(hashkey,NCEXHASHKEYBITS),key);
 #endif
 	CHECK(ncexhashput(map,hashkey,(uintptr_t)key));
     }
@@ -158,7 +163,6 @@ main(int argc, char** argv)
 #endif
 
     clock_gettime(clk_id,&xinserttime[1]);
-
     getrusage(RUSAGE_SELF, &ru);
     inserttime[1] = (1000000*(ru.ru_utime.tv_sec + ru.ru_stime.tv_sec)
 	     + ru.ru_utime.tv_usec + ru.ru_stime.tv_usec);
@@ -171,10 +175,10 @@ main(int argc, char** argv)
 
     for(key=0;key<*np;key++) {
 	uintptr_t data = 0;
-	exhashkey_t hashkey = hkeyfor(key);
+	ncexhashkey_t hashkey = hkeyfor(key);
 	CHECK(ncexhashget(map,hashkey,&data));
 #ifdef VERBOSE
-        fprintf(stderr,"read[%08llx|%s->%u]:\n",hashkey,ncexbinstr(hashkey,EXHASHKEYBITS),(unsigned)data);
+        fprintf(stderr,"read[%08llx|%s->%u]:\n",hashkey,ncexbinstr(hashkey,NCEXHASHKEYBITS),(unsigned)data);
 #endif
 	if(data != key) fprintf(stderr,"\tMISMATCH\n");
     }
@@ -194,9 +198,92 @@ main(int argc, char** argv)
     xreporttime(*np, xreadtime, "read");
 
     /* Test iterator */
-    /* Test removal */
+    {
+	unsigned char* found = NULL;
+	int nmatches = 0;
+	fprintf(stderr,"iterating: %u\n",*np);
+	if((found = (unsigned char*)calloc(1,*np))==NULL) CHECK(NC_ENOMEM);
+        for(;;) {
+	    if((stat = ncexhashiterate(map, &hashkey, &data)) == NC_EINVAL) CHECK(stat);
+	    if(stat == NC_ERANGE) break;
+	    assert(data >= 0 && data < *np);
+	    if(found[data] != 0)
+	        fprintf(stderr,"iterator duplicate: data=%lu\n",(unsigned long)data);
+	    found[data] = 1;
+	    nmatches++;
+        }
+	for(key=0;key<*np;key++) {
+	    if(found[key] == 0) fprintf(stderr,"iterator missing: %u\n",key);
+	}
+	fprintf(stderr,"iterating: |keys|=%u  |matches|=%u\n",*np,nmatches);
+	if(found) free(found);
+    }
+    
+    /* Test setdata */
+    {
+	fprintf(stderr,"setdata: %u\n",*np);
 
-    ncexhashfree(map);
+        for(key=0;key<*np;key++) {
+	    ncexhashkey_t hashkey = hkeyfor(key);
+	    uintptr_t newdata = (uintptr_t)(key+(*np));
+	    stat = ncexhashsetdata(map, hashkey, newdata, &data);
+	    assert(stat == NC_NOERR);
+	    assert(data == key);
+        }
+        for(;;) {
+	    ncexhashkey_t rehash;
+	    if((stat = ncexhashiterate(map, &hashkey, &data)) == NC_EINVAL) CHECK(stat);
+	    if(stat == NC_ERANGE) break;
+	    rehash = hkeyfor(data - (*np));
+	    assert(hashkey == rehash);
+        }
+    }
+
+    {
+	int leaflen = 0;
+	int depth = 0;
+	int nactive = 0;
+	int uid = 0;
+	int walking = 0;
+        CHECK(ncexhashinqmap(map,&leaflen,&depth,&nactive,&uid,&walking));
+	fprintf(stderr,"map parameters: leaflen=%d depth=%d nactive=%d uid=%d walking=%d\n",
+		leaflen,depth,nactive,uid,walking);
+    }
+
+    /* Test removal */
+    {
+	int nactive = 0;
+
+	fprintf(stderr,"removing: %u\n",*np);
+
+        getrusage(RUSAGE_SELF, &ru);
+        remtime[0] = (1000000*(ru.ru_utime.tv_sec + ru.ru_stime.tv_sec)
+	     + ru.ru_utime.tv_usec + ru.ru_stime.tv_usec);
+        clock_gettime(clk_id,&xremtime[0]);
+
+        for(key=0;key<*np;key++) {
+	    ncexhashkey_t hashkey = hkeyfor(key);
+	    switch (stat = ncexhashremove(map, hashkey, &data)) {
+	    case NC_NOERR:
+	        break;
+	    case NC_ENOTFOUND:
+		fprintf(stderr,"remove: missing: key=%u hashkey=%llu\n",key,hashkey);
+	        break;
+	    default: CHECK(stat);
+	    }
+        }
+        CHECK(ncexhashinqmap(map,NULL,NULL,&nactive,NULL,NULL));
+	fprintf(stderr,"removal: final nactive=%d\n",nactive);
+
+        clock_gettime(clk_id,&xremtime[1]);
+ 	getrusage(RUSAGE_SELF, &ru);
+        remtime[1] = (1000000*(ru.ru_utime.tv_sec + ru.ru_stime.tv_sec)
+		     + ru.ru_utime.tv_usec + ru.ru_stime.tv_usec);
+        reporttime(*np, remtime, "removal");
+        xreporttime(*np, xremtime, "removal");
+    }
+    
+    ncexhashmapfree(map);
 
     }
 

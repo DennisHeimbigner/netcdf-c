@@ -133,7 +133,6 @@ typedef struct NC_OBJ
     NC_SORT sort; /**< Type of object. */
     char* name;   /**< Name, assumed to be null terminated. */
     size_t id;    /**< This objects ID. */
-    nchashkey_t hashkey; /**< The hash key, crc(name). */
 } NC_OBJ;
 
 /**

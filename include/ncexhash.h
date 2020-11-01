@@ -42,16 +42,16 @@ R. Fagin, J. Nievergelt, N. Pippenger, and H. Strong, "Extendible Hashing -·a fa
   1. It is critical that |uintptr_t| == |void*|
 */
 
-#define exhashkey_t unsigned long long
-#define EXHASHKEYBITS 64
+#define ncexhashkey_t unsigned long long
+#define NCEXHASHKEYBITS 64
 
 typedef struct NCexentry {
-    exhashkey_t hashkey; /* Hash id */
+    ncexhashkey_t hashkey; /* Hash id */
     uintptr_t data;
 } NCexentry;
 
 typedef struct NCexleaf {
-    unsigned uid; /* primarily for debug */
+    int uid; /* primarily for debug */
     struct NCexleaf* next; /* linked list of all leaves for cleanup */
     int depth; /* local depth */
     int active; /* index of the first emptry slot */
@@ -59,46 +59,49 @@ typedef struct NCexleaf {
 } NCexleaf;
 
 /* Top Level Vector */
-typedef struct NCexhash {
+typedef struct NCexhashmap {
     int leaflen; /* # entries a leaf can store */
     int depth; /* Global depth */
     NCexleaf* leaves; /* head of the linked list of leaves */
     int nactive; /* # of active entries in whole table */
     NCexleaf** directory; /* |directory| == 2^depth */
-    unsigned uid; /* unique id counter */
+    int uid; /* unique id counter */
     /* Allow a single iterator over the entries */
     struct {
 	int walking; /* 0=>not in use */
 	int index; /* index of current entry in leaf */
 	NCexleaf* leaf; /* leaf we are walking */
     } iterator;
-} NCexhash;
+} NCexhashmap;
 
 /** Creates a new exhash using LSB */
-EXTERNL NCexhash* ncexhashnew(int leaflen);
+EXTERNL NCexhashmap* ncexhashnew(int leaflen);
 
 /** Reclaims the exhash structure. */
-EXTERNL void ncexhashfree(NCexhash*);
+EXTERNL void ncexhashmapfree(NCexhashmap*);
 
 /** Returns the number of active elements. */
-EXTERNL int ncexhashcount(NCexhash*);
+EXTERNL int ncexhashcount(NCexhashmap*);
 
 /* Hash key based API */
 
 /* Lookup by Hash Key */
-EXTERNL int ncexhashget(NCexhash*, exhashkey_t hkey, uintptr_t*);
+EXTERNL int ncexhashget(NCexhashmap*, ncexhashkey_t hkey, uintptr_t*);
 
 /* Insert by Hash Key */
-EXTERNL int ncexhashput(NCexhash*, exhashkey_t hkey, uintptr_t data);
+EXTERNL int ncexhashput(NCexhashmap*, ncexhashkey_t hkey, uintptr_t data);
 
 /* Remove by Hash Key */
-EXTERNL int ncexhashrem(NCexhash*, exhashkey_t hkey, uintptr_t* datap);
+EXTERNL int ncexhashremove(NCexhashmap*, ncexhashkey_t hkey, uintptr_t* datap);
 
 /** Change the data for the specified key; takes hashkey. */
-EXTERNL int ncexhashsetdata(NCexhash*, exhashkey_t hkey, uintptr_t newdata);
+EXTERNL int ncexhashsetdata(NCexhashmap*, ncexhashkey_t hkey, uintptr_t newdata, uintptr_t* olddatap);
+
+/** Get map parameters */
+EXTERNL int ncexhashinqmap(NCexhashmap* map, int* leaflenp, int* depthp, int* nactivep, int* uidp, int* walkingp);
 
 /* Return the hash key for specified key; takes key+size*/
-EXTERNL exhashkey_t ncexhashkey(const char* key, size_t size);
+EXTERNL ncexhashkey_t ncexhashkey(const char* key, size_t size);
 
 /* Walk the entries in some order */
 /*
@@ -106,15 +109,21 @@ EXTERNL exhashkey_t ncexhashkey(const char* key, size_t size);
 @return NC_ERANGE if iteration is finished
 @return NC_EINVAL for all other errors
 */
-EXTERNL int ncexhashiterate(NCexhash* map, exhashkey_t* keyp, uintptr_t* datap);
+EXTERNL int ncexhashiterate(NCexhashmap* map, ncexhashkey_t* keyp, uintptr_t* datap);
 
 /* Debugging */
-EXTERNL void ncexhashprint(NCexhash*);
-EXTERNL void ncexhashprintstats(NCexhash*);
-EXTERNL void ncexhashprintdir(NCexhash*, NCexleaf** dir);
-EXTERNL void ncexhashprintleaf(NCexhash*, NCexleaf* leaf);
-EXTERNL void ncexhashprintentry(NCexhash* map, NCexentry* entry);
-EXTERNL char* ncexbinstr(exhashkey_t hkey, int depth);
+EXTERNL void ncexhashprint(NCexhashmap*);
+EXTERNL void ncexhashprintstats(NCexhashmap*);
+EXTERNL void ncexhashprintdir(NCexhashmap*, NCexleaf** dir);
+EXTERNL void ncexhashprintleaf(NCexhashmap*, NCexleaf* leaf);
+EXTERNL void ncexhashprintentry(NCexhashmap* map, NCexentry* entry);
+EXTERNL char* ncexbinstr(ncexhashkey_t hkey, int depth);
+
+/* Macro defined functions */
+
+/** Get map parameters */
+#define ncexhashmaplength(map) ((map)==NULL?0:(map)->nactive)
+
 
 #endif /*NCEXHASH_H*/
 

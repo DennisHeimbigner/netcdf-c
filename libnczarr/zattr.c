@@ -213,7 +213,6 @@ NCZ_rename_att(int ncid, int varid, const char *name, const char *newname)
     if(att->hdr.name) free(att->hdr.name);
     if (!(att->hdr.name = strdup(norm_newname)))
         return NC_ENOMEM;
-    att->hdr.hashkey = NC_hashmapkey(att->hdr.name,strlen(att->hdr.name)); /* Fix hash key */
 
     att->dirty = NC_TRUE;
 

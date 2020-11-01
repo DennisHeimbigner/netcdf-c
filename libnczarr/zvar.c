@@ -1097,8 +1097,7 @@ NCZ_rename_var(int ncid, int varid, const char *name)
 	return NC_ENOMEM;
     LOG((3, "var is now %s", var->hdr.name));
 
-    /* Fix hash key and rebuild index. */
-    var->hdr.hashkey = NC_hashmapkey(var->hdr.name, strlen(var->hdr.name));
+    /* rebuild index. */
     if (!ncindexrebuild(grp->vars))
 	return NC_EINTERNAL;
 
