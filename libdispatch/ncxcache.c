@@ -213,11 +213,21 @@ ncxcacheprint(NCxcache* cache)
 }
 
 void*
-ncxcachetop(NCxcache* cache)
+ncxcachefirst(NCxcache* cache)
 {
-    if(cache->lru.next == &cache->lru)
+    if(cache == NULL) return NULL;
+    if(ncexhashcount(cache->map) == 0)
         return NULL;
     return cache->lru.next->content;
+}
+
+void*
+ncxcachelast(NCxcache* cache)
+{
+    if(cache == NULL) return NULL;
+    if(ncexhashcount(cache->map) == 0)
+        return NULL;
+    return cache->lru.prev->content;
 }
 
 /* Insert node after current */

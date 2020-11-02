@@ -203,7 +203,7 @@ main(int argc, char** argv)
 	    hkey = ncexhashkey(strings[i],strlen(strings[i]));
 	    if((stat=ncxcachelookup(cache,hkey,&content))) goto done;
     	    if((stat=ncxcachetouch(cache,hkey))) goto done;
-	    top = ncxcachetop(cache);
+	    top = ncxcachefirst(cache);
 	    if(top != content) {stat = NC_EINTERNAL; goto done;}
 	}
 
@@ -222,7 +222,7 @@ main(int argc, char** argv)
 	    void* top = NULL;
 	    hkey = ncexhashkey(strings[i],strlen(strings[i]));
 	    if((stat=ncxcachetouch(cache,hkey))) goto done;
-	    top = ncxcachetop(cache);
+	    top = ncxcachefirst(cache);
 	    if(top != strings[i])
 	        fprintf(stderr,"touch failure: top=%p strings[%d]=%p\n",top,i,strings[i]);
 	}

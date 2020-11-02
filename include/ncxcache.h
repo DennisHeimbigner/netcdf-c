@@ -49,8 +49,10 @@ EXTERNL int ncxcachenew(size_t initsize, NCxcache**) ;
 /* Get the number of entries in an NCxcache */
 #define ncxcachecount(cache) (cache == NULL ? 0 : ncexhashcount((cache)->map))
 
+EXTERNL void* ncxcachefirst(NCxcache* cache);
+EXTERNL void* ncxcachelast(NCxcache* cache);
+
 /* Debugging */
 EXTERNL void ncxcacheprint(NCxcache* cache);
-EXTERNL void* ncxcachetop(NCxcache* cache);
 
 #endif /*NCXCACHE_H*/
