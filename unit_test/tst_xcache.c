@@ -26,7 +26,7 @@ Test the NCxcache data structure
 #include "ncexhash.h"
 #include "ncxcache.h"
 
-#define DEBUG 3
+#define DEBUG 0
 
 
 static struct rusage ru;
@@ -51,6 +51,7 @@ void check(int stat, int line)
     }
 }
 
+#if 0
 static void
 reporttime(unsigned nelems, long* times, const char* tag)
 {
@@ -66,6 +67,7 @@ reporttime(unsigned nelems, long* times, const char* tag)
     fprintf(stderr," avg=%5.1lf usec\n",delta/nelems);
 #endif
 }
+#endif
 
 static void
 xreporttime(unsigned nelems, struct timespec* times, const char* tag)
@@ -101,11 +103,18 @@ typedef struct NC_OBJ {
     size_t id;
 } NC_OBJ;
 
+typedef struct NCXSTR {
+    void* next;
+    void* prev;
+    void* ptr;
+    char* string;
+} NCXSTR;
+
 //static int N[] = {10, 100, 1000, 0};
 static int N[] = {4,0};
 
 /* Generate random ascii strings */
-static char** strings = NULL;
+static NCXSTR* strings = NULL;
 
 static void
 generatestrings(int n, unsigned seed)
@@ -116,7 +125,7 @@ generatestrings(int n, unsigned seed)
     char* s = NULL;
 
     srandom(seed);
-    strings = (char**)calloc(sizeof(char*),(n+1));
+    strings = (NCXSTR*)calloc(sizeof(NCXSTR),(n+1));
     if(strings == NULL) abort();
     for(i=0;i<n;i++) {
         /* Generate one random string */
@@ -130,9 +139,9 @@ generatestrings(int n, unsigned seed)
 	    s[k] = (char)rnd;
 	}
 	s[len] = '\0';
-	strings[i] = s;
+	strings[i].string = s;
 #if DEBUG >= 3
-	fprintf(stderr,"strings[%d] = |%s|\n",i,strings[i]);
+	fprintf(stderr,"strings[%d] = |%s|\n",i,strings[i].string);
 #endif
     }
 }
@@ -141,8 +150,8 @@ static void
 freestrings(void)
 {
     if(strings) {
-        char** p = strings;
-        for(;*p;p++) nullfree(*p);
+        NCXSTR* p = strings;
+        for(;p->string;p++) {nullfree(p->string);}
         nullfree(strings);
         strings = NULL;
     }
@@ -173,8 +182,8 @@ main(int argc, char** argv)
         clock_gettime(clk_id,&xinserttime[0]);
 
 	for(i=0;i<ns;i++) {
-	    hkey = ncexhashkey(strings[i],strlen(strings[i]));
-	    if((stat=ncxcacheinsert(cache,hkey,strings[i]))) goto done;
+	    hkey = ncexhashkey(strings[i].string,strlen(strings[i].string));
+	    if((stat=ncxcacheinsert(cache,hkey,&strings[i]))) goto done;
 	}
 	assert(ncxcachecount(cache) == ns);
 
@@ -200,7 +209,7 @@ main(int argc, char** argv)
 
 	for(i=0;i<ns;i++) {
 	    void* top = NULL;
-	    hkey = ncexhashkey(strings[i],strlen(strings[i]));
+	    hkey = ncexhashkey(strings[i].string,strlen(strings[i].string));
 	    if((stat=ncxcachelookup(cache,hkey,&content))) goto done;
     	    if((stat=ncxcachetouch(cache,hkey))) goto done;
 	    top = ncxcachefirst(cache);
@@ -220,11 +229,11 @@ main(int argc, char** argv)
 
 	for(i=0;i<ns;i++) {
 	    void* top = NULL;
-	    hkey = ncexhashkey(strings[i],strlen(strings[i]));
+	    hkey = ncexhashkey(strings[i].string,strlen(strings[i].string));
 	    if((stat=ncxcachetouch(cache,hkey))) goto done;
 	    top = ncxcachefirst(cache);
-	    if(top != strings[i])
-	        fprintf(stderr,"touch failure: top=%p strings[%d]=%p\n",top,i,strings[i]);
+	    if(top != &strings[i])
+	        fprintf(stderr,"touch failure: top=%p strings[%d]=%p\n",top,i,&strings[i]);
 	}
 	fprintf(stderr,"touch: passed\n");
 

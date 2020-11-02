@@ -625,7 +625,7 @@ ncexhashinqmap(NCexhashmap* map, int* leaflenp, int* depthp, int* nactivep, int*
 
 /* Return the hash key for specified key; takes key+size*/
 ncexhashkey_t
-ncexhashkey(const char* key, size_t size)
+ncexhashkey(const unsigned char* key, size_t size)
 {
     return NC_crc64(0,(unsigned char*)key,(unsigned int)size);
 }

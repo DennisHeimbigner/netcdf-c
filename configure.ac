@@ -595,10 +595,10 @@ if test "x$enable_nczarr_s3" = xno && test "x$enable_nczarr_s3_tests" = xyes ; t
 fi
 
 if test "x$enable_nczarr_s3" = xyes || test "x$enable_nczarr_s3_tests" = xyes ; then
-    AC_MSG_ERROR([AWS S3 libraries not found; please specify options --disable-nczarr-s3 and --disable-nczarr-s3-tests])
+    AC_MSG_ERROR([AWS S3 libraries not found; please specify option --disable-nczarr-s3])
     enable_nczarr_s3_tests=no
     enable_nczarr_s3=no
-  fi
+fi
 
 if test "x$enable_nczarr_s3" = xyes ; then
   AC_DEFINE([ENABLE_NCZARR_S3], [1], [if true, build libnczarr with S3 support enabled])

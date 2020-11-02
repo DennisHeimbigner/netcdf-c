@@ -101,7 +101,7 @@ EXTERNL int ncexhashsetdata(NCexhashmap*, ncexhashkey_t hkey, uintptr_t newdata,
 EXTERNL int ncexhashinqmap(NCexhashmap* map, int* leaflenp, int* depthp, int* nactivep, int* uidp, int* walkingp);
 
 /* Return the hash key for specified key; takes key+size*/
-EXTERNL ncexhashkey_t ncexhashkey(const char* key, size_t size);
+EXTERNL ncexhashkey_t ncexhashkey(const unsigned char* key, size_t size);
 
 /* Walk the entries in some order */
 /*

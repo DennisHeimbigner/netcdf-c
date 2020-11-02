@@ -6,10 +6,17 @@
 #ifndef ZCACHE_H
 #define ZCACHE_H
 
+/* This holds all the fields
+   to support either impl of ncxcache
+*/
+
+struct NCxcache;
+
 typedef struct NCZCacheEntry {
+    struct List {void* next; void* prev; void* unused;} list;
     int modified;
     size64_t indices[NC_MAX_VAR_DIMS];
-    char* key; /* as string */
+    size64_t hashkey;
     void* data;
 } NCZCacheEntry;
 
@@ -19,7 +26,8 @@ typedef struct NCZChunkCache {
     size64_t chunksize;
     void* fillchunk; /* enough fillvalues to fill a chunk */
     size_t maxentries; /* Max number of entries allowed */
-    NClist* entries; /* in LRU order */
+    NClist* entries; /* all cache entries */
+    struct NCxcache* lru;    
 } NCZChunkCache;
 
 /**************************************************/

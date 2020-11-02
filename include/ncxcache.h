@@ -9,6 +9,13 @@ See COPYRIGHT for license information.
 #include "nclist.h"
 #include "ncexhash.h" /* Also includes name map and id map */
 
+/* Define the implementation.
+   if defined, then the user's object
+   is assumed to hold the double linked list node,
+   otherwise, it is created here.
+*/
+#define NCXUSER
+
 /*
 This cache data structure is an ordered list of objects. It is
 used to create an LRU cache of arbitrary objects.
@@ -18,7 +25,7 @@ used to create an LRU cache of arbitrary objects.
 typedef struct NCxnode {
     struct NCxnode* next;
     struct NCxnode* prev;
-    void* content; /* associated data of some kind */
+    void* content; /* associated data of some kind may be unused*/
 } NCxnode;
 
 typedef struct NCxcache {
@@ -27,7 +34,7 @@ typedef struct NCxcache {
 } NCxcache;
 
 /* Locate object by hashkey */
-EXTERNL int ncxcachelookup(NCxcache* cache, ncexhashkey_t hkey, void** contentp);
+EXTERNL int ncxcachelookup(NCxcache* cache, ncexhashkey_t hkey, void** objp);
 
 /* Insert object into the cache >*/
 EXTERNL int ncxcacheinsert(NCxcache* cache, ncexhashkey_t hkey, void* obj);
@@ -51,6 +58,9 @@ EXTERNL int ncxcachenew(size_t initsize, NCxcache**) ;
 
 EXTERNL void* ncxcachefirst(NCxcache* cache);
 EXTERNL void* ncxcachelast(NCxcache* cache);
+
+/* Return the hash key for specified key; takes key+size; an alias for the one in ncexhash */
+EXTERNL ncexhashkey_t ncxcachekey(const void* key, size_t size);
 
 /* Debugging */
 EXTERNL void ncxcacheprint(NCxcache* cache);

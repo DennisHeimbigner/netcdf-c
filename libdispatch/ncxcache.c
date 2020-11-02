@@ -20,7 +20,6 @@
 /* Define this for debug so that table sizes are small */
 #define SMALLTABLE
 
-
 #ifdef CATCH
 #define THROW(x) throw(x)
 static void breakpoint(void) {}
@@ -77,6 +76,7 @@ ncxcachelookup(NCxcache* NCxcache, ncexhashkey_t hkey, void** op)
         {stat = THROW(NC_ENOTFOUND); goto done;} /* not present */
     node = (void*)inode;
     if(op) *op = node->content;
+
 done:
     return stat;
 }
@@ -112,8 +112,12 @@ ncxcacheinsert(NCxcache* cache, const ncexhashkey_t hkey, void* o)
 
     if(cache == NULL) return THROW(NC_EINVAL);
     
+#ifdef NCXUSER
     node = calloc(1,sizeof(NCxnode));
-    node->content = o;
+#else
+    node = (NCxnode*)o;
+#endif
+    node->content = o; /* Cheat and make content point to the node part*/
     inode = (uintptr_t)node;
     if((stat = ncexhashput(cache->map,hkey,inode)))
 	goto done;
@@ -122,7 +126,9 @@ ncxcacheinsert(NCxcache* cache, const ncexhashkey_t hkey, void* o)
     node = NULL;
 
 done:
+#ifndef NCXUSER
     if(node) nullfree(node);
+#endif
     return THROW(stat);
 }
 
@@ -141,10 +147,13 @@ ncxcacheremove(NCxcache* cache, ncexhashkey_t hkey, void** op)
         {stat = NC_ENOTFOUND; goto done;} /* not present */
     node = (NCxnode*)inode;
     /* unlink */
-    node->prev->next = node->next;
-    node->next->prev = node->prev;
-    if(op) {*op = node->content;}
+    unlinknode(node);
+    if(op) {
+        *op = node->content;
+    }
+#ifndef NCXUSER
     nullfree(node);
+#endif
 
 done:
     return THROW(stat);
@@ -155,18 +164,24 @@ void
 ncxcachefree(NCxcache* cache)
 {
     NCxnode* lru = NULL;
-    NCxnode* p = NULL;
-    NCxnode* next = NULL;
 
     if(cache == NULL) return;
-    /* walk the lru chain */
     lru = &cache->lru;
+
+#ifndef NCXUSER
+    {
+    NCxnode* p = NULL;
+    NCxnode* next = NULL;
+    /* walk the lru chain */
     next = NULL;
     for(p=lru->next;p != lru;) {
 	next = p->next;
 	nullfree(p);
 	p = next;
     }
+    }
+#endif
+
     lru->next = (lru->prev = lru); /*reset*/
     ncexhashmapfree(cache->map);
     free(cache);
@@ -251,4 +266,11 @@ unlinknode(NCxnode* node)
     /* repair the chain */
     next->prev = prev;
     prev->next = next;
+}
+
+
+ncexhashkey_t
+ncxcachekey(const void* key, size_t size)
+{
+    return ncexhashkey((unsigned char*)key,size);
 }
