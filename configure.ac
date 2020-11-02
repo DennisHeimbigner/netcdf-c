@@ -594,18 +594,6 @@ if test "x$enable_nczarr_s3" = xno && test "x$enable_nczarr_s3_tests" = xyes ; t
     enable_nczarr_s3_tests=no
 fi
 
-if test "x$enable_nczarr_s3" = xyes || test "x$enable_nczarr_s3_tests" = xyes ; then
-    AC_MSG_ERROR([AWS S3 libraries not found; please specify options --disable-nczarr-s3 and --disable-nczarr-s3-tests])
-    enable_nczarr_s3_tests=no
-    enable_nczarr_s3=no
-  fi
-
-if test "x$enable_nczarr_s3" = xyes ; then
-  AC_DEFINE([ENABLE_NCZARR_S3], [1], [if true, build libnczarr with S3 support enabled])
-fi
-AM_CONDITIONAL(ENABLE_NCZARR_S3, [test "x$enable_nczarr_s3" = xyes])
-
-if test "x$enable_nczarr_s3" = xyes ; then
 # See if we have the s3 aws library
 # Check for the AWS S3 SDK library
 AC_LANG_PUSH([C++])
@@ -613,14 +601,24 @@ AC_SEARCH_LIBS([aws_allocator_is_valid],[aws-c-common aws-cpp-sdk-s3 aws-cpp-sdk
 AC_LANG_POP
 AC_MSG_CHECKING([whether AWS S3 SDK library is available])
 AC_MSG_RESULT([$have_aws])
-else
-have_aws=no
-fi
 
 if test "x$have_aws" = xyes ; then
 AC_DEFINE([ENABLE_S3_SDK], [1], [If true, then S3 sdk was found])
 fi
 AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$have_aws" = xyes])
+
+if test "x$have_aws" = xno ; then
+  if test "x$enable_nczarr_s3" = xyes || test "x$enable_nczarr_s3_tests" = xyes ; then
+    AC_MSG_ERROR([AWS S3 libraries not found; please specify options --disable-nczarr-s3 and --disable-nczarr-s3-tests])
+    enable_nczarr_s3_tests=no
+    enable_nczarr_s3=no
+  fi
+fi
+
+if test "x$enable_nczarr_s3" = xyes ; then
+  AC_DEFINE([ENABLE_NCZARR_S3], [1], [if true, build libnczarr with S3 support enabled])
+fi
+AM_CONDITIONAL(ENABLE_NCZARR_S3, [test "x$enable_nczarr_s3" = xyes])
 
 if test "x$enable_nczarr_s3_tests" = xyes ; then
   AC_DEFINE([ENABLE_NCZARR_S3_TESTS], [1], [if true, build libnczarr with S3 tests enabled])
