@@ -16,6 +16,7 @@ typedef struct NCZCacheEntry {
     struct List {void* next; void* prev; void* unused;} list;
     int modified;
     size64_t indices[NC_MAX_VAR_DIMS];
+    char* key;
     size64_t hashkey;
     void* data;
 } NCZCacheEntry;

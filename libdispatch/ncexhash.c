@@ -560,6 +560,7 @@ ncexhashremove(NCexhashmap* map, ncexhashkey_t hkey, uintptr_t* datap)
 
     if((stat = exhashlookup(map,hkey,&leaf,&dst)))
        return THROW(stat);
+    if(datap) *datap = leaf->entries[dst].data;
     /* Compress out the index'th entry */
     for(src=dst+1;src<leaf->active;src++,dst++)
 	leaf->entries[dst] = leaf->entries[src];
