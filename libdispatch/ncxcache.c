@@ -112,7 +112,7 @@ ncxcacheinsert(NCxcache* cache, const ncexhashkey_t hkey, void* o)
 
     if(cache == NULL) return THROW(NC_EINVAL);
     
-#ifdef NCXUSER
+#ifndef NCXUSER
     node = calloc(1,sizeof(NCxnode));
 #else
     node = (NCxnode*)o;

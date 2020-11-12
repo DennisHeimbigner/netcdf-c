@@ -98,8 +98,11 @@ are set when opening a binary file on Windows. */
 /* default file chunk cache preemption policy. */
 #cmakedefine CHUNK_CACHE_PREEMPTION ${CHUNK_CACHE_PREEMPTION}
 
-/* default file chunk cache size in bytes. */
+./* default file chunk cache size in bytes. */
 #cmakedefine CHUNK_CACHE_SIZE ${CHUNK_CACHE_SIZE}
+
+./* default nczarr chunk cache size in bytes. */
+#cmakedefine CHUNK_CACHE_SIZE_NCZARR ${CHUNK_CACHE_SIZE_NCZARR}
 
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.

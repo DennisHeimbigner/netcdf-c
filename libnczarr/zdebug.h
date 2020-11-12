@@ -49,9 +49,7 @@ EXTERNL char* nczprint_slicesx(int rank, NCZSlice* slices, int raw);
 EXTERNL char* nczprint_projectionx(NCZProjection proj, int raw);
 EXTERNL char* nczprint_sliceprojectionsx(NCZSliceProjections slp, int raw);
 
-#ifdef ZDEBUG
 EXTERNL void zdumpcommon(struct Common*);
-#endif
 
 #ifdef HAVE_EXECINFO_H
 EXTERNL void NCZbacktrace(void);

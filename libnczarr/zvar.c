@@ -368,7 +368,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     if((retval = ncz_gettype(h5,grp,xtype,&type)))
 	BAIL(retval);
 
-    /* Create a new var and fill in some ZARR cache setting values. */
+    /* Create a new var and fill in some cache setting values. */
     if ((retval = nc4_var_list_add(grp, norm_name, ndims, &var)))
 	BAIL(retval);
 
@@ -445,9 +445,12 @@ var->type_info->rc++;
     /* Compute the chunksize cross product */
     zvar->chunkproduct = 1;
     for(d=0;d<var->ndims+zvar->scalar;d++) {zvar->chunkproduct *= var->chunksizes[d];}
+    zvar->chunksize = zvar->chunkproduct * var->type_info->size;
 
-    /* Copy cache parameters */
-    zvar->chunk_cache_nelems = var->chunk_cache_nelems;
+    /* Override the cache setting to use NCZarr defaults */
+    var->chunk_cache_size = CHUNK_CACHE_SIZE_NCZARR;
+    var->chunk_cache_nelems = ceildiv(var->chunk_cache_size,zvar->chunksize);
+    var->chunk_cache_preemption = 1; /* not used */
 
     /* Create the cache */
     if((retval=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,&zvar->cache)))
@@ -656,11 +659,10 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 	    zvar->chunkproduct = 1;
 	    for (d = 0; d < var->ndims; d++)
 		zvar->chunkproduct *= var->chunksizes[d];
-#ifdef LOOK
+            zvar->chunksize = zvar->chunkproduct * var->type_info->size;
 	    /* Adjust the cache. */
-	    if ((retval = ncz_adjust_var_cache(grp, var)))
+	    if ((retval = NCZ_adjust_var_cache(grp, var)))
 		return THROW(retval);
-#endif
 	}
     
 #ifdef LOGGING

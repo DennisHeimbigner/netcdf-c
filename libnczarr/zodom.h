@@ -15,6 +15,11 @@ typedef struct NCZOdometer {
     size64_t* stride;
     size64_t* max; /* full dimension length */
     size64_t* index; /* current value of the odometer*/
+    struct NCZOprop {
+	int stride1; /* all strides == 1 */
+	int start0;  /* all starts == 0 */
+        int optimized; /* stride[rank-1]==1 && start[rank-1]==0 */
+    } properties;
 } NCZOdometer;
 
 /**************************************************/
@@ -28,7 +33,12 @@ extern size64_t nczodom_offset(NCZOdometer*);
 extern void nczodom_reset(NCZOdometer* odom);
 extern void nczodom_free(NCZOdometer*);
 extern size64_t nczodom_avail(NCZOdometer*);
+extern size64_t nczodom_laststride(NCZOdometer* odom);
+
+extern void nczodom_optimize(NCZOdometer*);
+#if 0
 extern void nczodom_incr(NCZOdometer*,size64_t);
 extern void nczodom_reducerank(NCZOdometer* odom);
+#endif
 
 #endif /*ZODOM_H*/

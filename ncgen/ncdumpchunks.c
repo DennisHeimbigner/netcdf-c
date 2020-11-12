@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include <netcdf.h>
 #include <hdf5.h>
 #include <H5DSpublic.h>
@@ -67,11 +70,15 @@ main(int argc, char** argv)
     size_t chunkprod;
     Odometer* odom = NULL;
     hsize_t offset[NC_MAX_VAR_DIMS];
+    int debug = 0;
 
     if(argc < 3)
 	usage(0);
     file_name = argv[1];
     var_name = argv[2];
+
+    if(argc == 4)
+        debug = (strcmp(argv[3],"--log")==0?1:0);
 
     /* Get the info about the var */
     if((stat=nc_open(file_name,0,&ncid))) usage(stat);
@@ -89,8 +96,11 @@ main(int argc, char** argv)
     }
     if((stat=nc_close(ncid))) usage(stat);
 
+    if(debug)
+        H5Eprint(stderr);
+
     if ((fileid = H5Fopen(file_name, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) usage(NC_EHDFERR);
-    if ((grpid = H5Gopen(fileid, "/", H5P_DEFAULT)) < 0) usage(NC_EHDFERR);
+    if ((grpid = H5Gopen1(fileid, "/")) < 0) usage(NC_EHDFERR);
     if ((datasetid = H5Dopen1(grpid, var_name)) < 0) usage(NC_EHDFERR);
 
     if((odom = odom_new(rank,chunkcounts,dimlens))==NULL) usage(NC_ENOMEM);

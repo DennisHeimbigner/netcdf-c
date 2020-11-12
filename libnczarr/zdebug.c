@@ -148,7 +148,7 @@ nczprint_odom(NCZOdometer* odom)
     char value[128];
     char* txt = NULL;
 
-    snprintf(value,sizeof(value),"Odometer{rank=%d,",odom->rank);
+    snprintf(value,sizeof(value),"Odometer{rank=%d optimized=%d",odom->rank,odom->properties.optimized);
     ncbytescat(buf,value);
 
     ncbytescat(buf," start=");
@@ -168,6 +168,9 @@ nczprint_odom(NCZOdometer* odom)
     ncbytescat(buf,txt);
     ncbytescat(buf," offset=");
     snprintf(value,sizeof(value),"%llu",nczodom_offset(odom));
+    ncbytescat(buf,value);
+    ncbytescat(buf," avail=");
+    snprintf(value,sizeof(value),"%llu",nczodom_avail(odom));
     ncbytescat(buf,value);
     
     ncbytescat(buf,"}");
@@ -304,7 +307,6 @@ nczprint_vector(size_t len, size64_t* vec)
     return capture(result);
 }
 
-#ifdef ZDEBUG
 void
 zdumpcommon(struct Common* c)
 {
@@ -329,7 +331,6 @@ zdumpcommon(struct Common* c)
         fprintf(stderr,"\t\t[%d] %s\n",r,nczprint_sliceprojectionsx(c->allprojections[r],RAW));
     fflush(stderr);
 }
-#endif
 
 #ifdef HAVE_EXECINFO_H
 #define MAXSTACKDEPTH 100

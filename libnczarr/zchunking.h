@@ -60,13 +60,13 @@ struct Common {
     struct NCZChunkCache* cache;
     int reading; /* 1=> read, 0 => write */
     int rank;
+    int scalar; /* 1 => scalar variable */
     size64_t* dimlens;
     size64_t* chunklens;
     void* memory;
     size_t typesize;
     void* fillvalue;
     size64_t chunkcount; /* computed product of chunklens; warning indices, not bytes */
-    size64_t blocksize; /* amount to read per odometer increment */
     int swap; /* var->format_info_file->native_endianness == var->endianness */
     size64_t shape[NC_MAX_VAR_DIMS]; /* shape of the output hyperslab */
     NCZSliceProjections* allprojections;
@@ -87,6 +87,7 @@ EXTERNL int NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 		  size64_t* start, size64_t* count, size64_t* stride,
 		  void* memory, nc_type typecode);
 EXTERNL int NCZ_transfer(struct Common* common, NCZSlice* slices);
+EXTERNL int NCZ_transferscalar(struct Common* common);
 EXTERNL size64_t NCZ_computelinearoffset(size_t, const size64_t*, const size64_t*);
 
 /* Special entry points for unit testing */

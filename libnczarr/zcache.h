@@ -27,8 +27,8 @@ typedef struct NCZChunkCache {
     size64_t chunksize;
     void* fillchunk; /* enough fillvalues to fill a chunk */
     size_t maxentries; /* Max number of entries allowed */
-    NClist* entries; /* all cache entries */
-    struct NCxcache* lru;    
+    NClist* mru; /* all cache entries in mru order */
+    struct NCxcache* xcache;
 } NCZChunkCache;
 
 /**************************************************/

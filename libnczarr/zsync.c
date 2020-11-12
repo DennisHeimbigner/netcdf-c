@@ -1369,8 +1369,8 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		    var->chunksizes[j] = (size_t)chunks[j];
 		    zvar->chunkproduct *= chunks[j];
 		}
+		zvar->chunksize = zvar->chunkproduct * var->type_info->size;
 		/* Create the cache */
-		zvar->chunk_cache_nelems = var->chunk_cache_nelems;
 		if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,&zvar->cache)))
 		    goto done;
 	    }

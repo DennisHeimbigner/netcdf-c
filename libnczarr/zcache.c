@@ -103,6 +103,9 @@ NCZ_set_var_chunk_cache(int ncid, int varid, size_t cachesize, size_t nelems, fl
 int
 NCZ_adjust_var_cache(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 {
+    /* Reset the cache parameters since var chunking may have changed */
+    
+
     return NC_NOERR;
 }
 
