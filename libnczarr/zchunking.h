@@ -34,9 +34,8 @@ typedef struct NCProjection {
     size64_t chunkindex; /* which chunk are we projecting */
     size64_t first;  /* absolute first position to be touched in this chunk */
     size64_t last;   /* absolute position of last value touched */
-    size64_t len;    /* Not last place touched, but the offset of last place
-                        that could be touched */
-    size64_t limit;  /* Actual limit of chunk = min(limit,dimlen) */
+    size64_t limit;  /* Actual limit of chunk WRT start of chunk */
+    size64_t len;    /* Actual len of chunk WRT start of chunk */
     size64_t iopos;    /* start point in the data memory to access the data */
     size64_t iocount;  /* no. of I/O items */
     NCZSlice chunkslice;  /* slice relative to this chunk */
@@ -104,5 +103,7 @@ EXTERNL void NCZ_clearcommon(struct Common* common);
 #define floordiv(x,y) ((x) / (y))
 
 #define ceildiv(x,y) (((x) % (y)) == 0 ? ((x) / (y)) : (((x) / (y)) + 1))
+
+#define minimum(x,y) ((x) > (y) ? (y) : (x))
 
 #endif /*ZCHUNKING_H*/

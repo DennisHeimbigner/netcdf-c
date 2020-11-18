@@ -26,14 +26,15 @@ typedef struct NCZOdometer {
 /* From zodom.c */
 extern NCZOdometer* nczodom_new(int rank, const size64_t*, const size64_t*, const size64_t*, const size64_t*);
 extern NCZOdometer* nczodom_fromslices(int rank, const struct NCZSlice* slices);
-extern int nczodom_more(NCZOdometer*);
+extern int nczodom_more(const NCZOdometer*);
 extern void nczodom_next(NCZOdometer*);
-extern size64_t* nczodom_indices(NCZOdometer*);
-extern size64_t nczodom_offset(NCZOdometer*);
+extern size64_t* nczodom_indices(const NCZOdometer*);
+extern size64_t nczodom_offset(const NCZOdometer*);
 extern void nczodom_reset(NCZOdometer* odom);
 extern void nczodom_free(NCZOdometer*);
-extern size64_t nczodom_avail(NCZOdometer*);
-extern size64_t nczodom_laststride(NCZOdometer* odom);
+extern size64_t nczodom_avail(const NCZOdometer*);
+extern size64_t nczodom_laststride(const NCZOdometer* odom);
+extern size64_t nczodom_lastlen(const NCZOdometer* odom);
 
 extern void nczodom_optimize(NCZOdometer*);
 #if 0

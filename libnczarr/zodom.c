@@ -33,7 +33,7 @@ nczodom_new(int rank, const size64_t* start, const size64_t* stop, const size64_
     }
     nczodom_reset(odom);
     for(i=0;i<rank;i++)
-        assert(stop[i] > 0 && stride[i] > 0 && len[i] >= stop[i]);
+        assert(stop[i] >= start[i] && stride[i] > 0 && (len[i]+1) >= stop[i]);
     return odom;
 }
 
@@ -56,7 +56,8 @@ nczodom_fromslices(int rank, const NCZSlice* slices)
     }
     nczodom_reset(odom);
     for(i=0;i<rank;i++)
-        assert(slices[i].stop > 0 && slices[i].stride > 0 && slices[i].len >= slices[i].stop);
+    if(!(slices[i].stop >= slices[i].start && slices[i].stride > 0 && (slices[i].len+1) >= slices[i].stop))
+        assert(slices[i].stop >= slices[i].start && slices[i].stride > 0 && (slices[i].len+1) >= slices[i].stop);
     return odom;
 }
   
@@ -73,7 +74,7 @@ nczodom_free(NCZOdometer* odom)
 }
 
 int
-nczodom_more(NCZOdometer* odom)
+nczodom_more(const NCZOdometer* odom)
 {
     return (odom->index[0] < odom->stop[0]);
 }
@@ -99,13 +100,13 @@ done:
   
 /* Get the value of the odometer */
 size64_t*
-nczodom_indices(NCZOdometer* odom)
+nczodom_indices(const NCZOdometer* odom)
 {
     return odom->index;
 }
 
 size64_t
-nczodom_offset(NCZOdometer* odom)
+nczodom_offset(const NCZOdometer* odom)
 {
     int i;
     size64_t offset;
@@ -144,7 +145,7 @@ nomem:
 }
 
 size64_t
-nczodom_avail(NCZOdometer* odom)
+nczodom_avail(const NCZOdometer* odom)
 {
     size64_t avail;
     /* The best we can do is compute the count for the rightmost index */
@@ -156,9 +157,15 @@ nczodom_avail(NCZOdometer* odom)
 }
 
 size64_t
-nczodom_laststride(NCZOdometer* odom)
+nczodom_laststride(const NCZOdometer* odom)
 {
     return odom->stride[odom->rank-1];
+}
+
+size64_t
+nczodom_lastlen(const NCZOdometer* odom)
+{
+    return odom->max[odom->rank-1];
 }
 
 /**
