@@ -142,7 +142,7 @@ fprintf(stderr,"\tfirst=%d last=%d\n",(int)projection->first,(int)projection->la
 
     projection->memslice.start = projection->iopos;
     projection->memslice.stop = projection->memslice.start + projection->iocount;
-    projection->memslice.stride = 1;
+    projection->memslice.stride = slice->stride;
 #if 1
     projection->memslice.len = projection->memslice.stop;
 #else
