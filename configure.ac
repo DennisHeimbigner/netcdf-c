@@ -498,11 +498,11 @@ CFLAGS="$SAVECFLAGS"
 # --enable-dap => enable-dap4
 enable_dap4=$enable_dap
 # Default is to do the short remote tests.
-# Temporary: Change default to npt do these tests
-AC_MSG_CHECKING([whether dap remote testing should be enabled (default on)])
+# Temporary: Change default to not do these tests
+AC_MSG_CHECKING([whether dap remote testing should be enabled (default off)])
 AC_ARG_ENABLE([dap-remote-tests],
-              [AS_HELP_STRING([--disable-dap-remote-tests],
-                                 [disable dap remote tests])])
+              [AS_HELP_STRING([--enable-dap-remote-tests],
+                                 [enable dap remote tests])])
 test "x$enable_dap_remote_tests" = xyes || enable_dap_remote_tests=no
 if test "x$enable_dap" = "xno" ; then
   enable_dap_remote_tests=no
@@ -1204,7 +1204,7 @@ if test "x$enable_hdf5" = xyes; then
    # See if H5Dread_chunk is available
    AC_SEARCH_LIBS([H5Dread_chunk],[hdf5_hldll hdf5_hl], [has_readchunks=yes], [has_readdhunks=no])
 
-   # See if hdf5 library supports Read-Only S3 (byte-range) driver 
+   # See if hdf5 library supports Read-Only S3 (byte-range) driver
    AC_SEARCH_LIBS([H5Pset_fapl_ros3],[hdf5_hldll hdf5_hl], [has_ros3=yes], [has_ros3=no])
    if test "x$has_ros3" = xyes; then
     AC_DEFINE([ENABLE_HDF5_ROS3], [1], [if true, support byte-range using hdf5 virtual file driver.])
@@ -1485,6 +1485,7 @@ AC_MSG_RESULT([$BINFILE_NAME $FC $CXX])
 # Bugfix for Cygwin.
 ##
 AC_MSG_CHECKING([if libtool needs -no-undefined flag to build shared libraries])
+NOUNDEFINED=""
 case "`uname`" in
      CYGWIN*|MINGW*|AIX*)
      ## Add in the -no-undefined flag to LDFLAGS for libtool.
