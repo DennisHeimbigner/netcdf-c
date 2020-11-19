@@ -4,21 +4,18 @@
  *********************************************************************/
 #include "zincludes.h"
 
-/* 0 => no debug */
-#define WDEBUG 3
+#undef WDEBUG
 
 static int initialized = 0;
 
-static unsigned int OPTIMIZE = 0;
+static unsigned int optimized = 0;
 
 /* Forward */
 static int NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, void* chunkdata);
 static int rangecount(NCZChunkRange range);
 static int readfromcache(void* source, size64_t* chunkindices, void** chunkdata);
 static int NCZ_fillchunk(void* chunkdata, struct Common* common);
-static int transfern(const struct Common* common, unsigned char* slpptr0, unsigned char* memptr0,
-                     size_t count, size_t slpstride, size_t memstride, void* data);    
-static int iswholevar(struct Common* common,NCZSlice*);
+static int transfern(const struct Common* common, unsigned char* slpptr, unsigned char* memptr);
 
 const char*
 astype(int typesize, void* ptr)
@@ -39,7 +36,7 @@ int
 ncz_chunking_init(void)
 {
     const char* eval = getenv("NCZ_NOOPTIMIZATION");
-    OPTIMIZE = (eval == NULL ? 1 : 0);
+    optimized = (eval == NULL ? 1 : 0);
     initialized = 1;
     return NC_NOERR;
 }
@@ -79,10 +76,6 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 
     if((stat = NC4_inq_atomic_type(typecode, NULL, &typesize))) goto done;
 
-#if WDEBUG >= 1
-    fprintf(stderr,"var: name=%s\n",var->hdr.name);
-#endif
-
     /* Fill in common */
     memset(&common,0,sizeof(common));
     common.var = var;
@@ -111,7 +104,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 	chunklens[r] = var->chunksizes[r];
 	slices[r].start = start[r];
 	slices[r].stride = stride[r];
-	slices[r].stop = minimum(start[r]+(count[r]*stride[r]),dimlens[r]);
+	slices[r].stop = start[r]+(count[r]*stride[r]);
 	slices[r].len = dimlens[r];
 	common.chunkcount *= chunklens[r];
     }
@@ -127,7 +120,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     else {
         if((stat = NCZ_transfer(&common, slices))) goto done;
     }
-
+    
 done:
     NCZ_clearcommon(&common);
     return stat;
@@ -136,8 +129,10 @@ done:
 /*
 Walk the possible projections.
 Broken out so we can use it for unit testing
-@param common common parameters
+@param reader to get data
+@param common, common parameters
 @param slices
+@param walkfcn to do transfer
 */
 int
 NCZ_transfer(struct Common* common, NCZSlice* slices)
@@ -147,8 +142,7 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
     NCZOdometer* slpodom = NULL;
     NCZOdometer* memodom = NULL;
     void* chunkdata = NULL;
-    int wholevar = 0;
-
+    
     /*
      We will need three sets of odometers.
      1. Chunk odometer to walk the chunk ranges to get all possible
@@ -167,9 +161,8 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,common->allprojections)); fflush(stderr);
 #endif
 
-    wholevar = iswholevar(common,slices);
-
-    if(OPTIMIZE && wholevar) {
+#if 0
+    if(optimized && wholevar) {
 	size64_t* chunkindices = nczodom_indices(chunkodom);
 
         /* Implement a whole var read optimization; this is a rare occurrence
@@ -186,7 +179,7 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	    fprintf(stderr,"chunkindices: %s\n",nczprint_vector(common->rank,chunkindices));
 #endif
             switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
-            case NC_EEMPTY: /* cache created the chunk */
+            case NC_ENOTFOUND: /* cache created the chunk */
 	        if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
 	        break;
             case NC_NOERR: break;
@@ -196,9 +189,10 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	    /* Figure out memory address */
 	    unsigned char* memptr = ((unsigned char*)common->memory);
 	    unsigned char* slpptr = ((unsigned char*)chunkdata);
-	    transfern(common,slpptr,memptr,common->chunkcount,nczodom_laststride(slpodom),1,chunkdata);
+	    transfern(common,slpptr,memptr);
 	goto done;
     }
+#endif
 
     /* iterate over the odometer: all combination of chunk
        indices in the projections */
@@ -230,9 +224,6 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	    zutest->print(UTEST_TRANSFER, common, chunkodom, slpslices, memslices);
 
         /* Read from cache */
-#if WDEBUG >= 1
-	    fprintf(stderr,"chunkindices: %s\n",nczprint_vector(common->rank,chunkindices));
-#endif
         switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
         case NC_ENOTFOUND: /* cache created the chunk */
 	    if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
@@ -244,29 +235,9 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	slpodom = nczodom_fromslices(common->rank,slpslices);
 	memodom = nczodom_fromslices(common->rank,memslices);
 
-	/* There are limited opportunity for optimizing chunk read/write.
-	   The only one currently implemented is the one that recognizes
-	   that the whole last slice can be accesses at one shot.
-	*/
-        if(OPTIMIZE) {
-	    nczodom_optimize(slpodom);
-    	    nczodom_optimize(memodom);
-	    fprintf(stderr,"optimized\n");
-	}
-#if WDEBUG >= 1
-	fprintf(stderr,"xxxx:\n");
-	fprintf(stderr,"\tchunkodom = %s\n",nczprint_odom(chunkodom));
-	fprintf(stderr,"\tslpodom   = %s\n",nczprint_odom(slpodom));
-	fprintf(stderr,"\tmemodom   = %s\n",nczprint_odom(memodom));
-#endif
+        /* This is the key action: walk this set of slices and transfer data */
+	if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
 
-	{ /* walk with odometer, possibly optimized */
-#if WDEBUG >= 1
-	    fprintf(stderr,"case: odometer; slp.optimized=%d:\n",slpodom->properties.optimized);
-#endif
-  	    /* This is the key action: walk this set of slices and transfer data */
-  	    if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
-	}
         nczodom_free(slpodom); slpodom = NULL;
         nczodom_free(memodom); memodom = NULL;
         nczodom_next(chunkodom);
@@ -308,7 +279,7 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
             /* transfer data */
             memptr0 = ((unsigned char*)common->memory)+(memoffset * common->typesize);
             slpptr0 = ((unsigned char*)chunkdata)+(slpoffset * common->typesize);
-#if WDEBUG >= 4
+#ifdef WDEBUG
 fprintf(stderr,"xx.slp: odom: %s ptr=%d\n",
 nczprint_odom(slpodom),(int)(slpptr0-(unsigned char*)chunkdata));
 fflush(stderr);
@@ -316,11 +287,11 @@ fprintf(stderr,"xx.mem: odom: %s ptr=%d\n",
 nczprint_odom(memodom),(int)(memptr0-(unsigned char*)common->memory));
 fflush(stderr);
 if(common->reading) {
-if(slpptr0 != NULL)
-    fprintf(stderr,"\t%d->",*((int*)slpptr0));
+fprintf(stderr,"\t%d->",*((int*)slpptr0));
+fprintf(stderr,"%d\n",*((int*)memptr0));
 } else {/* writing */
-if(memptr0 != NULL)
-    fprintf(stderr,"\t%d->",*((int*)memptr0));
+fprintf(stderr,"\t%d->",*((int*)memptr0));
+fprintf(stderr,"%d\n",*((int*)slpptr0));
 }
 fflush(stderr);
 #endif
@@ -328,9 +299,7 @@ fflush(stderr);
 	    LOG((1,"%s: slpptr0=%p memptr0=%p slpoffset=%llu memoffset=%lld",__func__,slpptr0,memptr0,slpoffset,memoffset));
 	    if(zutest && zutest->tests & UTEST_WALK)
 		zutest->print(UTEST_WALK, common, chunkodom, slpodom, memodom);
-	    if((stat = transfern(common,slpptr0,memptr0,nczodom_avail(slpodom),
-	                         nczodom_laststride(slpodom),nczodom_lastlen(memodom),
-				 chunkdata))) goto done;
+	    if((stat = transfern(common,slpptr0,memptr0))) goto done;
             nczodom_next(memodom);
         } else break; /* slpodom exhausted */
         nczodom_next(slpodom);
@@ -339,73 +308,18 @@ done:
     return stat;    
 }
 
-#if WDEBUG >= 1
-static void
-wdebug1(const struct Common* common, unsigned char* srcptr, unsigned char* dstptr, size_t count, size_t srcstride, size_t dststride, void* chunkdata, const char* tag)
-{
-    unsigned char* dstbase = (common->reading?common->memory:chunkdata);
-    unsigned char* srcbase = (common->reading?chunkdata:common->memory);
-    unsigned dstoff = (unsigned)(dstptr - dstbase);
-    unsigned srcoff = (unsigned)(srcptr - srcbase);
-    fprintf(stderr,"%s: %s: [%u] %u/%d->%u/%u",
-	    tag,
-	    common->reading?"read":"write",
-	    (unsigned)count,
-	    (unsigned)(srcoff/common->typesize),
-    	    (unsigned)srcstride,
-	    (unsigned)(dstoff/common->typesize),
-       	    (unsigned)dststride);
-#if 0
-    { size_t len = common->typesize*count;
-    fprintf(stderr," | [%u] %u->%u\n",(unsigned)len,(unsigned)srcoff,(unsigned)dstoff);
-    }
-#endif
-    fprintf(stderr,"\n");
-}
-#endif
-
 static int
-transfern(const struct Common* common, unsigned char* slpptr, unsigned char* memptr, size_t count, size_t slpstride, size_t memstride, void* chunkdata)
+transfern(const struct Common* common, unsigned char* slpptr, unsigned char* memptr)
 {
     int stat = NC_NOERR;
-    size_t typesize = common->typesize;
-    size_t len = typesize*count;
-    size_t m,s;
-
     if(common->reading) {
-#if WDEBUG >= 2
-        wdebug1(common, slpptr, memptr, count, slpstride, memstride, chunkdata, "transfern");
-#endif
-	if(slpstride == 1)
-            memcpy(memptr,slpptr,len); /* straight copy */
-	else {
-	    for(m=0,s=0;s<count;s+=slpstride,m+=memstride) {
-		size_t soffset = s*typesize;
-		size_t moffset = m*typesize;
-	        memcpy(memptr+moffset,slpptr+soffset,typesize);
-	    }
-	}
+        memcpy(memptr,slpptr,common->typesize);
         if(common->swap)
-            NCZ_swapatomicdata(len,memptr,common->typesize);
+            NCZ_swapatomicdata(common->typesize,memptr,common->typesize);
     } else { /*writing*/
-#if WDEBUG >= 2
-        wdebug1(common, memptr, slpptr, count, memstride, slpstride, chunkdata,"transfern");
-#endif
-	if(slpstride == 1)
-            memcpy(slpptr,memptr,len); /* straight copy */
-	else {
-	    for(m=0,s=0;s<count;s+=slpstride,m+=memstride) {
-		size_t soffset = s*typesize;
-		size_t moffset = m*typesize;
-	        memcpy(slpptr+soffset,memptr+moffset,typesize);
-#if WDEBUG >= 3
-		if(m > 0)
-	        wdebug1(common, memptr+moffset, slpptr+soffset, 1, slpstride, memstride, chunkdata, "\t");
-#endif
-	    }
-	}
+        memcpy(slpptr,memptr,common->typesize);
         if(common->swap)
-            NCZ_swapatomicdata(len,slpptr,common->typesize);
+            NCZ_swapatomicdata(common->typesize,slpptr,common->typesize);
     }
     return THROW(stat);
 }
@@ -458,7 +372,7 @@ NCZ_projectslices(size64_t* dimlens,
     /* Package common arguments */
     common->dimlens = dimlens;
     common->chunklens = chunklens;
-    /* Compute the chunk ranges for each slice in a given dim */
+    /* Compute the chunk ranges for each chunk in a given dim */
     if((stat = NCZ_compute_chunk_ranges(common->rank,slices,common->chunklens,ranges)))
         goto done;
 
@@ -588,6 +502,7 @@ NCZ_clearcommon(struct Common* common)
     nullfree(common->fillvalue);
 }
 
+#if 0
 /* Does the User want the whole variable? */
 static int
 iswholevar(struct Common* common, NCZSlice* slices)
@@ -608,6 +523,7 @@ iswholevar(struct Common* common, NCZSlice* slices)
     }
     return 1;
 }
+#endif
 
 /**************************************************/
 /* Scalar variable support */
@@ -627,7 +543,7 @@ NCZ_transferscalar(struct Common* common)
     /* Read from single chunk from cache */
     chunkindices[0] = 0;
     switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
-    case NC_EEMPTY: /* cache created the chunk */
+    case NC_ENOTFOUND: /* cache created the chunk */
         if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
 	break;
     case NC_NOERR: break;

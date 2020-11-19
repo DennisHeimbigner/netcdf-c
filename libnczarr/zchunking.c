@@ -4,14 +4,10 @@
  *********************************************************************/
 #include "zincludes.h"
 
-/* 0 => no debug */
-#define CHDEBUG 2
-
 static int pcounter = 0;
 
 /* Forward */
 static int compute_intersection(const NCZSlice* slice, const size64_t chunklen, NCZChunkRange* range);
-static void skipchunk(const NCZSlice* slice, size64_t offset, NCZProjection* projection);
 
 /**************************************************/
 /* Goal:create a vector of chunk ranges: one for each slice in
@@ -31,7 +27,8 @@ NCZ_compute_chunk_ranges(
     int i;
 
     for(i=0;i<rank;i++) {
-        if((stat = compute_intersection(&slices[i],chunklen[i],&ncr[i]))) goto done;
+	if((stat = compute_intersection(&slices[i],chunklen[i],&ncr[i])))
+	    goto done;
     }
 
 done:
@@ -51,27 +48,11 @@ compute_intersection(
 
 /**
 Compute the projection of a slice as applied to n'th chunk.
-This is somewhat complex because:
-1. for the first projection, the start is the slice start,
-   but after that, we have to take into account that for
-   a non-one stride, the start point in a projection may
-   be offset by some value in the range of 0..(slice.stride-1).
-2. The stride might be so large as to completely skip some chunks.
-*/
-
-/*
-Computed values:
-* limit - for all chunks except last, this is the dimlen.
-  For last, it is the last point in the slice + 1.
-* last - the last point touched in the chunk
-* unused - (limit - last)
-* start - for chunk 0, this the start of the slice,
-  otherwise it is (stride - unused)
-* avail - the space available in the chunk (limit - start)
-* count - floor(avail/stride)
-
-Note, the saved values in projection are all WRT the start of the chunk.
-
+This is somewhat complex because for the first projection, the
+start is the slice start, but after that, we have to take into
+account that for a non-one stride, the start point in a
+projection may be offset by some value in the range of
+0..(slice.stride-1).
 */
 int
 NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, size_t n, NCZProjection* projections)
@@ -85,49 +66,43 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
     projection->id = ++pcounter;
     projection->chunkindex = chunkindex;
 
-    /* We need this to convert slice indices to chunk relative */
     offset = chunklen * chunkindex; /* with respect to dimension (WRD) */
 
-    projection->len = chunklen;
+    /* Actual limit of the n'th touched chunk, taking
+       dimlen and stride->stop into account. */
+    projection->limit = (chunkindex + 1) * chunklen; /* WRD */
+    if(projection->limit > dimlen) projection->limit = dimlen;
+    if(projection->limit > slice->stop) projection->limit = slice->stop;
 
-    projection->limit = chunklen;
-    if(projection->limit > (slice->stop - offset)) projection->limit = (slice->stop - offset);
+    /* Len is no. of touched indices along this dimension */
+    projection->len = projection->limit - offset;
 
     if(n == 0) {
 	/*initial case: original slice start is in 1st projection */
-	projection->first = (slice->start - offset);
+	projection->first = slice->start; /* WRD */
     } else { /* n > 0 */
 	NCZProjection* prev = &projections[n-1];
 	/* prevunused is the amount unused at end of the previous chunk.
-	   => we need to skip (slice->stride-prevunused) in this chunk
-	   But watch out in case the stride completely skips this chunk.
-	*/
-//	size64_t prevunused = prev->limit - (prev->last + 1);
-//	projection->first = (slice->stride - prevunused);
-	/* See if the next point after the last one in prev lands in the current projection.
-	   If not, then we have skipped the current chunk. Also take limit into account. */
-	if((prev->last + slice->stride) - prev->limit >= projection->limit) { /* this chunk is being skipped */
-	    skipchunk(slice,offset,projection);
-	    goto done;
-	}
- 	projection->first = (prev->last + slice->stride) - prev->limit;
+	   => we need to skip (slice->stride-prevunused) in this chunk */
+        /* Compute limit of previous chunk */
+	size64_t prevunused = prev->limit - prev->last;
+	projection->first = offset + (slice->stride - prevunused); /* WRD */
     }
     /* Compute number of places touched in this chunk */
-    avail = projection->limit - projection->first;
-    count  = ceildiv(avail, slice->stride); /* might be zero */
+    avail = projection->limit - projection->first; /*WRD*/
+    count  = ceildiv(avail, slice->stride);
+
     /* Last place to be touched */
-    projection->last = projection->first + (slice->stride * (count - 1));
-fprintf(stderr,"XXX: id=%d chunkindex=%d\n",(int)projection->id,(int)chunkindex);
-fprintf(stderr,"\tavail=%d count=%d limit=%d\n",(int)avail,(int)count,(int)projection->limit);
-fprintf(stderr,"\tfirst=%d last=%d\n",(int)projection->first,(int)projection->last);
+    projection->last = projection->first + ((slice->stride * count) - 1); /*WRD*/
 
     /* Compute the slice relative to this chunk.
        Recall the possibility that start+stride >= projection->limit */
-    projection->chunkslice.start = (projection->first);
-//    projection->chunkslice.stop = projection->chunkslice.start + (slice->stride * (count));
-    projection->chunkslice.stop = projection->last + 1;
-    assert(projection->chunkslice.stop <= projection->limit);
-//        projection->chunkslice.stop -= slice->stride;
+    projection->chunkslice.start = (projection->first - offset);
+    projection->chunkslice.stop = projection->chunkslice.start + (slice->stride * count);
+//+1
+    if(slice->stop > projection->limit) {
+        projection->chunkslice.stop = projection->len;
+    }
     projection->chunkslice.stride = slice->stride;
     projection->chunkslice.len = chunklen;
 
@@ -142,31 +117,13 @@ fprintf(stderr,"\tfirst=%d last=%d\n",(int)projection->first,(int)projection->la
 
     projection->memslice.start = projection->iopos;
     projection->memslice.stop = projection->memslice.start + projection->iocount;
-    projection->memslice.stride = slice->stride;
-#if 1
+    projection->memslice.stride = 1;
+#if 0
     projection->memslice.len = projection->memslice.stop;
 #else
     projection->memslice.len = dimlen;
 #endif
-done:
     return stat;
-}
-
-static void
-skipchunk(const NCZSlice* slice, size64_t offset, NCZProjection* projection)
-{
-    projection->first = 0;
-    projection->last = 0;
-    projection->iopos = ceildiv(offset - slice->start, slice->stride);
-    projection->iocount = 0;
-    projection->chunkslice.start = 0;
-    projection->chunkslice.stop = 0;
-    projection->chunkslice.stride = 1;
-    projection->chunkslice.len = 0;
-    projection->memslice.start = 0;
-    projection->memslice.stop = 0;
-    projection->memslice.stride = 1;
-    projection->memslice.len = 0;
 }
 
 /* Goal:
@@ -236,13 +193,6 @@ NCZ_compute_all_slice_projections(
 					chunklen[r],
                                         slp))) goto done;
     }
-
-#if CHDEBUG >= 2
-    fprintf(stderr,"NCZ_compute_all_slice_projections:\n----------------------\n");
-    fprintf(stderr,"%s\n",nczprint_slices(rank,slices));
-    fprintf(stderr,"%s",nczprint_allsliceprojections(rank,results));
-    fprintf(stderr,"----------------------\n");
-#endif
 
 done:
     return stat;

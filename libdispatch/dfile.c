@@ -1872,8 +1872,6 @@ NC_create(const char *path0, int cmode, size_t initialsz,
 
     assert(model.format != 0 && model.impl != 0);
 
-    int x = (model.format == NC_FORMATX_NCZARR);
-
     /* Now, check for NC_ENOTBUILT cases limited to create (so e.g. HDF4 is not listed) */
 #ifndef USE_HDF5
     if (model.impl == NC_FORMATX_NC4)

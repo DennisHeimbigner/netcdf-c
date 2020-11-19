@@ -7,7 +7,7 @@
 #define ZCACHE_H
 
 /* This holds all the fields
-   to support either impl of ncxcache
+   to support either impl of cache
 */
 
 struct NCxcache;
