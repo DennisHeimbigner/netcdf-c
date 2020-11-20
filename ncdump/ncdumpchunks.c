@@ -1,12 +1,19 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
+#ifdef HAVE_GETOPT_H
 #include <getopt.h>
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
 #endif
+
+#ifdef _WIN32
+#include "XGetopt.h"
+#endif
+
 #include "netcdf.h"
 #ifdef HAVE_HDF5_H
 #include <hdf5.h>
@@ -122,7 +129,7 @@ printvector(int rank, size_t* vec)
     return strdup(svec);
 }
 
-#ifdef USE_HDF5
+#ifdef HDF5_SUPPORTS_PAR_FILTERS
 void
 hdf5_setoffset(Odometer* odom, size_t* chunksizes, hsize_t* offset)
 {
@@ -142,12 +149,10 @@ hdf5(const char* file_name, const char* var_name, int debug,
      size_t chunkprod;
      Odometer* odom = NULL;
      hsize_t offset[NC_MAX_VAR_DIMS];
-#ifdef HDF5_SUPPORTS_PAR_FILTERS
      int r;
      hid_t dxpl_id = H5P_DEFAULT; /*data transfer property list */
      unsigned int filter_mask = 0;
-#endif
- 
+
      if(debug) {
         H5Eset_auto2(H5E_DEFAULT,(H5E_auto2_t)H5Eprint,stderr);
     }
@@ -345,7 +350,7 @@ main(int argc, char** argv)
     if((stat=nc_close(ncid))) usage(stat);
 
     switch (format) {	  
-#ifdef USE_HDF5
+#ifdef HDF5_SUPPORTS_PAR_FILTERS
     case NC_FORMATX_NC_HDF5:
         hdf5(file_name, var_name, debug, rank, dimlens, chunklens, chunkcounts);
 	 break;
