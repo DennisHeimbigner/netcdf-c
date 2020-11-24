@@ -96,7 +96,7 @@ static void nccheck(int stat, int line)
 static void
 zmapusage(void)
 {
-    fprintf(stderr,"usage: zmapio [-d][-v][-x] <file>\n");
+    fprintf(stderr,"usage: zmapio [-t <type>][-d][-v][-x] <file>\n");
     exit(1);
 }
 

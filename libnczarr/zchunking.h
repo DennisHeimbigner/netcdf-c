@@ -34,6 +34,7 @@ typedef struct NCProjection {
     size64_t chunkindex; /* which chunk are we projecting */
     size64_t first;  /* absolute first position to be touched in this chunk */
     size64_t last;   /* absolute position of last value touched */
+    size64_t stop;   /* absolute position of last value touched */
     size64_t limit;  /* Actual limit of chunk WRT start of chunk */
     size64_t len;    /* Actual len of chunk WRT start of chunk */
     size64_t iopos;    /* start point in the data memory to access the data */
