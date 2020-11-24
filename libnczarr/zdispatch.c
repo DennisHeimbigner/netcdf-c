@@ -9,6 +9,9 @@
  * @author Dennis Heimbigner, Ed Hartnett
  */
 
+#define DEFAULTVARS
+
+
 #include "zincludes.h"
 
 /* Forward */
@@ -55,8 +58,13 @@ static const NC_Dispatch NCZ_dispatcher = {
     NCZ_rename_var,
     NCZ_get_vara,
     NCZ_put_vara,
+#ifdef DEFAULTVARS
     NCDEFAULT_get_vars,
     NCDEFAULT_put_vars,
+#else
+    NCZ_get_vars,
+    NCZ_put_vars,
+#endif
     NCDEFAULT_get_varm,
     NCDEFAULT_put_varm,
 

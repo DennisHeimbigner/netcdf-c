@@ -24,8 +24,30 @@
 #include "zincludes.h"
 #endif
 
+#undef DEBUG
+
+/* Short Aliases */
+#ifdef HDF5_SUPPORTS_PAR_FILTERS
+#define H5
+#endif
+#ifdef ENABLE_NCZARR
+#define NZ
+#endif
+
+typedef struct Format {
+    int format;
+    char file_name[NC_MAX_NAME];
+    char var_name[NC_MAX_NAME];
+    int debug;
+    int rank;
+    size_t dimlens[NC_MAX_VAR_DIMS];
+    size_t chunklens[NC_MAX_VAR_DIMS];
+    size_t chunkcounts[NC_MAX_VAR_DIMS];
+} Format;
+
 typedef struct Odometer {
   size_t rank; /*rank */
+  size_t start[NC_MAX_VAR_DIMS];
   size_t stop[NC_MAX_VAR_DIMS];
   size_t max[NC_MAX_VAR_DIMS]; /* max size of ith index */
   size_t index[NC_MAX_VAR_DIMS]; /* current value of the odometer*/
@@ -40,6 +62,7 @@ int odom_more(Odometer* odom);
 int odom_next(Odometer* odom);
 size_t* odom_indices(Odometer* odom);
 size_t odom_offset(Odometer* odom);
+const char* odom_print(Odometer* odom);
 
 static void
 usage(int err)
@@ -52,6 +75,22 @@ usage(int err)
      exit(1);
 }
 
+
+char*
+printvector(int rank, size_t* vec)
+{
+    char svec[NC_MAX_VAR_DIMS*3+1];
+    int i;
+    svec[0] = '\0';
+    for(i=0;i<rank;i++) {
+	char s[3+1];
+	if(i > 0) strlcat(svec,",",sizeof(svec));
+	snprintf(s,sizeof(s),"%u",(unsigned)vec[i]);
+	strlcat(svec,s,sizeof(svec));
+    }
+    return strdup(svec);
+}
+
 Odometer*
 odom_new(size_t rank, const size_t* stop, const size_t* max)
 {
@@ -61,6 +100,7 @@ odom_new(size_t rank, const size_t* stop, const size_t* max)
 	 return NULL;
      odom->rank = rank;
      for(i=0;i<rank;i++) {
+	 odom->start[i] = 0;
 	 odom->stop[i] = stop[i];
 	 odom->max[i] = max[i];
 	 odom->index[i] = 0;
@@ -114,113 +154,37 @@ odom_offset(Odometer* odom)
      return offset;
 }
 
-char*
-printvector(int rank, size_t* vec)
+const char*
+odom_print(Odometer* odom)
 {
-    char svec[NC_MAX_VAR_DIMS*3+1];
-    int i;
-    svec[0] = '\0';
-    for(i=0;i<rank;i++) {
-	char s[3+1];
-	if(i > 0) strlcat(svec,",",sizeof(svec));
-	snprintf(s,sizeof(s),"%u",(unsigned)vec[i]);
-	strlcat(svec,s,sizeof(svec));
-    }
-    return strdup(svec);
+    static char s[4096];
+    static char tmp[4096];
+    char* sv = NULL;
+    
+    s[0] = '\0';
+    snprintf(tmp,sizeof(tmp),"{rank=%u",(unsigned)odom->rank);
+    strcat(s,tmp);    
+    strcat(s," start=("); sv = printvector(odom->rank,odom->start); strcat(s,sv); strcat(s,")");
+    free(sv);
+    strcat(s," stop=("); sv = printvector(odom->rank,odom->stop); strcat(s,sv); strcat(s,")");
+    free(sv);
+    strcat(s," max=("); sv = printvector(odom->rank,odom->max); strcat(s,sv); strcat(s,")");
+    free(sv);
+    snprintf(tmp,sizeof(tmp)," offset=%u",(unsigned)odom_offset(odom)); strcat(s,tmp);
+    strcat(s," indices=("); sv = printvector(odom->rank,odom->index); strcat(s,sv); strcat(s,")");
+    free(sv);
+    strcat(s,"}");
+    return s;
 }
 
-#ifdef HDF5_SUPPORTS_PAR_FILTERS
-void
-hdf5_setoffset(Odometer* odom, size_t* chunksizes, hsize_t* offset)
-{
-     int i;
-     for(i=0;i<odom->rank;i++)
-	 offset[i] = odom->index[i] * chunksizes[i];
-}
-
-int
-hdf5(const char* file_name, const char* var_name, int debug,
-     int rank, size_t* dimlens, size_t* chunklens, size_t* chunkcounts
-     )
-{
-     int i;
-     hid_t fileid, grpid, datasetid;
-     int* chunkdata = NULL; /*[CHUNKPROD];*/
-     size_t chunkprod;
-     Odometer* odom = NULL;
-     hsize_t offset[NC_MAX_VAR_DIMS];
-     int r;
-     hid_t dxpl_id = H5P_DEFAULT; /*data transfer property list */
-     unsigned int filter_mask = 0;
-
-     if(debug) {
-        H5Eset_auto2(H5E_DEFAULT,(H5E_auto2_t)H5Eprint,stderr);
-    }
-     
-     chunkprod = 1;
-     for(i=0;i<rank;i++)
-	 chunkprod *= chunklens[i];
-
-     if ((fileid = H5Fopen(file_name, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) usage(NC_EHDFERR);
-     if ((grpid = H5Gopen1(fileid, "/")) < 0) usage(NC_EHDFERR);
-     if ((datasetid = H5Dopen1(grpid, var_name)) < 0) usage(NC_EHDFERR);
-
-     if((odom = odom_new(rank,chunkcounts,dimlens))==NULL) usage(NC_ENOMEM);
-
-     if((chunkdata = calloc(sizeof(int),chunkprod))==NULL) usage(NC_ENOMEM);
-
-     printf("rank=%d dims=(%s) chunks=(%s)\n",rank,printvector(rank,dimlens),printvector(rank,chunklens));
-
-     while(odom_more(odom)) {
- 	 hdf5_setoffset(odom,chunklens,offset);
 #ifdef DEBUG
-	 fprintf(stderr,"(");
-	 for(i=0;i<rank;i++)
-	     fprintf(stderr,"%s%lu",(i > 0 ? "," : ""),(unsigned long)offset[i]);
-	 fprintf(stderr,")\n");
-	 fflush(stderr);
-#endif
-	 memset(chunkdata,0,sizeof(int)*chunkprod);
-	 if(H5Dread_chunk(datasetid, dxpl_id, offset, &filter_mask, chunkdata) < 0) abort();
-	 for(r=0;r<rank;r++)
-	     printf("[%lu/%lu]",(unsigned long)odom->index[r],(unsigned long)offset[r]);
-	 printf(" =");
-	 for(r=0;r<chunkprod;r++)
-	     printf(" %02d", chunkdata[r]);
-	 printf("\n");
-	 fflush(stdout);
-	 odom_next(odom);
-     }
-
-     /* Close up. */
-     if (H5Dclose(datasetid) < 0) abort();
-     if (H5Gclose(grpid) < 0) abort();
-     if (H5Fclose(fileid) < 0) abort();
-
-     /* Cleanup */
-     free(chunkdata);
-     odom_free(odom);
-     return 0;
-}
-#endif
-
-#ifdef ENABLE_NCZARR
-
-static void
-nczarr_setoffset(Odometer* odom, size_t* chunksizes, size64_t* offset)
-{
-     int i;
-     for(i=0;i<odom->rank;i++)
-	 offset[i] = odom->index[i] * chunksizes[i];
-}
-
 char*
-chunk_key(int rank, size_t* indices)
+chunk_key(int format->rank, size_t* indices)
 {
     char key[NC_MAX_VAR_DIMS*3+1];
     int i;
     key[0] = '\0';
-    for(i=0;i<rank;i++) {
+    for(i=0;i<format->rank;i++) {
 	char s[3+1];
 	if(i > 0) strlcat(key,".",sizeof(key));
 	snprintf(s,sizeof(s),"%u",(unsigned)indices[i]);
@@ -228,80 +192,167 @@ chunk_key(int rank, size_t* indices)
     }
     return strdup(key);
 }
+#endif
+
+void
+setoffset(Odometer* odom, size_t* chunksizes, size_t* offset)
+{
+     int i;
+     for(i=0;i<odom->rank;i++)
+	 offset[i] = odom->index[i] * chunksizes[i];
+}
+
+static void
+printchunk(Format* format, int* chunkdata)
+{
+    int i,k;
+    unsigned cols = format->chunklens[format->rank - 1];
+    unsigned chunkprod;
+
+    for(chunkprod=1,i=0;i<format->rank;i++) chunkprod *= format->chunklens[i];
+
+    for(k=0;k<chunkprod;k++) {
+	if(k > 0 && k % cols == 0) printf(" |");
+        printf(" %02d", chunkdata[k]);
+    }
+    printf("\n");
+}
+
 
 int
-nczarr(const char* file_name, const char* var_name, int debug,
-       int rank, size_t* dimlens, size_t* chunklens, size_t* chunkcounts
-       )
+dump(Format* format)
 {
-    int r,stat = NC_NOERR;
+    int i;
     int* chunkdata = NULL; /*[CHUNKPROD];*/
     size_t chunkprod;
     Odometer* odom = NULL;
+    int r;
+    size_t offset[NC_MAX_VAR_DIMS];
+#ifdef H5
+    hid_t fileid, grpid, datasetid;
+    hid_t dxpl_id = H5P_DEFAULT; /*data transfer property list */
+    unsigned int filter_mask = 0;
+    hsize_t hoffset[NC_MAX_VAR_DIMS];
+#endif
+#ifdef NZ
+    int stat = NC_NOERR;
     size64_t zindices[NC_MAX_VAR_DIMS];
-    size64_t offset[NC_MAX_VAR_DIMS];
     int ncid, varid;
+#endif
 
-    NC_UNUSED(debug);
+#ifdef H5
+     if(format->debug) {
+        H5Eset_auto2(H5E_DEFAULT,(H5E_auto2_t)H5Eprint,stderr);
+    }
+#endif
 
-    if((stat=nc_open(file_name,0,&ncid))) usage(stat);
-    if((stat=nc_inq_varid(ncid,var_name,&varid))) usage(stat);
+     chunkprod = 1;
+     for(i=0;i<format->rank;i++)
+	 chunkprod *= format->chunklens[i];
 
-    chunkprod = 1;
-    for(r=0;r<rank;r++)
-	chunkprod *= chunklens[r];
-    if((odom = odom_new(rank,chunkcounts,dimlens))==NULL) usage(NC_ENOMEM);
-    
-    if((chunkdata = calloc(sizeof(int),chunkprod))==NULL) usage(NC_ENOMEM);
+     memset(hoffset,0,sizeof(hoffset));
+     memset(offset,0,sizeof(offset));
 
-    printf("rank=%d dims=(%s) chunks=(%s)\n",rank,printvector(rank,dimlens),printvector(rank,chunklens));
+     switch (format->format) {
+#ifdef H5
+     case NC_FORMATX_NC_HDF5:
+	if ((fileid = H5Fopen(format->file_name, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) usage(NC_EHDFERR);
+        if ((grpid = H5Gopen1(fileid, "/")) < 0) usage(NC_EHDFERR);
+        if ((datasetid = H5Dopen1(grpid, format->var_name)) < 0) usage(NC_EHDFERR);
+	break; 
+#endif
+#ifdef NZ
+     case NC_FORMATX_NCZARR:
+	if((stat=nc_open(format->file_name,0,&ncid))) usage(stat);
+	if((stat=nc_inq_varid(ncid,format->var_name,&varid))) usage(stat);
+	break;	
+#endif
+     default: usage(NC_EINVAL);
+     }
 
-    while(odom_more(odom)) {
-	memset(chunkdata,0,sizeof(int)*chunkprod);
-        nczarr_setoffset(odom,chunklens,offset);
-	for(r=0;r<rank;r++)
-	    zindices[r] = (size64_t)odom->index[r];
-        if((stat=NCZ_read_chunk(ncid, varid, zindices, chunkdata) < 0)) usage(stat);
-	for(r=0;r<rank;r++)
-            printf("[%lu/%lu]",(unsigned long)odom->index[r],(unsigned long)offset[r]);
+     if((odom = odom_new(format->rank,format->chunkcounts,format->dimlens))==NULL) usage(NC_ENOMEM);
+
+     if((chunkdata = calloc(sizeof(int),chunkprod))==NULL) usage(NC_ENOMEM);
+
+     printf("rank=%d dims=(%s) chunks=(%s)\n",format->rank,printvector(format->rank,format->dimlens),
+                                                           printvector(format->rank,format->chunklens));
+
+     while(odom_more(odom)) {
+        setoffset(odom,format->chunklens,offset);
+
+#ifdef DEBUG
+	fprintf(stderr,"odom=%s\n",odom_print(odom));
+	fprintf(stderr,"offset=(");
+	for(i=0;i<format->rank;i++)
+	    fprintf(stderr,"%s%lu",(i > 0 ? "," : ""),(unsigned long)offset[i]);
+	fprintf(stderr,")\n");
+	fflush(stderr);
+#endif
+
+        switch (format->format) {
+#ifdef H5
+	case NC_FORMATX_NC_HDF5: {
+	    for(i=0;i<format->rank;i++) hoffset[i] = (hsize_t)offset[i];
+	    if(H5Dread_chunk(datasetid, dxpl_id, hoffset, &filter_mask, chunkdata) < 0) abort();
+	    } break;
+#endif
+#ifdef NZ
+	case NC_FORMATX_NCZARR:
+	    for(r=0;r<format->rank;r++) zindices[r] = (size64_t)odom->index[r];
+            if((stat=NCZ_read_chunk(ncid, varid, zindices, chunkdata) < 0)) usage(stat);
+	    break;
+#endif
+	default: usage(NC_EINVAL);
+	}
+	for(r=0;r<format->rank;r++)
+	    printf("[%lu/%lu]",(unsigned long)odom->index[r],(unsigned long)offset[r]);
 	printf(" =");
-	for(r=0;r<chunkprod;r++)
-	    printf(" %02d", chunkdata[r]);
-	printf("\n");
+	printchunk(format,chunkdata);
 	fflush(stdout);
 	odom_next(odom);
      }
 
-     /* Cleanup */
-     free(chunkdata);
-     odom_free(odom);
-     if((stat=nc_close(ncid))) usage(stat);
-     return 0;
-}
+     /* Close up. */
+#ifdef H5
+    switch (format->format) {
+    case NC_FORMATX_NC_HDF5:
+        if (H5Dclose(datasetid) < 0) abort();
+        if (H5Gclose(grpid) < 0) abort();
+        if (H5Fclose(fileid) < 0) abort();
+	break;
 #endif
+#ifdef NZ
+     case NC_FORMATX_NCZARR:
+	if((stat=nc_close(ncid))) usage(stat);
+	break;
+#endif
+    default: usage(NC_EINVAL);
+    }
+    /* Cleanup */
+    free(chunkdata);
+    odom_free(odom);
+    return 0;
+}
 
 int
 main(int argc, char** argv)
 {
     int i,stat = NC_NOERR;
-    const char* file_name = NULL;
-    const char* var_name = NULL;
+    Format format;
     int ncid, varid, dimids[NC_MAX_VAR_DIMS];
-    int rank, vtype, storage;
-    size_t dimlens[NC_MAX_VAR_DIMS];
-    size_t chunklens[NC_MAX_VAR_DIMS];
-    size_t chunkcounts[NC_MAX_VAR_DIMS];
-    int debug = 0;
-    int format,mode;
+    int vtype, storage;
+    int mode;
     int c;
+
+    memset(&format,0,sizeof(format));
 
     while ((c = getopt(argc, argv, "dv:")) != EOF) {
 	switch(c) {
 	case 'd':
-	    debug = 1;
+	    format.debug = 1;
 	    break;
 	case 'v':
-	    var_name = strdup(optarg);
+	    strcpy(format.var_name,optarg);
 	    break;
 	case '?':
 	   fprintf(stderr,"unknown option: '%c'\n",c);
@@ -318,52 +369,38 @@ main(int argc, char** argv)
 	exit(1);
     }
 
-    file_name = strdup(argv[0]);
+    strcpy(format.file_name,argv[0]);
 
-    if(file_name == NULL || strlen(file_name) == 0) {
+    if(format.file_name == NULL || strlen(format.file_name) == 0) {
 	fprintf(stderr, "no input file specified\n");
 	exit(1);
     }
 
-    if(var_name == NULL || strlen(var_name) == 0) {
+    if(format.var_name == NULL || strlen(format.var_name) == 0) {
 	fprintf(stderr, "no input var specified\n");
 	exit(1);
     }
 
     /* Get info about the file type */
-    if((stat=nc_open(file_name,0,&ncid))) usage(stat);
+    if((stat=nc_open(format.file_name,0,&ncid))) usage(stat);
 
-    if((stat=nc_inq_format_extended(ncid,&format,&mode))) usage(stat);
+    if((stat=nc_inq_format_extended(ncid,&format.format,&mode))) usage(stat);
 
     /* Get the info about the var */
-    if((stat=nc_inq_varid(ncid,var_name,&varid))) usage(stat);
-    if((stat=nc_inq_var(ncid,varid,NULL,&vtype,&rank,dimids,NULL))) usage(stat);
-    if(rank == 0) usage(NC_EDIMSIZE);
-    if((stat=nc_inq_var_chunking(ncid,varid,&storage,chunklens))) usage(stat);
+    if((stat=nc_inq_varid(ncid,format.var_name,&varid))) usage(stat);
+    if((stat=nc_inq_var(ncid,varid,NULL,&vtype,&format.rank,dimids,NULL))) usage(stat);
+    if(format.rank == 0) usage(NC_EDIMSIZE);
+    if((stat=nc_inq_var_chunking(ncid,varid,&storage,format.chunklens))) usage(stat);
     if(storage != NC_CHUNKED) usage(NC_EBADCHUNK);
 
-    for(i=0;i<rank;i++) {
-	 if((stat=nc_inq_dimlen(ncid,dimids[i],&dimlens[i]))) usage(stat);
-	 chunkcounts[i] = ceildiv(dimlens[i],chunklens[i]);
+    for(i=0;i<format.rank;i++) {
+	 if((stat=nc_inq_dimlen(ncid,dimids[i],&format.dimlens[i]))) usage(stat);
+	 format.chunkcounts[i] = ceildiv(format.dimlens[i],format.chunklens[i]);
     }
 
     if((stat=nc_close(ncid))) usage(stat);
 
-    switch (format) {	  
-#ifdef HDF5_SUPPORTS_PAR_FILTERS
-    case NC_FORMATX_NC_HDF5:
-        hdf5(file_name, var_name, debug, rank, dimlens, chunklens, chunkcounts);
-	 break;
-#endif
-#ifdef ENABLE_NCZARR
-    case NC_FORMATX_NCZARR:
-        nczarr(file_name, var_name, debug, rank, dimlens, chunklens, chunkcounts);
-	 break;
-#endif
-    default:
-	 usage(NC_EINVAL);
-	 break;
-    }
+    dump(&format);
 
     return 0;
 }

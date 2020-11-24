@@ -58,7 +58,7 @@ int
 NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, size_t n, NCZProjection* projections)
 {
     int stat = NC_NOERR;
-    size64_t offset,count,avail;
+    size64_t offset;
     NCZProjection* projection;
     
     projection = &projections[n];
@@ -74,55 +74,42 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
     if(projection->limit > dimlen) projection->limit = dimlen;
     if(projection->limit > slice->stop) projection->limit = slice->stop;
 
-    /* Len is no. of touched indices along this dimension */
-    projection->len = projection->limit - offset;
-
     if(n == 0) {
 	/*initial case: original slice start is in 1st projection */
-	projection->first = slice->start; /* WRD */
+	projection->first = slice->start - offset;
+	projection->iopos = 0;
     } else { /* n > 0 */
-	NCZProjection* prev = &projections[n-1];
+//	NCZProjection* prev = &projections[n-1];
 	/* prevunused is the amount unused at end of the previous chunk.
 	   => we need to skip (slice->stride-prevunused) in this chunk */
         /* Compute limit of previous chunk */
-	size64_t prevunused = prev->limit - prev->last;
-	projection->first = offset + (slice->stride - prevunused); /* WRD */
+	size64_t rem = (offset - slice->start) % slice->stride;
+        projection->first = 0;
+	if(rem)
+	    projection->first += (slice->stride - rem);
+	projection->iopos = ceildiv((offset - slice->start),slice->stride);
     }
-    /* Compute number of places touched in this chunk */
-    avail = projection->limit - projection->first; /*WRD*/
-    count  = ceildiv(avail, slice->stride);
-
-    /* Last place to be touched */
-    projection->last = projection->first + ((slice->stride * count) - 1); /*WRD*/
+    if(slice->stop > projection->limit)
+	projection->stop = chunklen;
+    else
+	projection->stop = slice->stop - offset;
 
     /* Compute the slice relative to this chunk.
        Recall the possibility that start+stride >= projection->limit */
-    projection->chunkslice.start = (projection->first - offset);
-    projection->chunkslice.stop = projection->chunkslice.start + (slice->stride * count);
-//+1
-    if(slice->stop > projection->limit) {
-        projection->chunkslice.stop = projection->len;
-    }
+    projection->chunkslice.start = projection->first;
+    projection->chunkslice.stop = projection->stop;
     projection->chunkslice.stride = slice->stride;
     projection->chunkslice.len = chunklen;
 
-    /* compute the I/O position: the "location" in the memory
-       array to read/write items */
-    if(n == 0)
-        projection->iopos = 0;
-    else 
-        projection->iopos = ceildiv(offset - slice->start, slice->stride);
-    /* And number of I/O items */
-    projection->iocount = count;
+    projection->iocount = ceildiv((projection->stop - projection->first),slice->stride);
 
     projection->memslice.start = projection->iopos;
-    projection->memslice.stop = projection->memslice.start + projection->iocount;
-    projection->memslice.stride = 1;
-#if 0
-    projection->memslice.len = projection->memslice.stop;
-#else
+    projection->memslice.stop = projection->iopos + projection->iocount;
+//    projection->memslice.stride = 1;
+    projection->memslice.stride = slice->stride;
+//    projection->memslice.len = projection->memslice.stop;
     projection->memslice.len = dimlen;
-#endif
+//    projection->memslice.len = chunklen;
     return stat;
 }
 

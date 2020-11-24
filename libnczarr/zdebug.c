@@ -160,8 +160,8 @@ nczprint_odom(const NCZOdometer* odom)
     ncbytescat(buf," stride=");
     txt = nczprint_vector(odom->rank,odom->stride);
     ncbytescat(buf,txt);
-    ncbytescat(buf," max=");
-    txt = nczprint_vector(odom->rank,odom->max);
+    ncbytescat(buf," len=");
+    txt = nczprint_vector(odom->rank,odom->len);
     ncbytescat(buf,txt);
     ncbytescat(buf," index=");
     txt = nczprint_vector(odom->rank,odom->index);
