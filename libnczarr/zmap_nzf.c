@@ -863,7 +863,7 @@ platformdircontent(ZFMAP* zfmap, const char* truepath, NClist* contents)
     int ret = NC_NOERR;
     errno = 0;
     WIN32_FIND_DATA FindFileData;
-    HANDLE dir;
+    HANDLE dir = NULL;
     char* ffpath = NULL;
     char* lpath = NULL;
     size_t len;

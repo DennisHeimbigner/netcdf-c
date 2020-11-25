@@ -187,7 +187,7 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	    fprintf(stderr,"chunkindices: %s\n",nczprint_vector(common->rank,chunkindices));
 #endif
             switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
-            case NC_EEMPTY: /* cache created the chunk */
+            case NC_ENOTFOUND: /* cache created the chunk */
 	        if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
 	        break;
             case NC_NOERR: break;
@@ -636,7 +636,7 @@ NCZ_transferscalar(struct Common* common)
     /* Read from single chunk from cache */
     chunkindices[0] = 0;
     switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
-    case NC_EEMPTY: /* cache created the chunk */
+    case NC_ENOTFOUND: /* cache created the chunk */
         if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
 	break;
     case NC_NOERR: break;
