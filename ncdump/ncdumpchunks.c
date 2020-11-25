@@ -250,13 +250,15 @@ dump(Format* format)
 #endif
 
 #ifdef H5
-     if(format->debug) {
+    if(format->debug) {
         H5Eset_auto2(H5E_DEFAULT,(H5E_auto2_t)H5Eprint,stderr);
     }
 #endif
 
-     memset(hoffset,0,sizeof(hoffset));
-     memset(offset,0,sizeof(offset));
+    memset(offset,0,sizeof(offset));
+#ifdef H5
+    memset(hoffset,0,sizeof(hoffset));
+#endif
 
      switch (format->format) {
 #ifdef H5
@@ -335,8 +337,8 @@ dump(Format* format)
      }
 
      /* Close up. */
-#ifdef H5
     switch (format->format) {
+#ifdef H5
     case NC_FORMATX_NC_HDF5:
         if (H5Dclose(datasetid) < 0) abort();
         if (H5Gclose(grpid) < 0) abort();
