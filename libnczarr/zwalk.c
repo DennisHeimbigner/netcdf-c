@@ -340,10 +340,8 @@ fflush(stderr);
 	    if((stat = transfern(common,slpptr0,memptr0,nczodom_avail(slpodom),
 	                         nczodom_laststride(slpodom),nczodom_lastlen(memodom),
 				 chunkdata))) goto done;
-fprintf(stderr,"zzz: nczodom_next(memodom)\n");
             nczodom_next(memodom);
         }
-fprintf(stderr,"zzz: nczodom_next(slpodom)\n");
 	nczodom_next(slpodom);
     }
 done:

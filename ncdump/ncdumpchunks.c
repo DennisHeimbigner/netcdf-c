@@ -38,11 +38,15 @@ typedef struct Format {
     int format;
     char file_name[NC_MAX_NAME];
     char var_name[NC_MAX_NAME];
+    int fillvalue;
     int debug;
     int rank;
     size_t dimlens[NC_MAX_VAR_DIMS];
     size_t chunklens[NC_MAX_VAR_DIMS];
     size_t chunkcounts[NC_MAX_VAR_DIMS];
+    size_t chunkprod;
+    size_t dimprod;
+    nc_type xtype;
 } Format;
 
 typedef struct Odometer {
@@ -55,6 +59,9 @@ typedef struct Odometer {
 
 #define floordiv(x,y) ((x) / (y))
 #define ceildiv(x,y) (((x) % (y)) == 0 ? ((x) / (y)) : (((x) / (y)) + 1))
+
+static char* captured[4096];
+static int ncap = 0;
 
 Odometer* odom_new(size_t rank, const size_t* stop, const size_t* max);
 void odom_free(Odometer* odom);
@@ -76,7 +83,7 @@ usage(int err)
 }
 
 
-char*
+const char*
 printvector(int rank, size_t* vec)
 {
     char svec[NC_MAX_VAR_DIMS*3+1];
@@ -88,7 +95,16 @@ printvector(int rank, size_t* vec)
 	snprintf(s,sizeof(s),"%u",(unsigned)vec[i]);
 	strlcat(svec,s,sizeof(svec));
     }
-    return strdup(svec);
+    captured[ncap++] = strdup(svec);
+    return captured[ncap-1];
+}
+
+void
+cleanup(void)
+{
+    int i;
+    for(i=0;i<ncap;i++)
+        if(captured[i]) free(captured[i]);
 }
 
 Odometer*
@@ -159,20 +175,16 @@ odom_print(Odometer* odom)
 {
     static char s[4096];
     static char tmp[4096];
-    char* sv = NULL;
+    const char* sv;
     
     s[0] = '\0';
     snprintf(tmp,sizeof(tmp),"{rank=%u",(unsigned)odom->rank);
     strcat(s,tmp);    
     strcat(s," start=("); sv = printvector(odom->rank,odom->start); strcat(s,sv); strcat(s,")");
-    free(sv);
     strcat(s," stop=("); sv = printvector(odom->rank,odom->stop); strcat(s,sv); strcat(s,")");
-    free(sv);
     strcat(s," max=("); sv = printvector(odom->rank,odom->max); strcat(s,sv); strcat(s,")");
-    free(sv);
     snprintf(tmp,sizeof(tmp)," offset=%u",(unsigned)odom_offset(odom)); strcat(s,tmp);
     strcat(s," indices=("); sv = printvector(odom->rank,odom->index); strcat(s,sv); strcat(s,")");
-    free(sv);
     strcat(s,"}");
     return s;
 }
@@ -205,13 +217,10 @@ setoffset(Odometer* odom, size_t* chunksizes, size_t* offset)
 static void
 printchunk(Format* format, int* chunkdata)
 {
-    int i,k;
+    int k;
     unsigned cols = format->chunklens[format->rank - 1];
-    unsigned chunkprod;
 
-    for(chunkprod=1,i=0;i<format->rank;i++) chunkprod *= format->chunklens[i];
-
-    for(k=0;k<chunkprod;k++) {
+    for(k=0;k<format->chunkprod;k++) {
 	if(k > 0 && k % cols == 0) printf(" |");
         printf(" %02d", chunkdata[k]);
     }
@@ -224,10 +233,10 @@ dump(Format* format)
 {
     int i;
     int* chunkdata = NULL; /*[CHUNKPROD];*/
-    size_t chunkprod;
     Odometer* odom = NULL;
     int r;
     size_t offset[NC_MAX_VAR_DIMS];
+    int holechunk = 0;
 #ifdef H5
     hid_t fileid, grpid, datasetid;
     hid_t dxpl_id = H5P_DEFAULT; /*data transfer property list */
@@ -245,10 +254,6 @@ dump(Format* format)
         H5Eset_auto2(H5E_DEFAULT,(H5E_auto2_t)H5Eprint,stderr);
     }
 #endif
-
-     chunkprod = 1;
-     for(i=0;i<format->rank;i++)
-	 chunkprod *= format->chunklens[i];
 
      memset(hoffset,0,sizeof(hoffset));
      memset(offset,0,sizeof(offset));
@@ -272,7 +277,7 @@ dump(Format* format)
 
      if((odom = odom_new(format->rank,format->chunkcounts,format->dimlens))==NULL) usage(NC_ENOMEM);
 
-     if((chunkdata = calloc(sizeof(int),chunkprod))==NULL) usage(NC_ENOMEM);
+     if((chunkdata = calloc(sizeof(int),format->chunkprod))==NULL) usage(NC_ENOMEM);
 
      printf("rank=%d dims=(%s) chunks=(%s)\n",format->rank,printvector(format->rank,format->dimlens),
                                                            printvector(format->rank,format->chunklens));
@@ -289,20 +294,37 @@ dump(Format* format)
 	fflush(stderr);
 #endif
 
+	if(format->debug) {
+	    fprintf(stderr,"chunk: %s\n",printvector(format->rank,offset));
+	}
+
+	holechunk = 0;
         switch (format->format) {
 #ifdef H5
 	case NC_FORMATX_NC_HDF5: {
 	    for(i=0;i<format->rank;i++) hoffset[i] = (hsize_t)offset[i];
-	    if(H5Dread_chunk(datasetid, dxpl_id, hoffset, &filter_mask, chunkdata) < 0) abort();
-	    } break;
+	    if(H5Dread_chunk(datasetid, dxpl_id, hoffset, &filter_mask, chunkdata) < 0)
+	        holechunk = 1;
+	} break;
 #endif
 #ifdef NZ
 	case NC_FORMATX_NCZARR:
 	    for(r=0;r<format->rank;r++) zindices[r] = (size64_t)odom->index[r];
-            if((stat=NCZ_read_chunk(ncid, varid, zindices, chunkdata) < 0)) usage(stat);
+            switch (stat=NCZ_read_chunk(ncid, varid, zindices, chunkdata)) {
+	    case NC_NOERR: break;
+	    case NC_ENOTFOUND: holechunk = 1; break;
+	    default: usage(stat);
+	    }
 	    break;
 #endif
 	default: usage(NC_EINVAL);
+	}
+	if(holechunk) {
+	    /* Hole chunk: use fillvalue */
+	    size_t i = 0;
+	    int* idata = (int*)chunkdata;
+	    for(i=0;i<format->chunkprod;i++)
+	        idata[i] = format->fillvalue;
 	}
 	for(r=0;r<format->rank;r++)
 	    printf("[%lu/%lu]",(unsigned long)odom->index[r],(unsigned long)offset[r]);
@@ -346,13 +368,13 @@ main(int argc, char** argv)
 
     memset(&format,0,sizeof(format));
 
-    while ((c = getopt(argc, argv, "dv:")) != EOF) {
+    while ((c = getopt(argc, argv, "v:D")) != EOF) {
 	switch(c) {
-	case 'd':
-	    format.debug = 1;
-	    break;
 	case 'v':
 	    strcpy(format.var_name,optarg);
+	    break;
+	case 'D':
+	    format.debug = 1;
 	    break;
 	case '?':
 	   fprintf(stderr,"unknown option: '%c'\n",c);
@@ -392,6 +414,8 @@ main(int argc, char** argv)
     if(format.rank == 0) usage(NC_EDIMSIZE);
     if((stat=nc_inq_var_chunking(ncid,varid,&storage,format.chunklens))) usage(stat);
     if(storage != NC_CHUNKED) usage(NC_EBADCHUNK);
+    if((stat=nc_get_att(ncid,varid,"_FillValue",&format.fillvalue))) usage(stat);
+    format.xtype = NC_INT;
 
     for(i=0;i<format.rank;i++) {
 	 if((stat=nc_inq_dimlen(ncid,dimids[i],&format.dimlens[i]))) usage(stat);
@@ -400,7 +424,13 @@ main(int argc, char** argv)
 
     if((stat=nc_close(ncid))) usage(stat);
 
+    /* Precompute */
+    for(format.chunkprod=1,i=0;i<format.rank;i++) format.chunkprod *= format.chunklens[i];
+    for(format.dimprod=1,i=0;i<format.rank;i++) format.dimprod *= format.dimlens[i];
+
     dump(&format);
+
+    cleanup();
 
     return 0;
 }
