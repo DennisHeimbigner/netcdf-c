@@ -48,20 +48,20 @@ test_data.log: test_meta.log
 noinst_PROGRAMS = dump
 dump_SOURCES = dump.c
 
+# Disable remote tests until the test server gets sorted out
+if AX_IGNORE
 if ENABLE_DAP_REMOTE_TESTS
 # Note: This program name was changed to findtestserver4
 # to avoid cmake complaint about duplicate targets.
 noinst_PROGRAMS += findtestserver4 pingurl4
 findtestserver4_SOURCES = findtestserver4.c
 pingurl4_SOURCES = pingurl4.c
-endif
-
-if ENABLE_DAP_REMOTE_TESTS
 if BUILD_UTILITIES
   # relies on ncdump
   TESTS += test_remote.sh
 endif
 endif
+endif #AX_IGNORE
 
 endif #ENABLE_DAP4
 
