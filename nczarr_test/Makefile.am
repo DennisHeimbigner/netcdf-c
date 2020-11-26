@@ -114,8 +114,7 @@ if BUILD_BENCHMARKS
 BMCOMMON=bm_utils.c ut_util.c ut_test.c
 
 if AX_IGNORE
-BENCHMARKS = bm_chunks3 bm_many_atts bm_many_objs
-bm_chunks3_SOURCES = bm_chunks3.c ${BMCOMMON}
+BENCHMARKS = bm_many_atts bm_many_objs
 bm_many_atts_SOURCES = bm_many_atts.c ${BMCOMMON}
 bm_many_objs_SOURCES = bm_many_objs.c ${BMCOMMON}
 else
