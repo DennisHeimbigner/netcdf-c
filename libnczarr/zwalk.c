@@ -10,7 +10,8 @@
 
 static int initialized = 0;
 
-static unsigned int OPTIMIZE = 1;
+#undef DFALTOPTIMIZE
+static unsigned int optimize = 0;
 
 /* Forward */
 static int NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NCZOdometer* memodom, const struct Common* common, void* chunkdata);
@@ -39,8 +40,12 @@ astype(int typesize, void* ptr)
 int
 ncz_chunking_init(void)
 {
+#ifdef OPTIMIZE
     const char* eval = getenv("NCZ_NOOPTIMIZATION");
-    OPTIMIZE = (eval == NULL ? 1 : 0);
+    optimize = (eval == NULL ? 1 : 0);
+#else
+    optimize = 0;
+#endif
     initialized = 1;
     return NC_NOERR;
 }
@@ -170,11 +175,12 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 
     wholevar = iswholevar(common,slices);
 
-    if(OPTIMIZE && wholevar) {
+    if(optimize && wholevar) {
 	size64_t* chunkindices = nczodom_indices(chunkodom);
 
         /* Implement a whole var read optimization; this is a rare occurrence
-           where the variable has a single chunk and we are reading the whole chunk
+           where the variable has a single chunk and we are reading the whole chunk,
+	   possibly strided.
         */
 
 #if WDEBUG >= 1
@@ -197,7 +203,7 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	    /* Figure out memory address */
 	    unsigned char* memptr = ((unsigned char*)common->memory);
 	    unsigned char* slpptr = ((unsigned char*)chunkdata);
-	    transfern(common,slpptr,memptr,common->chunkcount,nczodom_laststride(slpodom),1,chunkdata);
+	    transfern(common,slpptr,memptr,common->chunkcount,slices[common->rank-1].stride,1,chunkdata);
 	goto done;
     }
 
@@ -257,7 +263,7 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 	   One currently implemented is the one that recognizes
 	   that the whole last slice can be accesses at one shot.
 	*/
-        if(OPTIMIZE) {
+        if(optimize) {
 	    nczodom_optimize(slpodom);
     	    nczodom_optimize(memodom);
 	    fprintf(stderr,"optimized\n");
