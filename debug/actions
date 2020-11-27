@@ -1,0 +1,5 @@
+curl -H "Accept: application/vnd.github.everest-preview+json" \
+    -H "Authorization: token 1851aa387742515f2c1ea79135e7421900f997d1" \
+    --request POST \
+    --data '{"event_type": "buildandtest"}' \
+    https://api.github.com/repos/DennisHeimbigner/netcdf-c/dispatches
