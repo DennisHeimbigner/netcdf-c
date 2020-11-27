@@ -1,6 +1,8 @@
 name: automake
 
 on:
+  push:
+    branches: [ build-master ]
   repository_dispatch:
     types: buildandtest
 
