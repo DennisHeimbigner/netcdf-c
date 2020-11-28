@@ -49,6 +49,9 @@ TESTS += test_fillonlyz.sh
 endif
 TESTS += run_it_test2.sh
 
+check_PROGRAMS += tst_chunkcases
+TESTS += test_chunkcases.sh
+
 endif #BUILD_UTILITIES
 
 ignorec = ut_allslices.c ut_transfer.c ut_vars.c ut_walk.c
@@ -100,15 +103,16 @@ ref_ut_mapapi_search_nz4.txt \
 ref_ut_mapapi_search_nzf.txt \
 ref_ut_mapapi_search_s3.txt \
 ref_perdimspecs.cdl \
-ref_fillonly.cdl test_fillonlyz.sh
+ref_fillonly.cdl test_fillonlyz.sh \
+test_chunkcases.sh ref_tmp_whole.cdl ref_tmp_whole.txt
 
 CLEANFILES = test.nzf test.nz4 test.nz4 \
 testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
 tst_chunks.nz4 tst_chunks2.nc.nz4 \
-ut_*.txt ut*.cdl tmp*.nc tmp*.cdl *.dmp test.nzf \
+ut_*.txt ut*.cdl tmp*.nc tmp*.cdl *.dmp tmp*.txt test.nzf \
 tst_chunks3.nc
 
 # Remove directories
 clean-local:
-	rm -fr tst_chunks.nzf tst_chunks2.nzf tst_perdimspecs.nzf testmap.nzf testmapapi.nzf test.nzf
+	rm -fr tst_chunks.nzf tst_chunks2.nzf tst_perdimspecs.nzf testmap.nzf testmapapi.nzf test.nzf tmp*.nzf
 	

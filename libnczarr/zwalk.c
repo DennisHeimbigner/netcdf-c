@@ -10,7 +10,7 @@
 
 static int initialized = 0;
 
-#define DFALTOPTIMIZE
+#undef DFALTOPTIMIZE
 
 static unsigned int optimize = 0;
 
@@ -176,7 +176,7 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
 
     wholevar = iswholevar(common,slices);
 
-    if(optimize && wholevar) {
+    if(wholevar) {
 	size64_t* chunkindices = nczodom_indices(chunkodom);
 
         /* Implement a whole var read optimization; this is a rare occurrence
@@ -185,7 +185,7 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
         */
 
 #if WDEBUG >= 1
-	fprintf(stderr,"case: optimized+wholevar:\n");
+	fprintf(stderr,"case: wholevar:\n");
 #endif
    	    /*  we are transfering the whole singular chunk */
 
