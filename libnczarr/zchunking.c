@@ -8,6 +8,7 @@ static int pcounter = 0;
 
 /* Forward */
 static int compute_intersection(const NCZSlice* slice, const size64_t chunklen, NCZChunkRange* range);
+static void skipchunk(const NCZSlice* slice, size64_t offset, NCZProjection* projection);
 
 /**************************************************/
 /* Goal:create a vector of chunk ranges: one for each slice in
@@ -48,12 +49,14 @@ compute_intersection(
 
 /**
 Compute the projection of a slice as applied to n'th chunk.
-This is somewhat complex because for the first projection, the
-start is the slice start, but after that, we have to take into
-account that for a non-one stride, the start point in a
-projection may be offset by some value in the range of
-0..(slice.stride-1).
+This is somewhat complex because:
+1. for the first projection, the start is the slice start,
+   but after that, we have to take into account that for
+   a non-one stride, the start point in a projection may
+   be offset by some value in the range of 0..(slice.stride-1).
+2. The stride might be so large as to completely skip some chunks.
 */
+
 int
 NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, size_t n, NCZProjection* projections)
 {
@@ -74,6 +77,13 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
     if(projection->limit > dimlen) projection->limit = dimlen;
     if(projection->limit > slice->stop) projection->limit = slice->stop;
 
+    /*  See if the next point after the last one in prev lands in the current projection.
+	If not, then we have skipped the current chunk. Also take limit into account. */
+    if((prev->last + slice->stride) - prev->limit >= projection->limit) { /* this chunk is being skipped */
+	skipchunk(slice,offset,projection);
+	goto done;
+    }
+
     if(n == 0) {
 	/*initial case: original slice start is in 1st projection */
 	projection->first = slice->start - offset;
@@ -82,6 +92,7 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
 //	NCZProjection* prev = &projections[n-1];
 	/* prevunused is the amount unused at end of the previous chunk.
 	   => we need to skip (slice->stride-prevunused) in this chunk */
+	   But watch out in case the stride completely skips this chunk.
         /* Compute limit of previous chunk */
 	size64_t rem = (offset - slice->start) % slice->stride;
         projection->first = 0;
@@ -111,6 +122,23 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
     projection->memslice.len = dimlen;
 //    projection->memslice.len = chunklen;
     return stat;
+}
+
+static void
+skipchunk(const NCZSlice* slice, size64_t offset, NCZProjection* projection)
+{
+    projection->first = 0;
+    projection->last = 0;
+    projection->iopos = ceildiv(offset - slice->start, slice->stride);
+    projection->iocount = 0;
+    projection->chunkslice.start = 0;
+    projection->chunkslice.stop = 0;
+    projection->chunkslice.stride = 1;
+    projection->chunkslice.len = 0;
+    projection->memslice.start = 0;
+    projection->memslice.stop = 0;
+    projection->memslice.stride = 1;
+    projection->memslice.len = 0;
 }
 
 /* Goal:
