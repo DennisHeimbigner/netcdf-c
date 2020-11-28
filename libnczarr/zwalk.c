@@ -10,7 +10,8 @@
 
 static int initialized = 0;
 
-#undef DFALTOPTIMIZE
+#define DFALTOPTIMIZE
+
 static unsigned int optimize = 0;
 
 /* Forward */
@@ -40,7 +41,7 @@ astype(int typesize, void* ptr)
 int
 ncz_chunking_init(void)
 {
-#ifdef OPTIMIZE
+#ifdef DFALTOPTIMIZE
     const char* eval = getenv("NCZ_NOOPTIMIZATION");
     optimize = (eval == NULL ? 1 : 0);
 #else
@@ -266,7 +267,9 @@ fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,c
         if(optimize) {
 	    nczodom_optimize(slpodom);
     	    nczodom_optimize(memodom);
+#if WDEBUG >= 1
 	    fprintf(stderr,"optimized\n");
+#endif
 	}
 
 #if WDEBUG >= 1
