@@ -1,4 +1,4 @@
-netcdf tmp {
+netcdf tmp_whole {
 dimensions:
 	d0 = 6 ;
 	d1 = 6 ;

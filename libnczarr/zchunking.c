@@ -4,6 +4,10 @@
  *********************************************************************/
 #include "zincludes.h"
 
+#define MAX(a,b) ((a)>(b)?(a):(b))
+#define MIN(a,b) ((a)<(b)?(a):(b))
+
+
 static int pcounter = 0;
 
 /* Forward */
@@ -58,12 +62,14 @@ This is somewhat complex because:
 */
 
 int
-NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, size_t n, NCZProjection* projections)
+NCZ_compute_projections(int r, size64_t dimlen, size64_t chunklen, size64_t chunkindex, const NCZSlice* slice, size_t n, NCZProjection* projections)
 {
     int stat = NC_NOERR;
     size64_t offset;
-    NCZProjection* projection;
-    
+    NCZProjection* projection = NULL;
+
+    NC_UNUSED(r);
+
     projection = &projections[n];
 
     projection->id = ++pcounter;
@@ -73,15 +79,26 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
 
     /* Actual limit of the n'th touched chunk, taking
        dimlen and stride->stop into account. */
+#if 0
     projection->limit = (chunkindex + 1) * chunklen; /* WRD */
-    if(projection->limit > dimlen) projection->limit = dimlen;
     if(projection->limit > slice->stop) projection->limit = slice->stop;
+    if(projection->limit > dimlen) projection->limit = dimlen;
+#else
+    projection->limit = MIN(MIN((chunkindex + 1) * chunklen,slice->stop),dimlen);
+#endif
 
+    
     /*  See if the next point after the last one in prev lands in the current projection.
-	If not, then we have skipped the current chunk. Also take limit into account. */
-    if((prev->last + slice->stride) - prev->limit >= projection->limit) { /* this chunk is being skipped */
-	skipchunk(slice,offset,projection);
-	goto done;
+	If not, then we have skipped the current chunk. Also take limit into account.
+	Note by definition, n must be greater than zero because we always start in a relevant chunk.
+	*/
+    if(n > 0) {
+        NCZProjection* prev =  &projections[n-1];
+	/* Watch out for negative value: want (prev->last + slice->stride) - prev->limit >= projection->limit */
+        if((prev->last + slice->stride) >= prev->limit + projection->limit) { /* this chunk is being skipped */
+	    skipchunk(slice,offset,projection);
+	    goto done;
+	}
     }
 
     if(n == 0) {
@@ -89,10 +106,7 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
 	projection->first = slice->start - offset;
 	projection->iopos = 0;
     } else { /* n > 0 */
-//	NCZProjection* prev = &projections[n-1];
-	/* prevunused is the amount unused at end of the previous chunk.
-	   => we need to skip (slice->stride-prevunused) in this chunk */
-	   But watch out in case the stride completely skips this chunk.
+        /* Compute start point in this chunk */
         /* Compute limit of previous chunk */
 	size64_t rem = (offset - slice->start) % slice->stride;
         projection->first = 0;
@@ -113,6 +127,8 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
     projection->chunkslice.len = chunklen;
 
     projection->iocount = ceildiv((projection->stop - projection->first),slice->stride);
+    /* Last place to be touched */
+    projection->last = projection->first + (slice->stride * (projection->iocount - 1));
 
     projection->memslice.start = projection->iopos;
     projection->memslice.stop = projection->iopos + projection->iocount;
@@ -121,6 +137,7 @@ NCZ_compute_projections(size64_t dimlen, size64_t chunklen, size64_t chunkindex,
 //    projection->memslice.len = projection->memslice.stop;
     projection->memslice.len = dimlen;
 //    projection->memslice.len = chunklen;
+done:
     return stat;
 }
 
@@ -172,7 +189,7 @@ NCZ_compute_per_slice_projections(
 
     /* Iterate over each chunk that intersects slice to produce projection */
     for(n=0,index=range->start;index<range->stop;index++,n++) {
-	if((stat = NCZ_compute_projections(dimlen, chunklen, index, slice, n, slp->projections)))
+	if((stat = NCZ_compute_projections(r,dimlen, chunklen, index, slice, n, slp->projections)))
 	    goto done;
     }
 

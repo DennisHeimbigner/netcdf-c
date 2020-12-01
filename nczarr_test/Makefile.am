@@ -104,7 +104,7 @@ ref_ut_mapapi_search_nzf.txt \
 ref_ut_mapapi_search_s3.txt \
 ref_perdimspecs.cdl \
 ref_fillonly.cdl test_fillonlyz.sh \
-test_chunkcases.sh ref_tmp_whole.cdl ref_tmp_whole.txt
+test_chunkcases.sh ref_whole.cdl ref_whole.txt ref_skip.cdl ref_skip.txt
 
 CLEANFILES = test.nzf test.nz4 test.nz4 \
 testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \

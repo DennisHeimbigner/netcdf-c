@@ -157,11 +157,11 @@ nczprint_odom(const NCZOdometer* odom)
     ncbytescat(buf," stop=");
     txt = nczprint_vector(odom->rank,odom->stop);
     ncbytescat(buf,txt);
-    ncbytescat(buf," stride=");
-    txt = nczprint_vector(odom->rank,odom->stride);
-    ncbytescat(buf,txt);
     ncbytescat(buf," len=");
     txt = nczprint_vector(odom->rank,odom->len);
+    ncbytescat(buf,txt);
+    ncbytescat(buf," stride=");
+    txt = nczprint_vector(odom->rank,odom->stride);
     ncbytescat(buf,txt);
     ncbytescat(buf," index=");
     txt = nczprint_vector(odom->rank,odom->index);
@@ -200,8 +200,6 @@ nczprint_projectionx(const NCZProjection proj, int raw)
     snprintf(value,sizeof(value),",first=%lu",(unsigned long)proj.first);
     ncbytescat(buf,value);
     snprintf(value,sizeof(value),",last=%lu",(unsigned long)proj.last);
-    ncbytescat(buf,value);
-    snprintf(value,sizeof(value),",len=%lu",(unsigned long)proj.len);
     ncbytescat(buf,value);
     snprintf(value,sizeof(value),",limit=%lu",(unsigned long)proj.limit);
     ncbytescat(buf,value);

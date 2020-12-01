@@ -15,6 +15,8 @@
 #endif
 
 #include "netcdf.h"
+#include "ncpathmgr.h"
+
 #ifdef HAVE_HDF5_H
 #include <hdf5.h>
 #include <H5DSpublic.h>
@@ -63,6 +65,8 @@ typedef struct Odometer {
 static char* captured[4096];
 static int ncap = 0;
 
+extern int nc__testurl(const char*,char**);
+
 Odometer* odom_new(size_t rank, const size_t* stop, const size_t* max);
 void odom_free(Odometer* odom);
 int odom_more(Odometer* odom);
@@ -77,7 +81,7 @@ usage(int err)
      if(err != 0) {
 	 fprintf(stderr,"Error: (%d) %s\n",err,nc_strerror(err));
      }
-     fprintf(stderr,"usage: ncdumpchunks <file> <var>\n");
+     fprintf(stderr,"usage: ncdumpchunks -v <var> <file> \n");
      fflush(stderr);
      exit(1);
 }
@@ -358,6 +362,35 @@ dump(Format* format)
     return 0;
 }
 
+
+static const char* urlexts[] = {"nzf", "nz4", NULL};
+
+static const char*
+filenamefor(const char* f0)
+{
+    static char result[4096];
+    const char** extp;
+    char* p;
+
+    strcpy(result,f0); /* default */
+    if(nc__testurl(f0,NULL)) goto done;
+    /* Not a URL */
+    p = strrchr(f0,'.'); /* look at the extension, if any */
+    if(p == NULL) goto done; /* No extension */
+    p++;
+    for(extp=urlexts;*extp;extp++) {
+        if(strcmp(p,*extp)==0) break;
+    }
+    if(*extp == NULL) goto done; /* not found */
+    /* Assemble the url */
+    strcpy(result,"file://");
+    strcat(result,f0); /* core path */
+    strcat(result,"#mode=nczarr,");
+    strcat(result,*extp);
+done:
+    return result;
+}
+
 int
 main(int argc, char** argv)
 {
@@ -393,14 +426,18 @@ main(int argc, char** argv)
 	exit(1);
     }
 
-    strcpy(format.file_name,argv[0]);
+    {
+        char* s = NCdeescape(argv[0]);
+	strcpy(format.file_name,filenamefor(s));
+	nullfree(s);
+    }
 
-    if(format.file_name == NULL || strlen(format.file_name) == 0) {
+    if(strlen(format.file_name) == 0) {
 	fprintf(stderr, "no input file specified\n");
 	exit(1);
     }
 
-    if(format.var_name == NULL || strlen(format.var_name) == 0) {
+    if(strlen(format.var_name) == 0) {
 	fprintf(stderr, "no input var specified\n");
 	exit(1);
     }
@@ -436,4 +473,3 @@ main(int argc, char** argv)
 
     return 0;
 }
-
