@@ -14,11 +14,12 @@ F="file://tmp_whole.nzf#mode=nczarr,nzf"
 #F=tmp_whole.nc
 echo "Test whole variable write then read"
 rm -f tmp_whole.txt tmp_whole.cdl
-$TC -d 6,6 -c 6,6 -X w -w $F
-$TC -d 6,6 -c 6,6 -X w -r $F > tmp_whole.txt
+$TC -d 6,6 -c 6,6 -X w -OWw $F
+$TC -d 6,6 -c 6,6 -X w -OWr $F > tmp_whole.txt
 diff -b ${srcdir}/ref_whole.txt tmp_whole.txt
 ${NCDUMP} $F > tmp_whole.cdl
 diff -b ${srcdir}/ref_whole.cdl tmp_whole.cdl
+exit
 
 # Test skipping whole chunks
 F="file://tmp_skip.nzf#mode=nczarr,nzf"

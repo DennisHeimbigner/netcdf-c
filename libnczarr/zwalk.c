@@ -4,7 +4,7 @@
  *********************************************************************/
 #include "zincludes.h"
 
-#undef WDEBUG
+#define WDEBUG
 #undef DFALTOPTIMIZE
 
 static int initialized = 0;
@@ -220,6 +220,10 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	    unsigned char* slpptr = ((unsigned char*)chunkdata);
 
 	    transfern(common,slpptr,memptr,common->chunkcount,1,1,chunkdata);
+	    if(zutest && zutest->tests & UTEST_WHOLEVAR)
+	        zutest->print(UTEST_WHOLEVAR, common);
+
+
 	goto done;
     }
 

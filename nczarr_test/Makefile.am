@@ -26,6 +26,7 @@ TESTS =
 check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking 
 
 commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
+tstcommonsrc = tst_utils.c tst_utils.h
 
 ut_map_SOURCES = ut_map.c ${commonsrc}
 ut_mapapi_SOURCES = ut_mapapi.c ${commonsrc}
@@ -50,6 +51,7 @@ endif
 TESTS += run_it_test2.sh
 
 check_PROGRAMS += tst_chunkcases
+tst_chunkcases_SOURCES = tst_chunkcases.c ${tstcommonsrc}
 TESTS += test_chunkcases.sh
 
 endif #BUILD_UTILITIES

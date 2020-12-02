@@ -21,6 +21,11 @@ IF(ENABLE_TESTS)
   IF(USE_X_GETOPT)
     SET(COMMONSRC ${COMMONSRC} XGetopt.c)
   ENDIF()
+  
+  SET(TSTCOMMONSRC tst_utils.c)
+  IF(USE_X_GETOPT)
+    SET(TSTCOMMONSRC ${TSTCOMMONSRC} XGetopt.c)
+  ENDIF()
 
   # Base tests
   # The tests are set up as a combination of shell scripts and executables that
@@ -54,7 +59,7 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(zisjson PUBLIC ../libnczarr)
   BUILD_BIN_TEST(zs3parse ${COMMONSRC})
   TARGET_INCLUDE_DIRECTORIES(zs3parse PUBLIC ../libnczarr)
-  BUILD_BIN_TEST(tst_chunkcases ${COMMONSRC})
+  BUILD_BIN_TEST(tst_chunkcases ${TSTCOMMONSRC})
   TARGET_INCLUDE_DIRECTORIES(tst_chunkcases PUBLIC ../libnczarr)
 
   IF(BUILD_UTILITIES)
