@@ -1,43 +1,126 @@
 name: automake
-
 on:
-  push:
-    branches: [ build-master ]
-  repository_dispatch:
-    types: buildandtest
+  workflow_dispatch:
 
 jobs:
-  build:
-
+  autotools:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        hdf5: [ 1.8.20, 1.10.7 ]
+        use_nc4: [ nc3, nc4 ]
+        use_dap: [ dap_off, dap_on ]
     steps:
-    - uses: actions/checkout@v2
-    - name: cache-hdf5-test
-      id: cache-hdf5-test
-      uses: actions/cache@v2
+    - name: Set up Included Actions
+      uses: actions/checkout@v2
+    - name: Install Conda ${{ matrix.hdf5 }}
+      uses: conda-incubator/setup-miniconda@v2
       with:
-        path: ~/hdf5
-        key: hdf5-${{ runner.os }}-1.10.7-test
+        activate-environment: ${{ matrix.hdf5 }}
+        environment-file: .github/workflows/conda-env/${{ matrix.hdf5 }}.txt
 
-    - name: build-hdf5
-      if: steps.cache-hdf5-test.outputs.cache-hit != 'true'
-      run: |
-        set -x
-        wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.10/hdf5-1.10.7/src/hdf5-1.10.7.tar.gz
-        tar -xzf hdf5-1.10.7.tar.gz
-        pushd hdf5-1.10.7
-        ./configure --prefix=/home/runner/hdf5 --disable-tools --disable-fortran --disable-cxx
-        make check
-        sudo make install
-        popd
-    - name: autoreconf
-      run: autoreconf -i --force
-    - name: configure
-      run: ./configure --enable-nczarr --disable-nczarr-s3 --disable-filter-testing
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+###
+# Set environmental variables (for configuring)
+###
+
+    - run: echo "ENABLE_NC4=--disable-netcdf-4" >> $GITHUB_ENV
+      if: matrix.use_nc4 == 'nc3'
+    - run: echo "ENABLE_NC4=--enable-netcdf-4" >> $GITHUB_ENV
+      if: matrix.use_nc4 == 'nc4'
+
+    - run: echo "ENABLE_DAP=--disable-dap" >> $GITHUB_ENV
+      if: matrix.use_dap == 'dap_off'
+    - run: echo "ENABLE_DAP=--enable-dap" >> $GITHUB_ENV
+      if: matrix.use_dap == 'dap_on'
+
+###
+# Configure and Build and Run Tests
+###
+
+    - name: Autoreconf
+      shell: bash -l {0}
+      run: autoreconf -if
+    - name: Configure
+      shell: bash -l {0}
+      run: ./configure ${ENABLE_NC4_AC} ${ENABLE_DAP}
+    - name: Build
+      shell: bash -l {0}
+      run: make -j && make check TESTS="" -j
+    - name: Test
+      shell: bash -l {0}
+      run: make check -j
+
+#####
+# End Autotools Testing
+#####
+
+#####
+# CMake Testing
+#####
+
+  cmake:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        hdf5: [ 1.8.20, 1.10.7 ]
+        use_nc4: [ nc3, nc4 ]
+        use_dap: [ dap_off, dap_on ]
+    steps:
+    - name: Set up Included Actions
+      uses: actions/checkout@v2
+    - name: Install Conda ${{ matrix.hdf5 }}
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        activate-environment: ${{ matrix.hdf5 }}
+        environment-file: .github/workflows/conda-env/${{ matrix.hdf5 }}.txt
+
+    #- name: Query User
+    #  run: whoami
+    #- name: Query System
+    #  run: uname -a
+    #- name: Directory Info
+    #  run: pwd && ls
+    #- name: Query Conda
+    #  shell: bash -l {0}
+    #  run: conda list
+    #- name: Query HDF5
+    #  shell: bash -l {0}
+    #  run: which h5dump
+    #- name: Run autoreconf
+    #  shell: bash -l {0}
+    #  run: autoreconf -if
+
+###
+# Set environmental variables (for configuring)
+###
+    - run: echo "CTEST_OUTPUT_ON_FAILURE=1" >> $GITHUB_ENV
+
+    - run: echo "ENABLE_NC_NC4=OFF" >> $GITHUB_ENV
+      if: matrix.use_nc4 == 'nc3'
+    - run: echo "ENABLE_NC_NC4=ON" >> $GITHUB_ENV
+      if: matrix.use_nc4 == 'nc4'
+
+    - run: echo "ENABLE_NC_DAP=OFF" >> $GITHUB_ENV
+      if: matrix.use_dap == 'dap_off'
+    - run: echo "ENABLE_NC_DAP=ON" >> $GITHUB_ENV
+      if: matrix.use_dap == 'dap_on'
+
+###
+# Configure and Build and Run Tests
+###
+
+    - name: Create build directory.
+      shell: bash -l {0}
+      run: mkdir build && cd build && pwd
+    #- name: Sanity Check
+    #  shell: bash -l {0}
+    #  run: pwd && ls && ls ..
+    - name: cmake
+      shell: bash -l {0}
+      run: cd build && cmake .. -DENABLE_NETCDF_4=${ENABLE_NC_NC4} -DENABLE_DAP=${ENABLE_NC_DAP}
+    - name: build
+      shell: bash -l {0}
+      run: cd build && make -j
+    - name: Test
+      shell: bash -l {0}
+      run: cd build && make test -j
