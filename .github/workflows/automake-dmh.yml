@@ -1,6 +1,6 @@
 name: automake
 on:
-  workflow_dispatch:
+  request_dispatch:
     types: buildandtest
 
 jobs:
