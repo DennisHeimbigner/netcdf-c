@@ -41,6 +41,7 @@ IF(ENABLE_TESTS)
   BUILD_BIN_TEST(tst_chunks2 ${COMMONSRC})
   BUILD_BIN_TEST(tst_chunks3 ${COMMONSRC})
   BUILD_BIN_TEST(tst_fillonlyz)
+  BUILD_BIN_TEST(tst_chunkcases ${TSTCOMMONSRC})
 
   TARGET_INCLUDE_DIRECTORIES(ut_map PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_mapapi PUBLIC ../libnczarr)
@@ -50,6 +51,7 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(tst_chunks PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(tst_chunks2 PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(tst_chunks3 PUBLIC ../libnczarr)
+  TARGET_INCLUDE_DIRECTORIES(tst_chunkcases PUBLIC ../libnczarr)
 
   # Helper programs for testing
   BUILD_BIN_TEST(zmapio ${COMMONSRC})
@@ -59,8 +61,8 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(zisjson PUBLIC ../libnczarr)
   BUILD_BIN_TEST(zs3parse ${COMMONSRC})
   TARGET_INCLUDE_DIRECTORIES(zs3parse PUBLIC ../libnczarr)
-  BUILD_BIN_TEST(tst_chunkcases ${TSTCOMMONSRC})
-  TARGET_INCLUDE_DIRECTORIES(tst_chunkcases PUBLIC ../libnczarr)
+  BUILD_BIN_TEST(ncdumpchunks})
+  TARGET_INCLUDE_DIRECTORIES(ncdumpchunks PUBLIC ../libnczarr)
 
   IF(BUILD_UTILITIES)
     add_sh_test(nczarr_test run_ut_map)
@@ -80,5 +82,5 @@ ENDIF(ENABLE_TESTS)
 
 ## Specify files to be distributed by 'make dist'
 FILE(GLOB CUR_EXTRA_DIST RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*.c ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.sh ${CMAKE_CURRENT_SOURCE_DIR}/*.cdl)
-SET(CUR_EXTRA_DIST ${CUR_EXTRA_DIST} CMakeLists.txt Makefile.am zmapio.c zhex.c)
+SET(CUR_EXTRA_DIST ${CUR_EXTRA_DIST} CMakeLists.txt Makefile.am zmapio.c zhex.c ncdumpchunks.c)
 ADD_EXTRA_DIST("${CUR_EXTRA_DIST}")

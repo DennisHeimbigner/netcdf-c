@@ -69,6 +69,14 @@ noinst_PROGRAMS += zisjson
 zisjson_SOURCES = zisjson.c
 noinst_PROGRAMS += zs3parse
 zs3parse_SOURCES = zs3parse.c
+noinst_PROGRAMS += zs3parse
+zs3parse_SOURCES = zs3parse.c
+
+# Given a netcdf4|NCZarr file, dump the actual chunk contents.
+# Used to validate nczarr chunking code.
+AM_CPPFLAGS += -I$(top_srcdir)/libnczarr
+noinst_PROGRAMS += ncdumpchunks
+ncdumpchunks_SOURCES = ncdumpchunks.c
 
 EXTRA_DIST = \
 run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_it_test1.sh run_it_test2.sh \
@@ -117,4 +125,3 @@ tst_chunks3.nc
 # Remove directories
 clean-local:
 	rm -fr tst_chunks.nzf tst_chunks2.nzf tst_perdimspecs.nzf testmap.nzf testmapapi.nzf test.nzf tmp*.nzf
-	
