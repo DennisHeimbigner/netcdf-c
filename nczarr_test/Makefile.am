@@ -69,8 +69,6 @@ noinst_PROGRAMS += zisjson
 zisjson_SOURCES = zisjson.c
 noinst_PROGRAMS += zs3parse
 zs3parse_SOURCES = zs3parse.c
-noinst_PROGRAMS += zs3parse
-zs3parse_SOURCES = zs3parse.c
 
 # Given a netcdf4|NCZarr file, dump the actual chunk contents.
 # Used to validate nczarr chunking code.
