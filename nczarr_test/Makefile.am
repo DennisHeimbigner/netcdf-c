@@ -44,21 +44,17 @@ TESTS += run_ut_chunk.sh
 if BUILD_UTILITIES
 
 if USE_HDF5
-TESTS += tst_nccopyz.sh
-TESTS += run_it_test1.sh
-TESTS += test_fillonlyz.sh
+TESTS += run_nccopyz.sh
+TESTS += run_fillonlyz.sh
 endif
-TESTS += run_it_test2.sh
+
+TESTS += run_ncgen4.sh
 
 check_PROGRAMS += tst_chunkcases
 tst_chunkcases_SOURCES = tst_chunkcases.c ${tstcommonsrc}
-TESTS += test_chunkcases.sh
+TESTS += run_chunkcases.sh
 
 endif #BUILD_UTILITIES
-
-ignorec = ut_allslices.c ut_transfer.c ut_vars.c ut_walk.c
-ignoresh = run_meta_tests.sh run_unittests.sh
-ignoreh = ut_varstest.h
 
 # These programs are used by the test cases
 noinst_PROGRAMS = zmapio
@@ -77,8 +73,9 @@ noinst_PROGRAMS += ncdumpchunks
 ncdumpchunks_SOURCES = ncdumpchunks.c
 
 EXTRA_DIST = \
-run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_it_test1.sh run_it_test2.sh \
-test_nczarr.sh tst_nccopyz.sh \
+run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh \
+run_ncgen4.sh \
+run_nccopyz.sh \
 ref_ut_map_readmeta_nzf.txt \
 ref_ut_map_writedata_nzf.cdl \
 ref_ut_map_writemeta_nzf.cdl \
@@ -111,8 +108,8 @@ ref_ut_mapapi_search_nz4.txt \
 ref_ut_mapapi_search_nzf.txt \
 ref_ut_mapapi_search_s3.txt \
 ref_perdimspecs.cdl \
-ref_fillonly.cdl test_fillonlyz.sh \
-test_chunkcases.sh ref_whole.cdl ref_whole.txt ref_skip.cdl ref_skip.txt
+ref_fillonly.cdl run_fillonlyz.sh \
+run_chunkcases.sh ref_whole.cdl ref_whole.txt ref_skip.cdl ref_skip.txt
 
 CLEANFILES = test.nzf test.nz4 test.nz4 \
 testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
