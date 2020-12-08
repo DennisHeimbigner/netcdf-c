@@ -61,7 +61,12 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(zisjson PUBLIC ../libnczarr)
   BUILD_BIN_TEST(zs3parse ${COMMONSRC})
   TARGET_INCLUDE_DIRECTORIES(zs3parse PUBLIC ../libnczarr)
-  BUILD_BIN_TEST(ncdumpchunks)
+  
+  SET(ncdumpchunks_SOURCE ncdumpchunks.c)
+  IF(USE_X_GETOPT)
+    SET(ncdumpchunks_SOURCE ${ncdumpchunks_SOURCE} XGetopt.c)
+  ENDIF()
+  BUILD_BIN_TEST(ncdumpchunks ${ncdumpchunks_SOURCE})
   TARGET_INCLUDE_DIRECTORIES(ncdumpchunks PUBLIC ../libnczarr)
 
   IF(BUILD_UTILITIES)

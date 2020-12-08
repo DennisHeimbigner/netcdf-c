@@ -8,7 +8,13 @@
 #include <ncpathmgr.h>
 #include <nclist.h>
 
+#ifdef HAVE_GETOPT_H
 #include <getopt.h>
+#endif
+
+#ifdef _WIN32
+#include "XGetopt.h"
+#endif
 
 #ifdef HAVE_HDF5_H
 #include <hdf5.h>
@@ -121,6 +127,7 @@ getoptions(int* argcp, char*** argvp)
 	nullfree(p);
     }
 
+#ifndef _WIN32
     if(options->wdebug) {
 	char s[64];
 	snprintf(s,sizeof(s),"%u",options->wdebug);
@@ -131,6 +138,7 @@ getoptions(int* argcp, char*** argvp)
     } else {
         setenv("NCZ_NOOPTIMIZE","1",1);
     }
+#endif
 
     /* Default some vectors */
     if(!(options->flags & HAS_DIMLENS)) {for(i=0;i<NC_MAX_VAR_DIMS;i++) {options->dimlens[i] = 4;}}
