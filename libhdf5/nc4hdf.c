@@ -19,6 +19,7 @@
 #include "nc4internal.h"
 #include "ncdispatch.h"
 #include "hdf5internal.h"
+#include "hdf5err.h" /* For BAIL2 */
 #include "hdf5debug.h"
 #include <math.h>
 

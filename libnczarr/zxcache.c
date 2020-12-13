@@ -14,6 +14,8 @@
 #include "zcache.h"
 #include "ncxcache.h"
 
+extern void verifylru(NCxcache* cache);
+
 #undef DEBUG
 
 #undef FILLONREAD
@@ -27,7 +29,7 @@
 static int get_chunk(NCZChunkCache* cache, NCZCacheEntry* entry);
 static int put_chunk(NCZChunkCache* cache, const NCZCacheEntry*);
 static int create_chunk(NCZChunkCache* cache, NCZCacheEntry* entry);
-static int buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp);
+//static int buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp);
 static int makeroom(NCZChunkCache* cache);
 
 /**************************************************/
@@ -242,20 +244,24 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
     /* the hash key */
     hkey = ncxcachekey(indices,sizeof(size64_t)*cache->ndims);
     /* See if already in cache */
-    switch (stat = ncxcachelookup(cache->xcache,hkey,(void**)&entry)) {
+verifylru(cache->xcache);
+    stat = ncxcachelookup(cache->xcache,hkey,(void**)&entry);
+    switch(stat) {
     case NC_NOERR:
         /* Move to front of the lru */
-	(void)ncxcachetouch(cache->xcache,hkey);
-	break;
+        (void)ncxcachetouch(cache->xcache,hkey);
+        break;
     case NC_ENOTFOUND:
         entry = NULL; /* not found; */
 	break;
     default: goto done;
     }
+verifylru(cache->xcache);
 
     if(entry == NULL) { /*!found*/
 	/* Make room in the cache */
 	if((stat=makeroom(cache))) goto done;
+verifylru(cache->xcache);
 	/* Create a new entry */
 	if((entry = calloc(1,sizeof(NCZCacheEntry)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
@@ -268,6 +274,7 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
         entry->hashkey = hkey;
 	/* Try to read the object in toto */
 	stat=get_chunk(cache,entry);
+verifylru(cache->xcache);
 	switch (stat) {
 	case NC_NOERR: break;
 	case NC_EEMPTY:
@@ -289,6 +296,7 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
 	}
         nclistpush(cache->mru,entry);
 	if((stat = ncxcacheinsert(cache->xcache,entry->hashkey,entry))) goto done;
+assert(entry->list.prev != NULL);
     }
 #ifdef DEBUG
 fprintf(stderr,"|cache.read.lru|=%ld\n",nclistlength(cache->mru));
@@ -436,7 +444,7 @@ columns 4000-5000 and is stored under the key "2.4"; etc."
  * @param chunkindices The chunk indices
  * @param keyp Return the chunk key string
  */
-static int
+int
 buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp)
 {
     int stat = NC_NOERR;

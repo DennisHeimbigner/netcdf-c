@@ -7,7 +7,14 @@ set -e
 
 alias zc='../ncdump/.libs/ncdumpchunks -v v'
 
-TC="${execdir}/tst_chunkcases -4"
+#TC="${execdir}/tst_chunkcases -4"
+TC="${execdir}/tst_chunkcases"
+
+#F="file://tmp_xxx.nzf#mode=nczarr,nzf"
+F=tmp_xxx.nc
+echo "Test BM case"
+$TC -d 32,90,91 -c 8,10,13 -f 0,0,0 -p 32,1,91 -X wd4 -Ow $F
+exit
 
 # Test whole variable write and read
 F="file://tmp_whole.nzf#mode=nczarr,nzf"

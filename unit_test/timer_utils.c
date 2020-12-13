@@ -25,6 +25,8 @@
 
 #undef DEBUG
 
+static int NCT_initialized = 0;
+
 #ifdef _WIN32
 LARGE_INTEGER frequency;
 LARGE_INTEGER starttime;
@@ -32,6 +34,7 @@ LARGE_INTEGER starttime;
 void
 NCT_inittimer(void)
 {
+    if(NCT_initialized) return;
     fprintf(stderr,"timer mechanism: QueryPerformanceCounter\n");
     LARGE_INTEGER li;
     (void)QueryPerformanceFrequency(&frequency);
@@ -39,11 +42,13 @@ NCT_inittimer(void)
 #ifdef DEBUG
 fprintf(stderr,"frequency=%lld starttime=%lld\n",frequency.QuadPart,starttime.QuadPart);
 #endif
+    NCT_initialized = 1;
 }
 #else
 void
 NCT_inittimer(void)
 {
+    if(NCT_initialized) return;
 #ifdef HAVE_CLOCK_GETTIME
     fprintf(stderr,"timer mechanism: clock_gettime\n");
 #elif defined HAVE_GETTIMEOFDAY
@@ -53,6 +58,7 @@ NCT_inittimer(void)
 #else
     fprintf(stderr,"timer mechanism: Unknown\n");
 #endif
+    NCT_initialized = 1;
 }
 #endif
 

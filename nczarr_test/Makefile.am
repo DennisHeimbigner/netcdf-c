@@ -36,6 +36,7 @@ ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
 
 check_PROGRAMS += tst_chunks tst_chunks2 tst_chunks3 tst_fillonlyz
 
+if AX_IGNORE
 TESTS += run_ut_map.sh
 TESTS += run_ut_mapapi.sh
 TESTS += run_ut_misc.sh
@@ -53,6 +54,22 @@ TESTS += run_ncgen4.sh
 check_PROGRAMS += tst_chunkcases
 tst_chunkcases_SOURCES = tst_chunkcases.c ${tstcommonsrc}
 TESTS += run_chunkcases.sh
+endif
+
+endif #AX_IGNORE
+
+#if BUILD_BENCHMARKS
+if BUILD_UTILITIES 
+
+UTILSRC = bm_utils.c timer_utils.c
+
+bm_chunks3_SOURCES = bm_chunks3.c ${UTILSRC}
+
+check_PROGRAMS += bm_chunks3
+
+TESTS += run_perf_chunks1.sh
+
+#endif # BUILD_BENCHMARKS
 
 endif #BUILD_UTILITIES
 

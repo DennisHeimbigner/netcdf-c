@@ -1684,6 +1684,8 @@ AM_CONDITIONAL([AX_IGNORE], [test xno = xyes])
 
 AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)
+AC_CONFIG_FILES(nczarr_test/timer_utils.h:unit_test/timer_utils.h)
+AC_CONFIG_FILES(nczarr_test/timer_utils.c:unit_test/timer_utils.c)
 AC_CONFIG_FILES(nc_test4/findplugin.sh:nc_test4/findplugin.in)
 AC_CONFIG_FILES(examples/C/findplugin.sh:nc_test4/findplugin.in)
 AC_CONFIG_FILES(ncdap_test/findtestserver.c:ncdap_test/findtestserver.c.in)

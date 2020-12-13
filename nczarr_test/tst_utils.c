@@ -7,6 +7,7 @@
 #include <netcdf.h>
 #include <ncpathmgr.h>
 #include <nclist.h>
+#include <ncuri.h>
 
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
@@ -47,11 +48,13 @@ getoptions(int* argcp, char*** argvp)
     const char* p;
 
     /* initialize */
-
     if(options == NULL) {
         if((options = calloc(1,sizeof(Options))) == NULL)
 	    {ret = NC_ENOMEM; goto done;}
     }
+    /* Set defaults */
+    options->mode = 0; /* classic netcdf-3 */
+
     while ((c = getopt(*argcp, *argvp, "34c:d:e:f:n:m:p:s:D:X:O:")) != EOF) {
 	switch(c) {
 	case '3':
@@ -127,6 +130,22 @@ getoptions(int* argcp, char*** argvp)
 	nullfree(p);
     }
 
+    /* Figure out the FORMATX for this file */
+    if(options->file) {
+	NCURI* uri = NULL;
+	ncuriparse(options->file,&uri);
+	if(uri == NULL) { /* not a url */
+	    switch (options->mode) {
+	    default: /* fall thru to default */
+	    case 0: options->formatx = NC_FORMATX_NC3; break;
+    	    case NC_NETCDF4: options->formatx = NC_FORMATX_NC4; break;
+	    }
+	} else {
+	    options->formatx = NC_FORMATX_NCZARR; /* assume */
+	    ncurifree(uri);
+	}
+    }
+
 #ifndef _WIN32
     if(options->wdebug) {
 	char s[64];
@@ -197,7 +216,7 @@ getmetadata(int create)
         }
         if((ret = nc_def_var(meta->ncid,"v",NC_INT,options->rank,meta->dimids,&meta->varid))) goto done;
         if((ret = nc_def_var_fill(meta->ncid,meta->varid,0,&meta->fill))) goto done;
-        if(options->mode == NC_NETCDF4) {
+        if(options->formatx == NC_FORMATX_NC4 || options->formatx == NC_FORMATX_NCZARR) {
             if((ret = nc_def_var_chunking(meta->ncid,meta->varid,NC_CHUNKED,options->chunks))) goto done;
         }
         if((ret = nc_enddef(meta->ncid))) goto done;

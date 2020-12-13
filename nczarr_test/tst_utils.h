@@ -25,6 +25,7 @@ typedef struct Options {
     int wholevar;
     Op op;
     int mode;
+    int formatx;
     int rank;
     char file[1024];
     unsigned flags; 

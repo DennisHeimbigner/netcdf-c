@@ -1896,6 +1896,10 @@ ENDIF()
 
 IF(ENABLE_NCZARR)
   ADD_SUBDIRECTORY(libnczarr)
+  FILE(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.h
+       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+  FILE(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.c
+       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
 ENDIF()
 
 add_subdirectory(liblib)

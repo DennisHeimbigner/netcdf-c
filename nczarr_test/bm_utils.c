@@ -33,6 +33,7 @@ static struct option options[] = {
 {"f", 1, NULL, OPT_FILE},
 {"X", 1, NULL, OPT_X},
 {"D", 0, NULL, OPT_DEBUG},
+{"W", 1, NULL, OPT_WDEBUG},
 {"dims", 1, NULL, OPT_DIMS},
 {"chunks", 1, NULL, OPT_CHUNKS},
 {"cachesize", 1, NULL, OPT_CACHESIZE},
@@ -45,6 +46,7 @@ struct Options bmoptions;
 static char* dumpintlist(struct IntList* list);
 static int parseintlist(const char* s0, struct IntList* list);
 
+#if 0
 /** Subtract the `struct timeval' values X and Y, storing the result in
    RESULT.  Return 1 if the difference is negative, otherwise 0.  This
    function from the GNU documentation. */
@@ -71,6 +73,7 @@ nc4_timeval_subtract (struct timeval *result, struct timeval *x, struct timeval*
    /* Return 1 if result is negative. */
    return x->tv_sec < y->tv_sec;
 }
+#endif
 
 int
 nc4_buildpath(struct Options* o, char** pathp)
@@ -157,6 +160,9 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
   	    case OPT_DEBUG:
 		opt->debug = 1;
 	        break;
+  	    case OPT_WDEBUG:
+		opt->wdebug = atoi(optarg);
+	        break;
   	    case OPT_CACHESIZE:
 		opt->meta.cachesize = atoi(optarg);
 	        break;
@@ -200,6 +206,14 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
     argc -= optind;
     argv += optind;
 
+#ifndef _WIN32
+    if(opt->wdebug) {
+	char s[64];
+	snprintf(s,sizeof(s),"%u",opt->wdebug);
+        setenv("NCZ_WDEBUG",s,1);
+    }
+#endif
+
     *argcp = argc;
     *argvp = argv;
     return NC_NOERR;
@@ -220,8 +234,9 @@ formatname(const struct Options* o)
     switch (o->format) {
     case NC_FORMATX_NCZARR: return (o->iss3?"s3":"nzf");
     case NC_FORMATX_NC4: /* fall thru */
-    default:
 	return "nc4";
+    default:
+	abort();
     }
     return NULL;
 }
@@ -301,4 +316,58 @@ done:
    nullfree(s);
    nullfree(list);
    return stat;
+}
+
+void
+nccheck(int stat, int line)
+{
+    if(stat) {
+        fprintf(stderr,"%d: %s\n",line,nc_strerror(stat));
+        fflush(stderr);
+        exit(1);
+    }
+}
+
+const char*
+bm_printvector(int rank, const size_t* vec)
+{
+    static char s[NC_MAX_VAR_DIMS*3+1];
+    int i;
+
+    s[0] = '\0';
+    for(i=0;i<rank;i++) {
+        char e[16];
+	snprintf(e,sizeof(e),"%02u",(unsigned)vec[i]);
+	if(i > 0) strcat(s,",");
+	strcat(s,e);
+    }
+    return s;
+}
+
+const char*
+bm_printvectorp(int rank, const ptrdiff_t* vec)
+{
+    size_t v[NC_MAX_VAR_DIMS];
+    int i;
+    for(i=0;i<rank;i++) v[i] = (size_t)vec[i];
+    return bm_printvector(rank,v);
+}
+
+const char*
+bm_varasprint(int rank, const size_t* start, const size_t* edges, const ptrdiff_t* stride)
+{
+    static char s[4096];
+    static char tmp[4096];
+    const char* sv;
+    
+    s[0] = '\0';
+    if(stride == NULL) strcat(s,"vara{"); else strcat(s,"vars{");
+    snprintf(tmp,sizeof(tmp),"rank=%u",(unsigned)rank); strcat(s,tmp);    
+    strcat(s," start=("); sv = bm_printvector(rank,start); strcat(s,sv); strcat(s,")");
+    strcat(s," edges=("); sv = bm_printvector(rank,edges); strcat(s,sv); strcat(s,")");
+    if(stride != NULL) {
+        strcat(s," stride=("); sv = bm_printvectorp(rank,stride); strcat(s,sv); strcat(s,")");
+    }
+    strcat(s,"}");
+    return s;
 }

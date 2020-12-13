@@ -172,6 +172,9 @@ nczprint_odom(const NCZOdometer* odom)
     ncbytescat(buf," avail=");
     snprintf(value,sizeof(value),"%llu",nczodom_avail(odom));
     ncbytescat(buf,value);
+    ncbytescat(buf," more=");
+    snprintf(value,sizeof(value),"%d",nczodom_more(odom));
+    ncbytescat(buf,value);
     
     ncbytescat(buf,"}");
     result = ncbytesextract(buf);

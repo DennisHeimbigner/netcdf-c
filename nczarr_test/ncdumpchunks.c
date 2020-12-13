@@ -235,13 +235,13 @@ printchunk(Format* format, int* chunkdata)
 int
 dump(Format* format)
 {
-    int i;
     int* chunkdata = NULL; /*[CHUNKPROD];*/
     Odometer* odom = NULL;
     int r;
     size_t offset[NC_MAX_VAR_DIMS];
     int holechunk = 0;
 #ifdef H5
+    int i;
     hid_t fileid, grpid, datasetid;
     hid_t dxpl_id = H5P_DEFAULT; /*data transfer property list */
     unsigned int filter_mask = 0;

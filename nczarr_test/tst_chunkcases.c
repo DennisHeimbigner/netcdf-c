@@ -29,7 +29,8 @@
 
 static unsigned chunkprod;
 static unsigned dimprod;
-static int data[10000];
+static int* data = NULL;
+static size_t datasize = 0;
 
 static int setupwholevar(void);
 static int reportwholevar(void);
@@ -44,13 +45,10 @@ writedata(void)
     if((ret = getmetadata(1)))
         ERR(ret);
 
-    for(i=0;i<dimprod;i++) {
-	data[i] = i;
-    }
+    for(i=0;i<dimprod;i++) data[i] = i;
  
-    if(options->wholevar) {
+    if(options->wholevar)
         setupwholevar();
-    }
 
     if(options->debug >= 1) {
         fprintf(stderr,"write: dimlens=%s chunklens=%s\n",
@@ -84,7 +82,7 @@ readdata(void)
     if((ret = getmetadata(0)))
         ERR(ret);
 
-    memset(data,0,sizeof(data));
+    memset(data,0,datasize);
 
     if(options->wholevar) {
         setupwholevar();
@@ -211,6 +209,10 @@ main(int argc, char** argv)
     chunkprod = 1;
     for(i=0;i<options->rank;i++) {dimprod *= options->dimlens[i]; chunkprod *= options->chunks[i];}
 
+    datasize = dimprod*sizeof(int);
+    if((data = calloc(1,datasize)) == NULL)
+        {fprintf(stderr,"out of memory\n"); exit(1);}
+
     switch (options->op) {
     case Read: readdata(); break;
     case Write: writedata(); break;
@@ -220,6 +222,7 @@ main(int argc, char** argv)
 	exit(1);
     }
 done:
+    if(data) free(data);
     cleanup();
     return 0;
 }

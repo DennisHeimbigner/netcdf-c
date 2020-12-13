@@ -115,7 +115,11 @@ nczodom_offset(const NCZOdometer* odom)
 
     offset = 0;
     for(i=0;i<rank;i++) {
+#if 1
         offset *= odom->len[i];
+#else
+        offset *= odom->stop[i];
+#endif
         offset += odom->index[i];
     } 
     return offset;
