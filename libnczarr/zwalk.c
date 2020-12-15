@@ -53,7 +53,7 @@ ncz_chunking_init(void)
     val = getenv("NCZ_WDEBUG");
     wdebug = (val == NULL ? 0 : atoi(val));
 #ifdef WDEBUG
-fprintf(stderr,"wdebug=%u\n",wdebug);
+    if(wdebug > 0) fprintf(stderr,"wdebug=%u\n",wdebug);
 #endif
     initialized = 1;
     return NC_NOERR;

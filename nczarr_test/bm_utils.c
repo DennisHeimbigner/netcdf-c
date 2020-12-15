@@ -144,7 +144,7 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
 	        opt->pathtemplate = strdup(optarg);
 	        break;
 	    case OPT_FORMAT:
-		if(strcasecmp(optarg,"nc4")==0)
+		if(strcasecmp(optarg,"nz4")==0)
 		    opt->format = NC_FORMATX_NC4;
 		else if(strcasecmp(optarg,"nzf")==0)
 		    opt->format = NC_FORMATX_NCZARR;
@@ -234,7 +234,7 @@ formatname(const struct Options* o)
     switch (o->format) {
     case NC_FORMATX_NCZARR: return (o->iss3?"s3":"nzf");
     case NC_FORMATX_NC4: /* fall thru */
-	return "nc4";
+	return "nz4";
     default:
 	abort();
     }

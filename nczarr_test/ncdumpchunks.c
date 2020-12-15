@@ -404,7 +404,7 @@ main(int argc, char** argv)
     memset(&format,0,sizeof(format));
 
     while ((c = getopt(argc, argv, "v:D")) != EOF) {
-	switch(c) {
+    switch(c) {
 	case 'v':
 	    strcpy(format.var_name,optarg);
 	    break;

@@ -7,8 +7,6 @@ Research/Unidata. See COPYRIGHT file for more info.
 
 #include "ncdispatch.h"
 
-#define VSDEBUG 0
-
 struct PUTodometer {
     int            rank;
     size_t         index[NC_MAX_VAR_DIMS];
@@ -79,68 +77,6 @@ odom_next(struct PUTodometer* odom)
     return 1;
 }
 
-#if VSDEBUG > 0
-static const char*
-printvector(int rank, const size_t* vec)
-{
-    static char s[NC_MAX_VAR_DIMS*3+1];
-    int i;
-
-    s[0] = '\0';
-    for(i=0;i<rank;i++) {
-        char e[16];
-	snprintf(e,sizeof(e),"%02u",(unsigned)vec[i]);
-	if(i > 0) strcat(s,",");
-	strcat(s,e);
-    }
-    return s;
-}
-
-static const char*
-odom_print(struct PUTodometer* odom)
-{
-    static char s[4096];
-    static char tmp[4096];
-    const char* sv;
-    
-    s[0] = '\0';
-    strcat(s,"{");
-    snprintf(tmp,sizeof(tmp),"rank=%u",(unsigned)odom->rank); strcat(s,tmp);    
-    strcat(s," indices=("); sv = printvector(odom->rank,odom->index); strcat(s,sv); strcat(s,")");
-    strcat(s," start=("); sv = printvector(odom->rank,odom->start); strcat(s,sv); strcat(s,")");
-    strcat(s," edges=("); sv = printvector(odom->rank,odom->edges); strcat(s,sv); strcat(s,")");
-    strcat(s," stop=("); sv = printvector(odom->rank,odom->stop); strcat(s,sv); strcat(s,")");
-    strcat(s," stride=("); sv = printvector(odom->rank,odom->stride); strcat(s,sv); strcat(s,")");
-    strcat(s,"}");
-    return s;
-}
-
-static const char*
-varasprint(int rank, const size_t* start, const size_t* edges, const ptrdiff_t* stride)
-{
-    static char s[4096];
-    static char tmp[4096];
-    const char* sv;
-    size_t sstride[NC_MAX_VAR_DIMS];
-
-    if(stride != NULL) {
-	int i;
-	for(i=0;i<rank;i++) sstride[i] = (size_t)stride[i];
-    }
-    
-    s[0] = '\0';
-    if(stride == NULL) strcat(s,"vara{"); else strcat(s,"vars{");
-    snprintf(tmp,sizeof(tmp),"rank=%u",(unsigned)rank); strcat(s,tmp);    
-    strcat(s," start=("); sv = printvector(rank,start); strcat(s,sv); strcat(s,")");
-    strcat(s," edges=("); sv = printvector(rank,edges); strcat(s,sv); strcat(s,")");
-    if(stride != NULL) {
-        strcat(s," stride=("); sv = printvector(rank,sstride); strcat(s,sv); strcat(s,")");
-    }
-    strcat(s,"}");
-    return s;
-}
-#endif
-
 /** \internal
 \ingroup variables
 */
@@ -158,13 +94,6 @@ NC_put_vara(int ncid, int varid, const size_t *start,
       stat = NC_check_nulls(ncid, varid, start, &my_count, NULL);
       if(stat != NC_NOERR) return stat;
    }
-#if VSDEBUG >= 2
-   {
-       int rank;
-       nc_inq_varndims(ncid, varid, &rank);
-      fprintf(stderr,"NCDEFAULT: %s\n",varasprint(rank,start,edges,NULL));
-   }
-#endif
    stat = ncp->dispatch->put_vara(ncid, varid, start, my_count, value, memtype);
    if(edges == NULL) free(my_count);
    return stat;
@@ -265,10 +194,6 @@ NCDEFAULT_put_vars(int ncid, int varid, const size_t * start,
    isrecvar = (nrecdims > 0);
    NC_getshape(ncid,varid,rank,varshape);
 
-#if VSDEBUG >= 2
-      fprintf(stderr,"NCDEFAULT: %s\n",varasprint(rank,start,edges,stride));
-#endif
-
    /* Optimize out using various checks */
    if (rank == 0) {
       /*
@@ -331,9 +256,6 @@ NCDEFAULT_put_vars(int ncid, int varid, const size_t * start,
    }
    
    if(isstride1) {
-#if VSDEBUG >= 2
-      fprintf(stderr,"\t%s\n",varasprint(rank,mystart,myedges,NULL));
-#endif
       return NC_put_vara(ncid, varid, mystart, myedges, value, memtype);
    }
 
@@ -357,10 +279,6 @@ NCDEFAULT_put_vars(int ncid, int varid, const size_t * start,
    while(odom_more(&odom)) {
       int localstatus = NC_NOERR;
       /* Write a single value */
-#if VSDEBUG >= 1
-      fprintf(stderr,"\t%s\n",odom_print(&odom));
-      fprintf(stderr,"\t%s\n",varasprint(rank,odom.index,NC_coord_one,NULL));
-#endif
       localstatus = NC_put_vara(ncid,varid,odom.index,NC_coord_one,memptr,memtype);
       /* So it turns out that when get_varm is used, all errors are
          delayed and ERANGE will be overwritten by more serious errors.

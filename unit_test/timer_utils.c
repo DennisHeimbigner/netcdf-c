@@ -35,7 +35,9 @@ void
 NCT_inittimer(void)
 {
     if(NCT_initialized) return;
+#ifdef DEBUG
     fprintf(stderr,"timer mechanism: QueryPerformanceCounter\n");
+#endif
     LARGE_INTEGER li;
     (void)QueryPerformanceFrequency(&frequency);
     QueryPerformanceCounter(&starttime);
@@ -49,15 +51,17 @@ void
 NCT_inittimer(void)
 {
     if(NCT_initialized) return;
-#ifdef HAVE_CLOCK_GETTIME
+#ifdef DEBUG
+#if defined HAVE_CLOCK_GETTIME
     fprintf(stderr,"timer mechanism: clock_gettime\n");
-#elif defined HAVE_GETTIMEOFDAY
+#elif defined HAVE_GETTIMEOFDAY 
     fprintf(stderr,"timer mechanism: gettimeofday\n");
 #elif defined HAVE_GETRUSAGE
     fprintf(stderr,"timer mechanism: getrusage\n");
 #else
     fprintf(stderr,"timer mechanism: Unknown\n");
 #endif
+#endif /*DEBUG*/
     NCT_initialized = 1;
 }
 #endif

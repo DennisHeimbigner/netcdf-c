@@ -46,7 +46,7 @@ RESULTSDIR="./results"
 runtestset() {
 extfor $1
 echo "*** Testing nczarr X ncgen with zmap=${zext}"
-deletemap $zext ${RESULTSDIR}.$zext
+rm -fr ${RESULTSDIR}.$zext
 mkdir ${RESULTSDIR}.${zext}
 cd ${RESULTSDIR}.${zext}
 difftest

@@ -134,8 +134,8 @@ NCZ_compute_projections(int r, size64_t dimlen, size64_t chunklen, size64_t chun
     projection->memslice.stop = projection->iopos + projection->iocount;
 //    projection->memslice.stride = 1;
     projection->memslice.stride = slice->stride;
-//    projection->memslice.len = projection->memslice.stop;
-    projection->memslice.len = dimlen;
+    projection->memslice.len = projection->memslice.stop;
+//    projection->memslice.len = dimlen;
 //    projection->memslice.len = chunklen;
 done:
     return stat;

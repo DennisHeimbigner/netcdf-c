@@ -5,7 +5,7 @@ if test "x$SETX" != x; then set -x; fi
 ZMD="${execdir}/zmapio"
 
 awsdelete() {
-aws s3api delete-object --endpoint-url=https://stratus.ucar.edu --bucket=unidata-netcdf-zarr-testing --key "$1"
+aws s3api delete-object --endpoint-url=https://stratus.ucar.edu --bucket=unidata-netcdf-zarr-testing --key="$1"
 }
 
 # Check settings
@@ -50,7 +50,7 @@ deletemap() {
     case "$1" in
     nz4) rm -fr $2;;
     nzf) rm -fr $2;;
-    s3) awsdelete $2;;
+    s3) S3KEY=`${execdir}/zs3parse -k $2`; awsdelete $S3KEY;;
     *) echo "unknown kind: $1" ; exit 1;;
     esac
 }
@@ -82,7 +82,7 @@ fileargs() {
     file=$fileurl
     S3HOST=`${execdir}/zs3parse -h $S3PATH`
     S3BUCKET=`${execdir}/zs3parse -b $S3PATH`
-    S3PREFIX=`${execdir}/zs3parse -p $S3PATH`
+    S3PREFIX=`${execdir}/zs3parse -k $S3PATH`
   else
     file="${f}.$zext"
     fileurl="file://${f}.$zext#mode=nczarr,$zext"
@@ -129,7 +129,7 @@ for t in ${TESTS} ; do
    # determine properties
    checkprops ${t}
    ref="ref_${t}"
-   deletemap $zext ${t}.$zext
+   rm -fr ${t}.$zext
    rm -f ${t}.dmp
    fileargs $t
    ${NCGEN} -4 -lb -o ${fileurl} ${cdl}/${ref}.cdl
