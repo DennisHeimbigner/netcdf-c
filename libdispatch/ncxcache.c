@@ -62,6 +62,7 @@ static int throw(int x)
 static void insertafter(NCxnode* current, NCxnode* node);
 static void unlinknode(NCxnode* node);
 
+#if DEBUG > 0
 void verifylru(NCxcache* cache);
 
 static void
@@ -80,6 +81,7 @@ verifylru(NCxcache* cache)
 	}
     }
 }
+#endif
 
 /* Locate object by hashkey in an NCxcache */
 int
@@ -109,17 +111,16 @@ ncxcachetouch(NCxcache* cache, ncexhashkey_t hkey)
     NCxnode* node = NULL;
 
     if(cache == NULL) return THROW(NC_EINVAL);
-verifylru(cache);
     if((stat=ncexhashget(cache->map,hkey,&inode)))
         {stat = THROW(NC_ENOTFOUND); goto done;} /* not present */
     node = (void*)inode;
     /* unlink */
-verifylru(cache);
     unlinknode(node);
     /* Relink into front of chain */
-verifylru(cache);
     insertafter(&cache->lru,node);
+#if DEBUG > 0
 verifylru(cache);
+#endif
 
 done:
     return stat;
@@ -146,9 +147,10 @@ ncxcacheinsert(NCxcache* cache, const ncexhashkey_t hkey, void* o)
     if(stat)
 	goto done;
     /* link into the LRU chain at front */
-verifylru(cache);
     insertafter(&cache->lru,node);
+#if DEBUG > 0
 verifylru(cache);
+#endif
     node = NULL;
 done:
 #ifndef NCXUSER
@@ -172,9 +174,10 @@ ncxcacheremove(NCxcache* cache, ncexhashkey_t hkey, void** op)
         {stat = NC_ENOTFOUND; goto done;} /* not present */
     node = (NCxnode*)inode;
     /* unlink */
-verifylru(cache);
     unlinknode(node);
+#if DEBUG > 0
 verifylru(cache);
+#endif
     if(op) {
         *op = node->content;
     }

@@ -11,7 +11,7 @@ static int initialized = 0;
 
 static unsigned int optimize = 0;
 
-extern int buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp);
+extern int NCZ_buildchunkkey(size_t R, const size64_t* chunkindices, char** keyp);
 
 /* 0 => no debug */
 static unsigned int wdebug = 0;
