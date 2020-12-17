@@ -34,7 +34,7 @@ ut_json_SOURCES = ut_json.c ${commonsrc}
 ut_projections_SOURCES = ut_projections.c ${commonsrc}
 ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
 
-check_PROGRAMS += tst_chunks tst_chunks2 tst_chunks3 tst_fillonlyz
+check_PROGRAMS += tst_zchunks tst_zchunks2 tst_zchunks3 tst_fillonlyz
 
 TESTS += run_ut_map.sh
 TESTS += run_ut_mapapi.sh
