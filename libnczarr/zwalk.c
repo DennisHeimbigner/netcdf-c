@@ -22,7 +22,7 @@ static int rangecount(NCZChunkRange range);
 static int readfromcache(void* source, size64_t* chunkindices, void** chunkdata);
 static int NCZ_fillchunk(void* chunkdata, struct Common* common);
 static int transfern(const struct Common* common, unsigned char* slpptr0, unsigned char* memptr0,
-                     size_t count, size_t slpstride, size_t memstride, void* data);    
+                     size_t count, size_t slpstride, void* data);    
 static int iswholevar(struct Common* common,NCZSlice*);
 
 const char*
@@ -231,7 +231,7 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	    unsigned char* memptr = ((unsigned char*)common->memory);
 	    unsigned char* slpptr = ((unsigned char*)chunkdata);
 
-	    transfern(common,slpptr,memptr,common->chunkcount,1,1,chunkdata);
+	    transfern(common,slpptr,memptr,common->chunkcount,1,chunkdata);
 	    if(zutest && zutest->tests & UTEST_WHOLEVAR)
 	        zutest->print(UTEST_WHOLEVAR, common);
 
@@ -285,12 +285,9 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	slpodom = nczodom_fromslices(common->rank,slpslices);
 	memodom = nczodom_fromslices(common->rank,memslices);
 
-        /* This is the key action: walk this set of slices and transfer data */
-	if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
-
-	{ /* walk with odometer, possibly optimized */
+	{ /* walk with odometer */
 	    if(wdebug >= 1)
-	    fprintf(stderr,"case: odometer; slp.optimized=%d:\n",slpodom->properties.optimized);
+	    fprintf(stderr,"case: odometer:\n");
 
   	    /* This is the key action: walk this set of slices and transfer data */
   	    if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
@@ -307,6 +304,37 @@ done:
 }
 
 
+#ifdef WDEBUG
+static void
+wdebug2(const struct Common* common, unsigned char* slpptr, unsigned char* memptr, size_t avail, size_t stride, void* chunkdata)
+{
+    unsigned char* slpbase = chunkdata;
+    unsigned char* membase = common->memory;
+    unsigned slpoff = (unsigned)(slpptr - slpbase);
+    unsigned memoff = (unsigned)(memptr - membase);
+    unsigned slpidx = slpoff / common->typesize;
+    unsigned memidx = memoff / common->typesize;
+    unsigned value;
+
+    fprintf(stderr,"wdebug2: %s: [%u/%d] %u->%u",
+	    common->reading?"read":"write",
+	    (unsigned)avail,
+    	    (unsigned)stride,
+	    (unsigned)(common->reading?slpidx:memidx),
+	    (unsigned)(common->reading?memidx:slpidx)
+	    );
+    if(common->reading)
+        value = ((unsigned*)slpptr)[0];
+    else
+        value = ((unsigned*)memptr)[0];
+    fprintf(stderr,"; [%u]=%u",(unsigned)(common->reading?slpidx:memidx),value);
+
+    fprintf(stderr,"\n");
+}
+#else
+#define wdebug2(common,slpptr,memptr,avail,stride,chunkdata)
+#endif
+
 /*
 @param projv
 @param chunkodom
@@ -322,12 +350,17 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
     int stat = NC_NOERR;
 
     for(;;) {
-        if(nczodom_more(slpodom)) {
-            size64_t slpoffset = 0;
-            size64_t memoffset = 0;
-            unsigned char* memptr0 = NULL;
-            unsigned char* slpptr0 = NULL;
+	size64_t slpoffset = 0;
+	size64_t memoffset = 0;
+	size64_t slpavail = 0;
+	size64_t memavail = 0;
+	size64_t laststride = 0;
+	unsigned char* memptr0 = NULL;
+	unsigned char* slpptr0 = NULL;
+	
 
+        if(!nczodom_more(slpodom)) break;
+	
             if(wdebug >= 3) {
 		fprintf(stderr,"xx.slp: odom: %s\n",nczprint_odom(slpodom));
 		fprintf(stderr,"xx.mem: odom: %s\n",nczprint_odom(memodom));
@@ -344,20 +377,38 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
 	    LOG((1,"%s: slpptr0=%p memptr0=%p slpoffset=%llu memoffset=%lld",__func__,slpptr0,memptr0,slpoffset,memoffset));
 	    if(zutest && zutest->tests & UTEST_WALK)
 		zutest->print(UTEST_WALK, common, chunkodom, slpodom, memodom);
-	    if((stat = transfern(common,slpptr0,memptr0,nczodom_avail(slpodom),
-	                         nczodom_laststride(slpodom),nczodom_lastlen(memodom),
-				 chunkdata))) goto done;
+	    /* See if we can transfer multiple values at one shot */
+	    laststride = slpodom->stride[common->rank-1];
+	    if(laststride == 1) {
+	        slpavail = nczodom_avail(slpodom); /* How much can we read? */
+	        memavail = nczodom_avail(memodom);
+		assert(memavail == slpavail);
+		nczodom_setstop(slpodom);
+	        nczodom_setstop(memodom);
+fprintf(stderr,"setstop: slpodom=%s\n",nczprint_odom(slpodom));
+fprintf(stderr,"setstop: memodom=%s\n",nczprint_odom(memodom));
+	    } else {
+	        slpavail = 1;
+		memavail = 1;
+	    }
+   	    if(slpavail > 0) {
+if(wdebug > 0) wdebug2(common,slpptr0,memptr0,slpavail,laststride,chunkdata);
+	  	if(common->reading) {
+		    memcpy(memptr0,slpptr0,slpavail*common->typesize);
+		} else {
+		    memcpy(slpptr0,memptr0,slpavail*common->typesize);
+		}
+	    }
+//	    if((stat = transfern(common,slpptr0,memptr0,avail,nczodom_laststride(slpodom),chunkdata)))goto done;
             nczodom_next(memodom);
-        } else break; /* slpodom exhausted */
-        nczodom_next(slpodom);
+            nczodom_next(slpodom);
     }
-done:
     return stat;    
 }
 
-#ifdef WDEBUG
+#if 0
 static void
-wdebug1(const struct Common* common, unsigned char* srcptr, unsigned char* dstptr, size_t count, size_t srcstride, size_t dststride, void* chunkdata, const char* tag)
+wdebug1(const struct Common* common, unsigned char* srcptr, unsigned char* dstptr, size_t count, size_t stride, void* chunkdata, const char* tag)
 {
     unsigned char* dstbase = (common->reading?common->memory:chunkdata);
     unsigned char* srcbase = (common->reading?chunkdata:common->memory);
@@ -365,19 +416,20 @@ wdebug1(const struct Common* common, unsigned char* srcptr, unsigned char* dstpt
     unsigned srcoff = (unsigned)(srcptr - srcbase);
     unsigned srcidx = srcoff / sizeof(unsigned);
 
-    fprintf(stderr,"%s: %s: [%u] %u/%d->%u/%u",
+    fprintf(stderr,"%s: %s: [%u/%d] %u->%u",
 	    tag,
 	    common->reading?"read":"write",
 	    (unsigned)count,
+    	    (unsigned)stride,
 	    (unsigned)(srcoff/common->typesize),
-    	    (unsigned)srcstride,
-	    (unsigned)(dstoff/common->typesize),
-       	    (unsigned)dststride
+	    (unsigned)(dstoff/common->typesize)
 	    );
+#if 0
     fprintf(stderr,"\t%s[%u]=%u\n",(common->reading?"chunkdata":"memdata"),
 //      0,((unsigned*)srcptr)[0]
         srcidx,((unsigned*)srcbase)[srcidx]
 	);
+#endif
 #if 0
     { size_t len = common->typesize*count;
     fprintf(stderr," | [%u] %u->%u\n",(unsigned)len,(unsigned)srcoff,(unsigned)dstoff);
@@ -390,21 +442,18 @@ wdebug1(const struct Common* common, unsigned char* srcptr, unsigned char* dstpt
 #endif
 
 static int
-transfern(const struct Common* common, unsigned char* slpptr, unsigned char* memptr, size_t count, size_t slpstride, size_t memstride, void* chunkdata)
+transfern(const struct Common* common, unsigned char* slpptr, unsigned char* memptr, size_t avail, size_t slpstride, void* chunkdata)
 {
     int stat = NC_NOERR;
     size_t typesize = common->typesize;
-    size_t len = typesize*count;
+    size_t len = typesize*avail;
     size_t m,s;
 
     if(common->reading) {
-	if(wdebug >= 2)
-            wdebug1(common, slpptr, memptr, count, slpstride, memstride, chunkdata, "transfern");
-
-	if(slpstride == 1 && memstride == 1)
+	if(slpstride == 1)
             memcpy(memptr,slpptr,len); /* straight copy */
 	else {
-	    for(m=0,s=0;s<count;s+=slpstride,m+=memstride) {
+	    for(m=0,s=0;s<avail;s+=slpstride,m++) {
 		size_t soffset = s*typesize;
 		size_t moffset = m*typesize;
 	        memcpy(memptr+moffset,slpptr+soffset,typesize);
@@ -413,22 +462,16 @@ transfern(const struct Common* common, unsigned char* slpptr, unsigned char* mem
         if(common->swap)
             NCZ_swapatomicdata(len,memptr,common->typesize);
     } else { /*writing*/
-if(wdebug >= 2)
-        wdebug1(common, memptr, slpptr, count, memstride, slpstride, chunkdata,"transfern");
-
 unsigned char* srcbase = (common->reading?chunkdata:common->memory);
 unsigned srcoff = (unsigned)(memptr - srcbase);
 unsigned srcidx = srcoff / sizeof(unsigned); (void)srcidx;
 	if(slpstride == 1)
             memcpy(slpptr,memptr,len); /* straight copy */
 	else {
-	    for(m=0,s=0;s<count;s+=slpstride,m+=memstride) {
+	    for(m=0,s=0;s<avail;s+=slpstride,m++) {
 		size_t soffset = s*typesize;
 		size_t moffset = m*typesize;
 	        memcpy(slpptr+soffset,memptr+moffset,typesize);
-	        if(wdebug >= 3 && m > 0)
-	            wdebug1(common, memptr+moffset, slpptr+soffset, 1, slpstride, memstride, chunkdata, "\t");
-
 	    }
 	}
         if(common->swap)

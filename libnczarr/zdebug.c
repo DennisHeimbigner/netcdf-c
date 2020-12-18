@@ -148,7 +148,7 @@ nczprint_odom(const NCZOdometer* odom)
     char value[128];
     char* txt = NULL;
 
-    snprintf(value,sizeof(value),"Odometer{rank=%d optimized=%d",odom->rank,odom->properties.optimized);
+    snprintf(value,sizeof(value),"Odometer{rank=%d ",odom->rank);
     ncbytescat(buf,value);
 
     ncbytescat(buf," start=");
