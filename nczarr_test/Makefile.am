@@ -124,6 +124,7 @@ ref_perdimspecs.cdl ref_fillonly.cdl \
 ref_whole.cdl ref_whole.txt \
 ref_skip.cdl ref_skip.txt ref_skipw.cdl \
 ref_rem.cdl ref_rem.txt ref_ndims.cdl  ref_ndims.txt
+ref_misc1.cdl ref_misc1.txt
  
 CLEANFILES = test.nzf test.nz4 test.nz4 \
 testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
