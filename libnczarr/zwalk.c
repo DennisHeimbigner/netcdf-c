@@ -309,7 +309,6 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	{ /* walk with odometer, possibly optimized */
 	    if(wdebug >= 1)
 	    fprintf(stderr,"case: odometer; slp.optimized=%d:\n",slpodom->properties.optimized);
-
   	    /* This is the key action: walk this set of slices and transfer data */
   	    if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
 	}
