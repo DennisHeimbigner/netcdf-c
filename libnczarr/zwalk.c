@@ -1,3 +1,8 @@
+/*
+Additonal optimizations:
+1. slice covers all of exactly one chunk: we can just tranfer whole chunk to/from memory
+
+*/
 /*********************************************************************
  *   Copyright 2018, UCAR/Unidata
  *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
@@ -21,9 +26,8 @@ static int NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* 
 static int rangecount(NCZChunkRange range);
 static int readfromcache(void* source, size64_t* chunkindices, void** chunkdata);
 static int NCZ_fillchunk(void* chunkdata, struct Common* common);
-static int transfern(const struct Common* common, unsigned char* slpptr0, unsigned char* memptr0,
-                     size_t count, size_t slpstride, void* data);    
-static int iswholevar(struct Common* common,NCZSlice*);
+static int iswholechunk(struct Common* common,NCZSlice*);
+static int wholechunk_indices(struct Common* common, NCZSlice* slices, size64_t* chunkindices);
 
 const char*
 astype(int typesize, void* ptr)
@@ -86,6 +90,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     int r,stat = NC_NOERR;
     size64_t dimlens[NC_MAX_VAR_DIMS];
     size64_t chunklens[NC_MAX_VAR_DIMS];
+    size64_t memshape[NC_MAX_VAR_DIMS];
     NCZSlice slices[NC_MAX_VAR_DIMS];
     struct Common common;
     NCZ_FILE_INFO_T* zfile = NULL;
@@ -137,17 +142,21 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 	slices[r].stop = minimum(start[r]+(count[r]*stride[r]),dimlens[r]);
 	slices[r].len = dimlens[r];
 	common.chunkcount *= chunklens[r];
+	memshape[r] = count[r];
     }
+
     if(wdebug >= 1) {
         fprintf(stderr,"\trank=%d",common.rank);
         if(!common.scalar) {
             fprintf(stderr," dimlens=%s",nczprint_vector(common.rank,dimlens));
             fprintf(stderr," chunklens=%s",nczprint_vector(common.rank,chunklens));
+            fprintf(stderr," memshape=%s",nczprint_vector(common.rank,memshape));
         }
 	fprintf(stderr,"\n");
     }
-    common.dimlens = dimlens;
-    common.chunklens = chunklens;
+    common.dimlens = dimlens; /* BAD: storing stack vector in a pointer; do not free */
+    common.chunklens = chunklens; /* ditto */
+    common.memshape = memshape; /* ditto */
     common.reader.source = ((NCZ_VAR_INFO_T*)(var->format_var_info))->cache;
     common.reader.read = readfromcache;
 
@@ -176,7 +185,7 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
     NCZOdometer* slpodom = NULL;
     NCZOdometer* memodom = NULL;
     void* chunkdata = NULL;
-    int wholevar = 0;
+    int wholechunk = 0;
 
     /*
      We will need three sets of odometers.
@@ -200,42 +209,39 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
     if(wdebug >= 4)
 	fprintf(stderr,"allprojections:\n%s",nczprint_allsliceprojections(common->rank,common->allprojections)); fflush(stderr);
 
-    wholevar = iswholevar(common,slices);
+    wholechunk = iswholechunk(common,slices);
 
-    if(wholevar) {
-	size64_t* chunkindices = nczodom_indices(chunkodom);
-
-        /* Implement a whole var read optimization; this is a rare occurrence
-           where the variable has a single chunk and we are reading the whole chunk
+    if(wholechunk) {
+        /* Implement a whole chunk read optimization; this is a rare occurrence
+           where the the slices cover all of a single chunk.
         */
+	size64_t chunkindices[NC_MAX_VAR_DIMS];
+	unsigned char* memptr;
+        unsigned char* slpptr;
 
+	/* Which chunk are we getting? */
+	if((stat=wholechunk_indices(common,slices,chunkindices))) goto done;
 	if(wdebug >= 1)
-	    fprintf(stderr,"case: wholevar:\n");
-
-   	    /*  we are transfering the whole singular chunk */
-
-	    /* Read the chunk */
-	if(wdebug >= 1) {
-	    fprintf(stderr,"chunkindices: %s\n",nczprint_vector(common->rank,chunkindices));
+	    fprintf(stderr,"case: wholechunk: chunkindices: %s\n",nczprint_vector(common->rank,chunkindices));
+	/* Read the chunk */
+        switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
+        case NC_ENOTFOUND: /* cache created the chunk */
+            if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
+	    break;
+        case NC_NOERR: break;
+        default: goto done;
+        }
+        /* Figure out memory address */
+	memptr = ((unsigned char*)common->memory);
+	slpptr = ((unsigned char*)chunkdata);
+	if(common->reading) {
+	    memcpy(memptr,slpptr,common->chunkcount*common->typesize);
+	} else {
+	    memcpy(slpptr,memptr,common->chunkcount*common->typesize);
 	}
-
-            switch ((stat = common->reader.read(common->reader.source, chunkindices, &chunkdata))) {
-            case NC_ENOTFOUND: /* cache created the chunk */
-	        if((stat = NCZ_fillchunk(chunkdata,common))) goto done;
-	        break;
-            case NC_NOERR: break;
-            default: goto done;
-            }
-
-	    /* Figure out memory address */
-	    unsigned char* memptr = ((unsigned char*)common->memory);
-	    unsigned char* slpptr = ((unsigned char*)chunkdata);
-
-	    transfern(common,slpptr,memptr,common->chunkcount,1,chunkdata);
-	    if(zutest && zutest->tests & UTEST_WHOLEVAR)
-	        zutest->print(UTEST_WHOLEVAR, common);
-
-
+//        transfern(common,slpptr,memptr,common->chunkcount,1,chunkdata);
+        if(zutest && zutest->tests & UTEST_WHOLECHUNK)
+	    zutest->print(UTEST_WHOLECHUNK, common, chunkindices);
 	goto done;
     }
 
@@ -247,8 +253,13 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
         NCZSlice slpslices[NC_MAX_VAR_DIMS];
         NCZSlice memslices[NC_MAX_VAR_DIMS];
         NCZProjection* proj[NC_MAX_VAR_DIMS];
+	size64_t shape[NC_MAX_VAR_DIMS];
 
 	chunkindices = nczodom_indices(chunkodom);
+	if(wdebug >= 1) {
+	    fprintf(stderr,"chunkindices: %s\n",nczprint_vector(common->rank,chunkindices));
+	}
+
 	for(r=0;r<common->rank;r++) {
 	    NCZSliceProjections* slp = &common->allprojections[r];
 	    NCZProjection* projlist = slp->projections;
@@ -261,6 +272,16 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	    NCZProjection* pr = &projlist[indexr];
 	    proj[r] = pr;
 	}
+
+	if(wdebug > 0) {
+  	    fprintf(stderr,"Selected projections:\n");
+	    for(r=0;r<common->rank;r++) {
+  	        fprintf(stderr,"\t[%d] %s\n",r,nczprint_projection(*proj[r]));
+		shape[r] = proj[r]->iocount;
+	    }
+	    fprintf(stderr,"\tshape=%s\n",nczprint_vector(common->rank,shape));
+	}
+
 	for(r=0;r<common->rank;r++) {
 	    slpslices[r] = proj[r]->chunkslice;
 	    memslices[r] = proj[r]->memslice;
@@ -269,10 +290,6 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	    zutest->print(UTEST_TRANSFER, common, chunkodom, slpslices, memslices);
 
         /* Read from cache */
-	if(wdebug >= 1) {
-	    fprintf(stderr,"chunkindices: %s\n",nczprint_vector(common->rank,chunkindices));
-	}
-
         stat = common->reader.read(common->reader.source, chunkindices, &chunkdata);
 	switch (stat) {
         case NC_ENOTFOUND: /* cache created the chunk */
@@ -288,7 +305,6 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	{ /* walk with odometer */
 	    if(wdebug >= 1)
 	    fprintf(stderr,"case: odometer:\n");
-
   	    /* This is the key action: walk this set of slices and transfer data */
   	    if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
 	}
@@ -385,8 +401,10 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
 		assert(memavail == slpavail);
 		nczodom_setstop(slpodom);
 	        nczodom_setstop(memodom);
+#if 0
 fprintf(stderr,"setstop: slpodom=%s\n",nczprint_odom(slpodom));
 fprintf(stderr,"setstop: memodom=%s\n",nczprint_odom(memodom));
+#endif
 	    } else {
 	        slpavail = 1;
 		memavail = 1;
@@ -441,6 +459,7 @@ wdebug1(const struct Common* common, unsigned char* srcptr, unsigned char* dstpt
 #define wdebug1(common,srcptr,dstptr,count,srcstride,dststride,chunkdata,tag)
 #endif
 
+#if 0
 static int
 transfern(const struct Common* common, unsigned char* slpptr, unsigned char* memptr, size_t avail, size_t slpstride, void* chunkdata)
 {
@@ -479,6 +498,7 @@ unsigned srcidx = srcoff / sizeof(unsigned); (void)srcidx;
     }
     return THROW(stat);
 }
+#endif
 
 /* This function may not be necessary if code in zvar does it instead */
 static int
@@ -531,7 +551,7 @@ NCZ_projectslices(size64_t* dimlens,
         goto done;
 
     /* Compute the slice index vector */
-    if((stat=NCZ_compute_all_slice_projections(common->rank,slices,common->dimlens,common->chunklens,ranges,allprojections)))
+    if((stat=NCZ_compute_all_slice_projections(common,slices,ranges,allprojections)))
         goto done;
 
     /* Verify */
@@ -656,25 +676,31 @@ NCZ_clearcommon(struct Common* common)
     nullfree(common->fillvalue);
 }
 
-/* Does the User want the whole variable? */
+/* Does the User want all of one and only chunk? */
 static int
-iswholevar(struct Common* common, NCZSlice* slices)
+iswholechunk(struct Common* common, NCZSlice* slices)
 {
     int i;
     
-    /* Check that slices cover whole file */
+    /* Check that slices cover a whole chunk */
     for(i=0;i<common->rank;i++) {
-	if(slices[i].start != 0
-	   || slices[i].stop != common->dimlens[i]
-   	   || slices[i].stride != 1)
-	    return 0; /* slices do not cover the whole file */
-    }
-    /* Check that there is only one chunk */
-    for(i=0;i<common->rank;i++) {
-	if(common->dimlens[i] != common->chunklens[i])
-	    return 0; /* must be more than one chunk */
+	if(!(slices[i].stride == 1                            /* no point skipping              */
+	   && (slices[i].start % common->chunklens[i]) == 0 /* starting at beginning of chunk */
+	   && (slices[i].stop - slices[i].start)            /* stop-start = edge length       */
+	      == common->chunklens[i]                       /* edge length == chunk length    */
+	   )) 
+	    return 0; /* slices do not cover a whole chunk */
     }
     return 1;
+}
+
+static int
+wholechunk_indices(struct Common* common, NCZSlice* slices, size64_t* chunkindices)
+{
+    int i;
+    for(i=0;i<common->rank;i++)
+	chunkindices[i] = (slices[i].start / common->chunklens[i]);
+    return NC_NOERR;
 }
 
 /**************************************************/

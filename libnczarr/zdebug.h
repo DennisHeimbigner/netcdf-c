@@ -56,10 +56,10 @@ EXTERNL void NCZbacktrace(void);
 #endif
 
 /* Define the possible unit tests (powers of 2) */
-#define UTEST_RANGE	1
-#define UTEST_WALK	2
-#define UTEST_TRANSFER	4
-#define UTEST_WHOLEVAR	8
+#define UTEST_RANGE	 1
+#define UTEST_WALK	 2
+#define UTEST_TRANSFER	 4
+#define UTEST_WHOLECHUNK 8
 
 struct ZUTEST {
     int tests;

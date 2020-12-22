@@ -102,7 +102,7 @@ getoptions(int* argcp, char*** argvp)
 	        switch (*p) {
 	        case 'r': options->op = Read; break;
     	        case 'w': options->op = Write; break;
-	        case 'W': options->wholevar = 1; break;
+	        case 'W': options->wholechunk = 1; break;
     	        case 'o': options->op = Odom; break;
 		default: fprintf(stderr,"Unknown operation '%c'\n",*p); exit(1);
 	        }
@@ -144,6 +144,16 @@ getoptions(int* argcp, char*** argvp)
 	    options->formatx = NC_FORMATX_NCZARR; /* assume */
 	    ncurifree(uri);
 	}
+    }
+    if(options->debug) {
+	const char* fmt = "unknown";
+	switch(options->formatx) {
+	case NC_FORMATX_NC3: fmt = "NC3"; break;
+	case NC_FORMATX_NC4: fmt = "NC4"; break;
+	case NC_FORMATX_NCZARR: fmt = "NCZARR"; break;
+	default: break;
+	}
+	fprintf(stderr,"Formatx: %s\n",fmt);
     }
 
 #ifndef _WIN32
@@ -268,6 +278,15 @@ parsevector(const char* s0, size_t* vec)
 
 const char*
 printvector(int rank, const size_t* vec)
+{
+    size64_t v64[NC_MAX_VAR_DIMS];
+    int r;
+    for(r=0;r<rank;r++) v64[r]= (size64_t)vec[r];
+    return printvector64(rank,v64);
+}
+
+const char*
+printvector64(int rank, const size64_t* vec)
 {
     char s[NC_MAX_VAR_DIMS*3+1];
     int i;
