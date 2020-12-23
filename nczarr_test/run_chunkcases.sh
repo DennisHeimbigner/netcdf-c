@@ -6,6 +6,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ${srcdir}/test_nczarr.sh
 
 set -e
+export SETX=1
 
 TC="${execdir}/tst_chunkcases -4"
 

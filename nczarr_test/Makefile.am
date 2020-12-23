@@ -135,4 +135,4 @@ tst_chunks3.nc
 # Remove directories
 clean-local:
 	rm -fr tst_chunks.nzf tst_chunks2.nzf tst_perdimspecs.nzf testmap.nzf test.nzf tmp*.nzf \
-	test_mapapi.nzf test_mapapi.nz4
+	test_mapapi.nzf test_mapapi.nz4 tmp*.nz4
