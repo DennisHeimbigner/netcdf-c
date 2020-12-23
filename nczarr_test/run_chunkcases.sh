@@ -6,6 +6,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ${srcdir}/test_nczarr.sh
 
 set -e
+set -x
 
 #zext=nc4
 zext=nzf
@@ -50,6 +51,8 @@ echo "Test chunk skipping during write"
 makefile tmp_skipw
 rm -f tmp_skipw.cdl
 $TC -d 6,6 -s 5,5 -p 6,6 -Ow $F
+ls -ld tmp_skipw.nzf
+find tmp_skipw.nzf
 ${NCDUMP} $F > tmp_skipw.cdl
 diff -b ${srcdir}/ref_skipw.cdl tmp_skipw.cdl
 
