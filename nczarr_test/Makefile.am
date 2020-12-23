@@ -86,7 +86,7 @@ AM_CPPFLAGS += -I$(top_srcdir)/libnczarr
 noinst_PROGRAMS += ncdumpchunks
 ncdumpchunks_SOURCES = ncdumpchunks.c
 
-EXTRA_DIST = \
+EXTRA_DIST = CMakeLists.txt \
 run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_ncgen4.sh \
 run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh \
 ref_ut_map_readmeta_nzf.txt \
