@@ -1,12 +1,14 @@
 #!/bin/sh
 
+export SETX=1
+
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 . ${srcdir}/test_nczarr.sh
 
+set -x
 set -e
-export SETX=1
 
 TC="${execdir}/tst_chunkcases -4"
 
