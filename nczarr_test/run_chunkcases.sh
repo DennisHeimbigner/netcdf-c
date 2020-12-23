@@ -76,6 +76,7 @@ echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1.txt tmp_misc1.cdl
 $TC -d 6,12,4 -c 2,3,1 -f 0,0,0 -e 6,1,4 -Ow $F
+ls -lrtd tmp_misc.nzf
 ${NCDUMP} $F > tmp_misc1.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1.txt
