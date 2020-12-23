@@ -51,8 +51,7 @@ echo "Test chunk skipping during write"
 makefile tmp_skipw
 rm -f tmp_skipw.cdl
 $TC -d 6,6 -s 5,5 -p 6,6 -Ow $F
-ls -ld tmp_skipw.nzf
-find tmp_skipw.nzf
+ls -ld tmp_skipw.nzf; find tmp_skipw.nzf
 ${NCDUMP} $F > tmp_skipw.cdl
 diff -b ${srcdir}/ref_skipw.cdl tmp_skipw.cdl
 
@@ -68,6 +67,7 @@ diff -b ${srcdir}/ref_rem.txt tmp_rem.txt
 echo "Test rank > 2"
 makefile tmp_ndims
 rm -f tmp_ndims.txt tmp_ndims.cdl
+ls -ld tmp_ndims.nzf; find tmp_ndims.nzf
 $TC -d 8,8,8,8 -c 3,3,4,4 -Ow $F
 ${NCDUMP} $F > tmp_ndims.cdl
 diff -b ${srcdir}/ref_ndims.cdl tmp_ndims.cdl
@@ -78,6 +78,7 @@ echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1.txt tmp_misc1.cdl
 $TC -d 6,12,4 -c 2,3,1 -f 0,0,0 -e 6,1,4 -Ow $F
+ls -ld tmp_misc1.nzf; find tmp_misc1.nzf
 ${NCDUMP} $F > tmp_misc1.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1.txt
