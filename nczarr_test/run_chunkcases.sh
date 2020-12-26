@@ -6,6 +6,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ${srcdir}/test_nczarr.sh
 
 set -e
+set -x
 
 #zext=nc4
 zext=nzf
@@ -57,6 +58,7 @@ echo "Test dimlen % chunklen != 0"
 makefile tmp_rem
 rm -f tmp_rem.txt tmp_rem.cdl
 $TC -d 8,8 -c 3,3 -Ow $F
+ls -ld *.nzf
 ${NCDUMP} $F > tmp_rem.cdl
 diff -b ${srcdir}/ref_rem.cdl tmp_rem.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_rem.txt
@@ -66,6 +68,7 @@ echo "Test rank > 2"
 makefile tmp_ndims
 rm -f tmp_ndims.txt tmp_ndims.cdl
 $TC -d 8,8,8,8 -c 3,3,4,4 -Ow $F
+ls -ld *.nzf
 ${NCDUMP} $F > tmp_ndims.cdl
 diff -b ${srcdir}/ref_ndims.cdl tmp_ndims.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_ndims.txt
@@ -75,6 +78,7 @@ echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1.txt tmp_misc1.cdl
 $TC -d 6,12,4 -c 2,3,1 -f 0,0,0 -e 6,1,4 -Ow $F
+ls -ld *.nzf
 ${NCDUMP} $F > tmp_misc1.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1.txt
