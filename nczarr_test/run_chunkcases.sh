@@ -5,7 +5,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 . ${srcdir}/test_nczarr.sh
 
-#set -e
+set -e
 set -x
 
 #zext=nc4
