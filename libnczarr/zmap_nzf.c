@@ -295,8 +295,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     case NC_NOERR: break;
     case NC_ENOTFOUND: stat = NC_EEMPTY; /* fall thru */
     default:
-fprintf(stderr,"xxx: root: %s\n",zfmap->root);
-	 goto done;
+	goto done;
     }
     
     /* Dataset superblock will be read by higher layer */
@@ -323,10 +322,8 @@ zfileexists(NCZMAP* map, const char* key)
     ZTRACE("%s",key);
     switch(stat=zflookupobj(zfmap,key,&fd)) {
     case NC_NOERR: break;
-    case NC_ENOTFOUND: stat = NC_EEMPTY; /* fall thru */
-    case NC_EEMPTY:
-fprintf(stderr,"xxx: lookup: %s\n",key);
-	break;
+    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_EEMPTY: break;
     default: break;
     }
     zfrelease(zfmap,&fd);    
@@ -349,9 +346,7 @@ zfilelen(NCZMAP* map, const char* key, size64_t* lenp)
         if((stat=platformseek(zfmap, &fd, SEEK_END, &len))) goto done;
 	break;
     case NC_ENOTFOUND: stat = NC_EEMPTY;
-    case NC_EEMPTY:
-fprintf(stderr,"xxx: lookup: %s\n",key);
-	break;
+    case NC_EEMPTY: break;
     default: break;
     }
     zfrelease(zfmap,&fd);
@@ -385,8 +380,7 @@ zfiledefineobj(NCZMAP* map, const char* key)
 	goto done;
     case NC_ENOTFOUND: stat = NC_EEMPTY; /* file does not exist */
     case NC_EEMPTY: /* empty */
-fprintf(stderr,"xxx: lookup: %s\n",key);
-	if((stat = zfcreateobj(zfmap,key,&fd)))
+        if((stat = zfcreateobj(zfmap,key,&fd)))
             goto done;
 	break;
     default:
@@ -418,9 +412,7 @@ zfileread(NCZMAP* map, const char* key, size64_t start, size64_t count, void* co
         if((stat = platformread(zfmap, &fd, count, content))) goto done;
 	break;
     case NC_ENOTFOUND: stat = NC_EEMPTY;
-    case NC_EEMPTY:
-fprintf(stderr,"xxx: lookup: %s\n",key);
-        break;
+    case NC_EEMPTY: break;
     default: break;
     }
     
@@ -449,9 +441,7 @@ zfilewrite(NCZMAP* map, const char* key, size64_t start, size64_t count, const v
         if((stat = platformwrite(zfmap, &fd, count, content))) goto done;
 	break;
     case NC_ENOTFOUND: stat = NC_EEMPTY;
-    case NC_EEMPTY:
-fprintf(stderr,"xxx: lookup: %s\n",key);
-	break;
+    case NC_EEMPTY: break;
     default: break;
     }
 
@@ -511,7 +501,6 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
     case NC_NOERR: /* ok */
 	break;
     case NC_EEMPTY: /* not a dir */
-fprintf(stderr,"xxx: dircontent: %s\n",truepath);
 	stat = NC_NOERR;
 	goto done;
     case NC_ENOTFOUND: /* does not exist */
@@ -722,8 +711,6 @@ platformtestcontentbearing(ZFMAP* zfmap, const char* truepath)
     
     /* Localize */
     if((ret = nczm_localize(truepath,&local,LOCALIZE))) goto done;
-
-fprintf(stderr,"xxx: testcontentbearing: %s\n",local);
 
     errno = 0;
     if((ret = stat(local, &buf)) < 0) {
