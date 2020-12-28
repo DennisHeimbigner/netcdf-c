@@ -5,7 +5,7 @@
 #ifndef ZDEBUG_H
 #define ZDEBUG_H
 
-#undef ZDEBUG /* general debug */
+#define ZDEBUG /* general debug */
 #undef ZDEBUG1 /* detailed debug */
 
 #define ZCATCH /* Warning: significant performance impact */
