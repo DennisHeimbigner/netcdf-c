@@ -66,7 +66,9 @@ diff -b ${srcdir}/ref_skipw.cdl tmp_skipw.cdl
 echo "Test dimlen % chunklen != 0"
 makefile tmp_rem
 rm -f tmp_rem.txt tmp_rem.cdl
+ls -d *.nzf
 $TC -d 8,8 -c 3,3 -Ow $F
+ls -d *.nzf
 ${NCDUMP} $F > tmp_rem.cdl
 diff -b ${srcdir}/ref_rem.cdl tmp_rem.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_rem.txt
