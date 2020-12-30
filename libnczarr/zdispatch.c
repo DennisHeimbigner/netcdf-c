@@ -109,6 +109,10 @@ static const NC_Dispatch NCZ_dispatcher = {
 
 const NC_Dispatch* NCZ_dispatch_table = NULL; /* moved here from ddispatch.c */
 
+#ifdef ZDEBUGDISPATCH
+#include "zdebdispatch.h"
+#endif
+
 /**
  * @internal Initialize the ZARR dispatch layer.
  *
@@ -121,7 +125,11 @@ int
 NCZ_initialize(void)
 {
     int stat;
+#ifdef ZDEBUGDISPATCH
+    NCZ_dispatch_table = &NCZ_dispatcher_debug;
+#else
     NCZ_dispatch_table = &NCZ_dispatcher;
+#endif
     if (!ncz_initialized)
         NCZ_initialize_internal();
     stat = NCZ_provenance_init();
