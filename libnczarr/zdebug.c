@@ -27,11 +27,11 @@ zbreakpoint(int err)
 }
 
 int
-zthrow(int err, const char* file, int line)
+zthrow(int err, const char* file, const char* fcn, int line)
 {
     if(err == 0) return err;
 #ifdef ZDEBUGDISPATCH
-    fprintf(stderr,"THROW: %s/%d: (%d) %s\n",file,line,err,nc_strerror(err));
+    fprintf(stderr,"THROW: %s/%d: %s: (%d) %s\n",file,line,fcn,err,nc_strerror(err));
     fflush(stderr);
 #endif
 #ifdef HAVE_EXECINFO_H
