@@ -5,7 +5,7 @@
 #ifndef ZDEBUG_H
 #define ZDEBUG_H
 
-#define ZDEBUGDISPATCH /* report errors at dispatch level */
+#undef ZDEBUGDISPATCH /* report errors at dispatch level */
 #undef ZDEBUG /* general debug */
 #undef ZDEBUG1 /* detailed debug */
 
