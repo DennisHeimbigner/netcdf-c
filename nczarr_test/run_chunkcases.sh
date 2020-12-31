@@ -51,11 +51,8 @@ diff -b ${srcdir}/ref_whole.cdl tmp_whole.cdl
 echo "Test chunk skipping during read"
 makefile tmp_skip
 rm -f tmp_skip.txt tmp_skip.cdl tmp_skipw.cdl
-ls -d *.nzf
 $TC -d 6,6 -c 2,2 -Ow $F
-ls -d *.nzf
 $TC -s 5,5 -p 6,6 -Or $F > tmp_skip.txt
-ls -d *.nzf
 ${NCDUMP} $F > tmp_skip.cdl
 diff -b ${srcdir}/ref_skip.txt tmp_skip.txt
 diff -b ${srcdir}/ref_skip.cdl tmp_skip.cdl
@@ -70,9 +67,7 @@ diff -b ${srcdir}/ref_skipw.cdl tmp_skipw.cdl
 echo "Test dimlen % chunklen != 0"
 makefile tmp_rem
 rm -f tmp_rem.txt tmp_rem.cdl
-ls -d *.nzf
 $TC -d 8,8 -c 3,3 -Ow $F
-ls -d *.nzf
 ${NCDUMP} $F > tmp_rem.cdl
 diff -b ${srcdir}/ref_rem.cdl tmp_rem.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_rem.txt
@@ -91,7 +86,9 @@ fi #0
 echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1.txt tmp_misc1.cdl
+ls -d *.nzf
 $TC -d 6,12,4 -c 2,3,1 -f 0,0,0 -e 6,1,4 -Ow $F
+ls -d *.nzf
 ${NCDUMP} $F > tmp_misc1.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1.txt
