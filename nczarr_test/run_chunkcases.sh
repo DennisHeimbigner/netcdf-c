@@ -14,6 +14,7 @@ TC="${execdir}/tst_chunkcases -4"
 
 makefile() {
   fileargs $1
+  if test "x$zext" != zs3 ; then rm -fr $file ; fi
   case "$zext" in
   nc4) F=$file;;
   nz4) F=$fileurl;;
@@ -28,7 +29,6 @@ testcases() {
 zext=$1
 echo ""; echo "*** Test format $1"
     
-if test 0 = 1 ; then
 # Test whole chunk write and read
 echo "Test whole chunk write then read"
 makefile tmp_whole
@@ -50,7 +50,7 @@ diff -b ${srcdir}/ref_whole.cdl tmp_whole.cdl
 # Test skipping whole chunks
 echo "Test chunk skipping during read"
 makefile tmp_skip
-rm -f tmp_skip.txt tmp_skip.cdl tmp_skipw.cdl
+rm -f tmp_skip.txt tmp_skip.cdl
 $TC -d 6,6 -c 2,2 -Ow $F
 $TC -s 5,5 -p 6,6 -Or $F > tmp_skip.txt
 ${NCDUMP} $F > tmp_skip.cdl
@@ -81,18 +81,16 @@ ${NCDUMP} $F > tmp_ndims.cdl
 diff -b ${srcdir}/ref_ndims.cdl tmp_ndims.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_ndims.txt
 diff -b ${srcdir}/ref_ndims.txt tmp_ndims.txt
-fi #0
 
 echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1.txt tmp_misc1.cdl
-ls -d *.nzf
 $TC -d 6,12,4 -c 2,3,1 -f 0,0,0 -e 6,1,4 -Ow $F
-ls -d *.nzf
 ${NCDUMP} $F > tmp_misc1.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1.txt
 diff -b ${srcdir}/ref_misc1.txt tmp_misc1.txt
+
 } # testcases()
 
 testcases nzf
