@@ -50,8 +50,11 @@ diff -b ${srcdir}/ref_whole.cdl tmp_whole.cdl
 echo "Test chunk skipping during read"
 makefile tmp_skip
 rm -f tmp_skip.txt tmp_skip.cdl tmp_skipw.cdl
+ls -d *.nzf
 $TC -d 6,6 -c 2,2 -Ow $F
+ls -d *.nzf
 $TC -s 5,5 -p 6,6 -Or $F > tmp_skip.txt
+ls -d *.nzf
 ${NCDUMP} $F > tmp_skip.cdl
 diff -b ${srcdir}/ref_skip.txt tmp_skip.txt
 diff -b ${srcdir}/ref_skip.cdl tmp_skip.cdl

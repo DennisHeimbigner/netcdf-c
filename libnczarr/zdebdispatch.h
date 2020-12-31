@@ -13,14 +13,15 @@
 
 static int NCZDB_create(const char *path, int cmode, size_t initialsz, int basepe, size_t *chunksizehintp, void *parameters, const struct NC_Dispatch *table, int ncid)
 {
-    return THROW(NCZ_create(path,cmode,initialsz,basepe,chunksizehintp,parameters,table,ncid));
+    int stat = NCZ_create(path,cmode,initialsz,basepe,chunksizehintp,parameters,table,ncid);
+    if(stat) fprintf(stderr,"xxx: NCZ_open: path=%s\n",path);
+    return THROW(stat);
 }
 
 static int NCZDB_open(const char *path, int mode, int basepe, size_t *chunksizehintp,void *parameters, const struct NC_Dispatch *table, int ncid)
 {
     int stat = NCZ_open(path,mode,basepe,chunksizehintp,parameters,table,ncid);
-    if(stat)
-        fprintf(stderr,"NCZ_open: path=%s\n",path);
+    if(stat) fprintf(stderr,"xxx: NCZ_open: path=%s\n",path);
     return THROW(stat);
 }
 
