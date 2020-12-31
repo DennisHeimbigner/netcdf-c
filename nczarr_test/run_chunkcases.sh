@@ -94,7 +94,5 @@ diff -b ${srcdir}/ref_misc1.txt tmp_misc1.txt
 } # testcases()
 
 testcases nzf
-#if test "x$FEATURE_HDF5" = xyes ; then testcases nz4; fi
-#if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
-
-
+if test "x$FEATURE_HDF5" = xyes ; then testcases nz4; fi
+if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
