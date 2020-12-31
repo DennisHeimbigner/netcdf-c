@@ -34,6 +34,14 @@ EXTERNL int zthrow(int err, const char* fname, const char* fcn, int line);
 #define ZTRACE(fmt,...)
 #endif
 
+#ifdef ZDEBUGDISPATCH
+/* Place breakpoint on zbreakpoint to catch errors close to where they occur*/
+#define THROWDB(e) zthrowdb((e),__FILE__, __func__, __LINE__)
+EXTERNL int zthrowdb(int err, const char* fname, const char* fcn, int line);
+#else
+#define THROWDB(e) (e)
+#endif
+
 /* printers */
 EXTERNL void nczprint_reclaim(void);
 EXTERNL char* nczprint_slice(NCZSlice);

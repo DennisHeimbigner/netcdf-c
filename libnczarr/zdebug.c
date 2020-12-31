@@ -30,10 +30,20 @@ int
 zthrow(int err, const char* file, const char* fcn, int line)
 {
     if(err == 0) return err;
-#ifdef ZDEBUGDISPATCH
-    fprintf(stderr,"THROW: %s/%d: %s: (%d) %s\n",file,line,fcn,err,nc_strerror(err));
-    fflush(stderr);
+#ifdef HAVE_EXECINFO_H
+    NCZbacktrace();
 #endif
+    return zbreakpoint(err);
+}
+#endif /*ZCATCH*/
+
+#ifdef ZDEBUGDISPATCH
+int
+zthrowdb(int err, const char* file, const char* fcn, int line)
+{
+    if(err == 0) return err;
+    fprintf(stderr,"ZZZ: %s/%d: %s: (%d) %s\n",file,line,fcn,err,nc_strerror(err));
+    fflush(stderr);
 #ifdef HAVE_EXECINFO_H
     NCZbacktrace();
 #endif
