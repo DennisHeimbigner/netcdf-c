@@ -38,7 +38,6 @@ testcases() {
 zext=$1
 echo ""; echo "*** Test format $1"
     
-if test 1 = 0 ; then
 # Test whole chunk write and read
 echo "Test whole chunk write then read"
 makefile tmp_whole
@@ -102,7 +101,6 @@ ${NCDUMP} $F > tmp_misc1_${zext}.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1_${zext}.dmp
 diff -b ${srcdir}/ref_misc1.dmp tmp_misc1_${zext}.dmp
-fi #0
 
 echo "Test writing avail > 0"
 makefile tmp_avail1
@@ -110,7 +108,6 @@ rm -f tmp_avail1_${zext}.txt tmp_avail1_${zext}.dmp tmp_avail1_${zext}.cdl
 $TC -d 6,12,100 -c 2,3,50 -f 0,0,0 -p 6,12,100 -Ow $F
 $TC -f 0,0,0 -e 6,3,75 -Or $F > tmp_avail1_${zext}.txt
 diff -b ${srcdir}/ref_avail1.txt tmp_avail1_${zext}.txt
-find tmp_avail1.nzf
 ${NCDUMP} $F > tmp_avail1_${zext}.cdl
 diff -b ${srcdir}/ref_avail1.cdl tmp_avail1_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_avail1_${zext}.dmp
