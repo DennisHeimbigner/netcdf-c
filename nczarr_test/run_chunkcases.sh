@@ -110,6 +110,7 @@ rm -f tmp_avail1_${zext}.txt tmp_avail1_${zext}.dmp tmp_avail1_${zext}.cdl
 $TC -d 6,12,100 -c 2,3,50 -f 0,0,0 -p 6,12,100 -Ow $F
 $TC -f 0,0,0 -e 6,3,75 -Or $F > tmp_avail1_${zext}.txt
 diff -b ${srcdir}/ref_avail1.txt tmp_avail1_${zext}.txt
+find tmp_avail1.nzf
 ${NCDUMP} $F > tmp_avail1_${zext}.cdl
 diff -b ${srcdir}/ref_avail1.cdl tmp_avail1_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_avail1_${zext}.dmp
