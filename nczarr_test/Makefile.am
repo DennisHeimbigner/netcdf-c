@@ -130,8 +130,9 @@ ref_misc1.cdl ref_misc1.txt
 CLEANFILES = test.nzf test.nz4 test.nz4 \
 testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
 tst_chunks.nz4 tst_chunks2.nc.nz4 \
-ut_*.txt ut*.cdl tmp*.nc tmp*.cdl *.dmp tmp*.txt test.nzf \
+ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp test.nzf \
 tst_chunks3.nc
+#*.dmp
 
 # Remove directories
 clean-local:

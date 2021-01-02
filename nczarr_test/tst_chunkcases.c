@@ -42,9 +42,6 @@ writedata(void)
     int ret = NC_NOERR;
     int i;
 
-    if((ret = getmetadata(1)))
-        ERR(ret);
-
     for(i=0;i<dimprod;i++) data[i] = i;
  
     if(options->wholechunk)
@@ -79,9 +76,6 @@ readdata(void)
     int ret = NC_NOERR;
     int i;
     
-    if((ret = getmetadata(0)))
-        ERR(ret);
-
     memset(data,0,datasize);
 
     if(options->wholechunk) {
@@ -202,8 +196,14 @@ main(int argc, char** argv)
 
     switch (options->op) {
     case Read:
-    case Write:
+        if((stat = getmetadata(0)))
+            ERR(stat);
         if (argc == 0) {fprintf(stderr, "no input file specified\n");exit(1);}
+	break;
+    case Write:
+        if((stat = getmetadata(1)))
+            ERR(stat);
+        if (argc == 0) {fprintf(stderr, "no output file specified\n");exit(1);}
 	break;
     default:
 	break; /* do not need a file */

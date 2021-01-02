@@ -238,6 +238,13 @@ getmetadata(int create)
             if((ret = nc_inq_dimlen(meta->ncid,meta->dimids[i],&options->dimlens[i]))) goto done;
         }
         if((ret = nc_inq_varid(meta->ncid,"v",&meta->varid))) goto done;
+        if(options->formatx == NC_FORMATX_NC4 || options->formatx == NC_FORMATX_NCZARR) {
+	    int storage = -1;
+	    /* Get chunk sizes also */
+            if((ret = nc_inq_var_chunking(meta->ncid,meta->varid,&storage,options->chunks))) goto done;
+	    if(storage != NC_CHUNKED) {ret = NC_EBADCHUNK; goto done;}
+	}
+	
     }
 
 done:
