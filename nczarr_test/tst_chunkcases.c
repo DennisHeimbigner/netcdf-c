@@ -176,11 +176,10 @@ reportwholechunk(void)
 {
     int ret = NC_NOERR;
 #ifdef ENABLE_NCZARR
-    if(options->debug > 0) {
-	fprintf(stderr,"wholechunkcalls=%d\n",wholechunkcalls);
-    }
+    if(options->debug > 0)
+        fprintf(stderr,"wholechunkcalls=%d\n",wholechunkcalls);
     if(wholechunkcalls != 1)
-        return NC_ENCZARR;
+        return NC_EINVAL;
 #endif
     return ret;
 }

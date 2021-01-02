@@ -43,17 +43,17 @@ echo "Test whole chunk write then read"
 makefile tmp_whole
 rm -f tmp_whole_${zext}.txt tmp_whole_${zext}.cdl tmp_err_${zext}.txt
 # This should fail 
-if ! $TC -d 8,8 -c 4,4 -f 4,3 -e 4,4 -X w -OWw $F >> tmp_err_${zext}.txt ; then
+if ! $TC -d 8,8 -c 4,4 -f 4,3 -e 4,4 -OWw $F >> tmp_err_${zext}.txt ; then
 echo "XFAIL: wholechunk with bad -f"
 fi
 remfile $file
-if ! $TC -d 8,8 -c 4,4 -f 4,4 -e 1,4 -X w -OWw $F  >> tmp_err_${zext}.txt ; then
+if ! $TC -d 8,8 -c 4,4 -f 4,4 -e 1,4 -OWw $F  >> tmp_err_${zext}.txt ; then
 echo "XFAIL: wholechunk with bad -e"
 fi
 remfile $file
 # This should succeed
-$TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -X w -OWw $F
-$TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -X w -OWr $F > tmp_whole_${zext}.txt
+$TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -OWw $F
+$TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -OWr $F > tmp_whole_${zext}.txt
 diff -b ${srcdir}/ref_whole.txt tmp_whole_${zext}.txt
 ${NCDUMP} $F > tmp_whole_${zext}.cdl
 diff -b ${srcdir}/ref_whole.cdl tmp_whole_${zext}.cdl

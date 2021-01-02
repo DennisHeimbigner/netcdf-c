@@ -208,6 +208,7 @@ nczprint_projectionx(const NCZProjection proj, int raw)
     ncbytescat(buf,"Projection{");
     snprintf(value,sizeof(value),"id=%d,",proj.id);
     ncbytescat(buf,value);
+    if(proj.skip) ncbytescat(buf,"*");
     snprintf(value,sizeof(value),"chunkindex=%lu",(unsigned long)proj.chunkindex);
     ncbytescat(buf,value);
     snprintf(value,sizeof(value),",first=%lu",(unsigned long)proj.first);
