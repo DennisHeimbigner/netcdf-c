@@ -414,10 +414,8 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
    	    if(slpavail > 0) {
 if(wdebug > 0) wdebug2(common,slpptr0,memptr0,slpavail,laststride,chunkdata);
 	  	if(common->reading) {
-fprintf(stderr,"xxx: read: avail=%d\n",(int)slpavail);
 		    memcpy(memptr0,slpptr0,slpavail*common->typesize);
 		} else {
-fprintf(stderr,"xxx: write: avail=%d\n",(int)slpavail);
 		    memcpy(slpptr0,memptr0,slpavail*common->typesize);
 		}
 	    }
