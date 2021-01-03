@@ -43,8 +43,14 @@ echo ""; echo "*** Test format $1"
 echo "Test whole chunk write then read"
 makefile tmp_whole
 rm -f tmp_whole_${zext}.txt tmp_whole_${zext}.dmp tmp_whole_${zext}.cdl tmp_err_${zext}.txt
-if test 1 = 0
+# This should succeed
+$TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -OWw $F
+$TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -OWr $F > tmp_whole_${zext}.txt
+diff -b ${srcdir}/ref_whole.txt tmp_whole_${zext}.txt
+${NCDUMP} $F > tmp_whole_${zext}.cdl
+diff -b ${srcdir}/ref_whole.cdl tmp_whole_${zext}.cdl
 # These two should fail 
+remfile $file
 if ! $TC -d 8,8 -c 4,4 -f 4,3 -e 4,4 -OWw $F >> tmp_err_${zext}.txt ; then
 echo "XFAIL: wholechunk with bad -f"
 fi
@@ -52,14 +58,6 @@ remfile $file
 if ! $TC -d 8,8 -c 4,4 -f 4,4 -e 1,4 -OWw $F  >> tmp_err_${zext}.txt ; then
 echo "XFAIL: wholechunk with bad -e"
 fi
-fi #0
-remfile $file
-# This should succeed
-$TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -OWw $F
-$TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -OWr $F > tmp_whole_${zext}.txt
-diff -b ${srcdir}/ref_whole.txt tmp_whole_${zext}.txt
-${NCDUMP} $F > tmp_whole_${zext}.cdl
-diff -b ${srcdir}/ref_whole.cdl tmp_whole_${zext}.cdl
 
 # Test skipping whole chunks
 echo "Test chunk skipping during read"
@@ -91,6 +89,7 @@ echo "Test rank > 2"
 makefile tmp_ndims
 rm -f tmp_ndims_${zext}.txt tmp_ndims_${zext}.dmp tmp_ndims_${zext}.cdl
 $TC -d 8,8,8,8 -c 3,3,4,4 -Ow $F
+zmapio -t int $F
 ${NCDUMP} $F > tmp_ndims_${zext}.cdl
 diff -b ${srcdir}/ref_ndims.cdl tmp_ndims_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_ndims_${zext}.dmp
@@ -100,6 +99,7 @@ echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.dmp tmp_misc1_${zext}.cdl
 $TC -d 6,12,4 -c 2,3,1 -f 0,0,0 -e 6,1,4 -Ow $F
+zmapio -t int $F
 ${NCDUMP} $F > tmp_misc1_${zext}.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1_${zext}.dmp
@@ -109,6 +109,7 @@ echo "Test writing avail > 0"
 makefile tmp_avail1
 rm -f tmp_avail1_${zext}.txt tmp_avail1_${zext}.dmp tmp_avail1_${zext}.cdl
 $TC -d 6,12,100 -c 2,3,50 -f 0,0,0 -p 6,12,100 -Ow $F
+zmapio -t int $F
 $TC -f 0,0,0 -e 6,3,75 -Or $F > tmp_avail1_${zext}.txt
 diff -b ${srcdir}/ref_avail1.txt tmp_avail1_${zext}.txt
 ${NCDUMP} $F > tmp_avail1_${zext}.cdl
