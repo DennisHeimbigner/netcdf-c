@@ -54,7 +54,9 @@ fi
 remfile $file
 # This should succeed
 $TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -OWw $F
+find ./tmp_whole.nzf
 $TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -OWr $F > tmp_whole_${zext}.txt
+find ./tmp_whole.nzf
 diff -b ${srcdir}/ref_whole.txt tmp_whole_${zext}.txt
 ${NCDUMP} $F > tmp_whole_${zext}.cdl
 diff -b ${srcdir}/ref_whole.cdl tmp_whole_${zext}.cdl
@@ -117,5 +119,5 @@ diff -b ${srcdir}/ref_avail1.dmp tmp_avail1_${zext}.dmp
 } # testcases()
 
 testcases nzf
-if test "x$FEATURE_HDF5" = xyes ; then testcases nz4; fi
-if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
+#if test "x$FEATURE_HDF5" = xyes ; then testcases nz4; fi
+#if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
