@@ -18,6 +18,8 @@
 #define NCLOGWARN 1
 #define NCLOGERR 2
 #define NCLOGDBG 3
+#define NCLOGTRACE 4
+#define NCLOGUNTRACE 5
 
 #if defined(_CPLUSPLUS_) || defined(__CPLUSPLUS__)
 extern "C" {
@@ -30,9 +32,22 @@ EXTERNL void nclogclose(void);
 
 /* The tag value is an arbitrary integer */
 EXTERNL void nclog(int tag, const char* fmt, ...);
-EXTERNL void ncvlog(int tag, const char* fmt, va_list ap);
+EXTERNL int ncvlog(int tag, const char* fmt, va_list ap);
 EXTERNL void nclogtext(int tag, const char* text);
 EXTERNL void nclogtextn(int tag, const char* text, size_t count);
+
+/* Trace support */
+EXTERNL int nctracelevel(int level);
+EXTERNL void nctrace(int level, const char* fmt, ...);
+EXTERNL void ncvtrace(int level, int tag, const char* fmt, va_list ap);
+EXTERNL int ncuntrace(int level, int err,const char* fmt,...);
+EXTERNL int ncbreakpoint(int err);
+
+#ifdef HAVE_EXECINFO_H
+EXTERNL void ncbacktrace(void);
+#else
+#define ncbacktrace()
+#endif
 
 #if defined(_CPLUSPLUS_) || defined(__CPLUSPLUS__)
 }

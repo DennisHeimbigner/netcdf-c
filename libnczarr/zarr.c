@@ -32,7 +32,7 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const char** contr
     NCjson* json = NULL;
     char* key = NULL;
 
-    ZTRACE("%s/%s %s",file->hdr.name,root->hdr.name,controls);
+    ZTRACE(1,"%s: %s/%s %s",__func__,file->hdr.name,root->hdr.name,controls);
 
     nc = (NC*)file->controller;
 
@@ -107,7 +107,7 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const char** controls)
     int mode;
     NClist* modeargs = NULL;
 
-    ZTRACE("%s %s",file->hdr.name,controls);
+    ZTRACE(1,"%s: %s %s",__func__,file->hdr.name,controls);
 
     /* Extract info reachable via file */
     nc = (NC*)file->controller;
@@ -262,7 +262,7 @@ ncz_open_rootgroup(NC_FILE_INFO_T* dataset)
     char* rootpath = NULL;
     NCjson* json = NULL;
 
-    ZTRACE();
+    ZTRACE(1,"%s:",__func_);
 
     zfile = dataset->format_file_info;
 
@@ -315,6 +315,8 @@ ncz_unload_jatts(NCZ_FILE_INFO_T* zinfo, NC_OBJ* container, NCjson* jattrs, NCjs
     char* tkey = NULL;
     NCZMAP* map = zinfo->map;
 
+    ZTRACE(1,"%s:",__func__);
+    
     assert((jattrs->sort = NCJ_DICT));
     assert((jtypes->sort = NCJ_DICT));
 

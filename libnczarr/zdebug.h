@@ -5,12 +5,11 @@
 #ifndef ZDEBUG_H
 #define ZDEBUG_H
 
-#undef ZDEBUGDISPATCH /* report errors at dispatch level */
 #undef ZDEBUG /* general debug */
 #undef ZDEBUG1 /* detailed debug */
 
 #define ZCATCH /* Warning: significant performance impact */
-#undef ZTRACING /* Warning: significant performance impact */
+#define ZTRACING /* Warning: significant performance impact */
 
 #include "ncexternl.h"
 #include "nclog.h"
@@ -27,19 +26,11 @@ EXTERNL int zthrow(int err, const char* fname, const char* fcn, int line);
 #endif
 
 #ifdef ZTRACING
-#define ZLOG(level,msg,...) nclog(level,msg,__VA_ARGS__)
-#define ZTRACE(fmt,...) nclog(NCLOGDBG,"trace: %s:%s " fmt,__FILE__,__func__,__VA_ARGS__)
+#define ZTRACE(level,fmt,...) nctrace((level),(fmt),##__VA_ARGS__)
+#define ZUNTRACE(l,e) ncuntrace((l),(e),"%s:",__func__)
 #else
-#define ZLOG(level,msg,...)
-#define ZTRACE(fmt,...)
-#endif
-
-#ifdef ZDEBUGDISPATCH
-/* Place breakpoint on zbreakpoint to catch errors close to where they occur*/
-#define THROWDB(e) zthrowdb((e),__FILE__, __func__, __LINE__)
-EXTERNL int zthrowdb(int err, const char* fname, const char* fcn, int line);
-#else
-#define THROWDB(e) (e)
+#define ZTRACE(level,fmt,...)
+#define ZUNTRACE(l,e)
 #endif
 
 /* printers */
@@ -59,10 +50,6 @@ EXTERNL char* nczprint_projectionx(const NCZProjection proj, int raw);
 EXTERNL char* nczprint_sliceprojectionsx(const NCZSliceProjections slp, int raw);
 
 EXTERNL void zdumpcommon(const struct Common*);
-
-#ifdef HAVE_EXECINFO_H
-EXTERNL void NCZbacktrace(void);
-#endif
 
 /* Define the possible unit tests (powers of 2) */
 #define UTEST_RANGE	 1

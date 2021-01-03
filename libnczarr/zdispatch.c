@@ -109,8 +109,8 @@ static const NC_Dispatch NCZ_dispatcher = {
 
 const NC_Dispatch* NCZ_dispatch_table = NULL; /* moved here from ddispatch.c */
 
-#ifdef ZDEBUGDISPATCH
-#include "zdebdispatch.h"
+#ifdef ZTRACING
+#include "ztracedispatch.h"
 #endif
 
 /**
@@ -125,8 +125,8 @@ int
 NCZ_initialize(void)
 {
     int stat;
-#ifdef ZDEBUGDISPATCH
-    NCZ_dispatch_table = &NCZ_dispatcher_debug;
+#ifdef ZTRACING
+    NCZ_dispatch_table = &NCZ_dispatcher_trace;
 #else
     NCZ_dispatch_table = &NCZ_dispatcher;
 #endif

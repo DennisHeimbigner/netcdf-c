@@ -148,7 +148,7 @@ static int zfinitialized = 0;
 static void zfinitialize(void)
 {
     if(!zfinitialized) {
-        ZTRACE("","");
+        ZTRACE(3,"%s:",__func__);
 	const char* env = NULL;
 	int perms = 0;
 	env = getenv("NC_DEFAULT_CREATE_PERMS");
@@ -183,7 +183,7 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
     NCURI* url = NULL;
 	
     NC_UNUSED(parameters);
-    ZTRACE("%s %d %llu %p",path,mode,flags,parameters);
+    ZTRACE(1,"%s: %s %d %llu %p",__func__,path,mode,flags,parameters);
 
     if(!zfinitialized) zfinitialize();
 
@@ -260,7 +260,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     NCURI*url = NULL;
     
     NC_UNUSED(parameters);
-    ZTRACE("%s %d %llu %p",path,mode,flags,parameters);
+    ZTRACE(1,"%s: %s %d %llu %p",__func__,path,mode,flags,parameters);
 
     if(!zfinitialized) zfinitialize();
 
@@ -319,7 +319,7 @@ zfileexists(NCZMAP* map, const char* key)
     ZFMAP* zfmap = (ZFMAP*)map;
     FD fd = FDNUL;
 
-    ZTRACE("%s",key);
+    ZTRACE(1,"%s: %s",__func__,key);
     switch(stat=zflookupobj(zfmap,key,&fd)) {
     case NC_NOERR: break;
     case NC_ENOTFOUND: stat = NC_EEMPTY;
@@ -338,7 +338,7 @@ zfilelen(NCZMAP* map, const char* key, size64_t* lenp)
     size64_t len = 0;
     FD fd = FDNUL;
 
-    ZTRACE("%s",key);
+    ZTRACE(1,"%s: %s",__func__,key);
 
     switch (stat=zflookupobj(zfmap,key,&fd)) {
     case NC_NOERR:
@@ -363,7 +363,7 @@ zfiledefineobj(NCZMAP* map, const char* key)
     FD fd = FDNUL;
     ZFMAP* zfmap = (ZFMAP*)map; /* cast to true type */
 
-    ZTRACE("%s",key);
+    ZTRACE(1,"%s: %s",__func__,key);
 
 #ifdef VERIFY
     if(!verify(key,!FLAG_ISDIR))
@@ -399,7 +399,7 @@ zfileread(NCZMAP* map, const char* key, size64_t start, size64_t count, void* co
     FD fd = FDNUL;
     ZFMAP* zfmap = (ZFMAP*)map; /* cast to true type */
 
-    ZTRACE("%s %llu %llu",key,start,count);
+    ZTRACE(1,"%s: %s %llu %llu",__func__,key,start,count);
 
 #ifdef VERIFY
     if(!verify(key,!FLAG_ISDIR))
@@ -428,7 +428,7 @@ zfilewrite(NCZMAP* map, const char* key, size64_t start, size64_t count, const v
     FD fd = FDNUL;
     ZFMAP* zfmap = (ZFMAP*)map; /* cast to true type */
 
-    ZTRACE("%s %llu %llu",key,start,count);
+    ZTRACE(1,"%s: %s %llu %llu",__func__,key,start,count);
 
 #ifdef VERIFY
     if(!verify(key,!FLAG_ISDIR))
@@ -456,7 +456,7 @@ zfileclose(NCZMAP* map, int delete)
     int stat = NC_NOERR;
     ZFMAP* zfmap = (ZFMAP*)map;
 
-    ZTRACE("%d",delete);
+    ZTRACE(1,"%s: %d",__func__,delete);
     if(zfmap == NULL) return NC_NOERR;
     
     /* Delete the subtree below the root and the root */
@@ -488,7 +488,7 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
     NCbytes* buf = ncbytesnew();
     int trailing;
 
-    ZTRACE("%s",prefixkey);
+    ZTRACE(1,"%s: %s",__func__,prefixkey);
 
     /* Make the root path be true */
     if(prefixkey == NULL || strlen(prefixkey)==0 || strcmp(prefixkey,"/")==0)
@@ -536,7 +536,7 @@ zfcreategroup(ZFMAP* zfmap, const char* key, int nskip)
     NCbytes* path = ncbytesnew();
     NClist* segments = nclistnew();
 
-    ZTRACE("%s %d",key,nskip);
+    ZTRACE(1,"%s: %s %d",__func__,key,nskip);
     if((stat=nczm_split(key,segments)))
 	goto done;    
     len = nclistlength(segments);
@@ -568,7 +568,7 @@ zflookupobj(ZFMAP* zfmap, const char* key, FD* fd)
     int stat = NC_NOERR;
     char* path = NULL;
 
-    ZTRACE("%s",key);
+    ZTRACE(1,"%s: %s",__func__,key);
 
     if((stat = zffullpath(zfmap,key,&path)))
 	{goto done;}    
@@ -591,7 +591,7 @@ done:
 static void
 zfrelease(ZFMAP* zfmap, FD* fd)
 {
-    ZTRACE("",NULL);
+    ZTRACE(1,"%s: ",__func__,NULL);
     platformrelease(zfmap,fd);
 }
 
@@ -605,7 +605,7 @@ zfcreateobj(ZFMAP* zfmap, const char* key, FD* fd)
     int stat = NC_NOERR;
     char* fullpath = NULL;
 
-    ZTRACE("%s",key);
+    ZTRACE(1,"%s: %s",__func__,key);
 
 #ifdef VERIFY
     if(!verify(key,!FLAG_ISDIR))

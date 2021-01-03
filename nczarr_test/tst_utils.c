@@ -8,6 +8,7 @@
 #include <ncpathmgr.h>
 #include <nclist.h>
 #include <ncuri.h>
+#include <nclog.h>
 
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
@@ -55,8 +56,11 @@ getoptions(int* argcp, char*** argvp)
     /* Set defaults */
     options->mode = 0; /* classic netcdf-3 */
 
-    while ((c = getopt(*argcp, *argvp, "34c:d:e:f:n:m:p:s:D:X:O:")) != EOF) {
+    while ((c = getopt(*argcp, *argvp, "T:34c:d:e:f:n:m:p:s:D:O:X:")) != EOF) {
 	switch(c) {
+	case 'T':
+	    nctracelevel(atoi(optarg));
+	    break;	
 	case '3':
 	    options->mode = 0;
 	    break;
