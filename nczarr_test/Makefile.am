@@ -50,7 +50,6 @@ endif
 
 TESTS += run_ncgen4.sh
 
-# suppress for now
 check_PROGRAMS += tst_chunkcases
 tst_chunkcases_SOURCES = tst_chunkcases.c ${tstcommonsrc}
 TESTS += run_chunkcases.sh
@@ -134,7 +133,6 @@ testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
 tst_chunks.nz4 tst_chunks2.nc.nz4 \
 ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp test.nzf \
 tst_chunks3.nc
-#*.dmp
 
 # Remove directories
 clean-local:
