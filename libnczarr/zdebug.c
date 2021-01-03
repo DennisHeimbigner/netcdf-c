@@ -27,13 +27,23 @@ zbreakpoint(int err)
 }
 
 int
-zthrow(int err, const char* file, int line)
+zthrow(int err, const char* file, const char* fcn, int line)
 {
     if(err == 0) return err;
-#ifdef ZDEBUG
-    fprintf(stderr,"THROW: %s/%d: (%d) %s\n",file,line,err,nc_strerror(err));
-    fflush(stderr);
+#ifdef HAVE_EXECINFO_H
+    NCZbacktrace();
 #endif
+    return zbreakpoint(err);
+}
+#endif /*ZCATCH*/
+
+#ifdef ZDEBUGDISPATCH
+int
+zthrowdb(int err, const char* file, const char* fcn, int line)
+{
+    if(err == 0) return err;
+    fprintf(stderr,"ZZZ: %s/%d: %s: (%d) %s\n",file,line,fcn,err,nc_strerror(err));
+    fflush(stderr);
 #ifdef HAVE_EXECINFO_H
     NCZbacktrace();
 #endif
@@ -198,6 +208,7 @@ nczprint_projectionx(const NCZProjection proj, int raw)
     ncbytescat(buf,"Projection{");
     snprintf(value,sizeof(value),"id=%d,",proj.id);
     ncbytescat(buf,value);
+    if(proj.skip) ncbytescat(buf,"*");
     snprintf(value,sizeof(value),"chunkindex=%lu",(unsigned long)proj.chunkindex);
     ncbytescat(buf,value);
     snprintf(value,sizeof(value),",first=%lu",(unsigned long)proj.first);

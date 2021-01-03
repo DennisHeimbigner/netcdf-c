@@ -81,14 +81,6 @@ nczodom_more(const NCZOdometer* odom)
 }
 
 void
-nczodom_setstop(NCZOdometer* odom)
-{
-    if(odom->rank > 0) {
-        odom->index[odom->rank-1] = odom->stop[odom->rank-1];
-    }
-}
-
-void
 nczodom_next(NCZOdometer* odom)
 {
     int i;
@@ -164,6 +156,19 @@ nczodom_avail(const NCZOdometer* odom)
     return avail;
 }
 
+/*
+Incr the odometer by nczodom_avail() values.
+Calling nczodom_next at that point should properly increment
+rest of the odometer.
+*/
+void
+nczodom_skipavail(NCZOdometer* odom)
+{
+    if(odom->rank > 0)
+        odom->index[odom->rank-1] = odom->stop[odom->rank-1];
+}
+
+#if 0
 size64_t
 nczodom_laststride(const NCZOdometer* odom)
 {
@@ -177,3 +182,4 @@ nczodom_lastlen(const NCZOdometer* odom)
     assert(odom != NULL && odom->rank > 0);
     return odom->len[odom->rank-1];
 }
+#endif

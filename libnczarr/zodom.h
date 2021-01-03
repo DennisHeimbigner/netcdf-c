@@ -33,14 +33,6 @@ extern size64_t nczodom_offset(const NCZOdometer*);
 extern void nczodom_reset(NCZOdometer* odom);
 extern void nczodom_free(NCZOdometer*);
 extern size64_t nczodom_avail(const NCZOdometer*);
-extern size64_t nczodom_lastlen(const NCZOdometer* odom);
-extern size64_t nczodom_laststride(const NCZOdometer* odom);
-
-extern void nczodom_setstop(NCZOdometer*);
-
-#if 0
-extern void nczodom_optimize(NCZOdometer*);
-extern void nczodom_reducerank(NCZOdometer* odom);
-#endif
+extern void nczodom_skipavail(NCZOdometer* odom);
 
 #endif /*ZODOM_H*/

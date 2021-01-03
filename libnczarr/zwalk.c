@@ -282,6 +282,11 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	    fprintf(stderr,"\tshape=%s\n",nczprint_vector(common->rank,shape));
 	}
 
+	/* See if any of the projections is a skip; if so, then move to the next chunk indices */
+	for(r=0;r<common->rank;r++) {
+	    if(proj[r]->skip) goto next;
+	}
+
 	for(r=0;r<common->rank;r++) {
 	    slpslices[r] = proj[r]->chunkslice;
 	    memslices[r] = proj[r]->memslice;
@@ -308,6 +313,7 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
   	    /* This is the key action: walk this set of slices and transfer data */
   	    if((stat = NCZ_walk(proj,chunkodom,slpodom,memodom,common,chunkdata))) goto done;
 	}
+next:
         nczodom_free(slpodom); slpodom = NULL;
         nczodom_free(memodom); memodom = NULL;
         nczodom_next(chunkodom);
@@ -386,7 +392,7 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
             slpoffset = nczodom_offset(slpodom);
             memoffset = nczodom_offset(memodom);
 
-            /* transfer data */
+            /* transfer data between these addresses */
             memptr0 = ((unsigned char*)common->memory)+(memoffset * common->typesize);
             slpptr0 = ((unsigned char*)chunkdata)+(slpoffset * common->typesize);
 
@@ -399,12 +405,8 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
 	        slpavail = nczodom_avail(slpodom); /* How much can we read? */
 	        memavail = nczodom_avail(memodom);
 		assert(memavail == slpavail);
-		nczodom_setstop(slpodom);
-	        nczodom_setstop(memodom);
-#if 0
-fprintf(stderr,"setstop: slpodom=%s\n",nczprint_odom(slpodom));
-fprintf(stderr,"setstop: memodom=%s\n",nczprint_odom(memodom));
-#endif
+		nczodom_skipavail(slpodom);
+	        nczodom_skipavail(memodom);
 	    } else {
 	        slpavail = 1;
 		memavail = 1;
@@ -586,6 +588,11 @@ NCZ_projectslices(size64_t* dimlens,
     if(odomp) *odomp = odom;
 
 done:
+    /* reclaim allprojections if !NULL */
+    if(allprojections != NULL) {
+        NCZ_clearsliceprojections(common->rank,allprojections);
+	nullfree(allprojections);
+    }
     return stat;
 }
 
