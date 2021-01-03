@@ -5,12 +5,11 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 . ${srcdir}/test_nczarr.sh
 
-which script
-
 set -e
 set -x
 
 TC="${execdir}/tst_chunkcases -4"
+ZM="${execdir}/zmapio -t int"
 
 remfile() {
   case "$zext" in
@@ -89,7 +88,7 @@ echo "Test rank > 2"
 makefile tmp_ndims
 rm -f tmp_ndims_${zext}.txt tmp_ndims_${zext}.dmp tmp_ndims_${zext}.cdl
 $TC -d 8,8,8,8 -c 3,3,4,4 -Ow $F
-zmapio -t int $F
+$ZM $F
 ${NCDUMP} $F > tmp_ndims_${zext}.cdl
 diff -b ${srcdir}/ref_ndims.cdl tmp_ndims_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_ndims_${zext}.dmp
@@ -99,7 +98,7 @@ echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.dmp tmp_misc1_${zext}.cdl
 $TC -d 6,12,4 -c 2,3,1 -f 0,0,0 -e 6,1,4 -Ow $F
-zmapio -t int $F
+$ZM $F
 ${NCDUMP} $F > tmp_misc1_${zext}.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1_${zext}.dmp
@@ -109,7 +108,7 @@ echo "Test writing avail > 0"
 makefile tmp_avail1
 rm -f tmp_avail1_${zext}.txt tmp_avail1_${zext}.dmp tmp_avail1_${zext}.cdl
 $TC -d 6,12,100 -c 2,3,50 -f 0,0,0 -p 6,12,100 -Ow $F
-zmapio -t int $F
+$ZM $F
 $TC -f 0,0,0 -e 6,3,75 -Or $F > tmp_avail1_${zext}.txt
 diff -b ${srcdir}/ref_avail1.txt tmp_avail1_${zext}.txt
 ${NCDUMP} $F > tmp_avail1_${zext}.cdl
@@ -119,6 +118,7 @@ diff -b ${srcdir}/ref_avail1.dmp tmp_avail1_${zext}.dmp
 
 } # testcases()
 
+which script
 testcases nzf
 #if test "x$FEATURE_HDF5" = xyes ; then testcases nz4; fi
 #if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
