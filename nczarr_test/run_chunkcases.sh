@@ -1,11 +1,11 @@
 #!/bin/sh
 
-export SETX=1
-
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 . ${srcdir}/test_nczarr.sh
+
+which script
 
 set -e
 set -x
@@ -43,7 +43,8 @@ echo ""; echo "*** Test format $1"
 echo "Test whole chunk write then read"
 makefile tmp_whole
 rm -f tmp_whole_${zext}.txt tmp_whole_${zext}.dmp tmp_whole_${zext}.cdl tmp_err_${zext}.txt
-# This should fail 
+if test 1 = 0
+# These two should fail 
 if ! $TC -d 8,8 -c 4,4 -f 4,3 -e 4,4 -OWw $F >> tmp_err_${zext}.txt ; then
 echo "XFAIL: wholechunk with bad -f"
 fi
@@ -51,12 +52,11 @@ remfile $file
 if ! $TC -d 8,8 -c 4,4 -f 4,4 -e 1,4 -OWw $F  >> tmp_err_${zext}.txt ; then
 echo "XFAIL: wholechunk with bad -e"
 fi
+fi #0
 remfile $file
 # This should succeed
 $TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -OWw $F
-find ./tmp_whole.nzf
 $TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -OWr $F > tmp_whole_${zext}.txt
-find ./tmp_whole.nzf
 diff -b ${srcdir}/ref_whole.txt tmp_whole_${zext}.txt
 ${NCDUMP} $F > tmp_whole_${zext}.cdl
 diff -b ${srcdir}/ref_whole.cdl tmp_whole_${zext}.cdl
