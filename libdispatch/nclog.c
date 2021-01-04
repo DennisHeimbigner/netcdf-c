@@ -55,6 +55,7 @@ static const char* nctagname(int tag);
 void
 ncloginit(void)
 {
+    const char* envv = NULL;
     if(nclogginginitialized)
 	return;
     nclogginginitialized = 1;
@@ -63,8 +64,13 @@ ncloginit(void)
     nclog_global.nclogstream = stderr;
     /* Use environment variables to preset nclogging state*/
     /* I hope this is portable*/
-    if(getenv(NCENVLOGGING) != NULL) {
+    envv = getenv(NCENVLOGGING);
+    if(envv != NULL) {
 	ncsetlogging(1);
+    }
+    envv = getenv(NCENVTRACING);
+    if(envv != NULL) {
+	nctracelevel(atoi(envv));
     }
 }
 
@@ -179,6 +185,7 @@ nctracelevel(int level)
       nclog_global.tracelevel = level;
       ncsetlogging(0);
     } else if(level >= 0) {
+        nclog_global.tracelevel = level;
         ncsetlogging(1);
 	nclogopen(NULL); /* use stderr */    
     }

@@ -10,8 +10,8 @@
 #include <stdarg.h>
 #include "ncexternl.h"
 
-#define NCENVLOGFILE "NCLOGFILE"
 #define NCENVLOGGING "NCLOGGING"
+#define NCENVTRACING "NCTRACING"
 
 /* Suggested tag values */
 #define NCLOGNOTE 0
