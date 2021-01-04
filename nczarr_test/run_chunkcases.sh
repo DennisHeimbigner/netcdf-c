@@ -33,44 +33,55 @@ makefile() {
   esac
 }
 
-testcases() {
+reset() {
+rm -f tmp_ndims_${zext}.txt tmp_ndims_${zext}.dmp tmp_ndims_${zext}.cdl
+rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.dmp tmp_misc1_${zext}.cdl
+rm -f tmp_avail1_${zext}.txt tmp_avail1_${zext}.dmp tmp_avail1_${zext}.cdl
+}
 
-zext=$1
+checktests() {
+diff -b ${srcdir}/ref_ndims.cdl tmp_ndims_${zext}.cdl
+diff -b ${srcdir}/ref_ndims.dmp tmp_ndims_${zext}.dmp
+diff -b ${srcdir}/ref_misc1.cdl tmp_misc1_${zext}.cdl
+diff -b ${srcdir}/ref_misc1.dmp tmp_misc1_${zext}.dmp
+diff -b ${srcdir}/ref_avail1.txt tmp_avail1_${zext}.txt
+}
+
+runtests() {
+
 echo ""; echo "*** Test format $1"
 
 echo "Test rank > 2"
 makefile tmp_ndims
-rm -f tmp_ndims_${zext}.txt tmp_ndims_${zext}.dmp tmp_ndims_${zext}.cdl
 $TC -d 8,8,8,8 -c 3,3,4,4 -Ow $F
 ${NCDUMP} $F > tmp_ndims_${zext}.cdl
-diff -b ${srcdir}/ref_ndims.cdl tmp_ndims_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_ndims_${zext}.dmp
-diff -b ${srcdir}/ref_ndims.dmp tmp_ndims_${zext}.dmp
-rm -f tmp_ndims_${zext}.txt tmp_ndims_${zext}.dmp tmp_ndims_${zext}.cdl
+remfile tmp_ndims
 
 echo "Test miscellaneous 1"
 makefile tmp_misc1
-rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.dmp tmp_misc1_${zext}.cdl
 $TC -d 6,12,4 -c 2,3,1 -f 0,0,0 -e 6,1,4 -Ow $F
 ${NCDUMP} $F > tmp_misc1_${zext}.cdl
-diff -b ${srcdir}/ref_misc1.cdl tmp_misc1_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1_${zext}.dmp
-diff -b ${srcdir}/ref_misc1.dmp tmp_misc1_${zext}.dmp
-rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.dmp tmp_misc1_${zext}.cdl
+remfile tmp_misc1
 
 echo "Test writing avail > 0"
 makefile tmp_avail1
-rm -f tmp_avail1_${zext}.txt tmp_avail1_${zext}.dmp tmp_avail1_${zext}.cdl
 $TC -d 6,12,100 -c 2,3,50 -f 0,0,0 -p 6,12,100 -Ow $F
-#$ZM $F
-$TC -T4 -f 0,0,0 -e 6,3,75 -Or $F > tmp_avail1_${zext}.txt
-diff -b ${srcdir}/ref_avail1.txt tmp_avail1_${zext}.txt
+$TC -f 0,0,0 -e 6,3,75 -Or $F > tmp_avail1_${zext}.txt
 ${NCDUMP} $F > tmp_avail1_${zext}.cdl
-ls -l tmp_avail1_${zext}.cdl
-rm -f tmp_avail1_${zext}.txt tmp_avail1_${zext}.dmp tmp_avail1_${zext}.cdl
+remfile tmp_avail1
+}
 
-} # testcases()
+testcase() {
+zext=$1
+reset
+runtests
+checktests
+reset
+}
 
-testcases nzf
+
+testcase nzf
 #if test "x$FEATURE_HDF5" = xyes ; then testcases nz4; fi
 #if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
