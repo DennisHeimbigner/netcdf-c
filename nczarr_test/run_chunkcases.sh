@@ -38,6 +38,15 @@ testcases() {
 zext=$1
 echo ""; echo "*** Test format $1"
 
+echo "Test rank > 2"
+makefile tmp_ndims
+rm -f tmp_ndims_${zext}.txt tmp_ndims_${zext}.dmp tmp_ndims_${zext}.cdl
+$TC -d 8,8,8,8 -c 3,3,4,4 -Ow $F
+${NCDUMP} $F > tmp_ndims_${zext}.cdl
+diff -b ${srcdir}/ref_ndims.cdl tmp_ndims_${zext}.cdl
+${execdir}/ncdumpchunks -v v $F > tmp_ndims_${zext}.dmp
+diff -b ${srcdir}/ref_ndims.dmp tmp_ndims_${zext}.dmp
+
 echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.dmp tmp_misc1_${zext}.cdl
