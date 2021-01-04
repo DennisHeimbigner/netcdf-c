@@ -76,7 +76,9 @@ remfile tmp_avail1
 testcase() {
 zext=$1
 reset
+export NCTRACING=3
 runtests
+export NCTRACING="-1"
 checktests
 reset
 }
