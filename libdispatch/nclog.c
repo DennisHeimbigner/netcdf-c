@@ -265,8 +265,8 @@ ncuntrace(const char* fcn, int err, const char* fmt, ...)
         fprintf(nclog_global.nclogstream, "\n" );
         fflush(nclog_global.nclogstream);
         va_end(args);
-        if(err != 0)
 #ifdef HAVE_EXECINFO_H
+        if(err != 0)
             ncbacktrace();
 #endif
     }
