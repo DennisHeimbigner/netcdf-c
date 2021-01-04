@@ -160,6 +160,7 @@ static void zfinitialize(void)
 	    if(sscanf(env,"%d",&perms) == 1) NC_DEFAULT_DIR_PERMS = perms;
 	}
         zfinitialized = 1;
+	ZUNTRACE(3,NC_NOERR);
     }
 }
 
@@ -239,7 +240,7 @@ done:
     nullfree(truepath);
     if(stat)
     	zfileclose((NCZMAP*)zfmap,1);
-    return (stat);
+    return ZUNTRACE(3,stat);
 }
 
 /*
@@ -306,7 +307,7 @@ done:
     ncurifree(url);
     nullfree(truepath);
     if(stat) zfileclose((NCZMAP*)zfmap,0);
-    return (stat);
+    return ZUNTRACE(3,stat);
 }
 
 /**************************************************/
@@ -327,7 +328,7 @@ zfileexists(NCZMAP* map, const char* key)
     default: break;
     }
     zfrelease(zfmap,&fd);    
-    return (stat);
+    return ZUNTRACE(3,stat);
 }
 
 static int
@@ -353,7 +354,7 @@ zfilelen(NCZMAP* map, const char* key, size64_t* lenp)
     if(lenp) *lenp = len;
 
 done:
-    return THROW(stat);
+    return ZUNTRACE(3,stat);
 }
 
 static int
@@ -389,7 +390,7 @@ zfiledefineobj(NCZMAP* map, const char* key)
 
 done:
     zfrelease(zfmap,&fd);
-    return (stat);
+    return ZUNTRACE(3,stat);
 }
 
 static int
@@ -418,7 +419,7 @@ zfileread(NCZMAP* map, const char* key, size64_t start, size64_t count, void* co
     
 done:
     zfrelease(zfmap,&fd);
-    return (stat);
+    return ZUNTRACE(3,stat);
 }
 
 static int
@@ -447,7 +448,7 @@ zfilewrite(NCZMAP* map, const char* key, size64_t start, size64_t count, const v
 
 done:
     zfrelease(zfmap,&fd);
-    return (stat);
+    return ZUNTRACE(3,stat);
 }
 
 static int
@@ -468,7 +469,7 @@ zfileclose(NCZMAP* map, int delete)
     nullfree(zfmap->root);
     zfmap->root = NULL;
     free(zfmap);
-    return (stat);
+    return ZUNTRACE(3,stat);
 }
 
 /*
@@ -519,7 +520,7 @@ done:
     nclistfreeall(nextlevel);
     ncbytesfree(buf);
     nullfree(truepath);
-    return THROW(stat);
+    return ZUNTRACE(3,stat);
 }
 
 /**************************************************/
@@ -554,7 +555,7 @@ done:
     nullfree(fullpath);
     ncbytesfree(path);
     nclistfreeall(segments);
-    return (stat);
+    return ZUNTRACE(3,stat);
 }
 
 /* Lookup an object
@@ -584,7 +585,7 @@ zflookupobj(ZFMAP* zfmap, const char* key, FD* fd)
 done:
     errno = 0;
     nullfree(path);
-    return (stat);    
+    return ZUNTRACE(3,stat);
 }
 
 /* When we are finished accessing object */
@@ -593,6 +594,7 @@ zfrelease(ZFMAP* zfmap, FD* fd)
 {
     ZTRACE(3,"%s: ",__func__,NULL);
     platformrelease(zfmap,fd);
+    ZUNTRACE(3,NC_NOERR);
 }
 
 /* Create an object file corresponding to a key; create any
@@ -620,7 +622,7 @@ zfcreateobj(ZFMAP* zfmap, const char* key, FD* fd)
 	goto done;
 done:
     nullfree(fullpath);
-    return (stat);
+    return ZUNTRACE(3,stat);
 }
 
 /**************************************************/
