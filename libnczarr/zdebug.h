@@ -28,9 +28,11 @@ EXTERNL int zthrow(int err, const char* fname, const char* fcn, int line);
 #ifdef ZTRACING
 #define ZTRACE(level,fmt,...) nctrace((level),(fmt),##__VA_ARGS__)
 #define ZUNTRACE(l,e) ncuntrace((l),(e),"%s:",__func__)
+#define ZUNTRACEX(l,e,fmt,...) ncuntrace((l),(e),"%s: "#fmt,__func__,##__VA_ARGS__)
 #else
 #define ZTRACE(level,fmt,...)
 #define ZUNTRACE(l,e)
+#define ZUNTRACEX(l,e,fmt,...)
 #endif
 
 /* printers */
@@ -43,11 +45,13 @@ EXTERNL char* nczprint_chunkrange(const NCZChunkRange);
 EXTERNL char* nczprint_projection(const NCZProjection);
 EXTERNL char* nczprint_sliceprojections(const NCZSliceProjections);
 EXTERNL char* nczprint_allsliceprojections(int r, const NCZSliceProjections* slp);
-EXTERNL char* nczprint_vector(size_t,const size64_t*);
 EXTERNL char* nczprint_slicex(const NCZSlice slice, int raw);
 EXTERNL char* nczprint_slicesx(int rank, const NCZSlice* slices, int raw);
 EXTERNL char* nczprint_projectionx(const NCZProjection proj, int raw);
 EXTERNL char* nczprint_sliceprojectionsx(const NCZSliceProjections slp, int raw);
+EXTERNL char* nczprint_vector(size_t,const size64_t*);
+EXTERNL char* nczprint_idvector(size_t,const int*);
+EXTERNL char* nczprint_sizevector(size_t,const size_t*);
 
 EXTERNL void zdumpcommon(const struct Common*);
 

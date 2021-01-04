@@ -151,6 +151,8 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
     int stat = NC_NOERR;
     NCURI* uri = NULL;
 
+    ZTRACE(0,"%s: path=%s,mode=%d,ncid=%d)",__func__,path,mode,ncid);
+
     NC_UNUSED(parameters);
 
     assert(path && dispatch);
@@ -183,6 +185,6 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 
 done:
     ncurifree(uri);
-    return stat;
+    return ZUNTRACE(0,stat);
 }
 

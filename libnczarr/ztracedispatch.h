@@ -14,17 +14,15 @@
 static int NCZTR_create(const char *path, int cmode, size_t initialsz, int basepe, size_t *chunksizehintp, void *parameters, const struct NC_Dispatch *table, int ncid)
 {
     int stat = NC_NOERR;
-    ZTRACE(0,"NCZ_create(path=%s,cmode=%d,initialsz=%ld,ncid=%d)",path,cmode,initialsz,ncid);
     stat = NCZ_create(path,cmode,initialsz,basepe,chunksizehintp,parameters,table,ncid);
-    return ZUNTRACE(0,stat);
+    return stat;
 }
 
 static int NCZTR_open(const char *path, int mode, int basepe, size_t *chunksizehintp,void *parameters, const struct NC_Dispatch *table, int ncid)
 {
     int stat = NC_NOERR;
-    ZTRACE(0,"NCZ_open(path=%s,mode=%d,ncid=%d)",path,mode,ncid);
     stat = NCZ_open(path,mode,basepe,chunksizehintp,parameters,table,ncid);
-    return ZUNTRACE(0,stat);
+    return stat;
 }
 
 static int NCZTR_redef(int ncid)
