@@ -111,6 +111,7 @@ diff -b ${srcdir}/ref_avail1.txt tmp_avail1_${zext}.txt
 export NCTRACING=3
 ${NCDUMP} $F > tmp_avail1_${zext}.cdl
 export NCTRACING="-1"
+ls -l tmp_avail1_${zext},cdl
 diff -b ${srcdir}/ref_avail1.cdl tmp_avail1_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_avail1_${zext}.dmp
 diff -b ${srcdir}/ref_avail1.dmp tmp_avail1_${zext}.dmp
