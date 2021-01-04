@@ -46,7 +46,6 @@ ${NCDUMP} $F > tmp_misc1_${zext}.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1_${zext}.dmp
 diff -b ${srcdir}/ref_misc1.dmp tmp_misc1_${zext}.dmp
-fi
 
 echo "Test writing avail > 0"
 makefile tmp_avail1
