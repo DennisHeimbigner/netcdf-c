@@ -189,6 +189,7 @@ nctracelevel(int level)
         ncsetlogging(1);
 	nclogopen(NULL); /* use stderr */    
     }
+fprintf(stderr,"XXX: level=%d\n",nclog_global.tracelevel);
     return oldlevel;
 }
 
