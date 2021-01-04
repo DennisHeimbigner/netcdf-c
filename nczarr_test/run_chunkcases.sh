@@ -46,6 +46,7 @@ ${NCDUMP} $F > tmp_ndims_${zext}.cdl
 diff -b ${srcdir}/ref_ndims.cdl tmp_ndims_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_ndims_${zext}.dmp
 diff -b ${srcdir}/ref_ndims.dmp tmp_ndims_${zext}.dmp
+rm -f tmp_ndims_${zext}.txt tmp_ndims_${zext}.dmp tmp_ndims_${zext}.cdl
 
 echo "Test miscellaneous 1"
 makefile tmp_misc1
@@ -55,6 +56,7 @@ ${NCDUMP} $F > tmp_misc1_${zext}.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1_${zext}.dmp
 diff -b ${srcdir}/ref_misc1.dmp tmp_misc1_${zext}.dmp
+rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.dmp tmp_misc1_${zext}.cdl
 
 echo "Test writing avail > 0"
 makefile tmp_avail1
@@ -65,6 +67,7 @@ $TC -T4 -f 0,0,0 -e 6,3,75 -Or $F > tmp_avail1_${zext}.txt
 diff -b ${srcdir}/ref_avail1.txt tmp_avail1_${zext}.txt
 ${NCDUMP} $F > tmp_avail1_${zext}.cdl
 ls -l tmp_avail1_${zext}.cdl
+rm -f tmp_avail1_${zext}.txt tmp_avail1_${zext}.dmp tmp_avail1_${zext}.cdl
 
 } # testcases()
 
