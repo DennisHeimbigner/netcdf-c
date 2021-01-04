@@ -400,12 +400,7 @@ applycontrols(NCZ_FILE_INFO_T* zinfo)
     /* Process other controls */
     if((value = controllookup((const char**)zinfo->controls,"log")) != NULL) {
 	zinfo->features.flags |= FLAG_LOGGING;
-	ncloginit();
-        if(nclogopen(value))
-	    ncsetlogging(1);
-	ncloginit();
-        if(nclogopen(value))
-	    ncsetlogging(1);
+        ncsetlogging(1);
     }
     if((value = controllookup((const char**)zinfo->controls,"show")) != NULL) {
 	if(strcasecmp(value,"fetch")==0)

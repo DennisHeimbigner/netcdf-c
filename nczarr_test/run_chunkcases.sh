@@ -8,7 +8,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 set -e
 set -x
 
-TC="${execdir}/tst_chunkcases -4"
+TC="${execdir}/tst_chunkcases -T0 -4"
 ZM="${execdir}/zmapio -t int"
 
 remfile() {

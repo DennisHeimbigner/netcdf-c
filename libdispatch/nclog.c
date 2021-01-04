@@ -36,11 +36,9 @@ static int nclogginginitialized = 0;
 
 static struct NCLOGGLOBAL {
     int nclogging;
-    int ncsystemfile; /* 1 => we are logging to file we did not open */
-    char* nclogfile;
-    FILE* nclogstream;
     int tracelevel;
-} nclog_global = {0,0,NULL,NULL,-1};
+    FILE* nclogstream;
+} nclog_global = {0,-1,NULL};
 
 static const char* nctagset[] = {"Note","Warning","Error","Debug","Trace","EndTrace"};
 static const int nctagsize = sizeof(nctagset)/sizeof(char*);
@@ -57,22 +55,16 @@ static const char* nctagname(int tag);
 void
 ncloginit(void)
 {
-    const char* file;
     if(nclogginginitialized)
 	return;
     nclogginginitialized = 1;
     memset(&nclog_global,0,sizeof(nclog_global));
     ncsetlogging(0);
-    nclog_global.nclogfile = NULL;
-    nclog_global.nclogstream = NULL;
+    nclog_global.nclogstream = stderr;
     /* Use environment variables to preset nclogging state*/
     /* I hope this is portable*/
     if(getenv(NCENVLOGGING) != NULL) {
 	ncsetlogging(1);
-    }
-    file = getenv(NCENVLOGFILE);
-    if(file != NULL && strlen(file) > 0) {
-        nclogopen(file);
     }
 }
 
@@ -91,72 +83,17 @@ ncsetlogging(int tf)
     if(!nclogginginitialized) ncloginit();
     was = nclog_global.nclogging;
     nclog_global.nclogging = tf;
-    if(nclog_global.nclogstream == NULL) (void)nclogopen(NULL);
+    if(nclog_global.nclogstream == NULL) nclogopen(NULL);
     return was;
 }
 
-/*!
-Specify a file into which to place logging output.
-
-\param[in] file The name of the file into which to place logging output.
-If the file has the value NULL, then send logging output to
-stderr.
-
-\return zero if the open failed, one otherwise.
-*/
-
 int
-nclogopen(const char* file)
+nclogopen(FILE* stream)
 {
     if(!nclogginginitialized) ncloginit();
-    nclogclose();
-    if(file == NULL || strlen(file) == 0) {
-	/* use stderr*/
-	nclog_global.nclogstream = stderr;
-	nclog_global.nclogfile = NULL;
-	nclog_global.ncsystemfile = 1;
-    } else if(strcmp(file,"stdout") == 0) {
-	/* use stdout*/
-	nclog_global.nclogstream = stdout;
-	nclog_global.nclogfile = NULL;
-	nclog_global.ncsystemfile = 1;
-    } else if(strcmp(file,"stderr") == 0) {
-	/* use stderr*/
-	nclog_global.nclogstream = stderr;
-	nclog_global.nclogfile = NULL;
-	nclog_global.ncsystemfile = 1;
-    } else {
-	int fd;
-	nclog_global.nclogfile = strdup(file);
-	nclog_global.nclogstream = NULL;
-	/* We need to deal with this file carefully
-	   to avoid unauthorized access*/
-	fd = open(nclog_global.nclogfile,O_WRONLY|O_APPEND|O_CREAT,0600);
-	if(fd >= 0) {
-	    nclog_global.nclogstream = fdopen(fd,"a");
-	} else {
-	    free(nclog_global.nclogfile);
-	    nclog_global.nclogfile = NULL;
-	    nclog_global.nclogstream = NULL;
-	    ncsetlogging(0);
-	    return 0;
-	}
-	nclog_global.ncsystemfile = 0;
-    }
+    if(stream == NULL) stream = stderr;
+    nclog_global.nclogstream = stream;
     return 1;
-}
-
-void
-nclogclose(void)
-{
-    if(!nclogginginitialized) ncloginit();
-    if(nclog_global.nclogstream != NULL && !nclog_global.ncsystemfile) {
-	fclose(nclog_global.nclogstream);
-    }
-    if(nclog_global.nclogfile != NULL) free(nclog_global.nclogfile);
-    nclog_global.nclogstream = NULL;
-    nclog_global.nclogfile = NULL;
-    nclog_global.ncsystemfile = 0;
 }
 
 /*!

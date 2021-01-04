@@ -27,8 +27,7 @@ extern "C" {
 
 EXTERNL void ncloginit(void);
 EXTERNL int ncsetlogging(int tf);
-EXTERNL int nclogopen(const char* file);
-EXTERNL void nclogclose(void);
+EXTERNL int nclogopen(FILE* stream);
 
 /* The tag value is an arbitrary integer */
 EXTERNL void nclog(int tag, const char* fmt, ...);
