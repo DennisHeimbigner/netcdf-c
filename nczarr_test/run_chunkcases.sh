@@ -106,6 +106,7 @@ echo "Test writing avail > 0"
 makefile tmp_avail1
 rm -f tmp_avail1_${zext}.txt tmp_avail1_${zext}.dmp tmp_avail1_${zext}.cdl
 $TC -T3 -d 6,12,100 -c 2,3,50 -f 0,0,0 -p 6,12,100 -Ow $F
+$ZM $F
 $TC -f 0,0,0 -e 6,3,75 -Or $F > tmp_avail1_${zext}.txt
 diff -b ${srcdir}/ref_avail1.txt tmp_avail1_${zext}.txt
 export NCTRACING=3

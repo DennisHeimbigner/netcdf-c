@@ -60,6 +60,7 @@ ncloginit(void)
 	return;
     nclogginginitialized = 1;
     memset(&nclog_global,0,sizeof(nclog_global));
+    nclog_global.tracelevel = -1;    
     ncsetlogging(0);
     nclog_global.nclogstream = stderr;
     /* Use environment variables to preset nclogging state*/
