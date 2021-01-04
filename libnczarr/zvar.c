@@ -472,7 +472,7 @@ exit:
 	if ((retval = nc4_type_free(type)))
 	    BAILLOG(retval);
 
-    return ZUNTRACE(1,retval);
+    return ZUNTRACE(retval);
 }
 
 /**
@@ -544,7 +544,7 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 	{retval = NC_ENOTVAR; goto done;}
     assert(var && var->hdr.id == varid);
 
-    ZTRACE(1,"\tstoragep=%d chunksizes=%s",(storagep?*storagep:-1),(chunksizes?nczprint_sizevector(var->ndims,chunksizes):"null"));
+    ZTRACEMORE(1,"\tstoragep=%d chunksizes=%s",(storagep?*storagep:-1),(chunksizes?nczprint_sizevector(var->ndims,chunksizes):"null"));
     
     /* Can't turn on parallel and deflate/fletcher32/szip/shuffle
      * before HDF5 1.10.3. */
@@ -748,7 +748,7 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
     }
 
 done:
-    return ZUNTRACE(1,retval);
+    return ZUNTRACE(retval);
 }
 
 /**

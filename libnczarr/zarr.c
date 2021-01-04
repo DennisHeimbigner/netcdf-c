@@ -32,7 +32,7 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const char** contr
     NCjson* json = NULL;
     char* key = NULL;
 
-    ZTRACE(1,"%s: file=%s root=%s controls=%s",__func__,file->hdr.name,root->hdr.name,controls);
+    ZTRACE(3,"file=%s root=%s controls=%s",file->hdr.name,root->hdr.name,controls);
 
     nc = (NC*)file->controller;
 
@@ -83,7 +83,7 @@ done:
     ncurifree(uri);
     NCJreclaim(json);
     nullfree(key);
-    return stat;
+    return ZUNTRACE(stat);
 }
 
 /**
@@ -107,7 +107,7 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const char** controls)
     int mode;
     NClist* modeargs = NULL;
 
-    ZTRACE(1,"%s: file=%s controls=%s",__func__,file->hdr.name,controls);
+    ZTRACE(3,"file=%s controls=%s",file->hdr.name,controls);
 
     /* Extract info reachable via file */
     nc = (NC*)file->controller;
@@ -176,7 +176,7 @@ done:
     nclistfreeall(modeargs);
     if(json) NCJreclaim(json);
     nullfree(content);
-    return stat;
+    return ZUNTRACE(stat);
 }
 
 
@@ -262,7 +262,7 @@ ncz_open_rootgroup(NC_FILE_INFO_T* dataset)
     char* rootpath = NULL;
     NCjson* json = NULL;
 
-    ZTRACE(1,"%s:",__func_);
+    ZTRACE(3,"dataset=",dataset->hdr.name);
 
     zfile = dataset->format_file_info;
 
@@ -293,7 +293,7 @@ done:
     if(json) NCJreclaim(json);
     nullfree(rootpath);
     nullfree(content);
-    return stat;
+    return ZUNTRACE(stat);
 }
 #endif
 
@@ -315,8 +315,6 @@ ncz_unload_jatts(NCZ_FILE_INFO_T* zinfo, NC_OBJ* container, NCjson* jattrs, NCjs
     char* tkey = NULL;
     NCZMAP* map = zinfo->map;
 
-    ZTRACE(1,"%s:",__func__);
-    
     assert((jattrs->sort = NCJ_DICT));
     assert((jtypes->sort = NCJ_DICT));
 

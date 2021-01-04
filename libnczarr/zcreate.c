@@ -97,7 +97,7 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
     int stat = NC_NOERR;
     NCURI* uri = NULL;
 
-    ZTRACE(0,"%s: path=%s,cmode=%d,initialsz=%ld,ncid=%d)",__func__,path,cmode,initialsz,ncid);
+    ZTRACE(0,"path=%s,cmode=%d,initialsz=%ld,ncid=%d)",path,cmode,initialsz,ncid);
     
     NC_UNUSED(parameters);
 
@@ -130,5 +130,5 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
 
 done:
     ncurifree(uri);
-    return ZUNTRACE(0,stat);
+    return ZUNTRACE(stat);
 }

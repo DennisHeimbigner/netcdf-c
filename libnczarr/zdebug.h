@@ -26,13 +26,14 @@ EXTERNL int zthrow(int err, const char* fname, const char* fcn, int line);
 #endif
 
 #ifdef ZTRACING
-#define ZTRACE(level,fmt,...) nctrace((level),(fmt),##__VA_ARGS__)
-#define ZUNTRACE(l,e) ncuntrace((l),(e),"%s:",__func__)
-#define ZUNTRACEX(l,e,fmt,...) ncuntrace((l),(e),"%s: "#fmt,__func__,##__VA_ARGS__)
+#define ZTRACE(level,fmt,...) nctrace((level),__func__,fmt,##__VA_ARGS__)
+#define ZTRACEMORE(level,fmt,...) nctracemore((level),fmt,##__VA_ARGS__)
+#define ZUNTRACE(e) ncuntrace(__func__,(e),NULL)
+#define ZUNTRACEX(e,fmt,...) ncuntrace(__func__,(e),fmt,##__VA_ARGS__)
 #else
 #define ZTRACE(level,fmt,...)
-#define ZUNTRACE(l,e)
-#define ZUNTRACEX(l,e,fmt,...)
+#define ZUNTRACE(e)
+#define ZUNTRACEX(e,fmt,...)
 #endif
 
 /* printers */

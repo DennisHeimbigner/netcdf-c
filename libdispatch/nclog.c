@@ -31,6 +31,7 @@
 #define MAXTAGS 256
 #define NCTAGDFALT "Log";
 
+#define NC_MAX_FRAMES 256
 
 static int nclogginginitialized = 0;
 
@@ -38,9 +39,15 @@ static struct NCLOGGLOBAL {
     int nclogging;
     int tracelevel;
     FILE* nclogstream;
+    int depth;
+    struct Frame {
+	const char* fcn;
+	int level;
+	int depth;
+    } frames[NC_MAX_FRAMES];
 } nclog_global = {0,-1,NULL};
 
-static const char* nctagset[] = {"Note","Warning","Error","Debug","Trace","EndTrace"};
+static const char* nctagset[] = {"Note","Warning","Error","Debug"};
 static const int nctagsize = sizeof(nctagset)/sizeof(char*);
 
 /* Forward */
@@ -195,41 +202,78 @@ fprintf(stderr,"XXX: level=%d\n",nclog_global.tracelevel);
 }
 
 void
-nctrace(int level, const char* fmt, ...)
+nctrace(int level, const char* fcn, const char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    ncvtrace(level,NCLOGTRACE,fmt,args);
+    ncvtrace(level,fcn,fmt,args);
     va_end(args);
 }
 
 void
-ncvtrace(int level, int tag, const char* fmt, va_list ap)
+nctracemore(int level, const char* fmt, ...)
 {
+    va_list args;
+    va_start(args, fmt);
+    ncvtrace(level,NULL,fmt,args);
+    va_end(args);
+}
+
+void
+ncvtrace(int level, const char* fcn, const char* fmt, va_list ap)
+{
+    struct Frame* frame;
     if(!nclogginginitialized) ncloginit();
     if(nclog_global.tracelevel < 0) ncsetlogging(0);
+    if(fcn != NULL) {
+        frame = &nclog_global.frames[nclog_global.depth];
+        frame->fcn = fcn;
+        frame->level = level;
+        frame->depth = nclog_global.depth;
+    }
     if(level <= nclog_global.tracelevel) {
-        fprintf(nclog_global.nclogstream,"%s: (%d):",nctagname(tag),level);
+	if(fcn != NULL)
+            fprintf(nclog_global.nclogstream,"%s: (%d): %s:","Enter",level,fcn);
         if(fmt != NULL)
             vfprintf(nclog_global.nclogstream, fmt, ap);
         fprintf(nclog_global.nclogstream, "\n" );
         fflush(nclog_global.nclogstream);
     }
+    if(fcn != NULL) nclog_global.depth++;
 }
 
 int
-ncuntrace(int level, int err, const char* fmt, ...)
+ncuntrace(const char* fcn, int err, const char* fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
-    ncvtrace(level,NCLOGUNTRACE,fmt,args);
-    va_end(args);
-    if(err != 0) {
+    struct Frame* frame;
+    if(nclog_global.depth == 0) {
+	fprintf(nclog_global.nclogstream,"*** Unmatched untrace: %s: depth==0\n",fcn);
+	goto done;
+    }
+    nclog_global.depth--;
+    frame = &nclog_global.frames[nclog_global.depth];
+    if(frame->depth != nclog_global.depth || strcmp(frame->fcn,fcn) != 0) {
+	fprintf(nclog_global.nclogstream,"*** Unmatched untrace: fcn=%s expected=%s\n",frame->fcn,fcn);
+	goto done;
+    }
+    if(frame->level <= nclog_global.tracelevel) {
+        va_start(args, fmt);
+        fprintf(nclog_global.nclogstream,"%s: (%d): %s:","Exit",frame->depth,frame->fcn);
+        if(fmt != NULL)
+            vfprintf(nclog_global.nclogstream, fmt, args);
+        fprintf(nclog_global.nclogstream, "\n" );
+        fflush(nclog_global.nclogstream);
+        va_end(args);
+        if(err != 0)
 #ifdef HAVE_EXECINFO_H
-        ncbacktrace();
+            ncbacktrace();
 #endif
+    }
+done:
+    if(err != 0)
         return ncbreakpoint(err);
-    } else
+    else
 	return err;
 }
 
