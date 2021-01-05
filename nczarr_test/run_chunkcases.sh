@@ -57,7 +57,7 @@ diff -b ${srcdir}/ref_ndims.dmp tmp_ndims_${zext}.dmp
 echo "Test miscellaneous 1"
 makefile tmp_misc1
 $TC -d 6,12,4 -c 2,3,1 -f 0,0,0 -e 6,1,4 -Ow $F
-find $file
+ls -lR $file
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1_${zext}.dmp
 diff -b ${srcdir}/ref_misc1.dmp tmp_misc1_${zext}.dmp
 #${NCDUMP} $F > tmp_misc1_${zext}.cdl
@@ -69,7 +69,7 @@ makefile tmp_avail1
 $TC -d 6,12,100 -c 2,3,50 -f 0,0,0 -p 6,12,100 -Ow $F
 $TC -f 0,0,0 -e 6,3,75 -Or $F > tmp_avail1_${zext}.txt
 diff -b ${srcdir}/ref_avail1.txt tmp_avail1_${zext}.txt
-find $file
+ls -lR $file
 ${NCDUMP} $F > tmp_avail1_${zext}.cdl
 diff -b ${srcdir}/ref_avail1.cdl tmp_avail1_${zext}.cdl
 #remfile tmp_avail1
