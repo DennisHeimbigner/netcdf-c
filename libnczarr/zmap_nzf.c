@@ -675,6 +675,7 @@ zfparseurl(const char* path0, NCURI** urip)
 {
     int stat = NC_NOERR;
     NCURI* uri = NULL;
+    ZTRACE(6,"path0=%s",path0);
     ncuriparse(path0,&uri);
     if(uri == NULL)
 	{stat = NC_EURL; goto done;}
@@ -682,6 +683,7 @@ zfparseurl(const char* path0, NCURI** urip)
 
 done:
     ncurifree(uri);
+    return ZUNTRACEX(stat,"uri=%p",(urip?(void*)*urip:(void*)urip));
     return stat;
 }
 
