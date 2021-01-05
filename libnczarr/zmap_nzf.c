@@ -354,7 +354,7 @@ zfilelen(NCZMAP* map, const char* key, size64_t* lenp)
     if(lenp) *lenp = len;
 
 done:
-    return ZUNTRACE(stat);
+    return ZUNTRACEX(stat,"len=%llu",(lenp?*lenp:777777777777));
 }
 
 static int
@@ -770,7 +770,7 @@ platformcreatefile(ZFMAP* zfmap, const char* truepath, FD* fd)
     }
 done:
     errno = 0;
-    return ZUNTRACEX(stat,"fd=%d",(fd?-1:fd->fd));
+    return ZUNTRACEX(stat,"fd=%d",(fd?fd->fd:-1));
 }
 
 /* Open a file; fail if it does not exist */
@@ -807,7 +807,7 @@ platformopenfile(ZFMAP* zfmap, const char* truepath, FD* fd)
         {stat = platformerr(errno); goto done;} /* could not open */
 done:
     errno = 0;
-    return ZUNTRACEX(stat,"fd=%d",(fd?-1:fd->fd));
+    return ZUNTRACEX(stat,"fd=%d",(fd?fd->fd:-1));
 }
 
 /* Create a dir */
@@ -1167,7 +1167,7 @@ platformread(ZFMAP* zfmap, FD* fd, size64_t count, void* content)
 
     assert(fd && fd->fd >= 0);
 
-    ZTRACE(6,"map=%s fd=%d count=%llu",zfmap->map.url,*fd,count);
+    ZTRACE(6,"map=%s fd=%d count=%llu",zfmap->map.url,(fd?fd->fd:-1),count);
 
     while(need > 0) {
         ssize_t red;
@@ -1189,7 +1189,7 @@ platformwrite(ZFMAP* zfmap, FD* fd, size64_t count, const void* content)
 
     assert(fd && fd->fd >= 0);
     
-    ZTRACE(6,"map=%s fd=%d count=%llu",zfmap->map.url,*fd,count);
+    ZTRACE(6,"map=%s fd=%d count=%llu",zfmap->map.url,(fd?fd->fd:-1),count);
 
     while(need > 0) {
         ssize_t red = 0;
