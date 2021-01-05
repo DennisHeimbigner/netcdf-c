@@ -317,6 +317,29 @@ nczprint_vector(size_t len, const size64_t* vec)
     return capture(result);
 }
 
+char*
+nczprint_envv(const char** envv)
+{
+    char* result = NULL;
+    int i;
+    NCbytes* buf = ncbytesnew();
+    const char** p;
+
+    ncbytescat(buf,"(");
+    if(envv) {
+        for(i=0,p=envv;*p;p++,i++) {
+        if(i > 0) ncbytescat(buf,",");
+	    ncbytescat(buf,"'");
+	    ncbytescat(buf,*p);
+	    ncbytescat(buf,"'");
+	}
+    }
+    ncbytescat(buf,")");
+    result = ncbytesextract(buf);
+    ncbytesfree(buf);
+    return capture(result);
+}
+
 void
 zdumpcommon(const struct Common* c)
 {

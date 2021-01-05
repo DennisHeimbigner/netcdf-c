@@ -32,7 +32,7 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const char** contr
     NCjson* json = NULL;
     char* key = NULL;
 
-    ZTRACE(3,"file=%s root=%s controls=%s",file->hdr.name,root->hdr.name,controls);
+    ZTRACE(3,"file=%s root=%s controls=%s",file->hdr.name,root->hdr.name,(controls?nczprint_envv(controls):"null"));
 
     nc = (NC*)file->controller;
 
@@ -107,7 +107,7 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const char** controls)
     int mode;
     NClist* modeargs = NULL;
 
-    ZTRACE(3,"file=%s controls=%s",file->hdr.name,controls);
+    ZTRACE(3,"file=%s controls=%s",file->hdr.name,(controls?nczprint_envv(controls):"null"));
 
     /* Extract info reachable via file */
     nc = (NC*)file->controller;
