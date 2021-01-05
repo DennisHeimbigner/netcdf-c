@@ -25,6 +25,7 @@
 #include <execinfo.h>
 #endif
 
+#include "netcdf.h"
 #include "nclog.h"
 
 #define PREFIXLEN 8
@@ -247,6 +248,7 @@ ncuntrace(const char* fcn, int err, const char* fmt, ...)
 {
     va_list args;
     struct Frame* frame;
+    va_start(args, fmt);
     if(nclog_global.depth == 0) {
 	fprintf(nclog_global.nclogstream,"*** Unmatched untrace: %s: depth==0\n",fcn);
 	goto done;
@@ -258,19 +260,20 @@ ncuntrace(const char* fcn, int err, const char* fmt, ...)
 	goto done;
     }
     if(frame->level <= nclog_global.tracelevel) {
-        va_start(args, fmt);
-        fprintf(nclog_global.nclogstream,"%s: (%d): %s:","Exit",frame->depth,frame->fcn);
+        fprintf(nclog_global.nclogstream,"%s: (%d): %s: ","Exit",frame->depth,frame->fcn);
+	if(err)
+	    fprintf(nclog_global.nclogstream,"err=(%d) '%s':",err,nc_strerror(err));
         if(fmt != NULL)
             vfprintf(nclog_global.nclogstream, fmt, args);
         fprintf(nclog_global.nclogstream, "\n" );
         fflush(nclog_global.nclogstream);
-        va_end(args);
 #ifdef HAVE_EXECINFO_H
         if(err != 0)
             ncbacktrace();
 #endif
     }
 done:
+    va_end(args);
     if(err != 0)
         return ncbreakpoint(err);
     else
