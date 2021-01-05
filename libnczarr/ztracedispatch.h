@@ -204,9 +204,8 @@ static int NCZTR_put_att(int ncid, int varid, const char* name, nc_type filetype
 static int NCZTR_def_var(int ncid, const char* name, nc_type xtype, int ndims, const int *dimidsp, int *varidp)
 {
     int stat = NC_NOERR;
-    ZTRACE(0,"NCZ_def_var(ncid,name,xtype,ndims,dimidsp,varidp)");
     stat = NCZ_def_var(ncid,name,xtype,ndims,dimidsp,varidp);
-    return ZUNTRACE(stat);
+    return stat;
 }
 
 static int NCZTR_inq_varid(int ncid, const char* name, int *varidp)
@@ -220,9 +219,8 @@ static int NCZTR_inq_varid(int ncid, const char* name, int *varidp)
 static int NCZTR_rename_var(int ncid, int varid, const char *name)
 {
     int stat = NC_NOERR;
-    ZTRACE(0,"NCZ_rename_var(ncid,varid,name)");
     stat = NCZ_rename_var(ncid,varid,name);
-    return ZUNTRACE(stat);
+    return stat;
 }
 
 static int NCZTR_get_vara(int ncid, int varid, const size_t *startp, const size_t *countp, void *ip, nc_type memtype)
@@ -244,9 +242,8 @@ static int NCZTR_put_vara(int ncid, int varid, const size_t *startp, const size_
 static int NCZTR_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep, int *ndimsp, int *dimidsp, int *nattsp, int *shufflep, int *deflatep, int *deflate_levelp, int *fletcher32p, int *contiguousp, size_t *chunksizesp, int *no_fill, void *fill_valuep, int *endiannessp, unsigned int *idp, size_t *nparamsp, unsigned int *params)
 {
     int stat = NC_NOERR;
-    ZTRACE(0,"NCZ_inq_var_all(ncid,varid,name,xtypep,ndimsp,dimidsp,nattsp,shufflep,deflatep,deflate_levelp,fletcher32p,contiguousp,chunksizesp,no_fill,fill_valuep,endiannessp,idp,nparamsp,params)");
     stat = NCZ_inq_var_all(ncid,varid,name,xtypep,ndimsp,dimidsp,nattsp,shufflep,deflatep,deflate_levelp,fletcher32p,contiguousp,chunksizesp,no_fill,fill_valuep,endiannessp,idp,nparamsp,params);
-    return ZUNTRACE(stat);
+    return stat;
 }
 
 static int NCZTR_var_par_access(int ncid, int varid, int par_access)

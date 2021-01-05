@@ -296,7 +296,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     int d;
     int retval;
 
-    ZTRACE(1,"%s: ncid=%d name=%s xtype=%d ndims=%d dimids=%s",__func__,ncid,name,xtype,ndims,nczprint_idvector(ndims,dimidsp));
+    ZTRACE(1,"ncid=%d name=%s xtype=%d ndims=%d dimids=%s",ncid,name,xtype,ndims,nczprint_idvector(ndims,dimidsp));
     
     /* Find info for this file and group, and set pointer to each. */
     if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
@@ -522,7 +522,7 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
-    ZTRACE(1,"%s: ncid=%d varid=%d shuffle=%d fletcher32=%d no_fill=%d, fill_value=%p endianness=%d",__func__,
+    ZTRACE(2,"ncid=%d varid=%d shuffle=%d fletcher32=%d no_fill=%d, fill_value=%p endianness=%d",
            ncid,varid,
 	   (shuffle?*shuffle:-1),
    	   (fletcher32?*fletcher32:-1),
@@ -994,7 +994,7 @@ NCZ_rename_var(int ncid, int varid, const char *name)
 
     LOG((2, "%s: ncid 0x%x varid %d name %s", __func__, ncid, varid, name));
 
-    ZTRACE(1,"%s: ncid=%d varid=%d name='%s'",__func__,ncid,varid,name);
+    ZTRACE(1,"ncid=%d varid=%d name='%s'",ncid,varid,name);
 
     /* Find info for this file and group, and set pointer to each. */
     if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
@@ -1988,21 +1988,35 @@ NCZ_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
     NC_VAR_INFO_T *var = NULL;
     int retval;
 
+    ZTRACE(1,"ncid=%d varid=%d",ncid,varid);
+
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
     /* Find the file, group, and var info, and do lazy att read if
      * needed. */
     if ((retval = ncz_find_grp_var_att(ncid, varid, NULL, 0, 0, NULL,
 					    &h5, &grp, &var, NULL)))
-	return THROW(retval);
+	goto done;
     assert(grp && h5);
 
     /* Now that lazy atts have been read, use the libsrc4 function to
      * get the answers. */
-    return NC4_inq_var_all(ncid, varid, name, xtypep, ndimsp, dimidsp, nattsp,
+    retval = NC4_inq_var_all(ncid, varid, name, xtypep, ndimsp, dimidsp, nattsp,
 			   shufflep, unused4, unused5, fletcher32p,
 			   storagep, chunksizesp, no_fill, fill_valuep,
 			   endiannessp, unused1, unused2, unused3);
+done:
+    return ZUNTRACEX(retval,"xtype=%d natts=%d shuffle=%d fletcher32=%d no_fill=%d endianness=%d ndims=%d dimids=%s storage=%d chunksizes=%s",
+	   (xtypep?*xtypep:-1),
+   	   (nattsp?*nattsp:-1),
+   	   (shufflep?*shufflep:-1),
+   	   (fletcher32p?*fletcher32p:-1),
+	   (no_fill?*no_fill:-1),
+	   (endiannessp?*endiannessp:-1),
+   	   (ndimsp?*ndimsp:-1), 
+	   (dimidsp?nczprint_idvector(var->ndims,dimidsp):"null"),
+	   (storagep?*storagep:-1),
+	   (chunksizesp?nczprint_sizevector(var->ndims,chunksizesp):"null"));
 }
 
 #ifdef LOOK
