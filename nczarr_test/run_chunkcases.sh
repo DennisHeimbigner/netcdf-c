@@ -84,7 +84,7 @@ diff -b ${srcdir}/ref_avail1.cdl tmp_avail1_${zext}.cdl
 testcase() {
 zext=$1
 reset
-export NCTRACING=3
+export NCTRACING=5
 runtests
 export NCTRACING="-1"
 reset
