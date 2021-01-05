@@ -36,33 +36,29 @@ static int NCZTR_redef(int ncid)
 static int NCZTR__enddef(int ncid,size_t h_minfree,size_t v_align,size_t v_minfree,size_t r_align)
 {
     int stat = NC_NOERR;
-    ZTRACE(0,"NCZ__enddef(ncid,h_minfree,v_align,v_minfree,r_align)");
     stat = NCZ__enddef(ncid,h_minfree,v_align,v_minfree,r_align);
-    return ZUNTRACE(stat);
+    return stat;
 }
 
 static int NCZTR_sync(int ncid)
 {
     int stat = NC_NOERR;
-    ZTRACE(0,"NCZ_sync(ncid)");
     stat = NCZ_sync(ncid);
-    return ZUNTRACE(stat);
+    return stat;
 }
 
 static int NCZTR_abort(int ncid)
 {
     int stat = NC_NOERR;
-    ZTRACE(0,"NCZ_abort(ncid)");
     stat = NCZ_abort(ncid);
-    return ZUNTRACE(stat);
+    return stat;
 }
 
 static int NCZTR_close(int ncid, void* params)
 {
     int stat = NC_NOERR;
-    ZTRACE(0,"NCZ_close(ncid,params)");
     stat = NCZ_close(ncid,params);
-    return ZUNTRACE(stat);
+    return stat;
 }
 
 static int NCZTR_set_fill(int ncid, int fillmode, int *old)
