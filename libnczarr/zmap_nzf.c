@@ -592,7 +592,7 @@ done:
 static void
 zfrelease(ZFMAP* zfmap, FD* fd)
 {
-    ZTRACE(5,"map=%s fd=%d",zfmap->map.url,fd);
+    ZTRACE(5,"map=%s fd=%d",zfmap->map.url,(fd?fd->fd:-1));
     platformrelease(zfmap,fd);
     ZUNTRACE(NC_NOERR);
 }
@@ -1144,7 +1144,7 @@ platformseek(ZFMAP* zfmap, FD* fd, int pos, size64_t* sizep)
     
     assert(fd && fd->fd >= 0);
     
-    ZTRACE(6,"map=%s fd=%d pos=%d",zfmap->map.url,*fd,pos);
+    ZTRACE(6,"map=%s fd=%d pos=%d",zfmap->map.url,(fd?fd->fd:-1),pos);
 
     errno = 0;
     ret = fstat(fd->fd, &statbuf);    
@@ -1221,7 +1221,7 @@ platformcwd(char** cwdp)
 static void
 platformrelease(ZFMAP* zfmap, FD* fd)
 {
-    ZTRACE(6,"map=%s fd=%d",zfmap->map.url,*fd);
+    ZTRACE(6,"map=%s fd=%d",zfmap->map.url,(fd?fd->fd:-1));
     if(fd->fd >=0) NCclose(fd->fd);
     fd->fd = -1;
     ZUNTRACE(NC_NOERR);
