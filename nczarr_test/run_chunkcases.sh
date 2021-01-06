@@ -135,5 +135,5 @@ delresults
 }
 
 testcase nzf
-if test "x$FEATURE_HDF5" = xyes ; then testcases nz4; fi
-if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
+if test "x$FEATURE_HDF5" = xyes ; then testcase nz4; fi
+if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi
