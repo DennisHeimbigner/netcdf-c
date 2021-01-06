@@ -273,6 +273,8 @@ IF(ENABLE_TESTS)
       add_sh_test(ncdump tst_ncgen4)
     ENDIF(USE_HDF5)
 
+  ENDIF(USE_HDF5)
+
   add_sh_test(ncdump tst_inttags)
   IF(USE_HDF5)
     add_sh_test(ncdump tst_inttags4)
@@ -302,10 +304,6 @@ IF(ENABLE_TESTS)
   IF(USE_CDF5)
   add_sh_test(ncdump test_keywords)
   ENDIF()
-
-ENDIF()
-
-ENDIF(USE_HDF5)
 
 ENDIF(ENABLE_TESTS)
 
