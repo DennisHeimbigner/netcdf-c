@@ -43,16 +43,6 @@ makefile() {
   esac
 }
 
-reset() {
-rm -f tmp_whole_${zext}.txt tmp_whole_${zext}.dmp tmp_whole_${zext}.cdl tmp_err_${zext}.txt
-rm -f tmp_skip_${zext}.txt tmp_skip_${zext}.dmp tmp_skip_${zext}.cdl
-rm -f tmp_skipw_${zext}.txt tmp_skipw_${zext}.dmp tmp_skipw_${zext}.cdl
-rm -f tmp_rem_${zext}.txt tmp_rem_${zext}.dmp tmp_rem_${zext}.cdl
-rm -f tmp_ndims_${zext}.txt tmp_ndims_${zext}.dmp tmp_ndims_${zext}.cdl
-rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.dmp tmp_misc1_${zext}.cdl
-rm -f tmp_avail1_${zext}.txt tmp_avail1_${zext}.dmp tmp_avail1_${zext}.cdl
-}
-
 mkdirresults() {
 RESDIR=results.`echo $$`
 echo "RESDIR=|$RESDIR|"
@@ -144,7 +134,6 @@ cd ..
 delresults
 }
 
-
 testcase nzf
-#if test "x$FEATURE_HDF5" = xyes ; then testcases nz4; fi
-#if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
+if test "x$FEATURE_HDF5" = xyes ; then testcases nz4; fi
+if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi

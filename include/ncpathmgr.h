@@ -43,8 +43,7 @@
 #define O_EXCL _O_EXCL
 #endif
 #else
-/*#define ACCESS_MODE_EXISTS (F_OK)*/
-#define ACCESS_MODE_EXISTS (R_OK)
+#define ACCESS_MODE_EXISTS (F_OK)
 #define ACCESS_MODE_R (R_OK)
 #define ACCESS_MODE_W (W_OK)
 #define ACCESS_MODE_RW (R_OK|W_OK)
