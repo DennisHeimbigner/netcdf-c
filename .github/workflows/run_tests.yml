@@ -185,7 +185,6 @@ jobs:
       - run: echo "ENABLE_DAP=ON" >> $GITHUB_ENV
         if: matrix.use_dap == 'dap_on'
       - run: echo "CTEST_OUTPUT_ON_FAILURE=1" >> $GITHUB_ENV
-      - run: echo "BLDNAME=build."`echo $$` >> $GITHUB_ENV
 
 ###
 # Fetch Cache
@@ -200,7 +199,7 @@ jobs:
 
       - name: Check Cache
         shell: bash -l {0}
-        run: ls ${HOME}/environments && ls ${HOME}/environments/${{ matrix.hdf5 }} && ls ${HOME}/environments/${{ matrix.hdf5}}/lib 
+        run: ls ${HOME}/environments && ls ${HOME}/environments/${{ matrix.hdf5 }} && ls ${HOME}/environments/${{ matrix.hdf5}}/lib
 
 ###
 # Configure and build
@@ -209,26 +208,26 @@ jobs:
       - name: Perform out-of-directory build
         shell: bash -l {0}
         run: |
-          mkdir ${BLDNAME}
-          cd ${BLDNAME}
+          mkdir build
+          cd build
           LD_LIBRARY_PATH=${LD_LIBRARY_PATH} cmake .. -DENABLE_HDF4=${ENABLE_HDF4} -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH} -DENABLE_DAP=${ENABLE_DAP} -DENABLE_NETCDF_4=${ENABLE_NC4}
 
       - name: Print Summary
         shell: bash -l {0}
         run: |
-          cd ${BLDNAME}
+          cd build
           cat libnetcdf.settings
 
       - name: Build All
         shell: bash -l {0}
         run: |
-          cd ${BLDNAME}
+          cd build
           LD_LIBRARY_PATH=${LD_LIBRARY_PATH} make -j 12
         if: ${{ success() }}
 
       - name: Run Tests
         shell: bash -l {0}
         run: |
-          cd ${BLDNAME}
+          cd build
           LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ctest -j 12 .
         if: ${{ success() }}
