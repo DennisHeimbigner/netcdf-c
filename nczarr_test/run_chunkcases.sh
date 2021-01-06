@@ -1,12 +1,22 @@
 #!/bin/sh
 
+# Note that this test builds a special results.<pid> directory in
+# which to run the tests, where <pid> is the process id number of
+# the bash shell instance.  The reason for doing this is so that
+# it works correctly under Github actions. By empirical
+# observation, it appears that the various workflow matrix
+# elements are not running in isolation when using cmake.  Rather
+# they appear to be running simultaneously while sharing the build
+# directory for cmake.  By running the tests in a separate
+# results.<pid> I can guarantee that isolation is preserved.
+
+
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 . ${srcdir}/test_nczarr.sh
 
 set -e
-set -x
 
 TC="${execdir}/tst_chunkcases -4"
 ZM="${execdir}/zmapio -t int"
