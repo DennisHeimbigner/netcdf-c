@@ -127,13 +127,13 @@ diff -b ${srcdir}/ref_avail1.cdl tmp_avail1_${zext}.cdl
 
 testcase() {
 zext=$1
-mkdirresults
-cd $RESDIR
 runtests
-cd ..
-delresults
 }
 
+mkdirresults
+cd $RESDIR
 testcase nzf
 if test "x$FEATURE_HDF5" = xyes ; then testcase nz4; fi
 if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi
+cd ..
+delresults
