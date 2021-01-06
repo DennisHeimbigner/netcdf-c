@@ -26,6 +26,7 @@
 #include <io.h>
 #include <wchar.h>
 #include <locale.h>
+#include <direct.h>
 #endif
 #ifdef __hpux
 #include <locale.h>
@@ -40,6 +41,13 @@
 #include "ncutf8.h"
 
 #undef PATHFORMAT
+
+#ifdef _WIN32
+#define access _access 
+#define mkdir _mkdir
+#define rmdir _rmdir
+#define getcwd _getcwd
+#endif
 
 /*
 Code to provide some path conversion code so that
@@ -330,6 +338,32 @@ NCopen2(const char *path, int flags)
     return NCopen3(path,flags,0);
 }
 
+#ifdef HAVE_DIRENT_H
+EXTERNL
+DIR*
+NCopendir(const char* path)
+{
+    DIR* ent = NULL;
+    char* cvtname = NCpathcvt(path);
+    if(cvtname == NULL) return NULL;
+    ent = opendir(cvtname);
+    free(cvtname);    
+    return ent;
+}
+
+EXTERNL
+int
+NCclosedir(DIR* ent)
+{
+    int stat = NC_NOERR;
+    char* cvtname = NCpathcvt(path);
+    if(cvtname == NULL) {errno = ENOENT; return -1;}
+    stat = closedir(cvtname);
+    free(cvtname);    
+    return stat;
+}
+#endif
+
 /*
 Provide wrappers for other file system functions
 */
@@ -385,6 +419,18 @@ done:
     free(wpath);    
     errno = status;
     return (errno?-1:0);
+}
+
+EXTERNL
+int
+NCrmdir(const char* path)
+{
+    int status = 0;
+    char* cvtname = NCpathcvt(path);
+    if(cvtname == NULL) {errno = ENOENT; return -1;}
+    status = rmdir(cvtname);
+    free(cvtname);    
+    return status;
 }
 
 EXTERNL

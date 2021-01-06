@@ -157,17 +157,14 @@ name_path(const char *path)
 #define FILE_DELIMITER '/'
 #endif
 
-#ifdef USE_DAP
     /* See if this is a url */
     {
 	char* base;
-        extern int nc__testurl(const char*,char**);
  	if(nc__testurl(path,&base)) {
  	    return base; /* Looks like a url */
 	}
 	/* else fall thru and treat like a file path */
     }
-#endif /*USE_DAP*/
 
     cp = strrchr(path, FILE_DELIMITER);
     if (cp == 0)		/* no delimiter */

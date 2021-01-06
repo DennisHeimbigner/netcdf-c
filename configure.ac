@@ -347,7 +347,7 @@ AC_ARG_WITH([default-chunks-in-cache],
 AC_MSG_RESULT([$DEFAULT_CHUNKS_IN_CACHE])
 AC_DEFINE_UNQUOTED([DEFAULT_CHUNKS_IN_CACHE], [$DEFAULT_CHUNKS_IN_CACHE], [num chunks in default per-var chunk cache.])
 
-# Did the user specify a default cache size?
+# Did the user specify a default cache size for HDF5?
 AC_MSG_CHECKING([whether a default file cache size for HDF5 was specified])
 AC_ARG_WITH([chunk-cache-size],
               [AS_HELP_STRING([--with-chunk-cache-size=<integer>],
@@ -498,11 +498,11 @@ CFLAGS="$SAVECFLAGS"
 # --enable-dap => enable-dap4
 enable_dap4=$enable_dap
 # Default is to do the short remote tests.
-# Temporary: Change default to npt do these tests
-AC_MSG_CHECKING([whether dap remote testing should be enabled (default on)])
+# Temporary: Change default to not do these tests
+AC_MSG_CHECKING([whether dap remote testing should be enabled (default off)])
 AC_ARG_ENABLE([dap-remote-tests],
-              [AS_HELP_STRING([--disable-dap-remote-tests],
-                                 [disable dap remote tests])])
+              [AS_HELP_STRING([--enable-dap-remote-tests],
+                                 [enable dap remote tests])])
 test "x$enable_dap_remote_tests" = xyes || enable_dap_remote_tests=no
 if test "x$enable_dap" = "xno" ; then
   enable_dap_remote_tests=no
@@ -572,53 +572,78 @@ if test "x$enable_nczarr" = xyes; then
 fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
-if test "x$enable_nczarr" = xyes ; then
+# Check for enabling of S3 support
+AC_MSG_CHECKING([whether netcdf zarr S3 support should be enabled])
+AC_ARG_ENABLE([nczarr-s3],
+              [AS_HELP_STRING([--enable-nczarr-s3],
+                              [enable netcdf zarr S3 support; make sure to set LDFLAGS])])
+test "x$enable_nczarr_s3" = xyes || enable_nczarr_s3=no
+AC_MSG_RESULT($enable_nczarr_s3)
+
+# Check for enabling S3 testing
+AC_MSG_CHECKING([whether netcdf zarr S3 testing should be enabled])
+AC_ARG_ENABLE([nczarr-s3-tests],
+              [AS_HELP_STRING([--enable-nczarr-s3-tests],
+                              [enable netcdf zarr S3 testing])])
+test "x$enable_nczarr_s3_tests" = xyes || enable_nczarr_s3_tests=no
+AC_MSG_RESULT($enable_nczarr_s3_tests)
+
+# Disable S3 tests if S3 support is disabled
+if test "x$enable_nczarr_s3" = xno && test "x$enable_nczarr_s3_tests" = xyes ; then
+    AC_MSG_ERROR([NCZarr S3 support is disabled; please specify option --disable-nczarr-s3-tests])
+    enable_nczarr_s3_tests=no
+fi
+
+# Set default
+have_aws=no
+
+if test "x$enable_nczarr_s3" = xyes ; then
+# See if we have the s3 aws library
 # Check for the AWS S3 SDK library
 AC_LANG_PUSH([C++])
 AC_SEARCH_LIBS([aws_allocator_is_valid],[aws-c-common aws-cpp-sdk-s3 aws-cpp-sdk-core], [have_aws=yes],[have_aws=no])
 AC_LANG_POP
 AC_MSG_CHECKING([whether AWS S3 SDK library is available])
 AC_MSG_RESULT([$have_aws])
-else
-have_aws=no
-fi
 
-# Check for forced disabling of S3 support
-AC_MSG_CHECKING([whether netcdf zarr S3 support should be enabled])
-AC_ARG_ENABLE([s3-sdk],
-              [AS_HELP_STRING([--enable-s3-sdk],
-                              [enable netcdf zarr S3 support; make sure to set LDFLAGS])])
-test "x$enable_s3_sdk" = xyes || enable_s3_sdk=no
-have_aws=${enable_s3_sdk}
-AC_MSG_RESULT($enable_s3_sdk)
 if test "x$have_aws" = xyes ; then
 AC_DEFINE([ENABLE_S3_SDK], [1], [If true, then S3 sdk was found])
 fi
+fi
 AM_CONDITIONAL(ENABLE_S3_SDK, [test "x$have_aws" = xyes])
 
-# Check for enabling S3 testing
-AC_MSG_CHECKING([whether netcdf zarr S3 testing should be enabled])
-AC_ARG_ENABLE([s3-tests],
-              [AS_HELP_STRING([--enable-s3-tests],
-                              [enable netcdf zarr S3 testing])])
-test "x$enable_s3_tests" = xyes || enable_s3_tests=no
-AC_MSG_RESULT($enable_s3_tests)
-
 if test "x$have_aws" = xno ; then
-  AC_MSG_WARN([aws libraries not found, so default to --disable-s3-tests])
-  enable_s3_tests=no
+  if test "x$enable_nczarr_s3" = xyes || test "x$enable_nczarr_s3_tests" = xyes ; then
+    AC_MSG_ERROR([AWS S3 libraries not found; please specify options --disable-nczarr-s3 and --disable-nczarr-s3-tests])
+    enable_nczarr_s3_tests=no
+    enable_nczarr_s3=no
+  fi
 fi
 
-if test "x$enable_s3_tests" = xyes ; then
-  AC_DEFINE([ENABLE_S3_TESTS], [1], [if true, build libnczarr with S3 tests enabled])
+if test "x$enable_nczarr_s3" = xyes ; then
+  AC_DEFINE([ENABLE_NCZARR_S3], [1], [if true, build libnczarr with S3 support enabled])
 fi
-AM_CONDITIONAL(ENABLE_S3_TESTS, [test "x$enable_s3_tests" = xyes])
+AM_CONDITIONAL(ENABLE_NCZARR_S3, [test "x$enable_nczarr_s3" = xyes])
+
+if test "x$enable_nczarr_s3_tests" = xyes ; then
+  AC_DEFINE([ENABLE_NCZARR_S3_TESTS], [1], [if true, build libnczarr with S3 tests enabled])
+fi
+AM_CONDITIONAL(ENABLE_NCZARR_S3_TESTS, [test "x$enable_nczarr_s3_tests" = xyes])
+
+# Did the user specify a default cache size for NCZarr?
+AC_MSG_CHECKING([whether a default file cache size for NCZarr was specified])
+AC_ARG_WITH([chunk-cache-size-nczarr],
+              [AS_HELP_STRING([--with-chunk-cache-size-nczarr=<integer>],
+                              [Specify default maximum space used by the chunk cache NCZarr.])],
+            [CHUNK_CACHE_SIZE_NCZARR=$with_chunk_cache_size_nczarr], [CHUNK_CACHE_SIZE_NCZARR=4194304])
+AC_MSG_RESULT([$CHUNK_CACHE_SIZE_NCZARR])
+AC_DEFINE_UNQUOTED([CHUNK_CACHE_SIZE_NCZARR], [$CHUNK_CACHE_SIZE_NCZARR], [default nczarr chunk cache size.])
 
 # This has multiversion capability
 AC_MSG_CHECKING([whether multi-filter support is enabled])
-have_multifilters=yes
-AC_MSG_RESULT($have_multifilters)
-AC_DEFINE([HAVE_MULTIFILTERS], [1], [if true, multi-filter support enabled])
+has_multifilters=yes
+AC_MSG_RESULT($has_multifilters)
+AC_DEFINE([HAS_MULTIFILTERS], [1], [if true, multi-filter support enabled])
 
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
@@ -930,7 +955,7 @@ AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([libgen.h])
 #AC_CHECK_HEADERS([locale.h])
 AC_HEADER_STDC
-AC_CHECK_HEADERS([locale.h stdio.h stdarg.h fcntl.h malloc.h stdlib.h string.h strings.h unistd.h sys/stat.h getopt.h sys/time.h sys/types.h dirent.h])
+AC_CHECK_HEADERS([locale.h stdio.h stdarg.h fcntl.h malloc.h stdlib.h string.h strings.h unistd.h sys/stat.h getopt.h sys/time.h sys/types.h time.h dirent.h])
 
 # Do sys/resource.h separately
 #AC_CHECK_HEADERS([sys/resource.h],[havesysresource=1],[havesysresource=0])
@@ -950,6 +975,10 @@ AC_CHECK_FUNCS([strlcat snprintf strcasecmp fileno \
 		mkstemp mktemp random \
 		getrlimit gettimeofday fsync MPI_Comm_f2c MPI_Info_f2c \
 		strncasecmp])
+
+# See if clock_gettime is available and its arg types.
+AC_CHECK_FUNCS([clock_gettime])
+AC_CHECK_TYPES([struct timespec])
 
 # disable dap4 if netcdf-4 is disabled
 #if test "x$enable_netcdf_4" = "xno" ; then
@@ -1025,7 +1054,7 @@ AC_FUNC_ALLOCA
 AC_CHECK_DECLS([isnan, isinf, isfinite],,,[#include <math.h>])
 AC_STRUCT_ST_BLKSIZE
 UD_CHECK_IEEE
-AC_CHECK_TYPES([size_t, ssize_t, schar, uchar, longlong, ushort, uint, int64, uint64, size64_t, ssize64_t, _off64_t])
+AC_CHECK_TYPES([size_t, ssize_t, schar, uchar, longlong, ushort, uint, int64, uint64, size64_t, ssize64_t, _off64_t, uint64_t])
 AC_TYPE_OFF_T
 AC_TYPE_UINTPTR_T
 AC_C_CHAR_UNSIGNED
@@ -1184,9 +1213,9 @@ if test "x$enable_hdf5" = xyes; then
    # See if H5Dread_chunk is available
    AC_SEARCH_LIBS([H5Dread_chunk],[hdf5_hldll hdf5_hl], [has_readchunks=yes], [has_readdhunks=no])
 
-   # See if hdf5 library supports Read-Only S3 (byte-range) driver 
+   # See if hdf5 library supports Read-Only S3 (byte-range) driver
    AC_SEARCH_LIBS([H5Pset_fapl_ros3],[hdf5_hldll hdf5_hl], [has_ros3=yes], [has_ros3=no])
-   if test "x$has_ros3" = xyes; then
+   if test "x$has_ros3" = xyes && test "x$enable_byterange" = xyes; then
     AC_DEFINE([ENABLE_HDF5_ROS3], [1], [if true, support byte-range using hdf5 virtual file driver.])
    fi
 
@@ -1229,6 +1258,7 @@ if test "x$enable_hdf5" = xyes; then
       AC_DEFINE([HDF5_UTF8_PATHS], [1], [if true, HDF5 paths can be utf-8])
    fi
 fi
+
 AM_CONDITIONAL(ENABLE_NCDUMPCHUNKS, [test "x$has_readchunks" = xyes ])
 
 # If the user wants hdf4 built in, check it out.
@@ -1434,7 +1464,7 @@ AM_CONDITIONAL(RELAX_COORD_BOUND, [test "xyes" = xyes])
 AM_CONDITIONAL(HAS_PAR_FILTERS, [test x$hdf5_supports_par_filters = xyes ])
 AM_CONDITIONAL(ENABLE_NCZARR, [test "x$enable_nczarr" = xyes])
 AM_CONDITIONAL(HAVE_AWS, [test "x$have_aws" = xyes])
-AM_CONDITIONAL(HAVE_MULTIFILTERS, [test "x$have_multifilters" = xyes])
+AM_CONDITIONAL(HAS_MULTIFILTERS, [test "x$has_multifilters" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
@@ -1464,6 +1494,7 @@ AC_MSG_RESULT([$BINFILE_NAME $FC $CXX])
 # Bugfix for Cygwin.
 ##
 AC_MSG_CHECKING([if libtool needs -no-undefined flag to build shared libraries])
+NOUNDEFINED=""
 case "`uname`" in
      CYGWIN*|MINGW*|AIX*)
      ## Add in the -no-undefined flag to LDFLAGS for libtool.
@@ -1557,8 +1588,8 @@ AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
 AC_SUBST(RELAX_COORD_BOUND,[yes])
 AC_SUBST([HAS_PAR_FILTERS], [$hdf5_supports_par_filters])
 AC_SUBST(HAS_NCZARR,[$enable_nczarr])
-AC_SUBST(DO_S3_TESTS,[$enable_s3_tests])
-AC_SUBST(HAS_MULTIFILTERS,[$have_multifilters])
+AC_SUBST(DO_NCZARR_S3_TESTS,[$enable_nczarr_s3_tests])
+AC_SUBST(HAS_MULTIFILTERS,[$has_multifilters])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],
@@ -1630,7 +1661,7 @@ AX_SET_META([NC_HAS_ERANGE_FILL], [$enable_erange_fill],[yes])
 AX_SET_META([NC_HAS_PAR_FILTERS], [$hdf5_supports_par_filters],[yes])
 AX_SET_META([NC_HAS_BYTERANGE],[$enable_byterange],[yes])
 AX_SET_META([NC_HAS_NCZARR],[$enable_nczarr],[yes])
-AX_SET_META([NC_HAS_MULTIFILTERS],[$have_multifilters],[yes])
+AX_SET_META([NC_HAS_MULTIFILTERS],[$has_multifilters],[yes])
 
 # This is the version of the dispatch table. If the dispatch table is
 # changed, this should be incremented, so that user-defined format
@@ -1648,8 +1679,13 @@ AC_SUBST([ISMSVC], [${ISMSVC}])
 # This would be true for a cmake build.
 AC_SUBST([ISCMAKE], [])
 
+# Provide  conditional to temporarily suppress tests and such
+AM_CONDITIONAL([AX_IGNORE], [test xno = xyes])
+
 AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)
+AC_CONFIG_FILES(nczarr_test/timer_utils.h:unit_test/timer_utils.h)
+AC_CONFIG_FILES(nczarr_test/timer_utils.c:unit_test/timer_utils.c)
 AC_CONFIG_FILES(nc_test4/findplugin.sh:nc_test4/findplugin.in)
 AC_CONFIG_FILES(examples/C/findplugin.sh:nc_test4/findplugin.in)
 AC_CONFIG_FILES(ncdap_test/findtestserver.c:ncdap_test/findtestserver.c.in)

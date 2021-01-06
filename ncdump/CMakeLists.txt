@@ -299,6 +299,12 @@ IF(ENABLE_TESTS)
     ENDIF(HAVE_BASH)
   ENDIF(USE_HDF5)
 
+  IF(USE_CDF5)
+  add_sh_test(ncdump test_keywords)
+  ENDIF()
+
+ENDIF()
+
 ENDIF(USE_HDF5)
 
 ENDIF(ENABLE_TESTS)

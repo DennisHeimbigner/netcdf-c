@@ -165,9 +165,6 @@ extern int NCD4_rcdefault(NCD4INFO*);
 /* From d4cvt.c */
 extern int NCD4_convert(nc_type srctype, nc_type dsttype, char* memory0, char* value0, size_t count);
 
-/* From d4crc32.c */
-extern unsigned int NCD4_crc32(unsigned int crc, const void *buf, size_t size);
-
 /* d4file.c */
 extern void NCD4_applyclientparamcontrols(NCD4INFO*);
 
@@ -197,7 +194,17 @@ extern int nc__dap4(void);
 
 #undef GETCOUNTER
 #undef SKIPCOUNTER
+
+/* Unclear which macros are defined for which compilers.
+   see: https://sourceforge.net/p/predef/wiki/Architectures/
+*/
+#if defined(__arm__) && __ARM_ARCH < 8
+EXTERNL d4size_t NCD4_getcounter(void* p);
+#define GETCOUNTER(p) NCD4_getcounter(p)
+#else
 #define GETCOUNTER(p) ((d4size_t)*((COUNTERTYPE*)(p)))
+#endif /*defined(__arm__) && __ARM_ARCH < 8*/
+
 #define SKIPCOUNTER(p) {p=INCR(p,COUNTERSIZE);}
 
 #undef PUSH

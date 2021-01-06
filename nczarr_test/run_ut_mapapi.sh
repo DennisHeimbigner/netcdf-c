@@ -18,8 +18,9 @@ CMD="${execdir}/ut_mapapi${ext}"
 testmapcreate() {
   echo ""; echo "*** Test zmap create -k $1"
   extfor "$1"
-  tag="mapapi"
-  fileargs
+  tag=mapapi
+  base="test_$tag"
+  fileargs $base
 
   deletemap $1 $file
 
@@ -41,8 +42,9 @@ testmapcreate() {
 testmapmeta() {
   echo ""; echo "*** Test zmap read/write meta -k $1"
   extfor "$1"
-  tag="mapapi"
-  fileargs
+  tag=mapapi
+  base="test_$tag"
+  fileargs $base
   $CMD -k$1 -x simplemeta -f $file
   cdl="ut_${tag}_meta_${zext}.cdl"
   ${ZMD} $fileurl > ./$cdl
@@ -52,8 +54,9 @@ testmapmeta() {
 testmapdata() {
   echo ""; echo "*** Test zmap read/write data -k $1"
   extfor "$1"
-  tag="mapapi"
-  fileargs
+  tag=mapapi
+  base="test_$tag"
+  fileargs $base
   $CMD -k$1 -x "simpledata" -f $file
   cdl="ut_${tag}_data_${zext}.cdl"
   ${ZMD} $fileurl > ./$cdl
@@ -63,8 +66,9 @@ testmapdata() {
 testmapsearch() {
   echo ""; echo "*** Test zmap search -k $1"
   extfor "$1"
-  tag="mapapi"
-  fileargs
+  tag=mapapi
+  base="test_$tag"
+  fileargs $base
   txt=ut_${tag}_search_$zext.txt
   rm -f $txt
   $CMD -k$1 -x "search" -f $file |tr -d '\r' > $txt

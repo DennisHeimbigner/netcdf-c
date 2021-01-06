@@ -3,7 +3,9 @@
  *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -28,6 +30,12 @@ MOP_OBJDUMP=1,
 MOP_CLEAR=2
 } Mapop;
 
+typedef enum OBJKIND {
+OK_NONE=0,
+OK_META=1,
+OK_CHUNK=2
+} OBJKIND;
+
 static struct Mops {
     Mapop mapop;
     const char* opname;
@@ -38,23 +46,43 @@ static struct Mops {
 {MOP_NONE,NULL}
 };
 
+static struct Type {
+    const char* typename;
+    nc_type nctype;
+    int typesize;
+} types[] = {
+{"ubyte",NC_UBYTE,1},
+{"byte",NC_BYTE,1},
+{"ushort",NC_USHORT,2},
+{"short",NC_SHORT,2},
+{"uint",NC_UINT,4},
+{"int",NC_INT,4},
+{"uint64",NC_UINT64,8},
+{"int64",NC_INT64,8},
+{"float",NC_FLOAT,4},
+{"double",NC_DOUBLE,8},
+{NULL,NC_NAT,0}
+};
+
 /* Command line options */
 struct Dumpptions {
     int debug;
     Mapop mop;
-    char* infile;
+    char infile[4096];
     NCZM_IMPL impl;    
     char* rootpath;
+    const struct Type* nctype;
 } dumpoptions;
 
 /* Forward */
 static int objdump(void);
 static NCZM_IMPL implfor(const char* path);
-static void printcontent(size64_t len, const char* content,int ismeta);
+static void printcontent(size64_t len, const char* content, OBJKIND kind);
 static int depthR(NCZMAP* map, char* key, NClist* stack);
 static char* rootpathfor(const char* path);
-static int ismetakey(const char* key);
+static OBJKIND keykind(const char* key);
 static void sortlist(NClist* l);
+static const char* filenamefor(const char* f0);
 
 #define NCCHECK(expr) nccheck((expr),__LINE__)
 static void nccheck(int stat, int line)
@@ -69,7 +97,7 @@ static void nccheck(int stat, int line)
 static void
 zmapusage(void)
 {
-    fprintf(stderr,"usage: zmapio [-d][-v][-x] <file>\n");
+    fprintf(stderr,"usage: zmapio [-t <type>][-d][-v][-x] <file>\n");
     exit(1);
 }
 
@@ -83,6 +111,16 @@ decodeop(const char* name)
     return MOP_NONE;
 }
 
+static const struct Type*
+decodetype(const char* name)
+{
+    struct Type* p = types;
+    for(;p->typename != NULL;p++) {
+	if(strcasecmp(p->typename,name)==0) return p;
+    }
+    return NULL;
+}
+
 int
 main(int argc, char** argv)
 {
@@ -91,10 +129,7 @@ main(int argc, char** argv)
 
     memset((void*)&dumpoptions,0,sizeof(dumpoptions));
 
-    /* Set defaults */
-    dumpoptions.mop = MOP_OBJDUMP;
-
-    while ((c = getopt(argc, argv, "dvx:")) != EOF) {
+    while ((c = getopt(argc, argv, "dvx:t:")) != EOF) {
 	switch(c) {
 	case 'd': 
 	    dumpoptions.debug = 1;	    
@@ -102,6 +137,10 @@ main(int argc, char** argv)
 	case 'v': 
 	    zmapusage();
 	    goto done;
+	case 't': 
+	    dumpoptions.nctype = decodetype(optarg);
+	    if(dumpoptions.nctype == NULL) zmapusage();
+	    break;
 	case 'x': 
 	    dumpoptions.mop = decodeop(optarg);
 	    if(dumpoptions.mop == MOP_NONE) zmapusage();
@@ -110,6 +149,12 @@ main(int argc, char** argv)
 	   fprintf(stderr,"unknown option\n");
 	   goto fail;
 	}
+    }
+
+    /* Default the kind */
+    if(dumpoptions.nctype == NULL) {
+	dumpoptions.nctype = &types[0];    
+	fprintf(stderr,"Default type: %s\n",dumpoptions.nctype->typename); 
     }
 
     /* get file argument */
@@ -124,7 +169,12 @@ main(int argc, char** argv)
 	fprintf(stderr, "zmapio: no input file specified\n");
 	goto fail;
     }
-    dumpoptions.infile = strdup(argv[0]);
+
+    {
+        char* p = NCdeescape(argv[0]);
+        strcpy(dumpoptions.infile,filenamefor(p));
+	if(p) free(p);
+    }
 
     if((dumpoptions.impl = implfor(dumpoptions.infile))== NCZM_UNDEF)
         zmapusage();
@@ -133,17 +183,16 @@ main(int argc, char** argv)
         zmapusage();
 
     switch (dumpoptions.mop) {
+    default:
+	fprintf(stderr,"Default action: objdump\n");
+	/* fall thru */
     case MOP_OBJDUMP:
 	if((stat = objdump())) goto done;
 	break;
-    default:
-	fprintf(stderr,"Unimplemented action\n");
-	goto fail;
     }    
 
 done:
     /* Reclaim dumpoptions */
-    nullfree(dumpoptions.infile);
     nullfree(dumpoptions.rootpath);
     if(stat)
 	fprintf(stderr,"fail: %s\n",nc_strerror(stat));
@@ -246,7 +295,7 @@ objdump(void)
     }    
     for(depth=0;nclistlength(stack) > 0;depth++) {
         size64_t len = 0;
-	int ismeta = 0;
+	OBJKIND kind = 0;
 	int hascontent = 0;
 	obj = nclistremove(stack,0); /* zero pos is always top of stack */
 	/* Now print info for this obj key */
@@ -267,10 +316,12 @@ objdump(void)
 	if(hascontent) {
 	    if(len > 0) {
 	        assert(content != NULL);
-                printf("[%d] %s : (%llu) |",depth,obj,len);
-	        if(ismetakey(obj))
-		    ismeta = 1;
-	        printcontent(len,content,ismeta);
+		kind = keykind(obj);
+		if(kind == OK_CHUNK) len /= dumpoptions.nctype->typesize;
+                printf("[%d] %s : (%llu)",depth,obj,len);
+                if(kind == OK_CHUNK) printf(" (%s)",dumpoptions.nctype->typename);
+                printf(" |");
+	        printcontent(len,content,kind);
 	        printf("|\n");
 	    } else {
 	        printf("[%d] %s : (%llu) ||\n",depth,obj,len);
@@ -315,14 +366,34 @@ done:
 static char hex[16] = "0123456789abcdef";
 
 static void
-printcontent(size64_t len, const char* content, int ismeta)
+printcontent(size64_t len, const char* content, OBJKIND kind)
 {
     size64_t i;
+    unsigned int c0,c1;
+
     for(i=0;i<len;i++) {
-	if(ismeta) {
+        /* If kind is chunk, then len is # of values, not # of bytes */
+	switch(kind) {
+	case OK_CHUNK:
+	    if(i > 0) printf(", ");
+	    switch(dumpoptions.nctype->nctype) {
+	    case NC_BYTE: printf("%d",((char*)content)[i]); break;
+	    case NC_SHORT: printf("%d",((short*)content)[i]); break;		
+	    case NC_INT: printf("%d",((int*)content)[i]); break;		
+	    case NC_INT64: printf("%lld",((long long*)content)[i]); break;		
+	    case NC_UBYTE: printf("%u",((unsigned char*)content)[i]); break;
+	    case NC_USHORT: printf("%u",((unsigned short*)content)[i]); break;		
+	    case NC_UINT: printf("%u",((unsigned int*)content)[i]); break;		
+	    case NC_UINT64: printf("%llu",((unsigned long long*)content)[i]); break;		
+	    case NC_FLOAT: printf("%f",((float*)content)[i]); break;		
+	    case NC_DOUBLE: printf("%lf",((double*)content)[i]); break;		
+	    default: abort();
+	    }
+	    break;
+	case OK_META:
 	    printf("%c",content[i]);
-	} else {
-            unsigned int c0,c1;
+	    break;
+	default:
 	    c1 = (unsigned char)(content[i]);
             c0 = c1 & 0xf;
 	    c1 = (c1 >> 4);
@@ -333,17 +404,30 @@ printcontent(size64_t len, const char* content, int ismeta)
     }
 }
 
-static int
-ismetakey(const char* key)
+static char chunkchars[] = ".0123456789";
+
+static OBJKIND
+keykind(const char* key)
 {
+    OBJKIND kind = OK_NONE;
     char* suffix = NULL;
-    int ismeta = 0;
     if(nczm_divide_at(key,-1,NULL,&suffix) == NC_NOERR) {
-        if(suffix && suffix[0] == '/' && suffix[1] == '.')
-	    ismeta = 1;
+	if(suffix) {
+            if(suffix[0] != '/')
+		kind = OK_NONE;
+	    else if(suffix[1] == '.')
+	        kind = OK_META;
+	    else {
+		char* p = suffix+1;
+	        for(;*p;p++) {
+	            if(strchr(chunkchars,*p) == NULL) break;
+		}
+		kind = OK_CHUNK;
+	    }
+	}
     }
     nullfree(suffix);
-    return ismeta;
+    return kind;
 }
 
 /* bubble sort a list of strings */
@@ -369,4 +453,32 @@ sortlist(NClist* l)
 for(i=0;i<nclistlength(l);i++)
 fprintf(stderr,"sorted: [%d] %s\n",i,(const char*)nclistget(l,i));
 #endif
+}
+
+static const char* urlexts[] = {"nzf", "nz4", NULL};
+
+static const char*
+filenamefor(const char* f0)
+{
+    static char result[4096];
+    const char** extp;
+    char* p;
+
+    strcpy(result,f0); /* default */
+    if(nc__testurl(f0,NULL)) goto done;
+    /* Not a URL */
+    p = strrchr(f0,'.'); /* look at the extension, if any */
+    if(p == NULL) goto done; /* No extension */
+    p++;
+    for(extp=urlexts;*extp;extp++) {
+        if(strcmp(p,*extp)==0) break;
+    }
+    if(*extp == NULL) goto done; /* not found */
+    /* Assemble the url */
+    strcpy(result,"file://");
+    strcat(result,f0); /* core path */
+    strcat(result,"#mode=nczarr,");
+    strcat(result,*extp);
+done:
+    return result;
 }

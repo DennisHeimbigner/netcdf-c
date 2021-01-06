@@ -12,10 +12,6 @@
 #include <unistd.h>
 #endif
 
-#ifdef HAVE_STDARG_H
-#include <stdarg.h>
-#endif
-
 #include "netcdf.h"
 #include "nclist.h"
 #include "ncbytes.h"
@@ -25,6 +21,6 @@
 #include "ut_test.h"
 #include "ut_util.h"
 
-EXTERNL struct ZUTEST zutester;
+extern struct ZUTEST zutester;
 
 #endif /*UT_INCLUDES_H*/
