@@ -208,26 +208,26 @@ jobs:
       - name: Perform out-of-directory build
         shell: bash -l {0}
         run: |
-	  mkdir $BLDNAME
-          cd $BLDNAME
+	  mkdir ${BLDNAME}
+          cd ${BLDNAME}
           LD_LIBRARY_PATH=${LD_LIBRARY_PATH} cmake .. -DENABLE_HDF4=${ENABLE_HDF4} -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH} -DENABLE_DAP=${ENABLE_DAP} -DENABLE_NETCDF_4=${ENABLE_NC4}
 
       - name: Print Summary
         shell: bash -l {0}
         run: |
-          cd $BLDNAME
+          cd ${BLDNAME}
           cat libnetcdf.settings
 
       - name: Build All
         shell: bash -l {0}
         run: |
-          cd $BLDNAME
+          cd ${BLDNAME}
           LD_LIBRARY_PATH=${LD_LIBRARY_PATH} make -j 12
         if: ${{ success() }}
 
       - name: Run Tests
         shell: bash -l {0}
         run: |
-          cd $BLDNAME
+          cd ${BLDNAME}
           LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ctest -j 12 .
         if: ${{ success() }}
