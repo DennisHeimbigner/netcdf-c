@@ -193,12 +193,11 @@ nctracelevel(int level)
     if(level < 0) {
       nclog_global.tracelevel = level;
       ncsetlogging(0);
-    } else if(level >= 0) {
+    } else { /*(level >= 0)*/
         nclog_global.tracelevel = level;
         ncsetlogging(1);
 	nclogopen(NULL); /* use stderr */    
     }
-fprintf(stderr,"XXX: level=%d\n",nclog_global.tracelevel);
     return oldlevel;
 }
 
