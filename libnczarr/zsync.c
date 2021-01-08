@@ -25,8 +25,10 @@ static int define_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subg
 static int searchvars(NCZ_FILE_INFO_T*, NC_GRP_INFO_T*, NClist*);
 static int searchsubgrps(NCZ_FILE_INFO_T*, NC_GRP_INFO_T*, NClist*);
 static int locategroup(NC_FILE_INFO_T* file, size_t nsegs, NClist* segments, NC_GRP_INFO_T** grpp);
+static int createdim(NC_FILE_INFO_T* file, const char* name, size64_t dimlen, NC_DIM_INFO_T** dimp);
 static int parsedimrefs(NC_FILE_INFO_T*, NClist* dimrefs, NC_DIM_INFO_T** dims);
 static int simulatedimrefs(NC_FILE_INFO_T* file, int rank, size64_t* shapes, NC_DIM_INFO_T** dims);
+static int createdimrefs(NC_FILE_INFO_T* file, NClist* dimrefs, NClist* shapes);
 static int decodeints(NCjson* jshape, size64_t* shapes);
 static int computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap);
 static int inferattrtype(NCjson* values, nc_type* typeidp);
@@ -370,7 +372,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 	/* Create the dimrefs json object */
 	if((stat = NCJnew(NCJ_ARRAY,&jdimrefs)))
 	    goto done;
-	/* Walk the dimensions and capture the fullpath names */
+	/* Walk the dimensions and capture the names */
 	for(i=0;i<var->ndims;i++) {
 	    NC_DIM_INFO_T* dim = var->dim[i];
 	    if((stat = NCZ_dimkey(dim,&dimpath))) goto done;
@@ -530,6 +532,7 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist)
     NCjson* jtype = NULL;
     NCjson* jnczarr = NULL;
     NCjson* jnczattr = NULL;
+    NCjson* jdimrefs = NULL;
     NCZMAP* map = NULL;
     char* fullpath = NULL;
     char* key = NULL;
@@ -591,6 +594,25 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist)
     /* Jsonize the attribute list */
     if((stat = ncz_jsonize_atts(attlist,&jatts)))
 	goto done;
+    if(container->sort == NCVAR) {
+        if(zinfo->features.flags & FLAG_XARRAYDIMS) {
+	    NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)container;
+	    /* Compute the _ARRAY_ATTRIBUTE attribute */
+	    if((stat = NCJnew(NCJ_ARRAY,&jdimrefs)))
+	        goto done;
+	    /* Walk the dimensions and capture the names */
+	    for(i=0;i<var->ndims;i++) {
+	        NC_DIM_INFO_T* dim = var->dim[i];
+		char* dimname = strdup(dim->hdr.name);
+		if(dimname == NULL) {stat = NC_ENOMEM; goto done;}
+	        NCJaddstring(jdimrefs,NCJ_STRING,dimname);
+   	        nullfree(dimname); dimname = NULL;
+	    }
+	    /* Add the _ARRAY_ATTRIBUTE */
+	    if((stat = NCJinsert(jatts,XARRAYDIMSATTR,jdimrefs))) goto done;
+	    jdimrefs = NULL;
+        }
+    }
 
     /* write .zattrs path */
     if((stat = nczm_concat(fullpath,ZATTRS,&key)))
@@ -609,6 +631,7 @@ done:
     NCJreclaim(jtypes);
     NCJreclaim(jtype);
     NCJreclaim(jnczarr);
+    NCJreclaim(jdimrefs);
     NCJreclaim(jnczattr);
     NCJreclaim(jname);
     return THROW(stat);
@@ -984,7 +1007,7 @@ define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
     NClist* dimdefs = nclistnew();
     NClist* varnames = nclistnew();
     NClist* subgrps = nclistnew();
-    int nodimrefs = 0;
+    int purezarr = 0;
 
     LOG((3, "%s: dims: %s", __func__, key));
 
@@ -998,8 +1021,8 @@ define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
     if(zinfo->features.flags & FLAG_PUREZARR) {
 	if((stat = parse_group_content_pure(zinfo,grp,varnames,subgrps)))
 	    goto done;
-	nodimrefs = 1;
-    } else { /*!(zinfo->features.flags & FLAG_PUREZARR) */
+        purezarr = 1;
+    } else { /*!purezarr*/
 	/* build NCZGROUP path */
 	if((stat = nczm_concat(fullpath,NCZGROUP,&key)))
 	    goto done;
@@ -1013,19 +1036,19 @@ define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
 	case NC_EEMPTY: /* probably pure zarr, so does not exist, use search */
 	    if((stat = parse_group_content_pure(zinfo,grp,varnames,subgrps)))
 		goto done;
-	    nodimrefs = 1;
+	    purezarr = 1;
 	    break;
 	default: goto done;
 	}
 	nullfree(key); key = NULL;
-
     }
-    if(!nodimrefs) {
+
+    if(!purezarr) {
 	/* Define dimensions */
 	if((stat = define_dims(file,grp,dimdefs))) goto done;
     }
 
-    /* Define vars */
+    /* Define vars taking xarray into account */
     if((stat = define_vars(file,grp,varnames))) goto done;
 
     /* Define sub-groups */
@@ -1181,7 +1204,8 @@ done:
 }
 
 /**
- * @internal Materialize vars into memory
+ * @internal Materialize vars into memory;
+ * Take xarray and purezarr into account.
  *
  * @param file Pointer to file info struct.
  * @param grp Pointer to grp info struct.
@@ -1205,11 +1229,16 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     NCjson* jdimrefs = NULL;
     NCjson* jvalue = NULL;
     NClist* dimrefs = NULL;
-    int hasdimrefs;
+    NCjson* jatts = NULL;
+    int purezarr = 0;
+    int xarray = 0;
     nc_type typeid;
 
     zinfo = file->format_file_info;
     map = zinfo->map;
+
+    if(zinfo->features.flags & FLAG_PUREZARR) purezarr = 1;
+    if(zinfo->features.flags & FLAG_XARRAYDIMS) {purezarr = 1; xarray = 1;}
 
     /* Load each var in turn */
     for(i = 0; i < nclistlength(varnames); i++) {
@@ -1242,10 +1271,34 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	nullfree(key); key = NULL;
 	assert((jvar->sort == NCJ_DICT));
 
-	if(zinfo->features.flags & FLAG_PUREZARR) {
+	if(purezarr) {
 	    var->storage = NC_CHUNKED;
-	    hasdimrefs = 0;
-	} else { /*zinfo->features.flags & FLAG_PUREZARR*/
+	    if(xarray) {/* Read in the attributes to get xarray dimdef attribute */
+	        /* Construct the path to the .zattrs object */
+                if((stat = nczm_concat(varpath,ZATTRS,&key)))
+		    goto done;
+	        if((stat=NCZ_readdict(map,key,&jatts))) goto done;
+	        nullfree(key); key = NULL;
+	        assert((jatts->sort == NCJ_DICT));
+		/* See if there is an xarray entry */
+		switch (stat = NCJdictget(jatts,XARRAYDIMSATTR,&jdimrefs)) {
+	        case NC_NOERR: /* Extract the dimref names */
+	            if(jdimrefs->sort != NCJ_ARRAY) {stat = THROW(NC_ENCZARR); goto done;}
+		    dimrefs = nclistnew();
+	   	    for(j=0;j<nclistlength(jdimrefs->contents);j++) {
+		        const NCjson* dimpath = nclistget(jdimrefs->contents,j);
+		        assert(dimpath->sort == NCJ_STRING);
+		        nclistpush(dimrefs,strdup(dimpath->value));
+		    }
+	  	    break;
+	        case NC_EEMPTY: /* simulate it from the shape of the variable */
+		    stat = NC_NOERR;
+		    break;
+	        default: goto done;
+	        }
+	        jdimrefs = NULL;
+	    }
+	} else { /* !purezarr */
 	    /* Download the NCZVAR object */
 	    if((stat = nczm_concat(varpath,NCZVAR,&key))) goto done;
 	    if((stat=NCZ_readdict(map,key,&jncvar))) goto done;
@@ -1270,18 +1323,15 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    switch ((stat = NCJdictget(jncvar,"dimrefs",&jdimrefs))) {
 	    case NC_NOERR: /* Extract the dimref names */
 		assert((jdimrefs->sort == NCJ_ARRAY));
-		hasdimrefs = 0; /* until we have one */	    
 		dimrefs = nclistnew();
 		for(j=0;j<nclistlength(jdimrefs->contents);j++) {
 		    const NCjson* dimpath = nclistget(jdimrefs->contents,j);
 		    assert(dimpath->sort == NCJ_STRING);
 		    nclistpush(dimrefs,strdup(dimpath->value));
-		    hasdimrefs = 1;
 		}
 		break;
 	    case NC_EEMPTY: /* simulate it from the shape of the variable */
 		stat = NC_NOERR;
-		hasdimrefs = 0;
 		break;
 	    default: goto done;
 	    }
@@ -1325,13 +1375,16 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		rank = 0;
 	    else
 	        rank = nclistlength(jvalue->contents);
-	    if(hasdimrefs) { /* verify rank consistency */
-		if(nclistlength(dimrefs) != rank)
-		    {stat = THROW(NC_ENCZARR); goto done;}
-	    }
+	    /* verify rank consistency */
+	    if(dimrefs && nclistlength(dimrefs) != rank)
+	        {stat = THROW(NC_ENCZARR); goto done;}
 	    /* Set the rank of the variable */
 	    if((stat = nc4_var_set_ndims(var, rank))) goto done;
-	    if(hasdimrefs) {
+	    if(dimrefs) {
+		/* Make sure the dimnames are defined */
+		if((stat = createdimrefs(file, dimrefs, jvalue->contents)))
+		    goto done;
+		/* Get the dimids */
 		if((stat = parsedimrefs(file, dimrefs, var->dim)))
 		    goto done;
 	    } else { /* simulate the dimrefs */
@@ -1408,6 +1461,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    if((stat = NCJdictget(jvar,"filters",&jvalue))) goto done;
 	    /* ignore */
 	}
+
 	/* Clean up from last cycle */
 	nclistfreeall(dimrefs); dimrefs = NULL;
         nullfree(varpath); varpath = NULL;
@@ -1683,17 +1737,7 @@ simulatedimrefs(NC_FILE_INFO_T* file, int rank, size64_t* shapes, NC_DIM_INFO_T*
 	    }
 	}
 	if(!match) { /* create the dimension */
-	    /* This code is a subset of NCZ_def_dim */
-	    thed = (NC_DIM_INFO_T*)ncindexlookup(root->dim,shapename);
-	    if(thed == NULL) { /*create the dim*/
-		if ((stat = nc4_dim_list_add(root, shapename, (size_t)dimlen, -1, &thed)))
-		    goto done;
-		/* Create struct for NCZ-specific dim info. */
-		if (!(thed->format_dim_info = calloc(1, sizeof(NCZ_DIM_INFO_T))))
-		    {stat = NC_ENOMEM; goto done;}
-		((NCZ_DIM_INFO_T*)thed->format_dim_info)->common.file = file;
-	    }
-	    assert(thed != NULL);
+	    if((stat = createdim(file, shapename, dimlen, &thed))) goto done;
 	}
 	/* Save the id */
 	dims[i] = thed;
@@ -1702,6 +1746,26 @@ simulatedimrefs(NC_FILE_INFO_T* file, int rank, size64_t* shapes, NC_DIM_INFO_T*
 done:
     return THROW(stat);
 }
+
+/* This code is a subset of NCZ_def_dim */
+static int
+createdim(NC_FILE_INFO_T* file, const char* name, size64_t dimlen, NC_DIM_INFO_T** dimp)
+{
+    int stat = NC_NOERR;
+    NC_GRP_INFO_T* root = file->root_grp;
+    NC_DIM_INFO_T* thed = NULL;
+    if((stat = nc4_dim_list_add(root, name, (size_t)dimlen, -1, &thed)))
+        goto done;
+    assert(thed != NULL);
+    /* Create struct for NCZ-specific dim info. */
+    if (!(thed->format_dim_info = calloc(1, sizeof(NCZ_DIM_INFO_T))))
+	{stat = NC_ENOMEM; goto done;}
+    ((NCZ_DIM_INFO_T*)thed->format_dim_info)->common.file = file;
+    *dimp = thed; thed = NULL;
+done:
+    return stat;
+}
+
 
 /*
 Given a list of segments, find corresponding group.
@@ -1736,6 +1800,56 @@ done:
 }
 
 static int
+createdimrefs(NC_FILE_INFO_T* file, NClist* dimrefs, NClist* shapes)
+{
+    int i, stat = NC_NOERR;
+    NClist* segments = NULL;
+
+    for(i=0;i<nclistlength(dimrefs);i++) {
+	NC_GRP_INFO_T* g = NULL;
+	NC_DIM_INFO_T* match = NULL;
+	int j;
+	const char* dimpath = nclistget(dimrefs,i);
+	const char* dimname = NULL;
+	const char* ithshape = NULL;
+	size64_t dimsize = 0;
+	
+	/* Get the ith shape value */
+	ithshape = nclistget(shapes,i);
+	sscanf(ithshape,"%llu",&dimsize);
+	/* Locate the corresponding NC_DIM_INFO_T* object, if any */
+	/* Clear the list */
+	nclistfreeall(segments);
+	segments = nclistnew();
+	if((stat = ncz_splitkey(dimpath,segments)))
+	    goto done;
+	if((stat=locategroup(file,nclistlength(segments)-1,segments,&g)))
+	    goto done;
+	/* Lookup the dimension */
+	dimname = nclistget(segments,nclistlength(segments)-1);
+	match = NULL;
+	for(j=0;j<ncindexsize(g->dim);j++) {
+	    NC_DIM_INFO_T* d = (NC_DIM_INFO_T*)ncindexith(g->dim,j);
+	    if(strcmp(d->hdr.name,dimname)==0) {
+		match = d;
+		break;
+	    }
+	}
+	if(match == NULL) {
+	    /* Create the dimension */
+	    if((stat = createdim(file,dimname,dimsize,&match))) goto done;
+	}
+	assert(match != NULL);
+	/* Check for size consistency */
+	if(dimsize != (size64_t)(match->len))
+	    {stat = NC_EDIMSIZE; goto done;}
+    }
+done:
+    nclistfreeall(segments);
+    return THROW(stat);
+}
+
+static int
 parsedimrefs(NC_FILE_INFO_T* file, NClist* dimrefs, NC_DIM_INFO_T** dims)
 {
     int i, stat = NC_NOERR;
@@ -1765,6 +1879,7 @@ parsedimrefs(NC_FILE_INFO_T* file, NClist* dimrefs, NC_DIM_INFO_T** dims)
 		break;
 	    }
 	}
+	assert(dims[i] != NULL);
     }
 done:
     nclistfreeall(segments);

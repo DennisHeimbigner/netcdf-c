@@ -386,6 +386,7 @@ applycontrols(NCZ_FILE_INFO_T* zinfo)
     for(i=0;i<nclistlength(modelist);i++) {
         const char* p = nclistget(modelist,i);
 	if(strcasecmp(p,PUREZARR)==0) zinfo->features.flags |= FLAG_PUREZARR;
+	else if(strcasecmp(p,XARRAYDIMS)==0) zinfo->features.flags |= (FLAG_XARRAYDIMS|FLAG_PUREZARR); /*xarray=>zarr*/
 	else if(strcasecmp(p,"bytes")==0) zinfo->features.flags |= FLAG_BYTERANGE;
 	else if(strcasecmp(p,"s3")==0) zinfo->features.mapimpl = NCZM_S3;
 	else if(strcasecmp(p,"nz4")==0) zinfo->features.mapimpl = NCZM_NC4;

@@ -52,6 +52,8 @@
 #define ZARRAY ".zarray"
 
 #define PUREZARR "zarr"
+#define XARRAYDIMS "xarray"
+#define XARRAYDIMSATTR "_ARRAY_DIMENSIONS"
 
 /**************************************************/
 /* Forward */
@@ -87,10 +89,11 @@ typedef struct NCZ_FILE_INFO {
     char** controls; /* Envv format */
     struct Features {
         size64_t flags;
-#		define FLAG_PUREZARR  1
-#		define FLAG_SHOWFETCH 2
-#		define FLAG_LOGGING   4
-#		define FLAG_BYTERANGE 8
+#		define FLAG_PUREZARR    1
+#		define FLAG_SHOWFETCH   2
+#		define FLAG_LOGGING     4
+#		define FLAG_BYTERANGE   8
+#		define FLAG_XARRAYDIMS 16
 	NCZM_IMPL mapimpl;
     } features;
 } NCZ_FILE_INFO_T;
