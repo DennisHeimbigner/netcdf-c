@@ -630,6 +630,23 @@ if test "x$enable_nczarr_s3_tests" = xyes ; then
 fi
 AM_CONDITIONAL(ENABLE_NCZARR_S3_TESTS, [test "x$enable_nczarr_s3_tests" = xyes])
 
+# Set default
+have_zip=no
+# See if we have libzip
+AC_CHECK_LIB([zip],[zip_open][have_zip=yes],[have_zip=no])
+if test "x$have_zip" = "xyes" ; then
+   AC_SEARCH_LIBS([zip_open],[zip zip.dll cygzip.dll], [],
+      [AC_MSG_ERROR([libzip search failed.])])
+fi
+AC_MSG_CHECKING([whether libzip library is available])
+AC_MSG_RESULT([have_zip])
+
+if test "x$have_zip" = xyes ; then
+AC_DEFINE([ENABLE_NCZARR_ZIP], [1], [If true, then libzip found])
+fi
+fi
+AM_CONDITIONAL(ENABLE_NCZARR_ZIP, [test "x$have_zip" = xyes])
+
 # Did the user specify a default cache size for NCZarr?
 AC_MSG_CHECKING([whether a default file cache size for NCZarr was specified])
 AC_ARG_WITH([chunk-cache-size-nczarr],

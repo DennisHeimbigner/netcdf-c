@@ -9,8 +9,13 @@
 /**************************************************/
 /* Import the current implementations */
 
-extern NCZMAP_DS_API zmap_nz4;
 extern NCZMAP_DS_API zmap_nzf;
+#ifdef USE_HDF5
+extern NCZMAP_DS_API zmap_nz4;
+#endif
+#ifdef ENABLE_NCZARR_ZIP
+extern NCZMAP_DS_API zmap_nzz;
+#endif
 #ifdef ENABLE_S3_SDK
 extern NCZMAP_DS_API zmap_s3sdk;
 #endif
@@ -29,14 +34,22 @@ nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* 
     if(mapp) *mapp = NULL;
 
     switch (impl) {
-    case NCZM_NC4:
-        stat = zmap_nz4.create(path, mode, flags, parameters, &map);
-	if(stat) goto done;
-	break;
     case NCZM_FILE:
         stat = zmap_nzf.create(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
+#ifdef USE_HDF5
+    case NCZM_NC4:
+        stat = zmap_nz4.create(path, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
+#endif
+#ifdef ENABLE_NCZARR_ZIP
+    case NCZM_ZIP:
+        stat = zmap_nzz.create(path, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
+#endif
 #ifdef ENABLE_S3_SDK
     case NCZM_S3:
         stat = zmap_s3sdk.create(path, mode, flags, parameters, &map);
@@ -65,14 +78,22 @@ nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* pa
     if(mapp) *mapp = NULL;
 
     switch (impl) {
-    case NCZM_NC4:
-        stat = zmap_nz4.open(path, mode, flags, parameters, &map);
-	if(stat) goto done;
-	break;
     case NCZM_FILE:
         stat = zmap_nzf.open(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
+#ifdef USE_HDF5
+    case NCZM_NC4:
+        stat = zmap_nz4.open(path, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
+#endif
+#ifdef ENABLE_NCZARR_ZIP
+    case NCZM_ZIP:
+        stat = zmap_nzz.open(path, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
+#endif
 #ifdef ENABLE_S3_SDK
     case NCZM_S3:
         stat = zmap_s3sdk.open(path, mode, flags, parameters, &map);

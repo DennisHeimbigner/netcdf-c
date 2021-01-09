@@ -832,7 +832,7 @@ IF(USE_HDF5)
   #option to include HDF5 High Level header file (hdf5_hl.h) in case we are not doing a make install
   INCLUDE_DIRECTORIES(${HDF5_HL_INCLUDE_DIR})
 
-  # Check to see if we have libcurl 7.66 or later
+  # Check HDF5 version
   CHECK_C_SOURCE_COMPILES("
   #include <H5public.h>
   int main() {
@@ -939,6 +939,17 @@ ENDIF()
 OPTION(ENABLE_DAP_LONG_TESTS "Enable DAP long tests." OFF)
 OPTION(ENABLE_DAP_REMOTE_TESTS "Enable DAP remote tests." ON)
 SET(REMOTETESTSERVERS "remotetest.unidata.ucar.edu" CACHE STRING "test servers to use for remote test")
+
+# See if we have libzip
+FIND_PACKAGE(ZIP)
+INCLUDE_DIRECTORIES(${ZIP_INCLUDE_DIRS})
+
+# Define a test flag for have curl library
+IF(ZIP_LIBRARIES OR ZIP_LIBRARY)
+  SET(FOUND_ZIP TRUE)
+ELSE()
+  SET(FOUND_ZIP FALSE)
+ENDIF()
 
 # Enable some developer-only tests
 OPTION(ENABLE_EXTRA_TESTS "Enable Extra tests. Some may not work because of known issues. Developers only." OFF)
