@@ -80,10 +80,13 @@ simplecreate(void)
     if((stat = nczmap_defineobj(map, path)))
 	goto done;
 
-    /* Do not delete so we can look at it with ncdump */
-    if((stat = nczmap_close(map,0)))
+    /* Write empty metadata content */
+    if((stat = nczmap_write(map, path, 0, 0, (const void*)"")))
 	goto done;
+
 done:
+    /* Do not delete so we can look at it with ncdump */
+    stat = nczmap_close(map,0);
     nullfree(path);
     return THROW(stat);
 }
@@ -160,18 +163,14 @@ done:
 }
 
 static int
-readmeta(void)
+readkey(NCZMAP* map, const char* suffix)
 {
     int stat = NC_NOERR;
-    NCZMAP* map = NULL;
     char* path = NULL;
     size64_t olen;
     char* content = NULL;
 
-    if((stat = nczmap_open(impl,url,0,0,NULL,&map)))
-	goto done;
-
-    if((stat=nczm_concat(META1,ZARRAY,&path)))
+    if((stat=nczm_concat(suffix,ZARRAY,&path)))
 	goto done;
 
     /* Get length */
@@ -191,9 +190,29 @@ readmeta(void)
     printf("%s: |%s|\n",path,content);
 
 done:
-    (void)nczmap_close(map,0);
     nullfree(content);
     nullfree(path);
+    return THROW(stat);
+}
+
+static int
+readmeta(void)
+{
+    int stat = NC_NOERR;
+    NCZMAP* map = NULL;
+
+    if((stat = nczmap_open(impl,url,0,0,NULL,&map)))
+	goto done;
+
+    if((stat = readkey(map,META1))) goto done;
+    switch(stat = readkey(map,META2)) {
+    case NC_NOERR: break;
+    case NC_ENOTFOUND: stat = NC_NOERR; break; /* oh well */
+    default: goto done;
+    }
+
+done:
+    (void)nczmap_close(map,0);
     return THROW(stat);
 }
 

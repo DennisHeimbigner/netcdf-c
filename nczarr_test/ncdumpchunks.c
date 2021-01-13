@@ -418,8 +418,7 @@ dump(Format* format)
     return 0;
 }
 
-
-static const char* urlexts[] = {"nzf", "nz4", NULL};
+static const char* urlexts[] = {"nzf", "zip", "nz4", NULL};
 
 static const char*
 filenamefor(const char* f0)

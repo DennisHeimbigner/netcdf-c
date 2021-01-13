@@ -26,6 +26,7 @@ zjson.c
 zmap.c
 zmap_nz4.c
 zmap_nzf.c
+zmap_zip.c
 zodom.c
 zopen.c
 zprov.c

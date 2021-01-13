@@ -28,8 +28,9 @@ testmapcreate() {
   # Create the test file
   $CMD -k$1 -x create -f $file
   cdl="ut_${tag}_create_${zext}.cdl"
+  ref="ref_ut_${tag}_create.cdl"
   ${ZMD} $fileurl > ./$cdl
-  diff -wb ${srcdir}/ref_$cdl ./$cdl
+  diff -wb $srcdir/$ref ./$cdl
   # delete the test file
   $CMD -k$1 -x delete -f $file
   rm -f $cdl
@@ -48,8 +49,9 @@ testmapmeta() {
   fileargs $base
   $CMD -k$1 -x simplemeta -f $file
   cdl="ut_${tag}_meta_${zext}.cdl"
+  ref="ref_ut_${tag}_meta.cdl"
   ${ZMD} $fileurl > ./$cdl
-  diff -wb ${srcdir}/ref_$cdl ./$cdl
+  diff -wb ${srcdir}/$ref ./$cdl
 }
 
 testmapdata() {
@@ -60,8 +62,9 @@ testmapdata() {
   fileargs $base
   $CMD -k$1 -x "simpledata" -f $file
   cdl="ut_${tag}_data_${zext}.cdl"
+  ref="ref_ut_${tag}_data.cdl"
   ${ZMD} $fileurl > ./$cdl
-  diff -wb ${srcdir}/ref_$cdl ./$cdl
+  diff -wb ${srcdir}/$ref ./$cdl
 }
 
 testmapsearch() {
@@ -71,14 +74,17 @@ testmapsearch() {
   base="test_$tag"
   fileargs $base
   txt=ut_${tag}_search_$zext.txt
+  ref=ref_ut_${tag}_search.txt
   rm -f $txt
   $CMD -k$1 -x "search" -f $file > $txt
-  diff -wb ${srcdir}/ref_$txt ./$txt
+  diff -wb ${srcdir}/$ref ./$txt
 }
 
 main() {
 echo ""
 echo "*** Map Unit Testing"
+echo ""; echo "*** Test zmap_zip"
+testmapcreate zip; testmapmeta zip; testmapdata zip; testmapsearch zip
 echo ""; echo "*** Test zmap_nzf"
 testmapcreate nzf; testmapmeta nzf; testmapdata nzf; testmapsearch nzf
 if test "x$FEATURE_HDF5" = xyes ; then

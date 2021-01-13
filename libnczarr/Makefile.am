@@ -43,6 +43,7 @@ zgrp.c \
 zinternal.c \
 zjson.c \
 zmap.c \
+zmap_zip.c \
 zmap_nz4.c \
 zmap_nzf.c \
 zodom.c \

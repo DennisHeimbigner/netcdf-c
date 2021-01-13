@@ -90,37 +90,19 @@ ncdumpchunks_SOURCES = ncdumpchunks.c
 EXTRA_DIST = CMakeLists.txt \
 run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_ncgen4.sh \
 run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh \
-ref_ut_map_readmeta_nzf.txt \
-ref_ut_map_writedata_nzf.cdl \
-ref_ut_map_writemeta_nzf.cdl \
-ref_ut_map_writemeta_nz4.cdl \
-ref_ut_map_writedata_nz4.cdl \
-ref_ut_map_write2meta_nzf.cdl \
-ref_ut_map_write2meta_nz4.cdl \
-ref_ut_map_search_nzf.txt \
-ref_ut_map_search_nz4.txt \
-ref_ut_map_readmeta_nz4.txt \
-ref_ut_map_readdata_nz4.txt \
-ref_ut_map_create_nz4.cdl \
-ref_ut_json_parse.txt \
-ref_ut_json_build.txt \
-ref_t_meta_var1.cdl \
-ref_t_meta_dim1.cdl \
-ref_ut_testmap_create_nz4.cdl \
-ref_ut_proj.txt \
-ref_ut_map_create_nzf.cdl \
-ref_ut_mapapi_create_nz4.cdl \
-ref_ut_mapapi_create_nzf.cdl \
-ref_ut_mapapi_create_s3.cdl \
-ref_ut_mapapi_data_nz4.cdl \
-ref_ut_mapapi_data_nzf.cdl \
-ref_ut_mapapi_data_s3.cdl \
-ref_ut_mapapi_meta_nz4.cdl \
-ref_ut_mapapi_meta_nzf.cdl \
-ref_ut_mapapi_meta_s3.cdl \
-ref_ut_mapapi_search_nz4.txt \
-ref_ut_mapapi_search_nzf.txt \
-ref_ut_mapapi_search_s3.txt \
+ref_ut_map_create_nz4.cdl ref_ut_map_create_nzf.cdl ref_ut_map_create_zip.cdl \
+ref_ut_map_readdata_nz4.txt ref_ut_map_readmeta_nzf.txt ref_ut_map_readmeta_zip.txt \
+ref_ut_map_readmeta_nz4.txt ref_ut_map_readmeta_nzf.txt ref_ut_map_readmeta_zip.txt \
+ref_ut_map_search_nz4.txt ref_ut_map_search_nzf.txt ref_ut_map_search_zip.txt \
+ref_ut_map_write2meta_nz4.cdl ref_ut_map_write2meta_nzf.cdl ref_ut_map_write2meta_zip.cdl \
+ref_ut_map_writemeta_nz4.cdl ref_ut_map_writemeta_nzf.cdl ref_ut_map_writemeta_zip.cdl \
+ref_ut_mapapi_create_nz4.cdl ref_ut_mapapi_create_nzf.cdl ref_ut_mapapi_create_zip.cdl ref_ut_mapapi_create_s3.cdl \
+ref_ut_mapapi_data_nz4.cdl ref_ut_mapapi_data_nzf.cdl ref_ut_mapapi_data_zip.cdl ref_ut_mapapi_data_s3.cdl \
+ref_ut_mapapi_meta_nz4.cdl ref_ut_mapapi_meta_nzf.cdl ref_ut_mapapi_meta_zip.cdl ref_ut_mapapi_meta_s3.cdl \
+ref_ut_mapapi_search_nz4.txt ref_ut_mapapi_search_nzf.txt ref_ut_mapapi_search_zip.txt ref_ut_mapapi_search_s3.txt \
+ref_t_meta_dim1.cdl ref_t_meta_var1.cdl \
+ref_ut_json_build.txt ref_ut_json_parse.txt \
+ref_ut_proj.txt ref_ut_testmap_create_nz4.cdl \
 ref_perdimspecs.cdl ref_fillonly.cdl \
 ref_whole.cdl ref_whole.txt \
 ref_skip.cdl ref_skip.txt ref_skipw.cdl \

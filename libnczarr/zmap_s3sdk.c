@@ -57,14 +57,8 @@ typedef struct ZS3MAP {
 
 /* Forward */
 static NCZMAP_API nczs3sdkapi; // c++ will not allow static forward variables
-static int zs3exists(NCZMAP* map, const char* key);
 static int zs3len(NCZMAP* map, const char* key, size64_t* lenp);
-static int zs3defineobj(NCZMAP* map, const char* key);
-static int zs3read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
-static int zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
-static int zs3search(NCZMAP* map, const char* prefix, NClist* matches);
 
-static int zs3close(NCZMAP* map, int deleteit);
 static int z3createobj(ZS3MAP*, const char* key);
 
 static int processurl(ZS3MAP* z3map, NCURI* url);
@@ -176,7 +170,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	    stat = NC_NOERR;  /* which is what we want */
 	    errclear(z3map);
 	    break;
-	case NC_NOERR: stat = NC_EEXIST; goto done; /* already exists */
+	case NC_NOERR: stat = NC_EFOUND; goto done; /* already exists */
 	default: reporterr(z3map); goto done;
 	}
 	if(!stat) {
@@ -371,7 +365,7 @@ zs3read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* cont
     ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
     size64_t size = 0;
     char* truekey = NULL;
- 
+    
     ZTRACE(1,"%s: key=%s",__func__,key);
 
     if((stat = maketruekey(z3map->rootkey,key,&truekey))) goto done;
@@ -404,10 +398,12 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
-    void* chunk = NULL;
+    char* chunk = NULL; /* use char* so we can do arithmetic with it */
     size64_t objsize = 0;
-    size64_t newsize = start+count;
+    size64_t memsize = 0;
+    size64_t endwrite = start+count; /* first pos just above overwritten data */
     char* truekey = NULL;
+    int isempty = 0;
 	
     ZTRACE(1,"%s: key=%s",__func__,key);
 
@@ -418,29 +414,36 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
     /* Apparently S3 has no write byterange operation, so we need to read the whole object,
        copy data, and then rewrite */       
     switch (stat=NCZ_s3sdkinfo(z3map->s3client, z3map->bucket, truekey, &objsize, &z3map->errmsg)) {
-    case NC_NOERR:
-	newsize = (newsize > objsize ? newsize : objsize);
+    case NC_NOERR: /* Figure out the memory size of the object */
+	memsize = (endwrite > objsize ? endwrite : objsize);
         break;
     case NC_EEMPTY:
-	newsize = newsize;
+	memsize = endwrite;
+	isempty = 1;
         break;
     default: reporterr(z3map); goto done;
     }
-    chunk = malloc(newsize);
+    if(isempty)
+        chunk = (char*)calloc(1,memsize); /* initialize it */
+    else
+        chunk = (char*)malloc(memsize);
     if(chunk == NULL)
 	{stat = NC_ENOMEM; goto done;}
-    if(objsize > 0) {
-        if((stat = NCZ_s3sdkread(z3map->s3client, z3map->bucket, truekey, 0, objsize, chunk, &z3map->errmsg)))
+    if(start > 0 && objsize > 0) { /* must read to preserve data before start */
+        if((stat = NCZ_s3sdkread(z3map->s3client, z3map->bucket, truekey, 0, objsize, (void*)chunk, &z3map->errmsg)))
             goto done;
     }
+#if 0
     if(newsize > objsize) {
         /* Zeroize the part of the object added */
 	memset(((char*)chunk)+objsize,0,(newsize-objsize));
 	objsize = newsize;
     }
-    /* overwrite with the contents */
-    memcpy(((char*)chunk)+start,content,count); /* remember there may be data above start+count */
-    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, z3map->bucket, truekey, objsize, chunk, &z3map->errmsg)))
+#endif
+    /* overwrite the relevant part of the memory with the contents */
+    memcpy(((char*)chunk)+start,content,count); /* there may be data above start+count */
+    /* (re-)write */
+    if((stat = NCZ_s3sdkwriteobject(z3map->s3client, z3map->bucket, truekey, memsize, (void*)chunk, &z3map->errmsg)))
         goto done;
 
 done:

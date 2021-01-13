@@ -399,7 +399,7 @@ zfileread(NCZMAP* map, const char* key, size64_t start, size64_t count, void* co
     int stat = NC_NOERR;
     FD fd = FDNUL;
     ZFMAP* zfmap = (ZFMAP*)map; /* cast to true type */
-
+    
     ZTRACE(5,"map=%s key=%s start=%llu count=%llu",map->url,key,start,count);
 
 #ifdef VERIFY

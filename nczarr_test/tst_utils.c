@@ -416,7 +416,7 @@ odom_printshort(Odometer* odom)
     return odom_print1(odom,1);
 }
 
-static const char* urlexts[] = {"nzf", "nz4", NULL};
+static const char* urlexts[] = {"nzf", "zip", "nz4", NULL};
 
 const char*
 filenamefor(const char* f0)

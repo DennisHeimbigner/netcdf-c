@@ -4,6 +4,7 @@
  */
 
 #include "zincludes.h"
+#include <stdarg.h>
 #include "ncpathmgr.h"
 
 /**************************************************/
@@ -14,7 +15,7 @@ extern NCZMAP_DS_API zmap_nzf;
 extern NCZMAP_DS_API zmap_nz4;
 #endif
 #ifdef ENABLE_NCZARR_ZIP
-extern NCZMAP_DS_API zmap_nzz;
+extern NCZMAP_DS_API zmap_zip;
 #endif
 #ifdef ENABLE_S3_SDK
 extern NCZMAP_DS_API zmap_s3sdk;
@@ -46,7 +47,7 @@ nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* 
 #endif
 #ifdef ENABLE_NCZARR_ZIP
     case NCZM_ZIP:
-        stat = zmap_nzz.create(path, mode, flags, parameters, &map);
+        stat = zmap_zip.create(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
 #endif
@@ -90,7 +91,7 @@ nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* pa
 #endif
 #ifdef ENABLE_NCZARR_ZIP
     case NCZM_ZIP:
-        stat = zmap_nzz.open(path, mode, flags, parameters, &map);
+        stat = zmap_zip.open(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
 #endif
@@ -251,6 +252,26 @@ nczm_concat(const char* prefix, const char* suffix, char** pathp)
     return NC_NOERR;
 }
 
+/* Concat multiple strings, but with no intervening separators */
+int
+nczm_appendn(char** resultp, int n, ...)
+{
+    va_list args;
+    NCbytes* buf = ncbytesnew();
+    int i;
+
+    va_start(args, n);
+    for(i=0;i<n;i++) {
+	char* s = va_arg(args,char*);
+	if(s != NULL) ncbytescat(buf,s);
+    }
+    ncbytesnull(buf);
+    va_end(args);
+    if(resultp) {*resultp = ncbytesextract(buf);}
+    ncbytesfree(buf);
+    return NC_NOERR;
+}
+
 /* A segment is defined as a '/' plus characters following up
    to the end or upto the next '/'
 */
@@ -361,8 +382,7 @@ nczm_localize(const char* path, char** localpathp, int localize)
 
 /* Convert path0 to be:
 1. absolute -- including drive letters
-2. forward slashed -- we will convert back to back slash in
-   nczm_fixpath
+2. forward slashed -- we will convert back to back slash in nczm_fixpath
 */
 
 int
@@ -385,5 +405,39 @@ nczm_canonicalpath(const char* path, char** cpathp)
 done:
     nullfree(tmp);
     nullfree(cpath);
+    return THROW(ret);    
+}
+
+/*
+Extract the basename from a path.
+Basename is last segment minus one extension.
+*/
+
+int
+nczm_basename(const char* path, char** basep)
+{
+    int ret = NC_NOERR;
+    char* base = NULL;
+    const char* p = NULL;
+    const char* q = NULL;
+    ptrdiff_t delta;
+
+    if(path == NULL) 
+	{base = NULL; goto done;}
+
+    p = strrchr(path,'/');
+    if(p == NULL) p = path; else p++;
+    q = strrchr(p,'.');
+    if(q == NULL) q = p + strlen(p);
+    
+    delta = (q-p);
+    if((base = (char*)malloc(delta+1))==NULL)
+        {ret = NC_ENOMEM; goto done;}
+    memcpy(base,p,delta);
+    base[delta] = '\0';
+
+    if(basep) {*basep = base; base = NULL;}
+done:
+    nullfree(base);
     return THROW(ret);    
 }

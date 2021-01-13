@@ -11,9 +11,14 @@ set -e
 echo ""
 echo "*** Testing data conversions when a variable has fill value but never written"
 
+rm -f tmp_fillonly.nc
+${NCGEN} -4 -b -o 'file://tmp_fillonly.nc#mode=nczarr,zip' $srcdir/ref_fillonly.cdl
+${execdir}/tst_fillonlyz${ext}
+
+rm -f tmp_fillonly.nc
 ${NCGEN} -4 -b -o 'file://tmp_fillonly.nc#mode=nczarr,nzf' $srcdir/ref_fillonly.cdl
 ${execdir}/tst_fillonlyz${ext}
 
-rm -fr ./tmp_fillonly.nc
+rm -f tmp_fillonly.nc
 
 exit 0

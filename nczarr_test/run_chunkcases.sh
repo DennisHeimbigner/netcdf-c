@@ -26,6 +26,7 @@ remfile() {
   nc4) rm -fr $1 ;;
   nz4) rm -fr $1 ;;
   nzf) rm -fr $1 ;;
+  zip) rm -fr $1 ;;
   s3) ;;
   *) echo "no such extension: $zext" ; exit 1;;
   esac
@@ -38,6 +39,7 @@ makefile() {
   nc4) F=$file;;
   nz4) F=$fileurl;;
   nzf) F=$fileurl;;
+  zip) F=$fileurl;;
   s3) F=$fileurl;;
   *) echo "no such extension: $zext" ; exit 1;;
   esac
@@ -132,6 +134,7 @@ runtests
 
 mkdirresults
 cd $RESDIR
+testcase zip
 testcase nzf
 if test "x$FEATURE_HDF5" = xyes ; then testcase nz4; fi
 if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi

@@ -122,7 +122,7 @@ NCZM_ZIP=4,	/* Zip-file based implementation */
 } NCZM_IMPL;
 
 /* Define the default map implementation */
-#define NCZM_DEFAULT NCZM_NZZ
+#define NCZM_DEFAULT NCZM_ZIP
 
 /*
 For each dataset, we create what amounts to a class
@@ -275,8 +275,11 @@ EXTERNL int nczm_join(NClist* segments, char** pathp);
 */
 EXTERNL int nczm_joinpath(NClist* segments, char** pathp);
 
-/* Convenience: concat two strings; caller frees */
+/* Convenience: concat two strings with '/' between; caller frees */
 EXTERNL int nczm_concat(const char* prefix, const char* suffix, char** pathp);
+
+/* Convenience: concat multiple strings with no intermediate separators; caller frees */
+EXTERNL int nczm_appendn(char** resultp, int n, ...);
 
 /* Break a key into prefix and suffix, where prefix is the first nsegs segments;
    nsegs can be negative to specify that suffix is |nsegs| long
@@ -292,6 +295,7 @@ EXTERNL int nczm_isabsolutepath(const char* path);
 /* Convert forward to back slash if needed */
 EXTERNL int nczm_localize(const char* path, char** newpathp, int local);
 EXTERNL int nczm_canonicalpath(const char* path, char** cpathp);
+EXTERNL int nczm_basename(const char* path, char** basep);
 
 #ifdef __cplusplus
 }
