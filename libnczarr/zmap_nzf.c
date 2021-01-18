@@ -292,12 +292,8 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	truepath = NULL;
     
     /* Verify root dir exists */
-    switch (stat = platformopendir(zfmap,zfmap->root)) {
-    case NC_NOERR: break;
-    case NC_ENOTFOUND: stat = NC_EEMPTY; /* fall thru */
-    default:
+    if((stat = platformopendir(zfmap,zfmap->root)))
 	goto done;
-    }
     
     /* Dataset superblock will be read by higher layer */
     
@@ -473,7 +469,7 @@ zfileclose(NCZMAP* map, int delete)
 }
 
 /*
-Return a list of keys immediately "below" a specified prefix key.
+Return a list of names immediately "below" a specified prefix key.
 In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
 The prefix key is not included. 
@@ -482,12 +478,10 @@ int
 zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
 {
     int stat = NC_NOERR;
-    int i;
     ZFMAP* zfmap = (ZFMAP*)map;
     char* truepath = NULL;
     NClist* nextlevel = nclistnew();
     NCbytes* buf = ncbytesnew();
-    int trailing;
 
     ZTRACE(5,"map=%s prefixkey=%s",map->url,prefixkey);
 
@@ -496,7 +490,6 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
         truepath = strdup(zfmap->root);
     else if((stat = nczm_concat(zfmap->root,prefixkey,&truepath))) goto done;
 
-    trailing = (prefixkey[strlen(prefixkey)-1] == '/');
     /* get names of the next level path entries */
     switch (stat = platformdircontent(zfmap, truepath, nextlevel)) {
     case NC_NOERR: /* ok */
@@ -508,12 +501,9 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
     default:
 	goto done;
     }
-    for(i=0;i<nclistlength(nextlevel);i++) {
-	const char* segment = nclistget(nextlevel,i);
-	ncbytescat(buf,prefixkey);
-	if(!trailing) ncbytescat(buf,"/");
-	ncbytescat(buf,segment);
-	nclistpush(matches,ncbytesextract(buf));
+    while(nclistlength(nextlevel) > 0) {
+	char* segment = nclistremove(nextlevel,0);
+	nclistpush(matches,segment);
     }
     
 done:
@@ -630,6 +620,7 @@ done:
 
 NCZMAP_DS_API zmap_nzf = {
     NCZM_FILE_V1,
+    0,
     zfilecreate,
     zfileopen,
 };

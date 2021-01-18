@@ -244,24 +244,30 @@ NCZ_uploadjson(NCZMAP* zmap, const char* key, NCjson* json)
 {
     int stat = NC_NOERR;
     char* content = NULL;
+
+    ZTRACE(4,"zmap=%p key=%s",zmap,key);
+
 #ifdef DEBUG
 fprintf(stderr,"uploadjson: %s\n",key); fflush(stderr);
 #endif
     /* Unparse the modified json tree */
     if((stat = NCJunparse(json,0,&content)))
 	goto done;
-
+    ZTRACEMORE(4,"\tjson=%s",content);
+    
     /* create the target */
-    if((stat = nczmap_defineobj(zmap, key)))
-	goto done;
+    switch (stat = nczmap_defineobj(zmap, key)) {
+    case NC_NOERR: case NC_EFOUND: break;
+    default: goto done;
+    }
 
     /* Write the metadata */
     if((stat = nczmap_write(zmap, key, 0, strlen(content), content)))
 	goto done;
 
 done:
-    nullfree(content);
-    return stat;
+//    nullfree(content);
+    return ZUNTRACE(stat);
 }
 
 #if 0
@@ -473,30 +479,30 @@ NCZ_subobjects(NCZMAP* map, const char* prefix, const char* tag, NClist* objlist
     NClist* matches = nclistnew();
     NCbytes* path = ncbytesnew();
 
-    /* Get the list of object keys just below prefix */
+    /* Get the list of names just below prefix */
     if((stat = nczmap_search(map,prefix,matches))) goto done;
     for(i=0;i<nclistlength(matches);i++) {
 	const char* p;
-	const char* key = nclistget(matches,i);
-	size_t keylen = strlen(key);	
+	const char* name = nclistget(matches,i);
+	size_t namelen= strlen(name);	
 	/* Ignore keys that start with .z or .nc or a potential chunk name */
-	if(keylen >= 3 && key[0] == '.' && key[1] == 'n' && key[2] == 'c')
+	if(namelen >= 3 && name[0] == '.' && name[1] == 'n' && name[2] == 'c')
 	    continue;
-	if(keylen >= 2 && key[0] == '.' && key[1] == 'z')
+	if(namelen >= 2 && name[0] == '.' && name[1] == 'z')
 	    continue;
-	for(p=key;*p;p++) {
+	for(p=name;*p;p++) {
 	    if(*p != '.' && strchr("0123456789",*p) == NULL) break;
 	}
 	if(*p == '\0') continue; /* looks like a chunk name */
-	/* Create <prefix>/<key>/<tag> and see if it exists */
+	/* Create <prefix>/<name>/<tag> and see if it exists */
 	ncbytesclear(path);
 	ncbytescat(path,prefix);
 	ncbytescat(path,"/");
-	ncbytescat(path,key);
+	ncbytescat(path,name);
 	ncbytescat(path,tag);
 	/* See if this object exists */
         if((stat = nczmap_exists(map,ncbytescontents(path))) == NC_NOERR)
-	    nclistpush(objlist,key);
+	    nclistpush(objlist,name);
     }
 
 done:

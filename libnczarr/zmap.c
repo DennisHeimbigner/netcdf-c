@@ -22,6 +22,26 @@ extern NCZMAP_DS_API zmap_s3sdk;
 #endif
 
 /**************************************************/
+
+NCZM_PROPERTIES
+nczmap_properties(NCZM_IMPL impl)
+{
+    switch (impl) {
+    case NCZM_FILE: return zmap_nzf.properties;
+#ifdef USE_HDF5
+    case NCZM_NC4: return zmap_nz4.properties;
+#endif
+#ifdef ENABLE_NCZARR_ZIP
+    case NCZM_ZIP: return zmap_zip.properties;
+#endif
+#ifdef ENABLE_S3_SDK
+    case NCZM_S3: return zmap_s3.properties;
+#endif
+    default: break;
+    }
+    return NCZM_UNIMPLEMENTED;
+}
+
 int
 nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
@@ -405,6 +425,35 @@ nczm_canonicalpath(const char* path, char** cpathp)
 done:
     nullfree(tmp);
     nullfree(cpath);
+    return THROW(ret);    
+}
+
+/* extract the first segment of a path */
+int
+nczm_segment1(const char* path, char** seg1p)
+{
+    int ret = NC_NOERR;
+    char* seg1 = NULL;
+    const char* p = NULL;
+    const char* q = NULL;
+    ptrdiff_t delta;
+
+    if(path == NULL) 
+	{seg1 = NULL; goto done;}
+
+    p = path;
+    if(*p == '/') p++; /* skip any leading '/' */
+    q = strchr(p,'/');
+    if(q == NULL) q = p+strlen(p); /* point to stop character */
+    delta = (q-p);
+    if((seg1 = (char*)malloc(delta+1))==NULL)
+        {ret = NC_ENOMEM; goto done;}
+    memcpy(seg1,p,delta);
+    seg1[delta] = '\0';
+
+    if(seg1p) {*seg1p = seg1; seg1 = NULL;}
+done:
+    nullfree(seg1);
     return THROW(ret);    
 }
 

@@ -6,6 +6,8 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 . "$srcdir/test_nczarr.sh"
 
+#TR="-T10"
+
 set -e
 
 # Test map implementations for consistency at the zmap API
@@ -26,17 +28,17 @@ testmapcreate() {
   deletemap $1 $file
 
   # Create the test file
-  $CMD -k$1 -x create -f $file
+  $CMD $TR -k$1 -x create -f $file
   cdl="ut_${tag}_create_${zext}.cdl"
   ref="ref_ut_${tag}_create.cdl"
   ${ZMD} $fileurl > ./$cdl
   diff -wb $srcdir/$ref ./$cdl
   # delete the test file
-  $CMD -k$1 -x delete -f $file
+  $CMD $TR -k$1 -x delete -f $file
   rm -f $cdl
 
-  mapexists $1
-  if test mapexists = 0 ; then exit 1;  fi
+  mapstillexists $1
+  if test mapstillexists = 0 ; then exit 1;  fi
   # re-create the test file
   $CMD -k$1 -x create -o $file
 }
@@ -47,7 +49,7 @@ testmapmeta() {
   tag=mapapi
   base="test_$tag"
   fileargs $base
-  $CMD -k$1 -x simplemeta -f $file
+  $CMD $TR -k$1 -x simplemeta -f $file
   cdl="ut_${tag}_meta_${zext}.cdl"
   ref="ref_ut_${tag}_meta.cdl"
   ${ZMD} $fileurl > ./$cdl
@@ -60,7 +62,7 @@ testmapdata() {
   tag=mapapi
   base="test_$tag"
   fileargs $base
-  $CMD -k$1 -x "simpledata" -f $file
+  $CMD $TR -k$1 -x "simpledata" -f $file
   cdl="ut_${tag}_data_${zext}.cdl"
   ref="ref_ut_${tag}_data.cdl"
   ${ZMD} $fileurl > ./$cdl
@@ -76,7 +78,7 @@ testmapsearch() {
   txt=ut_${tag}_search_$zext.txt
   ref=ref_ut_${tag}_search.txt
   rm -f $txt
-  $CMD -k$1 -x "search" -f $file > $txt
+  $CMD $TR -k$1 -x "search" -f $file > $txt
   diff -wb ${srcdir}/$ref ./$txt
 }
 

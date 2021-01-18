@@ -90,12 +90,7 @@ ncdumpchunks_SOURCES = ncdumpchunks.c
 EXTRA_DIST = CMakeLists.txt \
 run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_ncgen4.sh \
 run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh \
-ref_ut_map_create_nz4.cdl ref_ut_map_create_nzf.cdl ref_ut_map_create_zip.cdl \
-ref_ut_map_readdata_nz4.txt ref_ut_map_readmeta_nzf.txt ref_ut_map_readmeta_zip.txt \
-ref_ut_map_readmeta_nz4.txt ref_ut_map_readmeta_nzf.txt ref_ut_map_readmeta_zip.txt \
-ref_ut_map_search_nz4.txt ref_ut_map_search_nzf.txt ref_ut_map_search_zip.txt \
-ref_ut_map_write2meta_nz4.cdl ref_ut_map_write2meta_nzf.cdl ref_ut_map_write2meta_zip.cdl \
-ref_ut_map_writemeta_nz4.cdl ref_ut_map_writemeta_nzf.cdl ref_ut_map_writemeta_zip.cdl \
+ref_ut_map_create.cdl ref_ut_map_writedata.cdl ref_ut_map_writemeta2.cdl ref_ut_map_writemeta.cdl \
 ref_ut_mapapi_create_nz4.cdl ref_ut_mapapi_create_nzf.cdl ref_ut_mapapi_create_zip.cdl ref_ut_mapapi_create_s3.cdl \
 ref_ut_mapapi_data_nz4.cdl ref_ut_mapapi_data_nzf.cdl ref_ut_mapapi_data_zip.cdl ref_ut_mapapi_data_s3.cdl \
 ref_ut_mapapi_meta_nz4.cdl ref_ut_mapapi_meta_nzf.cdl ref_ut_mapapi_meta_zip.cdl ref_ut_mapapi_meta_s3.cdl \
@@ -111,12 +106,14 @@ ref_misc1.cdl ref_misc1.dmp \
 ref_avail1.cdl ref_avail1.dmp ref_avail1.txt
 
 CLEANFILES = test.nzf test.nz4 test.nz4 \
-testmap.nzf testmap.nz4 testmapapi.nzf testmapapi.nz4 \
+testmap.nzf testmapapi.nzf \
+testmap.nz4 testmapapi.nz4 \
+testmap.zip testmapapi.zip \
 tst_chunks.nz4 tst_chunks2.nc.nz4 \
 ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp test.nzf \
 tst_chunks3.nc
 
 # Remove directories
 clean-local:
-	rm -fr tst_chunks.nzf tst_chunks2.nzf tst_perdimspecs.nzf testmap.nzf test.nzf tmp*.nzf \
-	test_mapapi.nzf test_mapapi.nz4 tmp*.nz4
+	rm -fr tst_chunks.nzf tst_chunks2.nzf tst_perdimspecs.nzf \
+	testmap.nzf test_mapapi.nzf

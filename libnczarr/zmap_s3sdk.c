@@ -38,6 +38,8 @@ Notes:
 
 #define NCZM_S3SDK_V1 1
 
+#define ZS3_PROPERTIES (NCZM_ZEROSTART)
+
 #define AWSHOST ".amazonaws.com"
 
 enum URLFORMAT {UF_NONE, UF_VIRTUAL, UF_PATH, UF_OTHER};
@@ -236,8 +238,8 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     if((stat = NCZ_s3sdkgetkeys(z3map->s3client,z3map->bucket,z3map->rootkey,&nkeys,NULL,&z3map->errmsg)))
 	goto done;
     if(nkeys == 0) {
-	/* dataset does not actually exist */
-	stat = NC_EEMPTY;
+	/* dataset does not actually exist; we choose to return ENOTFOUND instead of EEMPTY */
+	stat = NC_ENOTFOUND;
 	goto done;
     }
 
@@ -409,6 +411,9 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
 
     if(count == 0) {stat = NC_EEDGE; goto done;}
 
+    if(start != 0 && (ZS3_PROPERTIES & NCZM_ZEROSTART))
+        {stat = NC_EEDGE; goto done;}
+
     if((stat = maketruekey(z3map->rootkey,key,&truekey))) goto done;
 
     /* Apparently S3 has no write byterange operation, so we need to read the whole object,
@@ -454,7 +459,7 @@ done:
 }
 
 /*
-Return a list of keys immediately "below" a specified prefix,
+Return a list of full keys immediately "below" a specified prefix,
 but not including the prefix.
 In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
@@ -470,6 +475,8 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
     size_t nkeys;
     NClist* tmp = NULL;
     char* trueprefix = NULL;
+    char* newkey = NULL;
+    char* p;
 
     ZTRACE(1,"%s: prefix=%s",__func__,prefix);
     
@@ -484,15 +491,12 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
 	/* Remove the trueprefix from the front of all the returned keys */
 	/* The returned keys may be of any depth, so capture and prune the keys */
         for(i=0;i<nkeys;i++) {
-	    char* newkey = NULL;
-	    if(memcmp(trueprefix,list[i],tplen)==0) {
-		newkey = list[i];
-		newkey = newkey+tplen; /* Point to start of suffix */
+	    const char* l = list[i];
+	    if(memcmp(trueprefix,l,tplen)==0) {
+		p  = l+tplen; /* Point to start of suffix */
 		/* If the key is same as trueprefix, ignore it */
-		if(*newkey == '\0') continue;
-		newkey--; /* Point to trailing '/' */
-		assert(newkey[0] == '/');
-	        newkey = strdup(newkey);
+		if(*p == '\0') continue;
+		if(nczm_segment1(l,&newkey)) goto done;
 	        nclistpush(tmp,newkey); newkey = NULL;
 	    }
         }
@@ -519,6 +523,7 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
 #endif
 
 done:
+    nullfree(newkey);
     nullfree(trueprefix);
     reporterr(z3map);
     nclistfreeall(tmp);
@@ -739,6 +744,7 @@ freevector(size_t nkeys, char** list)
 NCZMAP_DS_API zmap_s3sdk;
 NCZMAP_DS_API zmap_s3sdk = {
     NCZM_S3SDK_V1,
+    ZS3_PROPERTIES
     zs3create,
     zs3open,
 };

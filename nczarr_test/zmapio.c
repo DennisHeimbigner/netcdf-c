@@ -354,8 +354,10 @@ breadthfirstR(NCZMAP* map, NCbytes* prefix, NClist* stack)
     NClist* nextlevel = nclistnew();
     size_t mark;
     const char* content;
+    int isroot = 0;
 
     content = ncbytescontents(prefix);
+    if(content[0] == '/' && content[1] == '\0') isroot = 1;
     if((stat=nczmap_search(map,content,nextlevel))) goto done;
     /* Sort nextlevel */
     sortlist(nextlevel);
@@ -363,7 +365,7 @@ breadthfirstR(NCZMAP* map, NCbytes* prefix, NClist* stack)
     mark = ncbyteslength(prefix); /* save this position */
     while(nclistlength(nextlevel) > 0) {
         char* subkey = nclistremove(nextlevel,0);
-	ncbytescat(prefix,"/");
+	if(!isroot) ncbytescat(prefix,"/");
 	ncbytescat(prefix,subkey);
 	nullfree(subkey);
         nclistpush(stack,ncbytesdup(prefix));
@@ -381,8 +383,11 @@ breadthfirst(NCZMAP* map, const char* key, NClist* stack)
 {
     int stat = NC_NOERR;
     NCbytes* prefix = ncbytesnew();
+
+    if(key == NULL || key[0] == '\0')
+        key = "/";
     ncbytescat(prefix,key);
-    if(key[strlen(key)-1]=='/') {
+    if(strlen(key) > 1 && key[strlen(key)-1]=='/') {
         ncbytessetlength(prefix,ncbyteslength(prefix)-1); /* remove trailing '/' */
 	ncbytesnull(prefix);
     }

@@ -73,5 +73,6 @@ main(int argc, char** argv)
     if ((ret=nc_close(ncid))) LERR;
 
     SUMMARIZE_ERR;
+    FINAL_RESULTS;
 
 }

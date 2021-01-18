@@ -43,19 +43,52 @@ the root of the dataset.
 2. Object - equivalent of the S3 object; Each object has a unique key
 and "contains" data in the form of an arbitrary sequence of 8-bit bytes.
 
-Notes:
-1. The search function is optional. It has two purposes:
-   a. Support reading of pure zarr datasets (because they do not explicitly
-      track their contents).
-   b. Debugging to allow raw examination of the storage. See zdump
-      for example.
-
 The zmap API defined here isolates the key-value pair mapping code
 from the Zarr-based implementation of NetCDF-4.
 
 It wraps an internal C dispatch table manager
 for implementing an abstract data structure
 implementing the key/object model.
+
+Search:
+The search function has two purposes:
+   a. Support reading of pure zarr datasets (because they do not explicitly
+      track their contents).
+   b. Debugging to allow raw examination of the storage. See zdump
+      for example.
+
+The search function takes a prefix path which is a form key
+with the following bnf:
+    key: "/" | longkey ;
+    longkey = "/" name | longkey "/" name ;
+This conforms to Unix path model. It also means that the root key ("/")
+usually requires special handling.
+
+The set of legal keys is the set of keys such that the key references
+a content-bearing object -- e.g. .zarray or .zgroup. Essentially
+this is the set of keys pointing to the leaf objects of the tree of keys
+constituting a dataset. This set limits the set of keys that need to be
+examined during search.
+
+The critical problems for search are as follows:
+1. Avoid returning keys that are not a prefix of some legal key.
+2. Avoid returning all the legal keys in the dataset because that set may be very large;
+   although the implementation may still have to examine all legal keys to get the desired subset.
+3. Allow for use of partial read mechanisms such as iterators, if available.
+   This can support processing a limited set of keys for each iteration. This is a
+   straighforward tradeoff of space over time.
+
+In any case, search returns the set of names that are immediate suffixes of a
+given prefix path. That is, if <prefix> is the prefix path,
+then search returns all <name> such that  <prefix>/<name> is itself a prefix of a "legal" key.
+This semantics was chosen because it appears to be the minimum required to implement
+all other kinds of search using recursion. So for example this could implement
+glob style searches such as "/x/y/ *" or "/x/y/ **"
+
+It is unfortunate that for the two most important zmap implementations -- zip and S3 --
+it is necessary to iterate over all the legal keys to select those of interest.
+For the file system zmap implementation, the legal search keys can be obtained
+one level at a time, which directly implements the search semantics.
 
 Issues:
 1. S3 limits key lengths to 1024 bytes. Some deeply nested netcdf files
@@ -95,6 +128,10 @@ caller asked for non-content-bearing key.
 
 The current set of operations defined for zmaps are define with the
 generic nczm_xxx functions below.
+
+Each zmap implementation has retrievable flags defining limitations
+of the implementation.
+
 */
 
 #ifndef ZMAP_H
@@ -124,6 +161,13 @@ NCZM_ZIP=4,	/* Zip-file based implementation */
 /* Define the default map implementation */
 #define NCZM_DEFAULT NCZM_ZIP
 
+/* Define the per-implementation limitations flags */
+typedef size64_t NCZM_PROPERTIES;
+/* powers of 2 */
+#define NCZM_UNIMPLEMENTED 1 /* Unknown/ unimplemented */
+#define NCZM_WRITEONCE 2     /* Objects can only be written once */
+#define NCZM_ZEROSTART 4     /* Objects can only be written using a start count of zero */
+
 /*
 For each dataset, we create what amounts to a class
 defining data and the API function implementations.
@@ -140,17 +184,17 @@ typedef struct NCZMAP {
     NCZM_IMPL format;
     char* url;
     int mode;
-    size64_t flags;
+    size64_t flags; /* Passed in by caller */
     struct NCZMAP_API* api;
 } NCZMAP;
 
 /* Forward */
+struct NClist;
 
 /* Define the object-level API */
 
 struct NCZMAP_API {
     int version;
-
     /* Map Operations */
         int (*close)(NCZMAP* map, int deleteit);
     /* Object Operations */
@@ -159,19 +203,29 @@ struct NCZMAP_API {
 	int (*defineobj)(NCZMAP* map, const char* key);
 	int (*read)(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
 	int (*write)(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
-        int (*search)(NCZMAP* map, const char* prefix, NClist* matches);
+        int (*search)(NCZMAP* map, const char* prefix, struct NClist* matches);
 };
 
 /* Define the Dataset level API */
 typedef struct NCZMAP_DS_API {
     int version;
-    int (*create)(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
-    int (*open)(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
+    NCZM_PROPERTIES properties;
+    int (*create)(const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);
+    int (*open)(const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);
 } NCZMAP_DS_API;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+Get limitations of a particular implementation.
+@param impl -- the map implemenation type
+@param limitsp return limitation flags here
+@return NC_NOERR if the operation succeeded
+@return NC_EXXX if the operation failed for one of several possible reasons
+*/
+EXTERNL NCZM_PROPERTIES nczmap_properties(NCZM_IMPL);
 
 /* Object API Wrappers; note that there are no group operations
    because group keys do not map to directories.
@@ -243,37 +297,36 @@ objects that are immediately contained by the prefix key.
 @return NC_NOERR if the operation succeeded
 @return NC_EXXX if the operation failed for one of several possible reasons
 */
-EXTERNL int nczmap_search(NCZMAP* map, const char* prefix, NClist* matches);
+EXTERNL int nczmap_search(NCZMAP* map, const char* prefix, struct NClist* matches);
 
 /**
 Close a map
 @param map -- the map to close
 @param deleteit-- if true, then delete the corresponding dataset
 @return NC_NOERR if the operation succeeded
-@return NC_ENOTFOUND if the object does not exist
 @return NC_EXXX if the operation failed for one of several possible reasons
 */
 EXTERNL int nczmap_close(NCZMAP* map, int deleteit);
 
 /* Create/open and control a dataset using a specific implementation */
-EXTERNL int nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
-EXTERNL int nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp);
+EXTERNL int nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);
+EXTERNL int nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);
 
 /* Utility functions */
 
 /** Split a path into pieces along '/' character; elide any leading '/' */
-EXTERNL int nczm_split(const char* path, NClist* segments);
+EXTERNL int nczm_split(const char* path, struct NClist* segments);
 
 /* Split a path into pieces along some character; elide any leading char */
-EXTERNL int nczm_split_delim(const char* path, char delim, NClist* segments);
+EXTERNL int nczm_split_delim(const char* path, char delim, struct NClist* segments);
 
 /* Convenience: Join all segments into a path using '/' character */
-EXTERNL int nczm_join(NClist* segments, char** pathp);
+EXTERNL int nczm_join(struct NClist* segments, char** pathp);
 
 /* Convenience: Join all segments into a path using '/' character
    but taking possible lead windows drive letter into account
 */
-EXTERNL int nczm_joinpath(NClist* segments, char** pathp);
+EXTERNL int nczm_joinpath(struct NClist* segments, char** pathp);
 
 /* Convenience: concat two strings with '/' between; caller frees */
 EXTERNL int nczm_concat(const char* prefix, const char* suffix, char** pathp);
@@ -294,8 +347,10 @@ EXTERNL int nczm_isabsolutepath(const char* path);
 
 /* Convert forward to back slash if needed */
 EXTERNL int nczm_localize(const char* path, char** newpathp, int local);
+
 EXTERNL int nczm_canonicalpath(const char* path, char** cpathp);
 EXTERNL int nczm_basename(const char* path, char** basep);
+EXTERNL int nczm_segment1(const char* path, char** seg1p);
 
 #ifdef __cplusplus
 }

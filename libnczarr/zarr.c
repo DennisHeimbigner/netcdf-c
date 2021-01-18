@@ -76,9 +76,6 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const char** contr
     if((stat = nczmap_create(zinfo->features.mapimpl,nc->path,nc->mode,zinfo->features.flags,NULL,&zinfo->map)))
 	goto done;
 
-    /* Create super block (NCZMETAROOT) */
-    if((stat = ncz_create_superblock(zinfo))) goto done;
-
 done:
     ncurifree(uri);
     NCJreclaim(json);

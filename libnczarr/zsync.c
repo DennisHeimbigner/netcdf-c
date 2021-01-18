@@ -55,8 +55,15 @@ ncz_sync_file(NC_FILE_INFO_T* file)
 {
     int stat = NC_NOERR;
     NCjson* json = NULL;
+    NCZ_FILE_INFO_T* zinfo = NULL;
 
     LOG((3, "%s: file: %s", __func__, file->controller->path));
+    ZTRACE(3,"file=%s",file->controller->path);
+
+    zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
+
+    /* Create super block (NCZMETAROOT) */
+    if((stat = ncz_create_superblock(zinfo))) goto done;
 
     /* Write out root group recursively */
     if((stat = ncz_sync_grp(file, file->root_grp)))
@@ -64,7 +71,7 @@ ncz_sync_file(NC_FILE_INFO_T* file)
 
 done:
     NCJreclaim(json);
-    return THROW(stat);
+    return ZUNTRACE(stat);
 }
 
 /**
@@ -1846,6 +1853,8 @@ ncz_create_superblock(NCZ_FILE_INFO_T* zinfo)
     NCZMAP* map = NULL;
     char version[1024];
 
+    ZTRACE(4,"zinfo=%s",zinfo->common.file->controller->path);
+    
     map = zinfo->map;
 
     /* create superblock json */
@@ -1872,5 +1881,5 @@ ncz_create_superblock(NCZ_FILE_INFO_T* zinfo)
     }
 done:
     NCJreclaim(json);
-    return THROW(stat);
+    return ZUNTRACE(stat);
 }

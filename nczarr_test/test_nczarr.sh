@@ -57,19 +57,11 @@ deletemap() {
     esac
 }
 
-mapexists() {
-    mapexists=1
-    case "$1" in
-    nz4) if test -f $file; then mapexists=0; fi ;;
-    nzf) if test -f $file; then mapexists=0; fi ;;
-    nzf) if test -f $file; then mapexists=0; fi ;;		 
-    s3)
-	if "./zmapio $fileurl" ; then mapexists=1; else mapexists=0; fi
-        ;;
-    *) echo unknown format: $1 : abort ; exit 1 ;;
-    esac
-    if test $mapexists = 1 ; then
+mapstillexists() {
+    mapstillexists=0
+    if "./zmapio $fileurl" ; then
       echo "delete failed: $1"
+      mapstillexists=1
     fi
 }
 

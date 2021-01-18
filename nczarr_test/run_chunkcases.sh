@@ -46,7 +46,7 @@ makefile() {
 }
 
 mkdirresults() {
-RESDIR=results.`echo $$`
+RESDIR=results
 echo "RESDIR=|$RESDIR|"
 rm -fr $RESDIR
 mkdir $RESDIR

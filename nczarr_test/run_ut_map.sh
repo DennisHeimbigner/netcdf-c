@@ -64,6 +64,11 @@ testmapmeta() {
   outref="ref_ut_${tag}_readmeta.txt"
   $CMD -k$1 -x readmeta -f $file > ./$output
   diff -wb ${srcdir}/$outref ./$output
+
+  output="ut_${tag}_readmeta2_$zext.txt"
+  outref="ref_ut_${tag}_readmeta2.txt"
+  $CMD -k$1 -x readmeta2 -f $file > ./$output
+  diff -wb ${srcdir}/$outref ./$output
 }
 
 testmapdata() {
