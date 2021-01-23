@@ -149,7 +149,6 @@ main(int argc, char** argv)
 	    if(dumpoptions.mop == MOP_NONE) zmapusage();
 	    break;
 	case 'T':
-	    nc_initialize();
 	    nctracelevel(atoi(optarg));
 	    break;
 	case '?':
@@ -226,8 +225,7 @@ implfor(const char* path)
     NCCHECK(nczm_split_delim(mode,',',segments));
     for(i=0;i<nclistlength(segments);i++) {
         const char* value = nclistget(segments,i);
-	if(strcmp(value,"nz4")==0) {impl = NCZM_NC4; goto done;}
-	if(strcmp(value,"nzf")==0) {impl = NCZM_FILE; goto done;}
+	if(strcmp(value,"file")==0) {impl = NCZM_FILE; goto done;}
 	if(strcmp(value,"zip")==0) {impl = NCZM_ZIP; goto done;}
 	if(strcmp(value,"s3")==0) {impl = NCZM_S3; goto done;}
     }
@@ -251,7 +249,6 @@ rootpathfor(const char* path)
     switch (dumpoptions.impl) {
     case NCZM_FILE:
     case NCZM_ZIP:
-    case NCZM_NC4:
 	rootpath = strdup("/"); /*constant*/
 	break;
     case NCZM_S3:

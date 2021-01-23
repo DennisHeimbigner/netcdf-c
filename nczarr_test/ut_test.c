@@ -192,7 +192,6 @@ makeurl(const char* file, NCZM_IMPL impl)
 
     if(file && strlen(file) > 0) {
 	switch (impl) {
-	case NCZM_NC4: /* fall thru */
 	case NCZM_FILE:
 	case NCZM_ZIP:
             /* Massage file to make it usable as URL path */

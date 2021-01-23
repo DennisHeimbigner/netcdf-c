@@ -10,7 +10,7 @@
 /**************************************************/
 /* Import the current implementations */
 
-extern NCZMAP_DS_API zmap_nzf;
+extern NCZMAP_DS_API zmap_file;
 #ifdef USE_HDF5
 extern NCZMAP_DS_API zmap_nz4;
 #endif
@@ -27,15 +27,12 @@ NCZM_PROPERTIES
 nczmap_properties(NCZM_IMPL impl)
 {
     switch (impl) {
-    case NCZM_FILE: return zmap_nzf.properties;
-#ifdef USE_HDF5
-    case NCZM_NC4: return zmap_nz4.properties;
-#endif
+    case NCZM_FILE: return zmap_file.properties;
 #ifdef ENABLE_NCZARR_ZIP
     case NCZM_ZIP: return zmap_zip.properties;
 #endif
 #ifdef ENABLE_S3_SDK
-    case NCZM_S3: return zmap_s3.properties;
+    case NCZM_S3: return zmap_s3sdk.properties;
 #endif
     default: break;
     }
@@ -56,15 +53,9 @@ nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* 
 
     switch (impl) {
     case NCZM_FILE:
-        stat = zmap_nzf.create(path, mode, flags, parameters, &map);
+        stat = zmap_file.create(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
-#ifdef USE_HDF5
-    case NCZM_NC4:
-        stat = zmap_nz4.create(path, mode, flags, parameters, &map);
-	if(stat) goto done;
-	break;
-#endif
 #ifdef ENABLE_NCZARR_ZIP
     case NCZM_ZIP:
         stat = zmap_zip.create(path, mode, flags, parameters, &map);
@@ -100,15 +91,9 @@ nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* pa
 
     switch (impl) {
     case NCZM_FILE:
-        stat = zmap_nzf.open(path, mode, flags, parameters, &map);
+        stat = zmap_file.open(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
-#ifdef USE_HDF5
-    case NCZM_NC4:
-        stat = zmap_nz4.open(path, mode, flags, parameters, &map);
-	if(stat) goto done;
-	break;
-#endif
 #ifdef ENABLE_NCZARR_ZIP
     case NCZM_ZIP:
         stat = zmap_zip.open(path, mode, flags, parameters, &map);
@@ -155,12 +140,6 @@ int
 nczmap_len(NCZMAP* map, const char* key, size64_t* lenp)
 {
     return map->api->len(map, key, lenp);
-}
-
-int
-nczmap_defineobj(NCZMAP* map, const char* key)
-{
-    return map->api->defineobj(map, key);
 }
 
 int
@@ -489,4 +468,49 @@ nczm_basename(const char* path, char** basep)
 done:
     nullfree(base);
     return THROW(ret);    
+}
+
+/* bubble sort a list of strings */
+void
+nczm_sortlist(NClist* l)
+{
+    nczm_sortenvv(nclistlength(l),(char**)nclistcontents(l));
+}
+
+/* bubble sort a list of strings */
+void
+nczm_sortenvv(int n, char** envv)
+{
+    size_t i, switched;
+
+    if(n <= 1) return;
+    do {
+	switched = 0;
+        for(i=0;i<n-1;i++) {
+	    char* ith = envv[i];
+	    char* ith1 = envv[i+1];
+	    if(strcmp(ith,ith1) > 0) {
+	        envv[i] = ith1;
+    	        envv[i+1] = ith;
+	        switched = 1;
+	    }
+	}
+    } while(switched);
+#if 0
+for(i=0;i<n;i++)
+fprintf(stderr,"sorted: [%d] %s\n",i,(const char*)envv[i]);
+#endif
+}
+
+void
+NCZ_freeenvv(int n, char** envv)
+{
+   int i;
+   char** p;
+   if(envv == NULL) return;
+   if(n < 0)
+       {for(n=0, p = envv; *p; n++); /* count number of strings */}
+    for(i=0;i<n;i++)
+        if(envv[i]) free(envv[i]);
+    free(envv);    
 }

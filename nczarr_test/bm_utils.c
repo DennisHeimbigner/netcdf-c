@@ -144,10 +144,7 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
 	        opt->pathtemplate = strdup(optarg);
 	        break;
 	    case OPT_FORMAT:
-		if(strcasecmp(optarg,"nz4")==0)
-		    opt->format = NC_FORMATX_NC4;
-		    opt->impl = NCZM_NC4;
-		else if(strcasecmp(optarg,"nzf")==0)
+		if(strcasecmp(optarg,"file")==0)
 		    opt->format = NC_FORMATX_NCZARR;
 		    opt->impl = NCZM_FILE;
 		else if(strcasecmp(optarg,"zip")==0)
@@ -197,12 +194,10 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
         if(opt->pathtemplate == NULL) {
 	    switch (opt->impl) {
 	    case NCZM_S3:
-	        opt->pathtemplate = strdup("https://stratus.ucar.edu/unidata-netcdf-zarr-testing/%s.%s#mode=nczarr,s3");
+	        opt->pathtemplate = strdup("https://stratus.ucar.edu/unidata-netcdf-zarr-testing/netcdf-c/%s.%s#mode=nczarr,s3");
 		break;
-	    case NCZM_NC4:
-	        opt->pathtemplate = strdup("file://%s.%s#mode=nczarr,nz4");
 	    case NCZM_FILE:
-		opt->pathtemplate = strdup("file://%s.%s#mode=nczarr,nzf");
+		opt->pathtemplate = strdup("file://%s.%s#mode=nczarr,file");
 	    case NCZM_ZIP:
 	        opt->pathtemplate = strdup("file://%s.%s#mode=nczarr,zip");
 	    default: abort();
@@ -249,7 +244,7 @@ formatname(const struct Options* o)
 	switch (o->impl) {
 	case NCZM_S3: return "s3";
 	case NCZM_NC4: return "nz4";
-	case NCZM_FILE: return "nzf";
+	case NCZM_FILE: return "file";
 	case NCZM_ZIP: return "zip";
 	break;
     case NC_FORMATX_NC4: /* fall thru */

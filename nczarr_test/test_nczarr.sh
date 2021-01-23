@@ -5,7 +5,8 @@ if test "x$SETX" != x; then set -x; fi
 ZMD="${execdir}/zmapio"
 
 awsdelete() {
-aws s3api delete-object --endpoint-url=https://stratus.ucar.edu --bucket=unidata-netcdf-zarr-testing --key="$1"
+${execdir}/s3util -u 'https://stratus.ucar.edu/unidata-netcdf-zarr-testing/' -k "$1" clear
+#aws s3api delete-object --endpoint-url=https://stratus.ucar.edu --bucket=unidata-netcdf-zarr-testing --key="netcdf-c/$1"
 }
 
 # Check settings
@@ -39,8 +40,7 @@ checkprops() {
 
 extfor() {
     case "$1" in
-    nz4) zext="nz4" ;;
-    nzf) zext="nzf" ;;
+    file) zext="file" ;;
     zip) zext="zip" ;;
     s3) zext="s3" ;;
     *) echo "unknown kind: $1" ; exit 1;;
@@ -49,8 +49,7 @@ extfor() {
 
 deletemap() {
     case "$1" in
-    nz4) rm -fr $2;;
-    nzf) rm -fr $2;;
+    file) rm -fr $2;;
     zip) rm -f $2;;
     s3) S3KEY=`${execdir}/zs3parse -k $2`; awsdelete $S3KEY;;
     *) echo "unknown kind: $1" ; exit 1;;
@@ -70,7 +69,7 @@ fileargs() {
   case "$zext" in
   s3)
     if test "x$NCS3PATH" = x ; then
-	S3PATH="https://stratus.ucar.edu/unidata-netcdf-zarr-testing"
+	S3PATH="https://stratus.ucar.edu/unidata-netcdf-zarr-testing/netcdf-c"
     else
 	S3PATH="${NCS3PATH}"
     fi

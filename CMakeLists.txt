@@ -1,4 +1,4 @@
-## This is a CMake file, part of Unidata's netCDF package.
+p## This is a CMake file, part of Unidata's netCDF package.
 # Copyright 2012-2018, see the COPYRIGHT file for more information.
 #
 
@@ -1024,6 +1024,10 @@ IF(NOT ENABLE_S3_SDK)
     SET(ENABLE_NCZARR_S3 OFF CACHE BOOL "NCZARR S3 support" FORCE)
     SET(ENABLE_NCZARR_S3_TESTS OFF CACHE BOOL "S3 tests" FORCE)
   ENDIF()
+ENDIF()
+
+IF(ENABLE_NCZARR_S3_TESTS)
+  message(WARNING "**** DO NOT ENABLE_NCZARR_S3_TESTS UNLESS YOU HAVE ACCESS TO THE UNIDATA S3 BUCKET! ***")
 ENDIF()
 
 # Start disabling if curl not found

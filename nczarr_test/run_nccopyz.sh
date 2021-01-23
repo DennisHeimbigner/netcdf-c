@@ -3,13 +3,15 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
+. "$srcdir/test_nczarr.sh"
+
 set -e
 echo ""
 
 #chunkclean src dst
 chunkclean() {
     rm -f ./$2
-    cat ./$1 | sed -e '/:_Storage/d' | sed -e '/:_ChunkSizes/d' > ./$2
+    cat ./$1 | sed -e "/:_Storage/d" | sed -e "/:_ChunkSizes/d" > ./$2
 }
 
 #verifychunking cdl-file  <chunkspec>...
@@ -17,53 +19,63 @@ verifychunking() {
   f=$1
   shift
   for t in "$@" ; do
-    x=`cat $f | tr -d '\t \r' | sed -e "/$t/p" -ed`
+    x=`cat $f | tr -d "\t \r" | sed -e "/$t/p" -ed`
     if test "x$x" = x ; then echo "$f: $t not found"; exit 1; fi
   done
 }
 
 testcase() {
 zext=$1
+fileargs tmp
 ./tst_zchunks3 -e ${zext}
 echo "*** Test that nccopy -c can chunk files"
-${NCCOPY} -M0 tst_chunks3.nc 'file://tmp.${zext}#mode=nczarr,${zext}'
-${NCDUMP} -n tmp -sh 'file://tmp.${zext}#mode=nczarr,${zext}' > tmp.cdl
-verifychunking tmp.cdl 'ivar:_ChunkSizes=7,4,2,3,5,6,9;' 'fvar:_ChunkSizes=9,6,5,3,2,4,7;'
+${NCCOPY} -M0 tst_chunks3.nc "$fileurl"
+${NCDUMP} -n tmp -sh "$fileurl" > tmp.cdl
+verifychunking tmp.cdl "ivar:_ChunkSizes=7,4,2,3,5,6,9;" "fvar:_ChunkSizes=9,6,5,3,2,4,7;"
 
-${NCCOPY} -M0 -c dim0/,dim1/1,dim2/,dim3/1,dim4/,dim5/1,dim6/ tst_chunks3.nc 'file://tmp_chunked.${zext}#mode=nczarr,${zext}'
-${NCDUMP} -sh -n tmp 'file://tmp_chunked.${zext}#mode=nczarr,${zext}' > tmp_chunked.cdl
-verifychunking tmp_chunked.cdl 'ivar:_ChunkSizes=7,1,2,1,5,1,9;' 'fvar:_ChunkSizes=9,1,5,1,2,1,7;'
+fileargs tmp_chunked
+./tst_zchunks3 -e ${zext}
+${NCCOPY} -M0 -c dim0/,dim1/1,dim2/,dim3/1,dim4/,dim5/1,dim6/ tst_chunks3.nc "$fileurl"
+${NCDUMP} -sh -n tmp "$fileurl" > tmp_chunked.cdl
+verifychunking tmp_chunked.cdl "ivar:_ChunkSizes=7,1,2,1,5,1,9;" "fvar:_ChunkSizes=9,1,5,1,2,1,7;"
 chunkclean tmp.cdl tmpx.cdl
 chunkclean tmp_chunked.cdl tmp_chunkedx.cdl 
 diff tmpx.cdl tmp_chunkedx.cdl
 
 # Note that unchunked means that there is only one chunk
-${NCCOPY} -M0 -c dim0/,dim1/,dim2/,dim3/,dim4/,dim5/,dim6/ 'file://tmp_chunked.${zext}#mode=nczarr,${zext}' 'file://tmp_unchunked.${zext}#mode=nczarr,${zext}'
-${NCDUMP} -sh -n tmp 'file://tmp_unchunked.${zext}#mode=nczarr,${zext}' > tmp_unchunked.cdl
-verifychunking tmp_unchunked.cdl 'ivar:_ChunkSizes=7,4,2,3,5,6,9;' 'fvar:_ChunkSizes=9,6,5,3,2,4,7;'
+SRC="$fileurl"
+fileargs tmp_unchunked
+${NCCOPY} -M0 -c dim0/,dim1/,dim2/,dim3/,dim4/,dim5/,dim6/ "$SRC" "$fileurl"
+${NCDUMP} -sh -n tmp "$fileurl" > tmp_unchunked.cdl
+verifychunking tmp_unchunked.cdl "ivar:_ChunkSizes=7,4,2,3,5,6,9;" "fvar:_ChunkSizes=9,6,5,3,2,4,7;"
 chunkclean tmp_unchunked.cdl tmp_unchunkedx.cdl 
 diff tmpx.cdl tmp_unchunkedx.cdl
 
 # Test -c /
-${NCCOPY} -M0 -c '/' 'file://tmp_chunked.${zext}#mode=nczarr,${zext}' 'file://tmp_unchunked2.${zext}#mode=nczarr,${zext}'
-${NCDUMP} -sh -n tmp 'file://tmp_unchunked2.${zext}#mode=nczarr,${zext}' > tmp_unchunked2.cdl
-verifychunking tmp_unchunked.cdl 'ivar:_ChunkSizes=7,4,2,3,5,6,9;' 'fvar:_ChunkSizes=9,6,5,3,2,4,7;'
+fileargs tmp_unchunked2
+${NCCOPY} -M0 -c "/" "$SRC" "$fileurl"
+${NCDUMP} -sh -n tmp "$fileurl" > tmp_unchunked2.cdl
+verifychunking tmp_unchunked.cdl "ivar:_ChunkSizes=7,4,2,3,5,6,9;" "fvar:_ChunkSizes=9,6,5,3,2,4,7;"
 chunkclean tmp_unchunked.cdl tmp_unchunkedx.cdl 
 diff tmpx.cdl tmp_unchunkedx.cdl
 
 echo "*** Test that nccopy -c dim/n is used "
-${NCGEN} -4 -b -o 'file://tst_perdimspecs.${zext}#mode=nczarr,${zext}' $srcdir/ref_perdimspecs.cdl
-${NCDUMP} -n tmp_perdimspecs -hs 'file://tst_perdimspecs.${zext}#mode=nczarr,${zext}' > tmp_perdimspecs.cdl
-${NCCOPY} -M0 -4 -c "time/10,lat/15,lon/20" 'file://tst_perdimspecs.${zext}#mode=nczarr,${zext}' 'file://tmppds.${zext}#mode=nczarr,${zext}'
-${NCDUMP} -n tmppds -hs 'file://tmppds.${zext}#mode=nczarr,${zext}' > tmppds.cdl
-STORAGE=`cat tmppds.cdl | sed -e '/tas:_Storage/p' -ed | tr -d '\t \r'`
-test "x$STORAGE" = 'xtas:_Storage="chunked";'
-CHUNKSIZES=`cat tmppds.cdl | sed -e '/tas:_ChunkSizes/p' -ed | tr -d '\t \r'`
-test "x$CHUNKSIZES" = 'xtas:_ChunkSizes=10,15,20;'
+fileargs tst_perdimspecs
+${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_perdimspecs.cdl
+${NCDUMP} -n tmp_perdimspecs -hs "$fileurl" > tmp_perdimspecs.cdl
+SRC=$fileurl
+fileargs tmppds
+${NCCOPY} -M0 -4 -c "time/10,lat/15,lon/20" "$SRC" "$fileurl"
+${NCDUMP} -n tmppds -hs "$fileurl" > tmppds.cdl
+STORAGE=`cat tmppds.cdl | sed -e "/tas:_Storage/p" -ed | tr '"' "'" | tr -d "\t \r"`
+test "x$STORAGE" = "xtas:_Storage='chunked';"
+CHUNKSIZES=`cat tmppds.cdl | sed -e "/tas:_ChunkSizes/p" -ed | tr -d "\t \r"`
+test "x$CHUNKSIZES" = "xtas:_ChunkSizes=10,15,20;"
 }
 
 testcase zip
-testcase nzf
+testcase file
+if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi
 
 echo "*** All nccopy nczarr tests passed!"
 exit 0

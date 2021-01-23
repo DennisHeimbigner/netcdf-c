@@ -55,10 +55,7 @@ echo "*** PASSED: zext=${zext}"
 }
 
 runtestset zip
-runtestset nzf
-if test "x$FEATURE_HDF5" = xyes ; then runtestset nz4; fi
+runtestset file
 if test "x$FEATURE_S3TESTS" = xyes ; then runtestset s3; fi
-
-rm -rf ${RESULTSDIR}.zip ${RESULTSDIR}.nzf ${RESULTSDIR}.nz4 ${RESULTSDIR}.s3
 
 echo "*** PASSED ***"

@@ -22,8 +22,8 @@ int NCZ_s3sdkread(void* client0, const char* bucket, const char* pathkey, unsign
 int NCZ_s3sdkwriteobject(void* client0, const char* bucket, const char* pathkey, unsigned long long count, const void* content, char** errmsgp);
 int NCZ_s3sdkclose(void* s3client0, void* config0, const char* bucket, const char* rootkey, int deleteit, char** errmsgp);
 int NCZ_s3sdkgetkeys(void* s3client0, const char* bucket, const char* prefix, size_t* nkeysp, char*** keysp, char** errmsgp);
+int NCZ_s3sdksearch(void* s3client0, const char* bucket, const char* prefixkey0, size_t* nkeysp, char*** keysp, char** errmsgp);
 int NCZ_s3sdkdeletekey(void* client0, const char* bucket, const char* pathkey, char** errmsgp);
-int NCZ_s3sdkcreatekey(void* s3client0, const char* bucket, const char* pathkey, char** errmsgp);
 
 #ifdef __cplusplus
 }

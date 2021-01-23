@@ -189,7 +189,9 @@ Send trace messages.
 int
 nctracelevel(int level)
 {
-    int oldlevel = nclog_global.tracelevel;
+    int oldlevel;
+    if(!nclogginginitialized) ncloginit();
+    oldlevel = nclog_global.tracelevel;
     if(level < 0) {
       nclog_global.tracelevel = level;
       ncsetlogging(0);
@@ -259,7 +261,7 @@ ncuntrace(const char* fcn, int err, const char* fmt, ...)
 	goto done;
     }
     if(frame->level <= nclog_global.tracelevel) {
-        fprintf(nclog_global.nclogstream,"%s: (%d): %s: ","Exit",frame->depth,frame->fcn);
+        fprintf(nclog_global.nclogstream,"%s: (%d): %s: ","Exit",frame->level,frame->fcn);
 	if(err)
 	    fprintf(nclog_global.nclogstream,"err=(%d) '%s':",err,nc_strerror(err));
         if(fmt != NULL)

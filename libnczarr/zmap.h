@@ -20,7 +20,8 @@ separator for the segments of the path.
 
 As with Unix, all keys have this BNF syntax:
 <pre>
-key: '/' | key segment ;
+key: '/' | keypath ;
+keypath: '/' segment | keypath '/' segment ;
 segment: <sequence of UTF-8 characters except control characters and '/'>
 </pre>
 
@@ -30,7 +31,8 @@ Thus one key is "contained" (possibly transitively)
 by another if one key is a prefix (in the string sense) of the other.
 So in this sense the key "/x/y/z" is contained by the key  "/x/y".
 
-As with S3, a key refers to an "object" that can contain content.
+In this model all keys "exist" but only some keys refer to
+objects containing content -- content bearing.
 An important restriction is placed on the structure of the tree.
 Namely, keys are only defined for content-bearing objects.
 Further, all the leaves of the tree are these content-bearing objects.
@@ -39,7 +41,8 @@ be a prefix of any other key.
 
 There several other concepts of note.
 1. Dataset - a dataset is the complete tree contained by the key defining
-the root of the dataset.
+the root of the dataset. Technically, the root of the tree is the key <dataset>/.nczarr,
+where .nczarr can be considered the superblock of the dataset.
 2. Object - equivalent of the S3 object; Each object has a unique key
 and "contains" data in the form of an arbitrary sequence of 8-bit bytes.
 
@@ -56,21 +59,22 @@ The search function has two purposes:
       track their contents).
    b. Debugging to allow raw examination of the storage. See zdump
       for example.
-
-The search function takes a prefix path which is a form key
-with the following bnf:
-    key: "/" | longkey ;
-    longkey = "/" name | longkey "/" name ;
-This conforms to Unix path model. It also means that the root key ("/")
-usually requires special handling.
-
+v
+The search function takes a prefix path which has a key syntax (see above).
 The set of legal keys is the set of keys such that the key references
-a content-bearing object -- e.g. .zarray or .zgroup. Essentially
+a content-bearing object -- e.g. /x/y/.zarray or /.zgroup. Essentially
 this is the set of keys pointing to the leaf objects of the tree of keys
-constituting a dataset. This set limits the set of keys that need to be
+constituting a dataset. This set potentially limits the set of keys that need to be
 examined during search.
 
-The critical problems for search are as follows:
+Ideally the search function would return 
+the set of names that are immediate suffixes of a
+given prefix path. That is, if <prefix> is the prefix path,
+then search returns all <name> such that  <prefix>/<name> is itself a prefix of a "legal" key.
+This could be used to implement glob style searches such as "/x/y/ *" or "/x/y/ **"
+
+This semantics was chosen because it appears to be the minimum required to implement
+all other kinds of search using recursion. So for example
 1. Avoid returning keys that are not a prefix of some legal key.
 2. Avoid returning all the legal keys in the dataset because that set may be very large;
    although the implementation may still have to examine all legal keys to get the desired subset.
@@ -78,17 +82,10 @@ The critical problems for search are as follows:
    This can support processing a limited set of keys for each iteration. This is a
    straighforward tradeoff of space over time.
 
-In any case, search returns the set of names that are immediate suffixes of a
-given prefix path. That is, if <prefix> is the prefix path,
-then search returns all <name> such that  <prefix>/<name> is itself a prefix of a "legal" key.
-This semantics was chosen because it appears to be the minimum required to implement
-all other kinds of search using recursion. So for example this could implement
-glob style searches such as "/x/y/ *" or "/x/y/ **"
-
-It is unfortunate that for the two most important zmap implementations -- zip and S3 --
-it is necessary to iterate over all the legal keys to select those of interest.
-For the file system zmap implementation, the legal search keys can be obtained
-one level at a time, which directly implements the search semantics.
+This is doable in S3 search using common prefixes with a delimiter of '/', although
+the implementation is a bit tricky. For the file system zmap implementation, the legal search keys can be obtained
+one level at a time, which directly implements the search semantics. For the zip file implementation,
+this semantics is not possible, so the whole tree must be obtained and searched.
 
 Issues:
 1. S3 limits key lengths to 1024 bytes. Some deeply nested netcdf files
@@ -114,12 +111,12 @@ this different than, say, a direvtory tree where a key will
 always lead to something: a directory or a file.
 
 In any case, the zmap API returns two distinguished error code:
-1. NC_NOERR if a content bearing object is created or referenced.
+1. NC_NOERR if a operation succeeded
 2. NC_EEMPTY is returned when accessing a key that has no content.
 This does not preclude other errors being returned such NC_EACCESS or NC_EPERM or NC_EINVAL
 if there are permission errors or illegal function arguments, for example.
 It also does not preclude the use of other error codes internal to the zmap
-implementation. So zmap_nzf, for example, uses NC_ENOTFOUND internally
+implementation. So zmap_file, for example, uses NC_ENOTFOUND internally
 because it is possible to detect the existence of directories and files.
 This does not propagate to the API.
 
@@ -152,10 +149,9 @@ typedef struct NCZMAP_API NCZMAP_API;
 /* Define the space of implemented (eventually) map implementations */
 typedef enum NCZM_IMPL {
 NCZM_UNDEF=0, /* In-memory implementation */
-NCZM_S3=1,	/* Amazon S3 implementation */
-NCZM_NC4=2,	/* Netcdf-4 file based implementation */
-NCZM_FILE=3,	/* File system directory-based implementation */
-NCZM_ZIP=4,	/* Zip-file based implementation */
+NCZM_FILE=1,	/* File system directory-based implementation */
+NCZM_ZIP=2,	/* Zip-file based implementation */
+NCZM_S3=3,	/* Amazon S3 implementation */
 } NCZM_IMPL;
 
 /* Define the default map implementation */
@@ -188,6 +184,20 @@ typedef struct NCZMAP {
     struct NCZMAP_API* api;
 } NCZMAP;
 
+/* zmap_s3sdk related-types and constants */
+
+#define AWSHOST ".amazonaws.com"
+
+enum URLFORMAT {UF_NONE=0, UF_VIRTUAL=1, UF_PATH=2, UF_OTHER=3};
+
+typedef struct ZS3INFO {
+    enum URLFORMAT urlformat;
+    char* host; /* non-null if other*/
+    char* region; /* region */
+    char* bucket; /* bucket name */
+    char* rootkey;
+} ZS3INFO;
+
 /* Forward */
 struct NClist;
 
@@ -200,7 +210,6 @@ struct NCZMAP_API {
     /* Object Operations */
 	int (*exists)(NCZMAP* map, const char* key);
 	int (*len)(NCZMAP* map, const char* key, size64_t* sizep);
-	int (*defineobj)(NCZMAP* map, const char* key);
 	int (*read)(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
 	int (*write)(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
         int (*search)(NCZMAP* map, const char* prefix, struct NClist* matches);
@@ -236,7 +245,7 @@ Check if a specified content-bearing object exists or not.
 @param map -- the containing map
 @param key -- the key specifying the content-bearing object
 @return NC_NOERR if the object exists
-@return NC_ENOTFOUND if the object does not exist
+@return NC_EEMPTY if the object is not content bearing.
 @return NC_EXXX if the operation failed for one of several possible reasons
 */
 EXTERNL int nczmap_exists(NCZMAP* map, const char* key);
@@ -247,20 +256,10 @@ Return the current size of a specified content-bearing object exists or not.
 @param key -- the key specifying the content-bearing object
 @param sizep -- the object's size is returned thru this pointer.
 @return NC_NOERR if the object exists
-@return NC_ENOTFOUND if the object does not exist
+@return NC_EEMPTY if the object is not content bearing
 @return NC_EXXX if the operation failed for one of several possible reasons
 */
 EXTERNL int nczmap_len(NCZMAP* map, const char* key, size64_t* sizep);
-
-/**
-Create a specified content-bearing object.
-@param map -- the containing map
-@param key -- the key specifying the content-bearing object
-@return NC_NOERR if the object is created
-@return NC_ENOTFOUND if the object does not exist
-@return NC_EXXX if the operation failed for one of several possible reasons
-*/
-EXTERNL int nczmap_defineobj(NCZMAP* map, const char* key);
 
 /**
 Read the content of a specified content-bearing object.
@@ -270,7 +269,7 @@ Read the content of a specified content-bearing object.
 @param count -- number of bytes to read
 @param content -- read the data into this memory
 @return NC_NOERR if the operation succeeded
-@return NC_ENOTFOUND if the object does not exist
+@return NC_EEMPTY if the object is not content-bearing.
 @return NC_EXXX if the operation failed for one of several possible reasons
 */
 EXTERNL int nczmap_read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
@@ -283,17 +282,17 @@ Write the content of a specified content-bearing object.
 @param count -- number of bytes to write
 @param content -- write the data from this memory
 @return NC_NOERR if the operation succeeded
-@return NC_ENOTFOUND if the object does not exist
 @return NC_EXXX if the operation failed for one of several possible reasons
+Note that this makes the key a content-bearing object.
 */
 EXTERNL int nczmap_write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content);
 
 /**
-Return a vector of keys representing the content-bearing
-objects that are immediately contained by the prefix key.
+Return a vector of names (not keys) representing the
+next segment of legal objects that are immediately contained by the prefix key.
 @param map -- the containing map
 @param prefix -- the key into the tree where the search is to occur
-@param matches -- return the set of keys in this list
+@param matches -- return the set of names in this list; might be empty
 @return NC_NOERR if the operation succeeded
 @return NC_EXXX if the operation failed for one of several possible reasons
 */
@@ -351,6 +350,12 @@ EXTERNL int nczm_localize(const char* path, char** newpathp, int local);
 EXTERNL int nczm_canonicalpath(const char* path, char** cpathp);
 EXTERNL int nczm_basename(const char* path, char** basep);
 EXTERNL int nczm_segment1(const char* path, char** seg1p);
+
+/* bubble sorts (note arguments) */
+EXTERNL void nczm_sortlist(struct NClist* l);
+EXTERNL void nczm_sortenvv(int n, char** envv);
+EXTERNL void NCZ_freeenvv(int n, char** envv);
+
 
 #ifdef __cplusplus
 }

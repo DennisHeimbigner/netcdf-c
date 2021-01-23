@@ -24,8 +24,7 @@ ZM="${execdir}/zmapio -t int"
 remfile() {
   case "$zext" in
   nc4) rm -fr $1 ;;
-  nz4) rm -fr $1 ;;
-  nzf) rm -fr $1 ;;
+  file) rm -fr $1 ;;
   zip) rm -fr $1 ;;
   s3) ;;
   *) echo "no such extension: $zext" ; exit 1;;
@@ -37,23 +36,11 @@ makefile() {
   remfile $file
   case "$zext" in
   nc4) F=$file;;
-  nz4) F=$fileurl;;
-  nzf) F=$fileurl;;
+  file) F=$fileurl;;
   zip) F=$fileurl;;
   s3) F=$fileurl;;
   *) echo "no such extension: $zext" ; exit 1;;
   esac
-}
-
-mkdirresults() {
-RESDIR=results
-echo "RESDIR=|$RESDIR|"
-rm -fr $RESDIR
-mkdir $RESDIR
-}
-
-delresults() {
-rm -fr $RESDIR
 }
 
 runtests() {
@@ -132,11 +119,7 @@ zext=$1
 runtests
 }
 
-mkdirresults
-cd $RESDIR
 testcase zip
-testcase nzf
-if test "x$FEATURE_HDF5" = xyes ; then testcase nz4; fi
+testcase file
 if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi
-cd ..
-delresults
+

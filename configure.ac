@@ -630,6 +630,10 @@ if test "x$enable_nczarr_s3_tests" = xyes ; then
 fi
 AM_CONDITIONAL(ENABLE_NCZARR_S3_TESTS, [test "x$enable_nczarr_s3_tests" = xyes])
 
+if test "x$enable_nczarr_s3_tests" = xyes ; then
+  AC_MSG_WARN([*** DO NOT ENABLE_NCZARR_S3_TESTS UNLESS YOU HAVE ACCESS TO THE UNIDATA S3 BUCKET! ***])
+fi
+
 # Set default
 # See if we have libzip
 AC_CHECK_LIB([zip],[zip_open],[have_zip=yes],[have_zip=no])

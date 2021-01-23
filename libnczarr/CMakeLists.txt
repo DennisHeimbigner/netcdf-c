@@ -24,8 +24,7 @@ zgrp.c
 zinternal.c
 zjson.c
 zmap.c
-zmap_nz4.c
-zmap_nzf.c
+zmap_file.c
 zmap_zip.c
 zodom.c
 zopen.c

@@ -79,8 +79,6 @@ simplecreate(void)
 
     if((stat=nczm_concat(NULL,NCZMETAROOT,&path)))
 	goto done;
-    if((stat = nczmap_defineobj(map, path)))
-	goto done;
 
     /* Write empty metadata content */
     if((stat = nczmap_write(map, path, 0, 0, (const void*)"")))
@@ -116,18 +114,10 @@ writemeta(void)
     NCZMAP* map = NULL;
     char* path = NULL;
 
-    if((stat = nczmap_create(impl,url,0,0,NULL,&map)))
+    if((stat = nczmap_open(impl,url,NC_WRITE,0,NULL,&map)))
 	goto done;
-
-    if((stat=nczm_concat(NULL,NCZMETAROOT,&path)))
-	goto done;
-    if((stat = nczmap_defineobj(map, path)))
-	goto done;
-    free(path); path = NULL;
 
     if((stat=nczm_concat(META1,ZARRAY,&path)))
-	goto done;
-    if((stat = nczmap_defineobj(map, path)))
 	goto done;
     if((stat = nczmap_write(map, path, 0, strlen(metadata1), metadata1)))
 	goto done;
@@ -151,8 +141,6 @@ writemeta2(void)
 	goto done;
 
     if((stat=nczm_concat(META2,NCZVAR,&path)))
-	goto done;
-    if((stat = nczmap_defineobj(map,path)))
 	goto done;
     if((stat = nczmap_write(map, path, 0, strlen(metadata2), metadata2)))
 	goto done;
@@ -251,9 +239,6 @@ writedata(void)
 
     /* ensure object */
     if((stat=nczm_concat(DATA1,"0",&path)))
-	goto done;
-
-    if((stat = nczmap_defineobj(map,path)))
 	goto done;
 
     props = nczmap_properties(impl);

@@ -51,23 +51,27 @@ that the recursion occurs in the caller's code.
  * @author Dennis Heimbigner
  */
 int
-ncz_sync_file(NC_FILE_INFO_T* file)
+ncz_sync_file(NC_FILE_INFO_T* file, int isclose)
 {
     int stat = NC_NOERR;
     NCjson* json = NULL;
     NCZ_FILE_INFO_T* zinfo = NULL;
 
+    NC_UNUSED(isclose);
+
     LOG((3, "%s: file: %s", __func__, file->controller->path));
-    ZTRACE(3,"file=%s",file->controller->path);
+    ZTRACE(3,"file=%s isclose=%d",file->controller->path,isclose);
 
     zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
 
     /* Create super block (NCZMETAROOT) */
-    if((stat = ncz_create_superblock(zinfo))) goto done;
+    {
+        if((stat = ncz_create_superblock(zinfo))) goto done;
 
-    /* Write out root group recursively */
-    if((stat = ncz_sync_grp(file, file->root_grp)))
-	goto done;
+        /* Write out root group recursively */
+        if((stat = ncz_sync_grp(file, file->root_grp)))
+	    goto done;
+    }
 
 done:
     NCJreclaim(json);
@@ -492,7 +496,6 @@ ncz_write_var(NC_VAR_INFO_T* var)
 	    default: goto done; /* some other error */
 	    }
             /* If we reach here, then chunk does not exist, create it with fill */
-	    if((stat=nczmap_defineobj(map,key))) goto done;
 	    /* ensure fillchunk exists */
 	    if(zvar->cache->fillchunk == NULL) {
 		nc_type typecode;

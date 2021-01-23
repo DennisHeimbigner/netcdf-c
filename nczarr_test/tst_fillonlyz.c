@@ -1,19 +1,28 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "netcdf.h"
+#include "nclist.h"
+
+#ifdef ENABLE_NCZARR
+#include "zincludes.h"
+#endif
+
+#include "tst_utils.h"
 
 #undef DEBUG
 
 static void
-nccheck(int ret)
+nccheck(int ret, int lineno)
 {
     if(ret == NC_NOERR) return;
-    fprintf(stderr,"err=%s\n",nc_strerror(ret));
-    exit(1);
+    report(ret,lineno);
 }
 
-#define NCCHECK(err) nccheck(err)
+#define NCCHECK(err) nccheck(err,__LINE__)
 
 int
 main(int argc, char *argv[] )
@@ -22,10 +31,13 @@ main(int argc, char *argv[] )
     size_t  dimlen[1];
     float   *fdat;
     int     *idat;
-    const char* filename = "file://tmp_fillonly.nc#mode=nczarr,zip";
+    const char* filename = NULL;
     const char* varname = "f";
     const char* dimname = "x";
     size_t i;
+
+    NCCHECK(getoptions(&argc,&argv));
+    filename = options->file;
 
     NCCHECK(err = nc_open(filename,NC_NETCDF4,&ncid));
     NCCHECK(err = nc_inq_varid(ncid, varname, &varid));
@@ -56,7 +68,6 @@ main(int argc, char *argv[] )
 	    return 1;
 	}
     }
-
 
     if(fdat) free(fdat);
     if(idat) free(idat);

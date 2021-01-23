@@ -33,6 +33,7 @@ ut_mapapi_SOURCES = ut_mapapi.c ${commonsrc}
 ut_json_SOURCES = ut_json.c ${commonsrc}
 ut_projections_SOURCES = ut_projections.c ${commonsrc}
 ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
+tst_fillonlyz_SOURCES = tst_fillonlyz.c ${tstcommonsrc}
 
 check_PROGRAMS += tst_zchunks tst_zchunks2 tst_zchunks3 tst_fillonlyz
 
@@ -81,6 +82,12 @@ zisjson_SOURCES = zisjson.c
 noinst_PROGRAMS += zs3parse
 zs3parse_SOURCES = zs3parse.c
 
+if ENABLE_NCZARR_S3
+noinst_PROGRAMS += s3util
+s3util_SOURCES = s3util.c
+TESTS += run_s3_cleanup.sh
+endif
+
 # Given a netcdf4|NCZarr file, dump the actual chunk contents.
 # Used to validate nczarr chunking code.
 AM_CPPFLAGS += -I$(top_srcdir)/libnczarr
@@ -89,7 +96,7 @@ ncdumpchunks_SOURCES = ncdumpchunks.c
 
 EXTRA_DIST = CMakeLists.txt \
 run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_ncgen4.sh \
-run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh \
+run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh run_s3_cleanup.sh \
 ref_ut_map_create.cdl ref_ut_map_writedata.cdl ref_ut_map_writemeta2.cdl ref_ut_map_writemeta.cdl \
 ref_ut_mapapi_create_nz4.cdl ref_ut_mapapi_create_nzf.cdl ref_ut_mapapi_create_zip.cdl ref_ut_mapapi_create_s3.cdl \
 ref_ut_mapapi_data_nz4.cdl ref_ut_mapapi_data_nzf.cdl ref_ut_mapapi_data_zip.cdl ref_ut_mapapi_data_s3.cdl \
@@ -111,9 +118,10 @@ testmap.nz4 testmapapi.nz4 \
 testmap.zip testmapapi.zip \
 tst_chunks.nz4 tst_chunks2.nc.nz4 \
 ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp test.nzf \
+tmp_fillonly.zip tmp_chunked.zip\
 tst_chunks3.nc
 
 # Remove directories
 clean-local:
 	rm -fr tst_chunks.nzf tst_chunks2.nzf tst_perdimspecs.nzf \
-	testmap.nzf test_mapapi.nzf
+		testmap.nzf test_mapapi.nzf tmp_fillonly.file

@@ -85,7 +85,7 @@ simplecreate(void)
     printf("Pass: create: create: %s\n",url);
 
     truekey = makekey(NCZMETAROOT);
-    if((stat = nczmap_defineobj(map, truekey)))
+    if((stat = nczmap_write(map, truekey, 0, 0, NULL)))
 	goto done;
     printf("Pass: create: defineobj: %s\n",truekey);
     
@@ -179,7 +179,7 @@ simplemeta(void)
 	goto done;
     truekey = makekey(key);
     nullfree(key); key = NULL;
-    if((stat = nczmap_defineobj(map, truekey)))
+    if((stat = nczmap_write(map, truekey, 0, 0, NULL)))
 	goto done;
     report(PASS,".zarray: def",map);
     free(truekey); truekey = NULL;
@@ -290,9 +290,6 @@ simpledata(void)
     report(PASS,"open",map);
 	
     truekey = makekey(DATA1);
-    if((stat = nczmap_defineobj(map, truekey)))
-	goto done;
-    report(PASS,DATA1": def",map);
 
     props = nczmap_properties(impl);
     if((NCZM_ZEROSTART & props) || (NCZM_WRITEONCE & props)) {

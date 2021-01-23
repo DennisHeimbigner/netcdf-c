@@ -105,12 +105,7 @@ echo "*** Map Unit Testing"
 echo ""; echo "*** Test zmap_zip"
 testmapcreate zip; testmapmeta zip; testmapdata zip; testmapsearch zip
 
-echo ""; echo "*** Test zmap_nzf"
-testmapcreate nzf; testmapmeta nzf; testmapdata nzf; testmapsearch nzf
-
-if test "x$FEATURE_HDF5" = xyes ; then
-echo ""; echo "*** Test zmap_nz4"
-testmapcreate nz4; testmapmeta nz4; testmapdata nz4; testmapsearch nz4
-fi
+echo ""; echo "*** Test zmap_file"
+testmapcreate file; testmapmeta file; testmapdata file; testmapsearch file
 
 exit 0
