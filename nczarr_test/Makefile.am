@@ -60,7 +60,7 @@ endif
 if BUILD_BENCHMARKS
 if BUILD_UTILITIES 
 
-UTILSRC = bm_utils.c timer_utils.c
+UTILSRC = bm_utils.c timer_utils.c tst_utils.c
 
 bm_chunks3_SOURCES = bm_chunks3.c ${UTILSRC}
 

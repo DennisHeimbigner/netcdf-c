@@ -22,8 +22,7 @@
 #include "ncpathmgr.h"
 #include "nclog.h"
 #include "ncuri.h"
-#include "nclist.h"
-#include "ncbytes.h"
+#include "netcdf_aux.h"
 
 #undef NODELETE
 
@@ -353,14 +352,15 @@ static int
 s3upload(void)
 {
     int stat = NC_NOERR;
-    NCbytes* content = ncbytesnew();
+    size_t red = 0;
+    void* content = NULL;
 
     if(s3setup()) goto done;
 
-    if((stat = NC_readfile(dumpoptions.filename,content)))
+    if((stat = ncaux_readfile(dumpoptions.filename,&red,&content)))
         goto done;
 
-    if((stat = NCZ_s3sdkwriteobject(s3sdk.s3client, s3sdk.s3.bucket, s3sdk.s3.rootkey, nclistlength(content), ncbytescontents(content), &s3sdk.errmsg)))
+    if((stat = NCZ_s3sdkwriteobject(s3sdk.s3client, s3sdk.s3.bucket, s3sdk.s3.rootkey, red, content, &s3sdk.errmsg)))
 	goto done;
 
 done:
@@ -387,7 +387,7 @@ s3download(void)
     if((stat = NCZ_s3sdkread(s3sdk.s3client, s3sdk.s3.bucket, s3sdk.s3.rootkey, 0, count, (void*) content, &s3sdk.errmsg)))
 	goto done;
 
-    if((stat = NC_writefile(dumpoptions.filename,count,content)))
+    if((stat = ncaux_writefile(dumpoptions.filename,count,content)))
         goto done;
 
 done:

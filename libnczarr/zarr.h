@@ -64,8 +64,9 @@ extern int NCZ_swapatomicdata(size_t datalen, void* data, int typesize);
 extern char** NCZ_clonestringvec(size_t len, const char** vec);
 extern void NCZ_freestringvec(size_t len, char** vec);
 extern int NCZ_create_fill_chunk(size64_t chunksize, size_t typesize, void* fill, void** fillchunkp);
-extern int NCZ_s3urlprocess(NCURI* url, ZS3INFO* s3);
 extern int NCZ_s3clear(ZS3INFO* s3);
+/* Export */
+EXTERNL int NCZ_s3urlprocess(NCURI* url, ZS3INFO* s3);
 
 /* zwalk.c */
 EXTERNL int NCZ_read_chunk(int ncid, int varid, size64_t* zindices, void* chunkdata);

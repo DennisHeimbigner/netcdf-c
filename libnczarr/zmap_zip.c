@@ -320,7 +320,7 @@ zipread(NCZMAP* map, const char* key, size64_t start, size64_t count, void* cont
     zip_flags_t zipflags = 0;
     int zerrno;
     size64_t endpoint;
-    void* buffer = NULL;
+    char* buffer = NULL;
     char* truekey = NULL;
     zip_int64_t red = 0;
     

@@ -2,18 +2,18 @@
 
 #export SETX=1
 
-NCC="/home/dmh/tools/nccmake"
+NCC="c:/tools/hdf5-1.10.6"
+HDF5_DIR="$NCC/cmake/hdf5"
+AWSSDK_DIR="c:/tools/aws-cpp-sdk-all"
 
 # Is netcdf-4 and/or DAP enabled?
-#NCZARR=1
+NCZARR=1
 HDF5=1
 DAP=1
-#S3=1
-#S3TEST=1
+S3=1
+S3TEST=1
 #CDF5=1
 #HDF4=1
-
-H518=1
 
 #TR=--trace
 
@@ -27,23 +27,13 @@ notest|nt) NOTEST=1 ;;
 esac
 done
 
-if test "x$VS" = x1 ; then
-  if test "x$2" = xsetup ; then
-    VSSETUP=1
-  else
-    unset VSSETUP
-  fi
-fi
 
 #TESTSERVERS="localhost:8080,remotetest.unidata.ucar.edu"
 
 #export NCPATHDEBUG=1
 
-if test "x$VSSETUP" = x1 ; then
-CFG="Debug"
-else
+#CFG="Debug"
 CFG="Release"
-fi
 
 FLAGS=
 
@@ -91,6 +81,7 @@ fi
 
 if test "x$S3" != x ; then
 FLAGS="$FLAGS -DENABLE_NCZARR_S3=true"
+FLAGS="$FLAGS -DAWSSDK_DIR=${AWSSDK_DIR}"
 if test "x$S3TEST" != x ; then
 FLAGS="$FLAGS -DENABLE_NCZARR_S3_TESTS=true"
 fi
@@ -122,6 +113,9 @@ mkdir build
 cd build
 
 NCLIB=`pwd`
+NCCYGLIB=`cygpath -u ${NCLIB} |tr -d ''`
+NCCBIN=`cygpath -u "${NCC}/bin" |tr -d ''`
+AWSSDKBIN="/cygdrive/c/tools/aws-cpp-sdk-all/bin"
 
 if test "x$VS" != x ; then
 
@@ -129,6 +123,7 @@ if test "x$VS" != x ; then
 CFG="Release"
 NCLIB="${NCLIB}/liblib"
 export PATH="${NCLIB}:${PATH}"
+export LD_LIBRARY_PATH="${NCCBIN}:$LD_LIBRARY_PATH:${AWSSDKBIN}:${NCCYGLIB}"
 #G=
 #TR=--trace
 cmake ${TR} "$G" -DCMAKE_BUILD_TYPE=${CFG} $FLAGS ..

@@ -105,6 +105,7 @@ getoptions(int* argcp, char*** argvp, struct Options* opt)
     int tag;
     int argc = *argcp;
     char** argv = *argvp;
+    const char* nczarr_s3_test_url = ncz_gets3testurl();
 
     memset((void*)opt,0,sizeof(struct Options));
     if(argc <= 1) return NC_NOERR;
@@ -192,9 +193,14 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
     switch(opt->format) {
     case NC_FORMATX_NCZARR:
         if(opt->pathtemplate == NULL) {
+	    size_t ptlen;
 	    switch (opt->impl) {
 	    case NCZM_S3:
-	        opt->pathtemplate = strdup("https://stratus.ucar.edu/unidata-netcdf-zarr-testing/netcdf-c/%s.%s#mode=nczarr,s3");
+		ptlen = strlen(nczarr_s3_test_url) + strlen("/netcdf-c/%s.%s#mode=nczarr,s3");
+	        opt->pathtemplate = (char*)calloc(1,ptlen+1);
+		if(opt->template == NULL) return NC_ENOMEM;
+		strlcat(opt->pathtemplate,nczarr_s3_test_url,ptlen+1);
+		strlcat(opt->pathtemplate,"/netcdf-c/%s.%s#mode=nczarr,s3",ptlen+1);
 		break;
 	    case NCZM_FILE:
 		opt->pathtemplate = strdup("file://%s.%s#mode=nczarr,file");

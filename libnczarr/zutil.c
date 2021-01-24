@@ -764,7 +764,7 @@ NCZ_create_fill_chunk(size64_t chunksize, size_t typesize, void* fill, void** fi
 /**************************************************/
 /* S3 utilities */
 
-int
+EXTERNL int
 NCZ_s3urlprocess(NCURI* url, ZS3INFO* s3)
 {
     int stat = NC_NOERR;
