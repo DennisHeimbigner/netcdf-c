@@ -73,8 +73,8 @@ CHUNKSIZES=`cat tmppds.cdl | sed -e "/tas:_ChunkSizes/p" -ed | tr -d "\t \r"`
 test "x$CHUNKSIZES" = "xtas:_ChunkSizes=10,15,20;"
 }
 
-testcase zip
 testcase file
+if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testcase zip; fi
 if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi
 
 echo "*** All nccopy nczarr tests passed!"

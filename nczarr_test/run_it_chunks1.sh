@@ -20,7 +20,7 @@ ${execdir}/tst_chunks2 -e $1 $CLOUD
 }
 
 ittest file
-ittest zip
+if test "x$FEATURE_NCZARR_ZIP" = xyes ; then ittest zip; fi
 if test "x$FEATURE_S3TESTS" = xyes ; then ittest s3 'https://stratus.ucar.edu/unidata-netcdf-zarr-testing/netcdf-c'; fi
 }
 

@@ -31,8 +31,8 @@ echo '*** SUCCESS!!!'
 }
 
 
-testcases zip
 testcases file
+if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testcases zip; fi
 if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
 
 exit 0

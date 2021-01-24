@@ -40,7 +40,7 @@ IF(ENABLE_TESTS)
   BUILD_BIN_TEST(tst_zchunks ${COMMONSRC})
   BUILD_BIN_TEST(tst_zchunks2 ${COMMONSRC})
   BUILD_BIN_TEST(tst_zchunks3 ${COMMONSRC})
-  BUILD_BIN_TEST(tst_fillonlyz)
+  BUILD_BIN_TEST(tst_fillonlyz ${TSTCOMMONSRC})
   BUILD_BIN_TEST(tst_chunkcases ${TSTCOMMONSRC})
 
   TARGET_INCLUDE_DIRECTORIES(ut_map PUBLIC ../libnczarr)
@@ -51,6 +51,7 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(tst_zchunks PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(tst_zchunks2 PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(tst_zchunks3 PUBLIC ../libnczarr)
+  TARGET_INCLUDE_DIRECTORIES(tst_fillonlyz PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(tst_chunkcases PUBLIC ../libnczarr)
 
   # Helper programs for testing

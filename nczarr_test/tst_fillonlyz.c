@@ -4,12 +4,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
 #include "netcdf.h"
 #include "nclist.h"
 
-#ifdef ENABLE_NCZARR
 #include "zincludes.h"
-#endif
 
 #include "tst_utils.h"
 
