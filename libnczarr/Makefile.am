@@ -67,7 +67,7 @@ zprovenance.h \
 zdebug.h
 
 if ENABLE_NCZARR_ZIP
-libnczarr_LA_SOURCES += zmap_zip.c 
+libnczarr_la_SOURCES += zmap_zip.c 
 endif
 
 if ENABLE_S3_SDK

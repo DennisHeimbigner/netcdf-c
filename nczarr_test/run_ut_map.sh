@@ -55,8 +55,8 @@ testmapmeta() {
   diff -wb ${srcdir}/$ref ./$cdl
 
   $CMD -k$1 -x writemeta2 -o ./$file
-  cdl="ut_${tag}_write2meta_${zext}.cdl"
-  ref="ref_ut_${tag}_write2meta.cdl"
+  cdl="ut_${tag}_writemeta2_${zext}.cdl"
+  ref="ref_ut_${tag}_writemeta2.cdl"
   dumpmap $zext $file ./$cdl
   diff -wb ${srcdir}/$ref ./$cdl
 
