@@ -942,10 +942,10 @@ SET(REMOTETESTSERVERS "remotetest.unidata.ucar.edu" CACHE STRING "test servers t
 
 # See if we have libzip
 FIND_PACKAGE(Zip)
-INCLUDE_DIRECTORIES(${Zip_INCLUDE_DIRS})
 
 # Define a test flag for have curl library
 IF(Zip_FOUND)
+  INCLUDE_DIRECTORIES(${Zip_INCLUDE_DIRS})
   SET(ENABLE_NCZARR_ZIP TRUE)
 ELSE()
   SET(ENABLE_NCZARR_ZIP FALSE)

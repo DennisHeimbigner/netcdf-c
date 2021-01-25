@@ -98,7 +98,7 @@ EXTRA_DIST = CMakeLists.txt \
 run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_ncgen4.sh \
 run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh run_s3_cleanup.sh \
 ref_ut_map_create.cdl ref_ut_map_writedata.cdl ref_ut_map_writemeta2.cdl ref_ut_map_writemeta.cdl \
-ref_ut_map_readmeta.txt ref_ut_map_readmeta2.txt \
+ref_ut_map_readmeta.txt ref_ut_map_readmeta2.txt ref_ut_map_search.txt \
 ref_ut_mapapi_create.cdl ref_ut_mapapi_data.cdl ref_ut_mapapi_meta.cdl ref_ut_mapapi_search.txt \
 ref_t_meta_dim1.cdl ref_t_meta_var1.cdl \
 ref_ut_json_build.txt ref_ut_json_parse.txt \
