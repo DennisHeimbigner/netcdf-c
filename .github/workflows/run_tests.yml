@@ -65,6 +65,7 @@ jobs:
         hdf5: [ 1.8.21, 1.10.7 ]
         use_nc4: [ nc3, nc4 ]
         use_dap: [ dap_off, dap_on ]
+        use_nczarr: [ nczarr_off, nczarr_on ]
     steps:
 
       - uses: actions/checkout@v2
