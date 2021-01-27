@@ -94,9 +94,9 @@ jobs:
       - run: echo "ENABLE_DAP=--enable-dap" >> $GITHUB_ENV
         if: matrix.use_dap == 'dap_on'
       - run: echo "ENABLE_NCZARR=--disable-nczarr" >> $GITHUB_ENV
-        if: matrix.use_nczarr == nczarr_off'
+        if: matrix.use_nczarr == 'nczarr_off'
       - run: echo "ENABLE_NCZARR=--enable-nczarr" >> $GITHUB_ENV
-        if: matrix.use_nczarr == nczarr_on'
+        if: matrix.use_nczarr == 'nczarr_on'
 
 ###
 # Fetch Cache
@@ -191,9 +191,9 @@ jobs:
       - run: echo "ENABLE_DAP=ON" >> $GITHUB_ENV
         if: matrix.use_dap == 'dap_on'
       - run: echo "ENABLE_NCZARR=--disable-nczarr" >> $GITHUB_ENV
-        if: matrix.use_nczarr == nczarr_off'
+        if: matrix.use_nczarr == 'nczarr_off'
       - run: echo "ENABLE_NCZARR=--enable-nczarr" >> $GITHUB_ENV
-        if: matrix.use_nczarr == nczarr_on'
+        if: matrix.use_nczarr == 'nczarr_on'
       - run: echo "CTEST_OUTPUT_ON_FAILURE=1" >> $GITHUB_ENV
 
 ###
