@@ -40,7 +40,7 @@ IF(ENABLE_TESTS)
   BUILD_BIN_TEST(tst_zchunks ${COMMONSRC})
   BUILD_BIN_TEST(tst_zchunks2 ${COMMONSRC})
   BUILD_BIN_TEST(tst_zchunks3 ${COMMONSRC})
-  BUILD_BIN_TEST(tst_fillonlyz)
+  BUILD_BIN_TEST(tst_fillonlyz ${TSTCOMMONSRC})
 
   TARGET_INCLUDE_DIRECTORIES(ut_map PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(ut_mapapi PUBLIC ../libnczarr)
