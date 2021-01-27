@@ -159,7 +159,7 @@ static void zfinitialize(void)
 	    if(sscanf(env,"%d",&perms) == 1) NC_DEFAULT_DIR_PERMS = perms;
 	}
         zfinitialized = 1;
-	ZUNTRACE(NC_NOERR);
+	(void)ZUNTRACE(NC_NOERR);
     }
 }
 
@@ -552,7 +552,7 @@ zfrelease(ZFMAP* zfmap, FD* fd)
 {
     ZTRACE(5,"map=%s fd=%d",zfmap->map.url,(fd?fd->fd:-1));
     platformrelease(zfmap,fd);
-    ZUNTRACE(NC_NOERR);
+    (void)ZUNTRACE(NC_NOERR);
 }
 
 /**************************************************/
@@ -1154,7 +1154,7 @@ platformrelease(ZFMAP* zfmap, FD* fd)
     ZTRACE(6,"map=%s fd=%d",zfmap->map.url,(fd?fd->fd:-1));
     if(fd->fd >=0) NCclose(fd->fd);
     fd->fd = -1;
-    ZUNTRACE(NC_NOERR);
+    (void)ZUNTRACE(NC_NOERR);
 }
 
 #if 0

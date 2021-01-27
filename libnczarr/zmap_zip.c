@@ -82,7 +82,7 @@ zzinitialize(void)
     if(!zzinitialized) {
         ZTRACE(7,NULL);
         zzinitialized = 1;
-	ZUNTRACE(NC_NOERR);
+	(void)ZUNTRACE(NC_NOERR);
     }
 }
 

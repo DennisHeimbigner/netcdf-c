@@ -648,7 +648,7 @@ enable_nczarr_zip=${have_zip} # alias
 if test "x$enable_nczarr_zip" = xyes ; then
 AC_DEFINE([ENABLE_NCZARR_ZIP], [1], [If true, then libzip found])
 fi
-AM_CONDITIONAL(ENABLE_NCZARR_ZIP, [test "enable_ncarr_zip" = xyes])
+AM_CONDITIONAL(ENABLE_NCZARR_ZIP, [test "x$enable_nczarr_zip" = xyes])
 
 # Did the user specify a default cache size for NCZarr?
 AC_MSG_CHECKING([whether a default file cache size for NCZarr was specified])

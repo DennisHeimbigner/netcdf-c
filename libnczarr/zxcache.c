@@ -213,7 +213,7 @@ fprintf(stderr,"|cache.free|=%ld\n",nclistlength(cache->mru));
     cache->mru = NULL;
     nullfree(cache->fillchunk);
     nullfree(cache);
-    ZUNTRACE(NC_NOERR);
+    (void)ZUNTRACE(NC_NOERR);
 }
 
 size64_t

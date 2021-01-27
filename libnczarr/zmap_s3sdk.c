@@ -96,7 +96,7 @@ zs3initialize(void)
         ZTRACE(7,NULL);
         NCZ_s3sdkinitialize();
         zs3initialized = 1;
-	ZUNTRACE(NC_NOERR);
+	(void)ZUNTRACE(NC_NOERR);
     }
 }
 
