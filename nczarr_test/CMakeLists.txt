@@ -83,11 +83,10 @@ IF(ENABLE_TESTS)
     ENDIF()
     add_sh_test(nczarr_test run_ncgen4)
 
-    IF(FALSE) # Suppress for now
       BUILD_BIN_TEST(tst_chunkcases ${TSTCOMMONSRC})
       TARGET_INCLUDE_DIRECTORIES(tst_chunkcases PUBLIC ../libnczarr)
       add_sh_test(nczarr_test run_chunkcases)
-    ENDIF()
+
     if(ENABLE_NCZARR_S3)
 	add_sh_test(nczarr_test run_s3_cleanup)
     ENDIF()
