@@ -51,7 +51,6 @@ endif
 
 TESTS += run_ncgen4.sh
 
-# Temporarily disable
 check_PROGRAMS += tst_chunkcases
 tst_chunkcases_SOURCES = tst_chunkcases.c ${tstcommonsrc}
 TESTS += run_chunkcases.sh
@@ -111,18 +110,8 @@ ref_rem.cdl ref_rem.dmp ref_ndims.cdl  ref_ndims.dmp \
 ref_misc1.cdl ref_misc1.dmp \
 ref_avail1.cdl ref_avail1.dmp ref_avail1.txt
 
-CLEANFILES = test.file test.zip \
-testmap.file testmapapi.file \
-testmap.zip testmapapi.zip \
-ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp \
-tmp_fillonly.zip tmp_chunked.zip \
-tst_chunks3.nc
+CLEANFILES = ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp tmp*.zip tmp*.nc
 
 # Remove directories
 clean-local:
-	rm -fr tst_chunks.file tst_chunks2.file tst_perdimspecs.file \
-		testmap.file test_mapapi.file tmp.file \
-		tmp_fillonly.file tmp_chunked.file tmp_unchunked.file tmp_unchunked2.file \
-		tmp_misc1.file tmp_skip.file tmp_skipw.file tmp_ndims.file \
-		tmp_whole.file tmp_avail1.file tmp_rem.file tmppds.file \
-		results.file results.s3
+	rm -fr tmp*.file results.file results.s3 results.zip

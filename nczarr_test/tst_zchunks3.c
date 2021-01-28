@@ -11,7 +11,7 @@
 #define DEBUG
 
 static int ret = NC_NOERR;
-#define FILE_NAME "tst_chunks3.nc"
+#define FILE_NAME "tmp_chunks3.nc"
 
 #define VAR_RANK 7
 #define IVAR_NAME "ivar"

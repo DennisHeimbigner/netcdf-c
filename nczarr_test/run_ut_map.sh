@@ -23,7 +23,7 @@ testmapcreate() {
   echo ""; echo "*** Test zmap create -k $1"
   extfor "$1"
   tag="map"
-  output="test$tag.$zext"
+  output="tmp_$tag.$zext"
 
   deletemap $1 $output
 
@@ -48,7 +48,7 @@ testmapmeta() {
   echo ""; echo "*** Test zmap read/write meta -k $1"
   extfor "$1"
   tag="map"
-  file="test$tag.$zext"
+  file="tmp_$tag.$zext"
 
   $CMD -k$1 -x writemeta -f $file
   cdl="ut_${tag}_writemeta_${zext}.cdl"
@@ -77,7 +77,7 @@ testmapdata() {
   echo ""; echo "*** Test zmap read/write data -k $1"
   extfor "$1"
   tag="map"
-  file="test$tag.$zext"
+  file="tmp_$tag.$zext"
 
   $CMD -k$1 -x "writedata" -f $file
   cdl="ut_${tag}_writedata_${zext}.cdl"
@@ -92,7 +92,7 @@ testmapsearch() {
   echo ""; echo "*** Test zmap search -k $1"
   extfor "$1"
   tag="map"
-  file="test$tag.$zext"
+  file="tmp_$tag.$zext"
   txt=ut_${tag}_search_$zext.txt
   ref=ref_ut_${tag}_search.txt
   rm -f $txt

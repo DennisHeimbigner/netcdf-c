@@ -29,7 +29,7 @@ zext=$1
 fileargs tmp
 ./tst_zchunks3 -e ${zext}
 echo "*** Test that nccopy -c can chunk files"
-${NCCOPY} -M0 tst_chunks3.nc "$fileurl"
+${NCCOPY} -M0 tmp_chunks3.nc "$fileurl"
 ${NCDUMP} -n tmp -sh "$fileurl" > tmp.cdl
 verifychunking tmp.cdl "ivar:_ChunkSizes=7,4,2,3,5,6,9;" "fvar:_ChunkSizes=9,6,5,3,2,4,7;"
 
@@ -60,16 +60,16 @@ chunkclean tmp_unchunked.cdl tmp_unchunkedx.cdl
 diff tmpx.cdl tmp_unchunkedx.cdl
 
 echo "*** Test that nccopy -c dim/n is used "
-fileargs tst_perdimspecs
+fileargs tmp_perdimspecs
 ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_perdimspecs.cdl
 ${NCDUMP} -n tmp_perdimspecs -hs "$fileurl" > tmp_perdimspecs.cdl
 SRC=$fileurl
-fileargs tmppds
+fileargs tmp_pds
 ${NCCOPY} -M0 -4 -c "time/10,lat/15,lon/20" "$SRC" "$fileurl"
-${NCDUMP} -n tmppds -hs "$fileurl" > tmppds.cdl
-STORAGE=`cat tmppds.cdl | sed -e "/tas:_Storage/p" -ed | tr '"' "'" | tr -d "\t \r"`
+${NCDUMP} -n tmp_pds -hs "$fileurl" > tmp_pds.cdl
+STORAGE=`cat tmp_pds.cdl | sed -e "/tas:_Storage/p" -ed | tr '"' "'" | tr -d "\t \r"`
 test "x$STORAGE" = "xtas:_Storage='chunked';"
-CHUNKSIZES=`cat tmppds.cdl | sed -e "/tas:_ChunkSizes/p" -ed | tr -d "\t \r"`
+CHUNKSIZES=`cat tmp_pds.cdl | sed -e "/tas:_ChunkSizes/p" -ed | tr -d "\t \r"`
 test "x$CHUNKSIZES" = "xtas:_ChunkSizes=10,15,20;"
 }
 
