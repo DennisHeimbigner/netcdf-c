@@ -55,6 +55,9 @@
 #define XARRAYDIMS "xarray"
 #define XARRAYDIMSATTR "_ARRAY_DIMENSIONS"
 
+/* Mnemonics */
+#define ZCLOSE    1 /* this is closeorabort as opposed to enddef */
+
 /**************************************************/
 /* Forward */
 

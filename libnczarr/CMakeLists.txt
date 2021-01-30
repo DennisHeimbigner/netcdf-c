@@ -24,8 +24,8 @@ zgrp.c
 zinternal.c
 zjson.c
 zmap.c
-zmap_nz4.c
-zmap_nzf.c
+zmap_file.c
+zmap_zip.c
 zodom.c
 zopen.c
 zprov.c
@@ -54,7 +54,12 @@ ENDIF()
 
 # Build the Zarr dispatch layer as a library that will be included in
 # the netCDF library.
+
 add_library(nczarr OBJECT ${libnczarr_SOURCES})
+
+IF(MPI_C_INCLUDE_PATH)
+    target_include_directories(nczarr PUBLIC ${MPI_C_INCLUDE_PATH})
+ENDIF(MPI_C_INCLUDE_PATH)
 
 IF(ENABLE_S3_SDK) 
 IF(NOT MSVC)
