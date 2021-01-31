@@ -47,10 +47,10 @@ if BUILD_UTILITIES
 if USE_HDF5
 TESTS += run_nccopyz.sh
 TESTS += run_fillonlyz.sh
-TESTS += run_purezarr.sh
 endif
 
 TESTS += run_ncgen4.sh
+TESTS += run_purezarr.sh
 
 check_PROGRAMS += tst_chunkcases
 tst_chunkcases_SOURCES = tst_chunkcases.c ${tstcommonsrc}
