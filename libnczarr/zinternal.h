@@ -61,6 +61,9 @@
 /* Mnemonics */
 #define ZCLOSE    1 /* this is closeorabort as opposed to enddef */
 
+/* Mnemonics */
+#define ZCLOSE    1 /* this is closeorabort as opposed to enddef */
+
 /**************************************************/
 /* Forward */
 
