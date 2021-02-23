@@ -359,7 +359,7 @@ static const char*
 controllookup(const char** envv_controls, const char* key)
 {
     const char** p;
-    for(p=envv_controls;*p;p++) {
+    for(p=envv_controls;*p;p+=2) {
 	if(strcasecmp(key,*p)==0) {
 	    return p[1];
 	}
