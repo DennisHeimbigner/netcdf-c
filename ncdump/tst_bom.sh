@@ -29,7 +29,6 @@ ${execdir}/bom 8 >tst_bom8.cdl
 cat tst_bom.cdl >> tst_bom8.cdl
 
 echo "*** Verify .nc file"
-printenv PATH
 ${NCGEN} -k nc3 -o tst_bom8.nc tst_bom8.cdl
 ${NCDUMP} -n tst_bom tst_bom8.nc > tmp.cdl
 diff -w tst_bom.cdl tmp.cdl
