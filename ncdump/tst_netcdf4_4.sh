@@ -75,4 +75,5 @@ cleanncprops ${srcdir}/ref_tst_ncf213.cdl ref_tst_ncf213.tmp
 diff -b tst_ncf213.tmp ref_tst_ncf213.tmp
 
 echo "*** All ncgen and ncdump extra test output for netCDF-4 format passed!"
-exit 9
+exit 0
+
