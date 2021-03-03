@@ -145,34 +145,33 @@ name_path(const char *path)
 {
     char* cvtpath = NULL;
     const char *cp = NULL;
-    char *new = NULL;
     char *sp = NULL;
     size_t cplen = 0;
+    char* base = NULL;
 
     if((cvtpath = NCpathcvt(path))==NULL)
         return NULL;
 
     /* See if this is a url */
-    {
-	char* base;
- 	if(nc__testurl(path,&base)) {
- 	    return base; /* Looks like a url */
-	}
-	/* else fall thru and treat like a file path */
-    }
+    if(nc__testurl(cvtpath,&base))
+ 	 goto done; /* Looks like a url */
+    /* else fall thru and treat like a file path */
 
-    cp = strrchr(path, '/');
-    if (cp == 0)		/* no delimiter */
-      cp = path;
+    cp = strrchr(cvtpath, '/');
+    if (cp == NULL)		/* no delimiter */
+      cp = cvtpath;
     else			/* skip delimiter */
       cp++;
     cplen = strlen(cp);
-    new = (char *) emalloc((unsigned) (cplen+1));
-    new[0] = '\0';
-    strlcat(new,cp,cplen+1);
-    if ((sp = strrchr(new, '.')) != NULL)
+    base = (char *) emalloc((unsigned) (cplen+1));
+    base[0] = '\0';
+    strlcat(base,cp,cplen+1);
+    if ((sp = strrchr(base, '.')) != NULL)
       *sp = '\0';		/* strip off any extension */
-    return new;
+
+done:
+    nullfree(cvtpath);
+    return base;
 }
 
 /* Return primitive type name */
