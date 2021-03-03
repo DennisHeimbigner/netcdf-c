@@ -143,19 +143,14 @@ usage(void)
 static char *
 name_path(const char *path)
 {
-    const char *cp;
-    char *new;
-    char *sp;
+    char* cvtpath = NULL;
+    const char *cp = NULL;
+    char *new = NULL;
+    char *sp = NULL;
+    size_t cplen = 0;
 
-#ifdef vms
-#define FILE_DELIMITER ']'
-#endif
-#if defined(_WIN32) || defined(msdos)
-#define FILE_DELIMITER '\\'
-#endif
-#ifndef FILE_DELIMITER /* default to unix */
-#define FILE_DELIMITER '/'
-#endif
+    if((cvtpath = NCpathcvt(path))==NULL)
+        return NULL;
 
     /* See if this is a url */
     {
@@ -166,13 +161,15 @@ name_path(const char *path)
 	/* else fall thru and treat like a file path */
     }
 
-    cp = strrchr(path, FILE_DELIMITER);
+    cp = strrchr(path, '/');
     if (cp == 0)		/* no delimiter */
       cp = path;
     else			/* skip delimiter */
       cp++;
-    new = (char *) emalloc((unsigned) (strlen(cp)+1));
-    (void) strncpy(new, cp, strlen(cp) + 1);	/* copy last component of path */
+    cplen = strlen(cp);
+    new = (char *) emalloc((unsigned) (cplen+1));
+    new[0] = '\0';
+    strlcat(new,cp,cplen+1);
     if ((sp = strrchr(new, '.')) != NULL)
       *sp = '\0';		/* strip off any extension */
     return new;
