@@ -107,7 +107,7 @@ main(int argc, char** argv)
 {
     int ncid, varid, gid, tid;
     const char* filename = NULL;
-    const char* varname = NULL;
+    char varname[NC_MAX_NAME];
     size_t fqnlen, namelen;
     char fqn[4096];
     char name[NC_MAX_NAME];
@@ -115,7 +115,7 @@ main(int argc, char** argv)
     if(argc < 3) usage();
 
     filename = argv[1];
-    varname = strdup(argv[2]);
+    strcpy(varname,argv[2]);
 
     CHECK(nc_open(filename,NC_NETCDF4,&ncid));
 

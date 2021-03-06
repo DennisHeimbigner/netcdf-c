@@ -3,6 +3,7 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi 
 . ../test_common.sh
 
+set -x
 set -e
 
 # Test cases
@@ -20,11 +21,11 @@ setup() {
 }
 
 testscope() {
-${NCCOPY} ${srcdir}/$1.nc ${srcdir}/$1_copy.nc
-${NCDUMP} -h -n $1 ${srcdir}/$1_copy.nc >copy_$1.cdl
-diff -wB $1.cdl copy_$1.cdl
-REFT=`${execdir}/printfqn $1.nc test_variable`
-COPYT=`${execdir}/printfqn $1_copy.nc test_variable`
+${NCCOPY} ${execdir}/$1.nc ${execdir}/$1_copy.nc
+${NCDUMP} -h -n $1 ${execdir}/$1_copy.nc > copy_$1.cdl
+diff -wB ${srcdir}/$1.cdl ${execdir}/copy_$1.cdl
+REFT=`${execdir}/printfqn ${execdir}/$1.nc test_variable`
+COPYT=`${execdir}/printfqn ${execdir}/$1_copy.nc test_variable`
 if test "x$REFT" != "x$COPYT" ; then
   echo "***Fail: ref=${REFT} copy=${COPYT}"
 fi
