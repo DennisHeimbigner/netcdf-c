@@ -575,7 +575,7 @@ NC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
      * name. Otherwise, this had better be a local name (i.e. no / in
      * the middle). */
     if (name[0] != '/' && strstr(name, "/"))
-        {retval = NC_EBADTYPE; goto done;}
+        {retval = NC_EINVAL; goto done;}
 
     /* Normalize name. */
     if (!(norm_name = (char*)malloc(strlen(name) + 1)))

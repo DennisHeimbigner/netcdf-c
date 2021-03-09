@@ -6,7 +6,7 @@ types:
   	d2 = 1 ;
 group: test_group {
   variables:
-  	test_enum_type test_variable ;
+  	test_enum_type test_variable(d1,d2);
   		test_enum_type test_variable:_FillValue = OPTION1 ;
   group: sub_group {
       types:

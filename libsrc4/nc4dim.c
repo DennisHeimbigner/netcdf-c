@@ -104,7 +104,7 @@ NC4_inq_dimid(int ncid, const char *name, int *idp)
      * name. Otherwise, this had better be a local name (i.e. no / in
      * the middle). */
     if (name[0] != '/' && strstr(name, "/"))
-        {retval = NC_EBADDIM; goto done;}
+        {retval = NC_EINVAL; goto done;}
 
     /* Find metadata for this file. */
     if ((retval = nc4_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
