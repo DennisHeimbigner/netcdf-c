@@ -537,7 +537,7 @@ NC4_inq_enum_member(int ncid, nc_type typeid1, int idx, char *identifier,
  * @internal Get the id of a type from the name.
  *
  * @param ncid File and group ID.
- * @param name Name of type.
+ * @param name Name of type; might be fully qualified.
  * @param typeidp Pointer that will get the type ID.
  *
  * @return ::NC_NOERR No error.
@@ -575,7 +575,7 @@ NC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
      * name. Otherwise, this had better be a local name (i.e. no / in
      * the middle). */
     if (name[0] != '/' && strstr(name, "/"))
-        {retval = NC_EINVAL; goto done;}
+        {retval = NC_EBADTYPE; goto done;}
 
     /* Normalize name. */
     if (!(norm_name = (char*)malloc(strlen(name) + 1)))

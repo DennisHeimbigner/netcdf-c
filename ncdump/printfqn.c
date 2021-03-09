@@ -3,14 +3,10 @@
 #include <string.h>
 #include <assert.h>
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_GETOPT_H
-#include <getopt.h>
-#endif
 #ifdef _WIN32
 #include "XGetopt.h"
+#else
+#include <getopt.h>
 #endif
 
 #include <netcdf.h>
@@ -22,6 +18,8 @@ struct Options {
     int debug;
     enum What {NONE=0, DIM=1, TYPE=2} what;
     char file[4096];
+    char var[NC_MAX_NAME+1];
+    char object[NC_MAX_NAME+1];
 } options;
 
 /**************************************************/
@@ -53,7 +51,7 @@ get_id_parent(int ncid, int id, int* parentp, enum What what)
     if(what == TYPE) {
         if((stat=nc_inq_typeids(ncid,&nids,ids))) goto done;
     } else if(what == DIM) {
-        if((stat=nc_inq_dimids(ncid,&nids,ids))) goto done;
+        if((stat=nc_inq_dimids(ncid,&nids,ids,0))) goto done;
     } else
         abort();
     assert(nids < 4096);
@@ -135,13 +133,12 @@ int
 main(int argc, char** argv)
 {
     int ncid, varid, gid, tid;
-    const char* filename = NULL;
-    char varname[NC_MAX_NAME];
     size_t fqnlen, namelen;
     char fqn[4096];
     char name[NC_MAX_NAME];
     int ndims;
     int dimids[NC_MAX_VAR_DIMS];
+    int c;
 
     memset((void*)&options,0,sizeof(options));
 
@@ -152,21 +149,25 @@ main(int argc, char** argv)
 	    break;
 	case 'V': 
 	    usage();
-	    goto done;
+	    break;
 	case 'd':
 	    options.what = DIM;
 	    break;
 	case 't':
 	    options.what = TYPE;
+	    break;
 	case 'v':
-	    strcpy(varname,optarg);
+	    strcpy(options.var,optarg);
 	    break;
 	case 'f':
 	    strcpy(options.file,optarg);
 	    break;
+	case ':':
+	   fprintf(stderr,"option has no argument: %c\n",c);
+	    usage();
 	case '?':
 	   fprintf(stderr,"unknown option\n");
-	   goto fail;
+	    usage();
 	}
     }
 
@@ -176,17 +177,15 @@ main(int argc, char** argv)
     CHECK(get_variable_info(ncid,options.var,&gid,&varid,&tid,&ndims,dimids));
 
     if(options.what == TYPE) {
-        /* Get the simple type name */
+        /* Get the simple type name from the variable */
         CHECK(nc_inq_type(ncid,tid,name,&namelen));
 	/* Get the containing group id for the type (might not be same as ncid) */
         CHECK(get_id_parent(ncid,tid,&gid,TYPE));
     } else if(options.what == DIM) {
-	/* Iterate over the dims to find one named */
-	for(i=0;i<ndims;i++)
-            /* Get the dim name */
-            CHECK(nc_inq_type(ncid,dimids[i],name));
-            /* Get the containing group id for the type */
-            CHECK(get_id_parent(ncid,dimids[i],&gid,DIM));
+	/* get name of dimids[0] from the variable */
+        CHECK(nc_inq_dimname(ncid,dimids[0],name));
+        /* Get the containing group id for the type */
+        CHECK(get_id_parent(ncid,dimids[0],&gid,DIM));
     }
 
     /* Get the FQN name for the containing group of the id */
@@ -196,7 +195,7 @@ main(int argc, char** argv)
     if(strcmp(fqn,"/")==0) fqn[0] = '\0';
 
     /* report result  with no newline */
-    printf("|%s/%s|",fqn,name);
+    printf("%s/%s",fqn,name);
 
     return 0;
 }

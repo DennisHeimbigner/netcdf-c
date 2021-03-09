@@ -3,7 +3,6 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi 
 . ../test_common.sh
 
-set -x
 set -e
 
 # Test scoping rules for types and dimensions
@@ -19,37 +18,38 @@ set -e
 # ancestor_only - dim defined in some ancestor group of var
 # ancestor_subgroup - dim defined in both ancestor group and subgroup
 
-TYPETSTS="type_group_only type_ancestor_only type_ancestor_subgroup type_preorder"
-
-DIMTSTS="dim_group_only dim_ancestor_only dim_ancestor_subgroup"
-
-SETUP=1
+TSTS="scope_group_only scope_ancestor_only scope_ancestor_subgroup scope_preorder"
 
 setup() {
     ${NCGEN} -4 -lb ${srcdir}/$1.cdl
 }
 
-typescope() {
+testcycle() {
 ${NCCOPY} ${execdir}/$1.nc ${execdir}/$1_copy.nc
 ${NCDUMP} -h -n $1 ${execdir}/$1_copy.nc > copy_$1.cdl
 diff -wB ${srcdir}/$1.cdl ${execdir}/copy_$1.cdl
-REFT=`${execdir}/printfqn ${execdir}/$1.nc test_variable`
-COPYT=`${execdir}/printfqn ${execdir}/$1_copy.nc test_variable`
+}
+
+typescope() {
+REFT=`${execdir}/printfqn -f ${execdir}/$1.nc -v test_variable -t`
+COPYT=`${execdir}/printfqn -f ${execdir}/$1_copy.nc -v test_variable -t`
+if test "x$REFT" != "x$COPYT" ; then
+  echo "***Fail: ref=${REFT} copy=${COPYT}"
+  exit 1
+fi
+}
+
+dimscope() {
+REFT=`${execdir}/printfqn -f ${execdir}/$1.nc -v test_variable -d`
+COPYT=`${execdir}/printfqn -f ${execdir}/$1_copy.nc -v test_variable -d`
 if test "x$REFT" != "x$COPYT" ; then
   echo "***Fail: ref=${REFT} copy=${COPYT}"
 fi
 }
 
-if test "x$SETUP" = x1 ; then
-for t in $TYPETSTS ; do
-  setup $t
-done
-fi
-
-for t in $TYPETSTS ; do
-  typescope $t
-done
+for t in $TSTS ; do setup $t; done
+for t in $TSTS ; do testcycle $t; done
+for t in $TSTS ; do typescope $t; done
+for t in $TSTS ; do dimscope $t; done
 
 exit 0
-
-
