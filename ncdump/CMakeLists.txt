@@ -21,9 +21,7 @@ IF(USE_X_GETOPT)
   SET(ocprint_FILES ${ocprint_FILES} XGetopt.c)
   SET(ncvalidator_FILES ${ncvalidator_FILES} XGetopt.c)
   SET(printfqn_FILES ${printfqn_FILES} XGetopt.c)
-ENDIF(USE_HDF5)
-
-ENDIF()
+ENDIF(USE_X_GETOPT)
 
 ADD_EXECUTABLE(ncdump ${ncdump_FILES})
 ADD_EXECUTABLE(nccopy ${nccopy_FILES})

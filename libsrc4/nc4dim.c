@@ -116,7 +116,7 @@ NC4_inq_dimid(int ncid, const char *name, int *idp)
         goto done;;
 
     /* If this is a fqn, then walk the sequence of parent groups to the last group
-       and see if that group has a type of the right name */
+       and see if that group has a dimension of the right name */
     if(name[0] == '/') { /* FQN */
 	int rootncid = (grp->nc4_info->root_grp->hdr.id | grp->nc4_info->controller->ext_ncid);
 	int parent = 0;

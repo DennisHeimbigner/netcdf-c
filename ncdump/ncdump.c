@@ -1761,7 +1761,7 @@ do_ncdump_rec(int ncid, const char *path)
 	  * 3. If one of those groups contains a dim with the same name as the dimid,
 	  *    but with a different dimid, then record that as duplicate=true.
 	  * 4. If dimgrp is defined and duplicate == false, then we do not need an fqn.
-	  * 5. If dimgrp is defined and duplicate == trye, then we do need an fqn to avoid using the duplicate.
+	  * 5. If dimgrp is defined and duplicate == true, then we do need an fqn to avoid using the duplicate.
 	  * 6. if dimgrp is undefined, then do a preorder breadth-first search of all the groups looking for the
 	  *    dimid.
 	  * 7. If found, then use the fqn of that dimension location.
