@@ -202,9 +202,9 @@ typedef struct NC_VAR_INFO
     int parallel_access;         /**< Type of parallel access for I/O on variable (collective or independent). */
     nc_bool_t shuffle;           /**< True if var has shuffle filter applied. */
     nc_bool_t fletcher32;        /**< True if var has fletcher32 filter applied. */
-    size_t chunk_cache_size;     /**< Size in bytes of the var chunk chache. */
+    size_t chunk_cache_size;     /**< Size in bytes of the var chunk cache. */
     size_t chunk_cache_nelems;   /**< Number of slots in var chunk cache. */
-    float chunk_cache_preemption; /**< Chunk cache preemtion policy. */
+    float chunk_cache_preemption; /**< Chunk cache preemption policy. */
     void *format_var_info;       /**< Pointer to any binary format info. */
     void* filters;             /**< Record of the list of filters to be applied to var data; format dependent */
 } NC_VAR_INFO_T;

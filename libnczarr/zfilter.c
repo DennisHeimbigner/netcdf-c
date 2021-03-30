@@ -297,7 +297,7 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
                 if((stat = nc4_find_default_chunksizes2(grp, var)))
 	            goto done;
                 /* Adjust the cache. */
-                if ((stat = NCZ_adjust_var_cache(grp, var)))
+                if ((stat = NCZ_adjust_var_cache(var)))
                     goto done;
             }
 	}

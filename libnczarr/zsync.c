@@ -1834,7 +1834,7 @@ ncz_get_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 
     /* Is this a deflated variable with a chunksize greater than the
      * current cache size? */
-    if ((retval = nc4_adjust_var_cache(var->container, var)))
+    if ((retval = nc4_adjust_var_cache(var)))
 	BAIL(retval);
 
     if (var->coords_read && !var->dimscale)

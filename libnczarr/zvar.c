@@ -459,7 +459,7 @@ var->type_info->rc++;
 	BAIL(retval);
 
     /* Is this a variable with a chunksize greater than the current cache size? */
-    if ((retval = NCZ_adjust_var_cache(grp, var)))
+    if ((retval = NCZ_adjust_var_cache(var)))
 	BAIL(retval);
 
     /* Return the varid. */
@@ -673,7 +673,7 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 		zvar->chunkproduct *= var->chunksizes[d];
             zvar->chunksize = zvar->chunkproduct * var->type_info->size;
 	    /* Adjust the cache. */
-	    if ((retval = NCZ_adjust_var_cache(grp, var)))
+	    if ((retval = NCZ_adjust_var_cache(var)))
 		goto done;
 	}
     
