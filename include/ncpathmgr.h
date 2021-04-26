@@ -94,6 +94,8 @@ This means it is ok to call it repeatedly with no harm.
 */
 EXTERNL char* NCpathcvt(const char* path);
 
+EXTERNL int NChasdriveletter(const char* path);
+
 /* Canonicalize and make absolute by prefixing the current working directory */
 EXTERNL char* NCpathabsolute(const char* name);
 
@@ -154,7 +156,7 @@ EXTERNL int NCclosedir(DIR* ent);
 #define NCPD_UNKNOWN 0
 #define NCPD_NIX 1
 #define NCPD_MSYS 2
-#define NCPD_CYGWIN 3 
+#define NCPD_CYGWIN 3
 #define NCPD_WIN 4
 #define NCPD_REL 5 /* actual kind is unknown */
 
@@ -166,5 +168,6 @@ EXTERNL void printutf8hex(const char* s, char* sx);
 /* From dutil.c */
 EXTERNL char* NC_backslashEscape(const char* s);
 EXTERNL char* NC_backslashUnescape(const char* esc);
+EXTERNL char* NC_shellUnescape(const char* esc);
 
 #endif /* _NCPATHMGR_H_ */
