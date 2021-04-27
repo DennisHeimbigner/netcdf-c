@@ -352,7 +352,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     if((stat = NCJaddstring(jvar,NCJ_STRING,"C"))) goto done;
 
     /* compressor key */
-    /* A JSON object identifying the primary compression codec and providing
+    /* From V2 Spec: A JSON object identifying the primary compression codec and providing
        configuration parameters, or ``null`` if no compressor is to be used. */
     if((stat = NCJaddstring(jvar,NCJ_STRING,"compressor"))) goto done;
     /* Default to null for now */ 
@@ -361,6 +361,9 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     jtmp = NULL;
 
     /* filters key */
+    /* From V2 Spec: A list of JSON objects providing codec configurations,
+       or null if no filters are to be applied. Each codec configuration
+       object MUST contain a "id" key identifying the codec to be used. */
     if((stat = NCJaddstring(jvar,NCJ_STRING,"filters"))) goto done;
     /* A list of JSON objects providing codec configurations, or ``null``
        if no filters are to be applied. */
@@ -1433,12 +1436,18 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		((NCZ_VAR_INFO_T*)var->format_var_info)->order = 1;
 	    else ((NCZ_VAR_INFO_T*)var->format_var_info)->order = 0;
 	}
-	/* compressor ignored */
+        /* compressor key */
+        /* From V2 Spec: A JSON object identifying the primary compression codec and providing
+           configuration parameters, or ``null`` if no compressor is to be used. */
 	{
 	    if((stat = NCJdictget(jvar,"compressor",&jvalue))) goto done;
 	    /* ignore */
 	}
-	/* filters ignored */
+
+        /* filters key */
+        /* From V2 Spec: A list of JSON objects providing codec configurations,
+           or null if no filters are to be applied. Each codec configuration
+           object MUST contain a "id" key identifying the codec to be used. */
 	{
 	    if((stat = NCJdictget(jvar,"filters",&jvalue))) goto done;
 	    /* ignore */
