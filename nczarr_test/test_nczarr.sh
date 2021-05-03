@@ -112,7 +112,7 @@ for t in ${TESTS} ; do
    rm -f tmp_${t}.dmp
    fileargs $t
    ${NCGEN} -4 -lb -o ${fileurl} ${cdl}/${ref}.cdl
-ls -ld *.file
+find . -name '*.file' -exec ls -ld '{}' \;
 export NCTRACING=15
    ${NCDUMP} ${headflag} ${specflag} -n ${ref} ${fileurl} > tmp_${t}.dmp
 unset NCTRACING
