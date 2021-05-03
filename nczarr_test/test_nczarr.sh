@@ -112,7 +112,10 @@ for t in ${TESTS} ; do
    rm -f tmp_${t}.dmp
    fileargs $t
    ${NCGEN} -4 -lb -o ${fileurl} ${cdl}/${ref}.cdl
+ls -ld *.file
+export NCTRACING=15
    ${NCDUMP} ${headflag} ${specflag} -n ${ref} ${fileurl} > tmp_${t}.dmp
+unset NCTRACING
    # compare the expected (silently if XFAIL)
    if diff -b -w ${expected}/${ref}.dmp tmp_${t}.dmp > ${t}.diff ; then ok=1; else ok=0; fi
    if test "x$ok" = "x1" ; then

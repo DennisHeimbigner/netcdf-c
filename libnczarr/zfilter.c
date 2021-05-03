@@ -40,6 +40,10 @@
 #include <dirent.h>
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "zincludes.h"
 #include "zfilter.h"
 #include "ncpathmgr.h"
@@ -859,7 +863,7 @@ done:
 Get entries in a path that is assumed to be a directory.
 */
 
-#ifdef WIN32
+#ifdef _WIN32
 
 static int
 getentries(const char* path, NClist* contents)
@@ -921,7 +925,7 @@ done:
     return ZUNTRACEX(ret,"|contents|=%d",(int)nclistlength(contents));
 }
 
-#else /* !WIN32 */
+#else /* !_WIN32 */
 
 int
 getentries(const char* path, NClist* contents)
@@ -971,7 +975,7 @@ NCZ_load_all_plugins(void)
 	const char* win32_root;
 	win32_root = getenv(win32_root_env);
 	if(win32_root != NULL && strlen(win32_root) > 0) {
-	    snprintf(pluginpath32,sizeof(pluginpath32),plugindir_win,win32_root);
+	    snprintf(pluginpath32,sizeof(pluginpath32),plugin_dir_win,win32_root);
 	    pluginroot = pluginpath32;
 	} else
 	    pluginroot = NULL;
