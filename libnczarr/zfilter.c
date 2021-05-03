@@ -68,7 +68,7 @@ static struct NCZ_plugin {
 #define BLOSCRC_TAG "ZARR.FILTERS.BLOSC.COMPRESSORS"
 
 static const struct SpecialFilter {const char* name; unsigned id; size_t nparams;} specialfilters[] = {
-{"blosc",BLOSC_FILTERID,7},
+{"blosc",BLOSC_FILTERID,4},
 {NULL,0,0}
 };
 
@@ -676,6 +676,7 @@ NCZ_filter_jsonize(NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp)
     for(p=specialfilters;p->name;p++) {
         if(filter->filterid == p->id) {
 	    if((stat = jsonize_special_filter(var,p,filter,jfilter))) goto done;
+	    if(jfilterp) {*jfilterp = jfilter; jfilter = NULL;}
 	    goto done;
 	}
     }
@@ -755,8 +756,7 @@ jsonize_special_filter(const NC_VAR_INFO_T* var, const struct SpecialFilter* spe
 
     case BLOSC_FILTERID:
 	if(filter->nparams != special->nparams) {stat = NC_EFILTER; goto done;}
-	snprintf(tmp,sizeof(tmp),"%u",filter->filterid);
-	if((stat = NCJnewstring(NCJ_INT,tmp,&jtmp))) goto done;
+	if((stat = NCJnewstring(NCJ_STRING,"blosc",&jtmp))) goto done;
 	if((stat = NCJinsert(jfilter,"id",jtmp))) goto done;
 	jtmp = NULL;
 	snprintf(tmp,sizeof(tmp),"%u",filter->params[0]);
@@ -812,16 +812,19 @@ parse_special_filter(const NC_VAR_INFO_T* var, const struct SpecialFilter* speci
 	int found;
 
 	filterid = special->id;
-	nparams = special->nparams;
+	nparams = 0;
         if((stat = NCJdictget(jfilter,"clevel",&jvalue))) goto done;    
 	sscanf(jvalue->value,"%u",&params[0]);
+	nparams++;
         if((stat = NCJdictget(jfilter,"shuffle",&jvalue))) goto done;
 	if((stat = NCJcvt(jvalue,NCJ_BOOLEAN,&njc))) goto done;
 	params[1] = njc.bval;
+	nparams++;
 	/* Figure out the typesize */
 	if((stat = NC4_inq_atomic_type(var->type_info->hdr.id,NULL,&typsize))) goto done;
 	params[2] = (unsigned)typsize;
-
+	nparams++;
+	
 	/* Get sub-compressor name */
         if((stat = NCJdictget(jfilter,"cname",&jvalue))) goto done;
 	if(jvalue->sort != NCJ_STRING) {stat = NC_ENOFILTER; goto done;}
@@ -831,6 +834,7 @@ parse_special_filter(const NC_VAR_INFO_T* var, const struct SpecialFilter* speci
 	    const char* name = (const char*)nclistget(bloscfilters,i);
 	    if(strcasecmp(name,jvalue->value)==0) {
 		params[3] = i;
+		nparams++;
 		found = 1;
 		break;
 	    }
