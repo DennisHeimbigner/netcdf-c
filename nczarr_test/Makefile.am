@@ -61,8 +61,9 @@ TESTS += run_misc.sh
 
 endif
 
-if BUILD_BENCHMARKS
 if BUILD_UTILITIES 
+
+if BUILD_BENCHMARKS
 
 UTILSRC = bm_utils.c timer_utils.c tst_utils.c
 
@@ -73,6 +74,17 @@ check_PROGRAMS += bm_chunks3
 TESTS += run_perf_chunks1.sh
 
 endif # BUILD_BENCHMARKS
+
+if ENABLE_FILTER_TESTING
+# Do simple filter functionality tests for nczarr
+check_PROGRAMS += tst_nczfilter
+TESTS += tst_nczfilter
+
+# Echo filter tests from nc_test4
+check_PROGRAMS += test_filter test_filter_misc test_filter_order test_filter_repeat tst_multifilter
+TESTS += tst_filter.sh
+
+endif #ENABLE_FILTER_TESTING
 
 endif #BUILD_UTILITIES
 
@@ -126,3 +138,8 @@ clean-local:
 	rm -fr tmp*.file results.file results.s3 results.zip
 	rm -fr power_901_constants.file
 	rm -fr rcmiscdir
+
+DISTCLEANFILES = findplugin.sh
+
+# If valgrind is present, add valgrind targets.
+@VALGRIND_CHECK_RULES@

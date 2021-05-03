@@ -461,10 +461,6 @@ var->type_info->rc++;
     if((retval=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,zvar->dimension_separator,&zvar->cache)))
 	BAIL(retval);
 
-    /* Is this a variable with a chunksize greater than the current cache size? */
-    if ((retval = NCZ_adjust_var_cache(var)))
-	BAIL(retval);
-
     /* Return the varid. */
     if (varidp)
 	*varidp = var->hdr.id;

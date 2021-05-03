@@ -100,7 +100,7 @@ static const NC_Dispatch NCZ_dispatcher = {
     NC_NOTNC4_def_var_fletcher32,
     NCZ_def_var_chunking,
     NCZ_def_var_endian,
-    NC_NOTNC4_def_var_filter,
+    NCZ_def_var_filter,
     NCZ_set_var_chunk_cache,
     NC4_get_var_chunk_cache,
     NCZ_inq_var_filter_ids,

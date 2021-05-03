@@ -16,6 +16,7 @@
  */
 
 #include "zincludes.h"
+#include "zfilter.h"
 
 /* These are the default chunk cache sizes for ZARR files created or
  * opened with netCDF-4. */
@@ -76,6 +77,7 @@ NCZ_initialize_internal(void)
 		ngs->zarr.dimension_separator = dimsep[0];
         }    
     }
+
 done:
     return stat;
 }
@@ -89,6 +91,7 @@ NCZ_finalize_internal(void)
 {
     /* Reclaim global resources */
     ncz_initialized = 0;
+    NCZ_filter_finalize();
     return NC_NOERR;
 }
 

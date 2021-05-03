@@ -7,7 +7,7 @@
 # Ed Hartnett, Dennis Heimbigner, Ward Fisher
 
 include_HEADERS = netcdf.h netcdf_meta.h netcdf_mem.h netcdf_aux.h	\
-netcdf_filter.h netcdf_dispatch.h
+netcdf_filter.h netcdf_filter_build.h netcdf_dispatch.h
 
 if BUILD_PARALLEL
 include_HEADERS += netcdf_par.h

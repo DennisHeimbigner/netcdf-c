@@ -11,24 +11,30 @@ AM_LDFLAGS += -module -avoid-version -shared -export-dynamic	\
 BZIP2HDRS = bzlib.h bzlib_private.h
 BZIP2SRC = blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c bzlib.c
 
-PLUGINSRC = H5Zbzip2.c
-PLUGINHDRS = h5bzip2.h
+BZ2PLUGINSRC = H5Zbzip2.c
+BZ2PLUGINHDRS = h5bzip2.h
 
-EXTRA_DIST = ${PLUGINSRC} ${BZIP2SRC} ${PLUGINHDRS} ${BZIP2HDRS}	\
-H5Ztemplate.c H5Zmisc.c H5Zutil.c H5Znoop.c h5noop.h CMakeLists.txt
+
+EXTRA_DIST = ${BZ2PLUGINSRC} ${BZ2PLUGINHDRS} \
+             ${BZIP2SRC} ${BZIP2HDRS} \
+             ${ZPLUGINSRC} ${ZPLUGINHDRS} \
+             H5Ztemplate.c H5Zmisc.c H5Zutil.c H5Znoop.c h5noop.h CMakeLists.txt \
+	     NCZdeflate.c NCZdeflate.h
 
 # WARNING: This list must be kept consistent with the corresponding
 # AC_CONFIG_LINK commands near the end of configure.ac.
-HDF5PLUGINSRC = ${PLUGINSRC} ${BZIP2SRC} ${PLUGINHDRS} ${BZIP2HDRS}
+HDF5PLUGINSRC = ${BZ2PLUGINSRC} ${BZIP2SRC} ${BZ2PLUGINHDRS} ${BZIP2HDRS}
 
 if ENABLE_FILTER_TESTING
 
-noinst_LTLIBRARIES = libmisc.la libnoop.la libnoop1.la
+noinst_LTLIBRARIES = libmisc.la libnoop.la libnoop1.la libnczdeflate.la
 lib_LTLIBRARIES = libh5bzip2.la
 
 libh5bzip2_la_SOURCES = ${HDF5PLUGINSRC}
 
 libmisc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h
+
+libnczdeflate_la_SOURCES = NCZdeflate.c NCZdeflate.h
 
 # The noop filter is to allow testing of multifilters and filter order
 # Need two distinct instances
@@ -47,4 +53,3 @@ H5Znoop1.c: Makefile H5Znoop.c
 BZIP2DIR=/cygdrive/d/bzip2-1.0.8
 updatebzip2:
 	for b in ${BZIP2HDRS} ${BZIP2SRC} ; do cp -f ${BZIP2DIR}/$${b} . ; done
-

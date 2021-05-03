@@ -137,8 +137,14 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const char** controls)
     if((stat = nczmap_open(zinfo->controls.mapimpl,nc->path,mode,zinfo->controls.flags,NULL,&zinfo->map)))
 	goto done;
 
-    if(!(zinfo->controls.flags & FLAG_PUREZARR)
-        && (stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json)) == NC_NOERR) {
+    /* See if this is an NCZarr dataset */
+    if(!(zinfo->controls.flags & FLAG_PUREZARR)) {
+        stat = NCZ_downloadjson(zinfo->map, NCZMETAROOT, &json);
+        if(stat == NC_EEMPTY)
+	    {stat = NC_ENOTNC; goto done;} /* Malformed */
+    }
+
+    if(!(zinfo->controls.flags & FLAG_PUREZARR) && json) {
         /* Extract the information from it */
         for(i=0;i<nclistlength(json->contents);i+=2) {
     	    const NCjson* key = nclistget(json->contents,i);

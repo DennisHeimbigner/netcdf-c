@@ -53,6 +53,7 @@ EXTERNL char* nczprint_projectionx(const NCZProjection proj, int raw);
 EXTERNL char* nczprint_sliceprojectionsx(const NCZSliceProjections slp, int raw);
 EXTERNL char* nczprint_vector(size_t,const size64_t*);
 EXTERNL char* nczprint_idvector(size_t,const int*);
+EXTERNL char* nczprint_paramvector(size_t,const unsigned*);
 EXTERNL char* nczprint_sizevector(size_t,const size_t*);
 EXTERNL char* nczprint_envv(const char** envv);
 

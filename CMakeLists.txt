@@ -985,6 +985,20 @@ ELSE()
   SET(ENABLE_NCZARR_ZIP FALSE)
 ENDIF()
 
+# See if we have libdl
+IF(WIN32)
+  SET(ENABLE_PLUGINS TRUE)
+ELSE()
+  FIND_LIBRARY(DL_LIB NAMES dl dld libdl libdld)
+  # Define a test flag
+  IF(DL_LIB)
+    INCLUDE_DIRECTORIES(${dl_INCLUDE_DIRS})
+    SET(ENABLE_PLUGINS TRUE)
+  ELSE()
+    SET(ENABLE_PLUGINS FALSE)
+  ENDIF()
+ENDIF()
+
 # Enable some developer-only tests
 OPTION(ENABLE_EXTRA_TESTS "Enable Extra tests. Some may not work because of known issues. Developers only." OFF)
 IF(ENABLE_EXTRA_TESTS)
@@ -1343,9 +1357,10 @@ ENDIF()
 
 # Enable special filter test; experimental when using cmake.
 OPTION(ENABLE_FILTER_TESTING "Enable filter testing. Ignored if shared libraries or netCDF4 are not enabled" ${ENABLE_HDF5})
-IF(ENABLE_FILTER_TESTING AND NOT ENABLE_HDF5)
-  MESSAGE(WARNING "ENABLE_FILTER_TESTING requires HDF5. Disabling.")
-  SET(ENABLE_FILTER_TESTING OFF)
+IF(ENABLE_FILTER_TESTING)
+  if(NOT ENABLE_HDF5 AND NOT ENABLE_NCZARR)
+    MESSAGE(WARNING "ENABLE_FILTER_TESTING requires HDF5 and/or NCZarr. Disabling.")
+    SET(ENABLE_FILTER_TESTING OFF)
 ENDIF()
 IF(NOT BUILD_SHARED_LIBS)
   MESSAGE(WARNING "ENABLE_FILTER_TESTING requires shared libraries. Disabling.")
@@ -1974,11 +1989,25 @@ IF(ENABLE_DAP4)
   ADD_SUBDIRECTORY(libdap4)
 ENDIF()
 
+IF(ENABLE_PLUGINS)
+  ADD_SUBDIRECTORY(libncpoco)
+ENDIF()
+
 IF(ENABLE_NCZARR)
   ADD_SUBDIRECTORY(libnczarr)
   FILE(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.h
        DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
   FILE(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.c
+       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+  FILE(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter.c
+       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+  FILE(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_misc.c
+       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+  FILE(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_repeat.c
+       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+  FILE(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_order.c
+       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+  FILE(COPY ${netCDF_SOURCE_DIR}/nc_test4/tst_multifilter.c
        DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
 ENDIF()
 

@@ -95,6 +95,15 @@ IF(ENABLE_TESTS)
 	add_sh_test(nczarr_test run_s3_cleanup)
     ENDIF()
 
+    IF(ENABLE_FILTER_TESTING)
+	build_bin_test(test_filter)
+	build_bin_test(test_filter_misc)
+	build_bin_test(tst_multifilter)
+	build_bin_test(test_filter_order)
+	build_bin_test(test_filter_repeat)
+	ADD_SH_TEST(nczarr_test tst_filter)
+    ENDIF(ENABLE_FILTER_TESTING)
+
   ENDIF(BUILD_UTILITIES)
 
 ENDIF(ENABLE_TESTS)

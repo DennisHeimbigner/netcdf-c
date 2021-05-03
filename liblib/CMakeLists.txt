@@ -37,6 +37,10 @@ IF(ENABLE_NCZARR)
   SET(liblib_LIBS ${liblib_LIBS} nczarr)
 ENDIF()
 
+IF(ENABLE_NCZARR)
+  SET(liblib_LIBS ${liblib_LIBS} ncpoco)
+ENDIF()
+
 FOREACH(LIBS ${liblib_LIBS})
   SET(LARGS ${LARGS} $<TARGET_OBJECTS:${LIBS}>)
 ENDFOREACH()

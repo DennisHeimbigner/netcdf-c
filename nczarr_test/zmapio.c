@@ -310,7 +310,8 @@ objdump(void)
 	}
 	if(!hascontent) goto next; /* ignore it */
 	if(len > 0) {
-	    content = malloc(len+1);
+	    size_t padlen = (len+dumpoptions.nctype->typesize);
+	    content = calloc(1,padlen+1);
   	    if((stat=nczmap_read(map,obj,0,len,content))) goto done;
 	    content[len] = '\0';
         } else {

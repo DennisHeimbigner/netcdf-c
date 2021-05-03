@@ -1,4 +1,4 @@
-#                                               -*- Autoconf -*-
+b#                                               -*- Autoconf -*-
 ## Process this file with autoconf to produce a configure script.
 
 # This is part of Unidata's netCDF package. Copyright 2005-2018, see
@@ -1082,6 +1082,25 @@ if test "x$enable_byterange" = xyes; then
     AC_DEFINE([ENABLE_BYTERANGE], [1], [if true, support byte-range read of remote datasets.])
 fi
 
+# Need libdl(d) for plugins
+AC_CHECK_LIB([dl],[dlopen],[have_libdld=yes],[have_libdld=no])
+if test "x$have_libdld" = "xyes" ; then
+   AC_SEARCH_LIBS([dlopen],[dl dld], [],[])
+fi
+
+# Does the user want plugins?
+AC_MSG_CHECKING([whether dynamically loaded plugins is enabled])
+AC_ARG_ENABLE([plugins],
+              [AS_HELP_STRING([--disable-plugins],
+                              [allow dynamically loaded plugins])])
+if test "x$have_libdld" = xno ; then enable_plugins=no; fi
+test "x$enable_plugins" = xno || enable_plugins=yes
+AC_MSG_RESULT($enable_plugins)
+if test "x$enable_plugins" = xyes; then
+    AC_DEFINE([ENABLE_PLUGINS], [1], [if true, support dynamically loaded plugins])
+fi
+AM_CONDITIONAL(ENABLE_PLUGINS, [test "x$enable_plugins" = xyes])
+
 AC_FUNC_ALLOCA
 AC_CHECK_DECLS([isnan, isinf, isfinite],,,[#include <math.h>])
 AC_STRUCT_ST_BLKSIZE
@@ -1184,11 +1203,10 @@ AC_CHECK_SIZEOF(ssize_t)
 $SLEEPCMD
 AC_CHECK_SIZEOF([void*])
 
-if test "x$enable_hdf5" = xyes || test "x$enable_dap" = xyes; then
+if test "x$enable_hdf5" = xyes || test "x$enable_dap" = xyes ; then
    AC_SEARCH_LIBS([deflate], [zlibwapi zlibstat zlib zlib1 z], [], [
      AC_MSG_ERROR([Can't find or link to the z library. Turn off netCDF-4 and \
      DAP clients with --disable-hdf5 --disable-dap, or see config.log for errors.])])
-   AC_SEARCH_LIBS([dlopen], [dl dld], [], [])
 fi
 
 # We need the math library
@@ -1474,6 +1492,30 @@ if test "x$enable_logging" = xyes; then
    AC_DEFINE([LOGGING], 1, [If true, turn on logging.])
 fi
 
+# Control filter test/example
+AC_MSG_CHECKING([whether filter testing should be run])
+AC_ARG_ENABLE([filter-testing],
+              [AS_HELP_STRING([--disable-filter-testing],
+                              [Do not run filter test and example; requires shared libraries and HDF5|NCZarr])])
+test "x$enable_filter_testing" = xno || enable_filter_testing=yes
+AC_MSG_RESULT($enable_filter_testing)
+
+if test "x$enable_hdf5" = xno && test "x$enable_nczarr" = xno ; then
+AC_MSG_WARN([HDF5 and NCZarr are disabled => --disable-filter-testing])
+enable_filter_testing=no
+fi
+
+if test "x$enable_shared" = xno ; then
+AC_MSG_WARN([Shared libraries are disabled => --disable-filter-testing])
+enable_filter_testing=no
+fi
+
+# Client side filter registration is permanently disabled
+enable_clientside_filters=no
+
+AM_CONDITIONAL(ENABLE_CLIENTSIDE_FILTERS, [test x$enable_clientside_filters = xyes])
+AM_CONDITIONAL(ENABLE_FILTER_TESTING, [test x$enable_filter_testing = xyes])
+
 # Automake conditionals need to be called, whether the answer is yes
 # or no.
 AM_CONDITIONAL(BUILD_PARALLEL, [test x$enable_parallel = xyes])
@@ -1584,30 +1626,6 @@ xsolaris*)
 esac
 
 NC_FLIBS="-lnetcdff $NC_LIBS"
-
-# Control filter test/example
-AC_MSG_CHECKING([whether filter testing should be run])
-AC_ARG_ENABLE([filter-testing],
-              [AS_HELP_STRING([--disable-filter-testing],
-                              [Do not run filter test and example; requires shared libraries and netCDF-4])])
-test "x$enable_filter_testing" = xno || enable_filter_testing=yes
-AC_MSG_RESULT($enable_filter_testing)
-
-# Client side filter registration is permanently disabled
-enable_clientside_filters=no
-
-if test "x$enable_hdf5" = xno ; then
-AC_MSG_WARN([HDF5 disabled => --disable-filter-testing && --disable-client-filters])
-enable_filter_testing=no
-fi
-
-if test "x$enable_shared" = xno ; then
-AC_MSG_WARN([Shared libraries are disabled => --disable-filter-testing])
-enable_filter_testing=no
-fi
-
-AM_CONDITIONAL(ENABLE_CLIENTSIDE_FILTERS, [test x$enable_clientside_filters = xyes])
-AM_CONDITIONAL(ENABLE_FILTER_TESTING, [test x$enable_filter_testing = xyes])
 
 
 AC_SUBST(NC_LIBS,[$NC_LIBS])
@@ -1732,8 +1750,6 @@ AM_CONDITIONAL([AX_IGNORE], [test xno = xyes])
 
 AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)
-AC_CONFIG_FILES(nczarr_test/timer_utils.h:unit_test/timer_utils.h)
-AC_CONFIG_FILES(nczarr_test/timer_utils.c:unit_test/timer_utils.c)
 AC_CONFIG_FILES(nc_test4/findplugin.sh:nc_test4/findplugin.in)
 AC_CONFIG_FILES(examples/C/findplugin.sh:nc_test4/findplugin.in)
 AC_CONFIG_FILES(ncdap_test/findtestserver.c:ncdap_test/findtestserver.c.in)
@@ -1743,6 +1759,14 @@ AC_CONFIG_FILES([h5_test/run_par_tests.sh], [chmod ugo+x h5_test/run_par_tests.s
 AC_CONFIG_FILES([nc_test4/run_par_test.sh], [chmod ugo+x nc_test4/run_par_test.sh])
 AC_CONFIG_FILES([nc_perf/run_par_bm_test.sh], [chmod ugo+x nc_perf/run_par_bm_test.sh])
 AC_CONFIG_FILES([nc_perf/run_gfs_test.sh], [chmod ugo+x nc_perf/run_gfs_test.sh])
+AC_CONFIG_FILES(nczarr_test/timer_utils.h:unit_test/timer_utils.h)
+AC_CONFIG_FILES(nczarr_test/timer_utils.c:unit_test/timer_utils.c)
+AC_CONFIG_FILES(nczarr_test/test_filter.c:nc_test4/test_filter.c)
+AC_CONFIG_FILES(nczarr_test/test_filter_misc.c:nc_test4/test_filter_misc.c)
+AC_CONFIG_FILES(nczarr_test/tst_multifilter.c:nc_test4/tst_multifilter.c)
+AC_CONFIG_FILES(nczarr_test/test_filter_repeat.c:nc_test4/test_filter_repeat.c)
+AC_CONFIG_FILES(nczarr_test/test_filter_order.c:nc_test4/test_filter_order.c)
+AC_CONFIG_FILES(nczarr_test/findplugin.sh:nc_test4/findplugin.in)
 AC_CONFIG_FILES([examples/C/run_par_test.sh], [chmod ugo+x examples/C/run_par_test.sh])
 AC_CONFIG_FILES([nc-config], [chmod 755 nc-config])
 AC_CONFIG_FILES([Makefile
@@ -1769,6 +1793,7 @@ AC_CONFIG_FILES([Makefile
                  libdap4/Makefile
                  libhdf4/Makefile
                  libnczarr/Makefile
+                 libncpoco/Makefile
                  libdispatch/Makefile
                  liblib/Makefile
                  ncdump/cdl/Makefile

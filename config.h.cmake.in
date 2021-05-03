@@ -165,6 +165,9 @@ are set when opening a binary file on Windows. */
 /* if true, S3 SDK is available */
 #cmakedefine ENABLE_S3_SDK 1
 
+/* if true, Allow dynamically loaded plugins */
+#cmakedefine ENABLE_PLUGINS 1
+
 /* define the possible sources for remote test servers */
 #cmakedefine REMOTETESTSERVERS	"${REMOTETESTSERVERS}"
 

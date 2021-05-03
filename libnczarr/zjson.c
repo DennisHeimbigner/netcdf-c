@@ -610,7 +610,7 @@ done:
 }
 
 int
-NCJdictith(NCjson* object, size_t i, const char** keyp, NCjson** valuep)
+NCJdictith(const NCjson* object, size_t i, const char** keyp, NCjson** valuep)
 {
     if(object == NULL || object->sort != NCJ_DICT)
 	return NC_EINTERNAL;
@@ -622,7 +622,7 @@ NCJdictith(NCjson* object, size_t i, const char** keyp, NCjson** valuep)
 }
 
 int
-NCJdictget(NCjson* object, const char* key, NCjson** valuep)
+NCJdictget(const NCjson* object, const char* key, NCjson** valuep)
 {
     int i;
     if(object == NULL || object->sort != NCJ_DICT)
@@ -660,7 +660,7 @@ NCJappend(NCjson* object, NCjson* value)
 }
 
 int
-NCJarrayith(NCjson* object, size_t i, NCjson** valuep)
+NCJarrayith(const NCjson* object, size_t i, NCjson** valuep)
 {
     if(object == NULL || object->sort != NCJ_ARRAY)
 	return NC_EINTERNAL;
@@ -842,3 +842,81 @@ tokenname(int token)
     return "NCJ_UNDEF";
 }
 #endif
+
+
+/* Convert a JSON value to an equivalent value of a specified sort */
+int
+NCJcvt(const NCjson* jvalue, int outsort, struct NCJconst* output)
+{
+    int stat = NC_NOERR;
+
+    if(output == NULL) goto done;
+
+#undef CASE
+#define CASE(t1,t2) ((t1)<<4 | (t2)) /* the shift constant must be larger than log2(NCJ_NSORTS) */
+    switch (CASE(jvalue->sort,outsort)) {
+
+    case CASE(NCJ_BOOLEAN,NCJ_BOOLEAN):
+	if(strcasecmp(jvalue->value,NCJ_TAG_FALSE)==0) output->bval = 0; else output->bval = 1;
+	break;
+    case CASE(NCJ_BOOLEAN,NCJ_INT):
+	if(strcasecmp(jvalue->value,NCJ_TAG_FALSE)==0) output->ival = 0; else output->ival = 1;
+	break;	
+    case CASE(NCJ_BOOLEAN,NCJ_DOUBLE):
+	if(strcasecmp(jvalue->value,NCJ_TAG_FALSE)==0) output->dval = 0.0; else output->dval = 1.0;
+	break;	
+    case CASE(NCJ_BOOLEAN,NCJ_STRING):
+        output->sval = nulldup(jvalue->value);
+	break;	
+
+    case CASE(NCJ_INT,NCJ_BOOLEAN):
+	sscanf(jvalue->value,"%lldd",&output->ival);
+	output->bval = (output->ival?1:0);
+	break;	
+    case CASE(NCJ_INT,NCJ_INT):
+	sscanf(jvalue->value,"%lld",&output->ival);
+	break;	
+    case CASE(NCJ_INT,NCJ_DOUBLE):
+	sscanf(jvalue->value,"%lld",&output->ival);
+	output->dval = (double)output->ival;
+	break;	
+    case CASE(NCJ_INT,NCJ_STRING):
+        output->sval = nulldup(jvalue->value);
+	break;	
+
+    case CASE(NCJ_DOUBLE,NCJ_BOOLEAN):
+	sscanf(jvalue->value,"%lf",&output->dval);
+	output->bval = (output->dval == 0?0:1);
+	break;	
+    case CASE(NCJ_DOUBLE,NCJ_INT):
+	sscanf(jvalue->value,"%lf",&output->dval);
+	output->ival = (long long)output->dval;
+	break;	
+    case CASE(NCJ_DOUBLE,NCJ_DOUBLE):
+	sscanf(jvalue->value,"%lf",&output->dval);
+	break;	
+    case CASE(NCJ_DOUBLE,NCJ_STRING):
+        output->sval = nulldup(jvalue->value);
+	break;	
+
+    case CASE(NCJ_STRING,NCJ_BOOLEAN):
+	if(strcasecmp(jvalue->value,NCJ_TAG_FALSE)==0) output->bval = 0; else output->bval = 1;
+	break;
+    case CASE(NCJ_STRING,NCJ_INT):
+	sscanf(jvalue->value,"%lld",&output->ival);
+	break;
+    case CASE(NCJ_STRING,NCJ_DOUBLE):
+	sscanf(jvalue->value,"%lf",&output->dval);
+	break;
+    case CASE(NCJ_STRING,NCJ_STRING):
+        output->sval = nulldup(jvalue->value);
+	break;	
+
+    default:
+        stat = NC_ERANGE;
+	break;
+    }
+
+done:
+    return stat;
+}

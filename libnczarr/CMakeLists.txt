@@ -44,6 +44,7 @@ zjson.h
 zmap.h
 zodom.h
 zprovenance.h
+zfilter.h
 zdebug.h
 )
 

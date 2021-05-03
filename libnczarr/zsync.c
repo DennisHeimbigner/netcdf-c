@@ -4,6 +4,7 @@
  *********************************************************************/
 
 #include "zincludes.h"
+#include "zfilter.h"
 
 #undef FILLONCLOSE
 
@@ -246,6 +247,8 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     NCjson* jtmp = NULL;
     size64_t shape[NC_MAX_VAR_DIMS];
     NCZ_VAR_INFO_T* zvar = var->format_var_info;
+    NClist* filterchain = NULL;
+    NCjson* jfilter = NULL;
 	    
     LOG((3, "%s: dims: %s", __func__, key));
 
@@ -351,12 +354,21 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     /* Default to C for now */ 
     if((stat = NCJaddstring(jvar,NCJ_STRING,"C"))) goto done;
 
+    /* Compressor and Filters */
+    filterchain = (NClist*)var->filters;    
+
     /* compressor key */
     /* From V2 Spec: A JSON object identifying the primary compression codec and providing
        configuration parameters, or ``null`` if no compressor is to be used. */
     if((stat = NCJaddstring(jvar,NCJ_STRING,"compressor"))) goto done;
-    /* Default to null for now */ 
-    if((stat = NCJnew(NCJ_NULL,&jtmp))) goto done;
+    if(nclistlength(filterchain) > 0) {
+	NCZ_Filter* filter = (NCZ_Filter*)nclistget(filterchain,nclistlength(filterchain)-1);
+        /* encode up the compressor */
+        if((stat = NCZ_filter_jsonize(var,filter,&jtmp))) goto done;
+    } else { /* no filters at all */
+        /* Default to null */ 
+        if((stat = NCJnew(NCJ_NULL,&jtmp))) goto done;
+    }
     if((stat = NCJappend(jvar,jtmp))) goto done;
     jtmp = NULL;
 
@@ -364,10 +376,22 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     /* From V2 Spec: A list of JSON objects providing codec configurations,
        or null if no filters are to be applied. Each codec configuration
        object MUST contain a "id" key identifying the codec to be used. */
-    if((stat = NCJaddstring(jvar,NCJ_STRING,"filters"))) goto done;
     /* A list of JSON objects providing codec configurations, or ``null``
        if no filters are to be applied. */
-    if((stat = NCJnew(NCJ_NULL,&jtmp))) goto done;
+    if((stat = NCJaddstring(jvar,NCJ_STRING,"filters"))) goto done;
+    if(nclistlength(filterchain) > 0) {
+	int k;
+	/* jtmp holds the array of filters */
+	if((stat = NCJnew(NCJ_ARRAY,&jtmp))) goto done;
+	for(k=0;k<nclistlength(filterchain)-1;k++) {
+ 	    NCZ_Filter* filter = (NCZ_Filter*)nclistget(filterchain,k);
+	    /* encode up the filter */
+	    if((stat = NCZ_filter_jsonize(var,filter,&jfilter))) goto done;
+	    if((stat = NCJappend(jtmp,jfilter))) goto done;
+	}
+    } else { /* no filters at all */
+        if((stat = NCJnew(NCJ_NULL,&jtmp))) goto done;
+    }
     if((stat = NCJappend(jvar,jtmp))) goto done;
     jtmp = NULL;
 
@@ -523,17 +547,7 @@ ncz_write_var(NC_VAR_INFO_T* var)
 	    default: goto done; /* some other error */
 	    }
             /* If we reach here, then chunk does not exist, create it with fill */
-	    /* ensure fillchunk exists */
-	    if(zvar->cache->fillchunk == NULL) {
-		nc_type typecode;
-		size_t typesize;
-	        void* fillvalue = NULL;
-		typecode = var->type_info->hdr.id;
-		if((stat = NC4_inq_atomic_type(typecode, NULL, &typesize))) goto done;
-	        if((stat = ncz_get_fill_value(file, var, &fillvalue))) goto done;
-		if((stat = NCZ_create_fill_chunk(zvar->cache->chunksize, typesize, fillvalue, &zvar->cache->fillchunk)))
-		    goto done;
-	    }
+	    assert(zvar->cache->fillchunk != NULL);
 	    if((stat=nczmap_write(map,key,0,zvar->cache->chunksize,zvar->cache->fillchunk))) goto done;
 next:
 	    nullfree(key);
@@ -1315,6 +1329,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     size64_t* shapes = NULL;
     int rank = 0;
     NClist* dimnames = nclistnew();
+    NCZ_Filter* filter = NULL;		
 
     zinfo = file->format_file_info;
     map = zinfo->map;
@@ -1410,6 +1425,22 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	        zvar->dimension_separator = ngs->zarr.dimension_separator; /* use global value */
 	    assert(islegaldimsep(zvar->dimension_separator)); /* we are hosed */
 	}
+	/* fill_value */
+	{
+	    if((stat = NCJdictget(jvar,"fill_value",&jvalue))) goto done;
+	    if(jvalue == NULL)
+		var->no_fill = 1;
+	    else {
+		typeid = var->type_info->hdr.id;
+		var->no_fill = 0;
+		if((stat = computeattrdata(&typeid, jvalue, NULL, &var->fill_value)))
+		    goto done;
+		assert(typeid == var->type_info->hdr.id);
+		/* Note that we do not create the _FillValue
+		   attribute here to avoid having to read all
+		   the attributes and thus foiling lazy read.*/
+	    } 
+	}
 	/* chunks */
 	{
 	    int rank;
@@ -1438,23 +1469,8 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		/* Create the cache */
 		if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,zvar->dimension_separator,&zvar->cache)))
 		    goto done;
+		if((stat = NCZ_adjust_var_cache(var))) goto done;
 	    }
-	}
-	/* fill_value */
-	{
-	    if((stat = NCJdictget(jvar,"fill_value",&jvalue))) goto done;
-	    if(jvalue == NULL)
-		var->no_fill = 1;
-	    else {
-		typeid = var->type_info->hdr.id;
-		var->no_fill = 0;
-		if((stat = computeattrdata(&typeid, jvalue, NULL, &var->fill_value)))
-		    goto done;
-		assert(typeid == var->type_info->hdr.id);
-		/* Note that we do not create the _FillValue
-		   attribute here to avoid having to read all
-		   the attributes and thus foiling lazy read.*/
-	    } 
 	}
 	/* Capture row vs column major; currently, column major not used*/
 	{
@@ -1463,21 +1479,48 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		((NCZ_VAR_INFO_T*)var->format_var_info)->order = 1;
 	    else ((NCZ_VAR_INFO_T*)var->format_var_info)->order = 0;
 	}
-        /* compressor key */
-        /* From V2 Spec: A JSON object identifying the primary compression codec and providing
-           configuration parameters, or ``null`` if no compressor is to be used. */
-	{
-	    if((stat = NCJdictget(jvar,"compressor",&jvalue))) goto done;
-	    /* ignore */
-	}
-
         /* filters key */
         /* From V2 Spec: A list of JSON objects providing codec configurations,
            or null if no filters are to be applied. Each codec configuration
            object MUST contain a "id" key identifying the codec to be used. */
+	/* Do filters key before compressor key so final filter chain is in correct order */
 	{
+	    int k;
+	    NCjson* jfilter = NULL;
+	    NClist* filterlist = NULL;
+	    if(var->filters == NULL) var->filters = (void*)nclistnew();
+	    filterlist = (NClist*)var->filters;
+	    if((stat = NCZ_filter_initialize())) goto done;
 	    if((stat = NCJdictget(jvar,"filters",&jvalue))) goto done;
-	    /* ignore */
+	    if(jvalue != NULL && jvalue->sort != NCJ_NULL) {
+	        if(jvalue->sort != NCJ_ARRAY) {stat = NC_EFILTER; goto done;} 
+		for(k=0;;k++) {
+		    NCZ_Filter* filter = NULL;		
+		    jfilter = NULL;
+		    if((stat = NCJarrayith(jvalue,k,&jfilter))) goto done;
+		    if(jfilter == NULL) break; /* done */
+		    if(jfilter->sort != NCJ_DICT) {stat = NC_EFILTER; goto done;} 
+		    if((stat = NCZ_filter_build(var,jfilter,&filter))) goto done;
+		    nclistpush(filterlist,filter); filter = NULL;
+		}
+	    }
+	}
+
+        /* compressor key */
+        /* From V2 Spec: A JSON object identifying the primary compression codec and providing
+           configuration parameters, or ``null`` if no compressor is to be used. */
+	{
+	    NCjson* jfilter = NULL;
+	    NClist* filterlist = NULL;
+	    if(var->filters == NULL) var->filters = (void*)nclistnew();
+	    filterlist = (NClist*)var->filters;
+	    if((stat = NCZ_filter_initialize())) goto done;
+	    if((stat = NCJdictget(jvar,"compressor",&jfilter))) goto done;
+	    if(jfilter != NULL && jfilter->sort != NCJ_NULL) {
+	        if(jfilter->sort != NCJ_DICT) {stat = NC_EFILTER; goto done;} 
+		if((stat = NCZ_filter_build(var,jfilter,&filter))) goto done;
+		nclistpush(filterlist,filter); filter = NULL;
+	    }
 	}
 
 	if(!purezarr) {
@@ -1492,7 +1535,6 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		    goto done;
 	    }
 	    nullfree(key); key = NULL;
-	    assert((jncvar->sort == NCJ_DICT));
 	    /* Extract storage flag */
 	    if((stat = NCJdictget(jncvar,"storage",&jvalue)))
 		goto done;
@@ -1544,6 +1586,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     }
 
 done:
+    NCZ_filter_free(filter);
     nullfree(shapes);
     nullfree(varpath);
     nullfree(key);

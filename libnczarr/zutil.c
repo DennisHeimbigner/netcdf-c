@@ -721,12 +721,17 @@ NCZ_freestringvec(size_t len, char** vec)
 
 /* create a fill chunk */
 int
-NCZ_create_fill_chunk(size64_t chunksize, size_t typesize, void* fill, void** fillchunkp)
+NCZ_create_fill_chunk(size64_t chunksize, size_t typesize, const void* fill, void** fillchunkp)
 {
     int i;
     void* fillchunk = NULL;
     if((fillchunk = malloc(chunksize))==NULL)
         return NC_ENOMEM;
+    if(fill == NULL) {
+        /* use zeros */
+	memset(fillchunk,0,chunksize);
+	goto done;
+    }
     switch (typesize) {
     case 1: {
         unsigned char c = *((unsigned char*)fill);
@@ -753,6 +758,7 @@ NCZ_create_fill_chunk(size64_t chunksize, size_t typesize, void* fill, void** fi
             memcpy(p,fill,typesize);
         } break;
     }
+done:
     if(fillchunkp) {*fillchunkp = fillchunk; fillchunk = NULL;}
     nullfree(fillchunk);
     return NC_NOERR;
@@ -890,17 +896,15 @@ NCZ_ischunkname(const char* name,char dimsep)
 }
 
 char*
-NCZ_chunkpath(struct ChunkKey key,char dimsep)
+NCZ_chunkpath(struct ChunkKey key)
 {
     size_t plen = nulllen(key.varkey)+1+nulllen(key.chunkkey);
     char* path = (char*)malloc(plen+1);
-    char sdimsep[2];
     
     if(path == NULL) return NULL;
     path[0] = '\0';
     strlcat(path,key.varkey,plen+1);
-    sdimsep[0] = dimsep; sdimsep[1] = '\0';
-    strlcat(path,sdimsep,plen+1);
+    strlcat(path,"/",plen+1);
     strlcat(path,key.chunkkey,plen+1);
     return path;    
 }

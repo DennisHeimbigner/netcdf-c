@@ -17,6 +17,8 @@
 #define NCJ_ARRAY    6
 #define NCJ_NULL     7
 
+#define NCJ_NSORTS   8
+
 /* Don't bother with unions: define
    a struct to store primitive values
    as unquoted strings. Sort will 
@@ -35,6 +37,9 @@ typedef struct NCjson {
     char* value;
     NClist* contents; /* For array|dict */
 } NCjson;
+
+struct NCJconst {int bval; long long ival; double dval; char* sval;};
+
 
 #define NCJF_MULTILINE 1
 
@@ -59,16 +64,16 @@ EXTERNL int NCJinsert(NCjson* object, char* key, NCjson* value);
 EXTERNL int NCJaddstring(NCjson* dictarray, int sort, const char* value);
 
 /* Get ith pair from dict */
-EXTERNL int NCJdictith(NCjson* object, size_t i, const char** keyp, NCjson** valuep);
+EXTERNL int NCJdictith(const NCjson* object, size_t i, const char** keyp, NCjson** valuep);
 
 /* Get value for key from dict */
-EXTERNL int NCJdictget(NCjson* object, const char* key, NCjson** valuep);
+EXTERNL int NCJdictget(const NCjson* object, const char* key, NCjson** valuep);
 
 /* Append value to an array or dict object. */
 EXTERNL int NCJappend(NCjson* object, NCjson* value);
 
 /* Get ith element from array */
-EXTERNL int NCJarrayith(NCjson* object, size_t i, NCjson** valuep);
+EXTERNL int NCJarrayith(const NCjson* object, size_t i, NCjson** valuep);
 
 /* Unparser to convert NCjson object to text in buffer */
 EXTERNL int NCJunparse(const NCjson* json, int flags, char** textp);
@@ -79,6 +84,9 @@ EXTERNL int NCJclone(NCjson* json, NCjson** clonep); /* deep clone */
 
 /* dump NCjson* object */
 EXTERNL void NCJdump(const NCjson* json, int flags);
+
+/* Convert one json sort to  value of another type; don't bother with union */
+EXTERNL int NCJcvt(const NCjson* value, int outsort, struct NCJconst* output);
 
 /* Macro defined functions */
 #define NCJlength(json) \

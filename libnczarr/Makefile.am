@@ -8,7 +8,7 @@
 # Get AM_CPPFLAGS and AM_LDFLAGS
 include $(top_srcdir)/lib_flags.am
 AM_CPPFLAGS += -D_LARGEFILE_SOURCE
-AM_CPPFLAGS += -I$(top_srcdir)/libsrc4 -I$(top_srcdir)/libdap4
+AM_CPPFLAGS += -I$(top_srcdir)/libsrc4 -I$(top_srcdir)/libncpoco
 libnczarr_la_CPPFLAGS = ${AM_CPPFLAGS}
 AM_CXXFLAGS = 
 libnczarr_la_LIBADD =
@@ -64,6 +64,7 @@ zjson.h \
 zmap.h \
 zodom.h \
 zprovenance.h \
+zfilter.h \
 zdebug.h
 
 if ENABLE_NCZARR_ZIP

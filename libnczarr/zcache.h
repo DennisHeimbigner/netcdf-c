@@ -44,17 +44,17 @@ typedef struct NCZChunkCache {
     size_t maxentries; /* Max number of entries allowed; maxsize can override */
     size_t maxsize; /* Maximum space used by cache; 0 => nolimit */
     size_t used; /* How much total space is being used */
-    NClist* mru; /* all cache entries in mru order */
+    NClist* mru; /* NClist<NCZCacheEntry> all cache entries in mru order */
     struct NCxcache* xcache;
     char dimension_separator;
 } NCZChunkCache;
 
 /**************************************************/
 
-#define FILTERED(cache) ((cache)->var->filters != NULL || (cache)->var->shuffle || (cache)->var->fletcher32);
+#define FILTERED(cache) (nclistlength((NClist*)(cache)->var->filters) || (cache)->var->shuffle || (cache)->var->fletcher32);
 
 extern int NCZ_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems, float preemption);
-extern int NCZ_adjust_var_cache(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
+extern int NCZ_adjust_var_cache(NC_VAR_INFO_T *var);
 extern int NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t, char dimsep, NCZChunkCache** cachep);
 extern void NCZ_free_chunk_cache(NCZChunkCache* cache);
 extern int NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap);

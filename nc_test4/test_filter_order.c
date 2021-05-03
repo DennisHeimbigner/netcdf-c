@@ -25,7 +25,7 @@
 
 #define MAXDIMS 8
 
-#define TESTFILE "testfilter_order.nc"
+#define DFALT_TESTFILE "testfilter_order.nc"
 
 #define NPARAMS 1
 #define PARAMVAL 17
@@ -42,6 +42,8 @@ static size_t actualproduct = 1; /* x-product over actualdims */
 static size_t chunkproduct = 1; /* x-product over actual chunks */
 
 static int nerrs = 0;
+
+static const char* testfile = NULL;
 
 static int ncid, varid;
 static int dimids[MAXDIMS];
@@ -112,7 +114,7 @@ create(void)
     int i;
 
     /* Create a file with one big variable */
-    CHECK(nc_create(TESTFILE, NC_NETCDF4|NC_CLOBBER, &ncid));
+    CHECK(nc_create(testfile, NC_NETCDF4|NC_CLOBBER, &ncid));
     CHECK(nc_set_fill(ncid, NC_NOFILL, NULL));
     for(i=0;i<ndims;i++) {
         char dimname[1024];
@@ -170,7 +172,7 @@ openfile(void)
     int k;
 
     /* Open the file and check it. */
-    CHECK(nc_open(TESTFILE, NC_NOWRITE, &ncid));
+    CHECK(nc_open(testfile, NC_NOWRITE, &ncid));
     CHECK(nc_inq_varid(ncid, "var", &varid));
 
     /* Check the compression algorithms */
@@ -381,13 +383,29 @@ expectedvalue(void)
 }
 
 static void
+usage(void)
+{
+    fprintf(stderr,"usage: test_filter_order read|create [path]\n");
+    exit(1);
+}
+
+static void
 init(int argc, char** argv)
 {
     int i;
 
-    creating = 1; /* default is test1 */
-    if(argc > 1 && strcmp(argv[1],"read")==0)
-        creating = 0;
+    if(argc == 1)
+	usage();
+
+    if(strcmp(argv[1],"read")==0) creating = 0;
+    else if(strcmp(argv[1],"create")==0) creating = 1;
+    else usage();
+
+    /* get the testfile path */
+    if(argc > 2)
+        testfile = argv[2];
+    else
+        testfile = DFALT_TESTFILE;
 
     /* Setup various variables */
     totalproduct = 1;
