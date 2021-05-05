@@ -2,8 +2,17 @@
    See the COPYRIGHT file for more information.
 */
 
-#include "zincludes.h"
-#include "zjson.h"
+#define NCJSON_INTERNAL
+
+#include "config.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+#include "netcdf.h"
+#include "nclist.h"
+#include "ncbytes.h"
+#include "ncjson.h"
 
 #undef DEBUG
 
@@ -47,7 +56,7 @@ static int testint(const char* word);
 static int testdouble(const char* word);
 static int testnull(const char* word);
 static int NCJlex(NCJparser* parser);
-static int NCJyytext(NCJparser*, char* start, ptrdiff_t pdlen);
+static int NCJyytext(NCJparser*, char* start, size_t pdlen);
 static void NCJreclaimArray(NClist*);
 static void NCJreclaimDict(NClist*);
 static int NCJunparseR(const NCjson* json, NCbytes* buf, int flags);
@@ -99,7 +108,7 @@ done:
 	free(parser);
     }
     (void)NCJreclaim(json);
-    return THROW(stat);
+    return (stat);
 }
 
 /*
@@ -168,7 +177,7 @@ NCJparseR(NCJparser* parser, NCjson** jsonp)
 
 done:
     NCJreclaim(json);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -209,7 +218,7 @@ NCJparseArray(NCJparser* parser, NClist* array)
 done:
     if(element != NULL)
 	NCJreclaim(element);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -273,7 +282,7 @@ done:
 	NCJreclaim(key);
     if(value != NULL)
 	NCJreclaim(value);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -282,7 +291,7 @@ NCJlex(NCJparser* parser)
     int c;
     int token = 0;
     char* start;
-    ptrdiff_t count;
+    size_t count;
 
     while(token == 0) { /* avoid need to goto when retrying */
 	c = *parser->pos;
@@ -391,7 +400,7 @@ testdouble(const char* word)
 }
 
 static int
-NCJyytext(NCJparser* parser, char* start, ptrdiff_t pdlen)
+NCJyytext(NCJparser* parser, char* start, size_t pdlen)
 {
     size_t len = (size_t)pdlen;
     if(parser->yytext == NULL) {
@@ -546,7 +555,7 @@ NCJnew(int sort, NCjson** objectp)
 
 done:
     if(stat) NCJreclaim(object);
-    return THROW(stat);
+    return (stat);
 }
 
 int
@@ -572,7 +581,7 @@ NCJnewstringn(int sort, size_t len, const char* value, NCjson** jsonp)
     json = NULL; /* avoid memory errors */
 done:
     if(stat) NCJreclaim(json);
-    return THROW(stat);
+    return (stat);
 }
 
 /* Insert key-value pair into a dict object.
@@ -606,7 +615,7 @@ NCJaddstring(NCjson* dictarray, int sort, const char* value)
     }
 
 done:
-    return THROW(stat);
+    return (stat);
 }
 
 int
@@ -713,7 +722,7 @@ NCJunparse(const NCjson* json, int flags, char** textp)
     }
 done:
     ncbytesfree(buf);
-    return THROW(stat);
+    return (stat);
 }
 
 static int
@@ -768,7 +777,7 @@ NCJunparseR(const NCjson* json, NCbytes* buf, int flags)
 	stat = NC_EINVAL; goto done;
     }
 done:
-    return THROW(stat);
+    return (stat);
 }
 
 /* Escape a string and append to buf */
@@ -920,3 +929,14 @@ NCJcvt(const NCjson* jvalue, int outsort, struct NCJconst* output)
 done:
     return stat;
 }
+
+#ifndef NCJSON_INLINE
+int NCJsort(const NCjson* j)         {return j-> sort;}
+char* NCJvalue(const NCjson* j)        {return j->value;}
+NClist* NCJcontents(const NCjson* j) {return j->contents;}
+
+void NCJsetsort(NCjson* j, int x) {j->sort = x;}
+void NCJsetvalue(NCjson* j, char* x) {j->value = x;}
+void NCJsetcontents(NCjson* j, NClist* x) {j->contents = x;}
+
+#endif

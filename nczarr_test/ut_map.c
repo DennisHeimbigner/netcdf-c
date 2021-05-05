@@ -339,7 +339,7 @@ searchR(NCZMAP* map, int depth, const char* prefix0, NClist* objects)
     /* get next level object keys **below** the prefix: should have form: <name> */
     switch (stat = nczmap_search(map, prefix, matches)) {
     case NC_NOERR: break;
-    case NC_ENOTFOUND: stat = NC_NOERR; break;/* prefix is not a dir */
+    case NC_ENOOBJECT: stat = NC_NOERR; break;/* prefix is not an object */
     default: goto done;
     }
     /* recurse */

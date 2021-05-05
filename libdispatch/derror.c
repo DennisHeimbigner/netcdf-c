@@ -277,8 +277,12 @@ const char *nc_strerror(int ncerr1)
 	 return "NetCDF: AWS S3 error";
       case NC_EEMPTY:
 	 return "NetCDF: Attempt to read empty NCZarr map key";
-      case NC_EFOUND:
+      case NC_EOBJECT:
 	 return "NetCDF: Some object exists when it should not";
+      case NC_ENOOBJECT:
+	 return "NetCDF: Some object not found";
+      case NC_EPLUGIN:
+	 return "NetCDF: Unclassified failure in accessing a dynamically loaded plugin";
      default:
 #ifdef USE_PNETCDF
         /* The behavior of ncmpi_strerror here is to return

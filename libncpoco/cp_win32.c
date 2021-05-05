@@ -28,7 +28,7 @@ static const char* driveletters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRS
 /* Forward */
 static int isAbsolutePath(const char* path);
 
-/**************************************************
+/**************************************************/
 
 int
 ncp_win32_initialize()
@@ -92,7 +92,7 @@ load(NCPSharedLib* lib , const char* path0, int flags)
 
     lock();
     if(lib->state.handle != NULL)
-	{ret = NC_EFOUND; goto ldone;}
+	{ret = NC_EEXIST; goto ldone;}
     lib->path = nulldup(path);
     lib->flags = flags;
     if(isAbsolutePath(path)) realflags |= LOAD_WITH_ALTERED_SEARCH_PATH;

@@ -7,6 +7,8 @@
 
 #include "ncexternl.h"
 
+#undef NCJSON_INLINE
+
 /* Json object sorts */
 #define NCJ_UNDEF    0
 #define NCJ_STRING   1
@@ -18,6 +20,9 @@
 #define NCJ_NULL     7
 
 #define NCJ_NSORTS   8
+
+/* External types */
+struct NClist;
 
 /* Don't bother with unions: define
    a struct to store primitive values
@@ -32,14 +37,18 @@
    probing it.
 
 */
-typedef struct NCjson {
+
+typedef struct NCjson NCjson;
+
+#ifdef NCJSON_INTERNAL
+struct NCjson {
     int sort;
     char* value;
-    NClist* contents; /* For array|dict */
-} NCjson;
+    struct NClist* contents; /* For array|dict */
+};
+#endif
 
 struct NCJconst {int bval; long long ival; double dval; char* sval;};
-
 
 #define NCJF_MULTILINE 1
 
@@ -90,8 +99,24 @@ EXTERNL int NCJcvt(const NCjson* value, int outsort, struct NCJconst* output);
 
 /* Macro defined functions */
 #define NCJlength(json) \
-((json)->sort == NCJ_DICT ? (nclistlength((json)->contents)/2) \
-                        : ((json)->sort == NCJ_ARRAY ? (nclistlength((json)->contents)) \
+(NCJsort(json) == NCJ_DICT ? (nclistlength(NCJcontents(json))/2) \
+                        : (NCJsort(json) == NCJ_ARRAY ? (nclistlength(NCJcontents(json))) \
                         : 1))
+#ifdef NCJSON_INLINE
+/* Accessor functions */
+#define NCJsort(json) ((json)->sort)
+#define NCJvalue(json) ((json)->value)
+#define NCJcontents(json) ((json)->contents)
+#define NCJsetsort(json,x) {(json)->? = x;}
+#define NCJvalue(json,x) {(json)->value = x;}
+#define NCJcontents(json,x) {(json)->contents = x;}
+#else
+EXTERNL int NCJsort(const NCjson*);
+EXTERNL char* NCJvalue(const NCjson*);
+EXTERNL NClist* NCJcontents(const NCjson*);
+EXTERNL void NCJsetsort(NCjson*,int);
+EXTERNL void NCJsetvalue(NCjson*,char*);
+EXTERNL void NCJsetcontents(NCjson*,NClist*);
+#endif
 
 #endif /*NCJSON_H*/

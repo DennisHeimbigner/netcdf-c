@@ -314,7 +314,7 @@ zfileexists(NCZMAP* map, const char* key)
     ZTRACE(5,"map=%s key=%s",zfmap->map.url,key);
     switch(stat=zflookupobj(zfmap,key,&fd)) {
     case NC_NOERR: break;
-    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_ENOOBJECT: stat = NC_EEMPTY;
     case NC_EEMPTY: break;
     default: break;
     }
@@ -337,7 +337,7 @@ zfilelen(NCZMAP* map, const char* key, size64_t* lenp)
         /* Get file size */
         if((stat=platformseek(zfmap, &fd, SEEK_END, &len))) goto done;
 	break;
-    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_ENOOBJECT: stat = NC_EEMPTY;
     case NC_EEMPTY: break;
     default: break;
     }
@@ -367,7 +367,7 @@ zfileread(NCZMAP* map, const char* key, size64_t start, size64_t count, void* co
         if((stat = platformseek(zfmap, &fd, SEEK_SET, &start))) goto done;
         if((stat = platformread(zfmap, &fd, count, content))) goto done;
 	break;
-    case NC_ENOTFOUND: stat = NC_EEMPTY;
+    case NC_ENOOBJECT: stat = NC_EEMPTY;
     case NC_EEMPTY: break;
     default: break;
     }
@@ -393,8 +393,9 @@ zfilewrite(NCZMAP* map, const char* key, size64_t start, size64_t count, const v
 #endif
 
     switch (stat = zflookupobj(zfmap,key,&fd)) {
-    case NC_ENOTFOUND:
+    case NC_ENOOBJECT:
     case NC_EEMPTY:
+	stat = NC_NOERR;
 	/* Create the directories leading to this */
 	if((stat = zfcreategroup(zfmap,key,SKIPLAST))) goto done;
         /* Create truepath */
@@ -465,7 +466,7 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
     case NC_EEMPTY: /* not a dir */
 	stat = NC_NOERR;
 	goto done;
-    case NC_ENOTFOUND: /* does not exist */
+    case NC_ENOOBJECT:
     default:
 	goto done;
     }
@@ -519,7 +520,7 @@ done:
 /* Lookup an object
 @return NC_NOERR if found and is a content-bearing object
 @return NC_EEMPTY if exists but is not-content-bearing
-@return NC_ENOTFOUND if not found
+@return NC_ENOOBJECT if not found
 */
 static int
 zflookupobj(ZFMAP* zfmap, const char* key, FD* fd)
@@ -622,7 +623,7 @@ static int
 platformerr(int err)
 {
      switch (err) {
-     case ENOENT: err = NC_ENOTFOUND; break; /* File does not exist */
+     case ENOENT: err = NC_ENOOBJECT; break; /* File does not exist */
      case ENOTDIR: err = NC_EEMPTY; break; /* no content */
      case EACCES: err = NC_EAUTH; break; /* file permissions */
      case EPERM:  err = NC_EAUTH; break; /* ditto */
@@ -634,7 +635,7 @@ platformerr(int err)
 /* Test type of the specified file.
 @return NC_NOERR if found and is a content-bearing object (file)
 @return NC_EEMPTY if exists but is not-content-bearing (a directory)
-@return NC_ENOTFOUND if not found
+@return NC_ENOOBJECT if not found
 */
 static int
 platformtestcontentbearing(ZFMAP* zfmap, const char* truepath)
@@ -697,7 +698,7 @@ platformcreatefile(ZFMAP* zfmap, const char* truepath, FD* fd)
     /* Try to create file (will also localize) */
     fd->fd = NCopen3(truepath, createflags, permissions);
     if(fd->fd < 0) { /* could not create */
-        stat = platformerr(errno);
+	stat = platformerr(errno);
         goto done; /* could not open */
     }
 done:
