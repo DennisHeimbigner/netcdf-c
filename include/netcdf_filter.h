@@ -35,12 +35,12 @@
 /** The maximum allowed setting for pixels_per_block when calling nc_def_var_szip(). */
 #define NC_MAX_PIXELS_PER_BLOCK 32
 
-/**************************************************/
-/* HDF5 Format filter functions */
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+/**************************************************/
+/* HDF5 Format filter functions */
 
 /*Define a filter for a variable */
 EXTERNL int
@@ -59,6 +59,30 @@ EXTERNL int nc_inq_var_filter_ids(int ncid, int varid, size_t* nfilters, unsigne
 EXTERNL int nc_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparams, unsigned int* params);
 
 /* End HDF5 Format Declarations */
+
+/**************************************************/
+/* NCZARR Format filter functions */
+/* The text arguments conform to the NumCodec format
+   for representing filters.
+   See https://numcodecs.readthedocs.io/en/stable/index.html
+*/
+
+/*Define a filter for a variable */
+EXTERNL int
+nc_def_var_filterx(int ncid, int varid, const char* text);
+
+/* Learn about the first defined filter filter on a variable */
+EXTERNL int
+nc_inq_var_filterx(int ncid, int varid, char** textp);
+
+/* Support inquiry about all the filters associated with a variable */
+/* The returned text is an array of filter ids */
+EXTERNL int nc_inq_var_filterx_ids(int ncid, int varid, char** textp);
+
+/* Learn about the filter with specified id wrt a variable */
+EXTERNL int nc_inq_var_filterx_info(int ncid, int varid, const char* id, char** textp);
+
+/* End NCZARR Format Declarations */
 
 #if defined(__cplusplus)
 }

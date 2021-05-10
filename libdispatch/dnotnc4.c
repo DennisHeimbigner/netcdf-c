@@ -50,6 +50,24 @@ NC_NOTNC4_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* npar
 }
 
 int
+NC_NOTNC4_def_var_filterx(int ncid, int varid, const char** text)
+{
+    return NC_ENOTNC4;
+}
+
+int
+NC_NOTNC4_inq_var_filterx_ids(int ncid, int varid, char** textp)
+{
+    return NC_ENOTNC4;
+}
+
+int
+NC_NOTNC4_inq_var_filterx_info(int ncid, int varid, const char* id, char** textp)
+{
+    return NC_ENOTNC4;
+}
+
+int
 NC_NOOP_inq_var_filter_ids(int ncid, int varid, size_t* nfilters, unsigned int* filterids)
 {
     if(nfilters) *nfilters = 0;

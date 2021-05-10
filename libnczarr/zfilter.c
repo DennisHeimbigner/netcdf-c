@@ -718,14 +718,14 @@ NCZ_filter_build(NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter** filterp)
     if((stat = NCJdictget(jfilter,"id",&jvalue))) goto done;    
     /* See if this is a special case */
     for(p=specialfilters;p->name;p++) {
-        if(strcasecmp(p->name,NCJvalue(jvalue))==0) {
+        if(strcasecmp(p->name,NCJstring(jvalue))==0) {
 	    stat = parse_special_filter(var,p,jfilter,filter);
 	    if(filterp) {*filterp = filter; filter = NULL;}
 	    goto done;
 	}
     }
     /* Try to scanf the id value */
-    if((1 != sscanf(NCJvalue(jvalue),"%u",&filter->filterid)))
+    if((1 != sscanf(NCJstring(jvalue),"%u",&filter->filterid)))
         {stat = NC_EFILTER; goto done;}
     /* get the parameters */
     if((stat = NCJdictget(jfilter,"parameters",&jvalue))) goto done;
@@ -735,9 +735,9 @@ NCZ_filter_build(NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter** filterp)
     if((filter->params = calloc(sizeof(unsigned int),filter->nparams))==NULL) {stat = NC_ENOMEM; goto done;}
     for(i=0;i<filter->nparams;i++) {
 	NCjson* jparam;
-	if((stat = NCJarrayith(jvalue,(size_t)i,&jparam))) goto done;
+	jparam = NCJith(jvalue,(size_t)i);
         /* parse it */
-	sscanf(NCJvalue(jparam),"%u",&filter->params[i]);
+	sscanf(NCJstring(jparam),"%u",&filter->params[i]);
     }
 #if DEBUG > 0
     fprintf(stderr,"build filter: id=%u nparams=%u params=%s\n",filter->filterid,(unsigned)filter->nparams,nczprint_paramvector(filter->nparams,filter->params));
@@ -803,7 +803,7 @@ parse_special_filter(const NC_VAR_INFO_T* var, const struct SpecialFilter* speci
     unsigned params[32]; /* max across all supported special filters */
 
     if((stat = NCJdictget(jfilter,"id",&jvalue))) goto done;    
-    if(strcasecmp(NCJvalue(jvalue),"blosc")==0) {
+    if(strcasecmp(NCJstring(jvalue),"blosc")==0) {
 	/* c-blosc appears to take four arguments (aside from buffers)
 	   1. compression level -- int 0<=level<=10
    	   2. doshuffle -- int 1=>shuffle
@@ -818,7 +818,7 @@ parse_special_filter(const NC_VAR_INFO_T* var, const struct SpecialFilter* speci
 	filterid = special->id;
 	nparams = 0;
         if((stat = NCJdictget(jfilter,"clevel",&jvalue))) goto done;    
-	sscanf(NCJvalue(jvalue),"%u",&params[0]);
+	sscanf(NCJstring(jvalue),"%u",&params[0]);
 	nparams++;
         if((stat = NCJdictget(jfilter,"shuffle",&jvalue))) goto done;
 	if((stat = NCJcvt(jvalue,NCJ_BOOLEAN,&njc))) goto done;
@@ -836,7 +836,7 @@ parse_special_filter(const NC_VAR_INFO_T* var, const struct SpecialFilter* speci
 	found = 0;
 	for(i=0;i<nclistlength(bloscfilters);i++) {
 	    const char* name = (const char*)nclistget(bloscfilters,i);
-	    if(strcasecmp(name,NCJvalue(jvalue))==0) {
+	    if(strcasecmp(name,NCJstring(jvalue))==0) {
 		params[3] = i;
 		nparams++;
 		found = 1;
@@ -1104,3 +1104,26 @@ NCZ_unload_plugin(struct NCZ_plugin* plugin, int forceunload)
     }
     return NC_NOERR;
 }
+
+/**************************************************/
+int
+NCZ_def_var_filterx(int ncid, int varid, const char* text)
+{
+    int stat = NC_NOERR;
+    return stat;
+}
+
+int
+NCZ_inq_var_filterx_ids(int ncid, int varid, char** textp)
+{
+    int stat = NC_NOERR;
+    return stat;
+}
+
+int
+NCZ_inq_var_filterx_info(int ncid, int varid, const char* id, char** textp)
+{
+    int stat = NC_NOERR;
+    return stat;
+}
+

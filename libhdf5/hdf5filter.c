@@ -18,10 +18,14 @@
 #include "hdf5debug.h"
 #include "netcdf.h"
 #include "netcdf_filter.h"
+#include "ncjson.h"
 
 #undef TFILTERS
 
+/* Forward */
 static int NC4_hdf5_filter_free(struct NC_HDF5_Filter* spec);
+static int vector2json(size_t n, unsigned* values, char** textp);
+static int json2vector(const NCjson* jarray, size_t* np, unsigned** valuesp);
 
 /**************************************************/
 /* Filter registration support */
@@ -542,3 +546,183 @@ done:
     return stat;
 
 }
+
+/**************************************************/
+/* Provide filterx wrappers */
+
+int
+NC4_hdf5_inq_var_filterx_ids(int ncid, int varid, char** textp)
+{
+    int stat = NC_NOERR;
+    size_t nfilters;
+    unsigned int *ids = NULL;
+    char* json = NULL;
+
+    if((stat = NC4_hdf5_inq_var_filter_ids(ncid,varid,&nfilters,NULL))) goto done;
+    if(nfilters > 0) {
+	if((ids = malloc(sizeof(unsigned int)*nfilters))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+        if((stat = NC4_hdf5_inq_var_filter_ids(ncid,varid,&nfilters,ids))) goto done;
+    }
+    if((stat = vector2json(nfilters,ids,&json))) goto done;
+    if(textp) {*textp = json; json = NULL;}
+done:
+    nullfree(json);
+    nullfree(ids);
+    return stat;
+}
+
+int
+NC4_hdf5_inq_var_filterx_info(int ncid, int varid, const char* zid, char** textp)
+{
+    int stat = NC_NOERR;
+    size_t nparams;
+    unsigned int *params = NULL;
+    char* json = NULL;
+    unsigned int id;
+
+    sscanf(zid,"%u",&id);
+    if((stat = NC4_hdf5_inq_var_filter_info(ncid,varid,id,&nparams,NULL))) goto done;
+    if(nparams > 0) {
+	if((params = malloc(sizeof(unsigned int)*nparams))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+        if((stat = NC4_hdf5_inq_var_filter_info(ncid,varid,id,&nparams,params))) goto done;
+    }
+    if((stat = vector2json(nparams,params,&json))) goto done;
+    if(textp) {*textp = json; json = NULL;}
+done:
+    nullfree(json);
+    nullfree(params);
+    return stat;
+}
+
+int
+NC4_hdf5_def_var_filterx(int ncid, int varid, const char* text)
+{
+    int stat = NC_NOERR;
+    size_t nparams = 0;
+    unsigned int *params = NULL;
+    unsigned int id = 0;
+    NCjson* json = NULL;
+    int idict;
+
+    if((stat = NCJparse(text,0,&json))) goto done;
+    if(NCJsort(json) != NCJ_DICT)
+        {stat = NC_EFILTER; goto done;}
+    for(idict=0;idict < NCJlength(json);idict+=2) {
+	NCjson* key = NCJith(json,idict);
+	NCjson* value = NCJith(json,idict+1);
+	if(key == NULL || value == NULL)
+            {stat = NC_EFILTER; goto done;}
+	if(strcmp(NCJstring(key),"id")==0) sscanf(NCJstring(value),"%u",&id);
+	else if(strcmp(NCJstring(key),"parameters")==0) {
+	    if((stat = json2vector(value,&nparams,&params)))
+                {stat = NC_EFILTER; goto done;}
+	}
+    }
+    if(id == 0) 
+        {stat = NC_EFILTER; goto done;}
+    stat = nc_def_var_filter(ncid,varid,id,nparams,params);
+done:
+    NCJreclaim(json);
+    nullfree(params);
+    return stat;
+}
+
+#if 0
+static int
+hdf5_inq_var_filterx(int ncid, int varid, char** textp)
+{
+    NC* ncp;
+    size_t nparams;
+    unsigned id;
+    unsigned* params = NULL;
+    int stat = NC_check_id(ncid,&ncp);
+    char xid[16];
+    char* jparams = NULL;
+    char* jdict = NULL;
+    size_t jlen;
+
+    if(stat != NC_NOERR) return stat;
+    TRACE(nc_inq_var_filter);
+
+    /* Get the hdf5 results */
+    if((stat = NC4_hdf5_inq_var_filter(ncid,varid,&id,&nparams,NULL))) goto done;
+    if(nparams > 0) {
+	params = (unsigned*)malloc(nparams*sizeof(unsigned));
+        if((stat = nc_inq_var_filter(ncid,varid,&id,&nparams,params))) goto done;	
+    }    
+    /* First, convert the parameters to text */    
+    if((stat = vector2json(nparams,params,&jparams)))
+	{stat = NC_EFILTER; goto done;}        
+    /* Convert the id */
+    snprintf(xid,sizeof(xid),"\"%u\"",id);
+    /* Now compute the size of the output dict text */
+    jlen = 20 /* {"id"=%s, parameters=%s} */
+	   + strlen(xid)
+	   + strlen(jparams)
+	   + 1; /* nul term */
+    if((jdict = (char*)malloc(jlen))== NULL) goto done;
+    snprintf(jdict,jlen,"{\"id\"=%s, parameters=%s}",xid,jparams);
+    if(textp) {*textp = jdict; jdict = NULL;}
+    
+done:
+    nullfree(params);
+    nullfree(jparams);
+    nullfree(jdict);
+    return stat;
+}
+#endif
+
+static int
+vector2json(size_t n, unsigned* values, char** textp)
+{
+    int stat = NC_NOERR;
+    size_t i,jlen;
+    char tmp[16];
+    char* json = NULL;
+
+    jlen = n*12
+	       +2 /* [] */
+	       +n /* commas */
+	      +1 /* nul term */
+	      ;
+    if((json = malloc(jlen))==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    json[0] = '\0';
+    strlcat(json,"[",jlen);
+    for(i=0;i<n;i++) {
+	snprintf(tmp,sizeof(tmp),"%u%s",values[i],(i == n-1?"":","));
+	strlcat(json,tmp,jlen);
+    }
+    strlcat(json,"]",jlen);
+    if(textp) {*textp = json; json = NULL;}
+done:
+    nullfree(json);
+    return stat;
+}
+
+static int
+json2vector(const NCjson* jarray, size_t* np, unsigned** valuesp)
+{
+    int i,stat = NC_NOERR;
+    unsigned* values = NULL;
+    struct NCJconst con;
+
+    if(NCJsort(jarray) != NCJ_ARRAY)
+        {stat = NC_EINVAL; goto done;}
+    if(NCJlength(jarray) > 0 && NCJcontents(jarray) != NULL) {
+	if((values = (unsigned*)malloc(sizeof(unsigned)*NCJlength(jarray)))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	for(i=0;i<NCJlength(jarray);i++) {
+	    if((stat=NCJcvt(NCJith(jarray,i),NCJ_INT,&con))) goto done;
+	    values[i] = (unsigned)con.ival;
+	}
+    }
+    if(np) *np = NCJlength(jarray);
+    if(valuesp) {*valuesp = values; values = NULL;}
+done:
+    nullfree(values);
+    return stat;
+}
+

@@ -37,7 +37,7 @@ SET(PACKAGE_VERSION ${VERSION})
 
 # Version of the dispatch table. This must match the value in
 # configure.ac.
-SET(NC_DISPATCH_VERSION 3)
+SET(NC_DISPATCH_VERSION 4)
 
 # Get system configuration, Use it to determine osname, os release, cpu. These
 # will be used when committing to CDash.
@@ -1992,6 +1992,10 @@ ENDIF()
 
 IF(ENABLE_PLUGINS)
   ADD_SUBDIRECTORY(libncpoco)
+  FILE(COPY ${netCDF_SOURCE_DIR}/include/ncjson.h
+       DESTINATION ${netCDF_BINARY_DIR}/plugins/)
+  FILE(COPY ${netCDF_SOURCE_DIR}/libdispatch/ncjson.c
+       DESTINATION ${netCDF_BINARY_DIR}/plugins/)
 ENDIF()
 
 IF(ENABLE_NCZARR)

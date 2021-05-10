@@ -1733,7 +1733,7 @@ AX_SET_META([NC_HAS_MULTIFILTERS],[$has_multifilters],[yes])
 # dispatch table to submit. If this is changed, make sure the value in
 # CMakeLists.txt also changes to match.
 
-AC_SUBST([NC_DISPATCH_VERSION], [3])
+AC_SUBST([NC_DISPATCH_VERSION], [4])
 AC_DEFINE_UNQUOTED([NC_DISPATCH_VERSION], [${NC_DISPATCH_VERSION}], [Dispatch table version.])
 
 #####
@@ -1767,6 +1767,8 @@ AC_CONFIG_FILES(nczarr_test/tst_multifilter.c:nc_test4/tst_multifilter.c)
 AC_CONFIG_FILES(nczarr_test/test_filter_repeat.c:nc_test4/test_filter_repeat.c)
 AC_CONFIG_FILES(nczarr_test/test_filter_order.c:nc_test4/test_filter_order.c)
 AC_CONFIG_FILES(nczarr_test/findplugin.sh:nc_test4/findplugin.in)
+AC_CONFIG_FILES(plugins/ncjson.c:libdispatch/ncjson.c)
+AC_CONFIG_FILES(plugins/ncjson.h:include/ncjson.h)
 AC_CONFIG_FILES([examples/C/run_par_test.sh], [chmod ugo+x examples/C/run_par_test.sh])
 AC_CONFIG_FILES([nc-config], [chmod 755 nc-config])
 AC_CONFIG_FILES([Makefile

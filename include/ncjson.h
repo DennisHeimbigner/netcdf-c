@@ -1,15 +1,21 @@
 /* Copyright 2018, UCAR/Unidata.
-   See the COPYRIGHT file for more information.
+Copyright 2018 Unidata
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #ifndef NCJSON_H
 #define NCJSON_H 1
 
-#include "ncexternl.h"
-
-#undef NCJSON_INLINE
-
-/* Json object sorts */
+/* Json object sorts (note use of term sort rather than e.g. type or discriminant) */
 #define NCJ_UNDEF    0
 #define NCJ_STRING   1
 #define NCJ_INT      2
@@ -21,36 +27,43 @@
 
 #define NCJ_NSORTS   8
 
-/* External types */
-struct NClist;
+/* No flags are currently defined, but the argument is a placeholder */
 
-/* Don't bother with unions: define
-   a struct to store primitive values
-   as unquoted strings. Sort will 
+
+/* Define a struct to store primitive values
+   as unquoted strings. The sort will 
    provide more info.
-
-   Also, this does not use a true hashmap
-   but rather an envv style list where name
-   and value alternate. This works under
-   the assumption that we are generally
-   iterating over the Dict rather than
-   probing it.
-
+   Do not bother with a union since
+   the amount of saved space is minimal.
 */
 
-typedef struct NCjson NCjson;
+typedef struct NCjson {
+    int sort;     /* of this object */
+    char* string; /* sort != DICT|ARRAY */
+    struct NCjlist {
+	    int len;
+	    struct NCjson** contents;
+    } list; /* sort == DICT|ARRAY */
+} NCjson;
 
-#ifdef NCJSON_INTERNAL
-struct NCjson {
-    int sort;
-    char* value;
-    struct NClist* contents; /* For array|dict */
-};
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
-struct NCJconst {int bval; long long ival; double dval; char* sval;};
+/* Support Windows declspec */  
+#ifndef EXTERNL
+#  ifdef _WIN32
+#    ifdef NCJSON_INTERNAL /* define when compiling code */
+#      define EXTERNL __declspec(dllexport) extern
+#    else
+#      define EXTERNL __declspec(dllimport) extern
+#    endif
+#  else /* !_WIN32 */
+#    define EXTERNL extern
+#  endif
+#endif /* !defined EXTERNL */
 
-#define NCJF_MULTILINE 1
+/* int return value is either 1 (ok) or 0 (failure) */
 
 /* Parse */
 EXTERNL int NCJparse(const char* text, unsigned flags, NCjson** jsonp);
@@ -58,65 +71,50 @@ EXTERNL int NCJparse(const char* text, unsigned flags, NCjson** jsonp);
 /* Build */
 EXTERNL int NCJnew(int sort, NCjson** object);
 
-/* Convert a nul terminated string value to an NCjson object */
+/* Recursively free NCjson instance */
+EXTERNL void NCJreclaim(NCjson*);
+
+/* Assign a nul terminated string value to an NCjson object as its contents */
 EXTERNL int NCJnewstring(int sort, const char* value, NCjson** jsonp);
 
-/* Convert a counted string value to an NCjson object (+ nul term)*/
+/* Assign a counted string value to an NCjson object as its contents */
 EXTERNL int NCJnewstringn(int sort, size_t len, const char* value, NCjson** jsonp);
-
-/* Insert key-value pair into a dict object.
-   key will be strdup'd.
-*/
-EXTERNL int NCJinsert(NCjson* object, char* key, NCjson* value);
-
-/* Insert a string value into a json Dict|Array */
-EXTERNL int NCJaddstring(NCjson* dictarray, int sort, const char* value);
-
-/* Get ith pair from dict */
-EXTERNL int NCJdictith(const NCjson* object, size_t i, const char** keyp, NCjson** valuep);
-
-/* Get value for key from dict */
-EXTERNL int NCJdictget(const NCjson* object, const char* key, NCjson** valuep);
 
 /* Append value to an array or dict object. */
 EXTERNL int NCJappend(NCjson* object, NCjson* value);
 
-/* Get ith element from array */
-EXTERNL int NCJarrayith(const NCjson* object, size_t i, NCjson** valuep);
+/* Insert key-value pair into a dict object. key will be copied */
+EXTERNL int NCJinsert(NCjson* object, char* key, NCjson* value);
 
 /* Unparser to convert NCjson object to text in buffer */
-EXTERNL int NCJunparse(const NCjson* json, int flags, char** textp);
+EXTERNL int NCJunparse(const NCjson* json, unsigned flags, char** textp);
 
 /* Utilities */
-EXTERNL void NCJreclaim(NCjson*);
-EXTERNL int NCJclone(NCjson* json, NCjson** clonep); /* deep clone */
+EXTERNL int NCJaddstring(NCjson*, int sort, const char* s);
+EXTERNL int NCJdictget(const NCjson* dict, const char* key, NCjson** valuep);
 
-/* dump NCjson* object */
-EXTERNL void NCJdump(const NCjson* json, int flags);
+/* dump NCjson* object to output file */
+EXTERNL void NCJdump(const NCjson* json, unsigned flags, FILE*);
 
 /* Convert one json sort to  value of another type; don't bother with union */
+struct NCJconst {int bval; long long ival; double dval; char* sval;};
 EXTERNL int NCJcvt(const NCjson* value, int outsort, struct NCJconst* output);
 
-/* Macro defined functions */
-#define NCJlength(json) \
-(NCJsort(json) == NCJ_DICT ? (nclistlength(NCJcontents(json))/2) \
-                        : (NCJsort(json) == NCJ_ARRAY ? (nclistlength(NCJcontents(json))) \
-                        : 1))
-#ifdef NCJSON_INLINE
-/* Accessor functions */
-#define NCJsort(json) ((json)->sort)
-#define NCJvalue(json) ((json)->value)
-#define NCJcontents(json) ((json)->contents)
-#define NCJsetsort(json,x) {(json)->? = x;}
-#define NCJvalue(json,x) {(json)->value = x;}
-#define NCJcontents(json,x) {(json)->contents = x;}
-#else
-EXTERNL int NCJsort(const NCjson*);
-EXTERNL char* NCJvalue(const NCjson*);
-EXTERNL NClist* NCJcontents(const NCjson*);
-EXTERNL void NCJsetsort(NCjson*,int);
-EXTERNL void NCJsetvalue(NCjson*,char*);
-EXTERNL void NCJsetcontents(NCjson*,NClist*);
+/* Getters */
+#define NCJsort(x) ((x)->sort)
+#define NCJstring(x) ((x)->string)
+#define NCJlength(x) ((x)==NULL ? 0 : (x)->list.len)
+#define NCJcontents(x) ((x)->list.contents)
+#define NCJith(x,i) ((x)->list.contents[i])
+
+/* Setters */
+#define NCJsetsort(x,s) (x)->sort=(s)
+#define NCJsetstring(x,y) (x)->string=(y)
+#define NCJsetcontents(x,c) (x)->list.contents=(c)
+#define NCJsetlength(x,l) (x)->list.len=(l)
+
+#if defined(__cplusplus)
+}
 #endif
 
 #endif /*NCJSON_H*/

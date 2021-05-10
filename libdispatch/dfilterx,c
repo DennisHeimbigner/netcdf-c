@@ -1,0 +1,426 @@
+/*
+ * Copyright 2018, University Corporation for Atmospheric Research
+ * See netcdf/COPYRIGHT file for copying and redistribution conditions.
+ */
+
+#include "config.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#ifdef _MSC_VER
+#include <io.h>
+#endif
+
+#include "netcdf.h"
+#include "netcdf_filter.h"
+#include "ncdispatch.h"
+#include "nc4internal.h"
+
+#include "ncjson.h"
+
+/*Forward*/
+static int hdf5_inq_var_filterz_ids(int ncid, int varid, char** jsonp);
+static int hdf5_inq_var_filterz_info(int ncid, int varid, const char* zid, char** jsonp);
+static int hdf5_def_var_filterz(int ncid, int varid, const char* text);
+static int hdf5_inq_var_filterz(int ncid, int varid, char** idp, char** jsonp);
+static int vector2json(size_t n, unsigned* values, char** jsonp);
+
+#define isstring(x) ((x) != NULL && (x)->sort != NCJ_DICT && (x)->sort != NCJ_DICT && strlen((x)->u.s)>0)
+
+/*
+NCZarr filter API
+*/
+
+/**************************************************/
+/* Per-variable filters */
+
+/**
+Find the set of filters (if any) associated with a variable.
+Assumes NCZarr format using json
+
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+\param varid Variable ID
+\param jsonp a JSON formatted string is returned in this argument
+
+\returns ::NC_NOERR No error.
+\returns ::NC_ENOTNC4 Not a netCDF-4 file.
+\returns ::NC_EBADID Bad ncid
+\returns ::NC_ENOTVAR Invalid variable ID.
+\returns ::NC_EINVAL Invalid arguments
+\ingroup variables
+\author Dennis Heimbigner
+*/
+EXTERNL int
+nc_inq_var_filterz_ids(int ncid, int varid, char** jsonp)
+{
+    NC* ncp;
+    int stat = NC_NOERR;
+
+    TRACE(nc_inq_var_filterz_ids);
+    if((stat = NC_check_id(ncid,&ncp))) return stat;
+    /* short circuit application to HDF5 */
+    if(ncp->dispatch->model == NC_FORMATX_NC_HDF5) {
+	if((stat = hdf5_inq_var_filterz_ids(ncid,varid,jsonp))) goto done;
+    } else {
+	if((stat = ncp->dispatch->inq_var_filterz_ids(ncid,varid,jsonp))) goto done;
+    }
+
+done:
+    return stat;
+}
+
+/**
+Find the the param info about filter (if any)
+associated with a variable and with specified id.
+Assumes HDF5 format using unsigned ints.
+
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as
+nc_inq_ncid().
+
+\param varid Variable ID
+\param id The filter id of interest
+\param nparamsp (Out) Storage which will get the number of parameters to the filter
+\param params (Out) Storage which will get associated parameters.
+Note: the caller must allocate and free.
+
+\returns ::NC_NOERR No error.
+\returns ::NC_ENOTNC4 Not a netCDF-4 file.
+\returns ::NC_EBADID Bad ncid.
+\returns ::NC_ENOTVAR Invalid variable ID.
+\returns ::NC_ENOFILTER Specified filter not defined for this variable.
+\ingroup variables
+\author Dennis Heimbigner
+*/
+EXTERNL int
+nc_inq_var_filterz_info(int ncid, int varid, const char* id, char** jsonp)
+{
+    NC* ncp;
+    int stat = NC_check_id(ncid,&ncp);
+
+    TRACE(nc_inq_var_filterz_info);
+    if(stat != NC_NOERR) return stat;
+    if(ncp->dispatch->model == NC_FORMATX_NC_HDF5) {
+	if((stat = hdf5_inq_var_filterz_info(ncid,varid,id,jsonp))) goto done;
+    } else {
+        if((stat = ncp->dispatch->inq_var_filterz_info(ncid,varid,id,jsonp))) goto done;
+    }
+done:
+     return stat;
+}
+
+/**
+   Define a new variable filter
+   Assumes HDF5 format using unsigned ints.
+   Only variables with chunked storage can use filters.
+
+   @param ncid File and group ID.
+   @param varid Variable ID.
+   @param id Filter ID.
+   @param nparams Number of filter parameters.
+   @param parms Filter parameters.
+
+   @return ::NC_NOERR No error.
+   @return ::NC_EINVAL Variable must be chunked.
+   @return ::NC_EBADID Bad ID.
+   @author Dennis Heimbigner
+*/
+
+EXTERNL int
+nc_def_var_filterz(int ncid, int varid, const char* json)
+{
+    NC* ncp;
+    int stat = NC_check_id(ncid,&ncp);
+
+    TRACE(nc_inq_var_filterz_info);
+    if(stat != NC_NOERR) return stat;
+    if(ncp->dispatch->model == NC_FORMATX_NC_HDF5) {
+	if((stat = hdf5_def_var_filterz(ncid,varid,json))) goto done;
+    } else {
+        if((stat = ncp->dispatch->def_var_filterz(ncid,varid,json))) goto done;
+    }
+done:
+    return stat;
+}
+
+/**
+Find the first filter (if any) associated with a variable.
+   
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as
+nc_inq_ncid().
+
+\param varid Variable ID
+
+\param jsonp Storage which will get the filter info (id + parameters) in json format
+
+This is redundant over the multi-filter API, so
+it can be implemented in terms of those functions.
+
+\returns ::NC_NOERR No error.
+\returns ::NC_ENOTNC4 Not a netCDF-4 file.
+\returns ::NC_EBADID Bad ncid.
+\returns ::NC_ENOTVAR Invalid variable ID.
+
+\ingroup variables
+\author Dennis Heimbigner
+*/
+EXTERNL int
+nc_inq_var_filterz(int ncid, int varid, char** jsonp)
+{
+    NC* ncp;
+    int stat = NC_NOERR;
+    char* text = NULL;
+    NCjson* json = NULL;
+    NCjson* jid = NULL;
+    
+    TRACE(nc_inq_var_filter);
+    if((stat = NC_check_id(ncid,&ncp))) goto done;
+
+    /* Get the filters on this variable */
+    if((stat = nc_inq_var_filterz_ids(ncid,varid,&text))) goto done;
+    /* Parse it */
+    if((stat = NCJparse(text,0,&json))) goto done;
+    if(json->sort != NCJ_ARRAY)
+        {stat = NC_EFILTER; goto done;}
+    if(json->u.list == NULL || json->u.list[0] == NULL)
+        {stat = NC_ENOFILTER; goto done;}    
+    jid = json->u.list[0];
+    if(jid->sort == NCJ_DICT || jid->sort == NCJ_ARRAY)
+        {stat = NC_EFILTER; goto done;}
+    /* Get info about the first filter */
+    if((stat = nc_inq_var_filterz_info(ncid,varid,jid->u.s,jsonp)))
+        {stat = NC_ENOFILTER; goto done;}
+ done:
+    NCJreclaim(json);
+    return stat;
+}
+
+/**************************************************/
+/* Support direct user defined filters */
+
+#ifdef ENABLE_CLIENTSIDE_FILTERS
+
+/* Use void* to avoid having to include hdf.h*/
+EXTERNL int
+nc_filterz_client_register(unsigned int id, void* info)
+{
+    int stat = NC_NOERR;
+#ifdef USE_HDF5
+    NC_FILTERZ_OBJ_HDF5 client;
+    if(id == 0 ||info == NULL)
+	return NC_EINVAL;
+    memset(&client,0,sizeof(client));
+    client.hdr.format = NC_FILTERZ_FORMAT_HDF5;
+    client.sort = NC_FILTERZ_SORT_CLIENT;
+    client.u.client.id = id;
+    client.u.client.info = info;
+    /* Note use of a global function, not part of the dispatch table */
+    stat = nc4_global_filterz_action(NCFILTER_CLIENT_REG, id, &client);
+#else
+    stat = NC_ENOTBUILT;
+#endif
+    return stat;
+}
+
+EXTERNL int
+nc_filterz_client_unregister(unsigned int id)
+{
+int stat = NC_NOERR;
+#ifdef USE_HDF5
+    stat = nc4_global_filterz_action(NCFILTER_CLIENT_UNREG, id, NULL);
+#else
+    stat = NC_ENOTBUILT;
+#endif
+    return stat;
+}
+
+/* Use void* to avoid having to include hdf.h*/
+EXTERNL int
+nc_filterz_client_inq(unsigned int id, void* infop)
+{
+int stat = NC_NOERR;
+#ifdef USE_HDF5
+    H5Z_class2_t* hct = (H5Z_class2_t*)infop;
+    NC_FILTERZ_OBJ_HDF5 client;
+    if(id == 0 ||infop == NULL)
+	return NC_EINVAL;
+    memset(&client,0,sizeof(client));
+    client.hdr.format = NC_FILTERZ_FORMAT_HDF5;
+    client.sort = NC_FILTERZ_SORT_CLIENT;
+    client.u.client.id = id;
+    client.u.client.info = hct;
+    /* Note use of a global function, not part of the dispatch table */
+    stat = nc4_global_filterz_action(NCFILTER_CLIENT_INQ, id, &client);
+    if(stat == NC_NOERR) {
+	*hct = *(H5Z_class2_t*)client.u.client.info;
+    }
+#else
+    stat = NC_ENOTBUILT;
+#endif
+    return stat;
+}
+#endif /*ENABLE_CLIENTSIDE_FILTERS*/
+
+/* Provide filterz wrappers when accessing HDF5 */
+
+static int
+hdf5_inq_var_filterz_ids(int ncid, int varid, char** jsonp)
+{
+    int stat = NC_NOERR;
+    size_t nfilters;
+    unsigned int *ids = NULL;
+
+    if((stat = nc_inq_var_filter_ids(ncid,varid,&nfilters,NULL))) goto done;
+    if(nfilters > 0) {
+	if((ids = malloc(sizeof(unsigned int)*nfilters))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+        if((stat = nc_inq_var_filter_ids(ncid,varid,&nfilters,ids))) goto done;
+    }
+    if((stat = vector2json(nfilters,ids,jsonp))) goto done;
+
+done:
+    nullfree(ids);
+    return stat;
+}
+
+static int
+hdf5_inq_var_filterz_info(int ncid, int varid, const char* zid, char** jsonp)
+{
+    int stat = NC_NOERR;
+    size_t nparams;
+    unsigned int *params = NULL;
+    unsigned int id;
+
+    sscanf(zid,"%u",&id);
+    if((stat = nc_inq_var_filter_info(ncid,varid,id,&nparams,NULL))) goto done;
+    if(nparams > 0) {
+	if((params = malloc(sizeof(unsigned int)*nparams))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+        if((stat = nc_inq_var_filter_info(ncid,varid,id,&nparams,params))) goto done;
+    }
+    if((stat = vector2json(nparams,params,jsonp))) goto done;
+done:
+    nullfree(params);
+    return stat;
+}
+
+static int
+hdf5_def_var_filterz(int ncid, int varid, const char* text)
+{
+    int stat = NC_NOERR;
+    size_t nparams = 0;
+    unsigned int *params = NULL;
+    unsigned int id = 0;
+    NCjson* json = NULL;
+    NCjson** dict;
+
+    if((stat = NCJparse(text,0,&json))) goto done;
+    if(json->sort != NCJ_DICT)
+        {stat = NC_EFILTER; goto done;}
+    for(dict=json->u.list;*dict;dict+=2) {
+	NCjson* key = dict[0];
+	NCjson* value = dict[1];
+	if(!isstring(key) || !isstring(value))
+            {stat = NC_EFILTER; goto done;}
+	if(strcmp(key->u.s,"id")==0) sscanf(value->u.s,"%u",&id);
+	else if(strcmp(key->u.s,"parameters")==0) {
+	    if((stat = json2vector(value,&nparams,&params)))
+                {stat = NC_EFILTER; goto done;}
+	}
+    }
+    if(id == 0) 
+        {stat = NC_EFILTER; goto done;}
+    stat = nc_def_var_filter(ncid,varid,id,nparams,params)
+done:
+    NCJreclaim(json);
+    nullfree(params);
+    return stat;
+}
+
+static int
+hdf5_inq_var_filterz(int ncid, int varid, char** idp, char** jsonp)
+{
+    NC* ncp;
+    size_t id, nparams, jlen;
+    unsigned* params = NULL;
+    int stat = NC_check_id(ncid,&ncp);
+    char* tmp[16];
+
+    if(stat != NC_NOERR) return stat;
+    TRACE(nc_inq_var_filter);
+
+    /* Get the hdf5 results */
+    if((stat = nc_inq_var_filter(ncid,varid,&id,&nparams,NULL))) goto done;
+    if(nparams > 0) {
+	params = (unsigned*)malloc(nparams*sizeof(unsigned));
+        if((stat = nc_inq_var_filter(ncid,varid,&id,&nparams,params))) goto done;	
+    }    
+    if((stat = params2json(nparams,params,&json)))
+	{stat = NC_EFILTER; goto done;}        
+}
+
+
+static int
+vector2json(size_t n, unsigned* values, char** jsonp)
+{
+    int stat = NC_NOERR;
+    size_t i,jlen;
+    char tmp[16];
+    char* json = NULL;
+
+    jlen = n*12
+	       +2 /* [] */
+	       +n /* commas */
+	      +1 /* nul term */
+	      ;
+    if((json = malloc(jlen))==NULL)
+	{stat = NC_ENOMEM; goto exit;}
+    json[0] = '\0';
+    strlcat(json,"[",jlen);
+    for(i=0;i<n;i++) {
+	snprintf(tmp,sizeof(tmp),"%u%s,values[i],(i == n-1?"":","));
+	strlcat(json,tmp,jlen);
+    }
+    strlcat(json,"]",jlen);
+    if(jsonp) {*jsonp = json; json = NULL;}
+
+ done:
+    nullfree(json);
+    return stat;
+}
+
+static int
+json2vector(const char* txt, size_t* np, unsigned** vecp)
+{
+    int stat = NC_NOERR;
+    NCjson* json = NULL;
+    struct NCJconst value;
+    struct NCjson** a;
+    size_t n,i;
+    unsigned* vec = NULL;
+
+    if((stat = NCJparse(txt,0,&json))) goto done;
+    if(json->sort != NCJ_ARRAY)
+        {stat = NC_EFILTER; goto done;}
+    n = 0;
+    for(a=json->u.list;*a;a++) (n)++;
+    if(n > 0) {
+        if((vec = (unsigned*)malloc(sizeof(unsigned)*n_))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+    }
+    for(i=0,a=json->u.list;*a;a++,i++) {
+	if(!isstring(*a))
+            {stat = NC_EFILTER; goto done;}
+	if((stat = NCJcvt(*a,NCJ_INT,&value))) 
+            {stat = NC_EFILTER; goto done;}
+	vec[i] = (unsigned)value.ival;
+    }
+    if(np) *np = n;
+    if(vecp) {*vecp = vec; vec = NULL;}
+
+done:
+    nullfree(vec);
+    NCJreclaim(json);
+    return stat;
+}
