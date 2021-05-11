@@ -4,51 +4,41 @@
 */
 
 #include "config.h"
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
+#include <assert.h>
+#include <sys/types.h>
 
-#include <hdf5.h>
+/* Test using the filterx interface
+   for HDF5 filters
+*/
+
 #include "netcdf.h"
-#include "netcdf_aux.h"
 #include "netcdf_filter.h"
+#include "ncbytes.h"
+#include "ncjson.h"
 
 #undef TESTODDSIZE
 
 #undef DEBUG
 
-/* The C standard apparently defines all floating point constants as double;
-   we rely on that in this code.
-*/
-#define DBLVAL 12345678.12345678
-
-#define TEST_ID 32768
+#define FILTER_ID 40000
 
 #define MAXERRS 8
 
 #define MAXPARAMS 32
 
-#define NPARAMS 14
-
-static unsigned int baseline[NPARAMS];
-
-static const char* testfile = NULL;
-
 #define MAXDIMS 8
 
-#define DFALT_TESTFILE "tmp_misc.nc"
+#define DFALT_TESTFILE "tmp_filterx_hdf5.nc"
 
-#define spec "32768, -17b, 23ub, -25S, 27US, 77, 93U, 789f, 12345678.12345678d, -9223372036854775807L, 18446744073709551615UL"
+#define NPARAMS 1
+#define PARAMVAL 17
 
-#ifdef TESTODDSIZE
-#define NDIMS 1
-static size_t dimsize[NDIMS] = {4};
-static size_t chunksize[NDIMS] = {3};
-#else
 #define NDIMS 4
 static size_t dimsize[NDIMS] = {4,4,4,4};
 static size_t chunksize[NDIMS] = {4,4,4,4};
-#endif
 
 static size_t ndims = NDIMS;
 
@@ -56,9 +46,10 @@ static size_t totalproduct = 1; /* x-product over max dims */
 static size_t actualproduct = 1; /* x-product over actualdims */
 static size_t chunkproduct = 1; /* x-product over actual chunks */
 
-static size_t pattern[MAXDIMS];
-
 static int nerrs = 0;
+
+static char* testfile = NULL;
+
 
 static int ncid, varid;
 static int dimids[MAXDIMS];
@@ -66,12 +57,8 @@ static size_t odom[MAXDIMS];
 static float* array = NULL;
 static float* expected = NULL;
 
-static unsigned int filterid = 0;
-static size_t nparams = 0;
-static unsigned int params[MAXPARAMS];
-
 /* Forward */
-static int test_test1(void);
+static int filter_test1(void);
 static void init(int argc, char** argv);
 static void reset(void);
 static void odom_reset(void);
@@ -79,7 +66,8 @@ static int odom_more(void);
 static int odom_next(void);
 static int odom_offset(void);
 static float expectedvalue(void);
-static void verifyparams(void);
+static int vector2json(size_t n, unsigned* values, char** textp);
+static int json2vector(const NCjson* jarray, size_t* np, unsigned** valuesp);
 
 #define ERRR do { \
 fflush(stdout); /* Make sure our stdout is synced with stderr. */ \
@@ -97,12 +85,14 @@ check(int err,int line)
     return NC_NOERR;
 }
 
+#if 0
 static void
 report(const char* msg, int lineno)
 {
     fprintf(stderr,"fail: line=%d %s\n",lineno,msg);
     exit(1);
 }
+#endif
 
 #define CHECK(x) check(x,__LINE__)
 #define REPORT(x) report(x,__LINE__)
@@ -133,7 +123,7 @@ create(void)
 {
     int i;
 
-    /* Create a file with one big variable, but whose dimensions arte not a multiple of chunksize (to see what happens) */
+    /* Create a file with one big variable */
     CHECK(nc_create(testfile, NC_NETCDF4|NC_CLOBBER, &ncid));
     CHECK(nc_set_fill(ncid, NC_NOFILL, NULL));
     for(i=0;i<ndims;i++) {
@@ -146,65 +136,57 @@ create(void)
 }
 
 static void
-setvarfilter(void)
+deffilter(unsigned int id, size_t nparams, unsigned int* params)
 {
-    CHECK(nc_def_var_filter(ncid,varid,TEST_ID,NPARAMS,baseline));
-    verifyparams();
+    char template[8192];
+    char* tmp = NULL;
+
+    CHECK(vector2json(nparams,params,&tmp));
+    snprintf(template,sizeof(template),"{\"id\":%u, \"parameters\":%s}",id,tmp);
+    /* Register filter */
+    CHECK(nc_def_var_filterx(ncid,varid,template));
+    nullfree(tmp);
 }
 
 static void
-verifyparams(void)
+printfilter(unsigned int id)
 {
-    int i;
-    CHECK(nc_inq_var_filter(ncid,varid,&filterid,&nparams,params));
-    if(filterid != TEST_ID) REPORT("id mismatch");
-    if(nparams != NPARAMS) REPORT("nparams mismatch");
-    for(i=0;i<nparams;i++) {
-        if(params[i] != baseline[i])
-            REPORT("param mismatch");
-    }
+    char* buf = NULL;
+    char xid[64];
+
+    snprintf(xid,sizeof(xid),"%u",id);
+
+    CHECK(nc_inq_var_filterx_info(ncid,varid,xid,&buf));
+    printf("filter(%s): params=%s\n",xid,buf);
+    nullfree(buf);
 }
 
 static int
 openfile(void)
 {
-    unsigned int* params = NULL;
+    unsigned int* filterids = NULL;
+    size_t nfilters = 0;
+    int k;
+    char* buf = NULL;
+    NCjson* json = NULL;
 
     /* Open the file and check it. */
     CHECK(nc_open(testfile, NC_NOWRITE, &ncid));
     CHECK(nc_inq_varid(ncid, "var", &varid));
 
-    /* Check the compression algorithm */
-    CHECK(nc_inq_var_filter(ncid,varid,&filterid,&nparams,NULL));
-    if(nparams > 0) {
-        params = (unsigned int*)malloc(sizeof(unsigned int)*nparams);
-        if(params == NULL)
-            return NC_ENOMEM;
-        CHECK(nc_inq_var_filter(ncid,varid,&filterid,&nparams,params));
-    }
-    if(filterid != TEST_ID) {
-        fprintf(stderr,"open: test id mismatch: %d\n",filterid);
-        return NC_EFILTER;
-    }
-    if(nparams != NPARAMS) {
-	size_t i;
-	unsigned int inqparams[MAXPARAMS];
-        fprintf(stderr,"nparams  mismatch\n");
-        for(nerrs=0,i=0;i<nparams;i++) {
-            if(inqparams[i] != baseline[i]) {
-                fprintf(stderr,"open: testparam mismatch: %ld\n",(unsigned long)i);
-		nerrs++;
-	    }
-	}
-    }
-    if(nerrs > 0) return NC_EFILTER; 
-
-    if(params) free(params);
-
     /* Verify chunking */
     if(!verifychunks())
         return 0;
+    /* Check the compression algorithms */
+    CHECK(nc_inq_var_filterx_ids(ncid,varid,&buf));
+    CHECK(NCJparse(buf,0,&json));
+    CHECK(json2vector(json,&nfilters,&filterids));
+    for(k=0;k<nfilters;k++)
+	printfilter(filterids[k]);
     fflush(stderr);
+    nullfree(buf);
+    nullfree(filterids);
+    NCJreclaim(json);
     return 1;
 }
 
@@ -239,12 +221,11 @@ fill(void)
    }
 }
 
-
 static int
 compare(void)
 {
     int errs = 0;
-    fprintf(stderr,"data comparison: |array|=%ld\n",(unsigned long)actualproduct);
+    printf("data comparison: |array|=%ld\n",(unsigned long)actualproduct);
     if(1)
     {
         int i;
@@ -275,147 +256,46 @@ compare(void)
    }
 
    if(errs == 0)
-        fprintf(stderr,"no data errors\n");
+        printf("no data errors\n");
    return (errs == 0);
 }
 
-static void
-showparameters(void)
-{
-    int i;
-    fprintf(stderr,"test: nparams=%ld: params=",(unsigned long)nparams);
-    for(i=0;i<nparams;i++) {
-        fprintf(stderr," %u",params[i]);
-    }
-    fprintf(stderr,"\n");
-    for(i=0;i<ndims;i++) {
-	if(i==0)
-            fprintf(stderr,"dimsizes=%ld",(unsigned long)dimsize[i]);
-	else
-            fprintf(stderr,",%ld",(unsigned long)dimsize[i]);
-    }
-    fprintf(stderr,"\n");
-    for(i=0;i<ndims;i++) {
-	if(i==0)
-            fprintf(stderr,"chunksizes=%ld",(unsigned long)chunksize[i]);
-	else
-            fprintf(stderr,",%ld",(unsigned long)chunksize[i]);
-    }
-    fprintf(stderr,"\n");
-    fflush(stderr);
-}
-
-static void
-insert(int index, void* src, size_t size)
-{
-    unsigned char src8[8];
-    void* dst = &baseline[index];
-    if(size == 8) {
-	memcpy(src8,src,size);
-	ncaux_h5filterspec_fix8(src8,0);
-	src = src8;
-    }
-    memcpy(dst,src,size);
-}
-
-static void
-buildbaseline(unsigned int testcasenumber)
-{
-    unsigned int val4;
-    unsigned long long val8;
-    float float4;
-    double float8;
-
-    baseline[0] = testcasenumber;
-    switch (testcasenumber) {
-    case 1:
-        val4 = ((unsigned int)-17) & 0xff;
-        insert(1,&val4,sizeof(val4)); /* 1 signed int*/
-	val4 = (unsigned int)23;
-        insert(2,&val4,sizeof(val4)); /* 2 unsigned int*/
-        val4 = ((unsigned int)-25) & 0xffff;
-        insert(3,&val4,sizeof(val4)); /* 3 signed int*/
-	val4 = (unsigned int)27;
-        insert(4,&val4,sizeof(val4)); /* 4 unsigned int*/
-	val4 = (unsigned int)77;
-        insert(5,&val4,sizeof(val4)); /* 5 signed int*/
-	val4 = (unsigned int)93;
-        insert(6,&val4,sizeof(val4)); /* 6 unsigned int*/
-	float4 = 789.0f;
-        insert(7,&float4,sizeof(float4)); /* 7 float */
-	float8 = DBLVAL;
-        insert(8,&float8,sizeof(float8)); /* 8 double */
-	val8 = -9223372036854775807L;
-        insert(10,&val8,sizeof(val8)); /* 10 signed long long */
-	val8 = 18446744073709551615UL;
-        insert(12,&val8,sizeof(val8)); /* 12 unsigned long long */
-	break;
-    case 2:
-    	break;
-    default:
-	fprintf(stderr,"Unknown testcase number: %d\n",testcasenumber);
-	abort();
-    }
-}
-
 static int
-test_test1(void)
+filter_test1(void)
 {
     int ok = 1;
+    unsigned int params[MAXPARAMS];    
 
     reset();
 
-    buildbaseline(1);
-
-    fprintf(stderr,"test1: compression.\n");
+    printf("test1: def filter repeat .\n");
     create();
     setchunking();
-    setvarfilter();
-    showparameters();
+
+    params[0] = 1;
+    params[1] = 17;
+    deffilter(FILTER_ID,2,params);
+
+    params[0] = 0;
+    params[1] = 18;
+    deffilter(FILTER_ID,2,params);
+
     CHECK(nc_enddef(ncid));
 
     /* Fill in the array */
     fill();
+
+    printf("test1: compression.\n");
     /* write array */
     CHECK(nc_put_var(ncid,varid,expected));
     CHECK(nc_close(ncid));
 
-    fprintf(stderr,"test1: decompression.\n");
+    printf("test1: decompression.\n");
     reset();
     openfile();
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
-    CHECK(nc_close(ncid));
-    return ok;
-}
 
-static int
-test_test2(void)
-{
-    int ok = 1;
-
-    reset();
-
-    buildbaseline(2);
-
-    fprintf(stderr,"test2: dimsize %% chunksize != 0: compress.\n");
-    create();
-    setchunking();
-    setvarfilter();
-    showparameters();
-    CHECK(nc_enddef(ncid));
-
-    /* Fill in the array */
-    fill();
-    /* write array */
-    CHECK(nc_put_var(ncid,varid,expected));
-    CHECK(nc_close(ncid));
-
-    fprintf(stderr,"test2: dimsize %% chunksize != 0: decompress.\n");
-    reset();
-    openfile();
-    CHECK(nc_get_var_float(ncid, varid, array));
-    ok = compare();
     CHECK(nc_close(ncid));
     return ok;
 }
@@ -495,9 +375,7 @@ init(int argc, char** argv)
     actualproduct = 1;
     chunkproduct = 1;
     for(i=0;i<NDIMS;i++) {
-        if(pattern[i] == 1)
-	    chunksize[i] = 1;
-        totalproduct *= dimsize[i];
+	totalproduct *= dimsize[i];
         if(i < ndims) {
             actualproduct *= dimsize[i];
             chunkproduct *= chunksize[i];
@@ -509,6 +387,63 @@ init(int argc, char** argv)
 }
 
 /**************************************************/
+/* Utilities */
+
+static int
+vector2json(size_t n, unsigned* values, char** textp)
+{
+    int stat = NC_NOERR;
+    size_t i,jlen;
+    char tmp[16];
+    char* json = NULL;
+
+    jlen = n*12
+	       +2 /* [] */
+	       +n /* commas */
+	      +1 /* nul term */
+	      ;
+    if((json = malloc(jlen))==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    json[0] = '\0';
+    strlcat(json,"[",jlen);
+    for(i=0;i<n;i++) {
+	snprintf(tmp,sizeof(tmp),"%u%s",values[i],(i == n-1?"":","));
+	strlcat(json,tmp,jlen);
+    }
+    strlcat(json,"]",jlen);
+    if(textp) {*textp = json; json = NULL;}
+done:
+    nullfree(json);
+    return stat;
+}
+
+
+static int
+json2vector(const NCjson* jarray, size_t* np, unsigned** valuesp)
+{
+    int i,stat = NC_NOERR;
+    unsigned* values = NULL;
+    struct NCJconst con;
+
+    if(NCJsort(jarray) != NCJ_ARRAY)
+        {stat = NC_EINVAL; goto done;}
+    if(NCJlength(jarray) > 0 && NCJcontents(jarray) != NULL) {
+	if((values = (unsigned*)malloc(sizeof(unsigned)*NCJlength(jarray)))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	for(i=0;i<NCJlength(jarray);i++) {
+	    if((stat=NCJcvt(NCJith(jarray,i),NCJ_INT,&con))) goto done;
+	    values[i] = (unsigned)con.ival;
+	}
+    }
+    if(np) *np = NCJlength(jarray);
+    if(valuesp) {*valuesp = values; values = NULL;}
+done:
+    nullfree(values);
+    return stat;
+}
+
+
+/**************************************************/
 int
 main(int argc, char **argv)
 {
@@ -517,7 +452,6 @@ main(int argc, char **argv)
     nc_set_log_level(1);
 #endif
     init(argc,argv);
-    if(!test_test1()) ERRR;
-    if(!test_test2()) ERRR;
+    if(!filter_test1()) ERRR;
     exit(nerrs > 0?1:0);
 }

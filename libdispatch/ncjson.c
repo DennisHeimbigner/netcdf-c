@@ -48,6 +48,11 @@ typedef struct NCJparser {
     int err;
 } NCJparser;
 
+typedef struct NCJbuf {
+    int len; /* |text|; does not include nul terminator */
+    char* text; /* NULL || nul terminated */
+} NCJbuf;
+
 /**************************************************/
 /* Forward */
 static int NCJparseR(NCJparser* parser, NCjson**);
@@ -61,13 +66,13 @@ static int NCJlex(NCJparser* parser);
 static int NCJyytext(NCJparser*, char* start, size_t pdlen);
 static void NCJreclaimArray(struct NCjlist*);
 static void NCJreclaimDict(struct NCjlist*);
-static int NCJunparseR(const NCjson* json, char** buf, unsigned flags);
+static int NCJunparseR(const NCjson* json, NCJbuf* buf, unsigned flags);
 static int NCJunescape(NCJparser* parser);
-static int bytesappendquoted(char** bufp, const char*);
 static int listappend(struct NCjlist* list, NCjson* element);
-static int bytesappend(char** bufp, const char* s);
-static int bytesappendc(char** bufp, const char c);
-static int escape(const char* text, char** buf);
+static int bytesappendquoted(NCJbuf* buf, const char*);
+static int bytesappend(NCJbuf* buf, const char* s);
+static int bytesappendc(NCJbuf* buf, const char c);
+static int escape(const char* text, NCJbuf* buf);
 
 #define nullfree(x) {if(x)free(x);}
 #define nulldup(x) ((x)?strdup(x):(x))
@@ -449,9 +454,11 @@ static void
 NCJreclaimArray(struct NCjlist* array)
 {
     int i;
-    for(i=0;array->len;i++) {
+    for(i=0;i<array->len;i++) {
 	NCJreclaim(array->contents[i]);
     }
+    nullfree(array->contents);
+    array->contents = NULL;
 }
 
 static void
@@ -691,17 +698,17 @@ int
 NCJunparse(const NCjson* json, unsigned flags, char** textp)
 {
     int stat = NCJ_OK;
-    char* buf = NULL;
+    NCJbuf buf = {0,NULL};
     if((stat = NCJunparseR(json,&buf,flags)))
 	goto done;
-    if(textp) {*textp = buf; buf = NULL;}
+    if(textp) {*textp = buf.text; buf.text = NULL; buf.len = 0;}
 done:
-    nullfree(buf);
+    nullfree(buf.text);
     return (stat);
 }
 
 static int
-NCJunparseR(const NCjson* json, char** buf, unsigned flags)
+NCJunparseR(const NCjson* json, NCJbuf* buf, unsigned flags)
 {
     int stat = NCJ_OK;
     int i;
@@ -757,7 +764,7 @@ done:
 
 /* Escape a string and append to buf */
 static int
-escape(const char* text, char** buf)
+escape(const char* text, NCJbuf* buf)
 {
     const char* p = text;
     int c;
@@ -783,7 +790,7 @@ escape(const char* text, char** buf)
 }
 
 static int
-bytesappendquoted(char** buf, const char* s)
+bytesappendquoted(NCJbuf* buf, const char* s)
 {
     bytesappend(buf,"\"");
     escape(s,buf);
@@ -796,8 +803,10 @@ NCJdump(const NCjson* json, unsigned flags, FILE* out)
 {
     char* text = NULL;
     (void)NCJunparse(json,0,&text);
+    if(out == NULL) out = stderr;
     fprintf(out,"%s\n",text);
     fflush(out);
+    nullfree(text);
 }
 
 #ifdef DEBUG
@@ -937,42 +946,41 @@ done:
 }
 
 static int
-bytesappend(char** bufp, const char* s)
+bytesappend(NCJbuf* buf, const char* s)
 {
     int stat = NCJ_OK;
-    char* buf = NULL;
-    char* newbuf = NULL;
-    if(bufp == NULL)
+    char* newtext = NULL;
+    if(buf == NULL)
         {stat = NCJ_ERR; goto done;}
     if(s == NULL) s = "";
-    buf = *bufp;
-    if(buf == NULL) {
-	buf = strdup(s);
-	if(buf == NULL)
+    if(buf->len == 0) {
+	assert(buf->text == NULL);
+	buf->text = strdup(s);
+	if(buf->text == NULL)
 	    {stat = NCJ_ERR; goto done;}
-	*bufp = buf; buf = NULL;
+	buf->len = strlen(s);
     } else {
-	size_t blen = strlen(buf);
 	size_t slen = strlen(s);
-        if((newbuf = (char*)malloc(blen+slen+1))==NULL)
+	size_t newlen = buf->len + slen + 1;
+        if((newtext = (char*)malloc(newlen))==NULL)
             {stat = NCJ_ERR; goto done;}
-        strcpy(newbuf,buf);
-	strcat(newbuf,s);	
-	free(buf);
-	*bufp = newbuf; newbuf = NULL;
+        strcpy(newtext,buf->text);
+	strcat(newtext,s);	
+	free(buf->text); buf->text = NULL;
+	buf->text = newtext; newtext = NULL;
+	buf->len = newlen;
     }
 
 done:
-    nullfree(buf);
-    nullfree(newbuf);
+    nullfree(newtext);
     return stat;
 }
 
 static int
-bytesappendc(char** bufp, const char c)
+bytesappendc(NCJbuf* bufp, const char c)
 {
     char s[2];
     s[0] = c;
-    s[1] = 1;
+    s[1] = '\0';
     return bytesappend(bufp,s);
 }

@@ -25,7 +25,7 @@
 
 #define MAXDIMS 8
 
-#define DFALT_TESTFILE "testfilter_order.nc"
+#define DFALT_TESTFILE "tmp_filter_order.nc"
 
 #define NPARAMS 1
 #define PARAMVAL 17
