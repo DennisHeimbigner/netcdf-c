@@ -8,7 +8,7 @@ SET(libdispatch_SOURCES dparallel.c dcopy.c dfile.c ddim.c datt.c dattinq.c datt
 dcrc32.c dcrc32.h dcrc64.c ncexhash.c ncxcache.c ncjson.c ncjson.h)
 
 # Netcdf-4 only functions. Must be defined even if not used
-SET(libdispatch_SOURCES ${libdispatch_SOURCES} dgroup.c dvlen.c dcompound.c dtype.c denum.c dopaque.c dfilter.c dfilterx.c)
+SET(libdispatch_SOURCES ${libdispatch_SOURCES} dgroup.c dvlen.c dcompound.c dtype.c denum.c dopaque.c dfilter.c)
 
 IF(BUILD_V2)
   SET(libdispatch_SOURCES ${libdispatch_SOURCES} dv2i.c)

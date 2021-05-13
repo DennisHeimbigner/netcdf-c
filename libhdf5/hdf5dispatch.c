@@ -105,10 +105,6 @@ static const NC_Dispatch HDF5_dispatcher = {
 
     NC4_hdf5_inq_var_filter_ids,
     NC4_hdf5_inq_var_filter_info,
-
-    NC4_hdf5_def_var_filterx,
-    NC4_hdf5_inq_var_filterx_ids,
-    NC4_hdf5_inq_var_filterx_info,
 };
 
 const NC_Dispatch* HDF5_dispatch_table = NULL; /* moved here from ddispatch.c */

@@ -77,7 +77,6 @@ if ENABLE_FILTER_TESTING
 extradir =
 check_PROGRAMS += test_filter test_filter_misc test_filter_order test_filter_repeat
 check_PROGRAMS += tst_multifilter
-check_PROGRAMS += test_filterx_hdf5
 TESTS += tst_filter.sh
 endif
 endif # BUILD_UTILITIES
@@ -101,8 +100,7 @@ ref_unfiltered.cdl ref_bzip2.c findplugin.in ref_unfilteredvv.cdl	\
 ref_filteredvv.cdl ref_multi.cdl                                        \
 ref_ncgenF.cdl ref_nccopyF.cdl                                          \
 ref_filter_repeat.txt ref_fillonly.cdl test_fillonly.sh                 \
-ref_filter_order_create.txt ref_filter_order_read.txt                   \
-ref_filterx_hdf5.txt
+ref_filter_order_create.txt ref_filter_order_read.txt
 
 CLEANFILES = tst_mpi_parallel.bin cdm_sea_soundings.nc bm_chunking.nc	\
 tst_floats_1D.cdl floats_1D_3.nc floats_1D.cdl tst_*.nc tmp_*.txt       \

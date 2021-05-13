@@ -60,30 +60,6 @@ EXTERNL int nc_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t*
 
 /* End HDF5 Format Declarations */
 
-/**************************************************/
-/* NCZARR Format filter functions */
-/* The text arguments conform to the NumCodec format
-   for representing filters.
-   See https://numcodecs.readthedocs.io/en/stable/index.html
-*/
-
-/*Define a filter for a variable */
-EXTERNL int
-nc_def_var_filterx(int ncid, int varid, const char* text);
-
-/* Learn about the first defined filter filter on a variable */
-EXTERNL int
-nc_inq_var_filterx(int ncid, int varid, char** textp);
-
-/* Support inquiry about all the filters associated with a variable */
-/* The returned text is an array of filter ids */
-EXTERNL int nc_inq_var_filterx_ids(int ncid, int varid, char** textp);
-
-/* Learn about the filter with specified id wrt a variable */
-EXTERNL int nc_inq_var_filterx_info(int ncid, int varid, const char* id, char** textp);
-
-/* End NCZARR Format Declarations */
-
 #if defined(__cplusplus)
 }
 #endif
