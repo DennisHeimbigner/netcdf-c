@@ -113,6 +113,9 @@ EXTERNL int NCJcvt(const NCjson* value, int outsort, struct NCJconst* output);
 #define NCJsetcontents(x,c) (x)->list.contents=(c)
 #define NCJsetlength(x,l) (x)->list.len=(l)
 
+/* Misc */
+#define NCJisatomic(j) ((j)->sort != NCJ_ARRAY && (j)->sort != NCJ_DICT && (j)->sort != NCJ_NULL && (j)->sort != NCJ_UNDEF)
+
 #if defined(__cplusplus)
 }
 #endif

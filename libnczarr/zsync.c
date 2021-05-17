@@ -975,18 +975,18 @@ inferattrtype(NCjson* value, nc_type* typeidp)
 
     if(NCJlength(value) == 0) return NC_EINVAL;
     if(value->sort == NCJ_ARRAY) {
-	if(NCJarrayith(value,0,&j)) return NC_EINVAL;
+	j=NCJith(value,0);
 	return inferattrtype(j,typeidp);
     }
-    if(value->value)
-        negative = (value->value[0] == '-');
+    if(NCJstring(value) != NULL)
+        negative = (NCJstring(value)[0] == '-');
     switch (value->sort) {
     case NCJ_INT:
 	if(negative) {
-	    sscanf(value->value,"%lld",&i64);
+	    sscanf(NCJstring(value),"%lld",&i64);
 	    u64 = (unsigned long long)i64;
 	} else
-	    sscanf(value->value,"%llu",&u64);
+	    sscanf(NCJstring(value),"%llu",&u64);
 	typeid = mininttype(u64,negative);
 	break;
     case NCJ_DOUBLE:

@@ -61,7 +61,8 @@
 
 /* Hold the loaded filter information for all possible filter ids */
 static struct NCZ_plugin {
-    const H5Z_filter_class* filter;
+    const H5Z_filter_class* h5filter;
+    const NCZ_codec_t* codec;
     NCPSharedLib* library;
     int refcount;
 } loaded_filters[H5Z_FILTER_MAX];
@@ -1059,7 +1060,7 @@ static int
 NCZ_load_plugin(const char* path, struct NCZ_plugin* plug)
 {
     int stat = NC_NOERR;
-    const H5Z_filter_class* fclass = NULL;
+    const H5Z_filter_class* h5class = NULL;
     NCPSharedLib* lib = NULL;
     int flags = NCP_GLOBAL;
     
@@ -1069,15 +1070,22 @@ NCZ_load_plugin(const char* path, struct NCZ_plugin* plug)
     if((stat = ncpsharedlibnew(&lib))) goto done;
     if((stat = ncpload(lib,path,flags))) goto done;
 
-    /* See if this is a filter plugin */
+    /* See what we have */
     {
 	H5Z_get_plugin_type_proto gpt =  (H5Z_get_plugin_type_proto)ncpgetsymbol(lib,"H5PLget_plugin_type");
 	H5Z_get_plugin_info_proto gpi =  (H5Z_get_plugin_info_proto)ncpgetsymbol(lib,"H5PLget_plugin_info");
-	if(gpt == NULL) {stat = NC_EPLUGIN; goto done;}
-	if(gpi == NULL) {stat = NC_EPLUGIN; goto done;}
-	if(gpt() != H5PL_TYPE_FILTER) {stat = NC_EPLUGIN; goto done;}
-	fclass = gpi();
-	if(fclass->version != H5Z_FILTER_CLASS_VER) {stat = NC_EFILTER; goto done;}
+	NCZ_get_plugin_type_proto npt =  (H5Z_get_plugin_type_proto)ncpgetsymbol(lib,"NCZ_get_plugin_type");
+	NCZ_get_plugin_info_proto npi =  (NCZ_get_plugin_info_proto)ncpgetsymbol(lib,"NCZ_get_plugin_info");
+
+	if(gpt != NULL && gpi != NULL) {
+	    /* get HDF5 info */
+	    H5PL_plugin_type_t h5type = gpt();
+	    h5class = gpi();	    
+	    /* Verify */
+	    if(h5type != H5PL_TYPE_FILTER) {stat = NC_EPLUGIN; goto done;}
+	    if(fclass->version != H5Z_FILTER_CLASS_VER) {stat = NC_EFILTER; goto done;}
+	}
+	
     }
     plug->filter = fclass;
     plug->library = lib;
@@ -1103,27 +1111,5 @@ NCZ_unload_plugin(struct NCZ_plugin* plugin, int forceunload)
 	plugin->library = NULL;
     }
     return NC_NOERR;
-}
-
-/**************************************************/
-int
-NCZ_def_var_filterx(int ncid, int varid, const char* text)
-{
-    int stat = NC_NOERR;
-    return stat;
-}
-
-int
-NCZ_inq_var_filterx_ids(int ncid, int varid, char** textp)
-{
-    int stat = NC_NOERR;
-    return stat;
-}
-
-int
-NCZ_inq_var_filterx_info(int ncid, int varid, const char* id, char** textp)
-{
-    int stat = NC_NOERR;
-    return stat;
 }
 

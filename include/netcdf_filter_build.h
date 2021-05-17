@@ -95,33 +95,54 @@ typedef const void* (*H5Z_get_plugin_info_proto)(void);
 /**************************************************/
 /* Build To a NumCodecs-stype C-API for Filters */
 
+/* Defined return Error Codes */
+#define NCZ_OK		0	/* no error */
+#define NCZ_ENOMEM	1	/* malloc failed */
+#define NCZ_EINVAL	2	/* invalid argument */
+#define NCZ_EJSON	3	/* malformed JSON */
+#define NCZ_EFILTER	4	/* filter failed */
+
 #define NCZ_PLUGIN_CLASS_VER 1
 
 /* Plugin sorts */
-#define NCZ_PLUGIN_CODEC 1	/* Codec */
+#define NCZ_PLUGIN_CODEC_AWARE 1
+#define NCZ_PLUGIN_CODEC_ONLY 2
 
 #define NCZ_CODEC_CLASS_VER 1
 
 /* Defined flags for filter invocation (not stored); powers of two */
-#define H5Z_FILTER_DECODE 0x00000001
+#define NCZ_FILTER_DECODE 0x00000001
 
-/* return pointer to instance of NCZ_plugin_class_t or NULL */
+/* External Discovery Functions */
+
+/* NCZ_get_plugin_type(void)
+   Return NCZ_PLUGIN_XXXX flag */
+typedef int (*NCZ_get_plugin_type_proto)(void);
+
+/* NCZ_get_plugin_info(void)
+   return pointer to instance of NCZ_plugin_class_t or NULL */
 /* Can be recast based on sort to the plugin type specific info */
-typedef const void* (*NCZ_get_plugin_info)(void);
+typedef const void* (*NCZ_get_plugin_info_proto)(void);
+
+/* API Functions */
 
 /* Setup takes two arguments:
-1. json_codec -- a string containing the JSON codec representation of id plus parameters (in)
+1. codec_json -- a string containing the JSON codec representation of id plus parameters (in)
 2. statep -- a pointer into which is returned arbitrary state; state is allocated by this code; may be NULL if unneeded (out)
 This function may be called multiple times.
+
+The return value is an error code (see above).
 */
-typedef int (*NCZ_codec_func_setup_t)(const char* json_codec, void** statep);
+typedef int (*NCZ_codec_func_setup_t)(const char* codec_json, void** statep);
 
 /* Shutdown takes two arguments:
 1. state -- a pointer to final state; state must be reclaimed (in)
-2. jsonp - a pointer into which a string containing the final JSON codec representation of id plus parameters;
+2. codec_jsonp - a pointer into which a string containing the final JSON codec representation of id plus parameters;
    NULL result implies no change (out).
+
+The return value is an error code (see above).
 */
-typedef int (*NCZ_codec_func_shutdown_t)(void* state, char** jsonp);
+typedef int (*NCZ_codec_func_shutdown_t)(void* state, char** codec_jsonp);
 
 /* Eval takes following arguments:
 1. statep -- a pointer to pointer to arbitrary state: in/out; state may be modified by this function.
@@ -129,11 +150,14 @@ typedef int (*NCZ_codec_func_shutdown_t)(void* state, char** jsonp);
 3. allocp -- allocated size of the buffer (in/out)
 4. usedp -- how much of buffer holds real data (in/out)
 5. bufferp -- buffer of data (in/out)
+
+The return value is an error code (see above).
+
 Ideally the eval function will use the input buffer to store compressed/uncompressed data.
 If necessary, the input buffer can be reclaimed and replaced with new output buffer,
 with matching changes to allocp and usedp.
 */
-typedef int (*NCZ_codec_func_eval_t)(void** state, unsigned flags, size_t* allocp, size_t* usedp, void** bufferp);
+typedef int (*NCZ_codec_func_eval_t)(void* state, unsigned flags, size_t* allocp, size_t* usedp, void** bufferp);
 
 /*
 In C, a form of pseudo subclassing is possible in that a struct can legally
@@ -143,17 +167,23 @@ that can then be re-cast to be an instance of the containing struct.
 */
 typedef struct NCZ_plugin_class_t {
     int version;	/* Version number of the struct; should be NCZ_PLUGIN_CLASS_VER */
-    int sort;		/* What kind of plugin: see list above */
+    int sort;		/* What kind of plugin: see list above (NCZ_PLUGIN_XXX) */
 } NCZ_plugin_class_t;
 
-typedef struct NCZ_codec_class_t {
+/* Structure for NCZ_PLUGIN_CODEC */
+typedef struct NCZ_codec_t {
     NCZ_plugin_class_t hdr;		/* All plugins begin with this for pseudo-subclassing */
     int version;			/* Version number of the struct; should be NCZ_CODEX_CLASS_VER */
-    char* id;				/* The name/id of the codec */
+    const char* id;			/* The name/id of the codec */
     NCZ_codec_func_setup_t setup;	/* setup -- may be invoked multiple times with different parameters */
     NCZ_codec_func_shutdown_t shutdown;	/* shutdown -- optionally return final json for codec */
     NCZ_codec_func_eval_t codec;	/* The actual encode/decode function */
-} NCZ_codec_class_t;
+    H5Z_filter_class* hdf5;	        /* Corresponding HDF5 filter info if hdr.sort = CODEC_ONLY */    
+} NCZ_codec_t;
+
+#ifndef NC_UNUSED
+#define NC_UNUSED(var) (void)var
+#endif
 
 #endif /*NETCDF_FILTER_BUILD_H*/
 
