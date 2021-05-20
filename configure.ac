@@ -1114,10 +1114,16 @@ AC_C_BIGENDIAN
 # Figure out platforms of special interest
 case "`uname`" in
   CYGWIN*) ISCYGWIN=yes;;
+  Darwin*) ISOSX=yes;;
   WIN*) ISMSVC=yes;;
 esac
 AM_CONDITIONAL(ISCYGWIN, [test "x$ISCYGWIN" = xyes])
 AM_CONDITIONAL(ISMSVC, [test "x$ISMSVC" = xyes])
+AM_CONDITIONAL(ISOSX, [test "x$ISOSX" = xyes])
+
+AC_SUBST([ISMSVC], [${ISMSVC}])
+AC_SUBST([ISCYGWIN], [${ISCYGWIN}])
+AC_SUBST([ISOSX], [${ISOSX}])
 
 ###
 # Crude hack to work around an issue
@@ -1740,8 +1746,6 @@ AC_DEFINE_UNQUOTED([NC_DISPATCH_VERSION], [${NC_DISPATCH_VERSION}], [Dispatch ta
 # End netcdf_meta.h definitions.
 #####
 
-# This would be true for a visual studio build.
-AC_SUBST([ISMSVC], [${ISMSVC}])
 # This would be true for a cmake build.
 AC_SUBST([ISCMAKE], [])
 
