@@ -124,6 +124,11 @@ typedef int (*NCZ_get_plugin_type_proto)(void);
 /* Can be recast based on sort to the plugin type specific info */
 typedef const void* (*NCZ_get_plugin_info_proto)(void);
 
+/* NCZ_set_plugin_implentation(void*)
+   Give the Codec-only interface a pointer to the instance of a struct H5Z_filter_class
+   telling the codec about its HDF5 counterpart. */
+typedef int (*NCZ_set_plugin_implementation_proto)(void*);
+
 /* API Functions */
 
 /* Setup takes two arguments:
@@ -178,7 +183,10 @@ typedef struct NCZ_codec_t {
     NCZ_codec_func_setup_t setup;	/* setup -- may be invoked multiple times with different parameters */
     NCZ_codec_func_shutdown_t shutdown;	/* shutdown -- optionally return final json for codec */
     NCZ_codec_func_eval_t codec;	/* The actual encode/decode function */
-    H5Z_filter_class* hdf5;	        /* Corresponding HDF5 filter info if hdr.sort = CODEC_ONLY */    
+    struct HDF5 {			/* Corresponding HDF5 filter info if hdr.sort = CODEC_ONLY */    
+	unsigned int id;	            /* The corresponding HDF5 filter id */ 
+        H5Z_filter_class* info;	            /* The corresponding H5Z_filter_class */
+    } hdf5;				
 } NCZ_codec_t;
 
 #ifndef NC_UNUSED
