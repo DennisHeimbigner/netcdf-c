@@ -91,102 +91,61 @@ typedef const void* (*H5Z_get_plugin_info_proto)(void);
 
 #endif /*H5_VERS_INFO*/
 
-
 /**************************************************/
-/* Build To a NumCodecs-stype C-API for Filters */
+/* Build To a NumCodecs-style C-API for Filters */
 
-/* Defined return Error Codes */
-#define NCZ_OK		0	/* no error */
-#define NCZ_ENOMEM	1	/* malloc failed */
-#define NCZ_EINVAL	2	/* invalid argument */
-#define NCZ_EJSON	3	/* malformed JSON */
-#define NCZ_EFILTER	4	/* filter failed */
-
-#define NCZ_PLUGIN_CLASS_VER 1
-
-/* Plugin sorts */
-#define NCZ_PLUGIN_CODEC_AWARE 1
-#define NCZ_PLUGIN_CODEC_ONLY 2
-
+/* Version of the NCZ_codec_t structure */
 #define NCZ_CODEC_CLASS_VER 1
+
+/* List of the kinds of NCZ_codec_t formats */
+#define NCZ_CODEC_HDF5 1 /* HDF5 <-> Codec converter */
 
 /* Defined flags for filter invocation (not stored); powers of two */
 #define NCZ_FILTER_DECODE 0x00000001
 
-/* External Discovery Functions */
+/* External Discovery Function */
 
-/* NCZ_get_plugin_type(void)
-   Return NCZ_PLUGIN_XXXX flag */
-typedef int (*NCZ_get_plugin_type_proto)(void);
-
-/* NCZ_get_plugin_info(void)
-   return pointer to instance of NCZ_plugin_class_t or NULL */
-/* Can be recast based on sort to the plugin type specific info */
-typedef const void* (*NCZ_get_plugin_info_proto)(void);
-
-/* NCZ_set_plugin_implentation(void*)
-   Give the Codec-only interface a pointer to the instance of a struct H5Z_filter_class
-   telling the codec about its HDF5 counterpart. */
-typedef int (*NCZ_set_plugin_implementation_proto)(void*);
-
-/* API Functions */
-
-/* Setup takes two arguments:
-1. codec_json -- a string containing the JSON codec representation of id plus parameters (in)
-2. statep -- a pointer into which is returned arbitrary state; state is allocated by this code; may be NULL if unneeded (out)
-This function may be called multiple times.
-
-The return value is an error code (see above).
+/* NCZ_get_codec_info(void) --  returns pointer to instance of NCZ_codec_class_t or NULL.
+				Can be recast based on version+sort to the plugin type specific info.
 */
-typedef int (*NCZ_codec_func_setup_t)(const char* codec_json, void** statep);
+typedef const void* (*NCZ_get_codec_info_proto)(void);
 
-/* Shutdown takes two arguments:
-1. state -- a pointer to final state; state must be reclaimed (in)
-2. codec_jsonp - a pointer into which a string containing the final JSON codec representation of id plus parameters;
-   NULL result implies no change (out).
+/* The current object returned by NCZ_get_codec_info is a
+   pointer to an instance of NCZ_codec_t.
 
-The return value is an error code (see above).
+The key to this struct is the two function pointers that do the conversion between codec JSON and HDF5 parameters.
+
+Convert a JSON representation to an HDF5 representation:
+int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
+
+@param codec -- (in) ptr to JSON string representing the codec.
+@param nparamsp -- (out) store the length of the converted HDF5 unsigned vector
+@param paramsp -- (out) store a pointer to the converted HDF5 unsigned vector;
+                  caller frees. Note the double indirection.
+@return -- a netcdf-c error code.
+
+
+Convert an HDF5 representation to a JSON representation
+int (*NCZ_hdf5_to_codec)(int nparamsp, const unsigned* paramsp, char** codecp);
+@param nparams -- (in) the length of the HDF5 unsigned vector
+@param params -- (in) pointer to the HDF5 unsigned vector.
+@param codecp -- (out) store the string representation of the codec; caller must free.
+@return -- a netcdf-c error code.
 */
-typedef int (*NCZ_codec_func_shutdown_t)(void* state, char** codec_jsonp);
-
-/* Eval takes following arguments:
-1. statep -- a pointer to pointer to arbitrary state: in/out; state may be modified by this function.
-2. flags -- indicate if encoding or decoding; other flags not yet defined
-3. allocp -- allocated size of the buffer (in/out)
-4. usedp -- how much of buffer holds real data (in/out)
-5. bufferp -- buffer of data (in/out)
-
-The return value is an error code (see above).
-
-Ideally the eval function will use the input buffer to store compressed/uncompressed data.
-If necessary, the input buffer can be reclaimed and replaced with new output buffer,
-with matching changes to allocp and usedp.
-*/
-typedef int (*NCZ_codec_func_eval_t)(void* state, unsigned flags, size_t* allocp, size_t* usedp, void** bufferp);
 
 /*
-In C, a form of pseudo subclassing is possible in that a struct can legally
-be cast to the first field of the struct.
-So all of the plugins return a pointer to an instance of NCZ_plugin_class_t
-that can then be re-cast to be an instance of the containing struct.
+The struct that provides the necessary filter info.
+The combination of version + sort uniquely determines
+the format of the remainder of the struct
 */
-typedef struct NCZ_plugin_class_t {
-    int version;	/* Version number of the struct; should be NCZ_PLUGIN_CLASS_VER */
-    int sort;		/* What kind of plugin: see list above (NCZ_PLUGIN_XXX) */
-} NCZ_plugin_class_t;
-
-/* Structure for NCZ_PLUGIN_CODEC */
 typedef struct NCZ_codec_t {
-    NCZ_plugin_class_t hdr;		/* All plugins begin with this for pseudo-subclassing */
-    int version;			/* Version number of the struct; should be NCZ_CODEX_CLASS_VER */
-    const char* id;			/* The name/id of the codec */
-    NCZ_codec_func_setup_t setup;	/* setup -- may be invoked multiple times with different parameters */
-    NCZ_codec_func_shutdown_t shutdown;	/* shutdown -- optionally return final json for codec */
-    NCZ_codec_func_eval_t codec;	/* The actual encode/decode function */
-    struct HDF5 {			/* Corresponding HDF5 filter info if hdr.sort = CODEC_ONLY */    
-	unsigned int id;	            /* The corresponding HDF5 filter id */ 
-        H5Z_filter_class* info;	            /* The corresponding H5Z_filter_class */
-    } hdf5;				
+    int version; /* Version number of the struct */
+    int sort; /* Format of remainder of the struct;
+                 Currently always NCZ_CODEC_HDF5 */
+    const char* id;            /* The name/id of the codec */
+    const unsigned int hdf5id; /* corresponding hdf5 id */
+    int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned* paramsp);
+    int (*NCZ_hdf5_to_codec)(int nparams, unsigned* params, char** codecp);
 } NCZ_codec_t;
 
 #ifndef NC_UNUSED

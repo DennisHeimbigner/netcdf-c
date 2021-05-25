@@ -14,16 +14,10 @@ BZIP2SRC = blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c 
 BZ2PLUGINSRC = H5Zbzip2.c
 BZ2PLUGINHDRS = h5bzip2.h
 
-
 EXTRA_DIST = ${BZ2PLUGINSRC} ${BZ2PLUGINHDRS} \
              ${BZIP2SRC} ${BZIP2HDRS} \
-             ${ZPLUGINSRC} ${ZPLUGINHDRS} \
              H5Ztemplate.c H5Zmisc.c H5Zutil.c H5Znoop.c h5noop.h CMakeLists.txt \
-	     NCZdeflate.c NCZdeflate.h
-
-# WARNING: This list must be kept consistent with the corresponding
-# AC_CONFIG_LINK commands near the end of configure.ac.
-HDF5PLUGINSRC = ${BZ2PLUGINSRC} ${BZIP2SRC} ${BZ2PLUGINHDRS} ${BZIP2HDRS}
+	     NCZdeflate.c
 
 if ENABLE_FILTER_TESTING
 
@@ -34,13 +28,12 @@ libh5bzip2_la_SOURCES = ${HDF5PLUGINSRC}
 
 libmisc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h
 
-libnczdeflate_la_SOURCES = NCZdeflate.c NCZdeflate.h
+libnczdeflate_la_SOURCES = NCZdeflate.c ncjson.c
 
 # The noop filter is to allow testing of multifilters and filter order
 # Need two distinct instances
 libnoop_la_SOURCES = H5Znoop.c H5Zutil.c h5noop.h
 libnoop1_la_SOURCES = H5Znoop1.c H5Zutil.c h5noop.h
-
 endif #ENABLE_FILTER_TESTING
 
 BUILT_SOURCES = H5Znoop1.c

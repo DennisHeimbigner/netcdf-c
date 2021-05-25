@@ -61,8 +61,13 @@
 
 /* Hold the loaded filter information for all possible filter ids */
 static struct NCZ_plugin {
-    const H5Z_filter_class* h5filter;
-    const NCZ_codec_t* codec;
+    struct HDF5API {
+        const H5Z_filter_class* h5filter;
+    } hdf5;
+    struct CodecAPI {
+	NCZ_codec_hdf5_t codec_hdf5;
+	NCZ_codec_hdf5_params_t codec_hdf5_params;
+    } codec;
     NCPSharedLib* library;
     int refcount;
 } loaded_filters[H5Z_FILTER_MAX];
