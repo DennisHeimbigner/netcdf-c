@@ -142,7 +142,7 @@ typedef struct NCZ_codec_t {
     int version; /* Version number of the struct */
     int sort; /* Format of remainder of the struct;
                  Currently always NCZ_CODEC_HDF5 */
-    const char* id;            /* The name/id of the codec */
+    const char* codecid;            /* The name/id of the codec */
     const unsigned int hdf5id; /* corresponding hdf5 id */
     int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned* paramsp);
     int (*NCZ_hdf5_to_codec)(int nparams, unsigned* params, char** codecp);
