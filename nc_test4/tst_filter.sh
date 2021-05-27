@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
@@ -42,10 +42,23 @@ trimleft() {
 sed -e 's/[ 	]*\([^ 	].*\)/\1/' <$1 >$2
 }
 
+# Hide/unhide the bzip2 filter
+hidebzip2() {
+  rm -fr ${HDF5_PLUGIN_PATH}/save
+  mkdir ${HDF5_PLUGIN_PATH}/save
+  mv ${BZIP2PATH} ${HDF5_PLUGIN_PATH}/save
+}
+
+unhidebzip2() {
+  mv ${HDF5_PLUGIN_PATH}/save/${BZIP2LIB} ${HDF5_PLUGIN_PATH}
+  rm -fr ${HDF5_PLUGIN_PATH}/save
+}
+
 # Locate the plugin path and the library names; argument order is critical
 # Find bzip2 and capture
 findplugin h5bzip2
-BZIP2PATH="${HDF5_PLUGIN_PATH}/${HDF5_PLUGIN_LIB}"
+BZIP2LIB="${HDF5_PLUGIN_LIB}"
+BZIP2PATH="${HDF5_PLUGIN_PATH}/${BZIP2LIB}"
 # Find misc and capture
 findplugin misc
 MISCPATH="${HDF5_PLUGIN_PATH}/${HDF5_PLUGIN_LIB}"
@@ -169,24 +182,32 @@ fi
 
 if test "x$UNK" = x1 ; then
 echo "*** Testing access to filter info when filter dll is not available"
-rm -f tmp_bzip2.nc ./tmp_filter.txt
-# build tmp_bzip2.nc
-${NCGEN} -lb -4 -o tmp_bzip2.nc ${srcdir}/bzip2.cdl
-# dump and clean tmp_bzip2.nc header only when filter is avail
-${NCDUMP} -hs tmp_bzip2.nc > ./tmp_filter.txt
-# Remove irrelevant -s output
-sclean ./tmp_filter.txt tmp_bzip2.dump
+rm -f bzip2.nc ./tst_filter.txt
+# xfail build bzip2.nc 
+hidebzip2
+if ${NCGEN} -lb -4 -o bzip2.nc ${srcdir}/bzip2.cdl ; then
+    echo "*** FAIL: ncgen"
+else
+    echo "*** XFAIL: ncgen"
+fi
+unhidebzip2    
+# build bzip2.nc 
+${NCGEN} -lb -4 -o bzip2.nc ${srcdir}/bzip2.cdl
 # Now hide the filter code
-mv ${BZIP2PATH} ${BZIP2PATH}.save
-# dump and clean bzip2.nc header only when filter is not avail
-rm -f ./tmp_filter.txt
-${NCDUMP} -hs tmp_bzip2.nc > ./tmp_filter.txt
-# Remove irrelevant -s output
-sclean ./tmp_filter.txt tmp_bzip2x.dump
+hidebzip2
+rm -f ./tst_filter.txt
+# This will xfail
+if ${NCDUMP} -s bzip2.nc > ./tst_filter.txt ; then
+    echo "*** FAIL: ncdump -hs bzip2.nc"
+else
+    echo "*** XFAIL: ncdump -hs bzip2.nc"
+fi
 # Restore the filter code
-mv ${BZIP2PATH}.save ${BZIP2PATH}
-diff -b -w ./tmp_bzip2.dump ./tmp_bzip2x.dump
-echo "*** Pass: ncgen dynamic filter"
+unhidebzip2
+# Verify we can see filter when using -h
+rm -f ./tst_filter.txt
+${NCDUMP} -hs bzip2.nc > ./tst_filter.txt
+echo "*** Pass: unknown filter"
 fi
 
 if test "x$NGC" = x1 ; then

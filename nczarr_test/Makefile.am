@@ -23,7 +23,7 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 check_PROGRAMS =
 TESTS =
 
-check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking 
+check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking
 
 commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
 tstcommonsrc = tst_utils.c tst_utils.h
