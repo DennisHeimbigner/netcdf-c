@@ -46,6 +46,13 @@ if USE_HDF5
 bin_PROGRAMS += nc4print
 noinst_PROGRAMS += nc4print
 nc4print_SOURCES = nc4print.c nc4printer.c
+
+# Create a helper program for tst_scope.sh
+# Program prints out the fqn of the type of
+# a specified variable in the .nc file.
+noinst_PROGRAMS += printfqn
+printfqn_SOURCES = printfqn.c
+
 endif
 
 # Conditionally build the ocprint program, but do not install
@@ -81,7 +88,7 @@ XFAIL_TESTS += tst_null_byte_padding.sh
 endif
 
 if ! ISCYGWIN
-TESTS += test_unicode_directory.sh 
+TESTS += test_unicode_directory.sh  test_unicode_path.sh
 endif
 
 if LARGE_FILE_TESTS
@@ -103,7 +110,7 @@ TESTS += tst_fileinfo.sh tst_hdf5_offset.sh tst_inttags4.sh		\
 tst_netcdf4.sh tst_fillbug.sh tst_netcdf4_4.sh tst_nccopy4.sh		\
 tst_nccopy5.sh tst_grp_spec.sh tst_mud.sh tst_h_scalar.sh tst_formatx4.sh		\
 run_utf8_nc4_tests.sh run_back_comp_tests.sh run_ncgen_nc4_tests.sh	\
-tst_ncgen4.sh
+tst_ncgen4.sh test_scope.sh
 
 # Record interscript dependencies so parallel builds work.
 tst_nccopy4.log: run_ncgen_tests.log tst_output.log tst_ncgen4.log	\
@@ -164,12 +171,12 @@ tst_ncgen4_cycle.sh tst_null_byte_padding.sh				\
 ref_null_byte_padding_test.nc ref_tst_irish_rover.nc			\
 ref_provenance_v1.nc ref_tst_radix.cdl tst_radix.cdl test_radix.sh	\
 ref_nccopy_w.cdl tst_nccopy_w3.sh tst_nccopy_w4.sh			\
-ref_no_ncproperty.nc test_unicode_directory.sh				\
+ref_no_ncproperty.nc test_unicode_directory.sh test_unicode_path.sh      \
 ref_roman_szip_simple.cdl ref_roman_szip_unlim.cdl ref_tst_perdimspecs.cdl \
-test_keywords.sh ref_keyword1.cdl ref_keyword2.cdl                      \
-ref_keyword3.cdl ref_keyword4.cdl                                       \
-ref_tst_nofilters.cdl test_unicode_path.sh test_rcmerge.sh              \
-ref_rcmerge1.txt ref_rcmerge2.txt ref_rcmerge3.txt
+test_keywords.sh ref_keyword1.cdl ref_keyword2.cdl ref_keyword3.cdl ref_keyword4.cdl \
+ref_tst_nofilters.cdl test_scope.sh  \
+test_rcmerge.sh ref_rcmerge1.txt ref_rcmerge2.txt ref_rcmerge3.txt \
+scope_ancestor_only.cdl scope_ancestor_subgroup.cdl scope_group_only.cdl scope_preorder.cdl
 
 # The L512.bin file is file containing exactly 512 bytes each of value 0.
 # It is used for creating hdf5 files with varying offsets for testing.
@@ -207,7 +214,9 @@ tst_radix.nc tmp_radix.cdl ctest_small_3.c ctest_small_4.c		\
 ctest_special_atts_4.c tst_roman_szip_simple.cdl			\
 tst_roman_szip_unlim.cdl tst_perdimpspecs.nc tmppds.*                   \
 keyword1.nc keyword2.nc keyword3.nc keyword4.nc                         \
-tmp_keyword1.cdl tmp_keyword2.cdl tmp_keyword3.cdl tmp_keyword4.cdl
+tmp_keyword1.cdl tmp_keyword2.cdl tmp_keyword3.cdl tmp_keyword4.cdl     \
+type_*.nc copy_type_*.cdl                                               \
+scope_*.nc copy_scope_*.cdl
 
 # Remove directories
 clean-local:

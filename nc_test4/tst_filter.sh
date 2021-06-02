@@ -104,7 +104,7 @@ rm -f ./tmp_misc.txt
 trimleft ./tmp_filter2.txt ./tmp_filter.txt
 rm -f ./tmp_filter2.txt
 cat >./tmp_filter2.txt <<EOF
-var:_Filter = "32768,2,239,23,65511,27,77,93,1145389056,3287505826,1097305129,1,2147483648,4294967295,4294967295" ;
+var:_Filter = "32768,3,239,23,65511,27,77,93,1145389056,3287505826,1097305129,1,2147483648,4294967295,4294967295" ;
 EOF
 diff -b -w ./tmp_filter.txt ./tmp_filter2.txt
 echo "*** Pass: parameter passing"
