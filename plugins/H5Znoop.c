@@ -4,10 +4,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <hdf5.h>
-/* Older versions of the hdf library may define H5PL_type_t here */
-#include <H5PLextern.h>
 
+#include "netcdf_filter_build.h"
 
 #ifndef DLL_EXPORT
 #define DLL_EXPORT

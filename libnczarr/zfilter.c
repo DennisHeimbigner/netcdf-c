@@ -62,11 +62,11 @@
 /* Hold the loaded filter information for all possible HDF5 filter ids */
 typedef struct NCZ_plugin {
     struct HDF5API {
-        const H5Z_filter_class* filter;
+        const H5Z_class2_t* filter;
         NCPSharedLib* hdf5lib; /* source of the filter */
     } hdf5;
     struct CodecAPI {
-	NCZ_codec_t* codec;
+	const NCZ_codec_t* codec;
 	NCPSharedLib* codeclib; /* of the source codec; null if same as hdf5 */
     } codec;
     int refcount;
@@ -552,7 +552,7 @@ NCZ_applyfilterchain(NClist* chain, size_t inlen, void* indata, size_t* outlenp,
 
     {
 	struct NCZ_Filter* f = NULL;
-	H5Z_filter_class* ff = NULL;
+	H5Z_class2_t* ff = NULL;
 	size_t current_alloc = inlen;
 	void* current_buf = indata;
 	size_t current_used = inlen;
@@ -568,7 +568,7 @@ fprintf(stderr,"current: alloc=%u used=%u buf=%p\n",(unsigned)current_alloc,(uns
         if(encode) {
             for(i=0;i<nclistlength(chain);i++) {
 	        f = (struct NCZ_Filter*)nclistget(chain,i);	
-	        ff = (H5Z_filter_class*)f->code;
+	        ff = (H5Z_class2_t*)f->code;
 	        /* code can be simplified */
 	        next_alloc = current_alloc;
 	        next_buf = current_buf;
@@ -586,12 +586,12 @@ fprintf(stderr,"next: alloc=%u used=%u buf=%p\n",(unsigned)next_alloc,(unsigned)
 	    /* Apply in reverse order */
             for(i=nclistlength(chain)-1;i>=0;i--) {
 	        f = (struct NCZ_Filter*)nclistget(chain,i);	
-	        ff = (H5Z_filter_class*)f->code;
+	        ff = (H5Z_class2_t*)f->code;
 	        /* code can be simplified */
 	        next_alloc = current_alloc;
 	        next_buf = current_buf;
 	        next_used = 0;
-	        next_used = ff->filter(H5Z_FILTER_REVERSE,f->nparams,f->params,current_used,&next_alloc,&next_buf);
+	        next_used = ff->filter(H5Z_FLAG_REVERSE,f->nparams,f->params,current_used,&next_alloc,&next_buf);
 #ifdef DEBUG
 fprintf(stderr,"next: alloc=%u used=%u buf=%p\n",(unsigned)next_alloc,(unsigned)next_used,next_buf);
 #endif
@@ -874,7 +874,7 @@ NCZ_load_plugin_dir(const char* path)
 	/* See if can load the file */
 	if((stat = NCZ_load_plugin(file,&plugin))) goto done;
 	if(plugin != NULL) {
-	    id = plugin->hdf5.filter->hdf5id;
+	    id = plugin->hdf5.filter->id;
 	    if(loaded_filters[id] == NULL) {
 	        plugin->refcount = 1;
 	        loaded_filters[id] = plugin;
@@ -886,7 +886,7 @@ NCZ_load_plugin_dir(const char* path)
 #if DEBUG > 1
 		fprintf(stderr,"plugin duplicate: id=%u, name=%s\n",id,(plugin.filter->name?plugin.filter->name:"unknown"));
 #endif
-	        NCZ_unload_plugin(&plugin,FORCEUNLOAD); /* its a duplicate */
+	        NCZ_unload_plugin(plugin,FORCEUNLOAD); /* its a duplicate */
 	    }
 	} else
 	    stat = NC_NOERR; /*ignore failure */
@@ -902,13 +902,13 @@ static int
 NCZ_load_plugin(const char* path, struct NCZ_plugin** plugp)
 {
     int stat = NC_NOERR;
-    NCZ_plugin* plugin;
-    const H5Z_filter_class* h5class = NULL;
+    NCZ_plugin* plugin = NULL;
+    const H5Z_class2_t* h5class = NULL;
     const NCZ_codec_t* codec = NULL;
     NCPSharedLib* lib = NULL;
     int flags = NCP_GLOBAL;
     
-    assert(path != NULL && strlen(path) > 0 && plug != NULL);
+    assert(path != NULL && strlen(path) > 0 && plugp != NULL);
 
     /* load the shared library */
     if((stat = ncpsharedlibnew(&lib))) goto done;
@@ -916,24 +916,24 @@ NCZ_load_plugin(const char* path, struct NCZ_plugin** plugp)
 
     /* See what we have */
     {
-	H5Z_get_plugin_type_proto gpt =  (H5Z_get_plugin_type_proto)ncpgetsymbol(lib,"H5PLget_plugin_type");
-	H5Z_get_plugin_info_proto gpi =  (H5Z_get_plugin_info_proto)ncpgetsymbol(lib,"H5PLget_plugin_info");
+	H5PL_get_plugin_type_proto gpt =  (H5PL_get_plugin_type_proto)ncpgetsymbol(lib,"H5PLget_plugin_type");
+	H5PL_get_plugin_info_proto gpi =  (H5PL_get_plugin_info_proto)ncpgetsymbol(lib,"H5PLget_plugin_info");
 	NCZ_get_codec_info_proto  npi =  (NCZ_get_codec_info_proto)ncpgetsymbol(lib,"NCZ_get_codec_info");
 
 	if(gpt != NULL && gpi != NULL) {
 	    /* get HDF5 info */
-	    H5PL_plugin_type_t h5type = gpt();
+	    H5PL_type_t h5type = gpt();
 	    h5class = gpi();	    
 	    /* Verify */
 	    if(h5type != H5PL_TYPE_FILTER) {stat = NC_EPLUGIN; goto done;}
-	    if(fclass->version != H5Z_FILTER_CLASS_VER) {stat = NC_EFILTER; goto done;}
+	    if(h5class->version != H5Z_CLASS_T_VER) {stat = NC_EFILTER; goto done;}
 	}
 	
 	if(npi != NULL) {
 	    /* get Codec info */
 	    codec = npi();
 	    /* Verify */
-	    if(codec->verion != NCZ_CODEC_CLASS_VER) {stat = NC_EPLUGIN; goto done;}
+	    if(codec->version != NCZ_CODEC_CLASS_VER) {stat = NC_EPLUGIN; goto done;}
 	    if(codec->sort != NCZ_CODEC_HDF5) {stat = NC_EPLUGIN; goto done;}
 	}
     }
@@ -957,11 +957,11 @@ NCZ_load_plugin(const char* path, struct NCZ_plugin** plugp)
 	}
     } 
     if(codec != NULL) {
-	/* See if plugin with this id already exists */
+	/* See if hdf5 plugin with this id already exists */
 	if((stat = NCZ_plugin_loaded(codec->hdf5id,&plugin))) goto done;
 	if(plugin != NULL) {
 	    /* Check for duplicates */
-	    if(plugin->codec.filter != NULL) {
+	    if(plugin->codec.codec != NULL) {
 		/* we have two plugins apparently implementing the same filter */
 		/* we ignore the second one, but report it */
 		nclog(NCLOGWARN,"Duplicate implementation of Codec id=%d; ignored", codec->hdf5id);
@@ -972,12 +972,12 @@ NCZ_load_plugin(const char* path, struct NCZ_plugin** plugp)
 	}
     } 
 
-    if((codec != NULL || hdf5class != NULL) && plugin == NULL) { /* First encounter of this filter */
+    if((codec != NULL || h5class != NULL) && plugin == NULL) { /* First encounter of this filter */
         if((plugin = (NCZ_plugin*)calloc(1,sizeof(NCZ_plugin)))==NULL)
             {stat = NC_ENOMEM; goto done;}
-        plugin->hdf5.filter = h5class; h5class = NULL;
-        plugin->codec.codec = codec; codec = NULL;
-        plugin->hdf5lib = lib; lib = NULL;
+        if(h5class != NULL) {plugin->hdf5.filter = h5class; h5class = NULL;}
+        else if(codec != NULL) {plugin->codec.codec = codec; codec = NULL;}
+        plugin->hdf5.hdf5lib = lib; lib = NULL;
 	plugin->codec.codeclib = NULL;
         if(plugp) {*plugp = plugin; plugin = NULL;}
     }
