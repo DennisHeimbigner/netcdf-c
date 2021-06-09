@@ -140,7 +140,7 @@ simpledelete(void)
     case NC_NOERR:
         report(FAIL,"open",map);
 	break;
-    case NC_ENOTFOUND:
+    case NC_ENOOBJECT:
         report(XFAIL,"open",map);
 	stat = NC_NOERR;
 	break;

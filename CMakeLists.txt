@@ -727,7 +727,7 @@ IF(USE_HDF5)
   ENDIF()
 
   #Check to see if H5Z_SZIP exists in HDF5_Libraries. If so, we must use szip library.
-  set (CMAKE_REQUIRED_INCLUDES ${HAVE_HDF5_H})
+  set (CMAKE_REQUIRED_INCLUDES ${HDF5_INCLUDE_DIR})
   CHECK_C_SOURCE_COMPILES("#include <H5public.h>
    #if !H5_HAVE_FILTER_SZIP
    #error
@@ -768,35 +768,6 @@ IF(USE_HDF5)
   CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5free_memory "" HAVE_H5FREE_MEMORY)
   CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5allocate_memory "" HAVE_H5ALLOCATE_MEMORY)
   CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5resize_memory "" HAVE_H5RESIZE_MEMORY)
-
-  ##
-  # Starting with libhdf5 1.12.0, we need to specify the option
-  # `--with-default-api-version=v18` when configuring libhdf5. Otherwise,
-  # the symbol H5Literate is not found.  Check for this and return an error if it's not found.
-  #
-  # We first check for the symbol in the library, for versions 1.8.x and 1.10.x.  If this fails,
-  # we must then check for its usage as a macro (version 1.12.x).
-  ##
-
-  CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY_hdf5} H5Literate "" HAVE_H5Literate)
-
-  IF(NOT HAVE_H5Literate)
-  CHECK_C_SOURCE_COMPILES("#include <H5public.h>
-   #if !(H5Literate_vers == 1)
-   #error
-   #endif
-   int main() {int x = 1;}" HAVE_H5Literate_Macro)
-  ELSE()
-   SET(HAVE_H5Literate_Macro 1)
-  ENDIF(NOT HAVE_H5Literate)
-
-  IF(NOT HAVE_H5Literate_Macro)
-      MESSAGE(FATAL_ERROR "${HDF5_C_LIBRARY_hdf5} does not contain symbol '_H5Literate'.  Please recompile your libhdf5 install using '--with-default-api-version=v18'.")
-  ENDIF(NOT HAVE_H5Literate_Macro)
-
-  ##
-  # End H5Literate checks
-  ##
 
   IF(HDF5_PARALLEL)
 	SET(HDF5_CC h5pcc)
@@ -846,12 +817,6 @@ IF(USE_HDF5)
   ENDIF(HDF5_VERSION_1106)
 
   MESSAGE("-- Checking for HDF5 version 1.10.6 or later: ${HDF5_UTF8_PATHS}")
-
-  SET(H5_USE_16_API 1)
-  OPTION(NC_ENABLE_HDF_16_API "Enable HDF5 1.6.x Compatibility(Required)" ON)
-  IF(NOT NC_ENABLE_HDF_16_API)
-    SET(H5_USE_16_API 0)
-  ENDIF()
 
   FIND_PATH(HAVE_HDF5_H hdf5.h PATHS ${HDF5_INCLUDE_DIR} NO_DEFAULT_PATH)
   FIND_PATH(HAVE_HDF5_H hdf5.h)
@@ -1021,7 +986,9 @@ IF(MSVC)
     FILE(COPY ${netCDF_SOURCE_DIR}/libsrc/XGetopt.c
          DESTINATION ${netCDF_BINARY_DIR}/ncdump/)
     FILE(COPY ${netCDF_SOURCE_DIR}/libsrc/XGetopt.c
-         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/) 
+    FILE(COPY ${netCDF_SOURCE_DIR}/libsrc/XGetopt.c
+         DESTINATION ${netCDF_BINARY_DIR}/ncdap_test/) 
   ENDIF()
 ENDIF()
 
@@ -1992,6 +1959,10 @@ ENDIF()
 
 IF(ENABLE_PLUGINS)
   ADD_SUBDIRECTORY(libncpoco)
+  FILE(COPY ${netCDF_SOURCE_DIR}/include/ncjson.h
+       DESTINATION ${netCDF_BINARY_DIR}/plugins/)
+  FILE(COPY ${netCDF_SOURCE_DIR}/libdispatch/ncjson.c
+       DESTINATION ${netCDF_BINARY_DIR}/plugins/)
 ENDIF()
 
 IF(ENABLE_NCZARR)

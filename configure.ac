@@ -1114,10 +1114,16 @@ AC_C_BIGENDIAN
 # Figure out platforms of special interest
 case "`uname`" in
   CYGWIN*) ISCYGWIN=yes;;
+  Darwin*) ISOSX=yes;;
   WIN*) ISMSVC=yes;;
 esac
 AM_CONDITIONAL(ISCYGWIN, [test "x$ISCYGWIN" = xyes])
 AM_CONDITIONAL(ISMSVC, [test "x$ISMSVC" = xyes])
+AM_CONDITIONAL(ISOSX, [test "x$ISOSX" = xyes])
+
+AC_SUBST([ISMSVC], [${ISMSVC}])
+AC_SUBST([ISCYGWIN], [${ISCYGWIN}])
+AC_SUBST([ISOSX], [${ISOSX}])
 
 ###
 # Crude hack to work around an issue
@@ -1740,8 +1746,6 @@ AC_DEFINE_UNQUOTED([NC_DISPATCH_VERSION], [${NC_DISPATCH_VERSION}], [Dispatch ta
 # End netcdf_meta.h definitions.
 #####
 
-# This would be true for a visual studio build.
-AC_SUBST([ISMSVC], [${ISMSVC}])
 # This would be true for a cmake build.
 AC_SUBST([ISCMAKE], [])
 
@@ -1767,6 +1771,8 @@ AC_CONFIG_FILES(nczarr_test/tst_multifilter.c:nc_test4/tst_multifilter.c)
 AC_CONFIG_FILES(nczarr_test/test_filter_repeat.c:nc_test4/test_filter_repeat.c)
 AC_CONFIG_FILES(nczarr_test/test_filter_order.c:nc_test4/test_filter_order.c)
 AC_CONFIG_FILES(nczarr_test/findplugin.sh:nc_test4/findplugin.in)
+AC_CONFIG_FILES(plugins/ncjson.c:libdispatch/ncjson.c)
+AC_CONFIG_FILES(plugins/ncjson.h:include/ncjson.h)
 AC_CONFIG_FILES([examples/C/run_par_test.sh], [chmod ugo+x examples/C/run_par_test.sh])
 AC_CONFIG_FILES([nc-config], [chmod 755 nc-config])
 AC_CONFIG_FILES([Makefile

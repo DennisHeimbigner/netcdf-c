@@ -339,7 +339,7 @@ NCZ_readdict(NCZMAP* zmap, const char* key, NCjson** jsonp)
 
     if((stat = NCZ_downloadjson(zmap,key,&json)))
 	goto done;
-    if(json->sort != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
+    if(NCJsort(json) != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
     if(jsonp) {*jsonp = json; json = NULL;}
 done:
     NCJreclaim(json);
@@ -363,7 +363,7 @@ NCZ_readarray(NCZMAP* zmap, const char* key, NCjson** jsonp)
 
     if((stat = NCZ_downloadjson(zmap,key,&json)))
 	goto done;
-    if(json->sort != NCJ_ARRAY) {stat = NC_ENCZARR; goto done;}
+    if(NCJsort(json) != NCJ_ARRAY) {stat = NC_ENCZARR; goto done;}
     if(jsonp) {*jsonp = json; json = NULL;}
 done:
     NCJreclaim(json);

@@ -31,7 +31,7 @@ static int parsedimrefs(NC_FILE_INFO_T*, NClist* dimnames,  size64_t* shape, NC_
 static int decodeints(NCjson* jshape, size64_t* shapes);
 static int computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap);
 static int inferattrtype(NCjson* values, nc_type* typeidp);
-static int mininttype(unsigned long long u64);
+static int mininttype(unsigned long long u64, int negative);
 static int computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int purezarr, int xarray, int ndims, NClist* dimnames, size64_t* shapes, NC_DIM_INFO_T** dims);
 
 /**************************************************/
@@ -804,19 +804,19 @@ load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypesp)
 	if(jncattr != NULL) {
 	    NCjson* jtypes = NULL;
 	    /* jncattr attribute should be a dict */
-	    if(jncattr->sort != NCJ_DICT) {stat = THROW(NC_ENCZARR); goto done;}
+	    if(NCJsort(jncattr) != NCJ_DICT) {stat = THROW(NC_ENCZARR); goto done;}
 	    /* Extract "types; may not exist if only hidden attributes are defined */
 	    if((stat = NCJdictget(jncattr,"types",&jtypes))) goto done;
 	    if(jtypes != NULL) {
-	        if(jtypes->sort != NCJ_DICT) {stat = THROW(NC_ENCZARR); goto done;}
+	        if(NCJsort(jtypes) != NCJ_DICT) {stat = THROW(NC_ENCZARR); goto done;}
 	        /* Convert to an envv list */
-	        for(i=0;i<nclistlength(jtypes->contents);i+=2) {
-		    const NCjson* key = nclistget(jtypes->contents,i);
-		    const NCjson* value = nclistget(jtypes->contents,i+1);
-		    if(key->sort != NCJ_STRING) {stat = THROW(NC_ENCZARR); goto done;}
-		    if(value->sort != NCJ_STRING) {stat = THROW(NC_ENCZARR); goto done;}
-		    nclistpush(atypes,strdup(key->value));
-		    nclistpush(atypes,strdup(value->value));
+	        for(i=0;i<NCJlength(jtypes);i+=2) {
+		    const NCjson* key = NCJith(jtypes,i);
+		    const NCjson* value = NCJith(jtypes,i+1);
+		    if(NCJsort(key) != NCJ_STRING) {stat = THROW(NC_ENCZARR); goto done;}
+		    if(NCJsort(value) != NCJ_STRING) {stat = THROW(NC_ENCZARR); goto done;}
+		    nclistpush(atypes,strdup(NCJstring(key)));
+		    nclistpush(atypes,strdup(NCJstring(value)));
 	        }
 	    }
 	}
@@ -842,21 +842,21 @@ zconvert(nc_type typeid, size_t typelen, void* dst0, NCjson* src)
     int stat = NC_NOERR;
     int i;
     size_t len;
-    char* dst = dst0; /* Work in char* space so we can do pointer arithmetic */
+    unsigned char* dst = dst0; /* Work in char* space so we can do pointer arithmetic */
 
-    switch (src->sort) {
+    switch (NCJsort(src)) {
     case NCJ_ARRAY:
-	for(i=0;i<nclistlength(src->contents);i++) {
-	    NCjson* value = nclistget(src->contents,i);
-	    assert(value->sort != NCJ_STRING);
+	for(i=0;i<NCJlength(src);i++) {
+	    NCjson* value = NCJith(src,i);
+	    assert(NCJsort(value) != NCJ_STRING);
 	    if((stat = NCZ_convert1(value, typeid, dst)))
 		goto done;
 	    dst += typelen;
 	}
 	break;
     case NCJ_STRING:
-	len = strlen(src->value);
-	memcpy(dst,src->value,len);
+	len = strlen(NCJstring(src));
+	memcpy(dst,NCJstring(src),len);
 	dst[len] = '\0'; /* nul terminate */
 	break;	
     case NCJ_INT: case NCJ_DOUBLE: case NCJ_BOOLEAN:
@@ -919,6 +919,7 @@ computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap)
     void* data = NULL;
     size_t typelen;
     nc_type typeid = NC_NAT;
+    int reclaimvalues = 0;
 
     /* Get assumed type */
     if(typeidp) typeid = *typeidp;
@@ -926,13 +927,13 @@ computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap)
     if(typeid == NC_NAT) {stat = NC_EBADTYPE; goto done;}
 
     /* Collect the length of the attribute; might be a singleton  */
-    switch (values->sort) {
+    switch (NCJsort(values)) {
     case NCJ_DICT: stat = NC_EINTERNAL; goto done;
     case NCJ_ARRAY:
-	datalen = nclistlength(values->contents);
+	datalen = NCJlength(values);
 	break;
     case NCJ_STRING: /* requires special handling as an array of characters */
-	datalen = strlen(values->value);
+	datalen = strlen(NCJstring(values));
 	break;
     default:
 	datalen = 1;
@@ -958,56 +959,42 @@ computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap)
     if(typeidp) *typeidp = typeid; /* return possibly inferred type */
     
 done:
+    if(reclaimvalues) NCJreclaim(values); /* we created it */
     nullfree(data);
     return THROW(stat);
 }
 
 static int
-inferattrtype(NCjson* values, nc_type* typeidp)
+inferattrtype(NCjson* value, nc_type* typeidp)
 {
     nc_type typeid;
     NCjson* j = NULL;
     unsigned long long u64;
     long long i64;
+    int negative = 0;
 
-    if(NCJlength(values) == 0) return NC_EINVAL;
-    switch (values->sort) {
-    case NCJ_ARRAY:
-	/* use the first value to decide */
-	if(NCJarrayith(values,0,&j)) return NC_EINVAL;
-	switch(j->sort) {
-	case NCJ_INT:
-	    if(j->value[0] == '-') {
-		sscanf(j->value,"%lld",&i64);
-		u64 = (unsigned long long)i64;
-	    } else
-		sscanf(j->value,"%llu",&u64);
-	    typeid = mininttype(u64);
-	    break;
-	case NCJ_DOUBLE:
-	    typeid = NC_DOUBLE;
-	    break;
-	case NCJ_BOOLEAN:
-	    typeid = NC_UBYTE;
-	    break;
-	default: return NC_EINTERNAL;
-	}
-	break;
-    /* Might be a singleton */
+    if(NCJlength(value) == 0) return NC_EINVAL;
+    if(value->sort == NCJ_ARRAY) {
+	j=NCJith(value,0);
+	return inferattrtype(j,typeidp);
+    }
+    if(NCJstring(value) != NULL)
+        negative = (NCJstring(value)[0] == '-');
+    switch (value->sort) {
     case NCJ_INT:
- 	    if(values->value[0] == '-') {
-		sscanf(values->value,"%lld",&i64);
-		u64 = (unsigned long long)i64;
-	    } else
-		sscanf(values->value,"%llu",&u64);
-	    typeid = mininttype(u64);
-	    break;
+	if(negative) {
+	    sscanf(NCJstring(value),"%lld",&i64);
+	    u64 = (unsigned long long)i64;
+	} else
+	    sscanf(NCJstring(value),"%llu",&u64);
+	typeid = mininttype(u64,negative);
+	break;
     case NCJ_DOUBLE:
-	    typeid = NC_DOUBLE;
-	    break;
+	typeid = NC_DOUBLE;
+	break;
     case NCJ_BOOLEAN:
-	    typeid = NC_UBYTE;
-	    break;
+	typeid = NC_UBYTE;
+	break;
     case NCJ_STRING: /* requires special handling as an array of characters */
 	typeid = NC_CHAR;
 	break;
@@ -1019,10 +1006,10 @@ inferattrtype(NCjson* values, nc_type* typeidp)
 }
 
 static int
-mininttype(unsigned long long u64)
+mininttype(unsigned long long u64, int negative)
 {
     long long i64 = (long long)u64; /* keep bit pattern */
-    if(u64 >= NC_MAX_INT64) return NC_UINT64;
+    if(!negative && u64 >= NC_MAX_INT64) return NC_UINT64;
     if(i64 < 0) {
 	if(i64 >= NC_MIN_BYTE) return NC_BYTE;
 	if(i64 >= NC_MIN_SHORT) return NC_SHORT;
@@ -1193,38 +1180,38 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
     if(jattrs != NULL) {
 	/* Iterate over the attributes to create the in-memory attributes */
 	/* Watch for reading _FillValue and possibly _ARRAY_DIMENSIONS (xarray) */
-	for(i=0;i<nclistlength(jattrs->contents);i+=2) {
-	    NCjson* key = nclistget(jattrs->contents,i);
-	    NCjson* value = nclistget(jattrs->contents,i+1);
+	for(i=0;i<NCJlength(jattrs);i+=2) {
+	    NCjson* key = NCJith(jattrs,i);
+	    NCjson* value = NCJith(jattrs,i+1);
 	    const NC_reservedatt* ra = NULL;
     
 	    /* See if this is reserved attribute */
-	    ra = NC_findreserved(key->value);
+	    ra = NC_findreserved(NCJstring(key));
 	    if(ra != NULL) {
 		/* case 1: name = _NCProperties, grp=root, varid==NC_GLOBAL, flags & READONLYFLAG */
-		if(strcmp(key->value,NCPROPS)==0
+		if(strcmp(NCJstring(key),NCPROPS)==0
 		   && container->sort == NCGRP
 		   && file->root_grp == (NC_GRP_INFO_T*)container) {
 		    /* Setup provenance */
-		    if(value->sort != NCJ_STRING)
+		    if(NCJsort(value) != NCJ_STRING)
 			{stat = THROW(NC_ENCZARR); goto done;} /*malformed*/
-		    if((stat = NCZ_read_provenance(file,key->value,value->value)))
+		    if((stat = NCZ_read_provenance(file,NCJstring(key),NCJstring(value))))
 			goto done;
 		}
 		/* case 2: name = _ARRAY_DIMENSIONS, sort==NCVAR, flags & HIDDENATTRFLAG */
-		if(strcmp(key->value,NC_XARRAY_DIMS)==0
+		if(strcmp(NCJstring(key),NC_XARRAY_DIMS)==0
 		   && container->sort == NCVAR
 		   && (ra->flags & HIDDENATTRFLAG)) {
 		       /* store for later */
 		    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)((NC_VAR_INFO_T*)container)->format_var_info;
 		    int i;
-		    assert(value->sort == NCJ_ARRAY);
+		    assert(NCJsort(value) == NCJ_ARRAY);
 		    if((zvar->xarray = nclistnew())==NULL)
 		        {stat = NC_ENOMEM; goto done;}
-		    for(i=0;i<nclistlength(value->contents);i++) {
-			const NCjson* k = nclistget(value->contents,i);
-			assert(k != NULL && k->sort == NCJ_STRING);
-			nclistpush(zvar->xarray,strdup(k->value));
+		    for(i=0;i<NCJlength(value);i++) {
+			const NCjson* k = NCJith(value,i);
+			assert(k != NULL && NCJsort(k) == NCJ_STRING);
+			nclistpush(zvar->xarray,strdup(NCJstring(k)));
 		    }
 		}		
 		/* else ignore */
@@ -1232,10 +1219,10 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
 	    }
 	    /* Create the attribute */
 	    /* Collect the attribute's type and value  */
-	    if((stat = computeattrinfo(key->value,atypes,value,
+	    if((stat = computeattrinfo(NCJstring(key),atypes,value,
 				   &typeid,&len,&data)))
 		goto done;
-	    if((stat = ncz_makeattr(container,attlist,key->value,typeid,len,data,&att)))
+	    if((stat = ncz_makeattr(container,attlist,NCJstring(key),typeid,len,data,&att)))
 		goto done;
 	    /* Is this _FillValue ? */
 	    if(strcmp(att->hdr.name,_FillValue)==0) fillvalueatt = att;
@@ -1366,7 +1353,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	if((stat=NCZ_readdict(map,key,&jvar)))
 	    goto done;
 	nullfree(key); key = NULL;
-	assert((jvar->sort == NCJ_DICT));
+	assert(NCJsort(jvar) == NCJ_DICT);
 
         /* Extract the .zarray info from jvar */
 
@@ -1374,7 +1361,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	{
 	    int version;
 	    if((stat = NCJdictget(jvar,"zarr_format",&jvalue))) goto done;
-	    sscanf(jvalue->value,"%d",&version);
+	    sscanf(NCJstring(jvalue),"%d",&version);
 	    if(version != zinfo->zarr.zarr_version)
 		{stat = THROW(NC_ENCZARR); goto done;}
 	}
@@ -1384,7 +1371,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    int endianness;
 	    if((stat = NCJdictget(jvar,"dtype",&jvalue))) goto done;
 	    /* Convert dtype to nc_type + endianness */
-	    if((stat = ncz_dtype2typeinfo(jvalue->value,&vtype,&endianness)))
+	    if((stat = ncz_dtype2typeinfo(NCJstring(jvalue),&vtype,&endianness)))
 		goto done;
 	    if(vtype > NC_NAT && vtype < NC_STRING) {
 		/* Locate the NC_TYPE_INFO_T object */
@@ -1399,9 +1386,9 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	/* shape */
 	{
 	    if((stat = NCJdictget(jvar,"shape",&jvalue))) goto done;
-	    if(jvalue->sort != NCJ_ARRAY) {stat = THROW(NC_ENCZARR); goto done;}
+	    if(NCJsort(jvalue) != NCJ_ARRAY) {stat = THROW(NC_ENCZARR); goto done;}
 	    /* Verify the rank */
-	    if(zvar->scalar) rank = 0; else rank = nclistlength(jvalue->contents);
+	    if(zvar->scalar) rank = 0; else rank = NCJlength(jvalue);
 	    /* Set the rank of the variable */
 	    if((stat = nc4_var_set_ndims(var, rank))) goto done;
 	    /* extract the shapes */
@@ -1417,8 +1404,8 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    if((stat = NCJdictget(jvar,"dimension_separator",&jvalue))) goto done;
 	    if(jvalue != NULL) {
 	        /* Verify its value */
-		if(jvalue->sort == NCJ_STRING && jvalue->value != NULL && strlen(jvalue->value) == 1)
-		   zvar->dimension_separator = jvalue->value[0];
+		if(NCJsort(jvalue) == NCJ_STRING && NCJstring(jvalue) != NULL && strlen(NCJstring(jvalue)) == 1)
+		   zvar->dimension_separator = NCJstring(jvalue)[0];
 	    }
 	    /* If value is invalid, then use global default */
 	    if(!islegaldimsep(zvar->dimension_separator))
@@ -1446,10 +1433,10 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    int rank;
 	    size64_t chunks[NC_MAX_VAR_DIMS];
 	    if((stat = NCJdictget(jvar,"chunks",&jvalue))) goto done;
-	    if(jvalue != NULL && jvalue->sort != NCJ_ARRAY)
+	    if(jvalue != NULL && NCJsort(jvalue) != NCJ_ARRAY)
 		{stat = THROW(NC_ENCZARR); goto done;}
 	    /* Verify the rank */
-	    rank = nclistlength(jvalue->contents);
+	    rank = NCJlength(jvalue);
 	    if(rank > 0) {
 		var->storage = NC_CHUNKED;
 		if(var->ndims+zvar->scalar != rank)
@@ -1475,7 +1462,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	/* Capture row vs column major; currently, column major not used*/
 	{
 	    if((stat = NCJdictget(jvar,"order",&jvalue))) goto done;
-	    if(strcmp(jvalue->value,"C")==1)
+	    if(strcmp(NCJstring(jvalue),"C")==1)
 		((NCZ_VAR_INFO_T*)var->format_var_info)->order = 1;
 	    else ((NCZ_VAR_INFO_T*)var->format_var_info)->order = 0;
 	}
@@ -1492,14 +1479,14 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    filterlist = (NClist*)var->filters;
 	    if((stat = NCZ_filter_initialize())) goto done;
 	    if((stat = NCJdictget(jvar,"filters",&jvalue))) goto done;
-	    if(jvalue != NULL && jvalue->sort != NCJ_NULL) {
-	        if(jvalue->sort != NCJ_ARRAY) {stat = NC_EFILTER; goto done;} 
+	    if(jvalue != NULL && NCJsort(jvalue) != NCJ_NULL) {
+	        if(NCJsort(jvalue) != NCJ_ARRAY) {stat = NC_EFILTER; goto done;} 
 		for(k=0;;k++) {
 		    NCZ_Filter* filter = NULL;		
 		    jfilter = NULL;
-		    if((stat = NCJarrayith(jvalue,k,&jfilter))) goto done;
+		    jfilter = NCJith(jvalue,k);
 		    if(jfilter == NULL) break; /* done */
-		    if(jfilter->sort != NCJ_DICT) {stat = NC_EFILTER; goto done;} 
+		    if(NCJsort(jfilter) != NCJ_DICT) {stat = NC_EFILTER; goto done;} 
 		    if((stat = NCZ_filter_build(var,jfilter,&filter))) goto done;
 		    nclistpush(filterlist,filter); filter = NULL;
 		}
@@ -1516,8 +1503,8 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    filterlist = (NClist*)var->filters;
 	    if((stat = NCZ_filter_initialize())) goto done;
 	    if((stat = NCJdictget(jvar,"compressor",&jfilter))) goto done;
-	    if(jfilter != NULL && jfilter->sort != NCJ_NULL) {
-	        if(jfilter->sort != NCJ_DICT) {stat = NC_EFILTER; goto done;} 
+	    if(jfilter != NULL && NCJsort(jfilter) != NCJ_NULL) {
+	        if(NCJsort(jfilter) != NCJ_DICT) {stat = NC_EFILTER; goto done;} 
 		if((stat = NCZ_filter_build(var,jfilter,&filter))) goto done;
 		nclistpush(filterlist,filter); filter = NULL;
 	    }
@@ -1539,11 +1526,11 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    if((stat = NCJdictget(jncvar,"storage",&jvalue)))
 		goto done;
 	    if(jvalue != NULL) {
-		if(strcmp(jvalue->value,"chunked") == 0) {
+		if(strcmp(NCJstring(jvalue),"chunked") == 0) {
 		    var->storage = NC_CHUNKED;	
-		} else if(strcmp(jvalue->value,"compact") == 0) {
+		} else if(strcmp(NCJstring(jvalue),"compact") == 0) {
 		    var->storage = NC_COMPACT;
-		} else if(strcmp(jvalue->value,"scalar") == 0) {
+		} else if(strcmp(NCJstring(jvalue),"scalar") == 0) {
 		    var->storage = NC_CONTIGUOUS;
 		    zvar->scalar = 1;		    
 		} else { /*storage = NC_CONTIGUOUS;*/
@@ -1553,12 +1540,12 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    /* Extract dimnames list  */
 	    switch ((stat = NCJdictget(jncvar,"dimrefs",&jdimrefs))) {
 	    case NC_NOERR: /* Extract the dimref names */
-		assert((jdimrefs->sort == NCJ_ARRAY));
-		assert(nclistlength(jdimrefs->contents) == rank);
+		assert((NCJsort(jdimrefs) == NCJ_ARRAY));
+		assert(NCJlength(jdimrefs) == rank);
 		for(j=0;j<rank;j++) {
-		    const NCjson* dimpath = nclistget(jdimrefs->contents,j);
-		    assert(dimpath->sort == NCJ_STRING);
-		    nclistpush(dimnames,strdup(dimpath->value));
+		    const NCjson* dimpath = NCJith(jdimrefs,j);
+		    assert(NCJsort(dimpath) == NCJ_STRING);
+		    nclistpush(dimnames,strdup(NCJstring(dimpath)));
 		}
 		jdimrefs = NULL; /* avoid double free */
 		break;
@@ -1648,33 +1635,33 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
 
     if((stat=NCJdictget(jcontent,"dims",&jvalue))) goto done;
     if(jvalue != NULL) {
-	if(jvalue->sort != NCJ_DICT) {stat = THROW(NC_ENCZARR); goto done;}
+	if(NCJsort(jvalue) != NCJ_DICT) {stat = THROW(NC_ENCZARR); goto done;}
 	/* Extract the dimensions defined in this group */
-	for(i=0;i<nclistlength(jvalue->contents);i+=2) {
-	    NCjson* jname = nclistget(jvalue->contents,i);
-	    NCjson* jlen = nclistget(jvalue->contents,i+1);
+	for(i=0;i<NCJlength(jvalue);i+=2) {
+	    NCjson* jname = NCJith(jvalue,i);
+	    NCjson* jlen = NCJith(jvalue,i+1);
 	    char norm_name[NC_MAX_NAME + 1];
 	    size64_t len;
 	    /* Verify name legality */
-	    if((stat = nc4_check_name(jname->value, norm_name)))
+	    if((stat = nc4_check_name(NCJstring(jname), norm_name)))
 		{stat = NC_EBADNAME; goto done;}
 	    /* check the length */
-	    sscanf(jlen->value,"%lld",&len);
+	    sscanf(NCJstring(jlen),"%lld",&len);
 	    if(len < 0)
 		{stat = NC_EDIMSIZE; goto done;}		
 	    nclistpush(dimdefs,strdup(norm_name));
-	    nclistpush(dimdefs,strdup(jlen->value));
+	    nclistpush(dimdefs,strdup(NCJstring(jlen)));
 	}
     }
 
     if((stat=NCJdictget(jcontent,"vars",&jvalue))) goto done;
     if(jvalue != NULL) {
 	/* Extract the variable names in this group */
-	for(i=0;i<nclistlength(jvalue->contents);i++) {
-	    NCjson* jname = nclistget(jvalue->contents,i);
+	for(i=0;i<NCJlength(jvalue);i++) {
+	    NCjson* jname = NCJith(jvalue,i);
 	    char norm_name[NC_MAX_NAME + 1];
 	    /* Verify name legality */
-	    if((stat = nc4_check_name(jname->value, norm_name)))
+	    if((stat = nc4_check_name(NCJstring(jname), norm_name)))
 		{stat = NC_EBADNAME; goto done;}
 	    nclistpush(varnames,strdup(norm_name));
 	}
@@ -1683,11 +1670,11 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
     if((stat=NCJdictget(jcontent,"groups",&jvalue))) goto done;
     if(jvalue != NULL) {
 	/* Extract the subgroup names in this group */
-	for(i=0;i<nclistlength(jvalue->contents);i++) {
-	    NCjson* jname = nclistget(jvalue->contents,i);
+	for(i=0;i<NCJlength(jvalue);i++) {
+	    NCjson* jname = NCJith(jvalue,i);
 	    char norm_name[NC_MAX_NAME + 1];
 	    /* Verify name legality */
-	    if((stat = nc4_check_name(jname->value, norm_name)))
+	    if((stat = nc4_check_name(NCJstring(jname), norm_name)))
 		{stat = NC_EBADNAME; goto done;}
 	    nclistpush(subgrps,strdup(norm_name));
 	}
@@ -1819,9 +1806,9 @@ decodeints(NCjson* jshape, size64_t* shapes)
 {
     int i, stat = NC_NOERR;
 
-    for(i=0;i<nclistlength(jshape->contents);i++) {
+    for(i=0;i<NCJlength(jshape);i++) {
 	long long v;
-	NCjson* jv = nclistget(jshape->contents,i);
+	NCjson* jv = NCJith(jshape,i);
 	if((stat = NCZ_convert1(jv,NC_INT64,(char*)&v))) goto done;
 	if(v < 0) {stat = THROW(NC_ENCZARR); goto done;}
 	shapes[i] = (size64_t)v;
@@ -2084,3 +2071,43 @@ done:
     NCJreclaim(jatts);
     return THROW(stat);
 }
+
+#if 0
+Not currently used
+Special compatibility case:
+       if the value of the attribute is a dictionary,
+       or an array with non-atomic values, then
+       then stringify it and pretend it is of char type.
+/* Return 1 if this json is not an
+atomic value or an array of atomic values.
+That is, it does not look like valid
+attribute data.
+*/
+static int
+iscomplexjson(NCjson* j)
+{
+    int i;
+    switch(j->sort) {
+    case NCJ_ARRAY:
+	/* verify that the elements of the array are not complex */
+	for(i=0;i<nclistlength(j->contents);i++) {
+	    switch (((NCjson*)nclistget(j->contents,i))->sort) {
+	    case NCJ_DICT:
+    	    case NCJ_ARRAY:
+	    case NCJ_UNDEF:
+	    case NCJ_NULL:
+		return 1;
+	    default: break;
+	    }
+	}
+	return 0;
+    case NCJ_DICT:
+    case NCJ_UNDEF:
+    case NCJ_NULL:
+	break;
+    default:
+        return 0;
+    }
+    return 1;
+}
+#endif

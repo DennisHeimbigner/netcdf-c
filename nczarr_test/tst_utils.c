@@ -14,7 +14,7 @@
 #include <getopt.h>
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__MINGW32__)
 #include "XGetopt.h"
 #endif
 
@@ -200,7 +200,7 @@ getoptions(int* argcp, char*** argvp)
 
     if(options->debug) {
 #ifdef USE_HDF5
-        H5Eset_auto2(H5E_DEFAULT,(H5E_auto2_t)H5Eprint,stderr);
+        H5Eset_auto2(H5E_DEFAULT,(H5E_auto2_t)H5Eprint1,stderr);
 #endif
     }
 

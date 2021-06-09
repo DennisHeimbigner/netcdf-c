@@ -95,7 +95,7 @@ load(NCPSharedLib* lib , const char* path0, int flags)
 
     lock();
     if(lib->state.handle != NULL)
-	{ret = NC_EFOUND; goto ldone;}
+	{ret = NC_EEXIST; goto ldone;}
     lib->path = nulldup(path);
     lib->flags = flags;
     if(flags & NCP_LOCAL)

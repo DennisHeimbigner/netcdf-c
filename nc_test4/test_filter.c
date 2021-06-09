@@ -51,7 +51,7 @@ data:
 /* The compression level used in this example */
 #define BZIP2_LEVEL 9
 
-#define DFALT_TESTFILE "bzip2.nc"
+#define DFALT_TESTFILE "tmp_bzip2.nc"
 
 /* Point at which we give up */
 #define MAXERRS 8

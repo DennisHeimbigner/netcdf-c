@@ -23,7 +23,7 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 check_PROGRAMS =
 TESTS =
 
-check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking 
+check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking
 
 commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
 tstcommonsrc = tst_utils.c tst_utils.h
@@ -130,7 +130,7 @@ ref_xarray.cdl ref_purezarr.cdl ref_purezarr_base.cdl ref_nczarr2zarr.cdl \
 ref_blosc.cdl ref_blosc_zmap.txt
 
 # Interoperability files
-EXTRA_DIST += power_901_constants.zip ref_power_901_constants.cdl
+EXTRA_DIST += ref_power_901_constants.zip ref_power_901_constants.cdl ref_quotes.zip ref_quotes.cdl
 
 CLEANFILES = ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp tmp*.zip tmp*.nc
 

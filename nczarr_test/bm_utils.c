@@ -15,7 +15,7 @@
 #include <getopt.h>
 #endif
 
-#ifdef _MSC_VER
+#if defined(_WIN32) && !defined(__MINGW32__)
 #include "XGetopt.h"
 #endif
 
@@ -188,7 +188,7 @@ fprintf(stderr,"arg=%s value=%s\n",argv[optind-1],optarg);
             }
     }
 
-    if(opt->filename == NULL) return NC_ENOTFOUND;
+    if(opt->filename == NULL) return NC_ENOOBJECT;
 
     switch(opt->format) {
     case NC_FORMATX_NCZARR:

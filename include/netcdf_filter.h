@@ -35,12 +35,12 @@
 /** The maximum allowed setting for pixels_per_block when calling nc_def_var_szip(). */
 #define NC_MAX_PIXELS_PER_BLOCK 32
 
-/**************************************************/
-/* HDF5 Format filter functions */
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+/**************************************************/
+/* HDF5 Format filter functions */
 
 /*Define a filter for a variable */
 EXTERNL int

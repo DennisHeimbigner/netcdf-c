@@ -59,27 +59,21 @@
 /* MNEMONIC */
 #define FORCEUNLOAD 1
 
-/* Hold the loaded filter information for all possible filter ids */
-static struct NCZ_plugin {
-    const NCZ_filter_class* filter;
-    NCPSharedLib* library;
+/* Hold the loaded filter information for all possible HDF5 filter ids */
+typedef struct NCZ_plugin {
+    struct HDF5API {
+        const H5Z_filter_class* filter;
+        NCPSharedLib* hdf5lib; /* source of the filter */
+    } hdf5;
+    struct CodecAPI {
+	NCZ_codec_t* codec;
+	NCPSharedLib* codeclib; /* of the source codec; null if same as hdf5 */
+    } codec;
     int refcount;
-} loaded_filters[NCZ_FILTER_MAX];
+} NCZ_plugin;
 
-#define BLOSC_FILTERID 32001
-
-/* Define the .rc file tag; value is <name>=<int> <name>=<int>... */
-#define BLOSCRC_TAG "ZARR.FILTERS.BLOSC.COMPRESSORS"
-
-static const struct SpecialFilter {const char* name; unsigned id; size_t nparams;} specialfilters[] = {
-{"blosc",BLOSC_FILTERID,4},
-{NULL,0,0}
-};
-
-/* Table of BLOSC internal filters in sorted order, can be extended */
-static const char* defalt_blosc_filters = "reset,blosclz=0,lz4=1,lz4hc=2,snappy=3,zlib=4,zstd=5";
-
-static NClist* bloscfilters = NULL;
+static NCZ_plugin* loaded_filters[H5Z_FILTER_MAX];
+static int loaded_filters_max = -1;
 
 static int NCZ_filter_initialized = 0;
 
@@ -98,14 +92,11 @@ static void printfilterlist(NC_VAR_INFO_T* var, const char* tag, int line);
 /* Forward */
 static int NCZ_load_all_plugins(void);
 static int NCZ_load_plugin_dir(const char* path);
-static int NCZ_load_plugin(const char* path, struct NCZ_plugin* plug);
-static int NCZ_unload_plugin(struct NCZ_plugin* plugin, int forceunload);
-static int NCZ_filter_loaded(int filterid, const NCZ_filter_class** fp);
+static int NCZ_load_plugin(const char* path, NCZ_plugin** plugp);
+static int NCZ_unload_plugin(NCZ_plugin* plugin, int forceunload);
+static int NCZ_plugin_loaded(int filterid, NCZ_plugin** pp);
 
-static int parse_special_filter(const NC_VAR_INFO_T*, const struct SpecialFilter*, const NCjson*, NCZ_Filter* filterp);
 static int getentries(const char* path, NClist* contents);
-static int jsonize_special_filter(const NC_VAR_INFO_T*, const struct SpecialFilter*, const NCZ_Filter*, NCjson*);
-static int buildblosclist(NClist* list, const char* txt);
 
 /**************************************************/
 /**
@@ -132,7 +123,7 @@ PRINTFILTERLIST(var,"free: before");
     for(i=nclistlength(filters)-1;i>=0;i--) {
 	struct NCZ_Filter* spec = nclistremove(filters,i);
 	/* Reclaim the plugin (only has an effect if refcount == 1) */
-        NCZ_unload_plugin((struct NCZ_plugin*)spec->code,!FORCEUNLOAD);
+        NCZ_unload_plugin((NCZ_plugin*)spec->code,!FORCEUNLOAD);
 	if((stat = NCZ_filter_free(spec))) goto done;
     }
 PRINTFILTERLIST(var,"free: after");
@@ -516,16 +507,6 @@ NCZ_filter_initialize(void)
         memset(loaded_filters,0,sizeof(loaded_filters));
         if((stat = NCZ_load_all_plugins())) goto done;
     }
-    /* Setup the blosc filter set */
-    {
-        const char* rctag;
-	bloscfilters = nclistnew();
-	if((stat = buildblosclist(bloscfilters,defalt_blosc_filters))) goto done;
-        rctag = NC_rclookup(BLOSCRC_TAG,NULL);
-	if(rctag != NULL) {
-	    if((stat = buildblosclist(bloscfilters,rctag))) goto done;
-	}
-    }
 done:
     return stat;
 }
@@ -534,48 +515,18 @@ int
 NCZ_filter_finalize(void)
 {
     int stat = NC_NOERR;
-    nclistfreeall(bloscfilters);
-    bloscfilters = NULL;
     return stat;
 }
 
 static int
-buildblosclist(NClist* list, const char* txt)
-{
-    int i,stat = NC_NOERR;
-    NClist* tmp = nclistnew();
-
-    stat = NCZ_comma_parse(txt,tmp);
-    if(nclistlength(tmp) > 0 && strcasecmp("reset",(const char*)nclistget(tmp,0))==0)
-	nclistclearall(list);
-    for(i=0;i<nclistlength(tmp);i++) {
-	int index = -1;
-	char* pair = (char*)nclistget(tmp,i);
-	char* p = strchr(pair,'=');
-	if(p != NULL) {
-	    *p++ = '\0';
-	    sscanf(p,"%d",&index);
-	    if(index < 0) {stat = NC_EINVAL; goto done;}
-	    /* allow a null name */
-	    if(strcasecmp(pair,"null")==0) pair = NULL;
-	    nclistinsert(list,index,nulldup(pair));
-	}
-    }
-done:
-    nclistfreeall(tmp);
-    return stat;
-}
-
-static int
-NCZ_filter_loaded(int filterid, const NCZ_filter_class** fp)
+NCZ_plugin_loaded(int filterid, NCZ_plugin** pp)
 {
     int stat = NC_NOERR;
     struct NCZ_plugin* plug = NULL;
-    if(filterid <= 0 || filterid >= NCZ_FILTER_MAX)
+    if(filterid <= 0 || filterid >= H5Z_FILTER_MAX)
 	{stat = NC_EINVAL; goto done;}
-    plug = &loaded_filters[filterid];
-    if(plug == NULL) stat = NC_ENOFILTER;
-    if(fp) *fp = plug->filter;
+    plug = loaded_filters[filterid];
+    if(pp) *pp = plug;
 done:
     return stat;
 }
@@ -591,16 +542,17 @@ NCZ_applyfilterchain(NClist* chain, size_t inlen, void* indata, size_t* outlenp,
 	struct NCZ_Filter* f = (struct NCZ_Filter*)nclistget(chain,i);
 	assert(f != NULL && f->filterid > 0);
 	if(f->code == NULL) {
-	    const NCZ_filter_class* ff = NULL;
+	    NCZ_plugin* np = NULL;
 	    /* attach to the filter code */
-	    if((stat = NCZ_filter_loaded(f->filterid,&ff))) goto done;
-	    f->code = ff;
+	    if((stat = NCZ_plugin_loaded(f->filterid,&np))) goto done;
+	    f->code = np;
+	    np->refcount++;
 	}
     }
 
     {
 	struct NCZ_Filter* f = NULL;
-	NCZ_filter_class* ff = NULL;
+	H5Z_filter_class* ff = NULL;
 	size_t current_alloc = inlen;
 	void* current_buf = indata;
 	size_t current_used = inlen;
@@ -616,7 +568,7 @@ fprintf(stderr,"current: alloc=%u used=%u buf=%p\n",(unsigned)current_alloc,(uns
         if(encode) {
             for(i=0;i<nclistlength(chain);i++) {
 	        f = (struct NCZ_Filter*)nclistget(chain,i);	
-	        ff = (NCZ_filter_class*)f->code;
+	        ff = (H5Z_filter_class*)f->code;
 	        /* code can be simplified */
 	        next_alloc = current_alloc;
 	        next_buf = current_buf;
@@ -634,12 +586,12 @@ fprintf(stderr,"next: alloc=%u used=%u buf=%p\n",(unsigned)next_alloc,(unsigned)
 	    /* Apply in reverse order */
             for(i=nclistlength(chain)-1;i>=0;i--) {
 	        f = (struct NCZ_Filter*)nclistget(chain,i);	
-	        ff = (NCZ_filter_class*)f->code;
+	        ff = (H5Z_filter_class*)f->code;
 	        /* code can be simplified */
 	        next_alloc = current_alloc;
 	        next_buf = current_buf;
 	        next_used = 0;
-	        next_used = ff->filter(NCZ_FILTER_REVERSE,f->nparams,f->params,current_used,&next_alloc,&next_buf);
+	        next_used = ff->filter(H5Z_FILTER_REVERSE,f->nparams,f->params,current_used,&next_alloc,&next_buf);
 #ifdef DEBUG
 fprintf(stderr,"next: alloc=%u used=%u buf=%p\n",(unsigned)next_alloc,(unsigned)next_used,next_buf);
 #endif
@@ -672,18 +624,9 @@ NCZ_filter_jsonize(NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp)
     NCjson* jfilter = NULL;
     NCjson* jparams = NULL;
     char value[64];
-    const struct SpecialFilter* p;
     
     if((stat = NCJnew(NCJ_DICT,&jfilter))) goto done;
 
-    /* See if this is a special case */
-    for(p=specialfilters;p->name;p++) {
-        if(filter->filterid == p->id) {
-	    if((stat = jsonize_special_filter(var,p,filter,jfilter))) goto done;
-	    if(jfilterp) {*jfilterp = jfilter; jfilter = NULL;}
-	    goto done;
-	}
-    }
     /* insert id */
     if((stat = NCJaddstring(jfilter,NCJ_STRING,"id"))) goto done;
     snprintf(value,sizeof(value),"%u",filter->filterid);
@@ -712,32 +655,23 @@ NCZ_filter_build(NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter** filterp)
     int i,stat = NC_NOERR;
     NCZ_Filter* filter = NULL;
     NCjson* jvalue = NULL;
-    const struct SpecialFilter* p;
 
     if((filter = calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}
     if((stat = NCJdictget(jfilter,"id",&jvalue))) goto done;    
-    /* See if this is a special case */
-    for(p=specialfilters;p->name;p++) {
-        if(strcasecmp(p->name,jvalue->value)==0) {
-	    stat = parse_special_filter(var,p,jfilter,filter);
-	    if(filterp) {*filterp = filter; filter = NULL;}
-	    goto done;
-	}
-    }
     /* Try to scanf the id value */
-    if((1 != sscanf(jvalue->value,"%u",&filter->filterid)))
+    if((1 != sscanf(NCJstring(jvalue),"%u",&filter->filterid)))
         {stat = NC_EFILTER; goto done;}
     /* get the parameters */
     if((stat = NCJdictget(jfilter,"parameters",&jvalue))) goto done;
-    if(jvalue->sort != NCJ_ARRAY) {stat = NC_EFILTER; goto done;}
+    if(NCJsort(jvalue) != NCJ_ARRAY) {stat = NC_EFILTER; goto done;}
     /* Figure out the max # of parameters */
     filter->nparams = NCJlength(jvalue);
     if((filter->params = calloc(sizeof(unsigned int),filter->nparams))==NULL) {stat = NC_ENOMEM; goto done;}
     for(i=0;i<filter->nparams;i++) {
 	NCjson* jparam;
-	if((stat = NCJarrayith(jvalue,(size_t)i,&jparam))) goto done;
+	jparam = NCJith(jvalue,(size_t)i);
         /* parse it */
-	sscanf(jparam->value,"%u",&filter->params[i]);
+	sscanf(NCJstring(jparam),"%u",&filter->params[i]);
     }
 #if DEBUG > 0
     fprintf(stderr,"build filter: id=%u nparams=%u params=%s\n",filter->filterid,(unsigned)filter->nparams,nczprint_paramvector(filter->nparams,filter->params));
@@ -745,114 +679,6 @@ NCZ_filter_build(NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter** filterp)
     if(filterp) {*filterp = filter; filter = NULL;}
 done:
     NCZ_filter_free(filter);
-    return stat;
-}
-
-static int
-jsonize_special_filter(const NC_VAR_INFO_T* var, const struct SpecialFilter* special, const NCZ_Filter* filter, NCjson* jfilter)
-{
-    int stat = NC_NOERR;
-    NCjson* jtmp = NULL;
-    char tmp[64];
-    const char* p;
-    
-    switch (filter->filterid) {
-
-    case BLOSC_FILTERID:
-	if(filter->nparams != special->nparams) {stat = NC_EFILTER; goto done;}
-	if((stat = NCJnewstring(NCJ_STRING,"blosc",&jtmp))) goto done;
-	if((stat = NCJinsert(jfilter,"id",jtmp))) goto done;
-	jtmp = NULL;
-	snprintf(tmp,sizeof(tmp),"%u",filter->params[0]);
-	if((stat = NCJnewstring(NCJ_INT,tmp,&jtmp))) goto done;
-	if((stat = NCJinsert(jfilter,"clevel",jtmp))) goto done;
-	jtmp = NULL;
-	if((stat = NCJnewstring(NCJ_BOOLEAN,(filter->params[1]?"true":"false"),&jtmp))) goto done;
-	if((stat = NCJinsert(jfilter,"shuffle",jtmp))) goto done;
-	jtmp = NULL;
-#if 0
-	/* This is non-standard */
-	snprintf(tmp,sizeof(tmp),"%u",filter->params[2]);
-	if((stat = NCJnewstring(NCJ_INT,tmp,&jtmp))) goto done;
-	if((stat = NCJinsert(jfilter,"typesize",jtmp))) goto done;
-	jtmp = NULL;
-#endif
-	if(filter->params[3] < 0 || filter->params[3] >= nclistlength(bloscfilters))
-	    {stat = NC_EFILTER; goto done;}
-	/* Convert the compressor id to a name */
-	p = (const char*)nclistget(bloscfilters,filter->params[3]);
-	if((stat = NCJnewstring(NCJ_STRING,p,&jtmp))) goto done;
-	if((stat = NCJinsert(jfilter,"cname",jtmp))) goto done;
-	jtmp = NULL;
-	break;
-    default: stat = NC_ENOFILTER; goto done;
-    };
-
-done:
-    NCJreclaim(jtmp);
-    return stat;
-}
-
-static int
-parse_special_filter(const NC_VAR_INFO_T* var, const struct SpecialFilter* special, const NCjson* jfilter, NCZ_Filter* filter)
-{
-    int i,stat = NC_NOERR;
-    NCjson* jvalue = NULL;
-    unsigned filterid = 0;
-    size_t nparams;
-    unsigned params[32]; /* max across all supported special filters */
-
-    if((stat = NCJdictget(jfilter,"id",&jvalue))) goto done;    
-    if(strcasecmp(jvalue->value,"blosc")==0) {
-	/* c-blosc appears to take four arguments (aside from buffers)
-	   1. compression level -- int 0<=level<=10
-   	   2. doshuffle -- int 1=>shuffle
-      	   3. typesize -- in bytes
-	   4. compressor used by blosc -- e.g. "blosclz", "lz4", "lz4hc", "snappy", "zlib" or "zstd"
-	   Technically type size is also a parameter, but can be computed from var.
-	*/
-	struct NCJconst njc;
-	size_t typsize;
-	int found;
-
-	filterid = special->id;
-	nparams = 0;
-        if((stat = NCJdictget(jfilter,"clevel",&jvalue))) goto done;    
-	sscanf(jvalue->value,"%u",&params[0]);
-	nparams++;
-        if((stat = NCJdictget(jfilter,"shuffle",&jvalue))) goto done;
-	if((stat = NCJcvt(jvalue,NCJ_BOOLEAN,&njc))) goto done;
-	params[1] = njc.bval;
-	nparams++;
-	/* Figure out the typesize */
-	if((stat = NC4_inq_atomic_type(var->type_info->hdr.id,NULL,&typsize))) goto done;
-	params[2] = (unsigned)typsize;
-	nparams++;
-	
-	/* Get sub-compressor name */
-        if((stat = NCJdictget(jfilter,"cname",&jvalue))) goto done;
-	if(jvalue->sort != NCJ_STRING) {stat = NC_ENOFILTER; goto done;}
-	/* Search for the name */
-	found = 0;
-	for(i=0;i<nclistlength(bloscfilters);i++) {
-	    const char* name = (const char*)nclistget(bloscfilters,i);
-	    if(strcasecmp(name,jvalue->value)==0) {
-		params[3] = i;
-		nparams++;
-		found = 1;
-		break;
-	    }
-	}	
-	if(!found) {stat = NC_ENOFILTER; goto done;}
-    } else
-        {stat = NC_ENOFILTER; goto done;}
-    filter->filterid = filterid;
-    filter->nparams = nparams;
-    filter->params = (unsigned*)malloc(sizeof(unsigned)*nparams);
-    if(filter->params == NULL) {stat = NC_ENOMEM; goto done;}
-    memcpy(filter->params,params,sizeof(unsigned)*nparams);
-
-done:
     return stat;
 }
 
@@ -998,6 +824,21 @@ NCZ_load_all_plugins(void)
     /* Try to load plugins from this directory */
     if((ret = NCZ_load_plugin_dir(pluginroot))) goto done;
 
+    /* Expunge all plugins for which we do not have both HDF5 and codec */
+    {
+        int i;
+	NCZ_plugin* p;
+	for(i=0;i<loaded_filters_max;i++) {
+	    if((p = loaded_filters[i]) != NULL) {
+		if(p->hdf5.filter == NULL || p->codec.codec == NULL) {
+		    /* expunge this entry */
+		    (void)NCZ_unload_plugin(p,FORCEUNLOAD);
+		    nullfree(p);
+		}
+	    }
+	}
+    }
+    
 done:
     return ret;
 }
@@ -1020,8 +861,8 @@ NCZ_load_plugin_dir(const char* path)
         const char* name = (const char*)nclistget(contents,i);
 	size_t nmlen = strlen(name);
 	size_t flen = pathlen+1+nmlen+1;
-	struct NCZ_plugin plugin = {NULL,NULL};
 	int id;
+	NCZ_plugin* plugin = NULL;
 
 	assert(nmlen > 0);
 	nullfree(file); file = NULL;
@@ -1031,11 +872,13 @@ NCZ_load_plugin_dir(const char* path)
 	strlcat(file,"/",flen);
 	strlcat(file,name,flen);
 	/* See if can load the file */
-	if((stat = NCZ_load_plugin(file,&plugin)) == NC_NOERR) {
-	    id = plugin.filter->id;
-	    if(loaded_filters[id].filter == NULL) {
-	        plugin.refcount = 1;
+	if((stat = NCZ_load_plugin(file,&plugin))) goto done;
+	if(plugin != NULL) {
+	    id = plugin->hdf5.filter->hdf5id;
+	    if(loaded_filters[id] == NULL) {
+	        plugin->refcount = 1;
 	        loaded_filters[id] = plugin;
+		if(id > loaded_filters_max) loaded_filters_max = id;
 #if DEBUG > 1
 		fprintf(stderr,"plugin loaded: id=%u, name=%s\n",id,(plugin.filter->name?plugin.filter->name:"unknown"));
 #endif
@@ -1056,10 +899,12 @@ done:
 }
 
 static int
-NCZ_load_plugin(const char* path, struct NCZ_plugin* plug)
+NCZ_load_plugin(const char* path, struct NCZ_plugin** plugp)
 {
     int stat = NC_NOERR;
-    const NCZ_filter_class* fclass = NULL;
+    NCZ_plugin* plugin;
+    const H5Z_filter_class* h5class = NULL;
+    const NCZ_codec_t* codec = NULL;
     NCPSharedLib* lib = NULL;
     int flags = NCP_GLOBAL;
     
@@ -1069,19 +914,74 @@ NCZ_load_plugin(const char* path, struct NCZ_plugin* plug)
     if((stat = ncpsharedlibnew(&lib))) goto done;
     if((stat = ncpload(lib,path,flags))) goto done;
 
-    /* See if this is a filter plugin */
+    /* See what we have */
     {
-	NCZ_get_plugin_type_proto gpt =  (NCZ_get_plugin_type_proto)ncpgetsymbol(lib,"H5PLget_plugin_type");
-	NCZ_get_plugin_info_proto gpi =  (NCZ_get_plugin_info_proto)ncpgetsymbol(lib,"H5PLget_plugin_info");
-	if(gpt == NULL) {stat = NC_ENOTFOUND; goto done;}
-	if(gpi == NULL) {stat = NC_ENOTFOUND; goto done;}
-	if(gpt() != NCZP_TYPE_FILTER) {stat = NC_ENOTFOUND; goto done;}
-	fclass = gpi();
-	if(fclass->version != NCZ_FILTER_CLASS_VER) {stat = NC_EFILTER; goto done;}
+	H5Z_get_plugin_type_proto gpt =  (H5Z_get_plugin_type_proto)ncpgetsymbol(lib,"H5PLget_plugin_type");
+	H5Z_get_plugin_info_proto gpi =  (H5Z_get_plugin_info_proto)ncpgetsymbol(lib,"H5PLget_plugin_info");
+	NCZ_get_codec_info_proto  npi =  (NCZ_get_codec_info_proto)ncpgetsymbol(lib,"NCZ_get_codec_info");
+
+	if(gpt != NULL && gpi != NULL) {
+	    /* get HDF5 info */
+	    H5PL_plugin_type_t h5type = gpt();
+	    h5class = gpi();	    
+	    /* Verify */
+	    if(h5type != H5PL_TYPE_FILTER) {stat = NC_EPLUGIN; goto done;}
+	    if(fclass->version != H5Z_FILTER_CLASS_VER) {stat = NC_EFILTER; goto done;}
+	}
+	
+	if(npi != NULL) {
+	    /* get Codec info */
+	    codec = npi();
+	    /* Verify */
+	    if(codec->verion != NCZ_CODEC_CLASS_VER) {stat = NC_EPLUGIN; goto done;}
+	    if(codec->sort != NCZ_CODEC_HDF5) {stat = NC_EPLUGIN; goto done;}
+	}
     }
-    plug->filter = fclass;
-    plug->library = lib;
-    lib = NULL;
+
+    /* Now, it may be that we previously loaded an HDF5|Codec only plugin,
+       so we need to re-use it if we find the other half
+    */
+    if(h5class != NULL) {
+	/* See if plugin with this id already exists */
+	if((stat = NCZ_plugin_loaded(h5class->id,&plugin))) goto done;
+	if(plugin != NULL) {
+	    /* Check for duplicates */
+	    if(plugin->hdf5.filter != NULL) {
+		/* we have two plugins apparently implementing the same filter */
+		/* we ignore the second one, but report it */
+		nclog(NCLOGWARN,"Duplicate implementation of HDF5 filter id=%d; ignored", h5class->id);
+	    } else
+		plugin->hdf5.filter = h5class;
+	    assert(plugin->codec.codec != NULL);
+	    plugin->hdf5.hdf5lib = lib; lib = NULL;
+	}
+    } 
+    if(codec != NULL) {
+	/* See if plugin with this id already exists */
+	if((stat = NCZ_plugin_loaded(codec->hdf5id,&plugin))) goto done;
+	if(plugin != NULL) {
+	    /* Check for duplicates */
+	    if(plugin->codec.filter != NULL) {
+		/* we have two plugins apparently implementing the same filter */
+		/* we ignore the second one, but report it */
+		nclog(NCLOGWARN,"Duplicate implementation of Codec id=%d; ignored", codec->hdf5id);
+	    } else
+		plugin->codec.codec = codec;
+	    assert(plugin->hdf5.filter != NULL);
+	    plugin->codec.codeclib = lib; lib = NULL;
+	}
+    } 
+
+    if((codec != NULL || hdf5class != NULL) && plugin == NULL) { /* First encounter of this filter */
+        if((plugin = (NCZ_plugin*)calloc(1,sizeof(NCZ_plugin)))==NULL)
+            {stat = NC_ENOMEM; goto done;}
+        plugin->hdf5.filter = h5class; h5class = NULL;
+        plugin->codec.codec = codec; codec = NULL;
+        plugin->hdf5lib = lib; lib = NULL;
+	plugin->codec.codeclib = NULL;
+        if(plugp) {*plugp = plugin; plugin = NULL;}
+    }
+    /* else (codec == NULL && hdf5class == NULL) => ignore this library */
 
 done:
     if(lib) {
@@ -1091,16 +991,20 @@ done:
 #endif	
         (void)ncpsharedlibfree(lib);
     }
+    if(plugin)
+        NCZ_unload_plugin(plugin,FORCEUNLOAD);
     return stat;
 }
 
 static int
-NCZ_unload_plugin(struct NCZ_plugin* plugin, int forceunload)
+NCZ_unload_plugin(NCZ_plugin* plugin, int forceunload)
 {
     if(plugin && (plugin->refcount == 0 || forceunload)) {
-	(void)ncpsharedlibfree(plugin->library);
-	plugin->filter = NULL;
-	plugin->library = NULL;
-    }
+	if(plugin->hdf5.hdf5lib != NULL) (void)ncpsharedlibfree(plugin->hdf5.hdf5lib);
+	if(plugin->codec.codeclib != NULL) (void)ncpsharedlibfree(plugin->codec.codeclib);
+	memset(plugin,0,sizeof(NCZ_plugin));
+    } else
+	plugin->refcount--;
     return NC_NOERR;
 }
+

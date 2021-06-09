@@ -27,7 +27,7 @@ Test support for multiple filters per variable
 
 #define NFILTERS 3
 
-#define DFALT_TESTFILE "multifilter.nc"
+#define DFALT_TESTFILE "tmp_multifilter.nc"
 
 /* Point at which we give up */
 #define MAXERRS 8

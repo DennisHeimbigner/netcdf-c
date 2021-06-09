@@ -63,13 +63,13 @@ build(NCJ* ncj)
 
     /* Build instances of primitives */
     if((stat = NCJnew(NCJ_STRING,&ncj->ncj_string))) goto done;
-    ncj->ncj_string->value = strdup("string");
+    NCJsetvalue(ncj->ncj_string, strdup("string"));
     if((stat = NCJnew(NCJ_INT,&ncj->ncj_int))) goto done;
-    ncj->ncj_int->value = strdup("117");
+    NCJsetvalue(ncj->ncj_int, strdup("117"));
     if((stat = NCJnew(NCJ_DOUBLE,&ncj->ncj_double))) goto done;
-    ncj->ncj_double->value = strdup("3.1415926");
+    NCJsetvalue(ncj->ncj_double, strdup("3.1415926"));
     if((stat = NCJnew(NCJ_BOOLEAN,&ncj->ncj_boolean))) goto done;
-    ncj->ncj_boolean->value = strdup("true");
+    NCJsetvalue(ncj->ncj_boolean, strdup("true"));
     if((stat = NCJnew(NCJ_NULL,&ncj->ncj_null))) goto done;
 
     /* Create an empty array */
@@ -208,53 +208,53 @@ dumpR(NCjson* json, int depth)
     long long int64v;
     double float64v;
 
-    printf("/%s/ ",sortname(json->sort));
-    switch(json->sort) {
-    case NCJ_STRING: printf("\"%s\"",json->value); break;
+    printf("/%s/ ",sortname(NCJsort(json)));
+    switch(NCJsort(json)) {
+    case NCJ_STRING: printf("\"%s\"",NCJvalue(json)); break;
     case NCJ_INT:
-	ok = sscanf(json->value,"%lld%n",&int64v,&count);
-	if(ok != 1 || count != strlen(json->value)) goto fail;
+	ok = sscanf(NCJvalue(json),"%lld%n",&int64v,&count);
+	if(ok != 1 || count != strlen(NCJvalue(json))) goto fail;
 	printf("%lld",int64v);
 	break;
     case NCJ_DOUBLE: 
-	ok = sscanf(json->value,"%lg%n",&float64v,&count);
-	if(ok != 1 || count != strlen(json->value)) goto fail;
+	ok = sscanf(NCJvalue(json),"%lg%n",&float64v,&count);
+	if(ok != 1 || count != strlen(NCJvalue(json))) goto fail;
 	printf("%lg",float64v);
 	break;
     case NCJ_BOOLEAN: 
-	if(strcasecmp(json->value,"true") != 0
-	   && strcasecmp(json->value,"false") != 0) goto fail;
-	printf("%s",json->value);
+	if(strcasecmp(NCJvalue(json),"true") != 0
+	   && strcasecmp(NCJvalue(json),"false") != 0) goto fail;
+	printf("%s",NCJvalue(json));
 	break;
     case NCJ_NULL: 
 	printf("null");
 	break;
     case NCJ_DICT: 
-	if(nclistlength(json->contents) == 0) {
+	if(nclistlength(NCJcontents(json)) == 0) {
 	    printf("{}");
 	} else {
 	    printf("\n");
-	    for(i=0;i<nclistlength(json->contents);i+=2) {
+	    for(i=0;i<nclistlength(NCJcontents(json));i+=2) {
 		NCjson* j = NULL;
-		j = (NCjson*)nclistget(json->contents,i);
-		assert(j->sort == NCJ_STRING);
+		j = (NCjson*)nclistget(NCJcontents(json),i);
+		assert(NCJsort(j) == NCJ_STRING);
 	        printf("{%d} ",depth+1);
-	        printf("\"%s\" => ",j->value);
-		if(i+1 >= nclistlength(json->contents)) {/* malformed */
+	        printf("\"%s\" => ",NCJvalue(j));
+		if(i+1 >= nclistlength(NCJcontents(json))) {/* malformed */
 		    printf("<malformed>");
 		} else
-	            dumpR((NCjson*)nclistget(json->contents,i+1),depth+1);
+	            dumpR((NCjson*)nclistget(NCJcontents(json),i+1),depth+1);
 	    }
 	}
 	break;
     case NCJ_ARRAY: 
-	if(nclistlength(json->contents) == 0) {
+	if(nclistlength(NCJcontents(json)) == 0) {
 	    printf("[]");
 	} else {
 	    printf("\n");
-	    for(i=0;i<nclistlength(json->contents);i++) {
+	    for(i=0;i<nclistlength(NCJcontents(json));i++) {
 	        printf("[%d] ",depth+1);
-	        dumpR((NCjson*)nclistget(json->contents,i),depth+1);
+	        dumpR((NCjson*)nclistget(NCJcontents(json),i),depth+1);
 	    }
 	}
 	break;

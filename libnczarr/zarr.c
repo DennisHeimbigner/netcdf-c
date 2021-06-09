@@ -146,14 +146,14 @@ ncz_open_dataset(NC_FILE_INFO_T* file, const char** controls)
 
     if(!(zinfo->controls.flags & FLAG_PUREZARR) && json) {
         /* Extract the information from it */
-        for(i=0;i<nclistlength(json->contents);i+=2) {
-    	    const NCjson* key = nclistget(json->contents,i);
-	    const NCjson* value = nclistget(json->contents,i+1);
-	    if(strcmp(key->value,"zarr_format")==0) {
-	        if(sscanf(value->value,"%d",&zinfo->zarr.zarr_version)!=1)
+        for(i=0;i<NCJlength(json);i+=2) {
+    	    const NCjson* key = NCJith(json,i);
+	    const NCjson* value = NCJith(json,i+1);
+	    if(strcmp(NCJstring(key),"zarr_format")==0) {
+	        if(sscanf(NCJstring(value),"%d",&zinfo->zarr.zarr_version)!=1)
 		    {stat = NC_ENOTNC; goto done;}		
-	    } else if(strcmp(key->value,"nczarr_version")==0) {
-	        sscanf(value->value,"%lu.%lu.%lu",
+	    } else if(strcmp(NCJstring(key),"nczarr_version")==0) {
+	        sscanf(NCJstring(value),"%lu.%lu.%lu",
 		    &zinfo->zarr.nczarr_version.major,
 		    &zinfo->zarr.nczarr_version.minor,
 		    &zinfo->zarr.nczarr_version.release);
@@ -279,9 +279,9 @@ ncz_open_rootgroup(NC_FILE_INFO_T* dataset)
     if((stat = NCZ_downloadjson(zfile->map, rootpath, &json)))
 	goto  done;
     /* Process the json */ 
-    for(i=0;i<nclistlength(json->contents);i+=2) {
-	const NCjson* key = nclistget(json->contents,i);
-	const NCjson* value = nclistget(json->contents,i+1);
+    for(i=0;i<nclistlength(NCJlist(json));i+=2) {
+	const NCjson* key = nclistget(NCJlist(json),i);
+	const NCjson* value = nclistget(NCJlist(json),i+1);
 	if(strcmp(key->value,"zarr_format")==0) {
 	    int zversion;
 	    if(sscanf(value->value,"%d",&zversion)!=1)
@@ -318,8 +318,8 @@ ncz_unload_jatts(NCZ_FILE_INFO_T* zinfo, NC_OBJ* container, NCjson* jattrs, NCjs
     char* tkey = NULL;
     NCZMAP* map = zinfo->map;
 
-    assert((jattrs->sort = NCJ_DICT));
-    assert((jtypes->sort = NCJ_DICT));
+    assert((NCJsort(jattrs) == NCJ_DICT));
+    assert((NCJsort(jtypes) == NCJ_DICT));
 
     if(container->sort == NCGRP) {
         NC_GRP_INFO_T* grp = (NC_GRP_INFO_T*)container;

@@ -25,7 +25,7 @@
 
 #define MAXDIMS 8
 
-#define DFALT_TESTFILE "testfilter_order.nc"
+#define DFALT_TESTFILE "tmp_filter_order.nc"
 
 #define NPARAMS 1
 #define PARAMVAL 17
@@ -428,7 +428,7 @@ int
 main(int argc, char **argv)
 {
 #ifdef DEBUG
-    H5Eprint(stderr);
+    H5Eprint1(stderr);
     nc_set_log_level(1);
 #endif
     init(argc,argv);
