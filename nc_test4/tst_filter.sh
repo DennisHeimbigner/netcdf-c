@@ -15,7 +15,6 @@ MISC=1
 MULTI=1
 REP=1
 ORDER=1
-FILTERX=1
 
 # Load the findplugins function
 . ${builddir}/findplugin.sh
@@ -262,15 +261,6 @@ echo "*** Testing multiple filter order of invocation on read"
 rm -f tmp_rdfilterorder.txt
 ${execdir}/test_filter_order read >tmp_rdfilterorder.txt
 diff -b -w ${srcdir}/ref_filter_order_read.txt tmp_rdfilterorder.txt
-
-fi
-
-if test "x$FILTERX" = x1 ; then
-
-echo "*** Testing filterx support for HDF5"
-rm -f tmp_filterx_hdf5.txt
-${execdir}/test_filterx_hdf5 >tmp_filterx_hdf5.txt
-diff -b -w ${srcdir}/ref_filterx_hdf5.txt tmp_filterx_hdf5.txt
 
 fi
 

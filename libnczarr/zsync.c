@@ -1316,7 +1316,6 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     size64_t* shapes = NULL;
     int rank = 0;
     NClist* dimnames = nclistnew();
-    NCZ_Filter* filter = NULL;		
 
     zinfo = file->format_file_info;
     map = zinfo->map;
@@ -1504,6 +1503,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    if((stat = NCZ_filter_initialize())) goto done;
 	    if((stat = NCJdictget(jvar,"compressor",&jfilter))) goto done;
 	    if(jfilter != NULL && NCJsort(jfilter) != NCJ_NULL) {
+		NCZ_Filter* filter = NULL;
 	        if(NCJsort(jfilter) != NCJ_DICT) {stat = NC_EFILTER; goto done;} 
 		if((stat = NCZ_filter_build(var,jfilter,&filter))) goto done;
 		nclistpush(filterlist,filter); filter = NULL;
@@ -1573,7 +1573,6 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     }
 
 done:
-    NCZ_filter_free(filter);
     nullfree(shapes);
     nullfree(varpath);
     nullfree(key);

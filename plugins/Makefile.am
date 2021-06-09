@@ -17,18 +17,19 @@ BZ2PLUGINHDRS = h5bzip2.h
 EXTRA_DIST = ${BZ2PLUGINSRC} ${BZ2PLUGINHDRS} \
              ${BZIP2SRC} ${BZIP2HDRS} \
              H5Ztemplate.c H5Zmisc.c H5Zutil.c H5Znoop.c h5noop.h CMakeLists.txt \
-	     NCZdeflate.c
+	     NCZdeflate.c NCZbzip2.c
 
 if ENABLE_FILTER_TESTING
 
-noinst_LTLIBRARIES = libmisc.la libnoop.la libnoop1.la libnczdeflate.la
+noinst_LTLIBRARIES = libmisc.la libnoop.la libnoop1.la libnczdeflate.la libnczbzip2.la
 lib_LTLIBRARIES = libh5bzip2.la
 
-libh5bzip2_la_SOURCES = ${HDF5PLUGINSRC}
+libh5bzip2_la_SOURCES = ${BZ2PLUGINSRC} ${BZIP2SRC}
 
 libmisc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h
 
 libnczdeflate_la_SOURCES = NCZdeflate.c ncjson.c
+libnczbzip2_la_SOURCES = NCZbzip2.c ncjson.c
 
 # The noop filter is to allow testing of multifilters and filter order
 # Need two distinct instances

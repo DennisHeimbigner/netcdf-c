@@ -34,6 +34,11 @@ will generate an error.
 */
 #define DBLVAL 12345678.12345678
 
+static htri_t H5Z_test_can_apply(hid_t dcpl_id, hid_t type_id, hid_t space_id);
+static size_t H5Z_filter_test(unsigned int flags, size_t cd_nelmts,
+                     const unsigned int cd_values[], size_t nbytes,
+                     size_t *buf_size, void **buf);
+
 static int paramcheck(size_t nparams, const unsigned int* params);
 static void mismatch(size_t i, const char* which);
 
@@ -66,7 +71,7 @@ H5PLget_plugin_info(void)
  * The "can_apply" callback returns positive a valid combination, zero for an
  * invalid combination and negative for an error.
  */
-htri_t
+static htri_t
 H5Z_test_can_apply(hid_t dcpl_id, hid_t type_id, hid_t space_id)
 {
     return 1; /* Assume it can always apply */
@@ -86,7 +91,7 @@ Test cases format:
 
 */
 
-size_t
+static size_t
 H5Z_filter_test(unsigned int flags, size_t cd_nelmts,
                      const unsigned int cd_values[], size_t nbytes,
                      size_t *buf_size, void **buf)
@@ -315,4 +320,138 @@ mismatch(size_t i, const char* which)
 {
     fprintf(stderr,"mismatch: [%ld] %s\n",(unsigned long)i,which);
     fflush(stderr);
+}
+
+/**************************************************/
+/* NCZarr Codec API */
+
+/* Codec Format
+{
+"id": "test",
+"testcase": "n",
+"byte": "<unsigned int>",
+"ubyte": "<unsigned int>",
+"short": "<unsigned int>",
+"ushort": "<unsigned int>",
+"int": "<unsigned int>",
+"uint": "<unsigned int>",
+"float": "<unsigned int>",
+"double0": "<unsigned int>",
+"double1": "<unsigned int>",
+"int640": "<unsigned int>",
+"int641": "<unsigned int>",
+"uint640": "<unsigned int>",
+"uint641": "<unsigned int>",
+}
+*/
+
+static const char* fields[14] = {
+"testcase",
+"byte",
+"ubyte",
+"short",
+"ushort",
+"int",
+"uint",
+"float",
+"double0",
+"double1",
+"int640",
+"int641",
+"uint640",
+"uint641"
+};
+
+/* Forward */
+static int NCZ_misc_codec_to_hdf5(const char* codec, int* nparamsp, unsigned** paramsp);
+static int NCZ_misc_hdf5_to_codec(int nparams, unsigned* params, char** codecp);
+
+/* Structure for NCZ_PLUGIN_CODEC */
+static NCZ_codec_t NCZ_misc_codec = {/* NCZ_codec_t  codec fields */ 
+  NCZ_CODEC_CLASS_VER,	/* Struct version number */
+  NCZ_CODEC_HDF5,	/* Struct sort */
+  "test",	        /* Standard name/id of the codec */
+  H5Z_FILTER_TEST,     /* HDF5 alias for misc */
+  NCZ_misc_codec_to_hdf5,
+  NCZ_misc_hdf5_to_codec
+};
+
+/* External Export API */
+const void*
+NCZ_get_plugin_info(void)
+{
+    return (void*)&NCZ_misc_codec;
+}
+
+/* NCZarr Interface Functions */
+
+static int
+NCZ_misc_codec_to_hdf5(const char* codec_json, int* nparamsp, unsigned** paramsp)
+{
+    int stat = NC_NOERR;
+    NCjson* jcodec = NULL;
+    NCjson* jtmp = NULL;
+    int i,nparams = 0;
+    unsigned* params = NULL;
+
+    /* parse the JSON */
+    if((stat = NCJparse(codec_json,0,&jcodec))) goto done;
+    if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
+    nparams = NCJlength(jcodec);        
+
+    /* Verify the codec ID */
+    if((stat = NCJdictget(jcodec,"id",&jtmp))) goto done;
+    if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
+    if(strcmp(NCJstring(jtmp),NCZ_misc_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
+    nparams--;
+  
+    if(nparams != 14) {
+	fprintf(stderr,"Too few parameters: need=14 sent=%ld\n",(unsigned long)nparams);
+	stat = NC_EINVAL;
+	goto done;
+    }
+    
+    if((params = (unsigned*)malloc(nparams*sizeof(unsigned)))== NULL)
+        {stat = NC_ENOMEM; goto done;}
+
+    for(i=0;i<14;i++) {
+        if((stat = NCJdictget(jcodec,fields[i],&jtmp))) goto done; \
+        if(jtmp == NULL || NCJsort(jtmp) != NCJ_INT) {stat = NC_EINVAL; goto done;} \
+        if(1 != sscanf(NCJstring(jtmp),"%u",&params[i])) {stat = NC_EINVAL; goto done;}
+    }
+    if(nparamsp) *nparamsp = nparams;
+    if(paramsp) {*paramsp = params; params = NULL;}
+    
+done:
+    if(params) free(params);
+    NCJreclaim(jcodec);
+    return stat;
+}
+
+static int
+NCZ_misc_hdf5_to_codec(int nparams, unsigned* params, char** codecp)
+{
+    int i,stat = NC_NOERR;
+    char json[4096];
+    char value[1024];
+
+    if(nparams == 0 || params == NULL)
+        {stat = NC_EINVAL; goto done;}
+    if(nparams < 14) {
+	fprintf(stderr,"Too few parameters: need=14 sent=%ld\n",(unsigned long)nparams);
+	stat = NC_EINVAL;
+	goto done;
+    }
+    snprintf(json,sizeof(json),"{\"id\": \"%s\"",NCZ_misc_codec.codecid);
+    for(i=0;i<14;i++) {
+        snprintf(value,sizeof(value),", \"%s\": \"%u\"",fields[i],params[i]);
+	strlcat(json,value,sizeof(json));
+    }
+    strlcat(json,"}",sizeof(json));
+    if(codecp) {
+        if((*codecp = strdup(json))==NULL) {stat = NC_ENOMEM; goto done;}
+    }
+    
+done:
+    return stat;
 }

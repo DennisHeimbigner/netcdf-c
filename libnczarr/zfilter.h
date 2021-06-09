@@ -16,14 +16,8 @@
 /* Dispatch functions are also in zfilter.c */
 /* Filterlist management */
 
-/* The NC_VAR_INFO_T->filters field is an NClist of this struct */
-typedef struct NCZ_Filter {
-    int flags;             /**< Flags describing state of this filter. */
-    unsigned int filterid; /**< ID for arbitrary filter. */
-    size_t nparams;        /**< nparams for arbitrary filter. */
-    unsigned int* params;  /**< Params for arbitrary filter. */
-    const void* code;      /**<Pointer to the loaded filter info. */
-} NCZ_Filter;
+/* Opaque structure */
+typedef struct NCZ_Filter NCZ_Filter;
 
 /*Mnemonic*/
 #define ENCODING 1

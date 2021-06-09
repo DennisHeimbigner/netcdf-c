@@ -11,8 +11,12 @@
 /**************************************************/
 /* Build To the HDF5 C-API for Filters */
 
+/* Support headers */
+#include <netcdf.h>
+#include <netcdf_filter.h>
+#include <ncjson.h>
 
-#ifdef H5_VERS_INFO_X
+#ifdef H5_VERS_INFO
 
 #include <hdf5.h>
 /* Older versions of the hdf library may define H5PL_type_t here */
@@ -44,11 +48,18 @@ but for use by HDF5.
 #define H5Z_FLAG_OPTIONAL	0x0001	/*filter is optional		*/
 #define H5Z_FLAG_REVERSE	0x0100	/*reverse direction; read	*/
 
+typedef int htri_t;
+typedef int herr_t;
+typedef long long hid_t;
+
+#define H5allocate_memory(size,n) malloc(size)
+#define H5free_memory(buf) free(buf)
+
 /* htri_t (*H5Z_can_apply_func_t)(hid_t dcpl_id, hid_t type_id, hid_t space_id) => currently not supported; must be NULL. */
-typedef int (*H5Z_can_apply_func_t)(long long, long long, long long);
+typedef htri_t (*H5Z_can_apply_func_t)(long long, long long, long long);
 
 /* herr_t (*H5Z_set_local_func_t)(hid_t dcpl_id, hid_t type_id, hid_t space_id); => currently not supported; must be NULL. */
-typedef int (*H5Z_set_local_func_t)(long long, long long, long long);
+typedef herr_t (*H5Z_set_local_func_t)(long long, long long, long long);
 
 /* H5Z_funct_t => H5Z_filter_func_t */
 typedef size_t (*H5Z_func_t)(unsigned int flags, size_t cd_nelmts,
@@ -107,12 +118,12 @@ typedef const void* (*H5PL_get_plugin_info_proto)(void);
 
 /* External Discovery Function */
 
-/* NCZ_get_codec_info(void) --  returns pointer to instance of NCZ_codec_class_t or NULL.
-				Can be recast based on version+sort to the plugin type specific info.
+/* NCZ_get_plugin_info(void) --  returns pointer to instance of NCZ_codec_class_t or NULL.
+			 	 Can be recast based on version+sort to the plugin type specific info.
 */
-typedef const void* (*NCZ_get_codec_info_proto)(void);
+typedef const void* (*NCZ_get_plugin_info_proto)(void);
 
-/* The current object returned by NCZ_get_codec_info is a
+/* The current object returned by NCZ_get_plugin_info is a
    pointer to an instance of NCZ_codec_t.
 
 The key to this struct is the two function pointers that do the conversion between codec JSON and HDF5 parameters.
