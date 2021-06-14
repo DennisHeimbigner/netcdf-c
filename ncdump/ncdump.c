@@ -1062,6 +1062,24 @@ pr_att_specials(
 	    printf(" = \"true\" ;\n");
 	}
     }
+    /* _Codecs*/
+    {
+	int stat;
+	size_t len;
+	nc_type typeid;
+        stat = nc_inq_att(ncid,varid,NC_ATT_CODECS,&typeid,&len);
+        if(stat == NC_NOERR && typeid == NC_CHAR && len > 0) {
+	    char* json = (char*)malloc(len+1);
+	    if(json != NULL) {	    
+                stat = nc_get_att_text(ncid,varid,NC_ATT_CODECS,json);
+                if(stat == NC_NOERR) {
+                    pr_att_name(ncid, "", NC_ATT_CODECS);
+                    printf(" = \"%s\" ;\n",json);
+		}
+		free(json);
+	    }
+	}
+    }
     /* _Checksum */
     {
 	int fletcher32 = 0;

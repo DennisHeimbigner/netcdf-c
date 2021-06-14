@@ -73,6 +73,8 @@ static int bytesappendquoted(NCJbuf* buf, const char*);
 static int bytesappend(NCJbuf* buf, const char* s);
 static int bytesappendc(NCJbuf* buf, const char c);
 static int escape(const char* text, NCJbuf* buf);
+static int NCJcloneArray(NCjson** array, NCjson** clonep);
+static int NCJcloneDict(NCjson** dict, NCjson** clonep);
 
 #define nullfree(x) {if(x)free(x);}
 #define nulldup(x) ((x)?strdup(x):(x))
@@ -467,7 +469,6 @@ NCJreclaimDict(struct NCjlist* dict)
     return NCJreclaimArray(dict);
 }
 
-#if 0
 int
 NCJclone(NCjson* json, NCjson** clonep)
 {
@@ -531,7 +532,6 @@ done:
     NCJreclaim(clone);    
     return stat;
 }
-#endif /*0*/
 
 /**************************************************/
 /* Build Functions */

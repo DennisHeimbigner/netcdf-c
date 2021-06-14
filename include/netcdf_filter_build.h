@@ -1,5 +1,17 @@
 /* Copyright 2018, UCAR/Unidata and OPeNDAP, Inc.
    See the COPYRIGHT file for more information. */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/hdf5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* This include file is used if one wished to build a filter plugin
    independent of HDF5. See examples in the plugins directory
@@ -118,8 +130,15 @@ typedef const void* (*H5PL_get_plugin_info_proto)(void);
 
 /* External Discovery Function */
 
-/* NCZ_get_plugin_info(void) --  returns pointer to instance of NCZ_codec_class_t or NULL.
-			 	 Can be recast based on version+sort to the plugin type specific info.
+/*
+Obtain a NULL terminated vector of NCZ_codec_class_t instances.
+This allows a single shared library provide the codec conversions for multiple
+filters. This allows Unidata to provide a big bulk of the converters for existing
+NumCodec codecs.
+
+NCZ_get_plugin_info(void) --  returns pointer to NULL terminated vector of NCZ_codec_class_t.
+			      Each instance an be recast based on version+sort to the plugin type specific info.
+So the void* return value is typically actually of type NCZ_codec_class_t**.
 */
 typedef const void* (*NCZ_get_plugin_info_proto)(void);
 
@@ -159,7 +178,7 @@ typedef struct NCZ_codec_t {
     const char* codecid;            /* The name/id of the codec */
     const unsigned int hdf5id; /* corresponding hdf5 id */
     int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
-    int (*NCZ_hdf5_to_codec)(int nparams, unsigned* params, char** codecp);
+    int (*NCZ_hdf5_to_codec)(int nparams, const unsigned* params, char** codecp);
 } NCZ_codec_t;
 
 #ifndef NC_UNUSED

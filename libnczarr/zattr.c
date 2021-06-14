@@ -73,6 +73,7 @@ ncz_getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **at
  * the file, they are constructed on the fly.
  *
  * @param h5 Pointer to ZARR file info struct.
+ * @param var Pointer to var info struct; NULL signals global.
  * @param name Name of attribute.
  * @param filetypep Pointer that gets type of the attribute data in
  * file.
@@ -87,21 +88,52 @@ ncz_getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **at
  * @author Dennis Heimbigner
  */
 int
-ncz_get_att_special(NC_FILE_INFO_T* h5, const char* name,
+ncz_get_att_special(NC_FILE_INFO_T* h5, NC_VAR_INFO_T* var, const char* name,
                     nc_type* filetypep, nc_type mem_type, size_t* lenp,
                     int* attnump, void* data)
 {
+    int stat = NC_NOERR;
+    
     /* Fail if asking for att id */
     if(attnump)
-        return NC_EATTMETA;
+        {stat = NC_EATTMETA; goto done;}
 
+    /* Handle the per-var case(s) first */
+    if(var != NULL) {
+        if(strcmp(name,NC_ATT_CODECS)==0) {	
+	    int i;
+	    NCbytes* buf = NULL;
+            NClist* filters = (NClist*)var->filters;
+            if(mem_type == NC_NAT) mem_type = NC_CHAR;
+            if(mem_type != NC_CHAR)
+                {stat = NC_ECHAR; goto done;}
+            if(filetypep) *filetypep = NC_CHAR;
+	    if(lenp) *lenp = 0;
+	    if(filters == NULL) goto done;	   
+	    buf = ncbytesnew(); ncbytessetalloc(buf,1024);
+	    ncbytescat(buf,"[");
+	    for(i=0;i<nclistlength(filters);i++) {
+        	NCZ_Filter* spec = nclistget(filters,i);
+		assert(spec->codec->codec != NULL);
+	        if(i > 0) ncbytescat(buf,",");
+		ncbytescat(buf,spec->codec->codec);
+	    }
+	    ncbytescat(buf,"]");
+	    if(lenp) *lenp = ncbyteslength(buf);
+            if(data) strncpy((char*)data,nclistcontents(buf),len+1);
+	    ncbytesfree(buf);
+	}
+	goto done;
+    }
+
+    /* The global reserved attributes */
     if(strcmp(name,NCPROPS)==0) {
         int len;
         if(h5->provenance.ncproperties == NULL)
-            return NC_ENOTATT;
+            {stat NC_ENOTATT; goto done;}
         if(mem_type == NC_NAT) mem_type = NC_CHAR;
         if(mem_type != NC_CHAR)
-            return NC_ECHAR;
+            {stat = NC_ECHAR; goto done;}
         if(filetypep) *filetypep = NC_CHAR;
 	len = strlen(h5->provenance.ncproperties);
         if(lenp) *lenp = len;
@@ -127,10 +159,12 @@ ncz_get_att_special(NC_FILE_INFO_T* h5, const char* name,
             case NC_INT64: *((long long*)data) = (long long)iv; break;
             case NC_UINT64: *((unsigned long long*)data) = (unsigned long long)iv; break;
             default:
-                return NC_ERANGE;
+                {stat = NC_ERANGE; goto done;}
             }
     }
-    return NC_NOERR;
+done:
+    return stat;
+
 }
 
 /**
@@ -924,7 +958,7 @@ NCZ_get_att(int ncid, int varid, const char *name, void *value,
                                             &h5, &grp, &var, NULL)))
         return retval;
 
-    /* If this is one of the reserved atts, use nc_get_att_special. */
+    /* If this is one of the reserved global atts, use nc_get_att_special. */
     if (!var)
     {
         const NC_reservedatt *ra = NC_findreserved(norm_name);

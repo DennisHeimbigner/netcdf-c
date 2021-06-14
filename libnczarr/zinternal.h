@@ -64,7 +64,6 @@
 
 #define islegaldimsep(c) ((c) != '\0' && strchr(LEGAL_DIM_SEPARATORS,(c)) != NULL)
 
-
 /* Mnemonics */
 #define ZCLOSE    1 /* this is closeorabort as opposed to enddef */
 

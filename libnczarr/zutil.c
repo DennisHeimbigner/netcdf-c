@@ -413,9 +413,9 @@ ncz_default_fill_value(nc_type nctype, const char** dfaltp)
 
 /**
 @internal Given an nc_type, produce the corresponding
-fill value sort
+fill value JSON type
 @param nctype - [in] nc_type
-@param sortp - [out] pointer to hold pointer to the sort
+@param sortp - [out] pointer to hold pointer to the JSON type
 @return NC_NOERR
 @author Dennis Heimbigner
 */

@@ -100,8 +100,7 @@ typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP, NCFIL} NC_SORT;
 /** Hidden attributes; immutable and unreadable thru API. */
 #define HIDDENATTRFLAG 1
 
-/** Readonly global attributes; readable, but immutable thru the
- * API. */
+/** Readonly attributes; readable, but immutable thru the API. */
 #define READONLYFLAG 2
 
 /** Subset of readonly flags; readable by name only thru the API. */
@@ -109,6 +108,9 @@ typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP, NCFIL} NC_SORT;
 
 /** Subset of readonly flags; Value is actually in file. */
 #define MATERIALIZEDFLAG 8
+
+/** Per-variable attribute, as opposed to global */
+#define VARFLAG 16
 
 /** Boolean type, to make the code easier to read. */
 typedef enum {NC_FALSE = 0, NC_TRUE = 1} nc_bool_t;
@@ -461,5 +463,6 @@ extern const NC_reservedatt* NC_findreserved(const char* name);
 #define NC_ATT_DIMID_NAME "_Netcdf4Dimid"
 #define NC_ATT_NC3_STRICT_NAME "_nc3_strict"
 #define NC_XARRAY_DIMS "_ARRAY_DIMENSIONS"
+#define NC_ATT_CODECS "_Codecs"
 
 #endif /* _NC4INTERNAL_ */

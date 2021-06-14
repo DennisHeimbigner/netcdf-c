@@ -47,6 +47,7 @@ static const NC_reservedatt NC_reserved[] = {
     {NC_ATT_DIMID_NAME, READONLYFLAG|HIDDENATTRFLAG|MATERIALIZEDFLAG},	/*_Netcdf4Dimid*/
     {SUPERBLOCKATT, READONLYFLAG|NAMEONLYFLAG},				/*_SuperblockVersion*/
     {NC_ATT_NC3_STRICT_NAME, READONLYFLAG|MATERIALIZEDFLAG},		/*_nc3_strict*/
+    {NC_ATT_CODECS, VARFLAG|READONLYFLAG|NAMEONLYFLAG|HIDDENATTRFLAG},	/*_Codecs*/
 };
 #define NRESERVED (sizeof(NC_reserved) / sizeof(NC_reservedatt))  /*|NC_reservedatt|*/
 
@@ -1832,12 +1833,13 @@ NC_findreserved(const char* name)
     int n = NRESERVED;
     int L = 0;
     int R = (n - 1);
+
     for(;;) {
         if(L > R) break;
         int m = (L + R) / 2;
         const NC_reservedatt* p = &NC_reserved[m];
         int cmp = strcmp(p->name,name);
-        if(cmp == 0) return p;
+	if(cmp == 0) return p;
         if(cmp < 0)
             L = (m + 1);
         else /*cmp > 0*/

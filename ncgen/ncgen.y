@@ -130,6 +130,7 @@ static void vercheck(int ncid);
 static long long extractint(NCConstant* con);
 #ifdef USE_NETCDF4
 static int parsefilterflag(const char* sdata0, Specialdata* special);
+static int parsecodecsflag(const char* sdata0, Specialdata* special);
 #ifdef GENDEBUG1
 static void printfilters(int nfilters, NC_ParsedFilterSpec** filters);
 #endif
@@ -212,6 +213,7 @@ NCConstant*    constant;
 	_ISNETCDF4
 	_SUPERBLOCK
 	_FILTER
+	_CODECS
 	DATASETID
 
 %type <sym> ident typename primtype dimd varspec
@@ -1372,6 +1374,18 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
 	        derror("%s: the filter attribute requires netcdf-4 to be enabled",specialname(tag));
 #endif
                 break;
+          case _CODECS_FLAG:
+#ifdef USE_NETCDF4
+		/* Parse the codec spec */
+		if(parsecodecsflag(sdata,special) == NC_NOERR)
+                    special->flags |= _CODECS_FLAG;
+		else {
+		    derror("_Filter: unparsable codec spec: %s",sdata);
+		}
+#else
+	        derror("%s: the _Codecs attribute requires netcdf-4 to be enabled",specialname(tag));
+#endif
+                break;
             default: PANIC1("makespecial: illegal token: %d",tag);
          }
     }
@@ -1496,6 +1510,21 @@ parsefilterflag(const char* sdata, Specialdata* special)
 #ifdef GENDEBUG1
 printfilters(special->nfilters,special->_Filters);
 #endif
+    return stat;
+}
+
+/*
+Store a Codecs spec string in special
+*/
+static int
+parsecodecsflag(const char* sdata, Specialdata* special)
+{
+    int stat = NC_NOERR;
+
+    if(sdata == NULL || strlen(sdata) == 0) return NC_EINVAL;
+
+    if((special->_Codecs = strdup(sdata))==NULL)
+        return NC_ENOMEM;
     return stat;
 }
 #endif

@@ -100,6 +100,9 @@ EXTERNL void NCJdump(const NCjson* json, unsigned flags, FILE*);
 struct NCJconst {int bval; long long ival; double dval; char* sval;};
 EXTERNL int NCJcvt(const NCjson* value, int outsort, struct NCJconst* output);
 
+/* Deep clone a json object */
+EXTERNL int NCJclone(const NCjson* json, NCjson** clonep);
+
 /* Getters */
 #define NCJsort(x) ((x)->sort)
 #define NCJstring(x) ((x)->string)

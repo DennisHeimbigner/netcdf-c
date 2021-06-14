@@ -16,7 +16,7 @@ static int ncz_jsonize_atts(NCindex* attlist, NCjson** jattrsp);
 static int load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypes);
 static int zconvert(nc_type typeid, size_t typelen, void* dst, NCjson* src);
 static int computeattrinfo(const char* name, NClist* atypes, NCjson* values,
-		nc_type* typeidp, size_t* lenp, void** datap);
+		nc_type* typeidp, size_t* typelenp, size_t* lenp, void** datap);
 static int parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist* subgrps);
 static int parse_group_content_pure(NCZ_FILE_INFO_T*  zinfo, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrps);
 static int define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp);
@@ -29,7 +29,7 @@ static int locategroup(NC_FILE_INFO_T* file, size_t nsegs, NClist* segments, NC_
 static int createdim(NC_FILE_INFO_T* file, const char* name, size64_t dimlen, NC_DIM_INFO_T** dimp);
 static int parsedimrefs(NC_FILE_INFO_T*, NClist* dimnames,  size64_t* shape, NC_DIM_INFO_T** dims, int create);
 static int decodeints(NCjson* jshape, size64_t* shapes);
-static int computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap);
+static int computeattrdata(nc_type* typeidp, NCjson* values, size_t* typelenp, size_t* lenp, void** datap);
 static int inferattrtype(NCjson* values, nc_type* typeidp);
 static int mininttype(unsigned long long u64, int negative);
 static int computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int purezarr, int xarray, int ndims, NClist* dimnames, size64_t* shapes, NC_DIM_INFO_T** dims);
@@ -245,6 +245,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     NCjson* jncvar = NULL;
     NCjson* jdimrefs = NULL;
     NCjson* jtmp = NULL;
+    NCjson* jfill = NULL;
     size64_t shape[NC_MAX_VAR_DIMS];
     NCZ_VAR_INFO_T* zvar = var->format_var_info;
     NClist* filterchain = NULL;
@@ -328,7 +329,6 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     if(!var->no_fill) {
 	int fillsort;
 	int atomictype = var->type_info->hdr.id;
-	NCjson* jfill = NULL;
 	/* A scalar value providing the default value to use for uninitialized
 	   portions of the array, or ``null`` if no fill_value is to be used. */
 	/* Use the defaults defined in netdf.h */
@@ -342,9 +342,10 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 	    if((stat = nc4_get_default_fill_value(atomictype,var->fill_value))) goto done;
 	}
         /* Convert var->fill_value to a string */
-	if((stat = NCZ_stringconvert(atomictype,1,var->fill_value,&jfill)))
-	    goto done;
-	if((stat = NCJinsert(jvar,"fill_value",jfill))) goto done;
+	if((stat = NCZ_stringconvert(atomictype,1,var->fill_value,&jfill))) goto done;
+	assert(jfill->sort != NCJ_ARRAY);
+        if((stat = NCJinsert(jvar,"fill_value",jfill))) goto done;
+        jfill = NULL;
     }
 
     /* order key */
@@ -385,7 +386,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 	if((stat = NCJnew(NCJ_ARRAY,&jtmp))) goto done;
 	for(k=0;k<nclistlength(filterchain)-1;k++) {
  	    NCZ_Filter* filter = (NCZ_Filter*)nclistget(filterchain,k);
-	    /* encode up the filter */
+	    /* encode up the filter as a string */
 	    if((stat = NCZ_filter_jsonize(var,filter,&jfilter))) goto done;
 	    if((stat = NCJappend(jtmp,jfilter))) goto done;
 	}
@@ -490,6 +491,7 @@ done:
     NCJreclaim(jvar);
     NCJreclaim(jncvar);
     NCJreclaim(jtmp);
+    NCJreclaim(jfill);
     return THROW(stat);
 }
 
@@ -700,6 +702,8 @@ done:
 /**
 @internal Convert a list of attributes to corresponding json.
 Note that this does not push to the file.
+Also note that attributes of length 1 are stored as singletons, not arrays.
+This is to be more consistent with pure zarr. 
 @param attlist - [in] the attributes to dictify
 @param jattrsp - [out] the json'ized att list
 @return NC_NOERR
@@ -875,11 +879,11 @@ Extract type and data for an attribute
 */
 static int
 computeattrinfo(const char* name, NClist* atypes, NCjson* values,
-		nc_type* typeidp, size_t* lenp, void** datap)
+		nc_type* typeidp, size_t* typelenp, size_t* lenp, void** datap)
 {
     int stat = NC_NOERR;
     int i;
-    size_t len;
+    size_t len, typelen;
     void* data;
     nc_type typeid;
 
@@ -897,10 +901,11 @@ computeattrinfo(const char* name, NClist* atypes, NCjson* values,
     }
     if(typeid >= NC_STRING)
 	{stat = NC_EINTERNAL; goto done;}
-    if((stat = computeattrdata(&typeid, values, &len, &data))) goto done;
+    if((stat = computeattrdata(&typeid, values, &typelen, &len, &data))) goto done;
 
     if(typeidp) *typeidp = typeid;
     if(lenp) *lenp = len;
+    if(typelenp) *typelenp = typelen;
     if(datap) {*datap = data; data = NULL;}
 
 done:
@@ -912,7 +917,7 @@ done:
 Extract data for an attribute
 */
 static int
-computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap)
+computeattrdata(nc_type* typeidp, NCjson* values, size_t* typelenp, size_t* lenp, void** datap)
 {
     int stat = NC_NOERR;
     size_t datalen;
@@ -940,21 +945,22 @@ computeattrdata(nc_type* typeidp, NCjson* values, size_t* lenp, void** datap)
 	break;
     }
 
-    /* Allocate data space */
-    if((stat = NC4_inq_atomic_type(typeid, NULL, &typelen)))
-	goto done;
-    if(typeid == NC_CHAR)
-        data = malloc(typelen*(datalen+1));
-    else
-        data = malloc(typelen*datalen);
-    if(data == NULL)
-	{stat = NC_ENOMEM; goto done;}
-
-    /* convert to target type */	
-    if((stat = zconvert(typeid, typelen, data, values)))
-	goto done;
-
+    if(datalen > 0) {
+        /* Allocate data space */
+        if((stat = NC4_inq_atomic_type(typeid, NULL, &typelen)))
+	    goto done;
+        if(typeid == NC_CHAR)
+            data = malloc(typelen*(datalen+1));
+        else
+            data = malloc(typelen*datalen);
+        if(data == NULL)
+	    {stat = NC_ENOMEM; goto done;}
+        /* convert to target type */	
+        if((stat = zconvert(typeid, typelen, data, values)))
+   	    goto done;
+    }
     if(lenp) *lenp = datalen;
+    if(typelenp) *typelenp = typelen;
     if(datap) {*datap = data; data = NULL;}
     if(typeidp) *typeidp = typeid; /* return possibly inferred type */
     
@@ -999,7 +1005,7 @@ inferattrtype(NCjson* value, nc_type* typeidp)
 	typeid = NC_CHAR;
 	break;
     default:
-	return NC_EINTERNAL;
+	return NC_ENCZARR;
     }
     if(typeidp) *typeidp = typeid;
     return NC_NOERR;
@@ -1157,7 +1163,7 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
     NCjson* jattrs = NULL;
     NClist* atypes = NULL;
     nc_type typeid;
-    size_t len;
+    size_t len, typelen;
     void* data = NULL;
     NC_ATT_INFO_T* fillvalueatt = NULL;
 
@@ -1220,7 +1226,7 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
 	    /* Create the attribute */
 	    /* Collect the attribute's type and value  */
 	    if((stat = computeattrinfo(NCJstring(key),atypes,value,
-				   &typeid,&len,&data)))
+				   &typeid,&typelen,&len,&data)))
 		goto done;
 	    if((stat = ncz_makeattr(container,attlist,NCJstring(key),typeid,len,data,&att)))
 		goto done;
@@ -1419,7 +1425,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    else {
 		typeid = var->type_info->hdr.id;
 		var->no_fill = 0;
-		if((stat = computeattrdata(&typeid, jvalue, NULL, &var->fill_value)))
+		if((stat = computeattrdata(&typeid, jvalue, NULL, NULL, &var->fill_value)))
 		    goto done;
 		assert(typeid == var->type_info->hdr.id);
 		/* Note that we do not create the _FillValue
@@ -1457,6 +1463,23 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		    goto done;
 		if((stat = NCZ_adjust_var_cache(var))) goto done;
 	    }
+	}
+	/* fill_value */
+	{
+	    if((stat = NCJdictget(jvar,"fill_value",&jvalue))) goto done;
+	    if(jvalue == NULL)
+		var->no_fill = 1;
+	    else {
+		size_t fvlen;
+		typeid = var->type_info->hdr.id;
+		var->no_fill = 0;
+		if((stat = computeattrdata(&typeid, jvalue, NULL, &fvlen, &var->fill_value)))
+		    goto done;
+		assert(typeid == var->type_info->hdr.id);
+		/* Note that we do not create the _FillValue
+		   attribute here to avoid having to read all
+		   the attributes and thus foiling lazy read.*/
+	    } 
 	}
 	/* Capture row vs column major; currently, column major not used*/
 	{
