@@ -149,6 +149,7 @@ NCZ_xxxx_codec_to_hdf5(const char* codec_json, int* nparamsp, unsigned** paramsp
     NCjson* jtmp = NULL;
     int nparams = 0;
     unsigned* params = NULL;
+    struct NCJconst jc;
 
     if((params = (unsigned*)malloc(sizeof(unsigned)))== NULL)
         {stat = NC_ENOMEM; goto done;}
@@ -160,10 +161,12 @@ NCZ_xxxx_codec_to_hdf5(const char* codec_json, int* nparamsp, unsigned** paramsp
     if((stat = NCJdictget(jcodec,"id",&jtmp))) goto done;
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
     if(strcmp(NCJstring(jtmp),NCZ_xxxx_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
+
     /* Get unsigned integer param */
     if((stat = NCJdictget(jcodec,"param0",&jtmp))) goto done;
-    if(jtmp == NULL || NCJsort(jtmp) != NCJ_INT) {stat = NC_EINVAL; goto done;}
-    if(1 != sscanf(NCJstring(jtmp),"%d",&params[0])) {stat = NC_EINVAL; goto done;}
+    if((stat = NCJcvt(jtmp,NCJ_INT,&jc))) goto done;
+    if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
+    params[i] = (unsigned)jc.ival;
     if(nparamsp) *nparamsp = 1;
     if(paramsp) {*paramsp = params; params = NULL;}
     

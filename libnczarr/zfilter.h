@@ -16,9 +16,6 @@
 /* Dispatch functions are also in zfilter.c */
 /* Filterlist management */
 
-/* Opaque structure */
-typedef struct NCZ_Filter NCZ_Filter;
-
 /*Mnemonic*/
 #define ENCODING 1
 
@@ -28,14 +25,17 @@ typedef struct NCZ_Filter NCZ_Filter;
 #define plugin_dir_win "%s/hdf5/lib/plugin"
 #define win32_root_env "ALLUSERSPROFILE"
 
+/* Opaque */
+struct NCZ_Filter;
+
 int NCZ_filter_initialize(void);
 int NCZ_filter_finalize(void);
-int NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, struct NCZ_Filter** specp);
 int NCZ_addfilter(NC_VAR_INFO_T* var, unsigned int id, size_t nparams, const unsigned int* params);
 int NCZ_filter_freelist(NC_VAR_INFO_T* var);
-int NCZ_filter_free(NCZ_Filter* f);
+int NCZ_codec_freelist(NCZ_VAR_INFO_T* zvar);
 int NCZ_applyfilterchain(NClist* chain, size_t insize, void* indata, size_t* outlen, void** outdata, int encode);
-int NCZ_filter_jsonize(NC_VAR_INFO_T*, NCZ_Filter* filter, NCjson** jfilterp);
-int NCZ_filter_build(NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter** filterp);
-
+int NCZ_filter_jsonize(const NC_VAR_INFO_T*, const struct NCZ_Filter* filter, NCjson** jfilterp);
+int NCZ_filter_build(const NC_VAR_INFO_T* var, const NCjson* jfilter, struct NCZ_Filter** filterp);
+int NCZ_codec_attr(const NC_VAR_INFO_T* var, size_t* lenp, void* data);
+	    
 #endif /*ZFILTER_H*/

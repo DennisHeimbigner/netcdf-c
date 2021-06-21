@@ -159,7 +159,7 @@ H5Z_filter_noop(unsigned int flags, size_t cd_nelmts,
 
 /* Forward */
 static int NCZ_noop_codec_to_hdf5(const char* codec, int* nparamsp, unsigned** paramsp);
-static int NCZ_noop_hdf5_to_codec(int nparams, unsigned* params, char** codecp);
+static int NCZ_noop_hdf5_to_codec(int nparams, const unsigned* params, char** codecp);
 
 /* Structure for NCZ_PLUGIN_CODEC */
 static NCZ_codec_t NCZ_noop_codec = {/* NCZ_codec_t  codec fields */ 
@@ -212,10 +212,12 @@ NCZ_noop_codec_to_hdf5(const char* codec_json, int* nparamsp, unsigned** paramsp
     /* This filter has an arbitrary number of parameters named p0...pn */
 
     for(i=0;i<nparams;i++) {
+	struct NCJconst jc;
 	snprintf(field,sizeof(field),"p%d",i);
-        if((stat = NCJdictget(jcodec,field,&jtmp))) goto done; \
-        if(jtmp == NULL || NCJsort(jtmp) != NCJ_INT) {stat = NC_EINVAL; goto done;} \
-        if(1 != sscanf(NCJstring(jtmp),"%u",&params[i])) {stat = NC_EINVAL; goto done;}
+        if((stat = NCJdictget(jcodec,field,&jtmp))) goto done;
+	if((stat = NCJcvt(jtmp,NCJ_INT,&jc))) goto done;
+	if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
+	params[i] = (unsigned)jc.ival;
     }
     if(nparamsp) *nparamsp = nparams;
     if(paramsp) {*paramsp = params; params = NULL;}
@@ -227,7 +229,7 @@ done:
 }
 
 static int
-NCZ_noop_hdf5_to_codec(int nparams, unsigned* params, char** codecp)
+NCZ_noop_hdf5_to_codec(int nparams, const unsigned* params, char** codecp)
 {
     int i,stat = NC_NOERR;
     char json[8192];

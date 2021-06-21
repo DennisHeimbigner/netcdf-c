@@ -364,7 +364,7 @@ static const char* fields[14] = {
 
 /* Forward */
 static int NCZ_misc_codec_to_hdf5(const char* codec, int* nparamsp, unsigned** paramsp);
-static int NCZ_misc_hdf5_to_codec(int nparams, unsigned* params, char** codecp);
+static int NCZ_misc_hdf5_to_codec(int nparams, const unsigned* params, char** codecp);
 
 /* Structure for NCZ_PLUGIN_CODEC */
 static NCZ_codec_t NCZ_misc_codec = {/* NCZ_codec_t  codec fields */ 
@@ -415,9 +415,11 @@ NCZ_misc_codec_to_hdf5(const char* codec_json, int* nparamsp, unsigned** paramsp
         {stat = NC_ENOMEM; goto done;}
 
     for(i=0;i<14;i++) {
+	struct NCJconst jc;
         if((stat = NCJdictget(jcodec,fields[i],&jtmp))) goto done; \
-        if(jtmp == NULL || NCJsort(jtmp) != NCJ_INT) {stat = NC_EINVAL; goto done;} \
-        if(1 != sscanf(NCJstring(jtmp),"%u",&params[i])) {stat = NC_EINVAL; goto done;}
+	if((stat = NCJcvt(jtmp,NCJ_INT,&jc))) goto done;
+	if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
+	params[i] = (unsigned)jc.ival;
     }
     if(nparamsp) *nparamsp = nparams;
     if(paramsp) {*paramsp = params; params = NULL;}
@@ -429,7 +431,7 @@ done:
 }
 
 static int
-NCZ_misc_hdf5_to_codec(int nparams, unsigned* params, char** codecp)
+NCZ_misc_hdf5_to_codec(int nparams, const unsigned* params, char** codecp)
 {
     int i,stat = NC_NOERR;
     char json[4096];

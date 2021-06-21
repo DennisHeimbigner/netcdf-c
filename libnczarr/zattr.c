@@ -10,9 +10,9 @@
  */
 
 #include "zincludes.h"
+#include "zfilter.h"
 
 #undef ADEBUG
-
 
 /**
  * @internal Get the attribute list for either a varid or NC_GLOBAL
@@ -101,27 +101,15 @@ ncz_get_att_special(NC_FILE_INFO_T* h5, NC_VAR_INFO_T* var, const char* name,
     /* Handle the per-var case(s) first */
     if(var != NULL) {
         if(strcmp(name,NC_ATT_CODECS)==0) {	
-	    int i;
-	    NCbytes* buf = NULL;
             NClist* filters = (NClist*)var->filters;
+
             if(mem_type == NC_NAT) mem_type = NC_CHAR;
             if(mem_type != NC_CHAR)
                 {stat = NC_ECHAR; goto done;}
             if(filetypep) *filetypep = NC_CHAR;
 	    if(lenp) *lenp = 0;
-	    if(filters == NULL) goto done;	   
-	    buf = ncbytesnew(); ncbytessetalloc(buf,1024);
-	    ncbytescat(buf,"[");
-	    for(i=0;i<nclistlength(filters);i++) {
-        	NCZ_Filter* spec = nclistget(filters,i);
-		assert(spec->codec->codec != NULL);
-	        if(i > 0) ncbytescat(buf,",");
-		ncbytescat(buf,spec->codec->codec);
-	    }
-	    ncbytescat(buf,"]");
-	    if(lenp) *lenp = ncbyteslength(buf);
-            if(data) strncpy((char*)data,nclistcontents(buf),len+1);
-	    ncbytesfree(buf);
+	    if(filters == NULL) goto done;	  
+ 	    if((stat = NCZ_codec_attr(var,lenp,data))) goto done;
 	}
 	goto done;
     }
@@ -130,7 +118,7 @@ ncz_get_att_special(NC_FILE_INFO_T* h5, NC_VAR_INFO_T* var, const char* name,
     if(strcmp(name,NCPROPS)==0) {
         int len;
         if(h5->provenance.ncproperties == NULL)
-            {stat NC_ENOTATT; goto done;}
+            {stat = NC_ENOTATT; goto done;}
         if(mem_type == NC_NAT) mem_type = NC_CHAR;
         if(mem_type != NC_CHAR)
             {stat = NC_ECHAR; goto done;}
@@ -605,7 +593,7 @@ ncz_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,
                 if (*(char **)var->fill_value)
                     free(*(char **)var->fill_value);
             }
-            free(var->fill_value);
+            free(var->fill_value); var->fill_value = NULL;
         }
 
 #ifdef LOOK
@@ -839,11 +827,10 @@ NCZ_inq_att(int ncid, int varid, const char *name, nc_type *xtypep,
         return retval;
 
     /* If this is one of the reserved atts, use nc_get_att_special. */
-    if (!var)
     {
         const NC_reservedatt *ra = NC_findreserved(norm_name);
         if (ra  && ra->flags & NAMEONLYFLAG)
-            return ncz_get_att_special(h5, norm_name, xtypep, NC_NAT, lenp, NULL,
+            return ncz_get_att_special(h5, var, norm_name, xtypep, NC_NAT, lenp, NULL,
                                        NULL);
     }
 
@@ -880,11 +867,10 @@ NCZ_inq_attid(int ncid, int varid, const char *name, int *attnump)
         return retval;
 
     /* If this is one of the reserved atts, use nc_get_att_special. */
-    if (!var)
     {
         const NC_reservedatt *ra = NC_findreserved(norm_name);
         if (ra  && ra->flags & NAMEONLYFLAG)
-            return ncz_get_att_special(h5, norm_name, NULL, NC_NAT, NULL, attnump,
+            return ncz_get_att_special(h5, var, norm_name, NULL, NC_NAT, NULL, attnump,
                                        NULL);
     }
 
@@ -959,11 +945,10 @@ NCZ_get_att(int ncid, int varid, const char *name, void *value,
         return retval;
 
     /* If this is one of the reserved global atts, use nc_get_att_special. */
-    if (!var)
     {
         const NC_reservedatt *ra = NC_findreserved(norm_name);
         if (ra  && ra->flags & NAMEONLYFLAG)
-            return ncz_get_att_special(h5, norm_name, NULL, NC_NAT, NULL, NULL,
+            return ncz_get_att_special(h5, var, norm_name, NULL, NC_NAT, NULL, NULL,
                                        value);
     }
 
@@ -1048,6 +1033,16 @@ ncz_makeattr(NC_OBJ* container, NCindex* attlist, const char* name, nc_type type
     int stat = NC_NOERR;
     NC_ATT_INFO_T* att = NULL;
     NCZ_ATT_INFO_T* zatt = NULL;
+    void* clone = NULL;
+    size_t typesize, clonesize;
+    NC_GRP_INFO_T* grp = (container->sort == NCGRP ? (NC_GRP_INFO_T*)container
+                                                   : ((NC_VAR_INFO_T*)container)->container);
+
+    /* Duplicate the values */
+    if ((stat = nc4_get_typelen_mem(grp->nc4_info, typeid, &typesize))) goto done;
+    clonesize = len*typesize;
+    if((clone = malloc(clonesize))==NULL) {stat = NC_ENOMEM; goto done;}
+    memcpy(clone,values,clonesize);
 
     if((stat=nc4_att_list_add(attlist,name,&att)))
 	goto done;
@@ -1064,11 +1059,12 @@ ncz_makeattr(NC_OBJ* container, NCindex* attlist, const char* name, nc_type type
     /* Fill in the attribute's type and value  */
     att->nc_typeid = typeid;
     att->len = len;
-    att->data = values;
+    att->data = clone; clone = NULL;
     att->dirty = NC_TRUE;
     if(attp) {*attp = att; att = NULL;}
 
 done:
+    nullfree(clone);
     if(stat) {
 	if(att) nc4_att_list_del(attlist,att);
 	nullfree(zatt);

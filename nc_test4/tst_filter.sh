@@ -128,7 +128,7 @@ ${NCGEN} -4 -lb -o tmp_unfiltered.nc ${srcdir}/ref_unfiltered.cdl
 ${NCGEN} -4 -lb -o tmp_unfilteredvv.nc ${srcdir}/ref_unfilteredvv.cdl
 
 echo "	*** Testing simple filter application"
-${NCCOPY} -M0 -F "/g/var,307,9,4" tmp_unfiltered.nc tmp_filtered.nc
+${NCCOPY} -M0 -F "/g/var,307,9" tmp_unfiltered.nc tmp_filtered.nc
 ${NCDUMP} -s -n filtered tmp_filtered.nc > ./tmp_filter.txt
 # Remove irrelevant -s output
 sclean ./tmp_filter.txt ./tmp_filtered.dump
@@ -136,7 +136,7 @@ diff -b -w ${srcdir}/ref_filtered.cdl ./tmp_filtered.dump
 echo "	*** Pass: nccopy simple filter"
 
 echo "	*** Testing '*' filter application"
-${NCCOPY} -M0 -F "*,307,9,4" tmp_unfilteredvv.nc tmp_filteredvv.nc
+${NCCOPY} -M0 -F "*,307,9" tmp_unfilteredvv.nc tmp_filteredvv.nc
 ${NCDUMP} -s -n filteredvv tmp_filteredvv.nc > ./tmp_filtervv.txt
 # Remove irrelevant -s output
 sclean ./tmp_filtervv.txt ./tmp_filteredvv.dump
@@ -144,7 +144,7 @@ diff -b -w ${srcdir}/ref_filteredvv.cdl ./tmp_filteredvv.dump
 echo "	*** Pass: nccopy '*' filter"
 
 echo "	*** Testing 'v&v' filter application"
-${NCCOPY} -M0 -F "var1&/g/var2,307,9,4" tmp_unfilteredvv.nc tmp_filteredvbar.nc
+${NCCOPY} -M0 -F "var1&/g/var2,307,9" tmp_unfilteredvv.nc tmp_filteredvbar.nc
 ${NCDUMP} -n filteredvv -s tmp_filteredvbar.nc > ./tmp_filtervbar.txt
 # Remove irrelevant -s output
 sclean ./tmp_filtervbar.txt ./tmp_filteredvbar.dump

@@ -238,7 +238,7 @@ ncz_closeorabort(NC_FILE_INFO_T* h5, void* params, int abort)
 
     NC_UNUSED(params);
 
-    ZTRACE(1,"file=%s abort=%d",h5->hdr.name,abort);
+    ZTRACE(3,"file=%s abort=%d",h5->hdr.name,abort);
 
     LOG((2, "%s: file: %p", __func__, h5));
 

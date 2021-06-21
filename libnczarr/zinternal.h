@@ -150,6 +150,7 @@ typedef struct NCZ_VAR_INFO {
     struct NCZChunkCache* cache;
     struct NClist* xarray; /* names from _ARRAY_DIMENSIONS */
     char dimension_separator; /* '.' | '/' */
+    NClist* codecs; /* NClist<NCZ_Codec> */
 } NCZ_VAR_INFO_T;
 
 /* Struct to hold ZARR-specific info for a field. */

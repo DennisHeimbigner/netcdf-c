@@ -73,8 +73,8 @@ static int bytesappendquoted(NCJbuf* buf, const char*);
 static int bytesappend(NCJbuf* buf, const char* s);
 static int bytesappendc(NCJbuf* buf, const char c);
 static int escape(const char* text, NCJbuf* buf);
-static int NCJcloneArray(NCjson** array, NCjson** clonep);
-static int NCJcloneDict(NCjson** dict, NCjson** clonep);
+static int NCJcloneArray(const NCjson* array, NCjson** clonep);
+static int NCJcloneDict(const NCjson* dict, NCjson** clonep);
 
 #define nullfree(x) {if(x)free(x);}
 #define nulldup(x) ((x)?strdup(x):(x))
@@ -470,28 +470,28 @@ NCJreclaimDict(struct NCjlist* dict)
 }
 
 int
-NCJclone(NCjson* json, NCjson** clonep)
+NCJclone(const NCjson* json, NCjson** clonep)
 {
     int stat = NCJ_OK;
     NCjson* clone = NULL;
     if(json == NULL) goto done;
-    switch(json->sort) {
+    switch(NCJsort(json)) {
     case NCJ_INT:
     case NCJ_DOUBLE:
     case NCJ_BOOLEAN:
     case NCJ_STRING:
-	if((stat=NCJnew(json->sort,&clone))) goto done;
-	if((clone->u.string = strdup(json->u.string)) == NULL)
+	if((stat=NCJnew(NCJsort(json),&clone))) goto done;
+	if((NCJstring(clone) = strdup(NCJstring(json))) == NULL)
 	    {stat = NCJ_ERR; goto done;}
 	break;
     case NCJ_NULL:
-	if((stat=NCJnew(json->sort,&clone))) goto done;
+	if((stat=NCJnew(NCJsort(json),&clone))) goto done;
 	break;
     case NCJ_DICT:
-	if((stat=NCJcloneDict(json->contents,&clone))) goto done;
+	if((stat=NCJcloneDict(json,&clone))) goto done;
 	break;
     case NCJ_ARRAY:
-	if((stat=NCJcloneArray(json->contents,&clone))) goto done;
+	if((stat=NCJcloneArray(json,&clone))) goto done;
 	break;
     default: break; /* nothing to clone */
     }
@@ -502,16 +502,16 @@ done:
 }
 
 static int
-NCJcloneArray(NCjson** array, NCjson** clonep)
+NCJcloneArray(const NCjson* array, NCjson** clonep)
 {
     int i, stat=NCJ_OK;
     NCjson* clone = NULL;
     if((stat=NCJnew(NCJ_ARRAY,&clone))) goto done;
-    for(i=0;i<NCJlistlength(array);i++) {
-	NCjson* elem = NCJlistget(array,i);
+    for(i=0;i<NCJlength(array);i++) {
+	NCjson* elem = NCJith(array,i);
 	NCjson* elemclone = NULL;
 	if((stat=NCJclone(elem,&elemclone))) goto done;
-	NCJlistpush(clone->contents,elemclone);
+	NCJappend(clone,elemclone);
     }
 done:
     if(stat == NCJ_OK && clonep) {*clonep = clone; clone = NULL;}
@@ -520,13 +520,17 @@ done:
 }
 
 static int
-NCJcloneDict(NCjson** dict, NCjson** clonep)
+NCJcloneDict(const NCjson* dict, NCjson** clonep)
 {
-    int stat = NCJ_OK;
+    int i, stat=NCJ_OK;
     NCjson* clone = NULL;
-    if((stat=NCJcloneArray(dict,&clone))) goto done;
-    /* Convert from array to dict */
-    NCJsetsort(clone,NCJ_DICT);
+    if((stat=NCJnew(NCJ_DICT,&clone))) goto done;
+    for(i=0;i<NCJlength(dict);i++) {
+	NCjson* elem = NCJith(dict,i);
+	NCjson* elemclone = NULL;
+	if((stat=NCJclone(elem,&elemclone))) goto done;
+	NCJappend(clone,elemclone);
+    }
 done:
     if(stat == NCJ_OK && clonep) {*clonep = clone; clone = NULL;}
     NCJreclaim(clone);    
@@ -600,7 +604,7 @@ NCJaddstring(NCjson* json, int sort, const char* s)
     int stat = NCJ_OK;
     NCjson* jtmp = NULL;
 
-    if(json->sort != NCJ_DICT && json->sort != NCJ_ARRAY)
+    if(NCJsort(json) != NCJ_DICT && NCJsort(json) != NCJ_ARRAY)
         {stat = NCJ_ERR; goto done;}
     if((stat = NCJnewstring(sort, s, &jtmp))) goto done;
     if((stat = NCJappend(json,jtmp))) goto done;
@@ -713,7 +717,7 @@ NCJunparseR(const NCjson* json, NCJbuf* buf, unsigned flags)
     int stat = NCJ_OK;
     int i;
 
-    switch (json->sort) {
+    switch (NCJsort(json)) {
     case NCJ_STRING:
 	bytesappendquoted(buf,json->string);
 	break;

@@ -337,6 +337,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 	if(var->fill_value == NULL) { /* use default */
 	    size_t typelen;
             if((stat = NC4_inq_atomic_type(atomictype, NULL, &typelen))) goto done;
+	    assert(var->fill_value == NULL);
 	    var->fill_value = (atomictype == NC_CHAR ? malloc(typelen+1) : malloc(typelen));
 	    if(var->fill_value == NULL) {stat = NC_ENOMEM; goto done;}
 	    if((stat = nc4_get_default_fill_value(atomictype,var->fill_value))) goto done;
@@ -363,7 +364,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
        configuration parameters, or ``null`` if no compressor is to be used. */
     if((stat = NCJaddstring(jvar,NCJ_STRING,"compressor"))) goto done;
     if(nclistlength(filterchain) > 0) {
-	NCZ_Filter* filter = (NCZ_Filter*)nclistget(filterchain,nclistlength(filterchain)-1);
+	struct NCZ_Filter* filter = (struct NCZ_Filter*)nclistget(filterchain,nclistlength(filterchain)-1);
         /* encode up the compressor */
         if((stat = NCZ_filter_jsonize(var,filter,&jtmp))) goto done;
     } else { /* no filters at all */
@@ -380,12 +381,12 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     /* A list of JSON objects providing codec configurations, or ``null``
        if no filters are to be applied. */
     if((stat = NCJaddstring(jvar,NCJ_STRING,"filters"))) goto done;
-    if(nclistlength(filterchain) > 0) {
+    if(nclistlength(filterchain) > 1) {
 	int k;
 	/* jtmp holds the array of filters */
 	if((stat = NCJnew(NCJ_ARRAY,&jtmp))) goto done;
 	for(k=0;k<nclistlength(filterchain)-1;k++) {
- 	    NCZ_Filter* filter = (NCZ_Filter*)nclistget(filterchain,k);
+ 	    struct NCZ_Filter* filter = (struct NCZ_Filter*)nclistget(filterchain,k);
 	    /* encode up the filter as a string */
 	    if((stat = NCZ_filter_jsonize(var,filter,&jfilter))) goto done;
 	    if((stat = NCJappend(jtmp,jfilter))) goto done;
@@ -884,7 +885,7 @@ computeattrinfo(const char* name, NClist* atypes, NCjson* values,
     int stat = NC_NOERR;
     int i;
     size_t len, typelen;
-    void* data;
+    void* data = NULL;
     nc_type typeid;
 
     /* Get type info for the given att */
@@ -928,7 +929,7 @@ computeattrdata(nc_type* typeidp, NCjson* values, size_t* typelenp, size_t* lenp
 
     /* Get assumed type */
     if(typeidp) typeid = *typeidp;
-    if(typeid == NC_NAT) inferattrtype(values,&typeid);
+    if(typeid == NC_NAT) if((stat = inferattrtype(values,&typeid))) goto done;
     if(typeid == NC_NAT) {stat = NC_EBADTYPE; goto done;}
 
     /* Collect the length of the attribute; might be a singleton  */
@@ -973,15 +974,23 @@ done:
 static int
 inferattrtype(NCjson* value, nc_type* typeidp)
 {
+    int stat = NC_NOERR;
     nc_type typeid;
     NCjson* j = NULL;
     unsigned long long u64;
     long long i64;
     int negative = 0;
 
-    if(NCJlength(value) == 0) return NC_EINVAL;
+    if(value->sort == NCJ_ARRAY && NCJlength(value) == 0)
+        if((stat=NCJnew(NCJ_NULL,&value))) goto done; /* overwrite */
+
+    if(NCJsort(value) == NCJ_NULL) {
+	typeid = NC_NAT;
+	goto done;
+    }
+
     if(value->sort == NCJ_ARRAY) {
-	j=NCJith(value,0);
+         j=NCJith(value,0);
 	return inferattrtype(j,typeidp);
     }
     if(NCJstring(value) != NULL)
@@ -1005,10 +1014,11 @@ inferattrtype(NCjson* value, nc_type* typeidp)
 	typeid = NC_CHAR;
 	break;
     default:
-	return NC_ENCZARR;
+	stat = NC_ENCZARR;
     }
+done:
     if(typeidp) *typeidp = typeid;
-    return NC_NOERR;
+    return stat;
 }
 
 static int
@@ -1230,6 +1240,7 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
 		goto done;
 	    if((stat = ncz_makeattr(container,attlist,NCJstring(key),typeid,len,data,&att)))
 		goto done;
+	    nullfree(data); data = NULL; /* passed to the attribute */
 	    /* Is this _FillValue ? */
 	    if(strcmp(att->hdr.name,_FillValue)==0) fillvalueatt = att;
 	}
@@ -1250,6 +1261,7 @@ done:
     NCJreclaim(jattrs);
     nclistfreeall(atypes);
     nullfree(fullpath);
+    nullfree(data);
     nullfree(key);
     return THROW(stat);
 }
@@ -1345,6 +1357,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	zvar->common.file = file;
 
 	/* Set filter list */
+	assert(var->filters == NULL);
 	var->filters = (void*)nclistnew();
 
 	/* Construct var path */
@@ -1423,9 +1436,11 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    if(jvalue == NULL)
 		var->no_fill = 1;
 	    else {
+		size_t fvlen;
 		typeid = var->type_info->hdr.id;
 		var->no_fill = 0;
-		if((stat = computeattrdata(&typeid, jvalue, NULL, NULL, &var->fill_value)))
+		assert(var->fill_value == NULL);
+		if((stat = computeattrdata(&typeid, jvalue, NULL, &fvlen, &var->fill_value)))
 		    goto done;
 		assert(typeid == var->type_info->hdr.id);
 		/* Note that we do not create the _FillValue
@@ -1464,23 +1479,6 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		if((stat = NCZ_adjust_var_cache(var))) goto done;
 	    }
 	}
-	/* fill_value */
-	{
-	    if((stat = NCJdictget(jvar,"fill_value",&jvalue))) goto done;
-	    if(jvalue == NULL)
-		var->no_fill = 1;
-	    else {
-		size_t fvlen;
-		typeid = var->type_info->hdr.id;
-		var->no_fill = 0;
-		if((stat = computeattrdata(&typeid, jvalue, NULL, &fvlen, &var->fill_value)))
-		    goto done;
-		assert(typeid == var->type_info->hdr.id);
-		/* Note that we do not create the _FillValue
-		   attribute here to avoid having to read all
-		   the attributes and thus foiling lazy read.*/
-	    } 
-	}
 	/* Capture row vs column major; currently, column major not used*/
 	{
 	    if((stat = NCJdictget(jvar,"order",&jvalue))) goto done;
@@ -1504,7 +1502,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    if(jvalue != NULL && NCJsort(jvalue) != NCJ_NULL) {
 	        if(NCJsort(jvalue) != NCJ_ARRAY) {stat = NC_EFILTER; goto done;} 
 		for(k=0;;k++) {
-		    NCZ_Filter* filter = NULL;		
+		    struct NCZ_Filter* filter = NULL;		
 		    jfilter = NULL;
 		    jfilter = NCJith(jvalue,k);
 		    if(jfilter == NULL) break; /* done */
@@ -1526,7 +1524,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    if((stat = NCZ_filter_initialize())) goto done;
 	    if((stat = NCJdictget(jvar,"compressor",&jfilter))) goto done;
 	    if(jfilter != NULL && NCJsort(jfilter) != NCJ_NULL) {
-		NCZ_Filter* filter = NULL;
+		struct NCZ_Filter* filter = NULL;
 	        if(NCJsort(jfilter) != NCJ_DICT) {stat = NC_EFILTER; goto done;} 
 		if((stat = NCZ_filter_build(var,jfilter,&filter))) goto done;
 		nclistpush(filterlist,filter); filter = NULL;

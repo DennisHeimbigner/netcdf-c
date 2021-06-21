@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
@@ -7,10 +7,13 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
+cd ../plugins
+make clean all >/dev/null
+cd ../nczarr_test
+
 # Load the findplugins function
 . ${builddir}/findplugin.sh
 echo "findplugin.sh loaded"
-
 
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent
@@ -29,9 +32,19 @@ getfilterattr() {
 sed -e '/var.*:_Filter/p' -ed <$1 >$2
 }
 
+# Function to extract _Codecs attribute from a file
+# These attributes might be platform dependent
+getcodecsattr() {
+sed -e '/var.*:_Codecs/p' -ed <$1 >$2
+}
+
 trimleft() {
 sed -e 's/[ 	]*\([^ 	].*\)/\1/' <$1 >$2
 }
+
+if test -f ./libh5bzip2.so; then 
+    mv ./libh5bzip2.so /home/dmh/git/netcdf.fork/plugins/.libs
+fi
 
 # Locate the plugin path and the library names; argument order is critical
 # Find bzip2 and capture
@@ -125,13 +138,13 @@ ${NCDUMP} -hs $fileurl > ./tmp_unk_$zext.txt
 # Remove irrelevant -s output
 sclean ./tmp_unk_$zext.txt tmp_unk_$zext.dump
 # Now hide the filter code
-mv ${BZIP2PATH} ${BZIP2PATH}.save
+mv ${BZIP2PATH} ./${HDF5_PLUGIN_LIB}.save
 # dump and clean bzip2.nc header only when filter is not avail
 ${NCDUMP} -hs $fileurl > ./tmp_unk2_$zext.txt
+# Restore the filter code
+mv ./${HDF5_PLUGIN_LIB}.save ${BZIP2PATH}
 # Remove irrelevant -s output
 sclean ./tmp_unk2_$zext.txt tmp_unk2_$zext.dump
-# Restore the filter code
-mv ${BZIP2PATH}.save ${BZIP2PATH}
 diff -b -w ./tmp_unk_$zext.dump ./tmp_unk2_$zext.dump
 echo "*** Pass: ncgen dynamic filter for map $zext"
 }

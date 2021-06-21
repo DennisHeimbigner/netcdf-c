@@ -1336,7 +1336,7 @@ var_free(NC_VAR_INFO_T *var)
 
     /* Delete any fill value allocation. */
     if (var->fill_value)
-        free(var->fill_value);
+        {free(var->fill_value); var->fill_value = NULL;}
 
     /* Release type information */
     if (var->type_info)

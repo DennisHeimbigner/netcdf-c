@@ -390,6 +390,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     var->atts_read = NC_TRUE;
 
     /* Set the filter list */
+    assert(var->filters == NULL);
     var->filters = (void*)nclistnew();
 
     /* Point to the type, and increment its ref. count */

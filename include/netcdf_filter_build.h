@@ -131,14 +131,11 @@ typedef const void* (*H5PL_get_plugin_info_proto)(void);
 /* External Discovery Function */
 
 /*
-Obtain a NULL terminated vector of NCZ_codec_class_t instances.
-This allows a single shared library provide the codec conversions for multiple
-filters. This allows Unidata to provide a big bulk of the converters for existing
-NumCodec codecs.
+Obtain a pointer to an instance of NCZ_codec_class_t.
 
-NCZ_get_plugin_info(void) --  returns pointer to NULL terminated vector of NCZ_codec_class_t.
-			      Each instance an be recast based on version+sort to the plugin type specific info.
-So the void* return value is typically actually of type NCZ_codec_class_t**.
+NCZ_get_plugin_info(void) --  returns pointer to instance of NCZ_codec_class_t.
+			      Instance an be recast based on version+sort to the plugin type specific info.
+So the void* return value is typically actually of type NCZ_codec_class_t*.
 */
 typedef const void* (*NCZ_get_plugin_info_proto)(void);
 
@@ -158,7 +155,7 @@ int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
 
 
 Convert an HDF5 representation to a JSON representation
-int (*NCZ_hdf5_to_codec)(int nparamsp, const unsigned* paramsp, char** codecp);
+int (*NCZ_hdf5_to_codec)(int nparams, const unsigned* params, char** codecp);
 
 @param nparams -- (in) the length of the HDF5 unsigned vector
 @param params -- (in) pointer to the HDF5 unsigned vector.

@@ -259,7 +259,7 @@ const char *nc_strerror(int ncerr1)
       case NC_EDISKLESS:
 	 return "NetCDF: Error in using diskless access";
       case NC_EFILTER:
-	 return "NetCDF: Filter error: bad id or parameters";
+	 return "NetCDF: Filter error: bad id or parameters or duplicate filter";
       case NC_ENOFILTER:
 	 return "NetCDF: Filter error: unimplemented filter encountered";
       case NC_ECANTEXTEND:
