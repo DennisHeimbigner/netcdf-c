@@ -81,7 +81,7 @@ check_PROGRAMS += tst_nczfilter
 TESTS += tst_nczfilter
 
 # Echo filter tests from nc_test4
-check_PROGRAMS += test_filter test_filter_misc test_filter_order test_filter_repeat tst_multifilter
+check_PROGRAMS += testfilter testfilter_misc testfilter_order testfilter_repeat testfilter_multi
 TESTS += tst_filter.sh
 
 endif #ENABLE_FILTER_TESTING
@@ -127,6 +127,7 @@ ref_rem.cdl ref_rem.dmp ref_ndims.cdl  ref_ndims.dmp \
 ref_misc1.cdl ref_misc1.dmp ref_misc2.cdl \
 ref_avail1.cdl ref_avail1.dmp ref_avail1.txt \
 ref_xarray.cdl ref_purezarr.cdl ref_purezarr_base.cdl ref_nczarr2zarr.cdl \
+ref_bzip2.cdl ref_filtered.cdl ref_multi.cdl \
 ref_blosc.cdl ref_blosc_zmap.txt
 
 # Interoperability files

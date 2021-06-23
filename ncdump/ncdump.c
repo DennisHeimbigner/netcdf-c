@@ -1073,7 +1073,7 @@ pr_att_specials(
 	    if(json != NULL) {	    
                 stat = nc_get_att_text(ncid,varid,NC_ATT_CODECS,json);
                 if(stat == NC_NOERR) {
-                    pr_att_name(ncid, "", NC_ATT_CODECS);
+		    pr_att_name(ncid, varp->name, NC_ATT_CODECS);
                     printf(" = \"%s\" ;\n",json);
 		}
 		free(json);

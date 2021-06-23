@@ -119,6 +119,8 @@ H5Z_filter_xxxx(unsigned int flags, size_t cd_nelmts,
 /* The NCZarr API */
 
 /* Forward */
+static int NCZ_xxxx_codec_setup(int ncid, int varid, int* nparamsp, unsigned** paramsp);
+static int NCZ_xxxx_codec_shutdown(int nparams, unsigned* params);
 static int NCZ_xxxx_codec_to_hdf5(const char* codec, int* nparamsp, unsigned** paramsp);
 static int NCZ_xxxx_hdf5_to_codec(int nparams, unsigned* params, char** codecp);
 
@@ -127,9 +129,11 @@ static NCZ_codec_t NCZ_xxxx_codec = {/* NCZ_codec_t  codec fields */
   NCZ_CODEC_CLASS_VER,	/* Struct version number */
   NCZ_CODEC_HDF5,	/* Struct sort */
   "xxxx",	        /* Standard name/id of the codec */
-  H5Z_FILTER_XXXX,   /* HDF5 alias for xxxx */
+  H5Z_FILTER_XXXX,      /* HDF5 alias for xxxx */
   NCZ_xxxx_codec_to_hdf5,
   NCZ_xxxx_hdf5_to_codec
+  NCZ_xxxx_codec_setup,
+  NCZ_xxxx_codec_shutdown,
 };
 
 /* External Export API */
@@ -140,6 +144,18 @@ NCZ_get_plugin_info(void)
 }
 
 /* NCZarr Interface Functions */
+
+static int
+NCZ_xxxx_codec_setup(int ncid, int varid, int* nparamsp, unsigned** paramsp)
+{
+    return NC_NOERR;
+}
+
+static int
+NCZ_xxxx_codec_shutdown(int nparams, unsigned* params)
+{
+    return NC_NOERR;
+}
 
 static int
 NCZ_xxxx_codec_to_hdf5(const char* codec_json, int* nparamsp, unsigned** paramsp)

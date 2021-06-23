@@ -17,14 +17,21 @@ BZ2PLUGINHDRS = h5bzip2.h
 EXTRA_DIST = ${BZ2PLUGINSRC} ${BZ2PLUGINHDRS} \
              ${BZIP2SRC} ${BZIP2HDRS} \
              H5Ztemplate.c H5Zmisc.c H5Zutil.c H5Znoop.c h5noop.h CMakeLists.txt \
-	     NCZdeflate.c NCZbzip2.c
+	     NCZdeflate.c NCZbzip2.c H5Zblosc.c H5Zblosc.h
 
 if ENABLE_FILTER_TESTING
 
 noinst_LTLIBRARIES = libmisc.la libnoop.la libnoop1.la libnczdeflate.la libnczbzip2.la
-lib_LTLIBRARIES = libh5bzip2.la
 
+lib_LTLIBRARIES = libh5bzip2.la
 libh5bzip2_la_SOURCES = ${BZ2PLUGINSRC} ${BZIP2SRC}
+
+if HAVE_BLOSC
+if USE_HDF5
+noinst_LTLIBRARIES += libh5blosc.la
+libh5blosc_la_SOURCES = H5Zblosc.c H5Zblosc.h
+endif
+endif
 
 libmisc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h
 

@@ -953,9 +953,20 @@ OPTION(ENABLE_DAP_REMOTE_TESTS "Enable DAP remote tests." ON)
 SET(REMOTETESTSERVERS "remotetest.unidata.ucar.edu" CACHE STRING "test servers to use for remote test")
 
 # See if we have libzip
+FIND_PACKAGE(Blosc)
+
+# Define a test flag for have blosc library
+IF(Blosc_FOUND)
+  INCLUDE_DIRECTORIES(${Blosc_INCLUDE_DIRS})
+  SET(ENABLE_BLOSC TRUE)
+ELSE()
+  SET(ENABLE_BLOSC FALSE)
+ENDIF()
+
+# See if we have libzip
 FIND_PACKAGE(Zip)
 
-# Define a test flag for have curl library
+# Define a test flag for have zip library
 IF(Zip_FOUND)
   INCLUDE_DIRECTORIES(${Zip_INCLUDE_DIRS})
   SET(ENABLE_NCZARR_ZIP TRUE)
@@ -2217,6 +2228,7 @@ is_enabled(ENABLE_NCZARR HAS_NCZARR)
 is_enabled(ENABLE_NCZARR_S3_TESTS DO_NCZARR_S3_TESTS)
 is_enabled(ENABLE_MULTIFILTERS HAS_MULTIFILTERS)
 is_enabled(ENABLE_NCZARR_ZIP DO_NCZARR_ZIP_TESTS)
+is_enabled(ENABLE_BLOSC HAS_BLOSC)
 
 # Generate file from template.
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/libnetcdf.settings.in"

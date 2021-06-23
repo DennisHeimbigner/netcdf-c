@@ -577,6 +577,15 @@ if test "x$enable_nczarr" = xyes; then
 fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
+# See if we have libblosc
+AC_CHECK_LIB([blosc],[blosc_init],[have_blosc=yes],[have_blosc=no])
+if test "x$have_blosc" = "xyes" ; then
+   AC_SEARCH_LIBS([blosc_init],[blosc blosc.dll cygblosc.dll], [], [])
+fi
+AC_MSG_CHECKING([whether libblosc library is available])
+AC_MSG_RESULT([${have_blosc}])
+AC_DEFINE([HAVE_BLOSC], [1], [if true, blosc library is available])
+
 # See if we have libzip
 AC_CHECK_LIB([zip],[zip_open],[have_zip=yes],[have_zip=no])
 if test "x$have_zip" = "xyes" ; then
@@ -1558,6 +1567,7 @@ AM_CONDITIONAL(HAS_PAR_FILTERS, [test x$hdf5_supports_par_filters = xyes ])
 AM_CONDITIONAL(ENABLE_NCZARR, [test "x$enable_nczarr" = xyes])
 AM_CONDITIONAL(HAVE_AWS, [test "x$have_aws" = xyes])
 AM_CONDITIONAL(HAS_MULTIFILTERS, [test "x$has_multifilters" = xyes])
+AM_CONDITIONAL(HAVE_BLOSC, [test "x$have_blosc" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
@@ -1660,6 +1670,7 @@ AC_SUBST(HAS_NCZARR,[$enable_nczarr])
 AC_SUBST(DO_NCZARR_S3_TESTS,[$enable_nczarr_s3_tests])
 AC_SUBST(HAS_MULTIFILTERS,[$has_multifilters])
 AC_SUBST(DO_NCZARR_ZIP_TESTS,[$enable_nczarr_zip])
+AC_SUBST(HAVE_BLOSC,[$have_blosc])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],

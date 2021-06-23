@@ -173,7 +173,9 @@ static NCZ_codec_t NCZ_noop_codec = {/* NCZ_codec_t  codec fields */
   H5Z_FILTER_NOOP+1,     /* HDF5 alias for noop */
 #endif
   NCZ_noop_codec_to_hdf5,
-  NCZ_noop_hdf5_to_codec
+  NCZ_noop_hdf5_to_codec,
+  NULL,
+  NULL,
 };
 
 /* External Export API */
@@ -198,14 +200,14 @@ NCZ_noop_codec_to_hdf5(const char* codec_json, int* nparamsp, unsigned** paramsp
     /* parse the JSON */
     if((stat = NCJparse(codec_json,0,&jcodec))) goto done;
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
-    nparams = NCJlength(jcodec);        
 
     /* Verify the codec ID */
     if((stat = NCJdictget(jcodec,"id",&jtmp))) goto done;
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
     if(strcmp(NCJstring(jtmp),NCZ_noop_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
-    nparams--;
   
+    nparams = (NCJlength(jcodec) - 1) / 2; /* -1 for id each param is key+value */
+
     if((params = (unsigned*)malloc(nparams*sizeof(unsigned)))== NULL)
         {stat = NC_ENOMEM; goto done;}
 
@@ -235,7 +237,7 @@ NCZ_noop_hdf5_to_codec(int nparams, const unsigned* params, char** codecp)
     char json[8192];
     char value[1024];
 
-    if(nparams == 0 || params == NULL)
+    if(nparams != 0 && params == NULL)
         {stat = NC_EINVAL; goto done;}
 
     snprintf(json,sizeof(json),"{\"id\": \"%s\"",NCZ_noop_codec.codecid);

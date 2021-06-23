@@ -345,6 +345,7 @@ mismatch(size_t i, const char* which)
 }
 */
 
+/* Give unique dict key names for parameters */
 static const char* fields[14] = {
 "testcase",
 "byte",
@@ -354,12 +355,12 @@ static const char* fields[14] = {
 "int",
 "uint",
 "float",
-"double0",
-"double1",
-"int640",
-"int641",
-"uint640",
-"uint641"
+"double_0",
+"double_1",
+"int64_0",
+"int64_1",
+"uint64_0",
+"uint64_1"
 };
 
 /* Forward */
@@ -373,11 +374,13 @@ static NCZ_codec_t NCZ_misc_codec = {/* NCZ_codec_t  codec fields */
   "test",	        /* Standard name/id of the codec */
   H5Z_FILTER_TEST,     /* HDF5 alias for misc */
   NCZ_misc_codec_to_hdf5,
-  NCZ_misc_hdf5_to_codec
+  NCZ_misc_hdf5_to_codec,
+  NULL,
+  NULL,
 };
 
 /* External Export API */
-const void*
+DECLSPEC const void*
 NCZ_get_plugin_info(void)
 {
     return (void*)&NCZ_misc_codec;
@@ -397,24 +400,26 @@ NCZ_misc_codec_to_hdf5(const char* codec_json, int* nparamsp, unsigned** paramsp
     /* parse the JSON */
     if((stat = NCJparse(codec_json,0,&jcodec))) goto done;
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
-    nparams = NCJlength(jcodec);        
 
     /* Verify the codec ID */
     if((stat = NCJdictget(jcodec,"id",&jtmp))) goto done;
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
     if(strcmp(NCJstring(jtmp),NCZ_misc_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
-    nparams--;
   
-    if(nparams != 14) {
-	fprintf(stderr,"Too few parameters: need=14 sent=%ld\n",(unsigned long)nparams);
+    /* The codec will have (2*14 + 1) +1 = 29 dict entries + id*/
+    nparams = (2*14 + 1) + 1;
+    if(NCJlength(jcodec) != nparams) {
+	fprintf(stderr,"Incorrect no. of codec parameters: need=29 sent=%ld\n",(unsigned long)(nparams-1));
 	stat = NC_EINVAL;
 	goto done;
     }
     
+    /* Actual # of parameters is 14 (ignoring the testcase number) */
+    nparams = 14;
     if((params = (unsigned*)malloc(nparams*sizeof(unsigned)))== NULL)
         {stat = NC_ENOMEM; goto done;}
 
-    for(i=0;i<14;i++) {
+    for(i=0;i<nparams;i++) {
 	struct NCJconst jc;
         if((stat = NCJdictget(jcodec,fields[i],&jtmp))) goto done; \
 	if((stat = NCJcvt(jtmp,NCJ_INT,&jc))) goto done;
@@ -439,8 +444,8 @@ NCZ_misc_hdf5_to_codec(int nparams, const unsigned* params, char** codecp)
 
     if(nparams == 0 || params == NULL)
         {stat = NC_EINVAL; goto done;}
-    if(nparams < 14) {
-	fprintf(stderr,"Too few parameters: need=14 sent=%ld\n",(unsigned long)nparams);
+    if(nparams != 14) {
+	fprintf(stderr,"Incorrect no. of parameters: need=14 sent=%ld\n",(unsigned long)nparams);
 	stat = NC_EINVAL;
 	goto done;
     }

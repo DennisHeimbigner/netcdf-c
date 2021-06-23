@@ -23,18 +23,21 @@
 /**************************************************/
 /* Build To the HDF5 C-API for Filters */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 /* Support headers */
 #include <netcdf.h>
 #include <netcdf_filter.h>
 #include <ncjson.h>
 
-#ifdef H5_VERS_INFO
-
+#ifdef HAVE_HDF5_H 
 #include <hdf5.h>
 /* Older versions of the hdf library may define H5PL_type_t here */
 #include <H5PLextern.h>
 
-#else /*!defined H5_VERS_INFO*/ /* Provide replacement definitions */
+#else /*!HAVE_HDF5_H*/ /* Provide replacement definitions */
 
 /* WARNING: In order make NCZARR independent of HDF5,
    while still using HDF5-style filters, some HDF5
@@ -44,9 +47,12 @@
 
    See the file H5Zpublic.h for more detailed descriptions.
 
-Note that these declarations are always enabled because
-HDF5-style filters may have been created with these definitions
-but for use by HDF5.
+   Note that these declarations are always enabled because
+   HDF5-style filters may have been created with these definitions
+   but for use by HDF5.
+
+   Note also that certain filters in the plugins directory will not build if HDF5 is not installed:
+   notably blosc.
 */
 
 /* H5Z_FILTER_RESERVED => H5Z_FILTER_RESERVED */
@@ -62,6 +68,7 @@ but for use by HDF5.
 
 typedef int htri_t;
 typedef int herr_t;
+typedef size_t hsize_t;
 typedef long long hid_t;
 
 #define H5allocate_memory(size,n) malloc(size)
@@ -142,7 +149,24 @@ typedef const void* (*NCZ_get_plugin_info_proto)(void);
 /* The current object returned by NCZ_get_plugin_info is a
    pointer to an instance of NCZ_codec_t.
 
-The key to this struct is the two function pointers that do the conversion between codec JSON and HDF5 parameters.
+The key to this struct are the tthree function pointers that do setup/shutdown
+and conversion between codec JSON and HDF5 parameters.
+
+Setup the final filter parameters
+int (*NCZ_codec_setup)(int ncid, int varid, int* nparamsp, unsigned** paramsp);
+
+@param ncid -- (in) ncid of the variable's group
+@param varid -- (in) varid of the variable
+@params nparamsp -- (in/out) possibly modified number of parameters
+@params paramsp -- (in/out) possibly modified parameters;
+                   If overwritten, free the previous set, but try to reuse if possible.
+@return -- a netcdf-c error code.
+
+Reclaim any codec resources
+int (*NCZ_codec_shutdown)(int nparams, unsigned* params);
+
+@param nparams -- (in) no. of params
+@param params  -- (in) parameters; do not free
 
 Convert a JSON representation to an HDF5 representation:
 int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
@@ -152,7 +176,6 @@ int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
 @param paramsp -- (out) store a pointer to the converted HDF5 unsigned vector;
                   caller frees. Note the double indirection.
 @return -- a netcdf-c error code.
-
 
 Convert an HDF5 representation to a JSON representation
 int (*NCZ_hdf5_to_codec)(int nparams, const unsigned* params, char** codecp);
@@ -176,6 +199,8 @@ typedef struct NCZ_codec_t {
     const unsigned int hdf5id; /* corresponding hdf5 id */
     int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
     int (*NCZ_hdf5_to_codec)(int nparams, const unsigned* params, char** codecp);
+    int (*NCZ_plugin_setup)(int ncid, int varid, int* nparamsp, unsigned** paramsp);
+    int (*NCZ_plugin_shutdown)(int nparams, unsigned* params);
 } NCZ_codec_t;
 
 #ifndef NC_UNUSED

@@ -1328,6 +1328,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     NCjson* jncvar = NULL;
     NCjson* jdimrefs = NULL;
     NCjson* jvalue = NULL;
+    NCjson* jfilter = NULL;
     int purezarr = 0;
     int xarray = 0;
     nc_type typeid;
@@ -1493,22 +1494,17 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	/* Do filters key before compressor key so final filter chain is in correct order */
 	{
 	    int k;
-	    NCjson* jfilter = NULL;
-	    NClist* filterlist = NULL;
 	    if(var->filters == NULL) var->filters = (void*)nclistnew();
-	    filterlist = (NClist*)var->filters;
 	    if((stat = NCZ_filter_initialize())) goto done;
 	    if((stat = NCJdictget(jvar,"filters",&jvalue))) goto done;
 	    if(jvalue != NULL && NCJsort(jvalue) != NCJ_NULL) {
 	        if(NCJsort(jvalue) != NCJ_ARRAY) {stat = NC_EFILTER; goto done;} 
 		for(k=0;;k++) {
-		    struct NCZ_Filter* filter = NULL;		
 		    jfilter = NULL;
 		    jfilter = NCJith(jvalue,k);
 		    if(jfilter == NULL) break; /* done */
 		    if(NCJsort(jfilter) != NCJ_DICT) {stat = NC_EFILTER; goto done;} 
-		    if((stat = NCZ_filter_build(var,jfilter,&filter))) goto done;
-		    nclistpush(filterlist,filter); filter = NULL;
+		    if((stat = NCZ_filter_build(var,jfilter))) goto done;
 		}
 	    }
 	}
@@ -1517,17 +1513,12 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
         /* From V2 Spec: A JSON object identifying the primary compression codec and providing
            configuration parameters, or ``null`` if no compressor is to be used. */
 	{
-	    NCjson* jfilter = NULL;
-	    NClist* filterlist = NULL;
 	    if(var->filters == NULL) var->filters = (void*)nclistnew();
-	    filterlist = (NClist*)var->filters;
 	    if((stat = NCZ_filter_initialize())) goto done;
 	    if((stat = NCJdictget(jvar,"compressor",&jfilter))) goto done;
 	    if(jfilter != NULL && NCJsort(jfilter) != NCJ_NULL) {
-		struct NCZ_Filter* filter = NULL;
 	        if(NCJsort(jfilter) != NCJ_DICT) {stat = NC_EFILTER; goto done;} 
-		if((stat = NCZ_filter_build(var,jfilter,&filter))) goto done;
-		nclistpush(filterlist,filter); filter = NULL;
+		if((stat = NCZ_filter_build(var,jfilter))) goto done;
 	    }
 	}
 

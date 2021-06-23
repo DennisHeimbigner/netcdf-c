@@ -618,7 +618,10 @@ with zip */
 #cmakedefine USE_SZIP 1
 
 /* if true, multi-filters enabled*/
-#cmakedefine HAVE_MULTIFILTERS 1
+#cmakedefine ENABLE_MULTIFILTERS 1
+
+/* if true, enable nczarr blosc support */
+#cmakedefine ENABLE_BLOSC 1
 
 /* Version number of package */
 #cmakedefine VERSION "${netCDF_VERSION}"

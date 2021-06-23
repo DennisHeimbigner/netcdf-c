@@ -7,9 +7,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
-cd ../plugins
-make clean all >/dev/null
-cd ../nczarr_test
+cd ../plugins; make clean all >/dev/null; cd ../nczarr_test
 
 # Load the findplugins function
 . ${builddir}/findplugin.sh
@@ -49,7 +47,8 @@ fi
 # Locate the plugin path and the library names; argument order is critical
 # Find bzip2 and capture
 findplugin h5bzip2
-BZIP2PATH="${HDF5_PLUGIN_PATH}/${HDF5_PLUGIN_LIB}"
+BZIP2LIB="${HDF5_PLUGIN_LIB}"
+BZIP2PATH="${HDF5_PLUGIN_PATH}/${BZIP2LIB}"
 # Find misc and capture
 findplugin misc
 MISCPATH="${HDF5_PLUGIN_PATH}/${HDF5_PLUGIN_LIB}"
@@ -68,11 +67,11 @@ zext=$1
 echo "*** Testing dynamic filters using API for map=$zext"
 deletemap $zext tmp_api
 fileargs tmp_api
-${execdir}/test_filter $fileurl
+${execdir}/testfilter $fileurl
 ${NCDUMP} -s -n bzip2 $fileurl > ./tmp_api_$zext.txt
 # Remove irrelevant -s output
 sclean ./tmp_api_$zext.txt ./tmp_api_$zext.dump
-diff -b -w ${srcdir}/../nc_test4/bzip2.cdl ./tmp_api_$zext.dump
+diff -b -w ${srcdir}/ref_bzip2.cdl ./tmp_api_$zext.dump
 echo "*** Pass: API dynamic filter for map=$zext"
 }
 
@@ -81,7 +80,7 @@ zext=$1
 echo "*** Testing dynamic filters parameter passing for map $zext"
 deletemap $zext tmp_misc
 fileargs tmp_misc
-${execdir}/test_filter_misc $fileurl
+${execdir}/testfilter_misc $fileurl
 # Verify the parameters via ncdump
 ${NCDUMP} -s $fileurl > ./tmp_misc_$zext.txt
 # Extract the parameters
@@ -105,7 +104,7 @@ ${NCGEN} -lb -4 -o $fileurl ${srcdir}/../nc_test4/bzip2.cdl
 ${NCDUMP} -s -n bzip2 $fileurl > ./tmp_ng_$zext.txt
 # Remove irrelevant -s output
 sclean ./tmp_ng_$zext.txt ./tmp_ng2_$zext.txt
-diff -b -w ${srcdir}/../nc_test4/bzip2.cdl ./tmp_ng2_$zext.txt
+diff -b -w ${srcdir}/ref_bzip2.cdl ./tmp_ng2_$zext.txt
 echo "*** Pass: ncgen dynamic filter for map $zext"
 }
 
@@ -122,30 +121,30 @@ ${NCCOPY} -M0 -F "/g/var,307,9,4" $fileurl0 $fileurl
 ${NCDUMP} -s -n filtered $fileurl > ./tmp_ncp_$zext.txt
 # Remove irrelevant -s output
 sclean ./tmp_ncp_$zext.txt ./tmp_ncp_$zext.dump
-diff -b -w ${srcdir}/../nc_test4/ref_filtered.cdl ./tmp_ncp_$zext.dump
+diff -b -w ${srcdir}/ref_filtered.cdl ./tmp_ncp_$zext.dump
 echo "	*** Pass: nccopy simple filter for map $zext"
 }
 
 testunk() {
 zext=$1	
-echo "*** Testing access to filter info when filter dll is not available for map $zext"
-deletemap $zext tmp_unk
-fileargs tmp_unk
+echo "*** Testing access to filter info when filter implementation is not available for map $zext"
+deletemap $zext tmp_known
+fileargs tmp_known
 # build bzip2.nc
 ${NCGEN} -lb -4 -o $fileurl ${srcdir}/../nc_test4/bzip2.cdl
-# dump and clean bzip2.nc header only when filter is avail
-${NCDUMP} -hs $fileurl > ./tmp_unk_$zext.txt
+# dump and clean bzip2.nc header when filter is avail
+${NCDUMP} -hs $fileurl > ./tmp_known_$zext.txt
 # Remove irrelevant -s output
-sclean ./tmp_unk_$zext.txt tmp_unk_$zext.dump
+sclean ./tmp_known_$zext.txt tmp_known_$zext.dump
 # Now hide the filter code
-mv ${BZIP2PATH} ./${HDF5_PLUGIN_LIB}.save
-# dump and clean bzip2.nc header only when filter is not avail
-${NCDUMP} -hs $fileurl > ./tmp_unk2_$zext.txt
+mv ${BZIP2PATH} ./${BZIP2LIB}.save
+# dump and clean bzip2.nc header when filter is not avail
+${NCDUMP} -hs $fileurl > ./tmp_unk_$zext.txt
 # Restore the filter code
-mv ./${HDF5_PLUGIN_LIB}.save ${BZIP2PATH}
-# Remove irrelevant -s output
-sclean ./tmp_unk2_$zext.txt tmp_unk2_$zext.dump
-diff -b -w ./tmp_unk_$zext.dump ./tmp_unk2_$zext.dump
+mv ./${BZIP2LIB}.save ${BZIP2PATH}
+# Verify that the filter is no longer defined
+UNK=`sed -e '/var:_Filter/p' -e d ./tmp_unk_$zext.txt`
+test "x$UNK" = x
 echo "*** Pass: ncgen dynamic filter for map $zext"
 }
 
@@ -164,11 +163,11 @@ zext=$1
 echo "*** Testing multiple filters for map $zext"
 deletemap $zext tmp_multi
 fileargs tmp_multi
-${execdir}/tst_multifilter $fileurl
+${execdir}/testfilter_multi $fileurl
 ${NCDUMP} -hs -n multifilter $fileurl >./tmp_multi_$zext.cdl
 # Remove irrelevant -s output
 sclean ./tmp_multi_$zext.cdl ./tmp_smulti_$zext.cdl
-diff -b -w ${srcdir}/../nc_test4/ref_multi.cdl ./tmp_smulti_$zext.cdl
+diff -b -w ${srcdir}/ref_multi.cdl ./tmp_smulti_$zext.cdl
 #echo "*** nccopy -F with multiple filters for map $zext"
 #if ! test -f unfiltered.nc ; then
 #  ${NCGEN} -4 -lb -o unfiltered.nc ${srcdir}/../nc_test4/ref_unfiltered.cdl
@@ -191,7 +190,7 @@ zext=$1
 echo "*** Testing filter re-definition invocation for map $zext"
 deletemap $zext tmp_rep
 fileargs tmp_rep
-${execdir}/test_filter_repeat $fileurl >tmp_rep_$zext.txt
+${execdir}/testfilter_repeat $fileurl >tmp_rep_$zext.txt
 diff -b -w ${srcdir}/../nc_test4/ref_filter_repeat.txt tmp_rep_$zext.txt
 }
 
@@ -200,10 +199,10 @@ zext=$1
 echo "*** Testing multiple filter order of invocation on create for map $zext"
 deletemap $zext tmp_order
 fileargs tmp_order
-${execdir}/test_filter_order create $fileurl >tmp_order_$zext.txt
+${execdir}/testfilter_order create $fileurl >tmp_order_$zext.txt
 diff -b -w ${srcdir}/../nc_test4/ref_filter_order_create.txt tmp_order_$zext.txt
 echo "*** Testing multiple filter order of invocation on read for map $zext"
-${execdir}/test_filter_order read $fileurl >tmp_order_rd_$zext.txt
+${execdir}/testfilter_order read $fileurl >tmp_order_rd_$zext.txt
 diff -b -w ${srcdir}/../nc_test4/ref_filter_order_read.txt tmp_order_rd_$zext.txt
 }
 
@@ -228,7 +227,7 @@ testmisc $1
 testmulti $1
 testrep $1
 testorder $1
-testblosc $1
+#not ready for primetime testblosc $1
 }
 
 testset file
