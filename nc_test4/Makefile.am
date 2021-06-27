@@ -77,7 +77,7 @@ if ENABLE_FILTER_TESTING
 extradir =
 check_PROGRAMS += test_filter test_filter_misc test_filter_order test_filter_repeat
 check_PROGRAMS += tst_multifilter
-TESTS += tst_filter.sh tst_specific_filters.sh
+TESTS += tst_filter.sh
 if HAVE_BLOSC
 TESTS += tst_specific_filters.sh
 endif
