@@ -1073,8 +1073,12 @@ pr_att_specials(
 	    if(json != NULL) {	    
                 stat = nc_get_att_text(ncid,varid,NC_ATT_CODECS,json);
                 if(stat == NC_NOERR) {
+		    char* escapedjson = NULL;
 		    pr_att_name(ncid, varp->name, NC_ATT_CODECS);
-                    printf(" = \"%s\" ;\n",json);
+		    /* Escape the json */
+		    escapedjson = escaped_string(json);	
+                    printf(" = \"%s\" ;\n",escapedjson);
+		    free(escapedjson);
 		}
 		free(json);
 	    }

@@ -96,7 +96,7 @@ EXTERNL int NCJdictget(const NCjson* dict, const char* key, NCjson** valuep);
 /* dump NCjson* object to output file */
 EXTERNL void NCJdump(const NCjson* json, unsigned flags, FILE*);
 
-/* Convert one json sort to  value of another type; don't bother with union */
+/* Convert one json sort to  value of another type; don't use union so we can know when to reclaim sval */
 struct NCJconst {int bval; long long ival; double dval; char* sval;};
 EXTERNL int NCJcvt(const NCjson* value, int outsort, struct NCJconst* output);
 

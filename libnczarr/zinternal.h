@@ -70,6 +70,10 @@
 /* Mnemonics */
 #define ZCLOSE    1 /* this is closeorabort as opposed to enddef */
 
+/* Useful macro */
+#define ncidfor(file,hdrid) ((file)->controller->ext_ncid | (hdrid))
+
+
 /**************************************************/
 /* Forward */
 

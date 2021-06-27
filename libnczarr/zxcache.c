@@ -181,6 +181,17 @@ done:
     return THROW(stat);
 }
 
+static void
+free_cache_entry(NCZCacheEntry* entry)
+{
+    if(entry) {
+	nullfree(entry->data);
+	nullfree(entry->key.varkey);
+	nullfree(entry->key.chunkkey);
+	nullfree(entry);
+    }
+}
+
 void
 NCZ_free_chunk_cache(NCZChunkCache* cache)
 {
@@ -194,7 +205,7 @@ NCZ_free_chunk_cache(NCZChunkCache* cache)
         NCZCacheEntry* entry = nclistremove(cache->mru,0);
 	(void)ncxcacheremove(cache->xcache,entry->hashkey,&ptr);
 	assert(ptr == entry);
-	nullfree(entry->data); nullfree(entry->key.varkey); nullfree(entry->key.chunkkey); nullfree(entry);
+	free_cache_entry(entry);
     }
 #ifdef DEBUG
 fprintf(stderr,"|cache.free|=%ld\n",nclistlength(cache->mru));
@@ -271,8 +282,7 @@ fprintf(stderr,"|cache.read.lru|=%ld\n",nclistlength(cache->mru));
     
 done:
     if(created && stat == NC_NOERR)  stat = NC_EEMPTY; /* tell upper layers */
-    if(entry) {nullfree(entry->data); nullfree(entry->key.varkey); nullfree(entry->key.chunkkey);}
-    nullfree(entry);
+    if(entry) free_cache_entry(entry);
     return THROW(stat);
 }
 
@@ -312,8 +322,7 @@ fprintf(stderr,"|cache.write|=%ld\n",nclistlength(cache->mru));
     if((stat=makeroom(cache))) goto done;
 
 done:
-    if(entry) {nullfree(entry->data); nullfree(entry->key.varkey); nullfree(entry->key.chunkkey);}
-    nullfree(entry);
+    if(entry) free_cache_entry(entry);
     return THROW(stat);
 }
 #endif
@@ -514,6 +523,7 @@ put_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
 	    /* Apply the filter chain to get the filtered data */
 	    if((stat = NCZ_applyfilterchain(filterchain,entry->size,entry->data,&flen,&filtered,ENCODING))) goto done;
 	    /* Fix up the cache entry */
+	    /* Note that if filtered is different from entry->data, then entry->data will have been freed */
 	    entry->data = filtered;
  	    entry->size = flen;
             entry->isfiltered = 1;

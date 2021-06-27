@@ -72,6 +72,7 @@ static struct Type {
 /* Command line options */
 struct Dumpptions {
     int debug;
+    int meta_only;
     Mapop mop;
     char infile[4096];
     NCZM_IMPL impl;    
@@ -137,10 +138,13 @@ main(int argc, char** argv)
 
     memset((void*)&dumpoptions,0,sizeof(dumpoptions));
 
-    while ((c = getopt(argc, argv, "dvx:t:T:X:")) != EOF) {
+    while ((c = getopt(argc, argv, "dhvx:t:T:X:")) != EOF) {
 	switch(c) {
 	case 'd': 
 	    dumpoptions.debug = 1;	    
+	    break;
+	case 'h': 
+	    dumpoptions.meta_only = 1;	    
 	    break;
 	case 'v': 
 	    zmapusage();
@@ -332,13 +336,19 @@ objdump(void)
 	}
 	if(hascontent) {
 	    if(len > 0) {
-	        assert(content != NULL);
-		if(kind == OK_CHUNK) len /= dumpoptions.nctype->typesize;
+                assert(content != NULL);
+		if(kind == OK_CHUNK) {
+		    len = ceildiv(len,dumpoptions.nctype->typesize);
+		}
                 printf("[%d] %s : (%llu)",depth,obj,len);
-                if(kind == OK_CHUNK) printf(" (%s)",dumpoptions.nctype->typename);
+		if(kind == OK_CHUNK)
+                    printf(" (%s)",dumpoptions.nctype->typename);
                 printf(" |");
                 if(kind != OK_IGNORE) {
-	            printcontent(len,content,kind);
+	    	    if(dumpoptions.meta_only)
+			printf("...");
+		    else
+	                printcontent(len,content,kind);
 		}
 	        printf("|\n");
 	    } else {

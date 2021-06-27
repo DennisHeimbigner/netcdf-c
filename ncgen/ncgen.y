@@ -767,6 +767,8 @@ attrdecl:
 	    {$$ = makespecial(_ENDIAN_FLAG,$1,NULL,(void*)$5,ISCONST);}
 	| ambiguous_ref ':' _FILTER '=' conststring
 	    {$$ = makespecial(_FILTER_FLAG,$1,NULL,(void*)$5,ISCONST);}
+	| ambiguous_ref ':' _CODECS '=' conststring
+	    {$$ = makespecial(_CODECS_FLAG,$1,NULL,(void*)$5,ISCONST);}
 	| ambiguous_ref ':' _NOFILL '=' constbool
 	    {$$ = makespecial(_NOFILL_FLAG,$1,NULL,(void*)$5,ISCONST);}
 	| ':' _FORMAT '=' conststring
@@ -1214,6 +1216,7 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
     case _NCPROPS_FLAG:
     case _ENDIAN_FLAG:
     case _FILTER_FLAG:
+    case _CODECS_FLAG:
 	tmp = nullconst();
         tmp->nctype = NC_STRING;
 	convert1(con,tmp);
@@ -1380,7 +1383,7 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
 		if(parsecodecsflag(sdata,special) == NC_NOERR)
                     special->flags |= _CODECS_FLAG;
 		else {
-		    derror("_Filter: unparsable codec spec: %s",sdata);
+		    derror("_Codecs: unparsable codec spec: %s",sdata);
 		}
 #else
 	        derror("%s: the _Codecs attribute requires netcdf-4 to be enabled",specialname(tag));

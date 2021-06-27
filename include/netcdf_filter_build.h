@@ -113,6 +113,8 @@ typedef enum H5PL_type_t {
     H5PL_TYPE_NONE          =  1    /* This must be last!   */
 } H5PL_type_t;
 
+#endif /*HAVE_HDF5_H*/
+
 /* Following External Discovery Functions should be present for the dynamic loading of filters */
 
 /* returns specific constant H5ZP_TYPE_FILTER */
@@ -120,8 +122,6 @@ typedef H5PL_type_t (*H5PL_get_plugin_type_proto)(void);
 
 /* return <pointer to instance of H5Z_filter_class> */
 typedef const void* (*H5PL_get_plugin_info_proto)(void);
-
-#endif /*H5_VERS_INFO*/
 
 /**************************************************/
 /* Build To a NumCodecs-style C-API for Filters */
@@ -149,41 +149,47 @@ typedef const void* (*NCZ_get_plugin_info_proto)(void);
 /* The current object returned by NCZ_get_plugin_info is a
    pointer to an instance of NCZ_codec_t.
 
-The key to this struct are the tthree function pointers that do setup/shutdown
+The key to this struct are the four function pointers that do setup/shutdown
 and conversion between codec JSON and HDF5 parameters.
 
-Setup the final filter parameters
-int (*NCZ_codec_setup)(int ncid, int varid, int* nparamsp, unsigned** paramsp);
+Setup context state for the codec converter
+int (*NCZ_codec_setup)(int ncid, int varid, void** contextp);
 
 @param ncid -- (in) ncid of the variable's group
 @param varid -- (in) varid of the variable
-@params nparamsp -- (in/out) possibly modified number of parameters
-@params paramsp -- (in/out) possibly modified parameters;
-                   If overwritten, free the previous set, but try to reuse if possible.
+@params contextp -- (out) context for this (var,codec) combination.
 @return -- a netcdf-c error code.
 
 Reclaim any codec resources
-int (*NCZ_codec_shutdown)(int nparams, unsigned* params);
+int (*NCZ_codec_shutdown)(void* context);
 
-@param nparams -- (in) no. of params
-@param params  -- (in) parameters; do not free
+@param context -- (in) context state
 
 Convert a JSON representation to an HDF5 representation:
-int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
+int (*NCZ_codec_to_hdf5)(void* context, const char* codec, int* nparamsp, unsigned** paramsp);
 
-@param codec -- (in) ptr to JSON string representing the codec.
+@param context -- (in) context state from setup.
+@param codec   -- (in) ptr to JSON string representing the codec.
 @param nparamsp -- (out) store the length of the converted HDF5 unsigned vector
 @param paramsp -- (out) store a pointer to the converted HDF5 unsigned vector;
                   caller frees. Note the double indirection.
 @return -- a netcdf-c error code.
 
 Convert an HDF5 representation to a JSON representation
-int (*NCZ_hdf5_to_codec)(int nparams, const unsigned* params, char** codecp);
+int (*NCZ_hdf5_to_codec)(void* context, int nparams, const unsigned* params, char** codecp);
 
+@param context -- (in) context state from setup.
 @param nparams -- (in) the length of the HDF5 unsigned vector
 @param params -- (in) pointer to the HDF5 unsigned vector.
 @param codecp -- (out) store the string representation of the codec; caller must free.
 @return -- a netcdf-c error code.
+*/
+
+/* QUESTION? do we want to provide a netcdf-specific
+  alternative to H5Z_set_local since NCZarr may not have HDF5 access?
+  HDF5: herr_t set_local(hid_t dcpl, hid_t type, hid_t space);
+  Proposed netcdf equivalent: int NCZ_set_local(int ncid, int varid, int* nparamsp, unsigned** paramsp);
+  where ncid+varid is equivalent to the space.
 */
 
 /*
@@ -196,11 +202,11 @@ typedef struct NCZ_codec_t {
     int sort; /* Format of remainder of the struct;
                  Currently always NCZ_CODEC_HDF5 */
     const char* codecid;            /* The name/id of the codec */
-    const unsigned int hdf5id; /* corresponding hdf5 id */
-    int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
-    int (*NCZ_hdf5_to_codec)(int nparams, const unsigned* params, char** codecp);
-    int (*NCZ_plugin_setup)(int ncid, int varid, int* nparamsp, unsigned** paramsp);
-    int (*NCZ_plugin_shutdown)(int nparams, unsigned* params);
+    unsigned int hdf5id; /* corresponding hdf5 id */
+    int (*NCZ_codec_to_hdf5)(void* context, const char* codec, int* nparamsp, unsigned** paramsp);
+    int (*NCZ_hdf5_to_codec)(void* context, int nparams, const unsigned* params, char** codecp);
+    int (*NCZ_codec_setup)(int ncid, int varid, void** contextp);
+    int (*NCZ_codec_shutdown)(void* context);
 } NCZ_codec_t;
 
 #ifndef NC_UNUSED

@@ -7,7 +7,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
-cd ../plugins; make clean all >/dev/null; cd ../nczarr_test
+#cd ../plugins; make clean all >/dev/null; cd ../nczarr_test
 
 # Load the findplugins function
 . ${builddir}/findplugin.sh
@@ -206,15 +206,6 @@ ${execdir}/testfilter_order read $fileurl >tmp_order_rd_$zext.txt
 diff -b -w ${srcdir}/../nc_test4/ref_filter_order_read.txt tmp_order_rd_$zext.txt
 }
 
-testblosc() {
-zext=$1	
-echo "*** Testing processing of special filter blosc for map $zext"
-deletemap $zext tmp_blosc
-fileargs tmp_blosc
-${NCGEN} -4 -lb -o $fileurl ${srcdir}/ref_blosc.cdl
-${execdir}/zmapio $fileurl > tmp_blosc_$zext.txt
-diff -b -w ${srcdir}/ref_blosc_zmap.txt tmp_blosc_$zext.txt
-}
 
 testset() {
 # Which test cases to exercise
@@ -227,7 +218,6 @@ testmisc $1
 testmulti $1
 testrep $1
 testorder $1
-#not ready for primetime testblosc $1
 }
 
 testset file
