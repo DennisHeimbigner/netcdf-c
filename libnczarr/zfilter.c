@@ -168,8 +168,8 @@ PRINTFILTERLIST(var,"free: before");
     /* Free the filter list elements */
     for(i=0;i<nclistlength(filters);i++) {
 	struct NCZ_Filter* spec = nclistget(filters,i);
-	if(spec->plugin->codec.codec->NCZ_codec_shutdown)
-            (void)spec->plugin->codec.codec->NCZ_codec_shutdown(spec->codec_context);
+	if(spec->plugin->codec.codec->NCZ_codec_reset)
+            (void)spec->plugin->codec.codec->NCZ_codec_reset(spec->codec_context);
 	if((stat = NCZ_filter_free(spec))) goto done;
     }
 PRINTFILTERLIST(var,"free: after");
@@ -222,7 +222,6 @@ NCZ_codec_free(NCZ_Codec* spec)
     if(spec == NULL) goto done;
     nullfree(spec->id);
     NCJreclaim(spec->codec);
-    
     free(spec);
 done:
     return NC_NOERR;
@@ -288,8 +287,8 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
     if((codec->id = strdup(NCJstring(jid)))==NULL)
 	{stat = NC_ENOMEM; goto done;}
     codec->codec = jcodec; jcodec = NULL;
-    if(plugin && context && plugin->codec.codec->NCZ_codec_shutdown)
-        (void)plugin->codec.codec->NCZ_codec_shutdown(context);
+    if(plugin && context && plugin->codec.codec->NCZ_codec_reset)
+        (void)plugin->codec.codec->NCZ_codec_reset(context);
 
     /* Build/find the NCZ_Filter */
     if((stat=NCZ_filter_lookup(var,id,&fi))) goto done;
@@ -326,8 +325,8 @@ PRINTFILTERLIST(var,"add");
     fi = NULL; /* either way,its in the var->filters list */
 
 done:
-    if(plugin && context && plugin->codec.codec->NCZ_codec_shutdown)
-        (void)plugin->codec.codec->NCZ_codec_shutdown(context);
+    if(plugin && context && plugin->codec.codec->NCZ_codec_reset)
+        (void)plugin->codec.codec->NCZ_codec_reset(context);
     nullfree(cloneparams);
     nullfree(codectext);
     NCJreclaim(jcodec);
@@ -821,6 +820,7 @@ NCZ_filter_jsonize(const NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** 
     if((stat = filter->plugin->codec.codec->NCZ_hdf5_to_codec(filter->codec_context,filter->hdf5.nparams,filter->hdf5.params,&codec))) goto done;
     /* Parse it */
     if((stat = NCJparse(codec,0,&jfilter))) goto done;    
+fprintf(stderr,"zfilter.parse.1: %p\n",jfilter);
     if(jfilterp) {*jfilterp = jfilter; jfilter = NULL;}
 
 done:
@@ -890,8 +890,8 @@ NCZ_filter_build(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter
     }
     
 done:
-    if(plugin && context && plugin->codec.codec->NCZ_codec_shutdown)
-        (void)plugin->codec.codec->NCZ_codec_shutdown(context);
+    if(plugin && context && plugin->codec.codec->NCZ_codec_reset)
+        (void)plugin->codec.codec->NCZ_codec_reset(context);
     NCZ_codec_free(codec);
     NCZ_h5filter_clear(&hdf5filter);
     if(plugin) NCZ_unload_plugin(plugin);
@@ -1032,7 +1032,9 @@ NCZ_load_all_plugins(void)
     /* Make sure the root is actually a directory */
     errno = 0;
     ret = NCstat(pluginroot, &buf);
-//    ZTRACEMORE(6,"stat: local=%s ret=%d, errno=%d st_mode=%d",local,ret,errno,buf.st_mode);
+#if 0
+    ZTRACEMORE(6,"stat: local=%s ret=%d, errno=%d st_mode=%d",local,ret,errno,buf.st_mode);
+#endif
     if(ret < 0) {
 	ret = (errno);
     } else if(! S_ISDIR(buf.st_mode))
@@ -1227,8 +1229,10 @@ NCZ_unload_plugin(NCZ_Plugin* plugin)
 #ifdef DEBUGF
 fprintf(stderr,"unload: %s\n",
 	(plugin->hdf5.hdf5lib?plugin->hdf5.hdf5lib->path
-	: (plugin->codec.codeclib?plugin->codec.codeclib->path:"null")));
+			     : (plugin->codec.codeclib?plugin->codec.codeclib->path:"null")));
 #endif
+	if(plugin->codec.codec->NCZ_codec_finalize)
+		plugin->codec.codec->NCZ_codec_finalize();
         if(plugin->hdf5.filter != NULL) loaded_plugins[plugin->hdf5.filter->id] = NULL;
 	if(plugin->hdf5.hdf5lib != NULL) (void)ncpsharedlibfree(plugin->hdf5.hdf5lib);
 	if(plugin->codec.codeclib != NULL) (void)ncpsharedlibfree(plugin->codec.codeclib);

@@ -149,7 +149,7 @@ typedef const void* (*NCZ_get_plugin_info_proto)(void);
 /* The current object returned by NCZ_get_plugin_info is a
    pointer to an instance of NCZ_codec_t.
 
-The key to this struct are the four function pointers that do setup/shutdown
+The key to this struct are the four function pointers that do setup/reset/finalize
 and conversion between codec JSON and HDF5 parameters.
 
 Setup context state for the codec converter
@@ -160,8 +160,14 @@ int (*NCZ_codec_setup)(int ncid, int varid, void** contextp);
 @params contextp -- (out) context for this (var,codec) combination.
 @return -- a netcdf-c error code.
 
-Reclaim any codec resources
-int (*NCZ_codec_shutdown)(void* context);
+Reclaim any codec resources from setup. Not same as finalize.
+int (*NCZ_codec_reset)(void* context);
+
+@param context -- (in) context state
+
+Finalize use of the plugin. Since HDF5 does not provide this functionality,
+the codec may need to do it. See H5Zblosc.c for an example.
+void (*NCZ_codec_finalize)(void);
 
 @param context -- (in) context state
 
@@ -206,7 +212,8 @@ typedef struct NCZ_codec_t {
     int (*NCZ_codec_to_hdf5)(void* context, const char* codec, int* nparamsp, unsigned** paramsp);
     int (*NCZ_hdf5_to_codec)(void* context, int nparams, const unsigned* params, char** codecp);
     int (*NCZ_codec_setup)(int ncid, int varid, void** contextp);
-    int (*NCZ_codec_shutdown)(void* context);
+    int (*NCZ_codec_reset)(void* context);
+    void (*NCZ_codec_finalize)(void);
 } NCZ_codec_t;
 
 #ifndef NC_UNUSED
