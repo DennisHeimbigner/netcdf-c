@@ -14,6 +14,12 @@ TODO: make utf8 safe
 #include <assert.h>
 #include "ncjson.h"
 
+#ifdef _WIN32
+#define strcasecmp _stricmp
+#else
+#include <strings.h>
+#endif
+
 #undef DEBUG
 
 #define NCJ_OK 0

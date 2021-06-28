@@ -185,7 +185,6 @@ static void
 free_cache_entry(NCZCacheEntry* entry)
 {
     if(entry) {
-fprintf(stderr,"zxcache.free.1: %p\n",entry->data);
 	nullfree(entry->data);
 	nullfree(entry->key.varkey);
 	nullfree(entry->key.chunkkey);
@@ -310,7 +309,6 @@ NCZ_write_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void* conte
 	entry->size = cache->chunksize;
 	if((entry->data = calloc(1,cache->chunksize)) == NULL)
 	    {stat = NC_ENOMEM; goto done;}
-fprintf(stderr,"zxcache.alloc.1: %p\n",entry->data);
 	memcpy(entry->data,content,cache->chunksize);
     }
     entry->modified = 1;
@@ -593,7 +591,6 @@ get_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
         entry->isfiltered = FILTERED(cache); /* Is the data being read filtered? */
         if((entry->data = (void*)malloc(entry->size)) == NULL)
             {stat = NC_ENOMEM; goto done;}
-fprintf(stderr,"zxcache.alloc.2: %p\n",entry->data);
 	/* Read the raw data */
         path = NCZ_chunkpath(entry->key);
         stat = nczmap_read(map,path,0,entry->size,(char*)entry->data);
@@ -610,7 +607,6 @@ fprintf(stderr,"zxcache.alloc.2: %p\n",entry->data);
 	entry->size = cache->chunksize;
         if((entry->data = (void*)malloc(entry->size)) == NULL)
             {stat = NC_ENOMEM; goto done;}
-fprintf(stderr,"zxcache.alloc.3: %p\n",entry->data);
         /* apply fill value */
 	assert(cache->fillchunk);
 	memcpy(entry->data,cache->fillchunk,entry->size);

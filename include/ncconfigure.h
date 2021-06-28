@@ -71,6 +71,9 @@ extern int fileno(FILE*);
 #ifndef HAVE_STRLCAT
 #define strlcat(d,s,n) strcat_s((d),(n),(s))
 #endif
+#ifndef HAVE_STRCASECMP
+#define strcasecmp _stricmp
+#endif
 #endif
 
 /* handle null arguments */
