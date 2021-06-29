@@ -20,8 +20,16 @@
 #include "ncpathmgr.h"
 
 /* Note: cygwin is missing RTLD_LOCAL, set it to 0 */
-#if defined(__CYGWIN__) && !defined(RTLD_LOCAL)
+#if !defined(RTLD_LOCAL)
 #define RTLD_LOCAL 0
+#endif
+
+#if !defined(RTLD_GLOBAL)
+#define RTLD_GLOBAL 0
+#endif
+
+#if !defined(RTLD_LAZY)
+#define RTLD_LAZY 0
 #endif
 
 #ifdef USE_MUTEX

@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <netcdf_json.h>
 #include "netcdf_filter_build.h"
 #include "h5misc.h"
 

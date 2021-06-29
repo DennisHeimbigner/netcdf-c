@@ -46,10 +46,6 @@ typedef struct NCjson {
     } list; /* sort == DICT|ARRAY */
 } NCjson;
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 /* Support Windows declspec */  
 #ifndef EXTERNL
 #  ifdef _WIN32
@@ -62,6 +58,10 @@ extern "C" {
 #    define EXTERNL extern
 #  endif
 #endif /* !defined EXTERNL */
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /* int return value is either 1 (ok) or 0 (failure) */
 

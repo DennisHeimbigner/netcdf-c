@@ -3,7 +3,7 @@
 # Define a function that attempts to locate a
 # plugin with a given canonical name.
 # Assumptions:
-#   1. plugins is a top-level directory
+#   1. plugins is a top-level directory, possibly in "build"
 # Inputs:
 #   $1 is the canonical name
 #   $2 is 1 if we are running under cmake

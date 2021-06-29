@@ -1496,6 +1496,7 @@ CHECK_INCLUDE_FILE("libgen.h" HAVE_LIBGEN_H)
 CHECK_INCLUDE_FILE("execinfo.h" HAVE_EXECINFO_H)
 CHECK_INCLUDE_FILE("dirent.h" HAVE_DIRENT_H)
 CHECK_INCLUDE_FILE("time.h" HAVE_TIME_H)
+CHECK_INCLUDE_FILE("dlfcn.h" HAVE_DLFCN_H)
 
 # Symbol Exists
 CHECK_SYMBOL_EXISTS(isfinite "math.h" HAVE_DECL_ISFINITE)
@@ -1983,10 +1984,6 @@ ENDIF()
 
 IF(ENABLE_PLUGINS)
   ADD_SUBDIRECTORY(libncpoco)
-  FILE(COPY ${netCDF_SOURCE_DIR}/include/ncjson.h
-       DESTINATION ${netCDF_BINARY_DIR}/plugins/)
-  FILE(COPY ${netCDF_SOURCE_DIR}/libdispatch/ncjson.c
-       DESTINATION ${netCDF_BINARY_DIR}/plugins/)
 ENDIF()
 
 IF(ENABLE_NCZARR)
@@ -2010,6 +2007,7 @@ ENDIF()
 add_subdirectory(liblib)
 
 IF(ENABLE_FILTER_TESTING)
+  FIND_LIBRARY(DLLIB names dl libdl dld libdld)
   add_subdirectory(plugins)
 ENDIF()
 
@@ -2285,6 +2283,10 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/test_common.in ${CMAKE_CURRENT_BINARY
 # Build nc_test4/findplugin.sh
 #####
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/nc_test4/findplugin.in ${CMAKE_CURRENT_BINARY_DIR}/nc_test4/findplugin.sh @ONLY NEWLINE_STYLE LF)
+
+IF(ENABLE_NCZARR)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/nc_test4/findplugin.in ${CMAKE_CURRENT_BINARY_DIR}/nczarr_test/findplugin.sh @ONLY NEWLINE_STYLE LF)
+ENDIF()
 
 IF(ENABLE_EXAMPLES)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/nc_test4/findplugin.in ${CMAKE_CURRENT_BINARY_DIR}/examples/C/findplugin.sh @ONLY NEWLINE_STYLE LF)

@@ -30,7 +30,6 @@
 /* Support headers */
 #include <netcdf.h>
 #include <netcdf_filter.h>
-#include <ncjson.h>
 
 #ifdef HAVE_HDF5_H 
 #include <hdf5.h>

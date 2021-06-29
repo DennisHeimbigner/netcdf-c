@@ -18,7 +18,6 @@
 #include "hdf5debug.h"
 #include "netcdf.h"
 #include "netcdf_filter.h"
-#include "ncjson.h"
 
 #undef TFILTERS
 

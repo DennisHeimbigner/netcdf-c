@@ -10,6 +10,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 # 2. xarray read/write
 
 set -e
+export NCTRACING=16
 
 testcase() {
 zext=$1
@@ -38,7 +39,7 @@ diff -b ${srcdir}/ref_nczarr2zarr.cdl tmp_nczarr_${zext}.cdl
 }
 
 testcase file
-if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testcase zip; fi
-if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi
+#if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testcase zip; fi
+#if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi
 
 exit 0

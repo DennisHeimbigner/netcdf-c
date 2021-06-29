@@ -24,7 +24,7 @@ testcase() {
 rm -f tmp_pathcvt.txt
 
 set -x
-cat ${srcdir}/ncdap_test/ref_pathcvt.txt
+cat ${srcdir}/ref_pathcvt.txt
 testcase "/xxx/x/y"
 testcase "d:/x/y"
 testcase "/cygdrive/d/x/y"

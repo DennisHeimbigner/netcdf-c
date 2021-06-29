@@ -35,8 +35,8 @@ endif
 
 libmisc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h
 
-libnczdeflate_la_SOURCES = NCZdeflate.c ncjson.c
-libnczbzip2_la_SOURCES = NCZbzip2.c ncjson.c
+libnczdeflate_la_SOURCES = NCZdeflate.c
+libnczbzip2_la_SOURCES = NCZbzip2.c
 
 # The noop filter is to allow testing of multifilters and filter order
 # Need two distinct instances
@@ -45,7 +45,7 @@ libnoop1_la_SOURCES = H5Znoop1.c H5Zutil.c h5noop.h
 endif #ENABLE_FILTER_TESTING
 
 BUILT_SOURCES = H5Znoop1.c
-DISTCLEANFILES = H5Znoop1.c ncjson.h ncjson.c
+DISTCLEANFILES = H5Znoop1.c ncjson.h
 H5Znoop1.c: Makefile H5Znoop.c
 	echo '#define NOOP_INSTANCE 1' > $@
 	cat ${srcdir}/H5Znoop.c >> $@
