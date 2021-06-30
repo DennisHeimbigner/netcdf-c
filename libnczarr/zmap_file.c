@@ -1041,6 +1041,7 @@ fprintf(stderr,"xxx: remove: errno=%d|%s\n",errno,nc_strerror(errno));
     }
 
 done:
+    errno = 0;
     nclistfreeall(contents);
     nullfree(local);
     ncbytessetlength(truepath,tpathlen);
@@ -1110,6 +1111,7 @@ platformread(ZFMAP* zfmap, FD* fd, size64_t count, void* content)
 	readpoint += red;
     }
 done:
+    errno = 0;
     return ZUNTRACE(stat);
 }
 

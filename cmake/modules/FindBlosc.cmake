@@ -31,7 +31,7 @@ IF(Blosc_INCLUDE_DIRS)
   ENDIF(EXISTS "${Blosc_LIBRARY_DIRS}/lib")
 
   # Find Blosc libraries
-  FIND_LIBRARY(Blosc_DEBUG_LIBRARY NAMES bloscd blosc_d libbloscd libblosc_d libblosc
+  FIND_LIBRARY(Blosc_DEBUG_LIBRARY NAMES blosc_d libblosc_d
                PATH_SUFFIXES Debug ${CMAKE_LIBRARY_ARCHITECTURE} ${CMAKE_LIBRARY_ARCHITECTURE}/Debug
                PATHS ${Blosc_LIBRARY_DIRS} NO_DEFAULT_PATH)
   FIND_LIBRARY(Blosc_RELEASE_LIBRARY NAMES blosc libblosc

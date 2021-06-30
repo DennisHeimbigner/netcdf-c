@@ -10,7 +10,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 # 2. xarray read/write
 
 set -e
-export NCTRACING=16
+set -x
 
 testcase() {
 zext=$1
@@ -19,6 +19,9 @@ echo "*** Test: pure zarr write then read; format=$zext"
 fileargs tmp_purezarr "mode=noxarray,$zext"
 deletemap $zext $file
 ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_purezarr_base.cdl
+pwd
+find tmp_purezarr.file
+export NCTRACING=16
 ${NCDUMP} $fileurl > tmp_purezarr_${zext}.cdl
 diff -b ${srcdir}/ref_purezarr.cdl tmp_purezarr_${zext}.cdl
 
