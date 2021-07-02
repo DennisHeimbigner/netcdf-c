@@ -1231,7 +1231,7 @@ fprintf(stderr,"unload: %s\n",
 	(plugin->hdf5.hdf5lib?plugin->hdf5.hdf5lib->path
 			     : (plugin->codec.codeclib?plugin->codec.codeclib->path:"null")));
 #endif
-	if(plugin->codec.codec->NCZ_codec_finalize)
+	if(plugin->codec.codec && plugin->codec.codec->NCZ_codec_finalize)
 		plugin->codec.codec->NCZ_codec_finalize();
         if(plugin->hdf5.filter != NULL) loaded_plugins[plugin->hdf5.filter->id] = NULL;
 	if(plugin->hdf5.hdf5lib != NULL) (void)ncpsharedlibfree(plugin->hdf5.hdf5lib);

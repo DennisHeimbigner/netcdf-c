@@ -8,6 +8,10 @@
 #include "netcdf_filter_build.h"
 #include "h5misc.h"
 
+/* Undef if using memory checking */
+#undef HAVE_H5ALLOCATE_MEMORY
+#undef HAVE_H5FREE_MEMORY
+
 #ifndef DLL_EXPORT
 #define DLL_EXPORT
 #endif

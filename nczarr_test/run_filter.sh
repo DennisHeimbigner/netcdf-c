@@ -7,7 +7,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
-#cd ../plugins; make clean all >/dev/null; cd ../nczarr_test
+cd ../plugins; make clean all >/dev/null; cd ../nczarr_test
 
 # Load the findplugins function
 . ${builddir}/findplugin.sh
@@ -50,7 +50,7 @@ findplugin h5bzip2
 BZIP2LIB="${HDF5_PLUGIN_LIB}"
 BZIP2PATH="${HDF5_PLUGIN_PATH}/${BZIP2LIB}"
 # Find misc and capture
-findplugin misc
+findplugin h5misc
 MISCPATH="${HDF5_PLUGIN_PATH}/${HDF5_PLUGIN_LIB}"
 
 echo "final HDF5_PLUGIN_PATH=${HDF5_PLUGIN_PATH}"

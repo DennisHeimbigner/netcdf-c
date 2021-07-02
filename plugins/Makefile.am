@@ -21,7 +21,7 @@ EXTRA_DIST = ${BZ2PLUGINSRC} ${BZ2PLUGINHDRS} \
 
 if ENABLE_FILTER_TESTING
 
-noinst_LTLIBRARIES = libmisc.la libnoop.la libnoop1.la libnczdeflate.la libnczbzip2.la
+noinst_LTLIBRARIES = libh5misc.la libh5noop.la libh5noop1.la libnczdeflate.la libnczbzip2.la
 
 lib_LTLIBRARIES = libh5bzip2.la
 libh5bzip2_la_SOURCES = ${BZ2PLUGINSRC} ${BZIP2SRC}
@@ -33,15 +33,15 @@ libh5blosc_la_SOURCES = H5Zblosc.c H5Zblosc.h
 endif
 endif
 
-libmisc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h
+libh5misc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h
 
 libnczdeflate_la_SOURCES = NCZdeflate.c
 libnczbzip2_la_SOURCES = NCZbzip2.c
 
 # The noop filter is to allow testing of multifilters and filter order
 # Need two distinct instances
-libnoop_la_SOURCES = H5Znoop.c H5Zutil.c h5noop.h
-libnoop1_la_SOURCES = H5Znoop1.c H5Zutil.c h5noop.h
+libh5noop_la_SOURCES = H5Znoop.c H5Zutil.c h5noop.h
+libh5noop1_la_SOURCES = H5Znoop1.c H5Zutil.c h5noop.h
 endif #ENABLE_FILTER_TESTING
 
 BUILT_SOURCES = H5Znoop1.c

@@ -8,7 +8,9 @@
 /* Older versions of the hdf library may define H5PL_type_t here */
 #include <H5PLextern.h>
 
-
+/* Undef if using memory checking */
+#undef HAVE_H5ALLOCATE_MEMORY
+#undef HAVE_H5FREE_MEMORY
 
 #ifndef DLL_EXPORT
 #define DLL_EXPORT
