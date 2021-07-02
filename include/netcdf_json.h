@@ -134,8 +134,8 @@ TODO: make utf8 safe
 #define NCJ_TAG_FALSE "false"
 #define NCJ_TAG_NULL "null"
 
-/* WORD Subsumes Number also */
-#define WORD "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$+-."
+/* JSON_WORD Subsumes Number also */
+#define JSON_WORD "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$+-."
 
 /*//////////////////////////////////////////////////*/
 
@@ -169,6 +169,10 @@ static void NCJreclaimArray(struct NCjlist*);
 static void NCJreclaimDict(struct NCjlist*);
 static int NCJunescape(NCJparser* parser);
 static int listappend(struct NCjlist* list, NCjson* element);
+
+#ifdef _WIN32
+#define strdup _strdup
+#endif
 
 #ifndef nullfree
 #define nullfree(x) {if(x)free(x);}
@@ -411,11 +415,11 @@ NCJlex(NCJparser* parser)
 	} else if(c <= ' ' || c == '\177') {
 	    parser->pos++;
 	    continue; /* ignore whitespace */
-	} else if(strchr(WORD, c) != NULL) {
+	} else if(strchr(JSON_WORD, c) != NULL) {
 	    start = parser->pos;
 	    for(;;) {
 		c = *parser->pos++;
-		if(c == '\0' || strchr(WORD,c) == NULL) break; /* end of word */
+		if(c == '\0' || strchr(JSON_WORD,c) == NULL) break; /* end of word */
 	    }
 	    /* Pushback c if not whitespace */
 	    parser->pos--;
@@ -565,7 +569,7 @@ NCJreclaimArray(struct NCjlist* array)
 static void
 NCJreclaimDict(struct NCjlist* dict)
 {
-    return NCJreclaimArray(dict);
+   NCJreclaimArray(dict);
 }
 
 /**************************************************/

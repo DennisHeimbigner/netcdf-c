@@ -944,6 +944,17 @@ OPTION(ENABLE_DAP_LONG_TESTS "Enable DAP long tests." OFF)
 OPTION(ENABLE_DAP_REMOTE_TESTS "Enable DAP remote tests." ON)
 SET(REMOTETESTSERVERS "remotetest.unidata.ucar.edu" CACHE STRING "test servers to use for remote test")
 
+# See if we have zlib
+FIND_PACKAGE(ZLIB)
+
+# Define a test flag for have zlib library
+IF(ZLIB_FOUND)
+  INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
+  SET(ENABLE_ZLIB TRUE)
+ELSE()
+  SET(ENABLE_ZLIB FALSE)
+ENDIF()
+
 # See if we have libzip
 FIND_PACKAGE(Blosc)
 

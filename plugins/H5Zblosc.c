@@ -101,6 +101,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "netcdf_filter_build.h"
 #include "H5Zblosc.h"
 
+#ifdef USE_HDF5
+#include <H5Epubgen.h>
+#endif
+
 /* Undef if using memory checking */
 #undef HAVE_H5ALLOCATE_MEMORY
 #undef HAVE_H5FREE_MEMORY

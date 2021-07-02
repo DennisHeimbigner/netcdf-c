@@ -52,12 +52,14 @@ const H5Z_class2_t H5Z_DEFLATE[1] = {{
 /* HDF5 FIlter query functions */
 
 /* External Discovery Functions */
+DLLEXPORT
 H5PL_type_t
 H5PLget_plugin_type(void)
 {
     return H5PL_TYPE_FILTER;
 }
 
+DLLEXPORT
 const void*
 H5PLget_plugin_info(void)
 {
@@ -249,6 +251,7 @@ static NCZ_codec_t NCZ_zlib_codec = {/* NCZ_codec_t  codec fields */
 };
 
 /* External Export API */
+DLLEXPORT
 const void*
 NCZ_get_plugin_info(void)
 {

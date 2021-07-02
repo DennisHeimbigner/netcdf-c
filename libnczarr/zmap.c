@@ -414,8 +414,11 @@ nczm_canonicalpath(const char* path, char** cpathp)
     if(path == NULL) 
 	{cpath = NULL; goto done;}
 
-    /* Process path to make it be windows compatible */
-    if((tmp = NCpathcvt(path))==NULL) {ret = NC_ENOMEM; goto done;}
+    /* Process path to make it be absolute*/
+    if((tmp = NCpathabsolute(path))==NULL) {ret = NC_ENOMEM; goto done;}
+
+    /* Process path to make it be OS compatible */
+    if((tmp = NCpathcvt(tmp))==NULL) {ret = NC_ENOMEM; goto done;}
 
     /* Fix slashes to be forward for now */
     if((ret = nczm_localize(tmp,&cpath,!LOCALIZE))) goto done;

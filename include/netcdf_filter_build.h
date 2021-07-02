@@ -31,12 +31,12 @@
 #include <netcdf.h>
 #include <netcdf_filter.h>
 
-#ifdef HAVE_HDF5_H 
+#ifdef USE_HDF5
 #include <hdf5.h>
 /* Older versions of the hdf library may define H5PL_type_t here */
 #include <H5PLextern.h>
 
-#else /*!HAVE_HDF5_H*/ /* Provide replacement definitions */
+#else /*!USE_HDF5*/ /* Provide replacement definitions */
 
 /* WARNING: In order make NCZARR independent of HDF5,
    while still using HDF5-style filters, some HDF5
@@ -217,6 +217,14 @@ typedef struct NCZ_codec_t {
 
 #ifndef NC_UNUSED
 #define NC_UNUSED(var) (void)var
+#endif
+
+#ifdef _WIN32
+#ifndef EXTERNL
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT
+#endif
 #endif
 
 #endif /*NETCDF_FILTER_BUILD_H*/
