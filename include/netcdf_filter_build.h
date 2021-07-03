@@ -222,9 +222,9 @@ typedef struct NCZ_codec_t {
 #ifdef _WIN32
 #ifndef EXTERNL
 #define DLLEXPORT __declspec(dllexport)
+#endif
 #else
 #define DLLEXPORT
-#endif
 #endif
 
 #endif /*NETCDF_FILTER_BUILD_H*/
