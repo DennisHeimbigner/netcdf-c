@@ -153,6 +153,9 @@ are set when opening a binary file on Windows. */
 /* if true, enable NCZARR */
 #cmakedefine ENABLE_NCZARR 1
 
+/* if true, enable nczarr filter support */
+#cmakedefine ENABLE_NCZARR_FILTERS 1
+
 /* if true, enable S3 support */
 #cmakedefine ENABLE_NCZARR_S3 1
 

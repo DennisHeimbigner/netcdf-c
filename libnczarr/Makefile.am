@@ -38,7 +38,6 @@ zcvt.c \
 zdim.c \
 zdispatch.c \
 zfile.c \
-zfilter.c \
 zgrp.c \
 zinternal.c \
 zmap.c \
@@ -64,6 +63,10 @@ zodom.h \
 zprovenance.h \
 zfilter.h \
 zdebug.h
+
+if ENABLE_NCZARR_FILTERS
+libnczarr_la_SOURCES += zfilter.c
+endif
 
 if ENABLE_NCZARR_ZIP
 libnczarr_la_SOURCES += zmap_zip.c 

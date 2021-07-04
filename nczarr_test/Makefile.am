@@ -75,7 +75,7 @@ TESTS += run_perf_chunks1.sh
 
 endif # BUILD_BENCHMARKS
 
-if ENABLE_FILTER_TESTING
+if ENABLE_NCZARR_FILTERS
 # Do simple filter functionality tests for nczarr
 check_PROGRAMS += tst_nczfilter
 TESTS += tst_nczfilter
@@ -87,7 +87,7 @@ if HAVE_BLOSC
 TESTS += run_specific_filters.sh
 endif
 
-endif #ENABLE_FILTER_TESTING
+endif #ENABLE_NCZARR_FILTERS
 
 endif #BUILD_UTILITIES
 

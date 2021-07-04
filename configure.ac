@@ -1507,6 +1507,17 @@ if test "x$enable_logging" = xyes; then
    AC_DEFINE([LOGGING], 1, [If true, turn on logging.])
 fi
 
+# Control NCZarr filters
+# Does the user want to use NCZarr filters?
+AC_MSG_CHECKING([whether we should enable NCZarr filters])
+AC_ARG_ENABLE([nczarr-filters], [AS_HELP_STRING([--disable-nczarr-filters],
+              [disable NCZarr filters])])
+test "x$enable_nczarr_filters" = xno || enable_nczarr_filters=yes
+AC_MSG_RESULT([$enable_nczarr_filters])
+if test "x$enable_nczarr_filters" = xyes; then
+   AC_DEFINE([ENABLE_NCZARR_FILTERS], [1], [if true, enable NCZarr filters])
+fi
+
 # Control filter test/example
 AC_MSG_CHECKING([whether filter testing should be run])
 AC_ARG_ENABLE([filter-testing],
@@ -1514,6 +1525,10 @@ AC_ARG_ENABLE([filter-testing],
                               [Do not run filter test and example; requires shared libraries and HDF5|NCZarr])])
 test "x$enable_filter_testing" = xno || enable_filter_testing=yes
 AC_MSG_RESULT($enable_filter_testing)
+
+if test "x$enable_nczarr" = xno ; then
+enable_nczarr_filters=no
+fi
 
 if test "x$enable_hdf5" = xno && test "x$enable_nczarr" = xno ; then
 AC_MSG_WARN([HDF5 and NCZarr are disabled => --disable-filter-testing])
@@ -1523,6 +1538,7 @@ fi
 if test "x$enable_shared" = xno ; then
 AC_MSG_WARN([Shared libraries are disabled => --disable-filter-testing])
 enable_filter_testing=no
+enable_nczarr_filters=no
 fi
 
 # Client side filter registration is permanently disabled
@@ -1530,6 +1546,7 @@ enable_clientside_filters=no
 
 AM_CONDITIONAL(ENABLE_CLIENTSIDE_FILTERS, [test x$enable_clientside_filters = xyes])
 AM_CONDITIONAL(ENABLE_FILTER_TESTING, [test x$enable_filter_testing = xyes])
+AM_CONDITIONAL(ENABLE_NCZARR_FILTERS, [test x$enable_nczarr_filters = xyes])
 
 # Automake conditionals need to be called, whether the answer is yes
 # or no.

@@ -472,7 +472,7 @@ NCmkstemp(char* base)
     cvtpath = NCpathcvt(base);
     len = strlen(cvtpath);
     xp = cvtpath+(len-6);
-    assert(memcmp(xp,"XXXXXX")==0);    
+    assert(memcmp(xp,"XXXXXX",6)==0);    
     for(attempts=10;attempts>0;attempts--) {
         /* The Windows version of mkstemp does not work right;
            it only allows for 26 possible XXXXXX values */

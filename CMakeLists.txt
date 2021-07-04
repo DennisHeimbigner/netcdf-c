@@ -956,7 +956,9 @@ ELSE()
 ENDIF()
 
 # See if we have libzip
+IF(!MSVC)
 FIND_PACKAGE(Blosc)
+ENDIF()
 
 # Define a test flag for have blosc library
 IF(Blosc_FOUND)
@@ -1350,23 +1352,30 @@ IF (ENABLE_PARALLEL_TESTS AND NOT USE_PARALLEL)
   MESSAGE(FATAL_ERROR "Parallel tests requested, but no parallel HDF5 installation detected.")
 ENDIF()
 
+# Enable NCZarr filters
+OPTION(ENABLE_NCZARR_FILTERS "Enable nczarr filters. Ignored if shared libraries or netCDF4 are not enabled" yes)
+
+IF(NOT ENABLE_NCZARR)
+SET(ENABLE_NCZARR_FILTERS no)
+ENDIF()
+
 # Enable special filter test; experimental when using cmake.
-OPTION(ENABLE_FILTER_TESTING "Enable filter testing. Ignored if shared libraries or netCDF4 are not enabled" ${ENABLE_HDF5})
+OPTION(ENABLE_FILTER_TESTING "Enable filter testing. Ignored if shared libraries or netCDF4 are not enabled" yes)
+
 IF(ENABLE_FILTER_TESTING)
   if(NOT ENABLE_HDF5 AND NOT ENABLE_NCZARR)
     MESSAGE(WARNING "ENABLE_FILTER_TESTING requires HDF5 and/or NCZarr. Disabling.")
-    SET(ENABLE_FILTER_TESTING OFF)
+    SET(ENABLE_FILTER_TESTING OFF CACHE BOOL "Enable Filter Testing" FORCE)
   ENDIF()
 ENDIF()
+
 IF(NOT BUILD_SHARED_LIBS)
   MESSAGE(WARNING "ENABLE_FILTER_TESTING requires shared libraries. Disabling.")
   SET(ENABLE_FILTER_TESTING OFF)
-ENDIF()
-OPTION(ENABLE_CLIENTSIDE_FILTERS "Enable client-side filter registration." OFF)
-IF(NOT ENABLE_FILTER_TESTING)
-SET(ENABLE_CLIENTSIDE_FILTERS OFF)
+  SET(ENABLE_NCZARR_FILTERS OFF)
 ENDIF()
 
+SET(ENABLE_CLIENTSIDE_FILTERS OFF)
 
 # Determine whether or not to generate documentation.
 OPTION(ENABLE_DOXYGEN "Enable generation of doxygen-based documentation." OFF)

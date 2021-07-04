@@ -105,7 +105,6 @@ load(NCPSharedLib* lib , const char* path0, int flags)
                           NULL, errcode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &msg, 0, NULL);
 	if(msg) {
 	    strncpy(lib->err.msg,msg,sizeof(lib->err.msg));
-	    nullfree(msg);
 	} else
 	    lib->err.msg[0] = '\0';
 	ret = NC_ENOTFOUND;
