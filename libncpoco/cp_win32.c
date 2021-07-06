@@ -37,6 +37,7 @@ ncp_win32_initialize()
 #ifdef USE_MUTEX
     InitializeCriticalSectionAndSpinCount(&mutex, 4000);
 #endif
+    (void)SetErrorMode(SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX);
     return ret;
 }
 

@@ -61,10 +61,15 @@ fi
 # Case 1: Cmake with Visual Studio
 # Do not know where to look for a dylib
 # Case 1: Cmake with Visual Studio
+#         For debugging purposes, check if directory called dlls exists.
 if test "x$FP_ISCMAKE" != x -a "x${FP_ISMSVC}" != x ; then
-  # Case 1a: ignore the build type directory
-  if test -f "${FP_PLUGINS}/${FP_PLUGIN_LIB}" ; then
-    FP_PLUGIN_PATH="${FP_PLUGINS}"
+  # Case 1a: look in dlls/...
+  if test -f "${FP_PLUGINS}/dlls/${FP_PLUGIN_LIB}" ; then
+    FP_PLUGIN_PATH="${FP_PLUGINS}/dlls"
+  else # Case 1b: ignore the build type directory
+    if test -f "${FP_PLUGINS}/${FP_PLUGIN_LIB}" ; then
+      FP_PLUGIN_PATH="${FP_PLUGINS}"
+    fi
   fi
 else # Case 2: automake
   # Case 2a: look in .libs
