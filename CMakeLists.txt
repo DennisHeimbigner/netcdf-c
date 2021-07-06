@@ -1352,13 +1352,6 @@ IF (ENABLE_PARALLEL_TESTS AND NOT USE_PARALLEL)
   MESSAGE(FATAL_ERROR "Parallel tests requested, but no parallel HDF5 installation detected.")
 ENDIF()
 
-# Enable NCZarr filters
-OPTION(ENABLE_NCZARR_FILTERS "Enable nczarr filters. Ignored if shared libraries or netCDF4 are not enabled" yes)
-
-IF(NOT ENABLE_NCZARR)
-SET(ENABLE_NCZARR_FILTERS no)
-ENDIF()
-
 # Enable special filter test; experimental when using cmake.
 OPTION(ENABLE_FILTER_TESTING "Enable filter testing. Ignored if shared libraries or netCDF4 are not enabled" yes)
 
@@ -1372,7 +1365,6 @@ ENDIF()
 IF(NOT BUILD_SHARED_LIBS)
   MESSAGE(WARNING "ENABLE_FILTER_TESTING requires shared libraries. Disabling.")
   SET(ENABLE_FILTER_TESTING OFF)
-  SET(ENABLE_NCZARR_FILTERS OFF)
 ENDIF()
 
 SET(ENABLE_CLIENTSIDE_FILTERS OFF)

@@ -129,6 +129,26 @@ static void printfilterlist(NC_VAR_INFO_T* var, const char* tag, int line);
 #define PRINTFILTERLIST(var,tag)
 #endif /*TFILTERS*/
 
+#ifdef ZTRACING
+static const char*
+NCJtrace(const NCjson* j)
+{
+    static char jstat[4096];
+    char* js = NULL;
+    jstat[0] = '\0';
+    if(j) {
+        (void)NCJunparse(j,0,&js);
+	if(js) strlcat(jstat,js,sizeof(jstat));
+	nullfree(js);
+    }
+    return jstat;
+}
+
+#define IEXISTS(x,p) (((x) && *(x)? (*(x))-> p : 0xffffffff))
+#define SEXISTS(x,p) (((x) && *(x)? (*(x))-> p : "null"))
+#endif
+
+
 /* Forward */
 static int NCZ_load_all_plugins(void);
 static int NCZ_load_plugin_dir(const char* path);
@@ -163,6 +183,7 @@ NCZ_filter_freelist(NC_VAR_INFO_T* var)
     int i, stat=NC_NOERR;
     NClist* filters = (NClist*)var->filters;
 
+    ZTRACE(6,"var=%s",var->hdr.name);
     if(filters == NULL) goto done;
 PRINTFILTERLIST(var,"free: before");
     /* Free the filter list elements */
@@ -176,7 +197,7 @@ PRINTFILTERLIST(var,"free: after");
     nclistfree(filters);
     var->filters = NULL;
 done:
-    return stat;
+    return ZUNTRACE(stat);
 }
 
 int
@@ -185,6 +206,7 @@ NCZ_codec_freelist(NCZ_VAR_INFO_T* zvar)
     int i, stat=NC_NOERR;
     NClist* codecs = zvar->codecs;
 
+    ZTRACE(6,"zvar=%p",zvar);
     if(codecs == NULL) goto done;
     /* Free the codec list elements */
     for(i=0;i<nclistlength(codecs);i++) {
@@ -194,7 +216,7 @@ NCZ_codec_freelist(NCZ_VAR_INFO_T* zvar)
     nclistfree(codecs);
     zvar->codecs = NULL;
 done:
-    return stat;
+    return ZUNTRACE(stat);
 }
 
 static int
@@ -210,21 +232,23 @@ PRINTFILTER(spec,"free");
 static int
 NCZ_h5filter_clear(NCZ_HDF5* spec)
 {
+    ZTRACE(6,"spec=%d",spec->id);
     if(spec == NULL) goto done;
     nullfree(spec->params);
 done:
-    return NC_NOERR;
+    return ZUNTRACE(NC_NOERR);
 }
 
 static int
 NCZ_codec_free(NCZ_Codec* spec)
 {
+    ZTRACE(6,"spec=%d",(spec?spec->id:"null"));
     if(spec == NULL) goto done;
     nullfree(spec->id);
     NCJreclaim(spec->codec);
     free(spec);
 done:
-    return NC_NOERR;
+    return ZUNTRACE(NC_NOERR);
 }
 
 int
@@ -243,6 +267,7 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
     int clonenparams = (int)nparams;
     void* context = NULL;
 
+    ZTRACE(6,"file=%s var=%s id=%u nparams=%u params=%p",file->hdr.name,var->hdr.name,id,nparams,params);
     
     if(nparams > 0 && params == NULL)
 	{stat = NC_EINVAL; goto done;}
@@ -332,15 +357,16 @@ done:
     NCJreclaim(jcodec);
     NCZ_codec_free(codec);
     if(fi) NCZ_filter_free(fi);    
-    return THROW(stat);
+    return ZUNTRACE(stat);
 }
 
 int
 NCZ_filter_remove(NC_VAR_INFO_T* var, unsigned int id)
 {
-    int k;
+    int k, stat = NC_NOERR;
     NClist* flist = (NClist*)var->filters;
 
+    ZTRACE(6,"var=%s id=%u",var->hdr.name,id);
     /* Walk backwards */
     for(k=nclistlength(flist)-1;k>=0;k--) {
 	struct NCZ_Filter* f = (struct NCZ_Filter*)nclistget(flist,k);
@@ -353,10 +379,12 @@ fprintf(stderr,"\tid=%s\n",id);
 #endif
 	    /* Reclaim */
 	    NCZ_filter_free(f);
-	    return NC_NOERR;
+	    goto done;
 	}
     }
-    return NC_ENOFILTER;
+    stat = NC_ENOFILTER;
+done:
+    return ZUNTRACE(stat);
 }
 
 static int
@@ -365,6 +393,9 @@ NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, struct NCZ_Filter** specp
     int i;
     NClist* flist = (NClist*)var->filters;
     
+    
+    ZTRACE(6,"var=%s id=%u",var->hdr.name,id);
+
     if(specp) *specp = NULL;
     if(flist == NULL) {
 	if((flist = nclistnew())==NULL)
@@ -379,7 +410,7 @@ NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, struct NCZ_Filter** specp
 	    break;
 	}
     }
-    return NC_NOERR;
+    return ZUNTRACEX(NC_NOERR,"spec=%d",IEXISTS(specp,hdf5.id));
 }
 
 static int
@@ -387,6 +418,7 @@ NCZ_codec_lookup(NClist* codecs, const char* id, NCZ_Codec** codecp)
 {
     int i;
     
+    ZTRACE(6,"|codecs|=%u id=%u", (unsigned)nclistlength(codecs), id);
     if(codecp) *codecp = NULL;
 
     if(codecs == NULL) return NC_NOERR;
@@ -398,7 +430,7 @@ NCZ_codec_lookup(NClist* codecs, const char* id, NCZ_Codec** codecp)
 	    break;
 	}
     }
-    return NC_NOERR;
+    return ZUNTRACEX(NC_NOERR,"codec=%s",SEXISTS(codecp,id));
 }
 
 #if 0
@@ -547,11 +579,12 @@ NCZ_inq_var_filter_ids(int ncid, int varid, size_t* nfiltersp, unsigned int* ids
     NC_GRP_INFO_T* grp = NULL;
     NC_VAR_INFO_T* var = NULL;
     NClist* flist = NULL;
-    size_t nfilters;
+    size_t nfilters = 0;
 
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
+    ZTRACE(1,"ncid=%d varid=%d",ncid,varid);
 
-    if((stat = NC_check_id(ncid,&nc))) return stat;
+    if((stat = NC_check_id(ncid,&nc))) goto done;
     assert(nc);
 
     /* Find info for this file and group and var, and set pointer to each. */
@@ -576,8 +609,7 @@ NCZ_inq_var_filter_ids(int ncid, int varid, size_t* nfiltersp, unsigned int* ids
     if(nfiltersp) *nfiltersp = nfilters;
  
 done:
-    return stat;
-
+    return ZUNTRACEX(stat, "nfilters=%u", nfilters);
 }
 
 int
@@ -591,8 +623,9 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, 
     struct NCZ_Filter* spec = NULL;
 
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
-
-    if((stat = NC_check_id(ncid,&nc))) return stat;
+    ZTRACE(1,"ncid=%d varid=%d id=%u",ncid,varid,id);
+    
+    if((stat = NC_check_id(ncid,&nc))) goto done;
     assert(nc);
 
     /* Find info for this file and group and var, and set pointer to each. */
@@ -613,8 +646,7 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, 
         stat = NC_ENOFILTER;
  
 done:
-    return stat;
-
+    return ZUNTRACEX(stat,"nparams=%u",(unsigned)*nparamsp);
 }
 
 
@@ -673,14 +705,15 @@ int
 NCZ_filter_initialize(void)
 {
     int stat = NC_NOERR;
-    if(NCZ_filter_initialized) return stat;
+    ZTRACE(6,"");
+    if(NCZ_filter_initialized) goto done;
     {
         NCZ_filter_initialized = 1;
         memset(loaded_plugins,0,sizeof(loaded_plugins));
         if((stat = NCZ_load_all_plugins())) goto done;
     }
 done:
-    return stat;
+    return ZUNTRACE(stat);
 }
 
 int
@@ -688,24 +721,26 @@ NCZ_filter_finalize(void)
 {
     int stat = NC_NOERR;
     int i;
+    ZTRACE(6,"");
     /* Reclaim all loaded filters */
     for(i=0;i<=loaded_plugins_max;i++) {
         NCZ_unload_plugin(loaded_plugins[i]);
 	loaded_plugins[i] = NULL;
     }
-    return stat;
+    return ZUNTRACE(stat);
 }
 
 static int
 NCZ_plugin_save(int filterid, NCZ_Plugin* p)
 {
     int stat = NC_NOERR;
+    ZTRACE(6,"filterid=%d p=%p",filterid,p);
     if(filterid <= 0 || filterid >= H5Z_FILTER_MAX)
 	{stat = NC_EINVAL; goto done;}
     if(filterid > loaded_plugins_max) loaded_plugins_max = filterid;
     loaded_plugins[filterid] = p;
 done:
-    return stat;
+    return ZUNTRACE(stat);
 }
 
 static int
@@ -713,13 +748,14 @@ NCZ_plugin_loaded(int filterid, NCZ_Plugin** pp)
 {
     int stat = NC_NOERR;
     struct NCZ_Plugin* plug = NULL;
+    ZTRACE(6,"filterid=%d",filterid);
     if(filterid <= 0 || filterid >= H5Z_FILTER_MAX)
 	{stat = NC_EINVAL; goto done;}
     if(filterid <= loaded_plugins_max) 
         plug = loaded_plugins[filterid];
     if(pp) *pp = plug;
 done:
-    return stat;
+    return ZUNTRACEX(stat,"plugin=%p",*pp);
 }
 
 int
@@ -727,6 +763,8 @@ NCZ_applyfilterchain(NClist* chain, size_t inlen, void* indata, size_t* outlenp,
 {
     int i, stat = NC_NOERR;
     void* lastbuffer = NULL; /* if not null, then last allocated buffer */
+
+    ZTRACE(6,"|chain|=%u inlen=%u indata=%p encode=%d", (unsigned)nclistlength(chain), (unsigned)inlen, indata, encode);
 
     /* Make sure all the filters are loaded */
     for(i=0;i<nclistlength(chain);i++) {
@@ -802,7 +840,7 @@ fprintf(stderr,"current: alloc=%u used=%u buf=%p\n",(unsigned)current_alloc,(uns
 
 done:
     if(lastbuffer != NULL && lastbuffer != indata) nullfree(lastbuffer); /* cleanup */
-    return stat;
+    return ZUNTRACEX(stat,"outlen=%u outdata=%p",(unsigned)*outlenp,*outdatap);
 }
 
 /**************************************************/
@@ -815,6 +853,7 @@ NCZ_filter_jsonize(const NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** 
     NCjson* jfilter = NULL;
     char* codec = NULL;
     
+    ZTRACE(6,"var=%s filter=%s",var->hdr.name,filter->codec->id);
     /* Convert the HDF5 id + parameters to the codec form */
     assert(filter->codec->id != NULL && filter->plugin != NULL);
     if((stat = filter->plugin->codec.codec->NCZ_hdf5_to_codec(filter->codec_context,filter->hdf5.nparams,filter->hdf5.params,&codec))) goto done;
@@ -826,7 +865,7 @@ fprintf(stderr,"zfilter.parse.1: %p\n",jfilter);
 done:
     if(codec) free(codec);
     if(jfilter) NCJreclaim(jfilter);
-    return stat;
+    return ZUNTRACEX(stat,"json=%s",(!jfilterp || !*jfilterp ? "null":NCJtrace(*jfilterp)));
 }
 
 int
@@ -841,6 +880,8 @@ NCZ_filter_build(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter
     NCZ_Codec* codec = NULL;
     NCZ_HDF5 hdf5filter = {0,0,NULL};
     void* context = NULL;
+
+    ZTRACE(6,"file=%s var=%s jfilter=%s",file->hdr.name,var->hdr.name,NCJtrace(jfilter));
 
     if(var->filters == NULL) var->filters = nclistnew();
     if(zvar->codecs == NULL) zvar->codecs = nclistnew();
@@ -897,7 +938,7 @@ done:
     if(plugin) NCZ_unload_plugin(plugin);
     nullfree(text);
     NCZ_filter_free(filter);
-    return stat;
+    return ZUNTRACE(stat);
 }
 
 /**************************************************/
@@ -922,7 +963,7 @@ getentries(const char* path, NClist* contents)
     size_t len;
     char* d = NULL;
 
-    ZTRACE(10,"path=%s",path);
+    ZTRACE(6,"path=%s",path);
 
     /* We need to process the path to make it work with FindFirstFile */
     len = strlen(path);
@@ -978,7 +1019,7 @@ getentries(const char* path, NClist* contents)
     errno = 0;
     DIR* dir = NULL;
 
-    ZTRACE(10,"path=%s",path);
+    ZTRACE(6,"path=%s",path);
 
     dir = NCopendir(path);
     if(dir == NULL)
@@ -1012,7 +1053,9 @@ NCZ_load_all_plugins(void)
     char pluginpath32[4096];
 #endif
     
-    /* Find the plugin directory root(s) */
+   ZTRACE(6,"");
+
+   /* Find the plugin directory root(s) */
     pluginroot = getenv(plugin_env);
     if(pluginroot == NULL || strlen(pluginroot) == 0) {
 #ifdef _WIN32
@@ -1060,7 +1103,7 @@ NCZ_load_all_plugins(void)
     }
     
 done:
-    return ret;
+    return ZUNTRACE(ret);
 }
 
 /* Load all the filters within a specified directory */
@@ -1071,6 +1114,8 @@ NCZ_load_plugin_dir(const char* path)
     size_t pathlen;
     NClist* contents = nclistnew();
     char* file = NULL;
+
+    ZTRACE(7,"path=%s",path);
 
     if(path == NULL) {stat = NC_EINVAL; goto done;}
     pathlen = strlen(path);
@@ -1118,7 +1163,7 @@ NCZ_load_plugin_dir(const char* path)
 done:
     nullfree(file);
     nclistfreeall(contents);
-    return stat;
+    return ZUNTRACE(stat);
 }
 
 static int
@@ -1133,6 +1178,8 @@ NCZ_load_plugin(const char* path, struct NCZ_Plugin** plugp)
     int h5id = -1;
     
     assert(path != NULL && strlen(path) > 0 && plugp != NULL);
+
+    ZTRACE(8,"path=%s",path);
 
     /* load the shared library */
     if((stat = ncpsharedlibnew(&lib))) goto done;
@@ -1219,12 +1266,14 @@ done:
         (void)ncpsharedlibfree(lib);
     }
     if(plugin) NCZ_unload_plugin(plugin);
-    return stat;
+    return ZUNTRACEX(stat,"plug=%p",*plugp);
 }
 
 static int
 NCZ_unload_plugin(NCZ_Plugin* plugin)
 {
+    ZTRACE(9,"plugin=%p",plugin);
+
     if(plugin) {
 #ifdef DEBUGF
 fprintf(stderr,"unload: %s\n",
@@ -1239,7 +1288,7 @@ fprintf(stderr,"unload: %s\n",
 	memset(plugin,0,sizeof(NCZ_Plugin));
 	free(plugin);
     }
-    return NC_NOERR;
+    return ZUNTRACE(NC_NOERR);
 }
 
 /**************************************************/
@@ -1254,6 +1303,7 @@ NCZ_codec_attr(const NC_VAR_INFO_T* var, size_t* lenp, void* data)
     NCbytes* buf = NULL;
     NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
 
+    ZTRACE(6,"var=%s",var->hdr.name);
     if(nclistlength(zvar->codecs) == 0) {stat = NC_ENOTATT; goto done;}
     buf = ncbytesnew(); ncbytessetalloc(buf,1024);
     ncbytescat(buf,"[");
@@ -1272,5 +1322,5 @@ NCZ_codec_attr(const NC_VAR_INFO_T* var, size_t* lenp, void* data)
     if(data) strncpy((char*)data,contents,len+1);
 done:
     ncbytesfree(buf);
-    return stat;
+    return ZUNTRACEX(stat,"len=%u data=%p",(unsigned)len,data);
 }

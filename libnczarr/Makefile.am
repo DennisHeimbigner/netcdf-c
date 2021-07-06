@@ -50,6 +50,7 @@ ztype.c \
 zutil.c \
 zvar.c \
 zwalk.c \
+zfilter.c \
 zdebug.c \
 zarr.h \
 zcache.h \
@@ -63,10 +64,6 @@ zodom.h \
 zprovenance.h \
 zfilter.h \
 zdebug.h
-
-if ENABLE_NCZARR_FILTERS
-libnczarr_la_SOURCES += zfilter.c
-endif
 
 if ENABLE_NCZARR_ZIP
 libnczarr_la_SOURCES += zmap_zip.c 

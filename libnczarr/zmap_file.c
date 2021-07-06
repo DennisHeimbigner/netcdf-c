@@ -583,6 +583,8 @@ zffullpath(ZFMAP* zfmap, const char* key, char** pathp)
     size_t klen, pxlen, flen;
     char* path = NULL;
 
+    ZTRACE(6,"map=%s key=%s",zfmap->map.url,key);
+
     klen = nulllen(key);
     pxlen = strlen(zfmap->root);
     flen = klen+pxlen+1+1;
@@ -598,7 +600,7 @@ zffullpath(ZFMAP* zfmap, const char* key, char** pathp)
     if(pathp) {*pathp = path; path = NULL;}
 done:
     nullfree(path)
-    return stat;
+    return ZUNTRACEX(stat,"path=%s",(pathp?*pathp:"null"));
 }
 
 static int
@@ -622,14 +624,15 @@ done:
 static int
 platformerr(int err)
 {
-     switch (err) {
+    ZTRACE(6,"err=%d",err);
+    switch (err) {
      case ENOENT: err = NC_ENOOBJECT; break; /* File does not exist */
      case ENOTDIR: err = NC_EEMPTY; break; /* no content */
      case EACCES: err = NC_EAUTH; break; /* file permissions */
      case EPERM:  err = NC_EAUTH; break; /* ditto */
      default: break;
      }
-     return err;
+     return ZUNTRACE(err);
 }
 
 /* Test type of the specified file.

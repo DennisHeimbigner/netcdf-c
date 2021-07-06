@@ -29,6 +29,7 @@ echo "*** Test: xarray zarr write then read; format=$zext"
 fileargs tmp_xarray "mode=zarr,$zext"
 deletemap $zext $file
 ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_purezarr_base.cdl
+export NCTRACING=15
 ${NCDUMP} $fileurl > tmp_xarray_${zext}.cdl
 diff -b ${srcdir}/ref_xarray.cdl tmp_xarray_${zext}.cdl
 
