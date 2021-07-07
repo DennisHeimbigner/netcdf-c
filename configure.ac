@@ -1687,6 +1687,7 @@ AC_SUBST(HAS_NCZARR,[$enable_nczarr])
 AC_SUBST(DO_NCZARR_S3_TESTS,[$enable_nczarr_s3_tests])
 AC_SUBST(HAS_MULTIFILTERS,[$has_multifilters])
 AC_SUBST(DO_NCZARR_ZIP_TESTS,[$enable_nczarr_zip])
+AC_SUBST(DO_FILTER_TESTS,[$enable_filter_testing])
 AC_SUBST(HAVE_BLOSC,[$have_blosc])
 
 # Include some specifics for netcdf on windows.
