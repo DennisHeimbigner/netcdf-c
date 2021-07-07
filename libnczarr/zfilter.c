@@ -1070,13 +1070,14 @@ NCZ_load_all_plugins(void)
 	pluginroot = plugin_dir_unix;
 #endif
     }
+    ZTRACEMORE(6,"pluginroot=%s",(pluginroot?pluginroot:"null"));
     if(pluginroot == NULL) {ret = NC_EINVAL; goto done;}
 
     /* Make sure the root is actually a directory */
     errno = 0;
     ret = NCstat(pluginroot, &buf);
-#if 0
-    ZTRACEMORE(6,"stat: local=%s ret=%d, errno=%d st_mode=%d",local,ret,errno,buf.st_mode);
+#if 1
+    ZTRACEMORE(6,"stat: ret=%d, errno=%d st_mode=%d",ret,errno,buf.st_mode);
 #endif
     if(ret < 0) {
 	ret = (errno);
@@ -1103,6 +1104,7 @@ NCZ_load_all_plugins(void)
     }
     
 done:
+    errno = 0;
     return ZUNTRACE(ret);
 }
 

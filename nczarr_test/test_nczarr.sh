@@ -135,6 +135,22 @@ cd $execdir ; abs_execdir=`pwd` ; cd $WD
 WD=`pwd`
 if test "x$NCAUTH_HOMETEST" != x ; then RCHOME=1; fi
 
+# Set plugin path
+
+#cd ../plugins; make clean all >/dev/null; cd ../nczarr_test
+
+# Load the findplugins function
+. ${builddir}/findplugin.sh
+echo "findplugin.sh loaded"
+
+# Locate the plugin path and the library names; argument order is critical
+# Find bzip2 and capture
+# Assume all test filters are in same plugin dir
+findplugin h5bzip2
+
+echo "final HDF5_PLUGIN_PATH=${HDF5_PLUGIN_PATH}"
+export HDF5_PLUGIN_PATH
+
 resetrc() {
   if test "x$RCHOME" = x1 ; then
       rm -f ${HOME}/.dodsrc ${HOME}/.daprc ${HOME}/.ncrc

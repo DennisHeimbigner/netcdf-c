@@ -9,12 +9,6 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
-#cd ../plugins; make clean all >/dev/null; cd ../nczarr_test
-
-# Load the findplugins function
-. ${builddir}/findplugin.sh
-echo "findplugin.sh loaded"
-
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent
 sclean() {
@@ -46,13 +40,6 @@ trimleft() {
 sed -e 's/[ 	]*\([^ 	].*\)/\1/' <$1 >$2
 }
 
-# Locate the plugin path and the library names; argument order is critical
-# Find bzip2 and capture
-# Assume all test filters are in same plugin dir
-findplugin h5bzip2
-
-echo "final HDF5_PLUGIN_PATH=${HDF5_PLUGIN_PATH}"
-export HDF5_PLUGIN_PATH
 
 setfilter() {
     FF="$1"

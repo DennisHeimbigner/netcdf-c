@@ -7,12 +7,6 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
-cd ../plugins; make clean all >/dev/null; cd ../nczarr_test
-
-# Load the findplugins function
-. ${builddir}/findplugin.sh
-echo "findplugin.sh loaded"
-
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent
 sclean() {
@@ -52,9 +46,6 @@ BZIP2PATH="${HDF5_PLUGIN_PATH}/${BZIP2LIB}"
 # Find misc and capture
 findplugin h5misc
 MISCPATH="${HDF5_PLUGIN_PATH}/${HDF5_PLUGIN_LIB}"
-
-echo "final HDF5_PLUGIN_PATH=${HDF5_PLUGIN_PATH}"
-export HDF5_PLUGIN_PATH
 
 # Verify
 if ! test -f ${BZIP2PATH} ; then echo "Unable to locate ${BZIP2PATH}"; exit 1; fi
