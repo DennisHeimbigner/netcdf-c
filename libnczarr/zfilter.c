@@ -1139,7 +1139,7 @@ NCZ_load_plugin_dir(const char* path)
 	/* See if can load the file */
 	switch ((stat = NCZ_load_plugin(file,&plugin))) {
 	case NC_NOERR: break;
-	case NC_ENOTFOUND: break; /* will cause it to be ignored */
+	case NC_ENOFILTER: case NC_ENOTFOUND: stat = NC_NOERR; break; /* will cause it to be ignored */
 	default: goto done;
 	}
 	if(plugin != NULL) {
@@ -1181,6 +1181,11 @@ NCZ_load_plugin(const char* path, struct NCZ_Plugin** plugp)
 
     ZTRACE(8,"path=%s",path);
 
+#ifdef _WIN32
+    #  triage because visual studio does a popup if the file will not load
+    if(memcmp(path+(strlen(path)-4),".dll",4) != 0) {stat = NC_ENOFILTER; goto done;}
+#endif
+
     /* load the shared library */
     if((stat = ncpsharedlibnew(&lib))) goto done;
     if((stat = ncpload(lib,path,flags))) goto done;
@@ -1210,7 +1215,7 @@ NCZ_load_plugin(const char* path, struct NCZ_Plugin** plugp)
     }
 
     /* Ignore this library if neither h5class nor codec are defined */
-    if(h5class == NULL && codec == NULL) goto done;
+    if(h5class == NULL && codec == NULL) {stat = NC_ENOFILTER; goto done;}
 
 #ifdef DEBUGF
 fprintf(stderr,"load: %s:",path);
