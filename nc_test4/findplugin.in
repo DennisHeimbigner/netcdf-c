@@ -66,7 +66,6 @@ if test "x$FP_ISCMAKE" != x -a "x${FP_ISMSVC}" != x ; then
     if test -f "${FP_PLUGINS}/${FP_PLUGIN_LIB}" ; then
       FP_PLUGIN_PATH="${FP_PLUGINS}"
     fi
-  fi
 else # Case 2: automake
   # Case 2a: look in .libs
   if test -f "${FP_PLUGINS}/.libs/${FP_PLUGIN_LIB}" ; then
