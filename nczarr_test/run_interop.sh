@@ -18,6 +18,8 @@ testcasefile() {
   if test "x$3" = xmetaonly ; then flags="-h"; fi
   fileargs ${execdir}/$ref "mode=$mode,$zext"
   rm -f tmp_${ref}_${zext}.cdl
+  find $file -exec ls -l '{}' \;
+  ${ZMD} $fileurl
   ${NCDUMP} $flags $fileurl > tmp_${ref}_${zext}.cdl
   diff -b ${srcdir}/${ref}.cdl tmp_${ref}_${zext}.cdl
 }
@@ -58,7 +60,7 @@ esac
 }
 
 testallcases file
-if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testallcases zip; fi
+#if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testallcases zip; fi
 #No examples yet: if test "x$FEATURE_S3TESTS" = xyes ; then testallcases s3; fi
 
 exit 0

@@ -899,7 +899,8 @@ NCZ_filter_build(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter
 
     /* Find the plugin for this filter */
     for(i=0;i<=loaded_plugins_max;i++) {
-	if(loaded_plugins[i] && strcmp(NCJstring(jvalue),loaded_plugins[i]->codec.codec->codecid)==0) 
+        if (!loaded_plugins[i]) continue;
+        if(strcmp(NCJstring(jvalue), loaded_plugins[i]->codec.codec->codecid) == 0)
 	    {plugin = loaded_plugins[i]; break;}
     }
 
@@ -1184,7 +1185,7 @@ NCZ_load_plugin(const char* path, struct NCZ_Plugin** plugp)
     ZTRACE(8,"path=%s",path);
 
 #ifdef _WIN32
-    #  triage because visual studio does a popup if the file will not load
+    /*triage because visual studio does a popup if the file will not load*/
     if(memcmp(path+(strlen(path)-4),".dll",4) != 0) {stat = NC_ENOFILTER; goto done;}
 #endif
 

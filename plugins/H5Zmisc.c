@@ -12,10 +12,6 @@
 #undef HAVE_H5ALLOCATE_MEMORY
 #undef HAVE_H5FREE_MEMORY
 
-#ifndef DLL_EXPORT
-#define DLL_EXPORT
-#endif
-
 /* WARNING:
 Starting with HDF5 version 1.10.x, the plugin code MUST be
 careful when using the standard *malloc()*, *realloc()*, and
@@ -59,12 +55,14 @@ const H5Z_class2_t H5Z_TEST[1] = {{
 }};
 
 /* External Discovery Functions */
+DLLEXPORT
 H5PL_type_t
 H5PLget_plugin_type(void)
 {
     return H5PL_TYPE_FILTER;
 }
 
+DLLEXPORT
 const void*
 H5PLget_plugin_info(void)
 {
@@ -386,7 +384,8 @@ static NCZ_codec_t NCZ_misc_codec = {/* NCZ_codec_t  codec fields */
 };
 
 /* External Export API */
-DECLSPEC const void*
+DLLEXPORT
+const void*
 NCZ_get_plugin_info(void)
 {
     return (void*)&NCZ_misc_codec;

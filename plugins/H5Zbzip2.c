@@ -4,17 +4,12 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
-#include <hdf5.h>
-/* Older versions of the hdf library may define H5PL_type_t here */
-#include <H5PLextern.h>
+
+#include "netcdf_filter_build.h"
 
 /* Undef if using memory checking */
 #undef HAVE_H5ALLOCATE_MEMORY
 #undef HAVE_H5FREE_MEMORY
-
-#ifndef DLL_EXPORT
-#define DLL_EXPORT
-#endif
 
 /* WARNING:
 Starting with HDF5 version 1.10.x, the plugin code MUST be
@@ -22,6 +17,13 @@ careful when using the standard *malloc()*, *realloc()*, and
 *free()* function.
 
 In the event that the code is allocating, reallocating, for
+
+
+
+
+
+
+
 free'ing memory that either came from or will be exported to the
 calling HDF5 library, then one MUST use the corresponding HDF5
 functions *H5allocate_memory()*, *H5resize_memory()*,
@@ -46,12 +48,14 @@ const H5Z_class2_t H5Z_BZIP2[1] = {{
 }};
 
 /* External Discovery Functions */
+DLLEXPORT
 H5PL_type_t
 H5PLget_plugin_type(void)
 {
     return H5PL_TYPE_FILTER;
 }
 
+DLLEXPORT
 const void*
 H5PLget_plugin_info(void)
 {
@@ -63,13 +67,14 @@ H5PLget_plugin_info(void)
  * The "can_apply" callback returns positive a valid combination, zero for an
  * invalid combination and negative for an error.
  */
-htri_t
+static htri_t
 H5Z_bzip2_can_apply(hid_t dcpl_id, hid_t type_id, hid_t space_id)
 {
     return 1; /* Assume it can always apply */
 }
 
-size_t H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
+static size_t
+H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
                      const unsigned int cd_values[], size_t nbytes,
                      size_t *buf_size, void **buf)
 {

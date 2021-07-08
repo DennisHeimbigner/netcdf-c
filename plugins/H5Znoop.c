@@ -13,8 +13,8 @@
 #undef HAVE_H5ALLOCATE_MEMORY
 #undef HAVE_H5FREE_MEMORY
 
-#ifndef DLL_EXPORT
-#define DLL_EXPORT
+#ifndef NOOP_INSTANCE
+#define NOOP_INSTANCE 0
 #endif
 
 #if NOOP_INSTANCE == 1
@@ -70,12 +70,14 @@ static H5Z_class2_t H5Z_NOOP[1] = {{
 }};
 
 /* External Discovery Functions */
+DLLEXPORT
 H5PL_type_t
 H5PLget_plugin_type(void)
 {
     return H5PL_TYPE_FILTER;
 }
 
+DLLEXPORT
 const void*
 H5PLget_plugin_info(void)
 {
@@ -186,6 +188,7 @@ static NCZ_codec_t NCZ_noop_codec = {/* NCZ_codec_t  codec fields */
 };
 
 /* External Export API */
+DLLEXPORT
 const void*
 NCZ_get_plugin_info(void)
 {

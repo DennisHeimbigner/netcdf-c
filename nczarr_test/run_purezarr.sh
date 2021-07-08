@@ -19,9 +19,6 @@ echo "*** Test: pure zarr write then read; format=$zext"
 fileargs tmp_purezarr "mode=noxarray,$zext"
 deletemap $zext $file
 ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_purezarr_base.cdl
-pwd
-find $file
-export NCTRACING=16
 ${NCDUMP} $fileurl > tmp_purezarr_${zext}.cdl
 diff -b ${srcdir}/ref_purezarr.cdl tmp_purezarr_${zext}.cdl
 
@@ -29,7 +26,6 @@ echo "*** Test: xarray zarr write then read; format=$zext"
 fileargs tmp_xarray "mode=zarr,$zext"
 deletemap $zext $file
 ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_purezarr_base.cdl
-export NCTRACING=15
 ${NCDUMP} $fileurl > tmp_xarray_${zext}.cdl
 diff -b ${srcdir}/ref_xarray.cdl tmp_xarray_${zext}.cdl
 
@@ -43,7 +39,7 @@ diff -b ${srcdir}/ref_nczarr2zarr.cdl tmp_nczarr_${zext}.cdl
 }
 
 testcase file
-#if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testcase zip; fi
-#if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi
+if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testcase zip; fi
+if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi
 
 exit 0

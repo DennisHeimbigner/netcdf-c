@@ -6,7 +6,9 @@
 # See netcdf-c/COPYRIGHT file for more info.
 SET(CMAKE_BUILD_TYPE "")
 
-CONFIGURE_FILE(H5Znoop.c ${CMAKE_CURRENT_BINARY_DIR}/H5Znoop1.c COPYONLY)
+FILE(READ H5Znoop.c NOOP_SOURCE)
+FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/H5Znoop1.c "#define NOOP_INSTANCE 1\n")
+FILE(APPEND ${CMAKE_CURRENT_BINARY_DIR}/H5Znoop1.c "${NOOP_SOURCE}")
 
 SET(h5bzip2_SOURCES blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c bzlib.c H5Zbzip2.c ${NCJ})
 
