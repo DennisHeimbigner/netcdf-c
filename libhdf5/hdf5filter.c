@@ -19,6 +19,10 @@
 #include "netcdf.h"
 #include "netcdf_filter.h"
 
+#ifdef HAVE_BLOSC
+#include <blosc.h>
+#endif
+
 #undef TFILTERS
 
 /* Forward */
@@ -571,4 +575,22 @@ NC4_hdf5_find_missing_filter(NC_VAR_INFO_T* var, unsigned int* idp)
     }
     if(idp) *idp = id;
     return stat;
+}
+
+int
+NC4_hdf5_filter_initialize(void)
+{
+#ifdef HAVE_BLOSC
+    blosc_init();
+#endif
+    return NC_NOERR;
+}
+
+int
+NC4_hdf5_filter_finalize(void)
+{
+#ifdef HAVE_BLOSC
+    blosc_destroy();
+#endif
+    return NC_NOERR;
 }

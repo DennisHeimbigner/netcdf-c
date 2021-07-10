@@ -6,6 +6,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -e
+set -x
 
 #cd ../plugins; make clean all >/dev/null; cd ../nczarr_test
 
@@ -60,7 +61,7 @@ setfilter() {
     FFH5="$6"
     if test "x$FFH5" = x ; then FFH5="$FIH5" ; fi
     rm -f $FDST
-    cat $FSRC \
+    cat ${srcdir}/$FSRC \
 	| sed -e "s/ref_any/${FF}/" \
 	| sed -e "s/IH5/${FIH5}/" -e "s/FH5/${FFH5}/" \
 	| sed -e 's/"/\\"/g' -e 's/@/"/g' \
@@ -72,7 +73,7 @@ setfilter() {
 testbzip2() {
 echo "*** Testing processing of filter bzip2"
 setfilter bzip2 ref_any.cdl tmp_bzip2.cdl '307,9'
-${NCGEN} -4 -lb ${srcdir}/tmp_bzip2.cdl
+${NCGEN} -4 -lb tmp_bzip2.cdl
 ${NCDUMP} -n bzip2 -s tmp_bzip2.nc > tmp_bzip2.tmp
 sclean tmp_bzip2.tmp tmp_bzip2.dump
 diff -b -w tmp_bzip2.cdl tmp_bzip2.dump
@@ -81,7 +82,7 @@ diff -b -w tmp_bzip2.cdl tmp_bzip2.dump
 testblosc() {
 echo "*** Testing processing of filter blosc"
 setfilter blosc ref_any.cdl tmp_blosc.cdl '32001,2,2,4,256,5,1,1'
-${NCGEN} -4 -lb ${srcdir}/tmp_blosc.cdl
+${NCGEN} -4 -lb tmp_blosc.cdl
 ${NCDUMP} -n blosc -s tmp_blosc.nc > tmp_blosc.tmp
 sclean tmp_blosc.tmp tmp_blosc.dump
 diff -b -w tmp_blosc.cdl tmp_blosc.dump

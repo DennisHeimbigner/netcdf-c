@@ -116,7 +116,7 @@ ncdumpchunks_SOURCES = ncdumpchunks.c
 EXTRA_DIST = CMakeLists.txt \
 run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_ncgen4.sh \
 run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh run_s3_cleanup.sh \
-run_purezarr.sh run_interop.sh run_misc.sh run_specific_filters.sh
+run_purezarr.sh run_interop.sh run_misc.sh run_filter.sh run_specific_filters.sh
 
 EXTRA_DIST += \
 ref_ut_map_create.cdl ref_ut_map_writedata.cdl ref_ut_map_writemeta2.cdl ref_ut_map_writemeta.cdl \

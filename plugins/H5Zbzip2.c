@@ -16,14 +16,7 @@ Starting with HDF5 version 1.10.x, the plugin code MUST be
 careful when using the standard *malloc()*, *realloc()*, and
 *free()* function.
 
-In the event that the code is allocating, reallocating, for
-
-
-
-
-
-
-
+In the event that the code is allocating, reallocating, or
 free'ing memory that either came from or will be exported to the
 calling HDF5 library, then one MUST use the corresponding HDF5
 functions *H5allocate_memory()*, *H5resize_memory()*,
@@ -35,6 +28,11 @@ will generate an error.
 */
 
 #include "h5bzip2.h"
+
+/* Forward */
+static htri_t H5Z_bzip2_can_apply(hid_t dcpl_id, hid_t type_id, hid_t space_id);
+static size_t H5Z_filter_bzip2(unsigned flags,size_t cd_nelmts,const unsigned cd_values[],
+                    size_t nbytes,size_t *buf_size,void**buf);
 
 const H5Z_class2_t H5Z_BZIP2[1] = {{
     H5Z_CLASS_T_VERS,       /* H5Z_class_t version */

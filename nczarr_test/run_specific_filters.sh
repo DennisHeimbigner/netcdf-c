@@ -52,7 +52,7 @@ setfilter() {
     if test "x$FFH5" = x ; then FFH5="$FIH5" ; fi
     if test "x$FFCX" = x ; then FFCX="$FICX" ; fi
     rm -f $FDST
-    cat $FSRC \
+    cat ${srcdir}/$FSRC \
 	| sed -e "s/ref_any/${FF}/" \
 	| sed -e "s/IH5/${FIH5}/" -e "s/FH5/${FFH5}/" \
 	| sed -e "s/ICX/${FICX}/" -e "s/FCX/${FFCX}/" \
@@ -68,7 +68,7 @@ echo "*** Testing processing of filter bzip2 for map $zext"
 deletemap $zext tmp_bzip2
 fileargs tmp_bzip2
 setfilter bzip2 ref_any.cdl tmp_bzip2.cdl '307,9' '[{\"id\": \"bz2\",\"level\": \"9\"}]'
-${NCGEN} -4 -lb -o $fileurl ${srcdir}/tmp_bzip2.cdl
+${NCGEN} -4 -lb -o $fileurl tmp_bzip2.cdl
 ${NCDUMP} -n bzip2 -s $fileurl > tmp_bzip2.tmp
 sclean tmp_bzip2.tmp tmp_bzip2.dump
 diff -b -w tmp_bzip2.cdl tmp_bzip2.dump
@@ -80,7 +80,7 @@ echo "*** Testing processing of filter blosc for map $zext"
 deletemap $zext tmp_blosc
 fileargs tmp_blosc
 setfilter blosc ref_any.cdl tmp_blosc.cdl '32001,2,2,4,0,5,1,1' '[{\"id\": \"blosc\",\"clevel\": 5,\"blocksize\": 0,\"cname\": \"lz4\",\"shuffle\": 1}]'
-${NCGEN} -4 -lb -o $fileurl ${srcdir}/tmp_blosc.cdl
+${NCGEN} -4 -lb -o $fileurl tmp_blosc.cdl
 ${NCDUMP} -n blosc -s $fileurl > tmp_blosc.tmp
 sclean tmp_blosc.tmp tmp_blosc.dump
 diff -b -w tmp_blosc.cdl tmp_blosc.dump

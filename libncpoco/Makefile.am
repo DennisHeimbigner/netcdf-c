@@ -23,7 +23,7 @@ else
 libncpoco_la_SOURCES += cp_unix.c
 endif
 
-EXTRA_DIST = CMakeLists.txt README.md SourceLicense
+EXTRA_DIST = CMakeLists.txt README.md COPYRIGHT
 
 ##################################################
 # Testing
