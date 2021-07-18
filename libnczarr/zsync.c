@@ -969,7 +969,7 @@ done:
 }
 
 static int
-inferattrtype(NCjson* values, nc_type* typeidp)
+inferattrtype(NCjson* value, nc_type* typeidp)
 {
     int stat = NC_NOERR;
     nc_type typeid;
@@ -978,17 +978,18 @@ inferattrtype(NCjson* values, nc_type* typeidp)
     long long i64;
     int negative = 0;
 
-    if(value->sort == NCJ_ARRAY && NCJlength(value) == 0)
-        if((stat=NCJnew(NCJ_NULL,&value))) goto done; /* overwrite */
+    if(NCJsort(value) == NCJ_ARRAY && NCJlength(value) == 0)
+        {typeid = NC_NAT; goto done;}
 
-    if(NCJsort(value) == NCJ_NULL) {
-	typeid = NC_NAT;
-	goto done;
-    }
+    if(NCJsort(value) == NCJ_NULL)
+        {typeid = NC_NAT; goto done;}
 
     if(value->sort == NCJ_ARRAY) {
         j=NCJith(value,0);
 	return inferattrtype(j,typeidp);
+    }
+
+    switch (NCJsort(value)) {
     case NCJ_NULL:
         typeid = NC_CHAR;
 	return NC_NOERR;
