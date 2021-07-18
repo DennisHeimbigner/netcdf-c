@@ -148,8 +148,8 @@ done:
 }
 
 EXTERNL
-char* /* caller frees */
-NCpathcanonical(const char* srcpath)
+int
+NCpathcanonical(const char* srcpath, char** canonp)
 {
     int stat = NC_NOERR;
     char* canon = NULL;
@@ -182,11 +182,14 @@ NCpathcanonical(const char* srcpath)
 	break;		
     default: goto done; /* return NULL */
     }
+    if(canonp) {*canonp = canon; canon = NULL;}
 
 done:
+    nullfree(canon);
     clearPath(&path);
-    return canon;
+    return stat;
 }
+
 
 EXTERNL
 char* /* caller frees */

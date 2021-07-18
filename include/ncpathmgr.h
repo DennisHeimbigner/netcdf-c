@@ -111,7 +111,7 @@ in the cygwin "/cygdrive/<drive-letter>" form. If it is on *nix* platform,
 then this sequence will never appear and the canonical path will look
 like a standard *nix* path.
 */
-EXTERNL char* NCpathcanonical(const char* srcpath);
+EXTERNL int NCpathcanonical(const char* srcpath, char** canonp);
 
 EXTERNL int NChasdriveletter(const char* path);
 

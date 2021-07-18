@@ -344,11 +344,18 @@ objdump(void)
 		if(kind == OK_CHUNK)
                     printf(" (%s)",dumpoptions.nctype->typename);
                 printf(" |");
-                if(kind != OK_IGNORE) {
+                switch(kind) {
+		case OK_GROUP:
+		case OK_META:
+	            printcontent(len,content,kind);
+		    break;
+		case OK_CHUNK:
 	    	    if(dumpoptions.meta_only)
 			printf("...");
 		    else
 	                printcontent(len,content,kind);
+		    break;
+		default: break;
 		}
 	        printf("|\n");
 	    } else {

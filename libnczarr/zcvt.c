@@ -47,6 +47,7 @@ NCZ_convert1(NCjson* jsrc, nc_type dsttype, unsigned char* memory)
 	    srctype = NC_UINT64;
 	}
 	break;
+    case NCJ_STRING:
     case NCJ_DOUBLE:
 	/* Capture nan and infinity values */
 	if(strcasecmp(NCJstring(jsrc),"nan")==0)

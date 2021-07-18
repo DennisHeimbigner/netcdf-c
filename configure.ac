@@ -581,10 +581,10 @@ AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 AC_CHECK_LIB([blosc],[blosc_init],[have_blosc=yes],[have_blosc=no])
 if test "x$have_blosc" = "xyes" ; then
    AC_SEARCH_LIBS([blosc_init],[blosc blosc.dll cygblosc.dll], [], [])
+   AC_DEFINE([HAVE_BLOSC], [1], [if true, blosc library is available])
 fi
 AC_MSG_CHECKING([whether libblosc library is available])
 AC_MSG_RESULT([${have_blosc}])
-AC_DEFINE([HAVE_BLOSC], [1], [if true, blosc library is available])
 
 # See if we have libzip
 AC_CHECK_LIB([zip],[zip_open],[have_zip=yes],[have_zip=no])

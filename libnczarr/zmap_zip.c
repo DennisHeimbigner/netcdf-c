@@ -125,7 +125,7 @@ zipcreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
         {stat = NC_EURL; goto done;}
 
     /* Canonicalize the root path */
-    if((stat = nczm_canonicalpath(url->path,&truepath))) goto done;
+    if((stat = NCpathcanonical(url->path,&truepath))) goto done;
 
     /* Extract the dataset name */
     if((stat = nczm_basename(truepath,&dataset))) goto done;
@@ -210,7 +210,7 @@ zipopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
         {stat = NC_EURL; goto done;}
 
     /* Canonicalize the root path */
-    if((stat = nczm_canonicalpath(url->path,&truepath))) goto done;
+    if((stat = NCpathcanonical(url->path,&truepath))) goto done;
 
     /* Build the zz state */
     if((zzmap = calloc(1,sizeof(ZZMAP))) == NULL)
