@@ -665,7 +665,6 @@ platformtestcontentbearing(ZFMAP* zfmap, const char* canonpath)
         ret = NC_EEMPTY;
     } else
         ret = NC_NOERR;
-done:
     errno = 0;
     return ZUNTRACE(ret);
 }
