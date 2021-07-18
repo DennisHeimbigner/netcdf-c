@@ -201,8 +201,7 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
         {stat = NC_EURL; goto done;}
 
     /* Canonicalize the root path */
-    if((canonpath = NCpathcanonical(url->path))==NULL)
-	{stat = NC_ENOMEM; goto done;}
+    if((stat = NCpathcanonical(url->path,&canonpath))) goto done;
 
     /* Build the zmap state */
     if((zfmap = calloc(1,sizeof(ZFMAP))) == NULL)
@@ -269,8 +268,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
         {stat = NC_EURL; goto done;}
 
     /* Canonicalize the root path */
-    if((canonpath = NCpathcanonical(url->path))==NULL)
-	{stat = NC_ENOMEM; goto done;}
+    if((stat = NCpathcanonical(url->path,&canonpath))) goto done;
 
     /* Build the zmap state */
     if((zfmap = calloc(1,sizeof(ZFMAP))) == NULL)

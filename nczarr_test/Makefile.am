@@ -63,6 +63,10 @@ endif
 
 if BUILD_UTILITIES 
 
+if ENABLE_NCZARR_ZIP
+TESTS += run_newformat.sh
+endif
+
 if BUILD_BENCHMARKS
 
 UTILSRC = bm_utils.c timer_utils.c tst_utils.c
@@ -116,7 +120,9 @@ ncdumpchunks_SOURCES = ncdumpchunks.c
 EXTRA_DIST = CMakeLists.txt \
 run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_ncgen4.sh \
 run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh run_s3_cleanup.sh \
-run_purezarr.sh run_interop.sh run_misc.sh run_filter.sh run_specific_filters.sh
+run_purezarr.sh run_interop.sh run_misc.sh \
+run_filter.sh run_specific_filters.sh \
+run_newformat.sh
 
 EXTRA_DIST += \
 ref_ut_map_create.cdl ref_ut_map_writedata.cdl ref_ut_map_writemeta2.cdl ref_ut_map_writemeta.cdl \
@@ -133,7 +139,7 @@ ref_misc1.cdl ref_misc1.dmp ref_misc2.cdl \
 ref_avail1.cdl ref_avail1.dmp ref_avail1.txt \
 ref_xarray.cdl ref_purezarr.cdl ref_purezarr_base.cdl ref_nczarr2zarr.cdl \
 ref_bzip2.cdl ref_filtered.cdl ref_multi.cdl \
-ref_any.cdl
+ref_any.cdl ref_oldformat.cdl ref_oldformat.zip ref_newformatpure.cdl
 
 # Interoperability files
 EXTRA_DIST += ref_power_901_constants.zip ref_power_901_constants.cdl ref_quotes.zip ref_quotes.cdl

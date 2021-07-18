@@ -106,6 +106,9 @@ IF(ENABLE_TESTS)
       ENDIF()
 	ADD_SH_TEST(nczarr_test run_filter)
     ENDIF(ENABLE_FILTER_TESTING)
+    if(ENABLE_NCZARR_ZIP)
+        add_sh_test(nczarr_test run_newformat)
+    endif()
 
   ENDIF(BUILD_UTILITIES)
 
