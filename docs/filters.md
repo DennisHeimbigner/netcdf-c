@@ -776,8 +776,9 @@ typedef struct NCZ_codec_t {
     unsigned int hdf5id; /* corresponding hdf5 id */
     int (*NCZ_codec_to_hdf5)(void* context, const char* codec, int* nparamsp, unsigned** paramsp);
     int (*NCZ_hdf5_to_codec)(void* context, int nparams, const unsigned* params, char** codecp);
-    int (*NCZ_codec_setup)(int ncid, int varid, void** contextp);
-    int (*NCZ_codec_reset)(void* context);
+    int (*NCZ_codec_setup)(int ncid, int varid, void** contextp, size_t* nparamsp, unsigned** paramsp);
+    int (*NCZ_codec_modify)(void* context, size_t* nparamsp, unsigned** paramsp);
+    int (*NCZ_codec_cleanup)(void* context);
     void (*NCZ_codec_finalize)(void);
 } NCZ_codec_t;
 ````
@@ -836,12 +837,25 @@ Extract environment information from the (ncid,varid) and return it in the conte
 
 Return Value: a netcdf-c error code.
 
-### NCZ_codec_reset
+### NCZ_codec_modify
+
+Modify the set of parameters provided to the HDF5 filter.
+
+#### Signature
+    int (*NCZ_codec_modify)(void* context, size_t* nparamsp, unsigned** paramsp);
+
+1. context -- (in) the context object created by ''NCZ_codec_setup''.
+2. nparamsp -- (in/out) initial value is the number of parameters, final value is the modified number of parameters.
+3. paramsp  -- (in/out) initial value is the parameters, final value is the modified parameters; if changed, then this function must free the old initial one.
+
+Return Value: a netcdf-c error code.
+
+### NCZ_codec_cleanup
 
 Reclaim the context object and any other resources allocated by the ''NCZ_codec_setup'' function. This is invoked when the dataset is closed. Note that this is not the same as ''NCZ_codec_finalize'' (see below).
 
 #### Signature
-    int (*NCZ_codec_reset)(void* context);
+    int (*NCZ_codec_cleanup)(void* context);
 
 #### Arguments
 1. context -- (in) the context object created by ''NCZ_codec_setup''.
@@ -851,7 +865,8 @@ Return Value: a netcdf-c error code.
 ### NCZ_codec_finalize
 
 Some compressors (like blosc) require invoking a finalize function in order to avoid memory loss.
-This function is called during a call to ''nc_finalize'' to do any final cleanup. If the client code does not invoke ''nc_finalize'' then memory checkers may complain about lost memory.
+This function is called during a call to ''nc_finalize'' to do any finalization.
+If the client code does not invoke ''nc_finalize'' then memory checkers may complain about lost memory.
 
 #### Signature
     int (*NCZ_codec_finalize)(void);
@@ -876,6 +891,32 @@ but is of type ''void*'' to allow for extensions.
 The list of returned items are used to try to provide defaults
 for any HDF5 filters that have no corresponding Codec.
 This is for internal use only.
+
+# Appendix F. Pre-built Filters
+
+As part of the overall build process, a number of filters are built as shared libraries in the "plugins" directory.
+They may be in that directory or the "plugins/.libs" subdirectory.
+It may be possible for users to utilize some of those libraries to provide filter support for general use.
+One simple way to reuse these libraries is to make the environment variable "HDF5_PLUGIN_PATH" refer to the plugin directory or the subdirectory, whichever contains the shared libraries.
+This may not be possible if the user already has other filter shared libraries in use.
+
+The second way is to copy the necessary shared libraries from the plugins directory to the user's HDF5_PLUGIN_PATH directory.
+If the user is using HDF5, then the following filters are probably usable:
+
+* ''libh5bzip2.so'' -- an HDF5 filter for bzip2 compression
+* ''libh5blosc.so'' -- an HDF5 filter for blosc compression
+
+If the user is using NCZarr filters, then you can install the following additional shared libraries:
+
+* libh5shuffle.so -- shuffle filter
+* libh5fletcher32.so -- fletcher32 checksum
+* libh5deflate.so -- deflate compression
+* libnczdefaults.so -- provide NCZarr support for shuffle, fletcher32, and deflate.
+
+The shuffle, fletcher32, and deflate filters in this case will be ignored by HDF5 and only used by the NCZarr code.
+But in order to use them, it needs additional Codec capabilities provided by the libnczdefauts.so shared library.
+Note also that if you disable HDF5 support, but leave NCZarr support enabled, then all of the above filters
+should continue to work.
 
 # Point of Contact {#filters_poc}
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 
 # Test the implementations of specific filters
 
@@ -7,6 +7,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 . "$srcdir/test_nczarr.sh"
 
+set -x
 set -e
 
 # Function to remove selected -s attributes from file;
@@ -62,32 +63,80 @@ setfilter() {
 
 # Execute the specified tests
 
+runfilter() {
+zext="$1"
+zfilt="$2"
+zparams="$3"
+zcodec="$4"
+echo "*** Testing processing of filter $zfilt for map $zext"
+deletemap $zext "tmp_${zfilt}"
+fileargs "tmp_${zfilt}"
+setfilter $zfilt ref_any.cdl "tmp_${zfilt}.cdl" "$zparams" "$zcodec"
+if ${NCGEN} -4 -lb -o $fileurl "tmp_${zfilt}.cdl" ; then
+  ${NCDUMP} -n $zfilt -s $fileurl > "tmp_${zfilt}.tmp"
+  sclean "tmp_${zfilt}.tmp" "tmp_${zfilt}.dump"
+fi
+}
+
+testfletcher32() {
+  zext=$1
+  runfilter $zext fletcher32 '3' '[{\"id\": \"fletcher32\"}]'
+  if test -f "tmp_fletcher32.dump" ; then
+      diff -b -w "tmp_fletcher32.cdl" "tmp_fletcher32.dump"
+  else
+      echo "XFAIL: filter=fletcher32 zext=$zext"
+  fi
+}
+
+testshuffle() {
+  zext=$1
+  runfilter $zext shuffle '2' '[{\"id\": \"shuffle\",\"elementsize\": \"4\"}]'
+  if test -f "tmp_shuffle.dump" ; then
+      # need to replace _Filter
+      sed -e 's/_Filter = "2,4"/_Filter = "2"/' < tmp_shuffle.dump > tmp_shufflex.dump
+      diff -b -w "tmp_shuffle.cdl" "tmp_shufflex.dump"
+  else
+      echo "XFAIL: filter=shuffle zext=$zext"
+  fi
+}
+
+testdeflate() {
+  zext=$1
+  runfilter $zext deflate '1,9' '[{\"id\": \"zlib\",\"level\": \"9\"}]'
+  if test -f "tmp_deflate.dump" ; then
+      # need to replace _DeflateLevel
+      sed -e 's/_DeflateLevel = 9/_Filter = "1,9"/' < tmp_deflate.dump > tmp_deflatex.dump
+      diff -b -w "tmp_deflate.cdl" "tmp_deflatex.dump"
+  else
+      echo "XFAIL: filter=deflate zext=$zext"
+  fi
+}
+
 testbzip2() {
-zext=$1	
-echo "*** Testing processing of filter bzip2 for map $zext"
-deletemap $zext tmp_bzip2
-fileargs tmp_bzip2
-setfilter bzip2 ref_any.cdl tmp_bzip2.cdl '307,9' '[{\"id\": \"bz2\",\"level\": \"9\"}]'
-${NCGEN} -4 -lb -o $fileurl tmp_bzip2.cdl
-${NCDUMP} -n bzip2 -s $fileurl > tmp_bzip2.tmp
-sclean tmp_bzip2.tmp tmp_bzip2.dump
-diff -b -w tmp_bzip2.cdl tmp_bzip2.dump
+  zext=$1
+  runfilter $zext bzip2 '307,9' '[{\"id\": \"bz2\",\"level\": \"9\"}]'
+  if test -f "tmp_bzip2.dump" ; then
+      diff -b -w "tmp_bzip2.cdl" "tmp_bzip2.dump"
+  else
+      echo "XFAIL: filter=bzip2 zext=$zext"
+  fi
 }
 
 testblosc() {
-zext=$1	
-echo "*** Testing processing of filter blosc for map $zext"
-deletemap $zext tmp_blosc
-fileargs tmp_blosc
-setfilter blosc ref_any.cdl tmp_blosc.cdl '32001,2,2,4,0,5,1,1' '[{\"id\": \"blosc\",\"clevel\": 5,\"blocksize\": 0,\"cname\": \"lz4\",\"shuffle\": 1}]'
-${NCGEN} -4 -lb -o $fileurl tmp_blosc.cdl
-${NCDUMP} -n blosc -s $fileurl > tmp_blosc.tmp
-sclean tmp_blosc.tmp tmp_blosc.dump
-diff -b -w tmp_blosc.cdl tmp_blosc.dump
+  zext=$1
+  runfilter $zext blosc '32001,2,2,4,0,5,1,1' '[{\"id\": \"blosc\",\"clevel\": 5,\"blocksize\": 0,\"cname\": \"lz4\",\"shuffle\": 1}]'
+  if test -f "tmp_blosc.dump" ; then
+      diff -b -w "tmp_blosc.cdl" "tmp_blosc.dump"
+  else
+      echo "XFAIL: filter=blosc zext=$zext"
+  fi
 }
 
 testset() {
 # Which test cases to exercise
+    testfletcher32 $1
+    testshuffle $1    
+    testdeflate $1
     testbzip2 $1
     testblosc $1
 }

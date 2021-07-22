@@ -166,8 +166,8 @@ H5Z_filter_noop(unsigned int flags, size_t cd_nelmts,
 */
 
 /* Forward */
-static int NCZ_noop_codec_to_hdf5(void*, const char* codec, int* nparamsp, unsigned** paramsp);
-static int NCZ_noop_hdf5_to_codec(void*, int nparams, const unsigned* params, char** codecp);
+static int NCZ_noop_codec_to_hdf5(void*, const char* codec, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_noop_hdf5_to_codec(void*, size_t nparams, const unsigned* params, char** codecp);
 
 /* Structure for NCZ_PLUGIN_CODEC */
 static NCZ_codec_t NCZ_noop_codec = {/* NCZ_codec_t  codec fields */ 
@@ -190,7 +190,7 @@ static NCZ_codec_t NCZ_noop_codec = {/* NCZ_codec_t  codec fields */
 /* External Export API */
 DLLEXPORT
 const void*
-NCZ_get_plugin_info(void)
+NCZ_get_codec_info(void)
 {
     return (void*)&NCZ_noop_codec;
 }
@@ -198,7 +198,7 @@ NCZ_get_plugin_info(void)
 /* NCZarr Interface Functions */
 
 static int
-NCZ_noop_codec_to_hdf5(void* context, const char* codec_json, int* nparamsp, unsigned** paramsp)
+NCZ_noop_codec_to_hdf5(void* context, const char* codec_json, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
@@ -243,7 +243,7 @@ done:
 }
 
 static int
-NCZ_noop_hdf5_to_codec(void* context, int nparams, const unsigned* params, char** codecp)
+NCZ_noop_hdf5_to_codec(void* context, size_t nparams, const unsigned* params, char** codecp)
 {
     int i,stat = NC_NOERR;
     char json[8192];

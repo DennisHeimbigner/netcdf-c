@@ -146,7 +146,7 @@ echo "findplugin.sh loaded"
 # Locate the plugin path and the library names; argument order is critical
 # Find bzip2 and capture
 # Assume all test filters are in same plugin dir
-findplugin h5bzip2
+findplugin h5misc
 
 echo "final HDF5_PLUGIN_PATH=${HDF5_PLUGIN_PATH}"
 export HDF5_PLUGIN_PATH

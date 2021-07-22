@@ -33,8 +33,7 @@ The list of returned items are used to try to provide defaults
 for any HDF5 filters that have no corresponding Codec.
 This is for internal use only.
 */
-void* NCZ_codec_info_defaults(void);
-
+typedef void* (*NCZ_codec_info_defaults_proto)(void);
 
 /* Opaque */
 struct NCZ_Filter;

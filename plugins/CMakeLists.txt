@@ -17,11 +17,15 @@ SET(h5misc_SOURCES H5Zmisc.c H5Zutil.c h5misc.h)
 SET(h5noop_SOURCES H5Znoop.c H5Zutil.c h5noop.h)
 SET_SOURCE_FILES_PROPERTIES(H5Znoop.c PROPERTIES COMPILE_OPTIONS -DNOOP_INSTANCE=0)
 
-SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_BINARY_DIR}/H5Znoop1.c PROPERTIES COMPILE_OPTIONS -DNOOP_INSTANCE=1)
 SET(h5noop1_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/H5Znoop1.c H5Zutil.c h5noop.h)
+SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_BINARY_DIR}/H5Znoop1.c PROPERTIES COMPILE_OPTIONS -DNOOP_INSTANCE=1)
 
-SET(nczdeflate_SOURCES NCZdeflate.c)
-SET(nczbzip2_SOURCES NCZbzip2.c)
+SET(h5shuffle_SOURCES H5Zshuffle.c)
+SET(h5fletcher32_SOURCES H5Zfletcher32.c)
+SET(h5deflate_SOURCES H5Zdeflate.c)
+
+SET(nczmisc_SOURCES NCZmisc.c)
+SET(nczdefaults_SOURCES NCZdefaults.c)
 
 IF(ENABLE_FILTER_TESTING)
 IF(BUILD_UTILITIES)
@@ -55,8 +59,13 @@ SET_TARGET_PROPERTIES(h5bzip2 PROPERTIES OUTPUT_NAME "bzip2")
 buildplugin(h5misc "h5misc")
 buildplugin(h5noop "h5noop")
 buildplugin(h5noop1 "h5noop1")
-buildplugin(nczdeflate "nczdeflate")
-buildplugin(nczbzip2 "nczbzip2")
+
+buildplugin(h5shuffle "h5shuffle")
+buildplugin(h5fletcher32 "h5fletcher32")
+buildplugin(h5deflate "h5deflate")
+
+buildplugin(nczmisc "nczmisc")
+buildplugin(nczdefaults "nczdefaults")
 
 IF(ENABLE_BLOSC)
 SET(h5blosc_SOURCES H5Zblosc.c H5Zblosc.h)

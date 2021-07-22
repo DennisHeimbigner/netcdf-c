@@ -8,35 +8,42 @@ AM_LDFLAGS += -module -avoid-version -shared -export-dynamic	\
  -rpath ${abs_builddir} ${NOUNDEFINED}
 
 # BZIP2 version 1.0.8 (https://sourceware.org/bzip2/)
-BZIP2HDRS = bzlib.h bzlib_private.h
-BZIP2SRC = blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c bzlib.c
+BZIP2SRC = blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c bzlib.c bzlib.h bzlib_private.h
 
-BZ2PLUGINSRC = H5Zbzip2.c
-BZ2PLUGINHDRS = h5bzip2.h
-
-EXTRA_DIST = ${BZ2PLUGINSRC} ${BZ2PLUGINHDRS} \
-             ${BZIP2SRC} ${BZIP2HDRS} \
-             H5Ztemplate.c H5Zmisc.c H5Zutil.c H5Znoop.c h5noop.h CMakeLists.txt \
-	     NCZdeflate.c NCZbzip2.c H5Zblosc.c H5Zblosc.h
+EXTRA_DIST = CMakeLists.txt \
+             H5Ztemplate.c H5Zmisc.c H5Zutil.c H5Znoop.c h5noop.h NCZmisc.c \
+	     NCZdefault.c \
+	     H5Zbzip2.c H5Zbzip2.h H5Zblosc.c H5Zblosc.h \
+     	     H5Zshuffle.c H5Zfletcher32.h H5Zdeflate.c H5Zszip.c \
+	     ${BZIP2SRC} H5checksum.c
 
 if ENABLE_FILTER_TESTING
 
-noinst_LTLIBRARIES = libh5misc.la libh5noop.la libh5noop1.la libnczdeflate.la libnczbzip2.la
-
 lib_LTLIBRARIES = libh5bzip2.la
-libh5bzip2_la_SOURCES = ${BZ2PLUGINSRC} ${BZIP2SRC}
+libh5bzip2_la_SOURCES = H5Zbzip2.c H5Zbzip2.h ${BZIP2SRC}
+	     
+noinst_LTLIBRARIES = libh5misc.la libh5noop.la libh5noop1.la libnczmisc.la libnczdefaults.la \
+		     libh5shuffle.la libh5fletcher32.la libh5deflate.la
+
+libh5shuffle_la_SOURCES = H5Zshuffle.c
+libh5fletcher32_la_SOURCES = H5Zfletcher32.c H5checksum.c
+libh5deflate_la_SOURCES = H5Zdeflate.c
+
+#if USE_SZIP
+#noinst_LTLIBRARIES += libh5sz.la
+#libh5sz_la_SOURCES = H5Zszip.c
+#endif
 
 if HAVE_BLOSC
-if USE_HDF5
 noinst_LTLIBRARIES += libh5blosc.la
 libh5blosc_la_SOURCES = H5Zblosc.c H5Zblosc.h
-endif
 endif
 
 libh5misc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h
 
-libnczdeflate_la_SOURCES = NCZdeflate.c
-libnczbzip2_la_SOURCES = NCZbzip2.c
+libnczmisc_la_SOURCES = NCZmisc.c
+
+libnczdefaults_la_SOURCES = NCZdefaults.c
 
 # The noop filter is to allow testing of multifilters and filter order
 # Need two distinct instances

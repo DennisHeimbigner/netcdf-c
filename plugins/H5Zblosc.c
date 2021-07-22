@@ -96,9 +96,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include <errno.h>
 
+#include "netcdf_filter_build.h"
 #include <netcdf_json.h>
 
-#include "netcdf_filter_build.h"
 #include "H5Zblosc.h"
 
 #ifdef USE_HDF5
@@ -126,13 +126,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define GET_FILTER(a, b, c, d, e, f, g) H5Pget_filter_by_id1(a,b,c,d,e,f,g)
 
 #else /*!USE_HDF5*/
-#define PUSH_ERR(f,m,s,...) fprintf(stderr,s)
+#define PUSH_ERR(f,m,s,...) fprintf(stderr,"%s\n",s)
 #endif /*USE_HDF5*/
 
 static size_t blosc_filter(unsigned flags, size_t cd_nelmts,
                     const unsigned cd_values[], size_t nbytes,
                     size_t* buf_size, void** buf);
 
+#ifndef USE_HDF5
+#define blosc_set_local NULL
+#else
 static herr_t blosc_set_local(hid_t dcpl, hid_t type, hid_t space);
 
 /*  Filter setup.  Records the following inside the DCPL:
@@ -145,7 +148,6 @@ static herr_t blosc_set_local(hid_t dcpl, hid_t type, hid_t space);
     3. Compute the chunk size in bytes and store it in slot 3.
 */
 
-#ifdef USE_HDF5
 static
 herr_t blosc_set_local(hid_t dcpl, hid_t type, hid_t space)
 {
@@ -392,10 +394,11 @@ const void* H5PLget_plugin_info(void) { return blosc_H5Filter; }
 
 /* Forward */
 static int NCZ_blosc_codec_setup(int ncid, int varid, void** contextp);
-static int NCZ_blosc_codec_reset(void* context);
+static int NCZ_blosc_codec_modify(void*, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_blosc_codec_cleanup(void* context);
 static void NCZ_blosc_codec_finalize(void);
-static int NCZ_blosc_codec_to_hdf5(void*, const char* codec, int* nparamsp, unsigned** paramsp);
-static int NCZ_blosc_hdf5_to_codec(void*, int nparams, const unsigned* params, char** codecp);
+static int NCZ_blosc_codec_to_hdf5(void*, const char* codec, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_blosc_hdf5_to_codec(void*, size_t nparams, const unsigned* params, char** codecp);
 
 /* Structure for NCZ_PLUGIN_CODEC */
 static NCZ_codec_t NCZ_blosc_codec = {/* NCZ_codec_t  codec fields */ 
@@ -406,13 +409,14 @@ static NCZ_codec_t NCZ_blosc_codec = {/* NCZ_codec_t  codec fields */
   NCZ_blosc_codec_to_hdf5,
   NCZ_blosc_hdf5_to_codec,
   NCZ_blosc_codec_setup,
-  NCZ_blosc_codec_reset,
+  NCZ_blosc_codec_modify,
+  NCZ_blosc_codec_cleanup,  
   NCZ_blosc_codec_finalize,
 };
 
 /* External Export API */
 const void*
-NCZ_get_plugin_info(void)
+NCZ_get_codec_info(void)
 {
     return (void*)&NCZ_blosc_codec;
 }
@@ -493,7 +497,30 @@ done:
 }
 
 static int
-NCZ_blosc_codec_reset(void* context)
+NCZ_blosc_codec_modify(void* context0, size_t* nparamsp, unsigned** paramsp)
+{
+    int stat = NC_NOERR;
+    struct Blosc_Context* context = (struct Blosc_Context*)context0;
+    unsigned* params = *paramsp;
+    size_t nparams = *nparamsp;
+
+    if(nparams < 7) {stat = NC_EINVAL; goto done;}
+
+    /* Set reserved values */
+    params[0] = FILTER_BLOSC_VERSION;
+    params[1] = BLOSC_VERSION_FORMAT;
+    if(context)
+        params[2] = (unsigned)context->typesize;
+    else
+        params[2] = DEFAULT_TYPESIZE;
+    *nparamsp = 7;
+
+done:
+    return stat;
+}
+
+static int
+NCZ_blosc_codec_cleanup(void* context)
 {
     if(context) {
         free(context);
@@ -508,7 +535,7 @@ NCZ_blosc_codec_finalize(void)
 }
 
 static int
-NCZ_blosc_codec_to_hdf5(void* context0, const char* codec_json, int* nparamsp, unsigned** paramsp)
+NCZ_blosc_codec_to_hdf5(void* context0, const char* codec_json, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
@@ -518,12 +545,6 @@ NCZ_blosc_codec_to_hdf5(void* context0, const char* codec_json, int* nparamsp, u
     struct Blosc_Context* context = (struct Blosc_Context*)context0;
     int compcode;
 
-    if((params = (unsigned*)malloc(7*sizeof(unsigned)))== NULL)
-        {stat = NC_ENOMEM; goto done;}
-    /* Set reserved values */
-    params[0] = FILTER_BLOSC_VERSION;
-    params[1] = BLOSC_VERSION_FORMAT;
-
     /* parse the JSON */
     if((stat = NCJparse(codec_json,0,&jcodec))) goto done;
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
@@ -531,6 +552,8 @@ NCZ_blosc_codec_to_hdf5(void* context0, const char* codec_json, int* nparamsp, u
     if((stat = NCJdictget(jcodec,"id",&jtmp))) goto done;
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
     if(strcmp(NCJstring(jtmp),NCZ_blosc_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
+
+    if((params = (unsigned*)calloc(7,sizeof(unsigned)))==NULL) {stat = NC_ENOMEM; goto done;}
 
     /* Get compression level*/
     if((stat = NCJdictget(jcodec,"clevel",&jtmp))) goto done;
@@ -572,11 +595,6 @@ NCZ_blosc_codec_to_hdf5(void* context0, const char* codec_json, int* nparamsp, u
         compcode = DEFAULT_COMPCODE;
     params[6] = (unsigned)compcode;
 
-    if(context)
-        params[2] = (unsigned)context->typesize;
-    else
-        params[2] = DEFAULT_TYPESIZE;
-
     if(nparamsp) *nparamsp = 7;
     if(paramsp) {*paramsp = params; params = NULL;}
     
@@ -592,7 +610,7 @@ done:
 }
 
 static int
-NCZ_blosc_hdf5_to_codec(void* context, int nparams, const unsigned* params, char** codecp)
+NCZ_blosc_hdf5_to_codec(void* context, size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     char json[1024];
