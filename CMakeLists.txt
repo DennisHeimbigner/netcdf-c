@@ -1988,6 +1988,7 @@ IF(ENABLE_DAP4)
 ENDIF()
 
 IF(ENABLE_PLUGINS)
+message("xxx: enable_plugins")
   ADD_SUBDIRECTORY(libncpoco)
 ENDIF()
 
