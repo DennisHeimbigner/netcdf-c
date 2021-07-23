@@ -8,7 +8,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef HAVE_HDF5_H
 #include <hdf5.h>
+#endif
+
 #include "netcdf.h"
 #include "netcdf_aux.h"
 #include "netcdf_filter.h"
