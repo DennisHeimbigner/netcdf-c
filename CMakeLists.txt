@@ -988,8 +988,8 @@ IF(NOT WIN32)
   IF(NOT APPLE)
     IF(CMAKE_DL_LIBS)
       TARGET_LINK_LIBRARIES(netcdf ${CMAKE_DL_LIBS})
-    ENDIF
-  ENDIF
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 # Enable some developer-only tests
