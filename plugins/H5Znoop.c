@@ -9,10 +9,6 @@
 
 #include "netcdf_filter_build.h"
 
-/* Undef if using memory checking */
-#undef HAVE_H5ALLOCATE_MEMORY
-#undef HAVE_H5FREE_MEMORY
-
 #ifndef NOOP_INSTANCE
 #define NOOP_INSTANCE 0
 #endif
@@ -114,36 +110,20 @@ H5Z_filter_noop(unsigned int flags, size_t cd_nelmts,
 
     if (flags & H5Z_FLAG_REVERSE) {
         /* Replace buffer */
-#ifdef HAVE_H5ALLOCATE_MEMORY
         newbuf = H5allocate_memory(*buf_size,0);
-#else
-        newbuf = malloc(*buf_size);
-#endif
         if(newbuf == NULL) abort();
         memcpy(newbuf,*buf,*buf_size);
         /* reclaim old buffer */
-#ifdef HAVE_H5FREE_MEMORY
         H5free_memory(*buf);
-#else
-        free(*buf);
-#endif
         *buf = newbuf;
 
     } else {
     /* Replace buffer */
-#ifdef HAVE_H5ALLOCATE_MEMORY
       newbuf = H5allocate_memory(*buf_size,0);
-#else
-      newbuf = malloc(*buf_size);
-#endif
       if(newbuf == NULL) abort();
         memcpy(newbuf,*buf,*buf_size);
 	/* reclaim old buffer */
-#ifdef HAVE_H5FREE_MEMORY
         H5free_memory(*buf);
-#else
-        free(*buf);
-#endif
         *buf = newbuf;
 
     }

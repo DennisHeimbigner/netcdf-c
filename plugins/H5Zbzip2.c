@@ -7,10 +7,6 @@
 
 #include "netcdf_filter_build.h"
 
-/* Undef if using memory checking */
-#undef HAVE_H5ALLOCATE_MEMORY
-#undef HAVE_H5FREE_MEMORY
-
 /* WARNING:
 Starting with HDF5 version 1.10.x, the plugin code MUST be
 careful when using the standard *malloc()*, *realloc()*, and
@@ -110,11 +106,7 @@ H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
 
     /* Prepare the output buffer. */
     outbuflen = nbytes * 3 + 1;  /* average bzip2 compression ratio is 3:1 */
-#ifdef HAVE_H5ALLOCATE_MEMORY
     outbuf = H5allocate_memory(outbuflen,0);
-#else
-    outbuf = (char*)malloc(outbuflen * sizeof(char));
-#endif
     if (outbuf == NULL) {
       fprintf(stderr, "memory allocation failed for bzip2 decompression\n");
       goto cleanupAndFail;
@@ -147,11 +139,7 @@ H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
       if (ret != BZ_STREAM_END && stream.avail_out == 0) {
         /* Grow the output buffer. */
         newbuflen = outbuflen * 2;
-#ifdef HAVE_H5RESIZE_MEMORY
         newbuf = H5resize_memory(outbuf, newbuflen);
-#else
-        newbuf = realloc(outbuf,newbuflen);
-#endif
         if (newbuf == NULL) {
           fprintf(stderr, "memory allocation failed for bzip2 decompression\n");
           goto cleanupAndFail;
@@ -195,11 +183,7 @@ H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
 
     /* Prepare the output buffer. */
     outbuflen = nbytes + nbytes / 100 + 600;  /* worst case (bzip2 docs) */
-#ifdef HAVE_H5ALLOCATE_MEMORY
     outbuf = H5allocate_memory(outbuflen,0);
-#else
-    outbuf = (char*)malloc(outbuflen * sizeof(char));
-#endif
 
     if (outbuf == NULL) {
       fprintf(stderr, "memory allocation failed for bzip2 compression\n");
@@ -218,11 +202,7 @@ H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
   }
 
   /* Always replace the input buffer with the output buffer. */
-#ifdef HAVE_H5FREE_MEMORY
   H5free_memory(*buf);
-#else
-  free(*buf);
-#endif
 
   *buf = outbuf;
   *buf_size = outbuflen;
@@ -230,12 +210,7 @@ H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
 
  cleanupAndFail:
   if (outbuf)
-#ifdef HAVE_H5FREE_MEMORY
     H5free_memory(outbuf);
-#else
-  free(outbuf);
-#endif
-
   return 0;
 }
 

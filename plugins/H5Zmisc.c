@@ -7,10 +7,6 @@
 #include "netcdf_filter_build.h"
 #include "h5misc.h"
 
-/* Undef if using memory checking */
-#undef HAVE_H5ALLOCATE_MEMORY
-#undef HAVE_H5FREE_MEMORY
-
 /* WARNING:
 Starting with HDF5 version 1.10.x, the plugin code MUST be
 careful when using the standard *malloc()*, *realloc()*, and
@@ -131,31 +127,19 @@ fprintf(stderr,"TC_EXPANDED: decompress: nbytes=%u buf_size=%u xdata[0..8]=|",(u
 	    }
 	    fprintf(stderr,"|\n");
             /* Replace buffer */
-#ifdef HAVE_H5ALLOCATE_MEMORY
             newbuf = H5allocate_memory(*buf_size,0);
-#else
-            newbuf = malloc(*buf_size);
-#endif
             if(newbuf == NULL) abort();
             memcpy(newbuf,*buf,*buf_size);
 	
 	} else {
             /* Replace buffer */
-#ifdef HAVE_H5ALLOCATE_MEMORY
             newbuf = H5allocate_memory(*buf_size,0);
-#else
-            newbuf = malloc(*buf_size);
-#endif
             if(newbuf == NULL) abort();
             memcpy(newbuf,*buf,*buf_size);
 	}
 	
         /* reclaim old buffer */
-#ifdef HAVE_H5FREE_MEMORY
         H5free_memory(*buf);
-#else
-        free(*buf);
-#endif
         *buf = newbuf;
 
     } else { /* Compress */
@@ -166,11 +150,7 @@ fprintf(stderr,"TC_EXPANDED: decompress: nbytes=%u buf_size=%u xdata[0..8]=|",(u
 fprintf(stderr,"TC_EXPANDED: compress: nbytes=%u buf_size=%u size=%u\n",(unsigned)nbytes,(unsigned)*buf_size,(unsigned)size);
 #endif
 	    /* Replace buffer with one that is bigger than the chunk size */
-#ifdef HAVE_H5ALLOCATE_MEMORY
             newbuf = H5allocate_memory(size,0);
-#else
-            newbuf = malloc(size);
-#endif
             if(newbuf == NULL) abort();
 	    b = (float*)newbuf;
 	    for(i=0;i<1024*2;i++) {
@@ -180,21 +160,13 @@ fprintf(stderr,"TC_EXPANDED: compress: nbytes=%u buf_size=%u size=%u\n",(unsigne
 	    *buf_size = size;
         } else  {
             /* Replace buffer */
-#ifdef HAVE_H5ALLOCATE_MEMORY
             newbuf = H5allocate_memory(*buf_size,0);
-#else
-            newbuf = malloc(*buf_size);
-#endif
             if(newbuf == NULL) abort();
             memcpy(newbuf,*buf,*buf_size);
 	}
 
 	/* reclaim old buffer */
-#ifdef HAVE_H5FREE_MEMORY
         H5free_memory(*buf);
-#else
-        free(*buf);
-#endif
         *buf = newbuf;
     }
 

@@ -72,9 +72,6 @@ typedef int hbool_t;
 typedef size_t hsize_t;
 typedef long long hid_t;
 
-#define H5allocate_memory(size,n) malloc(size)
-#define H5free_memory(buf) free(buf)
-
 /* htri_t (*H5Z_can_apply_func_t)(hid_t dcpl_id, hid_t type_id, hid_t space_id) => currently not supported; must be NULL. */
 typedef htri_t (*H5Z_can_apply_func_t)(long long, long long, long long);
 
@@ -114,7 +111,7 @@ typedef enum H5PL_type_t {
     H5PL_TYPE_NONE          =  1    /* This must be last!   */
 } H5PL_type_t;
 
-#endif /*HAVE_HDF5_H*/
+#endif /*USE_HDF5*/
 
 /* Following External Discovery Functions should be present for the dynamic loading of filters */
 
@@ -124,9 +121,17 @@ typedef H5PL_type_t (*H5PL_get_plugin_type_proto)(void);
 /* return <pointer to instance of H5Z_filter_class> */
 typedef const void* (*H5PL_get_plugin_info_proto)(void);
 
-
 /*************************/
+/* Following are always defined */
+
 /* Misc Macros */
+
+#ifndef HAVE_H5ALLOCATE_MEMORY
+#define H5allocate_memory(size,n) malloc(size)
+#define H5free_memory(buf) free(buf)
+#define H5resize_memory(mem,size) realloc(mem)
+#endif
+
 #ifndef HGOTO_ERROR
 #define HGOTO_ERROR(pline, err, action, msg) {fprintf(stderr,"%s\n",msg); ret_value = -1; goto done;}
 #endif
