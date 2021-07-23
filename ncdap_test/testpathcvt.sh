@@ -23,7 +23,6 @@ testcase() {
 
 rm -f tmp_pathcvt.txt
 
-set -x
 cat ${srcdir}/ref_pathcvt.txt
 testcase "/xxx/x/y"
 testcase "d:/x/y"

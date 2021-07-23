@@ -7,7 +7,6 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 . "$srcdir/test_nczarr.sh"
 
-set -x
 set -e
 
 # Function to remove selected -s attributes from file;

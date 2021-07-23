@@ -10,7 +10,6 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 # 2. xarray read/write
 
 set -e
-set -x
 
 testcase() {
 zext=$1
