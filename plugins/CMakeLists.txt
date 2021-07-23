@@ -65,7 +65,7 @@ buildplugin(h5fletcher32 "h5fletcher32")
 buildplugin(h5deflate "h5deflate")
 
 buildplugin(nczmisc "nczmisc")
-buildplugin(nczdefaults "nczdefaults")
+buildplugin(nczdefaults "nczdefaults" netcdf)
 
 IF(ENABLE_BLOSC)
 SET(h5blosc_SOURCES H5Zblosc.c H5Zblosc.h)
