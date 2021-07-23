@@ -139,10 +139,13 @@ typedef long long fileoffset_t;
 #define NC_UNUSED(var) (void)var
 #endif
 
+/* Protect old HDF5 code (pre 1.8.12) */
 #ifndef HAVE_H5ALLOCATE_MEMORY
-#define H5allocate_memory(size,n) malloc(size)
+#ifndef H5allocate_memory
+#define H5allocate_memory(size) malloc(size)
 #define H5free_memory(buf) free(buf)
-#define H5resize_memory(mem,size) realloc(mem)
+#define H5resize_memory(buf,size) realloc(buf,size)
+#endif
 #endif
 
 #endif /* NCCONFIGURE_H */

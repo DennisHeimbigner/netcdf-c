@@ -126,12 +126,6 @@ typedef const void* (*H5PL_get_plugin_info_proto)(void);
 
 /* Misc Macros */
 
-#ifndef HAVE_H5ALLOCATE_MEMORY
-#define H5allocate_memory(size,n) malloc(size)
-#define H5free_memory(buf) free(buf)
-#define H5resize_memory(mem,size) realloc(mem)
-#endif
-
 #ifndef HGOTO_ERROR
 #define HGOTO_ERROR(pline, err, action, msg) {fprintf(stderr,"%s\n",msg); ret_value = -1; goto done;}
 #endif
