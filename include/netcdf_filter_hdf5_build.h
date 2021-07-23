@@ -72,9 +72,6 @@ typedef int hbool_t;
 typedef size_t hsize_t;
 typedef long long hid_t;
 
-#define H5allocate_memory(size,n) malloc(size)
-#define H5free_memory(buf) free(buf)
-
 /* htri_t (*H5Z_can_apply_func_t)(hid_t dcpl_id, hid_t type_id, hid_t space_id) => currently not supported; must be NULL. */
 typedef htri_t (*H5Z_can_apply_func_t)(long long, long long, long long);
 
