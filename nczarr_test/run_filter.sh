@@ -159,20 +159,20 @@ ${NCDUMP} -hs -n multifilter $fileurl >./tmp_multi_$zext.cdl
 # Remove irrelevant -s output
 sclean ./tmp_multi_$zext.cdl ./tmp_smulti_$zext.cdl
 diff -b -w ${srcdir}/ref_multi.cdl ./tmp_smulti_$zext.cdl
-#echo "*** nccopy -F with multiple filters for map $zext"
-#if ! test -f unfiltered.nc ; then
-#  ${NCGEN} -4 -lb -o unfiltered.nc ${srcdir}/../nc_test4/ref_unfiltered.cdl
-#fi
-#${NCCOPY} "-F/g/var,307,4|40000" unfiltered.nc nccopyF.nc
-#${NCDUMP} -hs nccopyF.nc > ./nccopyF.cdl
-#sclean nccopyF.cdl nccopyFs.cdl
-#diff -b -w ${srcdir}/../nc_test4/ref_nccopyF.cdl ./nccopyFs.cdl
-#echo "*** ncgen with multiple filters for map $zext"
-#${NCGEN} -4 -lb -o ncgenF.nc ${srcdir}/../nc_test4/ref_nccopyF.cdl
-## Need to fix name using -n
-#${NCDUMP} -hs -n nccopyF ncgenF.nc > ./ncgenF.cdl
-#sclean ncgenF.cdl ncgenFs.cdl
-#diff -b -w ${srcdir}/../nc_test4/ref_nccopyF.cdl ./ncgenFs.cdl
+echo "*** nccopy -F with multiple filters for map $zext"
+if ! test -f unfiltered.nc ; then
+  ${NCGEN} -4 -lb -o unfiltered.nc ${srcdir}/../nc_test4/ref_unfiltered.cdl
+fi
+${NCCOPY} "-F/g/var,307,4|40000" unfiltered.nc nccopyF.nc
+${NCDUMP} -hs nccopyF.nc > ./nccopyF.cdl
+sclean nccopyF.cdl nccopyFs.cdl
+diff -b -w ${srcdir}/../nc_test4/ref_nccopyF.cdl ./nccopyFs.cdl
+echo "*** ncgen with multiple filters for map $zext"
+${NCGEN} -4 -lb -o ncgenF.nc ${srcdir}/../nc_test4/ref_nccopyF.cdl
+# Need to fix name using -n
+${NCDUMP} -hs -n nccopyF ncgenF.nc > ./ncgenF.cdl
+sclean ncgenF.cdl ncgenFs.cdl
+diff -b -w ${srcdir}/../nc_test4/ref_nccopyF.cdl ./ncgenFs.cdl
 echo "*** Pass: multiple filters for map $zext"
 }
 
