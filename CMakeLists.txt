@@ -979,21 +979,18 @@ ELSE()
   SET(ENABLE_NCZARR_ZIP FALSE)
 ENDIF()
 
-# See if we have libdl
-IF(WIN32)
-  SET(ENABLE_PLUGINS TRUE)
-ELSE()
-  FIND_LIBRARY(DL_LIB NAMES dl dld libdl libdld)
-#  FIND_PACKAGE(DL)
-  # Define a test flag
-  IF(DL_FOUND)
-    INCLUDE_DIRECTORIES(${dl_INCLUDE_DIRS})
-    SET(ENABLE_PLUGINS TRUE)
-  ELSE()
-    SET(ENABLE_PLUGINS FALSE)
+# libdl is always available; built-in in Windows and OSX
+SET(ENABLE_PLUGINS TRUE)
+IF(NOT WIN32)
+  IF(HAVE_DLFCN_H)
+    INCLUDE_DIRECTORIES("dlfcn.h")
   ENDIF()
+  IF(NOT APPLE)
+    IF(CMAKE_DL_LIB)
+      TARGET_LINK_LIBRARIES(netcdf ${CMAKE_DL_LIB})
+    ENDIF
+  ENDIF
 ENDIF()
-MESSAGE("ENABLE_PLUGINS=${ENABLE_PLUGINS}")
 
 # Enable some developer-only tests
 OPTION(ENABLE_EXTRA_TESTS "Enable Extra tests. Some may not work because of known issues. Developers only." OFF)
