@@ -37,7 +37,7 @@ IF(ENABLE_NCZARR)
   SET(liblib_LIBS ${liblib_LIBS} nczarr)
 ENDIF()
 
-IF(ENABLE_NCZARR)
+IF(ENABLE_PLUGINS)
   SET(liblib_LIBS ${liblib_LIBS} ncpoco)
 ENDIF()
 
