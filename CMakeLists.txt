@@ -983,8 +983,8 @@ ENDIF()
 IF(WIN32)
   SET(ENABLE_PLUGINS TRUE)
 ELSE()
-#  FIND LIBRARY(DL_LIB NAMES dl dld libdl libdld)
-  FIND_PACKAGE(DL)
+  FIND LIBRARY(DL_LIB NAMES dl dld libdl libdld)
+#  FIND_PACKAGE(DL)
   # Define a test flag
   IF(DL_FOUND)
     INCLUDE_DIRECTORIES(${dl_INCLUDE_DIRS})
@@ -993,6 +993,7 @@ ELSE()
     SET(ENABLE_PLUGINS FALSE)
   ENDIF()
 ENDIF()
+MESSAGE("ENABLE_PLUGINS=${ENABLE_PLUGINS}"
 
 # Enable some developer-only tests
 OPTION(ENABLE_EXTRA_TESTS "Enable Extra tests. Some may not work because of known issues. Developers only." OFF)
@@ -1988,7 +1989,6 @@ IF(ENABLE_DAP4)
 ENDIF()
 
 IF(ENABLE_PLUGINS)
-message("xxx: enable_plugins")
   ADD_SUBDIRECTORY(libncpoco)
 ENDIF()
 
@@ -2012,8 +2012,7 @@ ENDIF()
 
 add_subdirectory(liblib)
 
-IF(ENABLE_FILTER_TESTING)
-  FIND_LIBRARY(DLLIB names dl libdl dld libdld)
+IF(ENABLE_PLUGINS)
   add_subdirectory(plugins)
 ENDIF()
 
