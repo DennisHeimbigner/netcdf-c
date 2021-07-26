@@ -68,8 +68,13 @@ buildplugin(nczmisc "nczmisc")
 buildplugin(nczdefaults "nczdefaults" netcdf)
 
 IF(ENABLE_BLOSC)
-SET(h5blosc_SOURCES H5Zblosc.c H5Zblosc.h)
+SET(h5blosc_SOURCES H5Zblosc.c)
 buildplugin(h5blosc "h5blosc" ${Blosc_LIBRARIES})
+ENDIF()
+
+IF(ENABLE_SZIP)
+SET(h5szip_SOURCES H5Zszip.c H5Zszip.h)
+buildplugin(h5szip "h5szip" ${Szip_LIBRARIES})
 ENDIF()
 
 ENDIF(BUILD_UTILITIES)

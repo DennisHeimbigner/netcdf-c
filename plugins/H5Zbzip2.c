@@ -262,16 +262,20 @@ NCZ_bzip2_codec_to_hdf5(void* context, const char* codec_json, size_t* nparamsp,
         {stat = NC_ENOMEM; goto done;}
 
     /* parse the JSON */
-    if((stat = NCJparse(codec_json,0,&jcodec))) goto done;
+    if(NCJparse(codec_json,0,&jcodec))
+        {stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
     /* Verify the codec ID */
-    if((stat = NCJdictget(jcodec,"id",&jtmp))) goto done;
+    if(NCJdictget(jcodec,"id",&jtmp))
+        {stat = NC_EFILTER; goto done;}
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
     if(strcmp(NCJstring(jtmp),NCZ_bzip2_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
 
     /* Get Level */
-    if((stat = NCJdictget(jcodec,"level",&jtmp))) goto done;
-    if((stat = NCJcvt(jtmp,NCJ_INT,&jc))) goto done;
+    if(NCJdictget(jcodec,"level",&jtmp))
+        {stat = NC_EFILTER; goto done;}
+    if(NCJcvt(jtmp,NCJ_INT,&jc))
+	{stat = NC_EFILTER; goto done;}
     if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
     params[0] = (unsigned)jc.ival;
     if(nparamsp) *nparamsp = 1;

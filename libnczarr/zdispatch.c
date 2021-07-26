@@ -15,7 +15,6 @@
 static int NCZ_var_par_access(int ncid, int varid, int par_access);
 static int NCZ_show_metadata(int ncid);
 
-
 static const NC_Dispatch NCZ_dispatcher = {
 
     NC_FORMATX_NCZARR,
@@ -96,8 +95,8 @@ static const NC_Dispatch NCZ_dispatcher = {
     NC_NOTNC4_inq_enum_member,
     NC_NOTNC4_inq_enum_ident,
     NC_NOTNC4_def_opaque,
-    NC_NOTNC4_def_var_deflate,
-    NC_NOTNC4_def_var_fletcher32,
+    NCZ_def_var_deflate,
+    NCZ_def_var_fletcher32,
     NCZ_def_var_chunking,
     NCZ_def_var_endian,
     NCZ_def_var_filter,

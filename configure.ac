@@ -578,13 +578,22 @@ fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
 
 # See if we have libblosc
-AC_CHECK_LIB([blosc],[blosc_init],[have_blosc=yes],[have_blosc=no])
-if test "x$have_blosc" = "xyes" ; then
+AC_CHECK_LIB([blosc],[blosc_init],[enable_blosc=yes],[enable_blosc=no])
+if test "x$enable_blosc" = "xyes" ; then
    AC_SEARCH_LIBS([blosc_init],[blosc blosc.dll cygblosc.dll], [], [])
-   AC_DEFINE([HAVE_BLOSC], [1], [if true, blosc library is available])
+   AC_DEFINE([ENABLE_BLOSC], [1], [if true, blosc library is available])
 fi
 AC_MSG_CHECKING([whether libblosc library is available])
-AC_MSG_RESULT([${have_blosc}])
+AC_MSG_RESULT([${enable_blosc}])
+
+# See if we have libsz
+AC_CHECK_LIB([sz],[SZ_BufftoBuffCompress],[enable_szip=yes],[enable_szip=no])
+if test "x$enable_szip" = "xyes" ; then
+   AC_SEARCH_LIBS([SZ_BufftoBuffCompress],[sz sz.dll cygsz.dll], [], [])
+   AC_DEFINE([ENABLE_SZIP], [1], [if true, szip library is available])
+fi
+AC_MSG_CHECKING([whether szip library is available])
+AC_MSG_RESULT([${enable_szip}])
 
 # See if we have libzip
 AC_CHECK_LIB([zip],[zip_open],[have_zip=yes],[have_zip=no])
@@ -599,6 +608,7 @@ enable_nczarr_zip=${have_zip} # alias
 if test "x$enable_nczarr" = xno ; then
 enable_nczarr_zip=no
 fi
+
 
 AC_MSG_CHECKING([whether nczarr zip support is enabled])
 AC_MSG_RESULT([${enable_nczarr_zip}])
@@ -1584,7 +1594,8 @@ AM_CONDITIONAL(HAS_PAR_FILTERS, [test x$hdf5_supports_par_filters = xyes ])
 AM_CONDITIONAL(ENABLE_NCZARR, [test "x$enable_nczarr" = xyes])
 AM_CONDITIONAL(HAVE_AWS, [test "x$have_aws" = xyes])
 AM_CONDITIONAL(HAS_MULTIFILTERS, [test "x$has_multifilters" = xyes])
-AM_CONDITIONAL(HAVE_BLOSC, [test "x$have_blosc" = xyes])
+AM_CONDITIONAL(ENABLE_BLOSC, [test "x$enable_blosc" = xyes])
+AM_CONDITIONAL(ENABLE_SZIP, [test "x$enable_szip" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
@@ -1688,7 +1699,8 @@ AC_SUBST(DO_NCZARR_S3_TESTS,[$enable_nczarr_s3_tests])
 AC_SUBST(HAS_MULTIFILTERS,[$has_multifilters])
 AC_SUBST(DO_NCZARR_ZIP_TESTS,[$enable_nczarr_zip])
 AC_SUBST(DO_FILTER_TESTS,[$enable_filter_testing])
-AC_SUBST(HAVE_BLOSC,[$have_blosc])
+AC_SUBST(HAVE_BLOSC,[$enable_blosc])
+AC_SUBST(HAVE_SZIP,[$enable_szip])
 
 # Include some specifics for netcdf on windows.
 #AH_VERBATIM([_WIN32_STRICMP],

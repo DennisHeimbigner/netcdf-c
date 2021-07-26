@@ -18,8 +18,6 @@ testcasefile() {
   if test "x$3" = xmetaonly ; then flags="-h"; fi
   fileargs ${execdir}/$ref "mode=$mode,$zext"
   rm -f tmp_${ref}_${zext}.cdl
-  find $file -exec ls -l '{}' \;
-  ${ZMD} $fileurl
   ${NCDUMP} $flags $fileurl > tmp_${ref}_${zext}.cdl
   diff -b ${srcdir}/${ref}.cdl tmp_${ref}_${zext}.cdl
 }

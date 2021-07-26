@@ -1914,7 +1914,7 @@ decodeints(NCjson* jshape, size64_t* shapes)
     for(i=0;i<NCJlength(jshape);i++) {
 	long long v;
 	NCjson* jv = NCJith(jshape,i);
-	if((stat = NCZ_convert1(jv,NC_INT64,(char*)&v))) goto done;
+	if((stat = NCZ_convert1(jv,NC_INT64,(unsigned char*)&v))) goto done;
 	if(v < 0) {stat = THROW(NC_ENCZARR); goto done;}
 	shapes[i] = (size64_t)v;
     }

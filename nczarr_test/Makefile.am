@@ -87,7 +87,7 @@ TESTS += tst_nczfilter
 # Echo filter tests from nc_test4
 check_PROGRAMS += testfilter testfilter_misc testfilter_order testfilter_repeat testfilter_multi
 TESTS += run_filter.sh
-if HAVE_BLOSC
+if ENABLE_BLOSC
 TESTS += run_specific_filters.sh
 endif
 

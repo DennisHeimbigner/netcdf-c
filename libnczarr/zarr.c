@@ -332,7 +332,7 @@ ncz_unload_jatts(NCZ_FILE_INFO_T* zinfo, NC_OBJ* container, NCjson* jattrs, NCjs
         NCjson* k = NULL;
         NCjson* v = NULL;
 	/* remove any previous version */
-        if(NCJremove(jattrs,NCZ_V2_ATTRS,&k,&v) == NC_NOERR) {
+        if(!NCJremove(jattrs,NCZ_V2_ATTRS,&k,&v)) {
 	    NCJreclaim(k); NCJreclaim(v);
 	}
     }

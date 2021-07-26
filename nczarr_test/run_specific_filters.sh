@@ -81,7 +81,9 @@ testfletcher32() {
   zext=$1
   runfilter $zext fletcher32 '3' '[{\"id\": \"fletcher32\"}]'
   if test -f "tmp_fletcher32.dump" ; then
-      diff -b -w "tmp_fletcher32.cdl" "tmp_fletcher32.dump"
+      # need to remove _Filter
+      sed -e '/_Fletcher32 = "true"/d' < tmp_fletcher32.dump > tmp_fletcher32x.dump
+      diff -b -w "tmp_fletcher32.cdl" "tmp_fletcher32x.dump"
   else
       echo "XFAIL: filter=fletcher32 zext=$zext"
   fi
@@ -92,7 +94,7 @@ testshuffle() {
   runfilter $zext shuffle '2' '[{\"id\": \"shuffle\",\"elementsize\": \"4\"}]'
   if test -f "tmp_shuffle.dump" ; then
       # need to replace _Filter
-      sed -e 's/_Filter = "2,4"/_Filter = "2"/' < tmp_shuffle.dump > tmp_shufflex.dump
+      sed -e 's/_Filter = "2,4"/_Filter = "2"/' -e '/_Shuffle = "true"/d' < tmp_shuffle.dump > tmp_shufflex.dump
       diff -b -w "tmp_shuffle.cdl" "tmp_shufflex.dump"
   else
       echo "XFAIL: filter=shuffle zext=$zext"
@@ -121,6 +123,17 @@ testbzip2() {
   fi
 }
 
+testszip() {
+  zext=$1
+#  H5_SZIP_NN_OPTION_MASK=32;  H5_SZIP_MAX_PIXELS_PER_BLOCK_IN=32
+  runfilter $zext szip '4,32,32' '[{\"id\": \"szip\",\"mask\": 32,\"pixels-per-block\": 32}]'
+  if test -f "tmp_szip.dump" ; then
+      diff -b -w "tmp_szip.cdl" "tmp_szip.dump"
+  else
+      echo "XFAIL: filter=szip zext=$zext"
+  fi
+}
+
 testblosc() {
   zext=$1
   runfilter $zext blosc '32001,2,2,4,0,5,1,1' '[{\"id\": \"blosc\",\"clevel\": 5,\"blocksize\": 0,\"cname\": \"lz4\",\"shuffle\": 1}]'
@@ -136,6 +149,7 @@ testset() {
     testfletcher32 $1
     testshuffle $1    
     testdeflate $1
+    testszip $1
     testbzip2 $1
     testblosc $1
 }

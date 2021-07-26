@@ -359,13 +359,14 @@ So it has three parameters:
 2. "clevel" -- the compression level, 5 in this case.
 3. "shuffle" -- is the input shuffled before compression, yes (1) in this case.
 
-NCZarr has two constraints that must be met.
+NCZarr has three constraints that must be met.
 First, it must store its filter information in its metadata in the above JSON dictionary format.
 Second, it is convenient to share filter implementations with HDF5, so NCZarr expects to use many of the existing HDF5 filter implementations.
 This means that some mechanism is needed to translate between the HDF5 id+parameter model and the Zarr JSON dictionary model.
+Third, it must be possible to modify the set of initial parammeters in response to environment information such as the type of the associated variable; this is required to mimic the corresponding HDF5 capability.
 
-The standardization authority for defining Zarr filters is the list supported by the NumCodecs project [7].
-Comparing the set of standard filters (aka codecs) defined by NumCodecs to the set of standard filters defined by HDF5, it can be seen that the two sets overlap, but each has filters not defined by the other.
+The standard authority for defining Zarr filters is the list supported by the NumCodecs project [7].
+Comparing the set of standard filters (aka codecs) defined by NumCodecs to the set of standard filters defined by HDF5 [3], it can be seen that the two sets overlap, but each has filters not defined by the other.
 
 Note also that it is undesirable that a specific set of filters/codecs be built into the NCZarr implementation.
 Rather, it is preferable for there be some extensible way to associate the JSON with the code implementing the codec. This mirrors the plugin model used by HDF5.
@@ -373,6 +374,29 @@ Rather, it is preferable for there be some extensible way to associate the JSON 
 The mechanism provided to address these issues is similar to that taken by HDF5.
 A shared library must exist that has certain well-defined entry points that allow the NCZarr code to determine information about a Codec.
 The shared library exports a well-known function name to access Codec information and relate it to a corresponding HDF5 implementation,
+
+## Processing Overview
+
+There are several paths by which the NCZarr filter API is invoked.
+
+1. The nc_def_var_filter function is invoked on a variable.
+2. The metadata for a variable is read when opening an existing variable that has associated Codecs.
+3. The dataset is closed.
+
+### Case 1: Invoking nc_def_var_filter
+
+In this case, the filter plugin is located and the set of initial parameters (from nc_def_var_filter) may optionally be modified before they are stored. The modified parameters are termed the "working" parameters.
+
+### Case 2: Reading metadata
+
+In this case, the codec is read from the metadata and must be converted to an initial set of HDF5 style parameters.
+It is possible that this set of initial parameters differs from the set that was provided by nc_def_var_filter.
+If this is important, then the filter implementation is responsible for marking this difference using, for example, different number of parameters or some differing value.
+
+### Case 3: Closing the dataset
+
+
+
 
 ## Client API
 
@@ -593,7 +617,7 @@ gcc -g -O0 -shared -o libbzip2.so <plugin source files>  -L${HDF5LIBDIR} -lhdf5_
 
 1. https://support.hdfgroup.org/HDF5/doc/Advanced/DynamicallyLoadedFilters/HDF5DynamicallyLoadedFilters.pdf
 2. https://support.hdfgroup.org/HDF5/doc/TechNotes/TechNote-HDF5-CompressionTroubleshooting.pdf
-3. https://portal.hdfgroup.org/display/support/Contributions#Contributions-filters
+3. https://portal.hdfgroup.org/display/support/Registered+Filter+Plugins
 4. https://support.hdfgroup.org/services/contributions.html#filters
 5. https://support.hdfgroup.org/HDF5/doc/RM/RM_H5.html
 6. https://confluence.hdfgroup.org/display/HDF5/Filters

@@ -14,7 +14,7 @@ EXTRA_DIST = CMakeLists.txt \
              H5Ztemplate.c H5Zmisc.c H5Zutil.c H5Znoop.c h5noop.h NCZmisc.c \
 	     NCZdefault.c \
 	     H5Zbzip2.c H5Zbzip2.h H5Zblosc.c H5Zblosc.h \
-     	     H5Zshuffle.c H5Zfletcher32.h H5Zdeflate.c H5Zszip.c \
+     	     H5Zshuffle.c H5Zfletcher32.h H5Zdeflate.c H5Zszip.c H5Zszip.h \
 	     ${BZIP2SRC} H5checksum.c
 
 if ENABLE_FILTER_TESTING
@@ -29,14 +29,14 @@ libh5shuffle_la_SOURCES = H5Zshuffle.c
 libh5fletcher32_la_SOURCES = H5Zfletcher32.c H5checksum.c
 libh5deflate_la_SOURCES = H5Zdeflate.c
 
-#if USE_SZIP
-#noinst_LTLIBRARIES += libh5sz.la
-#libh5sz_la_SOURCES = H5Zszip.c
-#endif
-
-if HAVE_BLOSC
+if ENABLE_BLOSC
 noinst_LTLIBRARIES += libh5blosc.la
 libh5blosc_la_SOURCES = H5Zblosc.c H5Zblosc.h
+endif
+
+if HAVE_SZIP
+noinst_LTLIBRARIES += libh5szip.la
+libh5szip_la_SOURCES = H5Zszip.c H5Zszip.h
 endif
 
 libh5misc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h

@@ -25,54 +25,12 @@
 #include <string.h>
 #include <errno.h>
 
-#include "netcdf_filter_build.h"
+#include "netcdf_filter_hdf5_build.h"
 
 #ifndef H5Z_FILTER_FLETCHER32
 #define H5Z_FILTER_FLETCHER32      3
 #endif
 
-#ifndef HGOTO_ERROR
-#define HGOTO_ERROR(pline, err, action, msg) {fprintf(stderr,"%s\n",msg); ret_value = -1; goto done;}
-#endif
-#ifndef H5_ATTR_FALLTHROUGH
-#define H5_ATTR_FALLTHROUGH /*FALLTHROUGH*/
-#endif
-#ifndef HDassert
-#define HDassert(x)
-#endif
-#ifndef H5MM_memcpy
-#define H5MM_memcpy memcpy
-#endif
-#ifndef H5MM_malloc
-#define H5MM_malloc malloc
-#endif
-#ifndef H5MM_xfree
-#define H5MM_xfree nullfree
-#endif
-#ifndef H5_ATTR_UNUSED
-#define H5_ATTR_UNUSED 
-#endif
-#ifndef FUNC_ENTER_STATIC
-#define FUNC_ENTER_STATIC
-#endif
-#ifndef FUNC_LEAVE_NOAPI
-#define FUNC_LEAVE_NOAPI(ret_value) return ret_value;
-#endif
-
-#ifndef UINT32ENCODE
-#  define UINT32ENCODE(p, i) {                              \
-   *(p) = (uint8_t)( (i)        & 0xff); (p)++;                      \
-   *(p) = (uint8_t)(((i) >>  8) & 0xff); (p)++;                      \
-   *(p) = (uint8_t)(((i) >> 16) & 0xff); (p)++;                      \
-   *(p) = (uint8_t)(((i) >> 24) & 0xff); (p)++;                      \
-}
-#  define UINT32DECODE(p, i) {                              \
-   (i)    =  (uint32_t)(*(p) & 0xff);       (p)++;                  \
-   (i) |= ((uint32_t)(*(p) & 0xff) <<  8); (p)++;                  \
-   (i) |= ((uint32_t)(*(p) & 0xff) << 16); (p)++;                  \
-   (i) |= ((uint32_t)(*(p) & 0xff) << 24); (p)++;                  \
-}
-#endif
 
 extern unsigned int H5_checksum_fletcher32(const void *data, size_t len);
 
@@ -93,14 +51,12 @@ const H5Z_class2_t H5Z_FLETCHER32[1] = {{
 }};
 
 /* External Discovery Functions */
-DLLEXPORT
 H5PL_type_t
 H5PLget_plugin_type(void)
 {
     return H5PL_TYPE_FILTER;
 }
 
-DLLEXPORT
 const void*
 H5PLget_plugin_info(void)
 {

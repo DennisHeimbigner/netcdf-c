@@ -11,25 +11,19 @@
  * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "H5Zmodule.h"          /* This source code file is part of the H5Z module */
-
-
-#include "H5private.h"		/* Generic Functions			*/
-#include "H5Eprivate.h"		/* Error handling		  	*/
-#include "H5Fprivate.h"         /* File access                          */
-#include "H5Iprivate.h"		/* IDs			  		*/
-#include "H5MMprivate.h"	/* Memory management			*/
-#include "H5Oprivate.h"		/* Object headers		  	*/
-#include "H5Pprivate.h"         /* Property lists                       */
-#include "H5Sprivate.h"		/* Dataspaces         			*/
-#include "H5Tprivate.h"		/* Datatypes         			*/
-#include "H5Zpkg.h"		/* Data filters				*/
-
-#ifdef H5_HAVE_FILTER_SZIP
-
-#ifdef H5_HAVE_SZLIB_H
-#   include "szlib.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
+
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include "netcdf_filter_build.h"
+
+#ifdef ENABLE_SZIP
+
+#include <szlib.h>
+#include "H5Zszip.h"
 
 /* Local function prototypes */
 static htri_t H5Z__can_apply_szip(hid_t dcpl_id, hid_t type_id, hid_t space_id);
@@ -75,19 +69,15 @@ H5Z_class2_t H5Z_SZIP[1] = {{
 static htri_t
 H5Z__can_apply_szip(hid_t H5_ATTR_UNUSED dcpl_id, hid_t type_id, hid_t H5_ATTR_UNUSED space_id)
 {
-    const H5T_t	*type;                  /* Datatype */
+#ifdef USE_HDF5
     unsigned dtype_size;                /* Datatype's size (in bits) */
     H5T_order_t dtype_order;            /* Datatype's endianness order */
     htri_t ret_value = TRUE;            /* Return value */
 
     FUNC_ENTER_STATIC
 
-    /* Get datatype */
-    if(NULL == (type = (H5T_t *)H5I_object_verify(type_id, H5I_DATATYPE)))
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a datatype")
-
     /* Get datatype's size, for checking the "bits-per-pixel" */
-    if((dtype_size = (8 * H5T_get_size(type))) == 0)
+    if((dtype_size = (8 * H5Tget_size(type_id))) == 0)
         HGOTO_ERROR(H5E_PLINE, H5E_BADTYPE, FAIL, "bad datatype size")
 
     /* Range check datatype's size */
@@ -95,7 +85,7 @@ H5Z__can_apply_szip(hid_t H5_ATTR_UNUSED dcpl_id, hid_t type_id, hid_t H5_ATTR_U
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FALSE, "invalid datatype size")
 
     /* Get datatype's endianness order */
-    if((dtype_order = H5T_get_order(type)) == H5T_ORDER_ERROR)
+    if((dtype_order = H5Tget_order(type_id)) == H5T_ORDER_ERROR)
         HGOTO_ERROR(H5E_PLINE, H5E_BADTYPE, FAIL, "can't retrieve datatype endianness order")
 
     /* Range check datatype's endianness order */
@@ -105,6 +95,9 @@ H5Z__can_apply_szip(hid_t H5_ATTR_UNUSED dcpl_id, hid_t type_id, hid_t H5_ATTR_U
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
+#else
+    return SUCCEED;
+#endif
 } /* end H5Z__can_apply_szip() */
 
 
@@ -121,16 +114,17 @@ done:
  *
  *-------------------------------------------------------------------------
  */
+
+#ifdef USE_HDF5
+
 static herr_t
 H5Z__set_local_szip(hid_t dcpl_id, hid_t type_id, hid_t space_id)
 {
-    H5P_genplist_t *dcpl_plist; /* Property list pointer */
-    const H5T_t	*type;          /* Datatype */
-    const H5S_t	*ds;            /* Dataspace */
+#ifdef USE_HDF5
     unsigned flags;             /* Filter flags */
     size_t cd_nelmts = H5Z_SZIP_USER_NPARMS;     /* Number of filter parameters */
     unsigned cd_values[H5Z_SZIP_TOTAL_NPARMS];  /* Filter parameters */
-    hsize_t dims[H5O_LAYOUT_NDIMS];             /* Dataspace (i.e. chunk) dimensions */
+    hsize_t dims[H5S_MAX_RANK+1];             /* Dataspace (i.e. chunk) dimensions */
     int ndims;                  /* Number of (chunk) dimensions */
     H5T_order_t dtype_order;    /* Datatype's endianness order */
     size_t dtype_size;          /* Datatype's size (in bits) */
@@ -141,28 +135,20 @@ H5Z__set_local_szip(hid_t dcpl_id, hid_t type_id, hid_t space_id)
 
     FUNC_ENTER_STATIC
 
-    /* Get the plist structure */
-    if(NULL == (dcpl_plist = H5P_object_verify(dcpl_id, H5P_DATASET_CREATE)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
-
-    /* Get datatype */
-    if(NULL == (type = (H5T_t *)H5I_object_verify(type_id, H5I_DATATYPE)))
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a datatype")
-
     /* Get the filter's current parameters */
-    if(H5P_get_filter_by_id(dcpl_plist, H5Z_FILTER_SZIP, &flags, &cd_nelmts, cd_values, 0, NULL, NULL) < 0)
+    if(H5Pget_filter_by_id(dcpl_id, H5Z_FILTER_SZIP, &flags, &cd_nelmts, cd_values, 0, NULL, NULL) < 0)
         HGOTO_ERROR(H5E_PLINE, H5E_CANTGET, FAIL, "can't get szip parameters")
 
     /* Get datatype's size, for checking the "bits-per-pixel" */
-    if((dtype_size = (8 * H5T_get_size(type))) == 0)
+    if((dtype_size = (8 * H5Tget_size(type_id))) == 0)
         HGOTO_ERROR(H5E_PLINE, H5E_BADTYPE, FAIL, "bad datatype size");
 
     /* Get datatype's precision, in case is less than full bits  */
-    if((dtype_precision = H5T_get_precision(type)) == 0)
+    if((dtype_precision = H5Tget_precision(type_id)) == 0)
         HGOTO_ERROR(H5E_PLINE, H5E_BADTYPE, FAIL, "bad datatype precision");
 
     if(dtype_precision < dtype_size) {
-        dtype_offset = H5T_get_offset(type);
+        dtype_offset = H5Tget_offset(type_id);
         if(dtype_offset != 0)
             dtype_precision = dtype_size;
     } /* end if */
@@ -176,12 +162,8 @@ H5Z__set_local_szip(hid_t dcpl_id, hid_t type_id, hid_t space_id)
     /* Set "local" parameter for this dataset's "bits-per-pixel" */
     cd_values[H5Z_SZIP_PARM_BPP] = dtype_precision;
 
-    /* Get dataspace */
-    if(NULL == (ds = (H5S_t *)H5I_object_verify(space_id, H5I_DATASPACE)))
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataspace")
-
     /* Get dimensions for dataspace */
-    if((ndims = H5S_get_simple_extent_dims(ds, dims, NULL)) < 0)
+    if((ndims = H5Sget_simple_extent_dims(space_id, dims, NULL)) < 0)
         HGOTO_ERROR(H5E_PLINE, H5E_CANTGET, FAIL, "unable to get dataspace dimensions")
 
     /* Set "local" parameter for this dataset's "pixels-per-scanline" */
@@ -199,7 +181,7 @@ H5Z__set_local_szip(hid_t dcpl_id, hid_t type_id, hid_t space_id)
 
         /* Get number of elements for the dataspace;  use
            total number of elements in the chunk to define the new 'scanline' size */
-        if((npoints = H5S_GET_EXTENT_NPOINTS(ds)) < 0)
+        if((npoints = H5Sget_simple_extent_npoints(space_id)) < 0)
             HGOTO_ERROR(H5E_PLINE, H5E_CANTGET, FAIL, "unable to get number of points in the dataspace")
         if(npoints < cd_values[H5Z_SZIP_PARM_PPB])
             HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "pixels per block greater than total number of elements in the chunk")
@@ -216,7 +198,7 @@ H5Z__set_local_szip(hid_t dcpl_id, hid_t type_id, hid_t space_id)
     H5_CHECKED_ASSIGN(cd_values[H5Z_SZIP_PARM_PPS], unsigned, scanline, hsize_t);
 
     /* Get datatype's endianness order */
-    if((dtype_order = H5T_get_order(type)) == H5T_ORDER_ERROR)
+    if((dtype_order = H5Tget_order(type_id)) == H5T_ORDER_ERROR)
         HGOTO_ERROR(H5E_PLINE, H5E_BADTYPE, FAIL, "bad datatype endianness order")
 
     /* Set the correct endianness flag for szip */
@@ -240,12 +222,17 @@ H5Z__set_local_szip(hid_t dcpl_id, hid_t type_id, hid_t space_id)
     } /* end switch */
 
     /* Modify the filter's parameters for this dataset */
-    if(H5P_modify_filter(dcpl_plist, H5Z_FILTER_SZIP, flags, H5Z_SZIP_TOTAL_NPARMS, cd_values) < 0)
+    if(H5Pmodify_filter(dcpl_id, H5Z_FILTER_SZIP, flags, H5Z_SZIP_TOTAL_NPARMS, cd_values) < 0)
         HGOTO_ERROR(H5E_PLINE, H5E_CANTSET, FAIL, "can't set local szip parameters")
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
+#else
+    return SUCCEED;
+#endif
 } /* end H5Z__set_local_szip() */
+
+#endif /*USE_HDF5*/
 
 
 /*-------------------------------------------------------------------------
@@ -357,5 +344,4 @@ done:
     FUNC_LEAVE_NOAPI(ret_value)
 }
 
-#endif /* H5_HAVE_FILTER_SZIP */
-
+#endif /* ENABLE_SZIP */

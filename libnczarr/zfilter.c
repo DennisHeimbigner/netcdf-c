@@ -111,7 +111,7 @@ typedef struct NCZ_Filter {
 
 
 /* All possible HDF5 filter plugins */
-/* Convert to linked list or hash table since very sparse */
+/* Convert to linked list or hash table or equivalent since very sparse */
 NCZ_Plugin* loaded_plugins[H5Z_FILTER_MAX];
 int loaded_plugins_max = -1;
 
@@ -650,7 +650,7 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, 
         stat = NC_ENOFILTER;
  
 done:
-    return ZUNTRACEX(stat,"nparams=%u",(unsigned)*nparamsp);
+    return ZUNTRACEX(stat,"nparams=%u",(unsigned)(nparamsp?*nparamsp:0));
 }
 
 

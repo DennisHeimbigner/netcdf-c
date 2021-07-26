@@ -157,6 +157,10 @@ typedef const void* (*H5PL_get_plugin_info_proto)(void);
 #define FALSE 0
 #define TRUE 1
 #endif
+#ifndef SUCCEED
+#define SUCCEED 0 
+#define FAIL -1 
+#endif
 #ifndef FUNC_ENTER_NOAPI_NOINIT_NOERR
 #define FUNC_ENTER_NOAPI_NOINIT_NOERR
 #endif
@@ -172,6 +176,9 @@ typedef const void* (*H5PL_get_plugin_info_proto)(void);
 #ifndef H5_CHECKED_ASSIGN
 #define H5_CHECKED_ASSIGN(dst,dtype,src,stype) (dst) = (dtype)(src)
 #endif
+#ifndef H5_CHECK_OVERFLOW
+#define H5_CHECK_OVERFLOW(dst,dtype,stype)
+#endif
 #ifndef HDceil
 #define HDceil(x) ceil(x)
 #endif
@@ -180,6 +187,21 @@ typedef const void* (*H5PL_get_plugin_info_proto)(void);
 #endif
 #ifndef HDmemset
 #define HDmemset memset
+#endif
+
+#ifndef UINT32ENCODE
+#  define UINT32ENCODE(p, i) {                              \
+   *(p) = (uint8_t)( (i)        & 0xff); (p)++;                      \
+   *(p) = (uint8_t)(((i) >>  8) & 0xff); (p)++;                      \
+   *(p) = (uint8_t)(((i) >> 16) & 0xff); (p)++;                      \
+   *(p) = (uint8_t)(((i) >> 24) & 0xff); (p)++;                      \
+}
+#  define UINT32DECODE(p, i) {                              \
+   (i)    =  (uint32_t)(*(p) & 0xff);       (p)++;                  \
+   (i) |= ((uint32_t)(*(p) & 0xff) <<  8); (p)++;                  \
+   (i) |= ((uint32_t)(*(p) & 0xff) << 16); (p)++;                  \
+   (i) |= ((uint32_t)(*(p) & 0xff) << 24); (p)++;                  \
+}
 #endif
 
 #endif /*NETCDF_FILTER_HDF5_BUILD_H*/

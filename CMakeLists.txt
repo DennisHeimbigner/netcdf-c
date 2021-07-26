@@ -955,17 +955,24 @@ ELSE()
   SET(ENABLE_ZLIB FALSE)
 ENDIF()
 
-# See if we have libzip
-IF(!MSVC)
+# See if we have libblosc
 FIND_PACKAGE(Blosc)
-ENDIF()
-
 # Define a test flag for have blosc library
 IF(Blosc_FOUND)
   INCLUDE_DIRECTORIES(${Blosc_INCLUDE_DIRS})
   SET(ENABLE_BLOSC TRUE)
 ELSE()
   SET(ENABLE_BLOSC FALSE)
+ENDIF()
+
+# See if we have libszip
+FIND_PACKAGE(Szip)
+# Define a test flag for have szip library
+IF(Szip_FOUND)
+  INCLUDE_DIRECTORIES(${Szip_INCLUDE_DIRS})
+  SET(ENABLE_SZIP TRUE)
+ELSE()
+  SET(ENABLE_SZIP FALSE)
 ENDIF()
 
 # See if we have libzip
