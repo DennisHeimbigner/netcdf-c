@@ -72,6 +72,7 @@ if ${NCGEN} -4 -lb -o $file "tmp_${zfilt}.cdl" ; then
   ${NCDUMP} -n $zfilt -s $file > "tmp_${zfilt}.tmp"
   sclean "tmp_${zfilt}.tmp" "tmp_${zfilt}.dump"
 fi
+unset NCTRACING
 }
 
 testdeflate() {
@@ -108,9 +109,9 @@ testblosc() {
 
 testset() {
 # Which test cases to exercise
-    testdeflate $1
+#    testdeflate $1
     testbzip2 $1
-    testblosc $1
+#    testblosc $1
 }
 
 testset nc

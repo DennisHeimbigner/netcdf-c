@@ -481,7 +481,9 @@ NCZ_codec_t* NCZ_default_codecs[] = {
 &NCZ_shuffle_codec,
 &NCZ_fletcher32_codec,
 &NCZ_zlib_codec,
+#ifdef ENABLE_SZIP
 &NCZ_szip_codec,
+#endif
 NULL
 };
 
