@@ -32,8 +32,6 @@ FP_ISMSVC=@ISMSVC@
 FP_ISCYGWIN=@ISCYGWIN@
 FP_ISOSX=@ISOSX@
 
-FP_PLUGINS="$TOPBUILDDIR/plugins"
-
 FP_PLUGIN_LIB=
 FP_PLUGIN_PATH=
 
@@ -53,11 +51,18 @@ fi
 if test "x$HDF5_PLUGIN_PATH" != x ; then
     HDF5_PLUGIN_LIB="$FP_PLUGIN_LIB"
     # HDF5_PLUGIN_PATH already set
+    HDF5_PLUGIN_PATH=`NCPATHCVT $HDF5_PLUGIN_PATH`
     return 0;
 fi
 
 # Figure out the path to where the lib is stored
 # This can probably be simplified
+
+PWD=`pwd`
+cd ../plugins
+FP_PLUGINS=`pwd`
+cd $PWD
+
 # Case 1: Cmake with Visual Studio
 # Do not know where to look for a dylib
 # Case 1: Cmake with Visual Studio
@@ -87,11 +92,7 @@ if ! test -f "$FP_PLUGIN_PATH/$FP_PLUGIN_LIB" ; then
   return 1
 fi
 
-# If we are operating using both Visual Studio and Cygwin,
-# then we need to convert the FP_PLUGIN_PATH to windows format
-if test "x$FP_ISMSVC" != x -a "x$FP_ISCYGWIN" != x ; then
-FP_PLUGIN_PATH=`cygpath -wl $FP_PLUGIN_PATH`
-fi
+FP_PLUGIN_PATH=`ncpathcvt $FP_PLUGIN_PATH`
 
 # Set the final output variables
 HDF5_PLUGIN_LIB="$FP_PLUGIN_LIB"

@@ -58,6 +58,7 @@ DLLEXPORT
 H5PL_type_t
 H5PLget_plugin_type(void)
 {
+fprintf(stderr,"xxx: H5PLget_plugin_type\n"); fflush(stderr);
     return H5PL_TYPE_FILTER;
 }
 
@@ -65,6 +66,7 @@ DLLEXPORT
 const void*
 H5PLget_plugin_info(void)
 {
+fprintf(stderr,"xxx: H5PLget_plugin_info\n"); fflush(stderr);
     return H5Z_BZIP2;
 }
 
@@ -216,7 +218,7 @@ H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
 
 /**************************************************/
 /* NCZarr Filter Objects */
-
+#if 0
 /* Provide the codec support for the HDF5 bzip library */
 
 /* Forward */
@@ -309,3 +311,4 @@ done:
     return stat;
 }
 
+#endif

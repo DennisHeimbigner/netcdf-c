@@ -966,14 +966,15 @@ ELSE()
 ENDIF()
 
 # See if we have libszip
-FIND_PACKAGE(Szip)
-# Define a test flag for have szip library
-IF(Szip_FOUND)
-  INCLUDE_DIRECTORIES(${Szip_INCLUDE_DIRS})
-  SET(ENABLE_SZIP TRUE)
-ELSE()
-  SET(ENABLE_SZIP FALSE)
-ENDIF()
+#FIND_PACKAGE(Szip)
+## Define a test flag for have szip library
+#IF(Szip_FOUND)
+#  INCLUDE_DIRECTORIES(${Szip_INCLUDE_DIRS})
+#  SET(ENABLE_SZIP TRUE)
+#ELSE()
+#  SET(ENABLE_SZIP FALSE)
+#ENDIF()
+SET(ENABLE_SZIP ${USE_SZIP})
 
 # See if we have libzip
 FIND_PACKAGE(Zip)

@@ -5,6 +5,20 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
+# Load the findplugins function
+. ${builddir}/findplugin.sh
+echo "findplugin.sh loaded"
+
+set -x
+
+# Locate the plugin path and the library names; argument order is critical
+# Find bzip2 and capture
+# Assume all test filters are in same plugin dir
+findplugin h5bzip2
+
+echo "final HDF5_PLUGIN_PATH=${HDF5_PLUGIN_PATH}"
+export HDF5_PLUGIN_PATH
+
 set -e
 
 # Function to remove selected -s attributes from file;

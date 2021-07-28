@@ -591,6 +591,7 @@ AC_CHECK_LIB([sz],[SZ_BufftoBuffCompress],[enable_szip=yes],[enable_szip=no])
 if test "x$enable_szip" = "xyes" ; then
    AC_SEARCH_LIBS([SZ_BufftoBuffCompress],[sz sz.dll cygsz.dll], [], [])
    AC_DEFINE([ENABLE_SZIP], [1], [if true, szip library is available])
+   AC_DEFINE([USE_SZIP], [1], [if true, szip library is available]) # alias
 fi
 AC_MSG_CHECKING([whether szip library is available])
 AC_MSG_RESULT([${enable_szip}])

@@ -629,6 +629,9 @@ with zip */
 /* if true, enable nczarr szip support */
 #cmakedefine ENABLE_SZIP 1
 
+/* if true, enable nczarr szip support */
+#cmakedefine USE_SZIP 1
+
 /* Version number of package */
 #cmakedefine VERSION "${netCDF_VERSION}"
 

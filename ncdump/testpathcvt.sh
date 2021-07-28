@@ -9,7 +9,7 @@ testcase1() {
 T="$1"
 P="$2"
 echo -n "path: $T: |$P| => |" >>tmp_pathcvt.txt
-${execdir}/pathcvt "$T" -e "$P" >>tmp_pathcvt.txt
+${NCPATHCVT} "$T" -e "$P" >>tmp_pathcvt.txt
 echo "|" >> tmp_pathcvt.txt
 
 }

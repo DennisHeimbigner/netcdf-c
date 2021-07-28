@@ -34,7 +34,7 @@ noinst_LTLIBRARIES += libh5blosc.la
 libh5blosc_la_SOURCES = H5Zblosc.c H5Zblosc.h
 endif
 
-if HAVE_SZIP
+if ENABLE_SZIP
 noinst_LTLIBRARIES += libh5szip.la
 libh5szip_la_SOURCES = H5Zszip.c H5Zszip.h
 endif

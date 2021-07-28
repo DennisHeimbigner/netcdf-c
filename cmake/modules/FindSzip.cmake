@@ -11,7 +11,7 @@
 
 # Look for the header, first in the user-specified location and then in the system locations
 SET(Szip_INCLUDE_DOC "The directory containing the header file szip.h")
-FIND_PATH(Szip_INCLUDE_DIRS NAMES szlib.h szip/szlib.h PATHS ${Szip_ROOT} ${Szip_ROOT}/include DOC ${Szip_INCLUDE_DOC} NO_DEFAULT_PATH)
+FIND_PATH(Szip_INCLUDE_DIRS NAMES szlib.h szip/szlib.h PATHS ${Szip_ROOT} ${Szip_ROOT}/include DOC ${Szip_INCLUDE_DOC})
 IF(NOT Szip_INCLUDE_DIRS)  # now look in system locations
   FIND_PATH(Szip_INCLUDE_DIRS NAMES szlib.h szip/szlib.h DOC ${Szip_INCLUDE_DOC})
 ENDIF(NOT Szip_INCLUDE_DIRS)
@@ -33,10 +33,10 @@ IF(Szip_INCLUDE_DIRS)
   # Find Szip libraries
   FIND_LIBRARY(Szip_DEBUG_LIBRARY NAMES szd sz_d libszd libsz_d libsz
                PATH_SUFFIXES Debug ${CMAKE_LIBRARY_ARCHITECTURE} ${CMAKE_LIBRARY_ARCHITECTURE}/Debug
-               PATHS ${Szip_LIBRARY_DIRS} NO_DEFAULT_PATH)
+               PATHS ${Szip_LIBRARY_DIRS})
   FIND_LIBRARY(Szip_RELEASE_LIBRARY NAMES sz libsz
                PATH_SUFFIXES Release ${CMAKE_LIBRARY_ARCHITECTURE} ${CMAKE_LIBRARY_ARCHITECTURE}/Release
-               PATHS ${Szip_LIBRARY_DIRS} NO_DEFAULT_PATH)
+               PATHS ${Szip_LIBRARY_DIRS})
 
   SET(Szip_LIBRARIES )
   IF(Szip_DEBUG_LIBRARY AND Szip_RELEASE_LIBRARY)
