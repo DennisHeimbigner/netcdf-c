@@ -29,7 +29,7 @@ Author: Dennis Heimbigner
 #define H5Z_FILTER_DEFLATE	1 	/*deflation like gzip	     	*/
 #define H5Z_FILTER_SHUFFLE      2       /*shuffle the data              */
 #define H5Z_FILTER_FLETCHER32   3       /*fletcher32 checksum of EDC    */
-#define H5Z_FILTER_SZIP         4       /*szip compression              /*
+#define H5Z_FILTER_SZIP         4       /*szip compression              */
 
 /**************************************************/
 /* NCZarr Filter Objects */

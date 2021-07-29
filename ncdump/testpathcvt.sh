@@ -9,6 +9,7 @@ testcase1() {
 T="$1"
 P="$2"
 echo -n "path: $T: |$P| => |" >>tmp_pathcvt.txt
+
 ${NCPATHCVT} "$T" -e "$P" >>tmp_pathcvt.txt
 echo "|" >> tmp_pathcvt.txt
 
@@ -23,7 +24,6 @@ testcase() {
 
 rm -f tmp_pathcvt.txt
 
-cat ${srcdir}/ref_pathcvt.txt
 testcase "/xxx/x/y"
 testcase "d:/x/y"
 testcase "/cygdrive/d/x/y"

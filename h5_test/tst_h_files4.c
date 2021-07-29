@@ -164,8 +164,7 @@ main()
       if (H5Gget_num_objs(grpid, &num_obj) < 0) ERR;
       for (i = 0; i < num_obj; i++)
       {
-	 if (H5Literate(grpid, H5_INDEX_CRT_ORDER, H5_ITER_INC, &idx, op_func, 
-			(void *)obj_name) != 1) ERR;
+	 if (H5Literate(grpid, H5_INDEX_CRT_ORDER, H5_ITER_INC, &idx, op_func, (void *)obj_name) != 1) ERR;
 	 printf("encountered object %s\n", obj_name);
       }
 

@@ -136,7 +136,7 @@ H5Z__set_local_szip(hid_t dcpl_id, hid_t type_id, hid_t space_id)
     FUNC_ENTER_STATIC
 
     /* Get the filter's current parameters */
-    if(H5Pget_filter_by_id(dcpl_id, H5Z_FILTER_SZIP, &flags, &cd_nelmts, cd_values, 0, NULL, NULL) < 0)
+    if(H5Pget_filter_by_id1(dcpl_id, H5Z_FILTER_SZIP, &flags, &cd_nelmts, cd_values, 0, NULL) < 0)
         HGOTO_ERROR(H5E_PLINE, H5E_CANTGET, FAIL, "can't get szip parameters")
 
     /* Get datatype's size, for checking the "bits-per-pixel" */

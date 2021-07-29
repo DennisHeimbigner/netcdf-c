@@ -51,7 +51,7 @@ fi
 if test "x$HDF5_PLUGIN_PATH" != x ; then
     HDF5_PLUGIN_LIB="$FP_PLUGIN_LIB"
     # HDF5_PLUGIN_PATH already set
-    HDF5_PLUGIN_PATH=`NCPATHCVT $HDF5_PLUGIN_PATH`
+    HDF5_PLUGIN_PATH=`${NCPATHCVT} $HDF5_PLUGIN_PATH`
     return 0;
 fi
 
@@ -92,7 +92,7 @@ if ! test -f "$FP_PLUGIN_PATH/$FP_PLUGIN_LIB" ; then
   return 1
 fi
 
-FP_PLUGIN_PATH=`ncpathcvt $FP_PLUGIN_PATH`
+FP_PLUGIN_PATH=`${NCPATHCVT} $FP_PLUGIN_PATH`
 
 # Set the final output variables
 HDF5_PLUGIN_LIB="$FP_PLUGIN_LIB"

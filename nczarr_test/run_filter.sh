@@ -34,10 +34,6 @@ trimleft() {
 sed -e 's/[ 	]*\([^ 	].*\)/\1/' <$1 >$2
 }
 
-if test -f ./libh5bzip2.so; then 
-    mv ./libh5bzip2.so /home/dmh/git/netcdf.fork/plugins/.libs
-fi
-
 # Locate the plugin path and the library names; argument order is critical
 # Find bzip2 and capture
 findplugin h5bzip2

@@ -77,7 +77,7 @@ NCZ_convert1(NCjson* jsrc, nc_type dsttype, unsigned char* memory)
     /* Now, do the down conversion */
     switch (dsttype) {
     case NC_BYTE: {
-        signed char* p = (unsigned char*)memory;
+        signed char* p = (signed char*)memory;
 	switch (srctype) {
 	case NC_DOUBLE:
 	    zcvt.int64v = (long long)zcvt.float64v; /* Convert to int64 */
