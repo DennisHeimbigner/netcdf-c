@@ -58,10 +58,10 @@ fi
 # Figure out the path to where the lib is stored
 # This can probably be simplified
 
-PWD=`pwd`
+CURWD=`pwd`
 cd ../plugins
 FP_PLUGINS=`pwd`
-cd $PWD
+cd ${CURWD}
 
 # Case 1: Cmake with Visual Studio
 # Do not know where to look for a dylib
