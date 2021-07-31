@@ -16,7 +16,7 @@ Author: Dennis Heimbigner
 #include <string.h>
 #include <assert.h>
 
-#ifdef ENABLE_SZIP
+#ifdef USE_SZIP
 #include <szlib.h>
 #include "H5Zszip.h"
 #endif
@@ -43,7 +43,7 @@ static int NCZ_fletcher32_codec_to_hdf5(void*, const char* codec, size_t* nparam
 static int NCZ_fletcher32_hdf5_to_codec(void*, size_t nparams, const unsigned* params, char** codecp);
 static int NCZ_deflate_codec_to_hdf5(void*, const char* codec, size_t* nparamsp, unsigned** paramsp);
 static int NCZ_deflate_hdf5_to_codec(void*, size_t nparams, const unsigned* params, char** codecp);
-#ifdef ENABLE_SZIP
+#ifdef USE_SZIP
 static int NCZ_szip_codec_setup(int ncid, int varid, void** contextp);
 static int NCZ_szip_codec_modify(void*, size_t* nparamsp, unsigned** paramsp);
 static int NCZ_szip_codec_to_hdf5(void*, const char* codec, size_t* nparamsp, unsigned** paramsp);
@@ -274,7 +274,7 @@ done:
 
 /**************************************************/
 
-#ifdef ENABLE_SZIP
+#ifdef USE_SZIP
 
 static NCZ_codec_t NCZ_szip_codec = {
   NCZ_CODEC_CLASS_VER,	/* Struct version number */
@@ -473,7 +473,7 @@ done:
     return stat;
 }
 
-#endif /*ENABLE_SZIP*/
+#endif /*USE_SZIP*/
 
 /**************************************************/
 
@@ -481,7 +481,7 @@ NCZ_codec_t* NCZ_default_codecs[] = {
 &NCZ_shuffle_codec,
 &NCZ_fletcher32_codec,
 &NCZ_zlib_codec,
-#ifdef ENABLE_SZIP
+#ifdef USE_SZIP
 &NCZ_szip_codec,
 #endif
 NULL

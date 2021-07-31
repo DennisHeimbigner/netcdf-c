@@ -835,7 +835,16 @@ IF(USE_HDF5)
   #option to include HDF5 High Level header file (hdf5_hl.h) in case we are not doing a make install
   INCLUDE_DIRECTORIES(${HDF5_HL_INCLUDE_DIR})
 
-
+ELSE(!USE_HDF5)
+      # If user has specified the `SZIP_LIBRARY`, use it; otherwise try to find...
+    IF(NOT SZIP_LIBRARY)
+      FIND_LIBRARY(SZIP PATH NAMES szip sz)
+      SET(SZIP_LIBRARY ${SZIP})
+      IF(NOT SZIP)
+        MESSAGE("SZIP no found; disabling")
+      ENDIF()
+    ENDIF()
+    SET(CMAKE_REQUIRED_LIBRARIES ${SZIP_LIBRARY} ${CMAKE_REQUIRED_LIBRARIES})
 ENDIF(USE_HDF5)
 
 # See if we have libcurl
@@ -964,8 +973,6 @@ IF(Blosc_FOUND)
 ELSE()
   SET(ENABLE_BLOSC FALSE)
 ENDIF()
-
-SET(ENABLE_SZIP ${USE_SZIP})
 
 # See if we have libzip
 FIND_PACKAGE(Zip)

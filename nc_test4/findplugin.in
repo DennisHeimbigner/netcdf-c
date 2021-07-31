@@ -59,7 +59,7 @@ fi
 # This can probably be simplified
 
 CURWD=`pwd`
-cd ../plugins
+cd ${TOPBUILDDIR}/plugins
 FP_PLUGINS=`pwd`
 cd ${CURWD}
 

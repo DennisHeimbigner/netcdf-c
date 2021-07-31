@@ -20,7 +20,7 @@
 #include <math.h>
 #include "netcdf_filter_build.h"
 
-#ifdef ENABLE_SZIP
+#ifdef USE_SZIP
 
 #include <szlib.h>
 #include "H5Zszip.h"
@@ -344,4 +344,4 @@ done:
     FUNC_LEAVE_NOAPI(ret_value)
 }
 
-#endif /* ENABLE_SZIP */
+#endif /* USE_SZIP */

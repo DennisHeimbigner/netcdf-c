@@ -363,7 +363,8 @@ NCZarr has three constraints that must be met.
 First, it must store its filter information in its metadata in the above JSON dictionary format.
 Second, it is convenient to share filter implementations with HDF5, so NCZarr expects to use many of the existing HDF5 filter implementations.
 This means that some mechanism is needed to translate between the HDF5 id+parameter model and the Zarr JSON dictionary model.
-Third, it must be possible to modify the set of initial parammeters in response to environment information such as the type of the associated variable; this is required to mimic the corresponding HDF5 capability.
+Third, it must be possible to modify the set of visible parameters in response to environment information such as the type of the associated variable; this is required to mimic the corresponding HDF5 capability.
+Note that the term "visible parameters" refers to the parameters provided by "nc_def_var_filter" or those stored in the dataset's metadata as provided by the JSON codec. The term working parameters will refer to the parameters given to the compressor itself.
 
 The standard authority for defining Zarr filters is the list supported by the NumCodecs project [7].
 Comparing the set of standard filters (aka codecs) defined by NumCodecs to the set of standard filters defined by HDF5 [3], it can be seen that the two sets overlap, but each has filters not defined by the other.
@@ -380,23 +381,35 @@ The shared library exports a well-known function name to access Codec informatio
 There are several paths by which the NCZarr filter API is invoked.
 
 1. The nc_def_var_filter function is invoked on a variable.
-2. The metadata for a variable is read when opening an existing variable that has associated Codecs.
-3. The dataset is closed.
+1a. The metadata for a variable is read when opening an existing variable that has associated Codecs.
+2. The visible parameters are converted to a set of working parameters.
+3. The working parameters are converted to a set of visible parameters.
+4. The dataset is closed using the final set of visible parameters.
 
-### Case 1: Invoking nc_def_var_filter
+### Step 1: Invoking nc_def_var_filter
 
-In this case, the filter plugin is located and the set of initial parameters (from nc_def_var_filter) may optionally be modified before they are stored. The modified parameters are termed the "working" parameters.
+In this case, the filter plugin is located and the set of visible parameters (from nc_def_var_filter) are provided.
 
-### Case 2: Reading metadata
+### Step 1a: Reading metadata
 
-In this case, the codec is read from the metadata and must be converted to an initial set of HDF5 style parameters.
-It is possible that this set of initial parameters differs from the set that was provided by nc_def_var_filter.
+In this case, the codec is read from the metadata and must be converted to a visible set of HDF5 style parameters.
+It is possible that this set of visible parameters differs from the set that was provided by nc_def_var_filter.
 If this is important, then the filter implementation is responsible for marking this difference using, for example, different number of parameters or some differing value.
 
-### Case 3: Closing the dataset
+### Step 2: Convert visible parameters to working parameters
 
+Given environmental information such as the associated variables base type, the visible parameters
+are converted to a potentially larger set of working parameters.
 
+### Step 3: Convert working parameters to visible parameters
 
+During the closing of a dataset, the set of working parameters are converted to a set of visible parameters.
+
+### Step 3: Closing the dataset
+
+The visible parameters from step 3 are stored in the dataset's metadata.
+As part of step 3, it is desirable to determine if the set of visible parameters changes. If no change is
+detected, then re-writing the compressor metadata may be avoided.
 
 ## Client API
 
@@ -404,7 +417,7 @@ Currently, there is no way to specify use of a filter via Codec through
 the netcdf-c API. Rather, one must know the HDF5 id and parameters of
 the filter of interest and use the functions ''nc_def_var_filter'' and ''nc_inq_var_filter''.
 Internally, the NCZarr code will use information about known Codecs to convert the HDF5 filter reference to the corresponding Codec.
-This restriction also hold for the specification of filters in ''ncgen'' and ''nccopy''.
+This restriction also holds for the specification of filters in ''ncgen'' and ''nccopy''.
 
 ## Special Codecs Attribute
 
@@ -444,7 +457,7 @@ The netcdf-c library processes all of the shared libraries by interrogating each
 Any libraries that do not export one or both of the well-known APIs is ignored.
 
 Internally, the netcdf-c library pairs up each HDF5 library API with a corresponding Codec API by invoking the relevant well-known functions
-(See <a href="#AppendixA">Appendix A</a>).
+(See <a href="#appendixe">Appendix E</a>).
 This results in this table for associated codec and hdf5 libraries.
 <table>
 <tr><th>HDF5 API<th>Codec API<th>Action
@@ -467,7 +480,7 @@ The netcdf-c library examines its list of known filters to find one matching the
 The set of parameters provided is stored internally.
 Then during writing of data, the corresponding HDF5 filter is invoked to encode the data.
 
-When it comes time to write out the meta-data, the stored HDF5-style parameters are passed to a specific Codec function to obtain the corresponding JSON representation. Again see <a href="#AppendixA">Appendix A</a>.
+When it comes time to write out the meta-data, the stored HDF5-style parameters are passed to a specific Codec function to obtain the corresponding JSON representation. Again see <a href="#appendixe">Appendix E</a>.
 This resulting JSON is then written in the NCZarr metadata. 
 
 ### Reading an NCZarr Container
@@ -479,8 +492,6 @@ Given a JSON Codec, it is parsed to provide a JSON dictionary containing the str
 The netcdf-c library examines its list of known filters to find one matching the Codec "id" string.
 The JSON is passed to a Codec function to obtain the corresponding HDF5-style *unsigned int* parameter vector.
 These parameters are stored for later use.
-
-When it comes time to read the data, the stored HDF5-style filter is invoked with the parameters already produced and stored.
 
 ## Supporting Filter Chains
 
@@ -530,7 +541,7 @@ This can be accomplished using this command.
 ncdump -s -h <dataset filename>
 ````
 Since ncdump is not being asked to access the data (the -h flag), it can obtain the filter information without failures.
-Then it can print out the filter id and the parameters (the -s flag).
+Then it can print out the filter id and the parameters as well as the Codecs (via the -s flag).
 
 ## Test Cases {#filters_TestCase}
 
@@ -798,17 +809,14 @@ typedef struct NCZ_codec_t {
                  Currently always NCZ_CODEC_HDF5 */
     const char* codecid;            /* The name/id of the codec */
     unsigned int hdf5id; /* corresponding hdf5 id */
-    int (*NCZ_codec_to_hdf5)(void* context, const char* codec, int* nparamsp, unsigned** paramsp);
-    int (*NCZ_hdf5_to_codec)(void* context, int nparams, const unsigned* params, char** codecp);
-    int (*NCZ_codec_setup)(int ncid, int varid, void** contextp, size_t* nparamsp, unsigned** paramsp);
-    int (*NCZ_codec_modify)(void* context, size_t* nparamsp, unsigned** paramsp);
-    int (*NCZ_codec_cleanup)(void* context);
+    int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
+    int (*NCZ_hdf5_to_codec)(int ncid, int varid, size_t nparams, const unsigned* params, char** codecp);
+    int (*NCZ_codec_working)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+    int (*NCZ_codec_visible)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+    void (*NCZ_codec_initialize)(void);
     void (*NCZ_codec_finalize)(void);
 } NCZ_codec_t;
 ````
-Most of the function in the above struct take a ''context'' parameter.
-This is somewhat similar to the ''H5Z_set_local'' function in the HDF5 struct.
-It can be NULL, but it is in general an object containing environmental information such as the type of the controlling variable.
 
 The semantics of the non-function fields is as follows:
 
@@ -819,70 +827,79 @@ The semantics of the non-function fields is as follows:
 
 ### NCZ_codec_to_hdf5
 
-Given a JSON Codec representation, it will return a corresponding vector of unsigned integers for use with HDF5.
+Given a JSON Codec representation, it will return a corresponding vector of unsigned integers representing the
+visible parameters.
 
 #### Signature
-    int (*NCZ_codec_to_hdf5)(void* context, const char* codec, int* nparamsp, unsigned** paramsp);
+    int (*NCZ_codec_to_hdf)(const char* codec, int* nparamsp, unsigned** paramsp);
 
 #### Arguments
-1. context -- (in) any context information
-2. codec -- (in) ptr to JSON string representing the codec.
-3. nparamsp -- (out) store the length of the converted HDF5 unsigned vector
-4. paramsp -- (out) store a pointer to the converted HDF5 unsigned vector; caller must free the returned vector. Note the double indirection.
+1. codec -- (in) ptr to JSON string representing the codec.
+2. nparamsp -- (out) store the length of the converted HDF5 unsigned vector
+3. paramsp -- (out) store a pointer to the converted HDF5 unsigned vector; caller must free the returned vector. Note the double indirection.
 
 Return Value: a netcdf-c error code.
 
 ### NCZ_hdf5_to_codec
 
-Given an HDF5 vector of unsigned integers and it length, return the corresponding JSON codec representation.
+Given an HDF5 visible parameters vector of unsigned integers and its length,
+return a corresponding JSON codec representation of those visible parameters.
 
 #### Signature
-    int (*NCZ_hdf5_to_codec)(void* context, int nparamsp, unsigned* paramsp, char** codecp);
+    int (*NCZ_hdf5_to_codec)(int ncid, int varid, size_t nparams, const unsigned* params, char** codecp);
 
 #### Arguments
-1. context -- (in) any context information
-2. nparams -- (in) the length of the HDF5 unsigned vector
-3. params -- (in) pointer to the HDF5 unsigned vector.
-4. codecp -- (out) store the string representation of the codec; caller must free.
+1. ncid    -- the variables' containing group
+2. varid   -- the containing variable
+3. nparams -- (in) the length of the HDF5 visible parameters vector
+4. params -- (in) pointer to the HDF5 visible parameters vector.
+5. codecp -- (out) store the string representation of the codec; caller must free.
 
 Return Value: a netcdf-c error code.
 
-### NCZ_codec_setup
+### NCZ_codec_working
 
-Extract environment information from the (ncid,varid) and return it in the context argument. Invoked as part of ''nc_def_var_filter''.
+Extract environment information from the (ncid,varid) and use it to convert a set of visible parameters
+to a set of working parameters.
 
 #### Signature
-    int (*NCZ_codec_setup)(int ncid, int varid, void** contextp);
+    int (*NCZ_codec_working)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
 
 #### Arguments
 1. ncid -- (in) group id containing the variable.
 2. varid -- (in) the id of the variable to which this filter is being attached.
-3. contextp -- (out) store a pointer to a created context object into this location.
+3. nparamsin -- (in) the count of visible parameters
+4. paramsin -- (in) the set of visible parameters
+5. nparamsp -- (out) the count of working parameters
+4. paramsp -- (out) the set of working parameters
 
 Return Value: a netcdf-c error code.
 
-### NCZ_codec_modify
+### NCZ_codec_visible
 
-Modify the set of parameters provided to the HDF5 filter.
-
-#### Signature
-    int (*NCZ_codec_modify)(void* context, size_t* nparamsp, unsigned** paramsp);
-
-1. context -- (in) the context object created by ''NCZ_codec_setup''.
-2. nparamsp -- (in/out) initial value is the number of parameters, final value is the modified number of parameters.
-3. paramsp  -- (in/out) initial value is the parameters, final value is the modified parameters; if changed, then this function must free the old initial one.
-
-Return Value: a netcdf-c error code.
-
-### NCZ_codec_cleanup
-
-Reclaim the context object and any other resources allocated by the ''NCZ_codec_setup'' function. This is invoked when the dataset is closed. Note that this is not the same as ''NCZ_codec_finalize'' (see below).
+This is the inverse function for NCZ_codec_working. It converts a set of working parameters
+back to a set of visible parameters.
 
 #### Signature
-    int (*NCZ_codec_cleanup)(void* context);
+    int (*NCZ_codec_visible)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
 
 #### Arguments
-1. context -- (in) the context object created by ''NCZ_codec_setup''.
+1. ncid -- (in) group id containing the variable.
+2. varid -- (in) the id of the variable to which this filter is being attached.
+3. nparamsin -- (in) the count of working parameters
+4. paramsin -- (in) the set of working parameters
+5. nparamsp -- (out) the count of visible parameters
+4. paramsp -- (out) the set of visible parameters
+
+Return Value: a netcdf-c error code.
+
+### NCZ_codec_initialize
+
+Some compressors may require library initialization.
+This function is called as soon as a shared library is loaded and matched with an HDF5 filter.
+
+#### Signature
+    int (*NCZ_codec_initialize)(void);
 
 Return Value: a netcdf-c error code.
 

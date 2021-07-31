@@ -586,16 +586,6 @@ fi
 AC_MSG_CHECKING([whether libblosc library is available])
 AC_MSG_RESULT([${enable_blosc}])
 
-# See if we have libsz
-AC_CHECK_LIB([sz],[SZ_BufftoBuffCompress],[enable_szip=yes],[enable_szip=no])
-if test "x$enable_szip" = "xyes" ; then
-   AC_SEARCH_LIBS([SZ_BufftoBuffCompress],[sz sz.dll cygsz.dll], [], [])
-   AC_DEFINE([ENABLE_SZIP], [1], [if true, szip library is available])
-   AC_DEFINE([USE_SZIP], [1], [if true, szip library is available]) # alias
-fi
-AC_MSG_CHECKING([whether szip library is available])
-AC_MSG_RESULT([${enable_szip}])
-
 # See if we have libzip
 AC_CHECK_LIB([zip],[zip_open],[have_zip=yes],[have_zip=no])
 if test "x$have_zip" = "xyes" ; then
@@ -1346,6 +1336,16 @@ if test "x$enable_hdf5" = xyes; then
   if test "x$hdf5_version_1106" = xyes; then
       AC_DEFINE([HDF5_UTF8_PATHS], [1], [if true, HDF5 paths can be utf-8])
    fi
+
+else # !enable_hdf5
+  # See if we have libsz
+  AC_CHECK_LIB([sz],[SZ_BufftoBuffCompress],[enable_szlib=yes],[enable_szlib=no])
+  if test "x$enable_szlib" = "xyes" ; then
+    AC_SEARCH_LIBS([SZ_BufftoBuffCompress],[sz sz.dll cygsz.dll], [], [])
+    AC_DEFINE([USE_SZIP], [1], [if true, szip library is available])
+  fi
+  AC_MSG_CHECKING([whether szip library is available])
+  AC_MSG_RESULT([${enable_szlib}])
 fi
 
 AM_CONDITIONAL(ENABLE_NCDUMPCHUNKS, [test "x$has_readchunks" = xyes ])
