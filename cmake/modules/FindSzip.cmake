@@ -1,64 +1,179 @@
-# Searches for an installation of the szip library. On success, it sets the following variables:
+
+# - Find SZIP library
+# - Derived from the FindTiff.cmake that is included with cmake
+# Find the native SZIP includes and library
+# This module defines
+#  SZIP_INCLUDE_DIRS, where to find tiff.h, etc.
+#  SZIP_LIBRARIES, libraries to link against to use SZIP.
+#  SZIP_FOUND, If false, do not try to use SZIP.
+#    also defined, but not for general use are
+#  SZIP_LIBRARY, where to find the SZIP library.
+#  SZIP_LIBRARY_DEBUG - Debug version of SZIP library
+#  SZIP_LIBRARY_RELEASE - Release Version of SZIP library
+
+# MESSAGE (STATUS "Finding SZIP library and headers..." )
+
+############################################
 #
-#   Szip_FOUND              Set to true to indicate the szip library was found
-#   Szip_INCLUDE_DIRS       The directory containing the header file szip/szip.h
-#   Szip_LIBRARIES          The libraries needed to use the szip library
+# Check the existence of the libraries.
 #
-# To specify an additional directory to search, set Szip_ROOT.
-#
-# Author: Siddhartha Chaudhuri, 2009
-#
+############################################
+# This macro was taken directly from the FindQt4.cmake file that is included
+# with the CMake distribution. This is NOT my work. All work was done by the
+# original authors of the FindQt4.cmake file. Only minor modifications were
+# made to remove references to Qt and make this file more generally applicable
+#########################################################################
 
-# Look for the header, first in the user-specified location and then in the system locations
-SET(Szip_INCLUDE_DOC "The directory containing the header file szip.h")
-FIND_PATH(Szip_INCLUDE_DIRS NAMES szlib.h szip/szlib.h PATHS ${Szip_ROOT} ${Szip_ROOT}/include DOC ${Szip_INCLUDE_DOC})
-IF(NOT Szip_INCLUDE_DIRS)  # now look in system locations
-  FIND_PATH(Szip_INCLUDE_DIRS NAMES szlib.h szip/szlib.h DOC ${Szip_INCLUDE_DOC})
-ENDIF(NOT Szip_INCLUDE_DIRS)
+MACRO (SZIP_ADJUST_LIB_VARS basename)
+  IF (${basename}_INCLUDE_DIR)
 
-SET(Szip_FOUND FALSE)
+    # if only the release version was found, set the debug variable also to the release version
+    IF (${basename}_LIBRARY_RELEASE AND NOT ${basename}_LIBRARY_DEBUG)
+      SET (${basename}_LIBRARY_DEBUG ${${basename}_LIBRARY_RELEASE})
+      SET (${basename}_LIBRARY       ${${basename}_LIBRARY_RELEASE})
+      SET (${basename}_LIBRARIES     ${${basename}_LIBRARY_RELEASE})
+    ENDIF (${basename}_LIBRARY_RELEASE AND NOT ${basename}_LIBRARY_DEBUG)
 
-IF(Szip_INCLUDE_DIRS)
-  SET(Szip_LIBRARY_DIRS ${Szip_INCLUDE_DIRS})
+    # if only the debug version was found, set the release variable also to the debug version
+    IF (${basename}_LIBRARY_DEBUG AND NOT ${basename}_LIBRARY_RELEASE)
+      SET (${basename}_LIBRARY_RELEASE ${${basename}_LIBRARY_DEBUG})
+      SET (${basename}_LIBRARY         ${${basename}_LIBRARY_DEBUG})
+      SET (${basename}_LIBRARIES       ${${basename}_LIBRARY_DEBUG})
+    ENDIF (${basename}_LIBRARY_DEBUG AND NOT ${basename}_LIBRARY_RELEASE)
+    IF (${basename}_LIBRARY_DEBUG AND ${basename}_LIBRARY_RELEASE)
+      # if the generator supports configuration types then set
+      # optimized and debug libraries, or if the CMAKE_BUILD_TYPE has a value
+      IF (CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
+	SET (${basename}_LIBRARY       optimized ${${basename}_LIBRARY_RELEASE} debug ${${basename}_LIBRARY_DEBUG})
+      ELSE(CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
+	# if there are no configuration types and CMAKE_BUILD_TYPE has no value
+	# then just use the release libraries
+	SET (${basename}_LIBRARY       ${${basename}_LIBRARY_RELEASE} )
+      ENDIF (CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
+      SET (${basename}_LIBRARIES       optimized ${${basename}_LIBRARY_RELEASE} debug ${${basename}_LIBRARY_DEBUG})
+    ENDIF (${basename}_LIBRARY_DEBUG AND ${basename}_LIBRARY_RELEASE)
 
-  IF("${Szip_LIBRARY_DIRS}" MATCHES "/include$")
-    # Strip off the trailing "/include" in the path.
-    GET_FILENAME_COMPONENT(Szip_LIBRARY_DIRS ${Szip_LIBRARY_DIRS} PATH)
-  ENDIF("${Szip_LIBRARY_DIRS}" MATCHES "/include$")
+    SET (${basename}_LIBRARY ${${basename}_LIBRARY} CACHE FILEPATH "The ${basename} library")
 
-  IF(EXISTS "${Szip_LIBRARY_DIRS}/lib")
-    SET(Szip_LIBRARY_DIRS ${Szip_LIBRARY_DIRS}/lib)
-  ENDIF(EXISTS "${Szip_LIBRARY_DIRS}/lib")
+    IF (${basename}_LIBRARY)
+      SET (${basename}_FOUND 1)
+    ENDIF (${basename}_LIBRARY)
 
-  # Find Szip libraries
-  FIND_LIBRARY(Szip_DEBUG_LIBRARY NAMES szd sz_d libszd libsz_d libsz
-               PATH_SUFFIXES Debug ${CMAKE_LIBRARY_ARCHITECTURE} ${CMAKE_LIBRARY_ARCHITECTURE}/Debug
-               PATHS ${Szip_LIBRARY_DIRS})
-  FIND_LIBRARY(Szip_RELEASE_LIBRARY NAMES sz libsz
-               PATH_SUFFIXES Release ${CMAKE_LIBRARY_ARCHITECTURE} ${CMAKE_LIBRARY_ARCHITECTURE}/Release
-               PATHS ${Szip_LIBRARY_DIRS})
+  ENDIF (${basename}_INCLUDE_DIR )
 
-  SET(Szip_LIBRARIES )
-  IF(Szip_DEBUG_LIBRARY AND Szip_RELEASE_LIBRARY)
-    SET(Szip_LIBRARIES debug ${Szip_DEBUG_LIBRARY} optimized ${Szip_RELEASE_LIBRARY})
-  ELSEIF(Szip_DEBUG_LIBRARY)
-    SET(Szip_LIBRARIES ${Szip_DEBUG_LIBRARY})
-  ELSEIF(Szip_RELEASE_LIBRARY)
-    SET(Szip_LIBRARIES ${Szip_RELEASE_LIBRARY})
-  ENDIF(Szip_DEBUG_LIBRARY AND Szip_RELEASE_LIBRARY)
+  # Make variables changeble to the advanced user
+  MARK_AS_ADVANCED (${basename}_LIBRARY ${basename}_LIBRARY_RELEASE ${basename}_LIBRARY_DEBUG ${basename}_INCLUDE_DIR )
+ENDMACRO (SZIP_ADJUST_LIB_VARS)
 
-  IF(Szip_LIBRARIES)
-    SET(Szip_FOUND TRUE)
-  ENDIF(Szip_LIBRARIES)
-ENDIF(Szip_INCLUDE_DIRS)
 
-IF(Szip_FOUND)
-#  IF(NOT Szip_FIND_QUIETLY)
-    MESSAGE(STATUS "Found Szip: headers at ${Szip_INCLUDE_DIRS}, libraries at ${Szip_LIBRARY_DIRS}")
-    MESSAGE(STATUS "	library is ${Szip_LIBRARIES}")    
-#  ENDIF(NOT Szip_FIND_QUIETLY)
-ELSE(Szip_FOUND)
-  IF(Szip_FIND_REQUIRED)
-    MESSAGE(FATAL_ERROR "Szip library not found")
-  ENDIF(Szip_FIND_REQUIRED)
-ENDIF(Szip_FOUND)
+# Look for the header file.
+SET (SZIP_INCLUDE_SEARCH_DIRS
+    $ENV{SZIP_INSTALL}/include
+    $ENV{SZIP_INSTALL}/include/szip
+    /usr/include
+    /usr/include/szip
+)
+
+SET (SZIP_LIB_SEARCH_DIRS
+    $ENV{SZIP_INSTALL}/lib
+    /usr/lib
+)
+
+SET (SZIP_BIN_SEARCH_DIRS
+    $ENV{SZIP_INSTALL}/bin
+    /usr/bin
+)
+
+FIND_PATH (SZIP_INCLUDE_DIR
+    NAMES szlib.h
+    PATHS ${SZIP_INCLUDE_SEARCH_DIRS}
+    NO_DEFAULT_PATH
+)
+
+IF (WIN32 AND NOT MINGW)
+    SET (SZIP_SEARCH_DEBUG_NAMES "sz_d;libsz_d")
+    SET (SZIP_SEARCH_RELEASE_NAMES "sz;libsz;szip")
+ELSE (WIN32 AND NOT MINGW)
+    SET (SZIP_SEARCH_DEBUG_NAMES "sz_d")
+    SET (SZIP_SEARCH_RELEASE_NAMES "sz")
+ENDIF (WIN32 AND NOT MINGW)
+
+# Look for the library.
+FIND_LIBRARY (SZIP_LIBRARY_DEBUG
+    NAMES ${SZIP_SEARCH_DEBUG_NAMES}
+    PATHS ${SZIP_LIB_SEARCH_DIRS}
+    NO_DEFAULT_PATH
+)
+
+FIND_LIBRARY (SZIP_LIBRARY_RELEASE
+    NAMES ${SZIP_SEARCH_RELEASE_NAMES}
+    PATHS ${SZIP_LIB_SEARCH_DIRS}
+    NO_DEFAULT_PATH
+)
+
+SZIP_ADJUST_LIB_VARS (SZIP)
+
+IF (SZIP_INCLUDE_DIR AND SZIP_LIBRARY)
+  SET (SZIP_FOUND 1)
+  SET (SZIP_LIBRARIES ${SZIP_LIBRARY})
+  SET (SZIP_INCLUDE_DIRS ${SZIP_INCLUDE_DIR})
+  IF (SZIP_LIBRARY_DEBUG)
+    GET_FILENAME_COMPONENT (SZIP_LIBRARY_PATH ${SZIP_LIBRARY_DEBUG} PATH)
+    SET (SZIP_LIB_DIR  ${SZIP_LIBRARY_PATH})
+  ELSEIF (SZIP_LIBRARY_RELEASE)
+    GET_FILENAME_COMPONENT (SZIP_LIBRARY_PATH ${SZIP_LIBRARY_RELEASE} PATH)
+    SET (SZIP_LIB_DIR  ${SZIP_LIBRARY_PATH})
+  ENDIF (SZIP_LIBRARY_DEBUG)
+
+ELSE (SZIP_INCLUDE_DIR AND SZIP_LIBRARY)
+  SET (SZIP_FOUND 0)
+  SET (SZIP_LIBRARIES)
+  SET (SZIP_INCLUDE_DIRS)
+ENDIF (SZIP_INCLUDE_DIR AND SZIP_LIBRARY)
+
+# Report the results.
+IF (NOT SZIP_FOUND)
+  SET (SZIP_DIR_MESSAGE
+      "SZip was not found. Make sure SZIP_LIBRARY and SZIP_INCLUDE_DIR are set or set the SZIP_INSTALL environment variable."
+  )
+  IF (NOT SZIP_FIND_QUIETLY)
+    MESSAGE (STATUS "${SZIP_DIR_MESSAGE}")
+  ELSE (NOT SZIP_FIND_QUIETLY)
+    IF (SZIP_FIND_REQUIRED)
+      MESSAGE (FATAL_ERROR "SZip was NOT found and is Required by this project")
+    ENDIF (SZIP_FIND_REQUIRED)
+  ENDIF (NOT SZIP_FIND_QUIETLY)
+ENDIF (NOT SZIP_FOUND)
+
+IF (SZIP_FOUND)
+  INCLUDE (CheckSymbolExists)
+  #############################################
+  # Find out if SZIP was build using dll's
+  #############################################
+  # Save required variable
+  SET (CMAKE_REQUIRED_INCLUDES_SAVE ${CMAKE_REQUIRED_INCLUDES})
+  SET (CMAKE_REQUIRED_FLAGS_SAVE    ${CMAKE_REQUIRED_FLAGS})
+  # Add SZIP_INCLUDE_DIR to CMAKE_REQUIRED_INCLUDES
+  SET (CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES};${SZIP_INCLUDE_DIRS}")
+
+  CHECK_SYMBOL_EXISTS (SZIP_BUILT_AS_DYNAMIC_LIB "SZconfig.h" HAVE_SZIP_DLL)
+
+  IF (HAVE_SZIP_DLL STREQUAL "TRUE")
+    SET (HAVE_SZIP_DLL "1")
+  ENDIF (HAVE_SZIP_DLL STREQUAL "TRUE")
+
+  # Restore CMAKE_REQUIRED_INCLUDES and CMAKE_REQUIRED_FLAGS variables
+  SET (CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES_SAVE})
+  SET (CMAKE_REQUIRED_FLAGS    ${CMAKE_REQUIRED_FLAGS_SAVE})
+  #
+  #############################################
+ENDIF (SZIP_FOUND)
+
+IF (FIND_SZIP_DEBUG)
+  MESSAGE (STATUS "SZIP_INCLUDE_DIR: ${SZIP_INCLUDE_DIR}")
+  MESSAGE (STATUS "SZIP_INCLUDE_DIRS: ${SZIP_INCLUDE_DIRS}")
+  MESSAGE (STATUS "SZIP_LIBRARY_DEBUG: ${SZIP_LIBRARY_DEBUG}")
+  MESSAGE (STATUS "SZIP_LIBRARY_RELEASE: ${SZIP_LIBRARY_RELEASE}")
+  MESSAGE (STATUS "HAVE_SZIP_DLL: ${HAVE_SZIP_DLL}")
+  MESSAGE (STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+ENDIF (FIND_SZIP_DEBUG)
