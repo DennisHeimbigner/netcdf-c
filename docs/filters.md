@@ -809,12 +809,12 @@ typedef struct NCZ_codec_t {
                  Currently always NCZ_CODEC_HDF5 */
     const char* codecid;            /* The name/id of the codec */
     unsigned int hdf5id; /* corresponding hdf5 id */
-    int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
-    int (*NCZ_hdf5_to_codec)(int ncid, int varid, size_t nparams, const unsigned* params, char** codecp);
-    int (*NCZ_codec_working)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
-    int (*NCZ_codec_visible)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
     void (*NCZ_codec_initialize)(void);
     void (*NCZ_codec_finalize)(void);
+    int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
+    int (*NCZ_hdf5_to_codec)(size_t nparams, const unsigned* params, char** codecp);
+    int (*NCZ_working_parameters)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+    int (*NCZ_visible_parameters)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
 } NCZ_codec_t;
 ````
 

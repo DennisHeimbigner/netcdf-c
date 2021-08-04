@@ -160,11 +160,12 @@ static NCZ_codec_t NCZ_noop_codec = {/* NCZ_codec_t  codec fields */
   "noop1",	        /* Standard name/id of the codec */
   H5Z_FILTER_NOOP+1,     /* HDF5 alias for noop */
 #endif
+  NULL, /*NCZ_noop_codec_initialize*/
+  NULL, /*NCZ_noop_codec_finalize*/
   NCZ_noop_codec_to_hdf5,
   NCZ_noop_hdf5_to_codec,
-  NULL,
-  NULL,
-  NULL,
+  NULL, /*NCZ_noop_working_parameters*/
+  NULL, /*NCZ_noop_visible_parameters*/
 };
 
 /* External Export API */
@@ -178,7 +179,7 @@ NCZ_get_codec_info(void)
 /* NCZarr Interface Functions */
 
 static int
-NCZ_noop_codec_to_hdf5(void* context, const char* codec_json, size_t* nparamsp, unsigned** paramsp)
+NCZ_noop_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
@@ -186,8 +187,6 @@ NCZ_noop_codec_to_hdf5(void* context, const char* codec_json, size_t* nparamsp, 
     int i,nparams = 0;
     unsigned* params = NULL;
     char field[1024];
-
-    NC_UNUSED(context);
 
     /* parse the JSON */
     if(NCJparse(codec_json,0,&jcodec))
@@ -227,13 +226,11 @@ done:
 }
 
 static int
-NCZ_noop_hdf5_to_codec(void* context, size_t nparams, const unsigned* params, char** codecp)
+NCZ_noop_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
 {
     int i,stat = NC_NOERR;
     char json[8192];
     char value[1024];
-
-    NC_UNUSED(context);
 
     if(nparams != 0 && params == NULL)
         {stat = NC_EINVAL; goto done;}

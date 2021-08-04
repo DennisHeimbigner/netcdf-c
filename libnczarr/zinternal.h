@@ -98,8 +98,8 @@ Inserted into any .zattrs ? or should it go into the container?
 #define ZCLOSE    1 /* this is closeorabort as opposed to enddef */
 
 /* Useful macro */
-#define ncidfor(file,hdrid) ((file)->controller->ext_ncid | (hdrid))
-
+#define ncidforx(file,hdrid) ((file)->controller->ext_ncid | (hdrid))
+#define ncidfor(var) ncidforx((var)->container->nc4_info,(var)->hdr.id)
 
 /**************************************************/
 /* Forward */

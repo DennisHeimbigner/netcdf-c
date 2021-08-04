@@ -521,7 +521,7 @@ put_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
 	NClist* filterchain = (NClist*)var->filters;
 	if(nclistlength(filterchain) > 0) {
 	    /* Apply the filter chain to get the filtered data */
-	    if((stat = NCZ_applyfilterchain(filterchain,entry->size,entry->data,&flen,&filtered,ENCODING))) goto done;
+	    if((stat = NCZ_applyfilterchain(var,filterchain,entry->size,entry->data,&flen,&filtered,ENCODING))) goto done;
 	    /* Fix up the cache entry */
 	    /* Note that if filtered is different from entry->data, then entry->data will have been freed */
 	    entry->data = filtered;
