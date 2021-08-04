@@ -360,11 +360,14 @@ So it has three parameters:
 3. "shuffle" -- is the input shuffled before compression, yes (1) in this case.
 
 NCZarr has three constraints that must be met.
-First, it must store its filter information in its metadata in the above JSON dictionary format.
-Second, it is convenient to share filter implementations with HDF5, so NCZarr expects to use many of the existing HDF5 filter implementations.
+
+1. It must store its filter information in its metadata in the above JSON dictionary format.
+2. It is required to re-use the HDF5 filter implementations.
+This is to avoid having to rewrite the filter implementations
 This means that some mechanism is needed to translate between the HDF5 id+parameter model and the Zarr JSON dictionary model.
-Third, it must be possible to modify the set of visible parameters in response to environment information such as the type of the associated variable; this is required to mimic the corresponding HDF5 capability.
-Note that the term "visible parameters" refers to the parameters provided by "nc_def_var_filter" or those stored in the dataset's metadata as provided by the JSON codec. The term working parameters will refer to the parameters given to the compressor itself.
+3. It must be possible to modify the set of visible parameters in response to environment information such as the type of the associated variable; this is required to mimic the corresponding HDF5 capability.
+
+Note that the term "visible parameters" is used here to refer to the parameters provided by "nc_def_var_filter" or those stored in the dataset's metadata as provided by the JSON codec. The term "working parameters" refers to the parameters given to the compressor itself and derived from the visible parameters.
 
 The standard authority for defining Zarr filters is the list supported by the NumCodecs project [7].
 Comparing the set of standard filters (aka codecs) defined by NumCodecs to the set of standard filters defined by HDF5 [3], it can be seen that the two sets overlap, but each has filters not defined by the other.
@@ -380,11 +383,12 @@ The shared library exports a well-known function name to access Codec informatio
 
 There are several paths by which the NCZarr filter API is invoked.
 
-1. The nc_def_var_filter function is invoked on a variable.
-1a. The metadata for a variable is read when opening an existing variable that has associated Codecs.
+1. The nc_def_var_filter function is invoked on a variable or
+(1a) the metadata for a variable is read when opening an existing variable that has associated Codecs.
 2. The visible parameters are converted to a set of working parameters.
-3. The working parameters are converted to a set of visible parameters.
-4. The dataset is closed using the final set of visible parameters.
+3. The filter is invoked with the working parameters.
+4. The working parameters are converted to a set of visible parameters.
+5. The dataset is closed using the final set of visible parameters.
 
 ### Step 1: Invoking nc_def_var_filter
 
@@ -401,15 +405,19 @@ If this is important, then the filter implementation is responsible for marking 
 Given environmental information such as the associated variables base type, the visible parameters
 are converted to a potentially larger set of working parameters.
 
-### Step 3: Convert working parameters to visible parameters
+### Step 3: Invoking the filter
+
+As chunks are read or written, the filter is repeatedly invoked using the working parameters.
+
+### Step 4: Convert working parameters to visible parameters
 
 During the closing of a dataset, the set of working parameters are converted to a set of visible parameters.
 
-### Step 3: Closing the dataset
+### Step 5: Closing the dataset
 
-The visible parameters from step 3 are stored in the dataset's metadata.
-As part of step 3, it is desirable to determine if the set of visible parameters changes. If no change is
-detected, then re-writing the compressor metadata may be avoided.
+The visible parameters from step 2 are stored in the dataset's metadata.
+It is desirable to determine if the set of visible parameters changes.
+If no change is detected, then re-writing the compressor metadata may be avoided.
 
 ## Client API
 
