@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "nclist.h"
 
@@ -74,16 +75,20 @@ int
 nclistsetalloc(NClist* l, size_t sz)
 {
   void** newcontent = NULL;
+  size_t newalloc;
   if(l == NULL) return FALSE;
-  if(sz <= 0) {sz = (l->length?2*l->length:DEFAULTALLOC);}
-  if(l->alloc >= sz) {return TRUE;}
-  newcontent=(void**)calloc(sz,sizeof(void*));
+  if(sz <= 0) sz = DEFAULTALLOC;
+  newalloc = sz;
+  assert(newalloc > 0);
+  /* keep doubling */
+  while(l->alloc > newalloc) newalloc *= 2 ;
+  newcontent=(void**)calloc(newalloc,sizeof(void*));
   if(newcontent != NULL && l->alloc > 0 && l->length > 0 && l->content != NULL) {
     memcpy((void*)newcontent,(void*)l->content,sizeof(void*)*l->length);
   }
   if(l->content != NULL) free(l->content);
-  l->content=newcontent;
-  l->alloc=sz;
+  l->content = newcontent;
+  l->alloc = newalloc;
   return TRUE;
 }
 
