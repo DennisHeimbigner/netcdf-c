@@ -40,6 +40,8 @@
 #include "ncuri.h"
 #include "ncutf8.h"
 
+#undef NOWIDE
+
 #undef PATHFORMAT
 
 #ifdef _WIN32
@@ -132,6 +134,7 @@ NCpathcvt(const char* inpath)
     }
 
     if((stat = unparsepath(&canon,&tmp1))) {goto done;}
+
 done:
     if(pathdebug) {
         fprintf(stderr,"xxx: inpath=|%s| outpath=|%s|\n",
@@ -344,10 +347,15 @@ NCfopen(const char* path, const char* flags)
     wchar_t* wflags = NULL;
     cvtpath = NCpathcvt(path);
     if(cvtpath == NULL) return NULL;
+#ifdef NOWIDE
+    f = fopen(cvtpath,flags);
+#else
     /* Convert from local to wide */
     if((stat = utf82wide(cvtpath,&wpath))) goto done;    
     if((stat = ansi2wide(flags,&wflags))) goto done;    
     f = _wfopen(wpath,wflags);
+#endif
+
 done:
     nullfree(cvtpath);    
     nullfree(wpath);    
@@ -365,9 +373,14 @@ NCopen3(const char* path, int flags, int mode)
     wchar_t* wpath = NULL;
     cvtpath = NCpathcvt(path);
     if(cvtpath == NULL) goto done;
+#ifdef NOWIDE
+    fd = open(cvtpath,flags,mode);
+#else
     /* Convert from utf8 to wide */
     if((stat = utf82wide(cvtpath,&wpath))) goto done;    
     fd = _wopen(wpath,flags,mode);
+#endif
+
 done:
     nullfree(cvtpath);    
     nullfree(wpath);    
@@ -418,8 +431,13 @@ NCaccess(const char* path, int mode)
     wchar_t* wpath = NULL;
     if((cvtpath = NCpathcvt(path)) == NULL) 
         {status = EINVAL; goto done;}
+#ifdef NOWIDE
+    if(access(cvtpath,mode) < 0) {status = errno; goto done;}
+#else
     if((status = utf82wide(cvtpath,&wpath))) {status = ENOENT; goto done;}
     if(_waccess(wpath,mode) < 0) {status = errno; goto done;}
+#endif
+
 done:
     free(cvtpath);    
     free(wpath);    
@@ -435,8 +453,13 @@ NCremove(const char* path)
     char* cvtpath = NULL;
     wchar_t* wpath = NULL;
     if((cvtpath = NCpathcvt(path)) == NULL) {status=ENOMEM; goto done;}
+#ifdef NOWIDE
+    if(remove(cvtpath) < 0) {status = errno; goto done;}
+#else
     if((status = utf82wide(cvtpath,&wpath))) {status = ENOENT; goto done;}
     if(_wremove(wpath) < 0) {status = errno; goto done;}
+#endif
+
 done:
     free(cvtpath);    
     free(wpath);    
@@ -452,8 +475,12 @@ NCmkdir(const char* path, int mode)
     char* cvtpath = NULL;
     wchar_t* wpath = NULL;
     if((cvtpath = NCpathcvt(path)) == NULL) {status=ENOMEM; goto done;}
+#ifdef NOWIDE
+    if(mkdir(cvtpath) < 0) {status = errno; goto done;}
+#else
     if((status = utf82wide(cvtpath,&wpath))) {status = ENOENT; goto done;}
     if(_wmkdir(wpath) < 0) {status = errno; goto done;}
+#endif
 done:
     free(cvtpath);    
     free(wpath);    
@@ -546,8 +573,12 @@ NCstat(char* path, struct stat* buf)
     char* cvtpath = NULL;
     wchar_t* wpath = NULL;
     if((cvtpath = NCpathcvt(path)) == NULL) {status=ENOMEM; goto done;}
+#ifdef NOWIDE
+    if(_stat(cvtpath,buf) < 0) {status = errno; goto done;}
+#else
     if((status = utf82wide(cvtpath,&wpath))) {status = ENOENT; goto done;}
     if(_wstat(wpath,buf) < 0) {status = errno; goto done;}
+#endif
 done:
     free(cvtpath);    
     free(wpath);    
@@ -616,6 +647,8 @@ parsepath(const char* inpath, struct Path* path)
     memset(path,0,sizeof(struct Path));
 
     if(inpath == NULL) goto done; /* defensive driving */
+
+    if((stat = uncygwinize(inpath,&tmp1))) goto done;
 
     /* Convert to UTF8 */
 #if 0
@@ -797,10 +830,14 @@ getwdpath(struct Path* wd)
     memset(wd,0,sizeof(struct Path));
     {
 #ifdef _WIN32   
+#ifdef NOWIDE
+	path = getcwd(NULL,8192);
+#else
         wchar_t* wpath = NULL;
         wpath = _wgetcwd(NULL,8192);
         if((stat = wide2utf8(wpath,&path)))
             {nullfree(wpath); wpath = NULL; return stat;}
+#endif
 #else
         path = getcwd(NULL,8192);
 #endif
@@ -826,6 +863,30 @@ getlocalpathkind(void)
 	kind = NCPD_NIX;
 #endif
     return kind;
+}
+
+/* Cygwin sticks ^X characters into utf8 strings */
+static int
+uncygwinize(const char* inpath, char** outpathp)
+{
+    int stat = NC_NOERR;
+    char* outpath = NULL;
+
+    if(inpath != NULL) {
+	const char* p;
+	char* q;
+	size_t len = strlen(inpath);
+	if((outpath = (char*)malloc(len+1))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	for(p=inpath,q=outpath;	*p; p++) {
+	    if(*p != 24 /*^X*/) *q++ = *p;
+	}
+	*q = '\0';
+    }
+    if(*outpathp) {*outpathp = outpath; outpath = NULL;}
+done:
+    nullfree(outpath);
+    return stat;
 }
 
 #ifdef WINPATH

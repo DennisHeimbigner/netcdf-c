@@ -10,6 +10,10 @@ echo ""
 echo "*** Testing ncgen and ncdump for UTF8 support..."
 
 # Run tst_utf8.c to produce test file tst_utf8.nc.
+rm -f utf8b.log
+${execdir}/tst_utf8b > utf8b.log 2>1
+
+# Run tst_utf8.c to produce test file tst_utf8.nc.
 ${execdir}/tst_utf8
 
 # if test "x$builddir" = x ; then

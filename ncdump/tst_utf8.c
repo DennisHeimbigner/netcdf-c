@@ -52,7 +52,7 @@ main(int argc, char **argv)
 
    printf("\n*** Testing UTF-8.\n");
    printf("*** creating UTF-8 test file %s...", FILE7_NAME);
-  if (nc_create(FILE7_NAME, NC_CLOBBER, &ncid))
+   if(nc_create(FILE7_NAME, NC_CLOBBER, &ncid))
        ERR;
 
    /* Define dimension with Unicode UTF-8 encoded name */

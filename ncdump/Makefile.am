@@ -68,7 +68,7 @@ man_MANS = ncdump.1 nccopy.1
 if BUILD_TESTSETS
 # C programs needed by shell scripts for classic tests.
 check_PROGRAMS = rewrite-scalar ref_ctest ref_ctest64 ncdump tst_utf8   \
-bom tst_dimsizes nctrunc tst_rcmerge
+bom tst_dimsizes nctrunc tst_rcmerge tst_utf8b
 
 # Tests for classic and 64-bit offset files.
 TESTS = tst_inttags.sh run_tests.sh tst_64bit.sh ref_ctest	\
