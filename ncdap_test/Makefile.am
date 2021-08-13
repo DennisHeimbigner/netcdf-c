@@ -33,6 +33,7 @@ TESTS += t_dap3a test_cvt3 test_vara
 if BUILD_UTILITIES
 TESTS += tst_ncdap3.sh
 endif
+endif
 
 # remote tests are optional
 # because the server may be down or inaccessible
