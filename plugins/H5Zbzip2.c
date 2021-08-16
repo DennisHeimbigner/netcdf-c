@@ -235,6 +235,13 @@ static NCZ_codec_t NCZ_bzip2_codec = {/* NCZ_codec_t  codec fields */
   NULL, /*NCZ_bzip2_visible_parameters*/
 };
 
+/* External Export API */
+const void*
+NCZ_get_codec_info(void)
+{
+    return (void*)&NCZ_bzip2_codec;
+}
+
 static int
 NCZ_bzip2_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** paramsp)
 {

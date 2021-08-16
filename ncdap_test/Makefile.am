@@ -33,7 +33,6 @@ TESTS += t_dap3a test_cvt3 test_vara
 if BUILD_UTILITIES
 TESTS += tst_ncdap3.sh
 endif
-endif
 
 # remote tests are optional
 # because the server may be down or inaccessible
@@ -42,9 +41,7 @@ if ENABLE_DAP_REMOTE_TESTS
 noinst_PROGRAMS = findtestserver pingurl
 findtestserver_SOURCES = findtestserver.c
 pingurl_SOURCES = pingurl.c
-endif
 
-if ENABLE_DAP_REMOTE_TESTS
 if BUILD_UTILITIES
 TESTS += tst_ber.sh tst_remote3.sh tst_formatx.sh testurl.sh tst_fillmismatch.sh tst_zero_len_var.sh tst_encode.sh
 endif

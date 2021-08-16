@@ -146,8 +146,8 @@ H5Z_filter_noop(unsigned int flags, size_t cd_nelmts,
 */
 
 /* Forward */
-static int NCZ_noop_codec_to_hdf5(void*, const char* codec, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_noop_hdf5_to_codec(void*, size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_noop_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_noop_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
 
 /* Structure for NCZ_PLUGIN_CODEC */
 static NCZ_codec_t NCZ_noop_codec = {/* NCZ_codec_t  codec fields */ 

@@ -142,7 +142,6 @@ ref_rem.cdl ref_rem.dmp ref_ndims.cdl  ref_ndims.dmp \
 ref_misc1.cdl ref_misc1.dmp ref_misc2.cdl \
 ref_avail1.cdl ref_avail1.dmp ref_avail1.txt \
 ref_xarray.cdl ref_purezarr.cdl ref_purezarr_base.cdl ref_nczarr2zarr.cdl \
-<<<<<<< HEAD
 ref_bzip2.cdl ref_filtered.cdl ref_multi.cdl \
 ref_any.cdl ref_oldformat.cdl ref_oldformat.zip ref_newformatpure.cdl \
 ref_quotes.zip ref_quotes.cdl \

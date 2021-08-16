@@ -37,7 +37,7 @@ typedef struct NCZCacheEntry {
 } NCZCacheEntry;
 
 typedef struct NCZChunkCache {
-    const NC_VAR_INFO_T* var; /* backlink */
+    NC_VAR_INFO_T* var; /* backlink */
     size64_t ndims; /* true ndims == var->ndims + scalar */
     size64_t chunksize; /* for real data */
     void* fillchunk; /* enough fillvalues to fill a real chunk */

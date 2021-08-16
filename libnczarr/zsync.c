@@ -382,7 +382,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     if(nclistlength(filterchain) > 0) {
 	struct NCZ_Filter* filter = (struct NCZ_Filter*)nclistget(filterchain,nclistlength(filterchain)-1);
         /* encode up the compressor */
-        if((stat = NCZ_filter_jsonize(var,filter,&jtmp))) goto done;
+        if((stat = NCZ_filter_jsonize(file,var,filter,&jtmp))) goto done;
     } else { /* no filters at all */
         /* Default to null */ 
         if((stat = NCJnew(NCJ_NULL,&jtmp))) goto done;
@@ -404,7 +404,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 	for(k=0;k<nclistlength(filterchain)-1;k++) {
  	    struct NCZ_Filter* filter = (struct NCZ_Filter*)nclistget(filterchain,k);
 	    /* encode up the filter as a string */
-	    if((stat = NCZ_filter_jsonize(var,filter,&jfilter))) goto done;
+	    if((stat = NCZ_filter_jsonize(file,var,filter,&jfilter))) goto done;
 	    if((stat = NCJappend(jtmp,jfilter))) goto done;
 	}
     } else { /* no filters at all */
@@ -1639,6 +1639,15 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	/* Extract the dimids */
 	for(j=0;j<rank;j++)
 	    var->dimids[j] = var->dim[j]->hdr.id;
+
+	/* At this point, we can finalize the filters */
+	if(var->filters != NULL) {
+	    NClist* filters = (NClist*)var->filters;
+ 	    for(j=0;j<nclistlength(filters);j++) {
+		struct NCZ_Filter* f = (struct NCZ_Filter*)nclistget(filters,i);
+		if((stat = NCZ_filter_setup(file,var,f))) goto done;
+	    }	
+        }
 
 	/* Clean up from last cycle */
 	nclistfreeall(dimnames); dimnames = nclistnew();
