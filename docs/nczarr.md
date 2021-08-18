@@ -17,6 +17,10 @@ A note on terminology in this document.
 1. The term "dataset" is used to refer to all of the Zarr objects constituting
    the meta-data and data. 
 
+There are some important "caveats" of which to be aware when using this software.
+
+1. NCZarr currently is not thread-safe. So any attempt to use it with parallelism, including MPIO, is likely to fail.
+
 # The NCZarr Data Model {#nczarr_data_model}
 
 NCZarr uses a data model <a href="#ref_nczarr">[4]</a> that, by design, extends the Zarr Version 2 Specification <a href="#ref_zarrv2">[6]</a> to add support for the NetCDF-4 data model.
