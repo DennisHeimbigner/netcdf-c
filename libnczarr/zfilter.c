@@ -1,4 +1,4 @@
--/* Copyright 2003-2018, University Corporation for Atmospheric
+/* Copyright 2003-2018, University Corporation for Atmospheric
  * Research. See the COPYRIGHT file for copying and redistribution
  * conditions.
  */
@@ -107,7 +107,7 @@ typedef struct NCZ_Filter {
 #	define FLAG_CODEC 2 /* If set, then visbile parameters come from an existing codec string */
 #	define FLAG_HDF5  4 /* If set, => visible parameters came from nc_def_var_filter */
     NCZ_HDF5 hdf5;
-    NCZ_Codec* codec;  		/**< Points to an entry also in Codecs list */
+    NCZ_Codec codec;
     struct NCZ_Plugin* plugin;  /**< Implementation of this filter. */
 } NCZ_Filter;
 
@@ -275,7 +275,7 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
     } else visibleparams = NULL;
     
     if(plugin && plugin->codec.codec->NCZ_hdf5_to_codec) {
-        if((stat = plugin->codec.codec->NCZ_hdf5_to_codec(params, params,&codectext))) goto done;
+        if((stat = plugin->codec.codec->NCZ_hdf5_to_codec(nparams, params,&codectext))) goto done;
     }
 
     /* Parse result */
