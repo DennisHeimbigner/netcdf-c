@@ -53,7 +53,7 @@
 #include "netcdf_aux.h"
 
 #undef DEBUG
-#define DEBUGF
+#undef DEBUGF
 
 /* Hold the loaded filter plugin information */
 typedef struct NCZ_Plugin {
@@ -152,8 +152,8 @@ static int NCZ_unload_plugin(NCZ_Plugin* plugin);
 static int NCZ_plugin_loaded(int filterid, NCZ_Plugin** pp);
 static int NCZ_plugin_save(int filterid, NCZ_Plugin* p);
 static int NCZ_filter_free(NCZ_Filter* spec);
-static int NCZ_h5filter_clear(NCZ_HDF5* spec);
-static int NCZ_codec_free(NCZ_Codec* spec);
+static int NCZ_filter_hdf5_clear(NCZ_HDF5* spec);
+static int NCZ_filter_codec_clear(NCZ_Codec* spec);
 static int NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, struct NCZ_Filter** specp);
 
 static int getentries(const char* path, NClist* contents);
@@ -191,36 +191,18 @@ done:
     return ZUNTRACE(stat);
 }
 
-int
-NCZ_codec_freelist(NCZ_VAR_INFO_T* zvar)
-{
-    int i, stat=NC_NOERR;
-    NClist* codecs = zvar->codecs;
-
-    ZTRACE(6,"zvar=%p",zvar);
-    if(codecs == NULL) goto done;
-    /* Free the codec list elements */
-    for(i=0;i<nclistlength(codecs);i++) {
-	NCZ_Codec* spec = nclistget(codecs,i);
-	if((stat = NCZ_codec_free(spec))) goto done;
-    }
-    nclistfree(codecs);
-    zvar->codecs = NULL;
-done:
-    return ZUNTRACE(stat);
-}
-
 static int
 NCZ_filter_free(NCZ_Filter* spec)
 {
     if(spec == NULL) return NC_NOERR;
-    NCZ_h5filter_clear(&spec->hdf5);
+    NCZ_filter_hdf5_clear(&spec->hdf5);
+    NCZ_filter_codec_clear(&spec->codec);
     free(spec);
     return NC_NOERR;
 }
 
 static int
-NCZ_h5filter_clear(NCZ_HDF5* spec)
+NCZ_filter_hdf5_clear(NCZ_HDF5* spec)
 {
     ZTRACE(6,"spec=%d",spec->id);
     if(spec == NULL) goto done;
@@ -231,13 +213,12 @@ done:
 }
 
 static int
-NCZ_codec_free(NCZ_Codec* spec)
+NCZ_filter_codec_clear(NCZ_Codec* spec)
 {
     ZTRACE(6,"spec=%d",(spec?spec->id:"null"));
     if(spec == NULL) goto done;
     nullfree(spec->id);
     nullfree(spec->codec);
-    free(spec);
 done:
     return ZUNTRACE(NC_NOERR);
 }
@@ -248,11 +229,9 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
 {
     int stat = NC_NOERR;
     struct NCZ_Filter* fi = NULL;
-    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
     NCZ_Plugin* plugin = NULL;
-    unsigned* visibleparams = NULL;
-    size_t visiblenparams = (size_t)nparams;
-    char* codectext = NULL;
+    NCZ_Codec codec;
+    NCZ_HDF5 hdf5;
 
     ZTRACE(6,"file=%s var=%s id=%u nparams=%u params=%p",file->hdr.name,var->hdr.name,id,nparams,params);
     
@@ -260,7 +239,6 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
 	{stat = NC_EINVAL; goto done;}
     
     if(var->filters == NULL) var->filters = (void*)nclistnew();
-    if(zvar->codecs == NULL) zvar->codecs = nclistnew();
 
     /* Before anything else, find the matching plugin */
     if((stat = NCZ_plugin_loaded(id,&plugin))) goto done;
@@ -269,71 +247,53 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
 	goto done;
     }
 
-    if(nparams > 0) {
-	if((visibleparams = (unsigned*)calloc(nparams,sizeof(unsigned)))==NULL) goto done;
-	memcpy(visibleparams,params,nparams*sizeof(unsigned));
-    } else visibleparams = NULL;
-    
+    /* Fill in the codec */
+    codec.id = strdup(plugin->codec.codec->codecid);
     if(plugin && plugin->codec.codec->NCZ_hdf5_to_codec) {
-        if((stat = plugin->codec.codec->NCZ_hdf5_to_codec(nparams, params,&codectext))) goto done;
+        if((stat = plugin->codec.codec->NCZ_hdf5_to_codec(nparams, params,&codec.codec))) goto done;
+    } else
+        codec.codec = NULL;
+
+    /* Fill in the hdf5 */
+    memset(&hdf5,0,sizeof(NCZ_HDF5));
+    hdf5.id = id;
+    /* Capture the visible parameters */
+    hdf5.visible.nparams = nparams;
+    if(nparams > 0) {
+	if((hdf5.visible.params = (unsigned*)calloc(nparams,sizeof(unsigned)))==NULL) goto done;
+	memcpy(&hdf5.visible.params,params,nparams*sizeof(unsigned));
     }
 
-    /* Parse result */
-    if((stat = NCJparse(codectext,0,&jcodec))) goto done;
-    /* Get the id */
-    if((stat = NCJdictget(jcodec,"id",&jid))) goto done;
-    
-    /* See if already defined */
-    if((stat = NCZ_codec_lookup(zvar->codecs,NCJstring(jid),&codec))) goto done;
-    if(codec == NULL) {
-        /* Create the codec */
-        if((codec = calloc(1,sizeof(struct NCZ_Codec))) == NULL)
-	    {stat = NC_ENOMEM; goto done;}
-    } else
-        codecexists = 1;
-    /* Save/overwrite the codec JSON */
-    nullfree(codec->id);
-    NCJreclaim(codec->codec);
-    if((codec->id = strdup(NCJstring(jid)))==NULL)
-	{stat = NC_ENOMEM; goto done;}
-    codec->codec = jcodec; jcodec = NULL;
-#endif /*0*/
-
-    /* Build/find the NCZ_Filter */
+    /* Find the NCZ_Filter */
     if((stat=NCZ_filter_lookup(var,id,&fi))) goto done;
     if(fi != NULL) {
-        /* already exists */
+	if(fi->plugin != plugin)
+	    {stat = NC_EINTERNAL; goto done;}
     } else {
-        NClist* flist = (NClist*)var->filters;
 	stat = NC_NOERR;
         if((fi = calloc(1,sizeof(struct NCZ_Filter))) == NULL)
 	    {stat = NC_ENOMEM; goto done;}
-        fi->hdf5.id = id;
-	nclistpush(flist,fi);
+        fi->plugin = plugin;
+	nclistpush((NClist*)var->filters, fi);
     }    
-    fi->hdf5.visible.nparams = visiblenparams;
-    if(fi->hdf5.visible.params != NULL) {
-	nullfree(fi->hdf5.visible.params);
-	fi->hdf5.visible.params = NULL;
-    }
-    assert(fi->hdf5.visible.params == NULL);
-    if(fi->hdf5.visible.nparams > 0) {
-	fi->hdf5.visible.params = visibleparams; visibleparams = NULL;
-    }
-#if 0
+
+    /* (over)write the HDF5 parameters */
+    nullfree(fi->hdf5.visible.params);
+    nullfree(fi->hdf5.working.params);
+    fi->hdf5.working.nparams = 0;
+    fi->hdf5.working.params = NULL;
+    fi->hdf5 = hdf5;
+    memset(&hdf5,0,sizeof(hdf5));
+
+    /* (over)write the Codec */
+    nullfree(fi->codec.id); fi->codec.id = NULL;
+    nullfree(fi->codec.codec); fi->codec.codec = NULL;
     fi->codec = codec;
-    if(!codecexists) {
-        /* Add codec to the codecs list */
-        nclistpush(zvar->codecs,codec);
-        /* remember where this came from */
-    }
-#endif
-    fi->plugin = plugin;
+    memset(&codec,0,sizeof(codec));
     
     fi = NULL; /* either way,its in the var->filters list */
 
 done:
-    nullfree(visibleparams);
     if(fi) NCZ_filter_free(fi);    
     return ZUNTRACE(stat);
 }
@@ -778,16 +738,15 @@ done:
 
 /**************************************************/
 /* JSON Parse/unparse of filters */
-
 int
 NCZ_filter_jsonize(const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp)
 {
     int stat = NC_NOERR;
     char* codec = NULL;
     
-    ZTRACE(6,"var=%s filter=%s",var->hdr.name,(filter && filter->codec?filter->codec->id:"null"));
+    ZTRACE(6,"var=%s filter=%s",var->hdr.name,(filter != NULL && filter->codec.id != NULL?filter->codec.id:"null"));
     /* Convert the HDF5 id + parameters to the codec form */
-    assert(filter->codec->id != NULL && filter->plugin != NULL);
+    assert(filter->codec.id != NULL && filter->plugin != NULL);
     if(filter->flags & FLAG_SETUP) {
         /* Convert the working parameters back to visible parameters */
         if(filter->plugin->codec.codec->NCZ_visible_parameters) {
@@ -795,7 +754,7 @@ NCZ_filter_jsonize(const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Fil
 				filter->hdf5.working.nparams,filter->hdf5.working.params,
 				&filter->hdf5.visible.nparams,&filter->hdf5.visible.params))) goto done;
 	} else {
-	    /* Just use the working parameters */
+	    /* Just use the prefix of the working parameters */
 	    assert(filter->hdf5.working.nparams >= filter->hdf5.visible.nparams);
     	    memcpy(filter->hdf5.visible.params,filter->hdf5.working.params,filter->hdf5.visible.nparams*sizeof(unsigned));
 	}
@@ -803,14 +762,17 @@ NCZ_filter_jsonize(const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Fil
     /* Convert the visible parameters back to codec */
     if(filter->plugin->codec.codec->NCZ_hdf5_to_codec) {
 	if((stat = filter->plugin->codec.codec->NCZ_hdf5_to_codec(filter->hdf5.visible.nparams,filter->hdf5.visible.params,&codec))) goto done;
-    } else {stat = NC_EFILTER; goto done;}
-    filter->codec->codec = codec; codec = NULL;
+    } else
+        {stat = NC_EFILTER; goto done;}
+    filter->codec.codec = codec; codec = NULL;
 
 done:
     if(codec) free(codec);
-    return ZUNTRACEX(stat,"codec=%s",(filter->codec->codec?filter->codec->codec:"null"));
+    return ZUNTRACEX(stat,"codec=%s",(filter->codec.codec?filter->codec.codec:"null"));
 }
 
+
+/* Build filter from parsed Zarr metadata */
 int
 NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter)
 {
@@ -818,27 +780,24 @@ NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* j
     NCZ_Filter* filter = NULL;
     NCjson* jvalue = NULL;
     NCZ_Plugin* plugin = NULL;
-    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
-    NCZ_Codec* codec = NULL;
-    NCZ_HDF5 hdf5filter;
+    NCZ_Codec codec;
+    NCZ_HDF5 hdf5;
 
     ZTRACE(6,"file=%s var=%s jfilter=%s",file->hdr.name,var->hdr.name,NCJtrace(jfilter));
 
     if(var->filters == NULL) var->filters = nclistnew();
-    if(zvar->codecs == NULL) zvar->codecs = nclistnew();
 
-    memset(&hdf5filter,0,sizeof(NCZ_HDF5));
+    memset(&hdf5,0,sizeof(NCZ_HDF5));
+    memset(&codec,0,sizeof(NCZ_Codec));
     
     /* Get the id of this codec filter */
     if((stat = NCJdictget(jfilter,"id",&jvalue))) goto done;
     if(NCJsort(jvalue) != NCJ_STRING) {stat = NC_ENOFILTER; goto done;}
 
-    /* Add to the list of codecs */
-    if((codec = (NCZ_Codec*)calloc(1,sizeof(NCZ_Codec)))==NULL)
+    /* Build the codec */
+    if((codec.id = strdup(NCJstring(jvalue)))==NULL)
         {stat = NC_ENOMEM; goto done;}
-    if((stat = NCJunparse(jfilter,0,&codec->codec))) goto done;
-    if((codec->id = strdup(NCJstring(jvalue)))==NULL)
-        {stat = NC_ENOMEM; goto done;}
+    if((stat = NCJunparse(jfilter,0,&codec.codec))) goto done;
 
     /* Find the plugin for this filter */
     for(i=0;i<=loaded_plugins_max;i++) {
@@ -849,23 +808,19 @@ NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* j
 
     if(plugin != NULL) {
 	/* Save the hdf5 id */
-	hdf5filter.id = plugin->codec.codec->hdf5id;
+	hdf5.id = plugin->codec.codec->hdf5id;
 	/* Convert the codec to visible parameters */
         if(plugin->codec.codec->NCZ_codec_to_hdf5)
-            {if((stat = plugin->codec.codec->NCZ_codec_to_hdf5(codec->codec,&hdf5filter.visible.nparams,&hdf5filter.visible.params))) goto done;}
-
+            {if((stat = plugin->codec.codec->NCZ_codec_to_hdf5(codec.codec,&hdf5.visible.nparams,&hdf5.visible.params))) goto done;}
 	if((filter = calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}		
 	filter->flags = FLAG_CODEC;
-	filter->hdf5 = hdf5filter; hdf5filter.visible.params = NULL; hdf5filter.working.params = NULL;
+	filter->hdf5 = hdf5;
+	memset(&hdf5,0,sizeof(hdf5));
 	filter->codec = codec;
+	memset(&codec,0,sizeof(codec));
         filter->plugin = plugin; plugin = NULL;
     }
 
-    /* Add codec to the codecs list */
-    if(codec != NULL) {
-        nclistpush(zvar->codecs,codec);
-        codec = NULL;
-    }
     if(filter != NULL) {
         NClist* filterlist = (NClist*)var->filters;
         nclistpush(filterlist,filter);
@@ -882,14 +837,14 @@ NCZ_filter_setup(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* fil
 {
     int stat = NC_NOERR;
 
-    ZTRACE(6,"file=%s var=%s filter=%s",file->hdr.name,var->hdr.name,filter->codec->codec);
+    ZTRACE(6,"file=%s var=%s filter=%s",file->hdr.name,var->hdr.name,filter->codec.codec);
 
     assert(filter != NULL && filter->plugin != NULL);
 
     if(!(filter->flags & FLAG_SETUP)) {
 	int src = (filter->flags & (FLAG_CODEC|FLAG_HDF5));
 	if(src == FLAG_CODEC) { /* convert the codec to visible params */
-	    assert(filter->codec->id != NULL && filter->codec->codec != NULL);
+	    assert(filter->codec.id != NULL && filter->codec.codec != NULL);
 	} else if(src == FLAG_HDF5) {
 	    /* do nothing here */
 	} else {stat = NC_EINTERNAL; goto done;}
@@ -1387,16 +1342,16 @@ NCZ_codec_attr(const NC_VAR_INFO_T* var, size_t* lenp, void* data)
     size_t len;
     char* contents = NULL;
     NCbytes* buf = NULL;
-    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
+    NClist* filters = (NClist*)var->filters;
 
     ZTRACE(6,"var=%s",var->hdr.name);
-    if(nclistlength(zvar->codecs) == 0) {stat = NC_ENOTATT; goto done;}
+    if(nclistlength(filters) == 0) {stat = NC_ENOTATT; goto done;}
     buf = ncbytesnew(); ncbytessetalloc(buf,1024);
     ncbytescat(buf,"[");
-    for(i=0;i<nclistlength(zvar->codecs);i++) {
-       	NCZ_Codec* spec = nclistget(zvar->codecs,i);
+    for(i=0;i<nclistlength(filters);i++) {
+       	NCZ_Filter* spec = nclistget(filters,i);
         if(i > 0) ncbytescat(buf,",");
-	ncbytescat(buf,spec->codec);
+	ncbytescat(buf,spec->codec.codec);
     }
     ncbytescat(buf,"]");
     len = ncbyteslength(buf);

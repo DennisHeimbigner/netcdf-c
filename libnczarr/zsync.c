@@ -359,8 +359,6 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
         /* Convert var->fill_value to a string */
 	if((stat = NCZ_stringconvert(atomictype,1,var->fill_value,&jfill))) goto done;
 	assert(jfill->sort != NCJ_ARRAY);
-        if((stat = NCJinsert(jvar,"fill_value",jfill))) goto done;
-        jfill = NULL;
     }
     if((stat = NCJinsert(jvar,"fill_value",jfill))) goto done;
     jfill = NULL;
@@ -1484,7 +1482,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		size_t fvlen;
 		typeid = var->type_info->hdr.id;
 		var->no_fill = 0;
-		assert(var->fill_value == NULL);
+		assert(var->fill_value == NULL && var->no_fill == 0);
 		if((stat = computeattrdata(&typeid, jvalue, NULL, &fvlen, &var->fill_value)))
 		    goto done;
 		assert(typeid == var->type_info->hdr.id);

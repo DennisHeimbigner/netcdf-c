@@ -169,11 +169,6 @@ zclose_vars(NC_GRP_INFO_T* grp)
 	    (void)NCZ_filter_freelist(var);
 	}
 	var->filters = NULL;
-	/* Reclaim codecs */
-	if(zvar->codecs != NULL) {
-	    (void)NCZ_codec_freelist(zvar);
-	}
-	zvar->codecs = NULL;
 	/* Reclaim the type */
 	(void)zclose_type(var->type_info);
         NCZ_free_chunk_cache(zvar->cache);
