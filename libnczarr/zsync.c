@@ -1473,24 +1473,6 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	        zvar->dimension_separator = ngs->zarr.dimension_separator; /* use global value */
 	    assert(islegaldimsep(zvar->dimension_separator)); /* we are hosed */
 	}
-	/* fill_value */
-	{
-	    if((stat = NCJdictget(jvar,"fill_value",&jvalue))) goto done;
-	    if(jvalue == NULL)
-		var->no_fill = 1;
-	    else {
-		size_t fvlen;
-		typeid = var->type_info->hdr.id;
-		var->no_fill = 0;
-		assert(var->fill_value == NULL && var->no_fill == 0);
-		if((stat = computeattrdata(&typeid, jvalue, NULL, &fvlen, &var->fill_value)))
-		    goto done;
-		assert(typeid == var->type_info->hdr.id);
-		/* Note that we do not create the _FillValue
-		   attribute here to avoid having to read all
-		   the attributes and thus foiling lazy read.*/
-	    } 
-	}
 	/* chunks */
 	{
 	    int rank;
@@ -1525,12 +1507,13 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	/* fill_value */
 	{
 	    if((stat = NCJdictget(jvar,"fill_value",&jvalue))) goto done;
-	    if(jvalue == NULL || NCJsort(jvalue) == NCJ_NULL)
+	    if(jvalue == NULL)
 		var->no_fill = 1;
 	    else {
 		size_t fvlen;
 		typeid = var->type_info->hdr.id;
 		var->no_fill = 0;
+		assert(var->fill_value == NULL && var->no_fill == 0);
 		if((stat = computeattrdata(&typeid, jvalue, NULL, &fvlen, &var->fill_value)))
 		    goto done;
 		assert(typeid == var->type_info->hdr.id);
