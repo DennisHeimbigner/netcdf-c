@@ -48,7 +48,10 @@ IF(ENABLE_TESTS)
       IF(ENABLE_DAP_LONG_TESTS)
         add_sh_test(ncdap tst_longremote3)
         add_bin_test(ncdap test_manyurls)
+        SET_TESTS_PROPERTIES(ncdap_tst_longremote3 ncdap_test_manyurls PROPERTIES RUN_SERIAL TRUE)
       ENDIF(ENABLE_DAP_LONG_TESTS)
+
+      SET_TESTS_PROPERTIES(ncdap_tst_remote3 PROPERTIES RUN_SERIAL TRUE)
 
     ENDIF(BUILD_UTILITIES)
 
