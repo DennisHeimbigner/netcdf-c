@@ -100,32 +100,6 @@ dumpmap() {
     ${execdir}/zmapio -t int -x objdump $fileurl > $3
 }
 
-difftest() {
-echo ""; echo "*** Test zext=$zext"
-for t in ${TESTS} ; do
-   echo "*** Testing: ${t}"
-   # determine if we need the specflag set
-   # determine properties
-   checkprops ${t}
-   ref="ref_${t}"
-   rm -fr ${t}.$zext
-   rm -f tmp_${t}.dmp
-   fileargs $t
-   ${NCGEN} -4 -lb -o ${fileurl} ${cdl}/${ref}.cdl
-   ${NCDUMP} ${headflag} ${specflag} -n ${ref} ${fileurl} > tmp_${t}.dmp
-   # compare the expected (silently if XFAIL)
-   if diff -b -w ${expected}/${ref}.dmp tmp_${t}.dmp > ${t}.diff ; then ok=1; else ok=0; fi
-   if test "x$ok" = "x1" ; then
-     echo "*** SUCCEED: ${t}"
-   elif test "x${isxfail}" = "x1" ; then
-     echo "*** XFAIL : ${t}"
-   else
-     echo "*** FAIL: ${t}"
-     exit 1
-   fi
-done
-}
-
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent
 sclean() {

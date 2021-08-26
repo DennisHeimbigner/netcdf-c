@@ -56,6 +56,9 @@
 #define ZATTRS ".zattrs"
 #define ZARRAY ".zarray"
 
+/* Pure Zarr pseudo names */
+#define ZDIMANON "_zdim"
+
 /* V2 Reserved Attributes */
 /*
 Inserted into /.zgroup

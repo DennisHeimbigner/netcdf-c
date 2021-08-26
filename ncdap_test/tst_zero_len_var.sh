@@ -2,7 +2,6 @@
 
 if test "x$SETX" != x ; then set -x; fi
 set -e
-set -x
 
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh

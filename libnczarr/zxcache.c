@@ -108,6 +108,10 @@ NCZ_adjust_var_cache(NC_VAR_INFO_T *var)
     /* completely empty the cache */
     flushcache(zvar->cache);
 
+#ifdef DEBUG
+fprintf(stderr,"xxx: adjusting cache for: %s\n",var->hdr.name);
+#endif
+
     /* Reset the parameters */
     zvar->cache->maxsize = var->chunk_cache_size;
     zvar->cache->maxentries = var->chunk_cache_nelems;
@@ -122,8 +126,10 @@ NCZ_adjust_var_cache(NC_VAR_INFO_T *var)
     zvar->cache->fillchunk = NULL;
     if(var->no_fill)
         stat = NCZ_create_fill_chunk(zvar->cache->chunksize,var->type_info->size,NULL,&zvar->cache->fillchunk);
-    else
+    else {
+	assert(var->fill_value != NULL);
         stat = NCZ_create_fill_chunk(zvar->cache->chunksize,var->type_info->size,var->fill_value,&zvar->cache->fillchunk);
+    }
     return stat;
 }
 

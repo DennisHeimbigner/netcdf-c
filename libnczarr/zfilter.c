@@ -53,7 +53,9 @@
 #include "netcdf_aux.h"
 
 #undef DEBUG
-#define DEBUGF
+/* Define the trace level : choose one */
+/*#define DEBUGF 12*/
+#define DEBUGF 6
 
 #ifdef DEBUGF
 #define NULLIFY(x) ((x)?(x):"NULL")
@@ -502,9 +504,6 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
 	        /* Should this throw error? */
                 if((stat = nc4_find_default_chunksizes2(grp, var)))
 	            goto done;
-                /* Adjust the cache. */
-                if ((stat = NCZ_adjust_var_cache(var)))
-                    goto done;
         }
      }
      /* More error checking */

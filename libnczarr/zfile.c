@@ -109,15 +109,19 @@ NCZ_enddef(int ncid)
     if ((stat = nc4_find_grp_h5(ncid, &grp, &h5)))
         goto done;
 
-    /* When exiting define mode, mark all variables */
+    /* When exiting define mode, process all variables */
     for (i = 0; i < nclistlength(h5->allgroups); i++) {	
 	NC_GRP_INFO_T* g = nclistget(h5->allgroups,i);
         for (j = 0; j < ncindexsize(g->vars); j++) {
             var = (NC_VAR_INFO_T *)ncindexith(g->vars, j);
             assert(var);
+	    /* set the fill value and _FillValue attribute */
+	    if((stat = ncz_get_fill_value(h5,var,NULL))) goto done; /* ensure var->fill_value is set */
+            assert(var->fill_value != NULL);
             var->written_to = NC_TRUE; /* mark it written */
 	    /* rebuild the fill chunk */
 	    if((stat = NCZ_adjust_var_cache(var))) goto done;
+
         }
     }
     stat = ncz_enddef_netcdf4_file(h5);

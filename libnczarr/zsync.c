@@ -341,21 +341,8 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     if(var->no_fill) {
 	if((stat=NCJnew(NCJ_NULL,&jfill))) goto done;
     } else {/*!var->no_fill*/
-	int fillsort;
 	int atomictype = var->type_info->hdr.id;
-	/* A scalar value providing the default value to use for uninitialized
-	   portions of the array, or ``null`` if no fill_value is to be used. */
-	/* Use the defaults defined in netdf.h */
-	assert(atomictype > 0 && atomictype <= NC_MAX_ATOMIC_TYPE && atomictype != NC_STRING);
-	if((stat = ncz_fill_value_sort(atomictype,&fillsort))) goto done;
-	if(var->fill_value == NULL) { /* use default */
-	    size_t typelen;
-            if((stat = NC4_inq_atomic_type(atomictype, NULL, &typelen))) goto done;
-	    assert(var->fill_value == NULL);
-	    var->fill_value = (atomictype == NC_CHAR ? malloc(typelen+1) : malloc(typelen));
-	    if(var->fill_value == NULL) {stat = NC_ENOMEM; goto done;}
-	    if((stat = nc4_get_default_fill_value(atomictype,var->fill_value))) goto done;
-	}
+        assert(var->fill_value != NULL);
         /* Convert var->fill_value to a string */
 	if((stat = NCZ_stringconvert(atomictype,1,var->fill_value,&jfill))) goto done;
 	assert(jfill->sort != NCJ_ARRAY);
@@ -947,10 +934,11 @@ computeattrdata(nc_type* typeidp, NCjson* values, size_t* typelenp, size_t* lenp
     case NCJ_ARRAY:
 	count = NCJlength(values);
 	break;
-    case NCJ_STRING: /* requires special handling as an array of characters */
-	if(typeid == NC_CHAR)
+    case NCJ_STRING: /* requires special handling as an array of characters; also look out for empty string */
+	if(typeid == NC_CHAR) {
 	    count = strlen(NCJstring(values));
-	else
+	    if(count == 0) count = 1; /* Actually a single nul char, probably default fill value ugh!*/
+	} else
 	    count = 1;
 	break;
     default:
@@ -1473,6 +1461,23 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	        zvar->dimension_separator = ngs->zarr.dimension_separator; /* use global value */
 	    assert(islegaldimsep(zvar->dimension_separator)); /* we are hosed */
 	}
+	/* fill_value; must precede calls to adjust cache */
+	{
+	    if((stat = NCJdictget(jvar,"fill_value",&jvalue))) goto done;
+	    if(jvalue == NULL || NCJsort(jvalue) == NCJ_NULL)
+		var->no_fill = 1;
+	    else {
+		size_t fvlen;
+		typeid = var->type_info->hdr.id;
+		var->no_fill = 0;
+		if((stat = computeattrdata(&typeid, jvalue, NULL, &fvlen, &var->fill_value)))
+		    goto done;
+		assert(typeid == var->type_info->hdr.id);
+		/* Note that we do not create the _FillValue
+		   attribute here to avoid having to read all
+		   the attributes and thus foiling lazy read.*/
+	    } 
+	}
 	/* chunks */
 	{
 	    int rank;
@@ -1503,24 +1508,6 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 		    goto done;
 		if((stat = NCZ_adjust_var_cache(var))) goto done;
 	    }
-	}
-	/* fill_value */
-	{
-	    if((stat = NCJdictget(jvar,"fill_value",&jvalue))) goto done;
-	    if(jvalue == NULL)
-		var->no_fill = 1;
-	    else {
-		size_t fvlen;
-		typeid = var->type_info->hdr.id;
-		var->no_fill = 0;
-		assert(var->fill_value == NULL && var->no_fill == 0);
-		if((stat = computeattrdata(&typeid, jvalue, NULL, &fvlen, &var->fill_value)))
-		    goto done;
-		assert(typeid == var->type_info->hdr.id);
-		/* Note that we do not create the _FillValue
-		   attribute here to avoid having to read all
-		   the attributes and thus foiling lazy read.*/
-	    } 
 	}
 	/* Capture row vs column major; currently, column major not used*/
 	{
@@ -1634,7 +1621,8 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	nclistfreeall(dimnames); dimnames = nclistnew();
         nullfree(varpath); varpath = NULL;
         nullfree(shapes); shapes = NULL;
-	NCJreclaim(jvar); jvar = NULL;
+        if(formatv1) {NCJreclaim(jncvar); jncvar = NULL;}
+        NCJreclaim(jvar); jvar = NULL;
     }
 
 done:
@@ -2192,7 +2180,7 @@ computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int purezarr, int xarra
         for(i=0;i<ndims;i++) {
 	    /* Compute the set of absolute paths to dimrefs */
             char zdimname[4096];
-	    snprintf(zdimname,sizeof(zdimname),"/.zdim_%llu",shapes[i]);
+	    snprintf(zdimname,sizeof(zdimname),"/%s_%llu",ZDIMANON,shapes[i]);
 	    nclistpush(dimnames,strdup(zdimname));
 	}
     }
