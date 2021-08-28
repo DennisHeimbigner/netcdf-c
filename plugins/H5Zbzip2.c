@@ -225,14 +225,13 @@ static int NCZ_bzip2_hdf5_to_codec(size_t nparams, const unsigned* params, char*
 static NCZ_codec_t NCZ_bzip2_codec = {/* NCZ_codec_t  codec fields */ 
   NCZ_CODEC_CLASS_VER,	/* Struct version number */
   NCZ_CODEC_HDF5,	/* Struct sort */
-  "bzip2",	        /* Standard name/id of the codec */
+  "bz2",	        /* Standard name/id of the codec */
   H5Z_FILTER_BZIP2,   /* HDF5 alias for bzip2 */
   NULL, /*NCZ_bzip2_codec_initialize*/
   NULL, /*NCZ_bzip2_codec_finalize*/
   NCZ_bzip2_codec_to_hdf5,
   NCZ_bzip2_hdf5_to_codec,
-  NULL, /*NCZ_bzip2_working_parameters*/
-  NULL, /*NCZ_bzip2_visible_parameters*/
+  NULL, /*NCZ_bzip2_modify_parameters*/
 };
 
 /* External Export API */

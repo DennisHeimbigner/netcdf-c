@@ -84,30 +84,20 @@ int (*NCZ_hdf5_to_codec)(size_t nparams, const unsigned* params, char** codecp);
 @return -- a netcdf-c error code.
 
 * Convert a set of visible parameters to a set of working parameters using extra environmental information.
-Invoked before filter is actually used.
+Also allows for changes to the visible parameters. Invoked before filter is actually used.
 
-int (*NCZ_working_parameters)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+int (*NCZ_build_parameters)(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 
 @param ncid -- (in) ncid of the variable's group
 @param varid -- (in) varid of the variable
-@params nparamsin -- (in) number of visible parameters
-@params paramsin -- (in) vector of visible parameters
-@params nparamsp -- (out) number of working parameters
-@params paramsp -- (out) vector of working parameters
+@params vnparamsp -- (in/out) number of visible parameters
+@params vparamsp -- (in/out) vector of visible parameters
+@params wnparamsp -- (out) number of working parameters
+@params wparamsp -- (out) vector of working parameters
 @return -- a netcdf-c error code.
 
 * Convert a set of working parameters to a set of visible parameters using extra environmental information, if needed.
 Invoked before filter metadata is written.
-
-int (*NCZ_visible_parameters)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
-
-@param ncid -- (in) ncid of the variable's group
-@param varid -- (in) varid of the variable
-@params nparamsin -- (in) number of working parameters
-@params paramsin -- (in) vector of working parameters
-@params nparamsp -- (out) number of visible parameters
-@params paramsp -- (out) vector of visible parameters
-@return -- a netcdf-c error code.
 */
 
 /*
@@ -125,8 +115,7 @@ typedef struct NCZ_codec_t {
     void (*NCZ_codec_finalize)(void);
     int (*NCZ_codec_to_hdf5)(const char* codec, size_t* nparamsp, unsigned** paramsp);
     int (*NCZ_hdf5_to_codec)(size_t nparams, const unsigned* params, char** codecp);
-    int (*NCZ_working_parameters)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
-    int (*NCZ_visible_parameters)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+    int (*NCZ_modify_parameters)(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 } NCZ_codec_t;
 
 #ifndef NC_UNUSED

@@ -10,7 +10,7 @@
 
 /* Forward */
 static int ncz_collect_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jdimsp);
-static int ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
+static int ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose);
 
 static int ncz_jsonize_atts(NCindex* attlist, NCjson** jattrsp);
 static int load_jatts(NCZMAP* map, NC_OBJ* container, int nczarrv1, NCjson** jattrsp, NClist** atypes);
@@ -64,7 +64,7 @@ ncz_sync_file(NC_FILE_INFO_T* file, int isclose)
     ZTRACE(3,"file=%s isclose=%d",file->controller->path,isclose);
 
     /* Write out root group recursively */
-    if((stat = ncz_sync_grp(file, file->root_grp)))
+    if((stat = ncz_sync_grp(file, file->root_grp, isclose)))
         goto done;
 
 done:
@@ -112,7 +112,7 @@ done:
  * @author Dennis Heimbigner
  */
 int
-ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
+ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
 {
     int i,stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = NULL;
@@ -206,19 +206,19 @@ ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
 
     /* Build the .zattrs object */
     assert(grp->att);
-    if((stat = ncz_sync_atts(file,(NC_OBJ*)grp, grp->att)))
+    if((stat = ncz_sync_atts(file,(NC_OBJ*)grp, grp->att, isclose)))
 	goto done;
 
     /* Now synchronize all the variables */
     for(i=0; i<ncindexsize(grp->vars); i++) {
 	NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)ncindexith(grp->vars,i);
-	if((stat = ncz_sync_var(file,var))) goto done;
+	if((stat = ncz_sync_var(file,var,isclose))) goto done;
     }
 
     /* Now recurse to synchronize all the subgrps */
     for(i=0; i<ncindexsize(grp->children); i++) {
 	NC_GRP_INFO_T* g = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
-	if((stat = ncz_sync_grp(file,g))) goto done;
+	if((stat = ncz_sync_grp(file,g,isclose))) goto done;
     }
 
 done:
@@ -235,15 +235,17 @@ done:
 }
 
 /**
- * @internal Synchronize variable data from memory to map.
+ * @internal Synchronize variable meta data from memory to map.
  *
+ * @param file Pointer to file struct
  * @param var Pointer to var struct
+ * @param isclose If this called as part of nc_close() as opposed to nc_enddef().
  *
  * @return ::NC_NOERR No error.
  * @author Dennis Heimbigner
  */
 static int
-ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
+ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 {
     int i,stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = NULL;
@@ -263,8 +265,6 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     NClist* filterchain = NULL;
     NCjson* jfilter = NULL;
 	    
-    LOG((3, "%s: dims: %s", __func__, key));
-
     zinfo = file->format_file_info;
     map = zinfo->map;
 
@@ -372,7 +372,7 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
         /* Default to null */ 
         if((stat = NCJnew(NCJ_NULL,&jtmp))) goto done;
     }
-    if((stat = NCJappend(jvar,jtmp))) goto done;
+    if(jtmp && (stat = NCJappend(jvar,jtmp))) goto done;
     jtmp = NULL;
 
     /* filters key */
@@ -468,14 +468,8 @@ ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 
     /* Build .zattrs object */
     assert(var->att);
-    if((stat = ncz_sync_atts(file,(NC_OBJ*)var, var->att)))
+    if((stat = ncz_sync_atts(file,(NC_OBJ*)var, var->att, isclose)))
 	goto done;
-
-    /* flush only chunks that have been written */
-    if(zvar->cache) {
-        if((stat = NCZ_flush_chunk_cache(zvar->cache)))
-	    goto done;
-    }
 
 done:
     nclistfreeall(dimrefs);
@@ -488,6 +482,37 @@ done:
     NCJreclaim(jfill);
     return THROW(stat);
 }
+
+/**
+ * @internal Synchronize variable meta data and data from memory to map.
+ *
+ * @param file Pointer to file struct
+ * @param var Pointer to var struct
+ * @param isclose If this called as part of nc_close() as opposed to nc_enddef().
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
+ */
+static int
+ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
+{
+    int stat = NC_NOERR;
+    NCZ_VAR_INFO_T* zvar = var->format_var_info;
+    
+    if(!isclose) {
+	if((stat = ncz_sync_var_meta(file,var,isclose))) goto done;
+    }
+
+    /* flush only chunks that have been written */
+    if(zvar->cache) {
+        if((stat = NCZ_flush_chunk_cache(zvar->cache)))
+	    goto done;
+    }
+
+done:
+    return THROW(stat);
+}
+
 
 /*
 Flush all chunks to disk. Create any that are missing
@@ -568,7 +593,7 @@ done:
  * @author Dennis Heimbigner
  */
 int
-ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist)
+ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist, int isclose)
 {
     int i,stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = NULL;
@@ -1609,13 +1634,7 @@ define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 	    var->dimids[j] = var->dim[j]->hdr.id;
 
 	/* At this point, we can finalize the filters */
-	if(var->filters != NULL) {
-	    NClist* filters = (NClist*)var->filters;
- 	    for(j=0;j<nclistlength(filters);j++) {
-		struct NCZ_Filter* f = (struct NCZ_Filter*)nclistget(filters,i);
-		if((stat = NCZ_filter_setup(file,var,f))) goto done;
-	    }	
-        }
+        if((stat = NCZ_filter_setup(var))) goto done;
 
 	/* Clean up from last cycle */
 	nclistfreeall(dimnames); dimnames = nclistnew();

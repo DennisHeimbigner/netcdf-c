@@ -13,6 +13,7 @@
  */
 
 #include "zincludes.h"
+#include "zfilter.h"
 
 /* Forward */
 static int NCZ_enddef(int ncid);
@@ -103,8 +104,6 @@ NCZ_enddef(int ncid)
 
     ZTRACE(1,"ncid=%d",ncid);
 
-    LOG((1, "%s: ncid 0x%x", __func__, ncid));
-
     /* Find pointer to group and zinfo. */
     if ((stat = nc4_find_grp_h5(ncid, &grp, &h5)))
         goto done;
@@ -121,7 +120,8 @@ NCZ_enddef(int ncid)
             var->written_to = NC_TRUE; /* mark it written */
 	    /* rebuild the fill chunk */
 	    if((stat = NCZ_adjust_var_cache(var))) goto done;
-
+	    /* Build the filter working parameters for any filters */
+	    if((stat = NCZ_filter_setup(var))) goto done;
         }
     }
     stat = ncz_enddef_netcdf4_file(h5);
@@ -248,7 +248,7 @@ ncz_closeorabort(NC_FILE_INFO_T* h5, void* params, int abort)
 
     /* If we're in define mode, but not redefing the file, delete it. */
     if(!abort) {
-	/* Invoke enddef if needed, which mean sync */
+	/* Invoke enddef if needed, which mean sync first */
 	if(h5->flags & NC_INDEF) h5->flags ^= NC_INDEF;
 	/* Sync the file unless this is a read-only file. */
 	if(!h5->no_write) {

@@ -37,13 +37,11 @@ Author: Dennis Heimbigner
 /* Forward */
 static int NCZ_shuffle_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
 static int NCZ_shuffle_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
-static int NCZ_shuffle_working_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_shuffle_visible_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_shuffle_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 
 static int NCZ_fletcher32_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
 static int NCZ_fletcher32_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
-static int NCZ_fletcher32_working_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_fletcher32_visible_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_fletcher32_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 
 static int NCZ_deflate_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
 static int NCZ_deflate_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
@@ -51,8 +49,7 @@ static int NCZ_deflate_hdf5_to_codec(size_t nparams, const unsigned* params, cha
 #ifdef USE_SZIP
 static int NCZ_szip_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
 static int NCZ_szip_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
-static int NCZ_szip_working_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_szip_visible_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_szip_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 #endif
 
 /**************************************************/
@@ -66,8 +63,7 @@ static NCZ_codec_t NCZ_shuffle_codec = {
   NULL, /*NCZ_shuffle_codec_finalize*/
   NCZ_shuffle_codec_to_hdf5,
   NCZ_shuffle_hdf5_to_codec,
-  NCZ_shuffle_working_parameters,
-  NCZ_shuffle_visible_parameters,
+  NCZ_shuffle_modify_parameters,
 };
 
 static int
@@ -101,7 +97,7 @@ done:
 }
 
 static int
-NCZ_shuffle_working_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp)
+NCZ_shuffle_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int stat = NC_NOERR;
     nc_type vtype;
@@ -111,7 +107,7 @@ NCZ_shuffle_working_parameters(int ncid, int varid, size_t nparamsin, const unsi
 
     /* Ignore the visible parameters */
 
-    if(!nparamsp || !paramsp) {stat = NC_EINTERNAL; goto done;}
+    if(!wnparamsp || !wparamsp) {stat = NC_EINTERNAL; goto done;}
 
     /* Get variable info */
     if((stat = nc_inq_var(ncid,varid,vname,&vtype,NULL,NULL,NULL))) goto done;
@@ -122,15 +118,16 @@ NCZ_shuffle_working_parameters(int ncid, int varid, size_t nparamsin, const unsi
     if((params=(unsigned*)malloc(sizeof(unsigned)))==NULL)
         {stat = NC_ENOMEM; goto done;}
 
-    *nparamsp = 1;
-    nullfree(*paramsp);
-    *paramsp = params; params = NULL;
+    *wnparamsp = 1;
+    nullfree(*wparamsp);
+    *wparamsp = params; params = NULL;
 
 done:
     nullfree(params);
     return stat;
 }
 
+#if 0
 static int
 NCZ_shuffle_visible_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp)
 {
@@ -157,6 +154,7 @@ done:
     nullfree(params);
     return stat;
 }
+#endif
 
 /**************************************************/
 
@@ -169,8 +167,7 @@ static NCZ_codec_t NCZ_fletcher32_codec = {/* NCZ_codec_t  codec fields */
   NULL, /*NCZ_fletcher32_codec_finalize*/
   NCZ_fletcher32_codec_to_hdf5,
   NCZ_fletcher32_hdf5_to_codec,
-  NCZ_fletcher32_working_parameters,
-  NCZ_fletcher32_visible_parameters,
+  NCZ_fletcher32_modify_parameters,
 };
 
 static int
@@ -205,22 +202,23 @@ done:
 }
 
 static int
-NCZ_fletcher32_working_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp)
+NCZ_fletcher32_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int stat = NC_NOERR;
 
     /* Ignore the visible parameters */
 
-    if(!nparamsp || !paramsp) {stat = NC_EINTERNAL; goto done;}
+    if(!wnparamsp || !wparamsp) {stat = NC_EINTERNAL; goto done;}
 
-    *nparamsp = 0;
-    nullfree(*paramsp);
-    *paramsp = NULL;
+    *wnparamsp = 0;
+    nullfree(*wparamsp);
+    *wparamsp = NULL;
 
 done:
     return stat;
 }
 
+#if 0
 static int
 NCZ_fletcher32_visible_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp)
 {
@@ -234,6 +232,7 @@ NCZ_fletcher32_visible_parameters(int ncid, int varid, size_t nparamsin, const u
 done:
     return stat;
 }
+#endif
 
 /**************************************************/
 
@@ -246,8 +245,7 @@ static NCZ_codec_t NCZ_zlib_codec = {/* NCZ_codec_t  codec fields */
   NULL, /*NCZ_deflate_codec_finalize*/
   NCZ_deflate_codec_to_hdf5,
   NCZ_deflate_hdf5_to_codec,
-  NULL, /*NCZ_deflate_working_parameters*/
-  NULL, /*NCZ_deflate_visible_parameters*/
+  NULL, /*NCZ_deflate_modify_parameters*/
 };
 
 static int
@@ -324,8 +322,7 @@ static NCZ_codec_t NCZ_szip_codec = {
   NULL, /*NCZ_szip_codec_finalize*/
   NCZ_szip_codec_to_hdf5,
   NCZ_szip_hdf5_to_codec,
-  NCZ_szip_working_parameters,
-  NCZ_szip_visible_parameters,
+  NCZ_szip_modify_parameters,
 };
 
 static int
@@ -388,7 +385,7 @@ done:
 }
 
 static int
-NCZ_szip_working_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp)
+NCZ_szip_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int i,ret_value = NC_NOERR;
     nc_type vtype;
@@ -398,12 +395,17 @@ NCZ_szip_working_parameters(int ncid, int varid, size_t nparamsin, const unsigne
     char vname[NC_MAX_NAME+1];
     size_t chunklens[NC_MAX_VAR_DIMS];
     unsigned* params = NULL;
-    size_t nparams = 4;
+    unsigned* vparams = NULL;
+    size_t wnparams = 4;
     
-    if(nparamsp == NULL || paramsp == NULL)
+    if(wnparamsp == NULL || wparamsp == NULL)
         {ret_value = NC_EFILTER; goto done;}
-    if(nparamsin > 0 && paramsin == NULL)
+    if(vnparamsp == NULL || vparamsp == NULL)
         {ret_value = NC_EFILTER; goto done;}
+    if(*vnparamsp > 0 && *vparamsp == NULL)
+        {ret_value = NC_EFILTER; goto done;}
+
+    vparams = *vparamsp;
 
     /* Get variable info */
     if((ret_value = nc_inq_var(ncid,varid,vname,&vtype,&ndims,dimids,NULL))) goto done;
@@ -436,10 +438,10 @@ NCZ_szip_working_parameters(int ncid, int varid, size_t nparamsin, const unsigne
     /* Get datatype's endianness order */
     if((ret_value = nc_inq_var_endian(ncid,varid,&dtype_order))) goto done;
 
-    if((params = (unsigned*)malloc(nparams*sizeof(unsigned)))==NULL)
+    if((params = (unsigned*)malloc(wnparams*sizeof(unsigned)))==NULL)
         {ret_value = NC_ENOMEM; goto done;}
-    params[H5Z_SZIP_PARM_MASK] = paramsin[H5Z_SZIP_PARM_MASK];
-    params[H5Z_SZIP_PARM_PPB] = paramsin[H5Z_SZIP_PARM_PPB];
+    params[H5Z_SZIP_PARM_MASK] = vparams[H5Z_SZIP_PARM_MASK];
+    params[H5Z_SZIP_PARM_PPB] = vparams[H5Z_SZIP_PARM_PPB];
 
     /* Set "local" parameter for this dataset's "bits-per-pixel" */
     params[H5Z_SZIP_PARM_BPP] = dtype_precision;
@@ -447,15 +449,15 @@ NCZ_szip_working_parameters(int ncid, int varid, size_t nparamsin, const unsigne
     /* Adjust scanline if it is smaller than number of pixels per block or
        if it is bigger than maximum pixels per scanline, or there are more than
        SZ_MAX_BLOCKS_PER_SCANLINE blocks per scanline  */
-    if(scanline < paramsin[H5Z_SZIP_PARM_PPB]) {
-        if(npoints < paramsin[H5Z_SZIP_PARM_PPB])
+    if(scanline < vparams[H5Z_SZIP_PARM_PPB]) {
+        if(npoints < vparams[H5Z_SZIP_PARM_PPB])
 	    HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "pixels per block greater than total number of elements in the chunk")
-	scanline = MIN((paramsin[H5Z_SZIP_PARM_PPB] * SZ_MAX_BLOCKS_PER_SCANLINE), npoints);
+	scanline = MIN((vparams[H5Z_SZIP_PARM_PPB] * SZ_MAX_BLOCKS_PER_SCANLINE), npoints);
     } else {
         if(scanline <= SZ_MAX_PIXELS_PER_SCANLINE)
-            scanline = MIN((paramsin[H5Z_SZIP_PARM_PPB] * SZ_MAX_BLOCKS_PER_SCANLINE), scanline);
+            scanline = MIN((vparams[H5Z_SZIP_PARM_PPB] * SZ_MAX_BLOCKS_PER_SCANLINE), scanline);
         else
-            scanline = paramsin[H5Z_SZIP_PARM_PPB] * SZ_MAX_BLOCKS_PER_SCANLINE;
+            scanline = vparams[H5Z_SZIP_PARM_PPB] * SZ_MAX_BLOCKS_PER_SCANLINE;
     } /* end else */
     /* Assign the final value to the scanline */
     params[H5Z_SZIP_PARM_PPS] = (unsigned)scanline;
@@ -474,15 +476,16 @@ NCZ_szip_working_parameters(int ncid, int varid, size_t nparamsin, const unsigne
         HGOTO_ERROR(H5E_PLINE, H5E_BADTYPE, FAIL, "bad datatype endianness order")
     } /* end switch */
 
-    *nparamsp = nparams;
-    nullfree(*paramsp);
-    *paramsp = params; params = NULL;
+    *wnparamsp = wnparams;
+    nullfree(*wparamsp);
+    *wparamsp = params; params = NULL;
     
 done:
     nullfree(params);
     FUNC_LEAVE_NOAPI(ret_value)
 }
 
+#if 0
 static int
 NCZ_szip_visible_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp)
 {
@@ -505,6 +508,7 @@ done:
     nullfree(params);
     return stat;
 }
+#endif
 
 #endif /*USE_SZIP*/
 

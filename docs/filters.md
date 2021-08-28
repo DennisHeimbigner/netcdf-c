@@ -387,8 +387,7 @@ There are several paths by which the NCZarr filter API is invoked.
 (1a) the metadata for a variable is read when opening an existing variable that has associated Codecs.
 2. The visible parameters are converted to a set of working parameters.
 3. The filter is invoked with the working parameters.
-4. The working parameters are converted to a set of visible parameters.
-5. The dataset is closed using the final set of visible parameters.
+4. The dataset is closed using the final set of visible parameters.
 
 ### Step 1: Invoking nc_def_var_filter
 
@@ -403,17 +402,14 @@ If this is important, then the filter implementation is responsible for marking 
 ### Step 2: Convert visible parameters to working parameters
 
 Given environmental information such as the associated variables base type, the visible parameters
-are converted to a potentially larger set of working parameters.
+are converted to a potentially larger set of working parameters; additionally provide the opportunity
+to modify the visible parameters.
 
 ### Step 3: Invoking the filter
 
 As chunks are read or written, the filter is repeatedly invoked using the working parameters.
 
-### Step 4: Convert working parameters to visible parameters
-
-During the closing of a dataset, the set of working parameters are converted to a set of visible parameters.
-
-### Step 5: Closing the dataset
+### Step 4: Closing the dataset
 
 The visible parameters from step 2 are stored in the dataset's metadata.
 It is desirable to determine if the set of visible parameters changes.
@@ -821,8 +817,7 @@ typedef struct NCZ_codec_t {
     void (*NCZ_codec_finalize)(void);
     int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
     int (*NCZ_hdf5_to_codec)(size_t nparams, const unsigned* params, char** codecp);
-    int (*NCZ_working_parameters)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
-    int (*NCZ_visible_parameters)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+    int (*NCZ_modify_parameters)(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* nparamsp, unsigned** paramsp);
 } NCZ_codec_t;
 ````
 
@@ -865,39 +860,21 @@ return a corresponding JSON codec representation of those visible parameters.
 
 Return Value: a netcdf-c error code.
 
-### NCZ_codec_working
+### NCZ_modify_parameters
 
 Extract environment information from the (ncid,varid) and use it to convert a set of visible parameters
-to a set of working parameters.
+to a set of working parameters; also provide option to modify visible parameters.
 
 #### Signature
-    int (*NCZ_codec_working)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+    int (*NCZ_modify_parameters)(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 
 #### Arguments
 1. ncid -- (in) group id containing the variable.
 2. varid -- (in) the id of the variable to which this filter is being attached.
-3. nparamsin -- (in) the count of visible parameters
-4. paramsin -- (in) the set of visible parameters
-5. nparamsp -- (out) the count of working parameters
-4. paramsp -- (out) the set of working parameters
-
-Return Value: a netcdf-c error code.
-
-### NCZ_codec_visible
-
-This is the inverse function for NCZ_codec_working. It converts a set of working parameters
-back to a set of visible parameters.
-
-#### Signature
-    int (*NCZ_codec_visible)(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
-
-#### Arguments
-1. ncid -- (in) group id containing the variable.
-2. varid -- (in) the id of the variable to which this filter is being attached.
-3. nparamsin -- (in) the count of working parameters
-4. paramsin -- (in) the set of working parameters
-5. nparamsp -- (out) the count of visible parameters
-4. paramsp -- (out) the set of visible parameters
+3. vnparamsp -- (in/out) the count of visible parameters
+4. vparamsp -- (in/out) the set of visible parameters
+5. wnparamsp -- (out) the count of working parameters
+4. wparamsp -- (out) the set of working parameters
 
 Return Value: a netcdf-c error code.
 

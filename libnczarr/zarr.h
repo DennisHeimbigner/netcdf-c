@@ -36,8 +36,8 @@ extern int NCZ_stringconvert(nc_type typid, size_t len, void* data0, NCjson** jd
 
 /* zsync.c */
 extern int ncz_sync_file(NC_FILE_INFO_T* file, int isclose);
-extern int ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp);
-extern int ncz_sync_atts(NC_FILE_INFO_T*, NC_OBJ* container, NCindex* attlist);
+extern int ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose);
+extern int ncz_sync_atts(NC_FILE_INFO_T*, NC_OBJ* container, NCindex* attlist, int isclose);
 extern int ncz_read_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp);
 extern int ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container);
 extern int ncz_read_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp);

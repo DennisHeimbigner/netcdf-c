@@ -164,8 +164,7 @@ static NCZ_codec_t NCZ_noop_codec = {/* NCZ_codec_t  codec fields */
   NULL, /*NCZ_noop_codec_finalize*/
   NCZ_noop_codec_to_hdf5,
   NCZ_noop_hdf5_to_codec,
-  NULL, /*NCZ_noop_working_parameters*/
-  NULL, /*NCZ_noop_visible_parameters*/
+  NULL, /*NCZ_noop_modify_parameters*/
 };
 
 /* External Export API */

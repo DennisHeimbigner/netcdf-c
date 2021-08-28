@@ -392,7 +392,7 @@ const void* H5PLget_plugin_info(void) { return blosc_H5Filter; }
 static void NCZ_blosc_codec_finalize(void);
 static int NCZ_blosc_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
 static int NCZ_blosc_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
-static int NCZ_blosc_working_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_blosc_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 
 /* Structure for NCZ_PLUGIN_CODEC */
 static NCZ_codec_t NCZ_blosc_codec = {/* NCZ_codec_t  codec fields */ 
@@ -405,7 +405,6 @@ static NCZ_codec_t NCZ_blosc_codec = {/* NCZ_codec_t  codec fields */
   NCZ_blosc_codec_to_hdf5,
   NCZ_blosc_hdf5_to_codec,
   NCZ_blosc_working_parameters,
-  NULL, /*NCZ_blosc_visible_parameters*/
 };
 
 /* External Export API */
@@ -444,7 +443,7 @@ NCZ_blosc_codec_finalize(void)
 }
 
 static int
-NCZ_blosc_working_parameters(int ncid, int varid, size_t nparamsin, const unsigned int* paramsin, size_t* nparamsp, unsigned** paramsp)
+NCZ_blosc_working_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* nparamsp, unsigned** paramsp)
 {
     int i,stat = NC_NOERR;
     nc_type vtype;
@@ -453,6 +452,8 @@ NCZ_blosc_working_parameters(int ncid, int varid, size_t nparamsin, const unsign
     size_t typesize, chunksize;
     char vname[NC_MAX_NAME+1];
     unsigned* params = NULL;
+    size_t vnparams;
+    size_t vparams = NULL;
     
     if(nparamsin < 7)
         {stat = NC_EFILTER; goto done;}
@@ -463,6 +464,9 @@ NCZ_blosc_working_parameters(int ncid, int varid, size_t nparamsin, const unsign
 
     if(nparamsp == NULL || paramsp == NULL)
         {stat = NC_EFILTER; goto done;}
+
+    vnparams = *vnparamsp;
+    vparams = *vparamsp;
 
     /* Get variable info */
     if((stat = nc_inq_var(ncid,varid,vname,&vtype,&ndims,NULL,NULL))) goto done;
@@ -479,9 +483,9 @@ NCZ_blosc_working_parameters(int ncid, int varid, size_t nparamsin, const unsign
     chunksize = typesize;
     for(i=0;i<ndims;i++) chunksize *= chunklens[i];
 
-    if((params = (unsigned*)malloc(nparamsin*sizeof(unsigned)))==NULL)
+    if((params = (unsigned*)malloc(vnparams*sizeof(unsigned)))==NULL)
         {stat = NC_ENOMEM; goto done;}
-    memcpy(params,paramsin,nparamsin*sizeof(unsigned));
+    memcpy(params,vparams,vnparams*sizeof(unsigned));
 
     params[0] = FILTER_BLOSC_VERSION;
     params[1] = BLOSC_VERSION_FORMAT;
@@ -492,7 +496,7 @@ NCZ_blosc_working_parameters(int ncid, int varid, size_t nparamsin, const unsign
     params[5] = params[5];
     params[6] = params[6];
 
-    *nparamsp = nparamsin;
+    *wnparamsp = vnparams;
     nullfree(*paramsp);
     *paramsp = params; params = NULL;
     

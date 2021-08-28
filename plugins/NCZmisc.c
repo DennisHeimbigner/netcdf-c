@@ -86,8 +86,7 @@ static NCZ_codec_t NCZ_misc_codec = {/* NCZ_codec_t  codec fields */
   NULL, /*NCZ_misc_codec_finalize*/
   NCZ_misc_codec_to_hdf5,
   NCZ_misc_hdf5_to_codec,
-  NULL, /*NCZ_misc_working_parameters*/
-  NULL, /*NCZ_misc_visible_parameters*/
+  NULL, /*NCZ_misc_modify_parameters*/
 };
 
 /* External Export API */

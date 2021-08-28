@@ -7,6 +7,19 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
+testset() {
+# Which test cases to exercise
+testapi $1
+testng $1
+testncp $1
+testunk $1
+testngc $1
+testmisc $1
+testmulti $1
+testrep $1
+testorder $1
+}
+
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent
 sclean() {
@@ -179,22 +192,8 @@ ${execdir}/testfilter_order read $fileurl >tmp_order_rd_$zext.txt
 diff -b -w ${srcdir}/../nc_test4/ref_filter_order_read.txt tmp_order_rd_$zext.txt
 }
 
-
-testset() {
-# Which test cases to exercise
-testapi $1
-testng $1
-testncp $1
-testunk $1
-testngc $1
-testmisc $1
-testmulti $1
-testrep $1
-testorder $1
-}
-
 testset file
-if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testset zip ; fi
-if test "x$FEATURE_S3TESTS" = xyes ; then testset s3 ; fi
+#if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testset zip ; fi
+#if test "x$FEATURE_S3TESTS" = xyes ; then testset s3 ; fi
 
 exit 0
