@@ -404,7 +404,7 @@ static NCZ_codec_t NCZ_blosc_codec = {/* NCZ_codec_t  codec fields */
   NCZ_blosc_codec_finalize,
   NCZ_blosc_codec_to_hdf5,
   NCZ_blosc_hdf5_to_codec,
-  NCZ_blosc_working_parameters,
+  NCZ_blosc_modify_parameters,
 };
 
 /* External Export API */
@@ -443,7 +443,7 @@ NCZ_blosc_codec_finalize(void)
 }
 
 static int
-NCZ_blosc_working_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* nparamsp, unsigned** paramsp)
+NCZ_blosc_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int i,stat = NC_NOERR;
     nc_type vtype;
@@ -452,17 +452,18 @@ NCZ_blosc_working_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** 
     size_t typesize, chunksize;
     char vname[NC_MAX_NAME+1];
     unsigned* params = NULL;
-    size_t vnparams;
-    size_t vparams = NULL;
+    size_t nparams;
+    size_t vnparams = *vnparamsp;
+    size_t vparams = *vparamsp;
     
-    if(nparamsin < 7)
+    if(vnparams < 7)
         {stat = NC_EFILTER; goto done;}
-    nparamsin = 7;
+    nparams = 7;
 
-    if(nparamsin > 0 && paramsin == NULL)
+    if(vnparams > 0 && vparams == NULL)
         {stat = NC_EFILTER; goto done;}
 
-    if(nparamsp == NULL || paramsp == NULL)
+    if(wnparamsp == NULL || wparamsp == NULL)
         {stat = NC_EFILTER; goto done;}
 
     vnparams = *vnparamsp;
@@ -496,9 +497,9 @@ NCZ_blosc_working_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** 
     params[5] = params[5];
     params[6] = params[6];
 
-    *wnparamsp = vnparams;
-    nullfree(*paramsp);
-    *paramsp = params; params = NULL;
+    *wnparamsp = nparams;
+    nullfree(*wparamsp);
+    *wparamsp = params; params = NULL;
     
 done:
     nullfree(params);
@@ -600,4 +601,3 @@ NCZ_blosc_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
 done:
     return stat;
 }
-
