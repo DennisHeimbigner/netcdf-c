@@ -580,17 +580,11 @@ NC4_hdf5_find_missing_filter(NC_VAR_INFO_T* var, unsigned int* idp)
 int
 NC4_hdf5_filter_initialize(void)
 {
-#ifdef ENABLE_BLOSC
-    blosc_init();
-#endif
     return NC_NOERR;
 }
 
 int
 NC4_hdf5_filter_finalize(void)
 {
-#ifdef ENABLE_BLOSC
-    blosc_destroy();
-#endif
     return NC_NOERR;
 }

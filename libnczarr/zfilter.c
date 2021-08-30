@@ -168,7 +168,7 @@ NCJtrace(const NCjson* j)
 
 #ifdef DEBUGF
 
-static const char*
+const char*
 printplugin(const NCZ_Plugin* plugin)
 {
     static char plbuf[4096];

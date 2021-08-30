@@ -125,6 +125,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define PUSH_ERR(f,m,s,...) fprintf(stderr,"%s\n",s)
 #endif /*USE_HDF5*/
 
+static int h5z_blosc_initialized = 0;
+
 static size_t blosc_filter(unsigned flags, size_t cd_nelmts,
                     const unsigned cd_values[], size_t nbytes,
                     size_t* buf_size, void** buf);
@@ -229,8 +231,8 @@ size_t blosc_filter(unsigned flags, size_t cd_nelmts,
   int doshuffle = 1;             /* Shuffle default */
   int compcode;                  /* Blosc compressor */
   int code;
-  const char* compname = "blosclz";    /* The compressor by default */
-  const char* complist = NULL;
+  char* compname = "blosclz";    /* The compressor by default */
+  char* complist = NULL;
 
   /* Filter params that are always set */
   typesize = cd_values[2];      /* The datatype size */
@@ -411,6 +413,10 @@ static NCZ_codec_t NCZ_blosc_codec = {/* NCZ_codec_t  codec fields */
 const void*
 NCZ_get_codec_info(void)
 {
+    if(!h5z_blosc_initialized) {
+	h5z_blosc_initialized = 1;
+	blosc_init();
+    }
     return (void*)&NCZ_blosc_codec;
 }
 
@@ -439,7 +445,10 @@ param[6] -- compressor index
 static void
 NCZ_blosc_codec_finalize(void)
 {
-    blosc_destroy();
+    if(h5z_blosc_initialized) {
+        blosc_destroy();
+	h5z_blosc_initialized = 0;
+    }
 }
 
 static int
@@ -454,7 +463,7 @@ NCZ_blosc_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** v
     unsigned* params = NULL;
     size_t nparams;
     size_t vnparams = *vnparamsp;
-    size_t vparams = *vparamsp;
+    unsigned* vparams = *vparamsp;
     
     if(vnparams < 7)
         {stat = NC_EFILTER; goto done;}
@@ -502,6 +511,7 @@ NCZ_blosc_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** v
     *wparamsp = params; params = NULL;
     
 done:
+    nullfree(chunklens);
     nullfree(params);
     FUNC_LEAVE_NOAPI(stat)
 }
@@ -582,7 +592,7 @@ NCZ_blosc_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     char json[1024];
-    const char* compname = NULL;
+    char* compname = NULL;
 
     if(nparams == 0 || params == NULL)
         {stat = NC_EINVAL; goto done;}

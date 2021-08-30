@@ -193,7 +193,7 @@ diff -b -w ${srcdir}/../nc_test4/ref_filter_order_read.txt tmp_order_rd_$zext.tx
 }
 
 testset file
-#if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testset zip ; fi
-#if test "x$FEATURE_S3TESTS" = xyes ; then testset s3 ; fi
+if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testset zip ; fi
+if test "x$FEATURE_S3TESTS" = xyes ; then testset s3 ; fi
 
 exit 0
