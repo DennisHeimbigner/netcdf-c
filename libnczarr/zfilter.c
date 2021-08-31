@@ -338,6 +338,7 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
     /* Before anything else, find the matching plugin */
     if((stat = NCZ_plugin_loaded(id,&plugin))) goto done;
     if(plugin == NULL || plugin->codec.codec == NULL) { /* fail */
+	ZLOG(NCLOGERR,"no such plugin: %u",(unsigned)id);
 	stat = NC_ENOFILTER;
 	goto done;
     }
@@ -398,6 +399,7 @@ NCZ_filter_remove(NC_VAR_INFO_T* var, unsigned int id)
 	    goto done;
 	}
     }
+    ZLOG(NCLOGERR,"no such filter: %u",(unsigned)id);
     stat = NC_ENOFILTER;
 done:
     return ZUNTRACE(stat);
@@ -594,7 +596,6 @@ NCZ_inq_var_filter_ids(int ncid, int varid, size_t* nfiltersp, unsigned int* ids
     NClist* flist = NULL;
     size_t nfilters = 0;
 
-    LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
     ZTRACE(1,"ncid=%d varid=%d",ncid,varid);
 
     if((stat = NC_check_id(ncid,&nc))) goto done;
@@ -635,7 +636,6 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, 
     NC_VAR_INFO_T* var = NULL;
     struct NCZ_Filter* spec = NULL;
 
-    LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
     ZTRACE(1,"ncid=%d varid=%d id=%u",ncid,varid,id);
     
     if((stat = NC_check_id(ncid,&nc))) goto done;
@@ -671,9 +671,10 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, 
         if(nparamsp) *nparamsp = spec->hdf5.visible.nparams;
         if(params && spec->hdf5.visible.nparams > 0)
 	    memcpy(params,spec->hdf5.visible.params,sizeof(unsigned int)*spec->hdf5.visible.nparams);
-    } else
+    } else {
+        ZLOG(NCLOGERR,"no such filter: %u",(unsigned)id);
         stat = NC_ENOFILTER;
- 
+    } 
 done:
     return ZUNTRACEX(stat,"nparams=%u",(unsigned)(nparamsp?*nparamsp:0));
 }
@@ -885,7 +886,10 @@ NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* j
 
     /* Get the id of this codec filter */
     if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
-    if(NCJsort(jvalue) != NCJ_STRING) {stat = NC_ENOFILTER; goto done;}
+    if(NCJsort(jvalue) != NCJ_STRING) {
+        ZLOG(NCLOGERR,"no such filter: %s",(unsigned)NCJstring(jvalue));
+	stat = NC_ENOFILTER; goto done;
+    }
 
     /* Build the codec */
     if((codec.id = strdup(NCJstring(jvalue)))==NULL)
@@ -1068,7 +1072,10 @@ NCZ_load_all_plugins(void)
     }
 
     ZTRACEMORE(6,"pluginroot=%s",(pluginroot?pluginroot:"null"));
-    if(pluginroot == NULL) {ret = NC_ENOFILTER; goto done;}
+    if(pluginroot == NULL) {
+        ZLOG(NCLOGERR,"no pluginroot: %s",plugin_env);
+	ret = NC_ENOFILTER; goto done;
+    }
 
     if((ret = NCZ_split_plugin_path(pluginroot,dirs))) goto done;
 
@@ -1270,7 +1277,9 @@ NCZ_load_plugin(const char* path, struct NCZ_Plugin** plugp)
 
 #ifdef _WIN32
     /*triage because visual studio does a popup if the file will not load*/
-    if(memcmp(path+(strlen(path)-4),".dll",4) != 0) {stat = NC_ENOFILTER; goto done;}
+    if(memcmp(path+(strlen(path)-4),".dll",4) != 0) {
+	stat = NC_ENOFILTER; goto done;
+    }
 #endif
 
     /* load the shared library */

@@ -10,14 +10,14 @@ set -e
 testset() {
 # Which test cases to exercise
 testapi $1
-testng $1
-testncp $1
-testunk $1
-testngc $1
-testmisc $1
-testmulti $1
-testrep $1
-testorder $1
+#testng $1
+#testncp $1
+#testunk $1
+#testngc $1
+#testmisc $1
+#testmulti $1
+#testrep $1
+#testorder $1
 }
 
 # Function to remove selected -s attributes from file;
@@ -67,6 +67,7 @@ zext=$1
 echo "*** Testing dynamic filters using API for map=$zext"
 deletemap $zext tmp_api
 fileargs tmp_api
+ls -ld ${execdir}/*.dll
 ${execdir}/testfilter $fileurl
 ${NCDUMP} -s -n bzip2 $fileurl > ./tmp_api_$zext.txt
 # Remove irrelevant -s output
