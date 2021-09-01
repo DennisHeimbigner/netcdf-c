@@ -67,7 +67,6 @@ zext=$1
 echo "*** Testing dynamic filters using API for map=$zext"
 deletemap $zext tmp_api
 fileargs tmp_api
-ls -ld ${execdir}/*.dll
 ${execdir}/testfilter $fileurl
 ${NCDUMP} -s -n bzip2 $fileurl > ./tmp_api_$zext.txt
 # Remove irrelevant -s output
