@@ -235,6 +235,7 @@ static NCZ_codec_t NCZ_bzip2_codec = {/* NCZ_codec_t  codec fields */
 };
 
 /* External Export API */
+DLLEXPORT
 const void*
 NCZ_get_codec_info(void)
 {
