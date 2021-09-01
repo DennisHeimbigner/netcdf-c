@@ -353,6 +353,7 @@ nc4_find_nc_grp_h5(int ncid, NC **nc, NC_GRP_INFO_T **grp, NC_FILE_INFO_T **h5)
     NC_FILE_INFO_T *my_h5 = NULL;
     NC *my_nc;
     int retval;
+    size_t index;
 
     /* Look up file metadata. */
     if ((retval = NC_check_id(ncid, &my_nc)))
@@ -361,7 +362,8 @@ nc4_find_nc_grp_h5(int ncid, NC **nc, NC_GRP_INFO_T **grp, NC_FILE_INFO_T **h5)
     assert(my_h5 && my_h5->root_grp);
 
     /* If we can't find it, the grp id part of ncid is bad. */
-    if (!(my_grp = nclistget(my_h5->allgroups, (ncid & GRP_ID_MASK))))
+    index =  (ncid & GRP_ID_MASK);
+    if (!(my_grp = nclistget(my_h5->allgroups,index)))
         return NC_EBADID;
 
     /* Return pointers to caller, if desired. */

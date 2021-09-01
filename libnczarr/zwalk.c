@@ -122,8 +122,6 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     common.typesize = typesize;
     common.cache = zvar->cache;
 
-    if((stat = ncz_get_fill_value(common.file, common.var, &common.fillvalue))) goto done;
-
     /* We need to talk scalar into account */
     common.rank = var->ndims + zvar->scalar;
     common.scalar = zvar->scalar;
@@ -158,6 +156,9 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     common.memshape = memshape; /* ditto */
     common.reader.source = ((NCZ_VAR_INFO_T*)(var->format_var_info))->cache;
     common.reader.read = readfromcache;
+
+    /* verify */
+    assert(var->no_fill || var->fill_value != NULL);
 
     if(common.scalar) {
         if((stat = NCZ_transferscalar(&common))) goto done;
@@ -680,7 +681,6 @@ NCZ_clearcommon(struct Common* common)
 {
     NCZ_clearsliceprojections(common->rank,common->allprojections);
     nullfree(common->allprojections);
-    nullfree(common->fillvalue);
 }
 
 /* Does the User want all of one and only chunk? */

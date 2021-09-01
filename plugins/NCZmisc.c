@@ -73,8 +73,8 @@ static const char* fields[14] = {
 };
 
 /* Forward */
-static int NCZ_misc_codec_to_hdf5(void*, const char* codec, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_misc_hdf5_to_codec(void*, size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_misc_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_misc_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
 
 /* Structure for NCZ_PLUGIN_CODEC */
 static NCZ_codec_t NCZ_misc_codec = {/* NCZ_codec_t  codec fields */ 
@@ -82,11 +82,11 @@ static NCZ_codec_t NCZ_misc_codec = {/* NCZ_codec_t  codec fields */
   NCZ_CODEC_HDF5,	/* Struct sort */
   "test",	        /* Standard name/id of the codec */
   H5Z_FILTER_TEST,     /* HDF5 alias for misc */
+  NULL, /*NCZ_misc_codec_initialize*/
+  NULL, /*NCZ_misc_codec_finalize*/
   NCZ_misc_codec_to_hdf5,
   NCZ_misc_hdf5_to_codec,
-  NULL,
-  NULL,
-  NULL,
+  NULL, /*NCZ_misc_modify_parameters*/
 };
 
 /* External Export API */
@@ -100,15 +100,13 @@ NCZ_get_codec_info(void)
 /* NCZarr Interface Functions */
 
 static int
-NCZ_misc_codec_to_hdf5(void* context, const char* codec_json, size_t* nparamsp, unsigned** paramsp)
+NCZ_misc_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
     NCjson* jtmp = NULL;
     size_t i,nparams = 0;
     unsigned* params = NULL;
-
-    NC_UNUSED(context);
 
     /* parse the JSON */
     if(NCJparse(codec_json,0,&jcodec))
@@ -153,13 +151,11 @@ done:
 }
 
 static int
-NCZ_misc_hdf5_to_codec(void* context, size_t nparams, const unsigned* params, char** codecp)
+NCZ_misc_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
 {
     int i,stat = NC_NOERR;
     char json[4096];
     char value[1024];
-
-    NC_UNUSED(context);
 
     if(nparams == 0 || params == NULL)
         {stat = NC_EINVAL; goto done;}

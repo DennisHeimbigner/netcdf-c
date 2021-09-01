@@ -8,11 +8,17 @@
 #undef ZDEBUG /* general debug */
 #undef ZDEBUG1 /* detailed debug */
 
-#undef ZCATCH /* Warning: significant performance impact */
-#undef ZTRACING /* Warning: significant performance impact */
+#define ZCATCH /* Warning: significant performance impact */
+#define ZTRACING /* Warning: significant performance impact */
 
 #include "ncexternl.h"
 #include "nclog.h"
+
+#ifdef LOGGING
+#define ZLOG(tag,...) nclog(tag,__VA_ARGS__)
+#else
+#define ZLOG(tag,...)
+#endif
 
 #ifdef ZCATCH
 /* Place breakpoint on zbreakpoint to catch errors close to where they occur*/

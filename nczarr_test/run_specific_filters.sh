@@ -91,7 +91,7 @@ testfletcher32() {
 
 testshuffle() {
   zext=$1
-  runfilter $zext shuffle '2' '[{\"id\": \"shuffle\",\"elementsize\": \"4\"}]'
+  runfilter $zext shuffle '2' '[{\"id\": \"shuffle\",\"elementsize\": \"0\"}]'
   if test -f "tmp_shuffle.dump" ; then
       # need to replace _Filter
       sed -e 's/_Filter = "2,4"/_Filter = "2"/' -e '/_Shuffle = "true"/d' < tmp_shuffle.dump > tmp_shufflex.dump
@@ -136,7 +136,7 @@ testszip() {
 
 testblosc() {
   zext=$1
-  runfilter $zext blosc '32001,2,2,4,0,5,1,1' '[{\"id\": \"blosc\",\"clevel\": 5,\"blocksize\": 0,\"cname\": \"lz4\",\"shuffle\": 1}]'
+  runfilter $zext blosc '32001,0,0,0,0,5,1,1' '[{\"id\": \"blosc\",\"clevel\": 5,\"blocksize\": 0,\"cname\": \"lz4\",\"shuffle\": 1}]'
   if test -f "tmp_blosc.dump" ; then
       diff -b -w "tmp_blosc.cdl" "tmp_blosc.dump"
   else
@@ -155,7 +155,7 @@ testset() {
 }
 
 testset file
-if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testset zip ; fi
-if test "x$FEATURE_S3TESTS" = xyes ; then testset s3 ; fi
+#if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testset zip ; fi
+#if test "x$FEATURE_S3TESTS" = xyes ; then testset s3 ; fi
 
 exit 0

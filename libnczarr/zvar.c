@@ -678,9 +678,6 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 	    for (d = 0; d < var->ndims; d++)
 		zvar->chunkproduct *= var->chunksizes[d];
             zvar->chunksize = zvar->chunkproduct * var->type_info->size;
-	    /* Adjust the cache. */
-	    if ((retval = NCZ_adjust_var_cache(var)))
-		goto done;
 	}
     
 #ifdef LOGGING

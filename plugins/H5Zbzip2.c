@@ -219,22 +219,19 @@ H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
 
 /* Provide the codec support for the HDF5 bzip library */
 
-/* Forward */
-static int NCZ_bzip2_codec_to_hdf5(void* context, const char* codec, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_bzip2_hdf5_to_codec(void* context, size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_bzip2_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_bzip2_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
 
-/* Structure for NCZ_PLUGIN_CODEC */
 static NCZ_codec_t NCZ_bzip2_codec = {/* NCZ_codec_t  codec fields */ 
   NCZ_CODEC_CLASS_VER,	/* Struct version number */
   NCZ_CODEC_HDF5,	/* Struct sort */
   "bz2",	        /* Standard name/id of the codec */
-  H5Z_FILTER_BZIP2,     /* HDF5 alias for bzip2 */
+  H5Z_FILTER_BZIP2,   /* HDF5 alias for bzip2 */
+  NULL, /*NCZ_bzip2_codec_initialize*/
+  NULL, /*NCZ_bzip2_codec_finalize*/
   NCZ_bzip2_codec_to_hdf5,
   NCZ_bzip2_hdf5_to_codec,
-  NULL,			/* setup function */
-  NULL,			/* modify function */
-  NULL,			/* cleanup function */
-  NULL,			/* finalize function */
+  NULL, /*NCZ_bzip2_modify_parameters*/
 };
 
 /* External Export API */
@@ -245,20 +242,19 @@ NCZ_get_codec_info(void)
     return (void*)&NCZ_bzip2_codec;
 }
 
-/* NCZarr Interface Functions */
-
 static int
-NCZ_bzip2_codec_to_hdf5(void* context, const char* codec_json, size_t* nparamsp, unsigned** paramsp)
+NCZ_bzip2_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
     NCjson* jtmp = NULL;
     unsigned* params = NULL;
     struct NCJconst jc;
-
-    NC_UNUSED(context);
+  
+    if(nparamsp == NULL || paramsp == NULL)
+        {stat = NC_EINTERNAL; goto done;}
     
-    if((params = (unsigned*)malloc(sizeof(unsigned)))== NULL)
+    if((params = (unsigned*)calloc(1,sizeof(unsigned)))== NULL)
         {stat = NC_ENOMEM; goto done;}
 
     /* parse the JSON */
@@ -268,18 +264,18 @@ NCZ_bzip2_codec_to_hdf5(void* context, const char* codec_json, size_t* nparamsp,
     /* Verify the codec ID */
     if(NCJdictget(jcodec,"id",&jtmp))
         {stat = NC_EFILTER; goto done;}
-    if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
+    if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EFILTER; goto done;}
     if(strcmp(NCJstring(jtmp),NCZ_bzip2_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
 
     /* Get Level */
     if(NCJdictget(jcodec,"level",&jtmp))
         {stat = NC_EFILTER; goto done;}
     if(NCJcvt(jtmp,NCJ_INT,&jc))
-	{stat = NC_EFILTER; goto done;}
+        {stat = NC_EFILTER; goto done;}
     if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
     params[0] = (unsigned)jc.ival;
-    if(nparamsp) *nparamsp = 1;
-    if(paramsp) {*paramsp = params; params = NULL;}
+    *nparamsp = 1;
+    *paramsp = params; params = NULL;
     
 done:
     if(params) free(params);
@@ -288,16 +284,14 @@ done:
 }
 
 static int
-NCZ_bzip2_hdf5_to_codec(void* context, size_t nparams, const unsigned* params, char** codecp)
+NCZ_bzip2_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     unsigned level = 0;
     char json[1024];
 
-    NC_UNUSED(context);
-    
     if(nparams == 0 || params == NULL)
-        {stat = NC_EINVAL; goto done;}
+        {stat = NC_EFILTER; goto done;}
 
     level = params[0];
     snprintf(json,sizeof(json),"{\"id\": \"%s\", \"level\": \"%u\"}",NCZ_bzip2_codec.codecid,level);
@@ -308,3 +302,4 @@ NCZ_bzip2_hdf5_to_codec(void* context, size_t nparams, const unsigned* params, c
 done:
     return stat;
 }
+

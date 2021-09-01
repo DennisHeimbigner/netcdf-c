@@ -42,8 +42,8 @@ noinst_PROGRAMS += ncvalidator
 ncvalidator_SOURCES = ncvalidator.c
 
 # A non-installed utility program to convert paths; similar to cygpath
-noinst_PROGRAMS = ncpathcvt
-pathcvt_SOURCES = ncpathcvt.c
+noinst_PROGRAMS += ncpathcvt
+ncpathcvt_SOURCES = ncpathcvt.c
 
 # A simple netcdf-4 metadata -> xml printer. Do not install.
 if USE_HDF5

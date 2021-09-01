@@ -108,6 +108,10 @@ NCZ_adjust_var_cache(NC_VAR_INFO_T *var)
     /* completely empty the cache */
     flushcache(zvar->cache);
 
+#ifdef DEBUG
+fprintf(stderr,"xxx: adjusting cache for: %s\n",var->hdr.name);
+#endif
+
     /* Reset the parameters */
     zvar->cache->maxsize = var->chunk_cache_size;
     zvar->cache->maxentries = var->chunk_cache_nelems;
@@ -122,8 +126,10 @@ NCZ_adjust_var_cache(NC_VAR_INFO_T *var)
     zvar->cache->fillchunk = NULL;
     if(var->no_fill)
         stat = NCZ_create_fill_chunk(zvar->cache->chunksize,var->type_info->size,NULL,&zvar->cache->fillchunk);
-    else
+    else {
+	assert(var->fill_value != NULL);
         stat = NCZ_create_fill_chunk(zvar->cache->chunksize,var->type_info->size,var->fill_value,&zvar->cache->fillchunk);
+    }
     return stat;
 }
 
@@ -502,6 +508,7 @@ static int
 put_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
 {
     int stat = NC_NOERR;
+    NC_FILE_INFO_T* file = NULL;
     NCZ_FILE_INFO_T* zfile = NULL;
     NCZMAP* map = NULL;
     char* path = NULL;
@@ -509,19 +516,20 @@ put_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
     ZTRACE(5,"cache.var=%s entry.key=%s",cache->var->hdr.name,entry->key);
     LOG((3, "%s: var: %p", __func__, cache->var));
 
-    zfile = ((cache->var->container)->nc4_info)->format_file_info;
+    file = (cache->var->container)->nc4_info;
+    zfile = file->format_file_info;
     map = zfile->map;
 
     /* Make sure the entry is in filtered state */
     if(!entry->isfiltered) {
-        const NC_VAR_INFO_T* var = cache->var;
+        NC_VAR_INFO_T* var = cache->var;
         void* filtered = NULL; /* pointer to the filtered data */
 	size_t flen; /* length of filtered data */
 	/* Get the filter chain to apply */
 	NClist* filterchain = (NClist*)var->filters;
 	if(nclistlength(filterchain) > 0) {
 	    /* Apply the filter chain to get the filtered data */
-	    if((stat = NCZ_applyfilterchain(filterchain,entry->size,entry->data,&flen,&filtered,ENCODING))) goto done;
+	    if((stat = NCZ_applyfilterchain(file,var,filterchain,entry->size,entry->data,&flen,&filtered,ENCODING))) goto done;
 	    /* Fix up the cache entry */
 	    /* Note that if filtered is different from entry->data, then entry->data will have been freed */
 	    entry->data = filtered;
@@ -615,7 +623,7 @@ get_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
     }
     /* Make sure the entry is in unfiltered state */
     if(entry->isfiltered) {
-        const NC_VAR_INFO_T* var = cache->var;
+        NC_VAR_INFO_T* var = cache->var;
         void* unfiltered = NULL; /* pointer to the unfiltered data */
         void* filtered = NULL; /* pointer to the filtered data */
 	size_t unflen; /* length of unfiltered data */
@@ -625,7 +633,7 @@ get_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
 	/* Apply the filter chain to get the unfiltered data */
 	filtered = entry->data;
 	entry->data = NULL;
-	if((stat = NCZ_applyfilterchain(filterchain,entry->size,filtered,&unflen,&unfiltered,!ENCODING))) goto done;
+	if((stat = NCZ_applyfilterchain(file,var,filterchain,entry->size,filtered,&unflen,&unfiltered,!ENCODING))) goto done;
 	/* Fix up the cache entry */
 	entry->data = unfiltered;
 	entry->size = unflen;

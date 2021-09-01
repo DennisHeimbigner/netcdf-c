@@ -9,8 +9,6 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ${builddir}/findplugin.sh
 echo "findplugin.sh loaded"
 
-set -x
-
 # Locate the plugin path and the library names; argument order is critical
 # Find bzip2 and capture
 # Assume all test filters are in same plugin dir

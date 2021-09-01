@@ -56,6 +56,9 @@
 #define ZATTRS ".zattrs"
 #define ZARRAY ".zarray"
 
+/* Pure Zarr pseudo names */
+#define ZDIMANON "_zdim"
+
 /* V2 Reserved Attributes */
 /*
 Inserted into /.zgroup
@@ -98,8 +101,8 @@ Inserted into any .zattrs ? or should it go into the container?
 #define ZCLOSE    1 /* this is closeorabort as opposed to enddef */
 
 /* Useful macro */
-#define ncidfor(file,hdrid) ((file)->controller->ext_ncid | (hdrid))
-
+#define ncidforx(file,grpid) ((file)->controller->ext_ncid | (grpid))
+#define ncidfor(var) ncidforx((var)->container->nc4_info,(var)->container->hdr.id)
 
 /**************************************************/
 /* Forward */
@@ -182,7 +185,6 @@ typedef struct NCZ_VAR_INFO {
     struct NCZChunkCache* cache;
     struct NClist* xarray; /* names from _ARRAY_DIMENSIONS */
     char dimension_separator; /* '.' | '/' */
-    NClist* codecs; /* NClist<NCZ_Codec> */
 } NCZ_VAR_INFO_T;
 
 /* Struct to hold ZARR-specific info for a field. */

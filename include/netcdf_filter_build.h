@@ -48,61 +48,56 @@ typedef const void* (*NCZ_get_codec_info_proto)(void);
 /* The current object returned by NCZ_get_plugin_info is a
    pointer to an instance of NCZ_codec_t.
 
-The key to this struct are the four function pointers that do setup/cleanup/finalize
+The key to this struct are the several function pointers that do initialize/finalize
 and conversion between codec JSON and HDF5 parameters.
 
-Setup context state for the codec converter
-int (*NCZ_codec_setup)(int ncid, int varid, void** contextp);
+The function pointers defined in NCZ_codec_t manipulate HDF5 parameters and NumCodec JSON.
 
-@param ncid -- (in) ncid of the variable's group
-@param varid -- (in) varid of the variable
-@params contextp -- (out) context for this (var,codec) combination.
-@return -- a netcdf-c error code.
+* Initialize use of the filter. This is invoked when a filter is loaded.
 
-Modify the set of HDF5 parameters; called after NCZ_codec_to_hdf5 and after NCZ_codec_setup
-int (*NCZ_codec_modify)(void* context, size_t* nparamsp, unsigned** paramsp);
+void (*NCZ_codec_initialize)(void);
 
-@params context -- (in/out) context from NCZ_codec_setup.
-@params nparamsp -- (in/out) number of parameters
-@params paramsp -- (in/out) allow setup to modify the number and values of the HDF5 parameters
-@return -- a netcdf-c error code.
+* Finalize use of the filter. Since HDF5 does not provide this functionality, the codec may need to do it.
+See H5Zblosc.c for an example. This function is invoked when a filter is unloaded.
 
-Reclaim any codec resources from setup. Not same as finalize.
-int (*NCZ_codec_cleanup)(void* context);
-
-@param context -- (in) context state
-
-Finalize use of the plugin. Since HDF5 does not provide this functionality,
-the codec may need to do it. See H5Zblosc.c for an example.
 void (*NCZ_codec_finalize)(void);
 
-@param context -- (in) context state
+* Convert a JSON representation to an HDF5 representation. Invoked when a NumCodec JSON Codec is extracted
+from Zarr metadata.
 
-Convert a JSON representation to an HDF5 representation:
-int (*NCZ_codec_to_hdf5)(void* context, const char* codec, size_t* nparamsp, unsigned** paramsp);
+int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
 
-@param context -- (in) context state from setup.
 @param codec   -- (in) ptr to JSON string representing the codec.
 @param nparamsp -- (out) store the length of the converted HDF5 unsigned vector
 @param paramsp -- (out) store a pointer to the converted HDF5 unsigned vector;
                   caller frees. Note the double indirection.
 @return -- a netcdf-c error code.
 
-Convert an HDF5 representation to a JSON representation
-int (*NCZ_hdf5_to_codec)(void* context, size_t nparams, const unsigned* params, char** codecp);
 
-@param context -- (in) context state from setup.
+* Convert an HDF5 vector of visible parameters to a JSON representation.
+
+int (*NCZ_hdf5_to_codec)(size_t nparams, const unsigned* params, char** codecp);
+
 @param nparams -- (in) the length of the HDF5 unsigned vector
 @param params -- (in) pointer to the HDF5 unsigned vector.
 @param codecp -- (out) store the string representation of the codec; caller must free.
 @return -- a netcdf-c error code.
-*/
 
-/* QUESTION? do we want to provide a netcdf-specific
-  alternative to H5Z_set_local since NCZarr may not have HDF5 access?
-  HDF5: herr_t set_local(hid_t dcpl, hid_t type, hid_t space);
-  Proposed netcdf equivalent: int NCZ_set_local(int ncid, int varid, size_t* nparamsp, unsigned** paramsp);
-  where ncid+varid is equivalent to the space.
+* Convert a set of visible parameters to a set of working parameters using extra environmental information.
+Also allows for changes to the visible parameters. Invoked before filter is actually used.
+
+int (*NCZ_build_parameters)(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
+
+@param ncid -- (in) ncid of the variable's group
+@param varid -- (in) varid of the variable
+@params vnparamsp -- (in/out) number of visible parameters
+@params vparamsp -- (in/out) vector of visible parameters
+@params wnparamsp -- (out) number of working parameters
+@params wparamsp -- (out) vector of working parameters
+@return -- a netcdf-c error code.
+
+* Convert a set of working parameters to a set of visible parameters using extra environmental information, if needed.
+Invoked before filter metadata is written.
 */
 
 /*
@@ -116,12 +111,11 @@ typedef struct NCZ_codec_t {
                  Currently always NCZ_CODEC_HDF5 */
     const char* codecid;            /* The name/id of the codec */
     unsigned int hdf5id; /* corresponding hdf5 id */
-    int (*NCZ_codec_to_hdf5)(void* context, const char* codec, size_t* nparamsp, unsigned** paramsp);
-    int (*NCZ_hdf5_to_codec)(void* context, size_t nparams, const unsigned* params, char** codecp);
-    int (*NCZ_codec_setup)(int ncid, int varid, void** contextp);
-    int (*NCZ_codec_modify)(void* context, size_t* nparamsp, unsigned** paramsp);
-    int (*NCZ_codec_cleanup)(void* context);
+    void (*NCZ_codec_initialize)(void);
     void (*NCZ_codec_finalize)(void);
+    int (*NCZ_codec_to_hdf5)(const char* codec, size_t* nparamsp, unsigned** paramsp);
+    int (*NCZ_hdf5_to_codec)(size_t nparams, const unsigned* params, char** codecp);
+    int (*NCZ_modify_parameters)(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 } NCZ_codec_t;
 
 #ifndef NC_UNUSED

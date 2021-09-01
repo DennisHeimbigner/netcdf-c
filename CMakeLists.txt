@@ -26,7 +26,7 @@ set(PACKAGE "netCDF" CACHE STRING "")
 
 SET(NC_VERSION_MAJOR 4)
 SET(NC_VERSION_MINOR 8)
-SET(NC_VERSION_PATCH 2)
+SET(NC_VERSION_PATCH 1)
 SET(NC_VERSION_NOTE "-development")
 SET(netCDF_VERSION ${NC_VERSION_MAJOR}.${NC_VERSION_MINOR}.${NC_VERSION_PATCH}${NC_VERSION_NOTE})
 SET(VERSION ${netCDF_VERSION})
@@ -118,6 +118,11 @@ MACRO(CHECK_C_LINKER_FLAG M_FLAG M_RESULT)
   SET(CMAKE_REQUIRED_FLAGS "${T_REQ_FLAG}")
 ENDMACRO()
 
+# Enable 'dist and distcheck'.
+# File adapted from http://ensc.de/cmake/FindMakeDist.cmake
+FIND_PACKAGE(MakeDist)
+# End 'enable dist and distcheck'
+
 # Set the build type.
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE DEBUG CACHE STRING "Choose the type of build, options are: None, Debug, Release."
@@ -193,15 +198,6 @@ IF(BUILD_SHARED_LIBS)
 ENDIF()
 
 OPTION(NC_FIND_SHARED_LIBS "Find dynamically-built versions of dependent libraries" ${BUILD_SHARED_LIBS})
-
-##
-# Check to see if C compiler supports -fno-strict-aliasing, in support of
-# https://github.com/Unidata/netcdf-c/issues/1983
-##
-CHECK_C_COMPILER_FLAG(-fno-strict-aliasing CC_SUPPORTS_NO_STRICT_ALIASING)
-IF(CC_SUPPORTS_NO_STRICT_ALIASING)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing")
-ENDIF(CC_SUPPORTS_NO_STRICT_ALIASING)
 
 ##
 # We've had a request to allow for non-versioned shared libraries.
@@ -773,10 +769,6 @@ IF(USE_HDF5)
       # are a hot mess between versions.
       ####
 
-      IF(HDF5_hdf5_LIBRARY AND NOT HDF5_C_LIBRARY)
-        SET(HDF5_C_LIBRARY ${HDF5_hdf5_LIBRARY})
-      ENDIF()
-
       # Depending on the install, either HDF5_hdf_library or
       # HDF5_C_LIBRARIES may be defined.  We must check for either.
       IF(HDF5_C_LIBRARIES AND NOT HDF5_hdf5_LIBRARY)
@@ -907,16 +899,7 @@ IF(USE_HDF5)
   #option to include HDF5 High Level header file (hdf5_hl.h) in case we are not doing a make install
   INCLUDE_DIRECTORIES(${HDF5_HL_INCLUDE_DIR})
 
-ELSE(!USE_HDF5)
-      # If user has specified the `SZIP_LIBRARY`, use it; otherwise try to find...
-    IF(NOT SZIP_LIBRARY)
-      FIND_LIBRARY(SZIP PATH NAMES szip sz)
-      SET(SZIP_LIBRARY ${SZIP})
-      IF(NOT SZIP)
-        MESSAGE("SZIP no found; disabling")
-      ENDIF()
-    ENDIF()
-    SET(CMAKE_REQUIRED_LIBRARIES ${SZIP_LIBRARY} ${CMAKE_REQUIRED_LIBRARIES})
+
 ENDIF(USE_HDF5)
 
 # See if we have libcurl
@@ -942,7 +925,7 @@ int main() {
 }" HAVE_LIBCURL_766)
 
 IF (HAVE_LIBCURL_766)
-  # If libcurl version is >= 7.66, then can skip tests
+  # If libcurl version is >= 7.66, then can skip tests 
   # for these symbols which were added in an earlier version
   set(HAVE_CURLOPT_USERNAME TRUE)
   set(HAVE_CURLOPT_PASSWORD TRUE)
@@ -1037,13 +1020,30 @@ ELSE()
 ENDIF()
 
 # See if we have libblosc
+IF(!MSVC)
 FIND_PACKAGE(Blosc)
+ENDIF()
 # Define a test flag for have blosc library
 IF(Blosc_FOUND)
   INCLUDE_DIRECTORIES(${Blosc_INCLUDE_DIRS})
   SET(ENABLE_BLOSC TRUE)
 ELSE()
   SET(ENABLE_BLOSC FALSE)
+ENDIF()
+
+# See if we have libszip
+IF(!MSVC)
+#FIND_PACKAGE(SZIP)
+#FIND_LIBRARY(SZIP PATH NAMES szip sz)
+SET(SZIP_LIBRARY ${SZIP})
+ENDIF()
+message("xxx: ${SZIP_FOUND} ; ${SZIP}")
+# Define a test flag for have szip library
+IF(SZIP_FOUND)
+  INCLUDE_DIRECTORIES(${SZIP_INCLUDE_DIRS})
+  SET(ENABLE_SZIP TRUE)
+ELSE()
+  SET(ENABLE_SZIP FALSE)
 ENDIF()
 
 # See if we have libzip
@@ -1087,9 +1087,9 @@ IF(MSVC)
     FILE(COPY ${netCDF_SOURCE_DIR}/libsrc/XGetopt.c
          DESTINATION ${netCDF_BINARY_DIR}/ncdump/)
     FILE(COPY ${netCDF_SOURCE_DIR}/libsrc/XGetopt.c
-         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/) 
     FILE(COPY ${netCDF_SOURCE_DIR}/libsrc/XGetopt.c
-         DESTINATION ${netCDF_BINARY_DIR}/ncdap_test/)
+         DESTINATION ${netCDF_BINARY_DIR}/ncdap_test/) 
   ENDIF()
 ENDIF()
 
@@ -1971,7 +1971,7 @@ ENDIF(ENABLE_BASH_SCRIPT_TESTING)
 
 MACRO(add_sh_test prefix F)
   IF(HAVE_BASH)
-    ADD_TEST(${prefix}_${F} bash "-c" "export srcdir=${CMAKE_CURRENT_SOURCE_DIR};export TOPSRCDIR=${CMAKE_SOURCE_DIR};${CMAKE_CURRENT_BINARY_DIR}/${F}.sh ${ARGN}")
+    ADD_TEST(${prefix}_${F} bash "-c" "export srcdir=${CMAKE_CURRENT_SOURCE_DIR};export TOPSRCDIR=${CMAKE_SOURCE_DIR};${CMAKE_CURRENT_BINARY_DIR}/${F}.sh ${F}.sh ${ARGN}")
   ENDIF()
 ENDMACRO()
 
@@ -2248,6 +2248,9 @@ INSTALL(PROGRAMS ${netCDF_BINARY_DIR}/nc-config
 ##
 print_conf_summary()
 
+# Enable Makedist files.
+ADD_MAKEDIST()
+ENABLE_MAKEDIST(README.md COPYRIGHT RELEASE_NOTES.md INSTALL INSTALL.cmake test_prog.c lib_flags.am cmake CMakeLists.txt COMPILE.cmake.txt config.h.cmake.in cmake_uninstall.cmake.in netcdf-config-version.cmake.in netcdf-config.cmake.in FixBundle.cmake.in nc-config.cmake.in configure configure.ac install-sh config.h.in config.sub CTestConfig.cmake.in)
 
 #####
 # Configure and print the libnetcdf.settings file.
