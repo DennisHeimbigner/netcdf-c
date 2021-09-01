@@ -887,7 +887,7 @@ NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* j
     /* Get the id of this codec filter */
     if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jvalue) != NCJ_STRING) {
-        ZLOG(NCLOGERR,"no such filter: %s",(unsigned)NCJstring(jvalue));
+        ZLOG(NCLOGERR,"no such filter: %s",NCJstring(jvalue));
 	stat = NC_ENOFILTER; goto done;
     }
 
