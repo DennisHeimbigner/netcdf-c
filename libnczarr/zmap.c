@@ -11,6 +11,7 @@
 /* Import the current implementations */
 
 extern NCZMAP_DS_API zmap_file;
+extern NCZMAP_DS_API zmap_mem;
 #ifdef USE_HDF5
 extern NCZMAP_DS_API zmap_nz4;
 #endif
@@ -28,6 +29,7 @@ nczmap_features(NCZM_IMPL impl)
 {
     switch (impl) {
     case NCZM_FILE: return zmap_file.features;
+    case NCZM_MEM: return zmap_mem.features;
 #ifdef ENABLE_NCZARR_ZIP
     case NCZM_ZIP: return zmap_zip.features;
 #endif
@@ -54,6 +56,10 @@ nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* 
     switch (impl) {
     case NCZM_FILE:
         stat = zmap_file.create(path, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
+    case NCZM_MEM:
+        stat = zmap_mem.create(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
 #ifdef ENABLE_NCZARR_ZIP
@@ -92,6 +98,10 @@ nczmap_open(NCZM_IMPL impl, const char *path, int mode, size64_t flags, void* pa
     switch (impl) {
     case NCZM_FILE:
         stat = zmap_file.open(path, mode, flags, parameters, &map);
+	if(stat) goto done;
+	break;
+    case NCZM_MEM:
+        stat = zmap_mem.open(path, mode, flags, parameters, &map);
 	if(stat) goto done;
 	break;
 #ifdef ENABLE_NCZARR_ZIP

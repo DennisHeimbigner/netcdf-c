@@ -152,7 +152,8 @@ typedef enum NCZM_IMPL {
 NCZM_UNDEF=0, /* In-memory implementation */
 NCZM_FILE=1,	/* File system directory-based implementation */
 NCZM_ZIP=2,	/* Zip-file based implementation */
-NCZM_S3=3,	/* Amazon S3 implementation */
+NCZM_S3=3,	/* Amazon S3 implementation /*
+NCZM_MEM=4,	/* In-memory implementation */
 } NCZM_IMPL;
 
 /* Define the default map implementation */
