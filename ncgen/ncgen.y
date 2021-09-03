@@ -6,7 +6,7 @@
 
 /* yacc source for "ncgen", a netCDL parser and netCDF generator */
 
-%error-verbose
+%define parse.error verbose
 
 %{
 /*

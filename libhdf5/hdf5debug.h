@@ -10,6 +10,8 @@
 
 #undef H5BACKTRACE
 
+#undef H5BACKTRACE
+
 #ifdef H5CATCH
 /* Place breakpoint to catch errors close to where they occur*/
 #define THROW(e) nch5throw(e)
