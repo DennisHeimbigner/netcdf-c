@@ -42,6 +42,7 @@ zgrp.c \
 zinternal.c \
 zmap.c \
 zmap_file.c \
+zmap_mem.c \
 zodom.c \
 zopen.c \
 zprov.c \
@@ -79,4 +80,4 @@ endif
 IGNORED=ztype.c 
 
 # Package this for cmake build.
-EXTRA_DIST += CMakeLists.txt
+EXTRA_DIST += CMakeLists.txt buddy_alloc.h

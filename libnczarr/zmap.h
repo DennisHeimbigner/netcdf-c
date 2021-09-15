@@ -208,7 +208,7 @@ struct NClist;
 struct NCZMAP_API {
     int version;
     /* Map Operations */
-        int (*close)(NCZMAP* map, int deleteit);
+        int (*close)(NCZMAP* map, int deleteit, void* params);
     /* Object Operations */
 	int (*exists)(NCZMAP* map, const char* key);
 	int (*len)(NCZMAP* map, const char* key, size64_t* sizep);
@@ -304,10 +304,11 @@ EXTERNL int nczmap_search(NCZMAP* map, const char* prefix, struct NClist* matche
 Close a map
 @param map -- the map to close
 @param deleteit-- if true, then delete the corresponding dataset
+@param params-- if !NULL, then provide arbitrary parameters to the close
 @return NC_NOERR if the operation succeeded
 @return NC_EXXX if the operation failed for one of several possible reasons
 */
-EXTERNL int nczmap_close(NCZMAP* map, int deleteit);
+EXTERNL int nczmap_close(NCZMAP* map, int deleteit, void* params);
 
 /* Create/open and control a dataset using a specific implementation */
 EXTERNL int nczmap_create(NCZM_IMPL impl, const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);

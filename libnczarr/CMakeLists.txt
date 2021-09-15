@@ -24,6 +24,7 @@ zgrp.c
 zinternal.c
 zmap.c
 zmap_file.c
+zmap_mem.c
 zodom.c
 zopen.c
 zprov.c
@@ -73,5 +74,5 @@ target_include_directories(nczarr PRIVATE ${AWSSDK_INCLUDE_DIR})
 ENDIF()
 
 # Remember to package this file for CMake builds.
-ADD_EXTRA_DIST(${libnczarr_SOURCES} CMakeLists.txt)
+ADD_EXTRA_DIST(${libnczarr_SOURCES} CMakeLists.txt buddy_alloc.h)
 
