@@ -795,38 +795,44 @@ NCZ_s3urlprocess(NCURI* url, ZS3INFO* s3)
     if(!nczm_isabsolutepath(url->path))
     	{stat = NC_EURL; goto done;}
 
-    /* Distinguish path-style from virtual-host style from other:
-       Virtual: https://bucket-name.s3.Region.amazonaws.com/<root>
-       Path: https://s3.Region.amazonaws.com/bucket-name/<root>
-       Other: https://<host>/bucketname/<root>
+    /*
+	Figure out the style of the URL:
+        1. path-style: https://s3.Region.amazonaws.com/bucket-name/<root>
+	2. virtual-host style: https://bucket-name.s3.Region.amazonaws.com/<root>
+	3. s3 style: https://<bucket-name>/<root>
+	4. other: https://<host>/bucketname/<root> (usually an S3 appliance)
     */
     if(url->host == NULL || strlen(url->host) == 0)
         {stat = NC_EURL; goto done;}
-    if(endswith(url->host,AWSHOST)) { /* Virtual or path */
-        segments = nclistnew();
-        /* split the hostname by "." */
-        if((stat = nczm_split_delim(url->host,'.',segments))) goto done;
-	switch (nclistlength(segments)) {
-	default: stat = NC_EURL; goto done;
-	case 4:
-            if(strcasecmp(nclistget(segments,0),"s3")!=0)
-	        {stat = NC_EURL; goto done;}
+    segments = nclistnew();
+    /* split the hostname by "." */
+    if((stat = nczm_split_delim(url->host,'.',segments))) goto done;
+
+    if(endswith(url->host,AWSHOST) {
+        if(nclistlength(segments)==4) { /* Virtual */
+	    if(strcasecmp(nclistget(segments,0),"s3")!=0)
+		{stat = NC_EURL; goto done;}
 	    s3->urlformat = UF_PATH; 
 	    s3->region = strdup(nclistget(segments,1));
-	    break;
-	case 5:
-            if(strcasecmp(nclistget(segments,1),"s3")!=0)
-	        {stat = NC_EURL; goto done;}
+        } else if(nclistlength(segments)==5) { /* Path */
+	    if(strcasecmp(nclistget(segments,1),"s3")!=0)
+		{stat = NC_EURL; goto done;}
 	    s3->urlformat = UF_VIRTUAL;
 	    s3->region = strdup(nclistget(segments,2));
     	    s3->bucket = strdup(nclistget(segments,0));
-	    break;
-	}
+	} else
+	    {stat = NC_EURL; goto done;} /* unrecognizable */
 	/* Rebuild host to look like path-style */
 	ncbytescat(buf,"s3.");
 	ncbytescat(buf,s3->region);
 	ncbytescat(buf,AWSHOST);
         s3->host = ncbytesextract(buf);
+    } else if(nclistlength(segments)==1) {
+        s3->urlformat = UF_S3;
+	/* Leave it alone */
+	s3->host = NULL;
+	s3->region = NULL; /* do not know */
+	s3->bucket = strdup((char*)nclistget(segments,0));
     } else {
         s3->urlformat = UF_OTHER;
         if((s3->host = strdup(url->host))==NULL)
@@ -858,6 +864,8 @@ NCZ_s3urlprocess(NCURI* url, ZS3INFO* s3)
         else
 	    s3->rootkey = strdup(url->path);
 	break;
+    case UF_S3:
+        
     default: stat = NC_EURL; goto done;
     }
     

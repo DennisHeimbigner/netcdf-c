@@ -190,7 +190,7 @@ typedef struct NCZMAP {
 
 #define AWSHOST ".amazonaws.com"
 
-enum URLFORMAT {UF_NONE=0, UF_VIRTUAL=1, UF_PATH=2, UF_OTHER=3};
+enum URLFORMAT {UF_NONE=0, UF_VIRTUAL=1, UF_PATH=2, UF_S3=3, UF_OTHER=4};
 
 typedef struct ZS3INFO {
     enum URLFORMAT urlformat;
