@@ -53,7 +53,7 @@ jobs:
           make -j
           make install -j
           popd
-          git clone https://www.github.com/aws/aws-sdk-cpp
+          git clone --recurse-submodules https://www.github.com/aws/aws-sdk-cpp
           pushd aws-sdk-cpp
                 mkdir build
                 cd build
