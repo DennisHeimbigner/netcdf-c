@@ -36,7 +36,7 @@ jobs:
 
 
       - name: Build libhdf5-${{ matrix.hdf5 }}
-#        if: steps.cache-hdf5.outputs.cache-hit != 'true'
+        if: steps.cache-hdf5.outputs.cache-hit != 'true'
         run: |
           set -x
           wget https://support.hdfgroup.org/ftp/HDF/releases/HDF4.2.15/src/hdf-4.2.15.tar.bz2
@@ -57,13 +57,26 @@ jobs:
           pushd aws-sdk-cpp
                 mkdir build
                 cd build
-                AWSPREFIX=/usr/local
+                AWSPREFIX=${HOME}/environments/${{ matrix.hdf5 }}
                 FLAGS="-DCMAKE_INSTALL_PREFIX=${AWSPREFIX} -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_MODULE_PATH=${PREFIX}/lib/cmake -DCMAKE_POLICY_DEFAULT_CMP0075=NEW -DBUILD_ONLY=s3 -DENABLE_UNITY_BUILD=ON -DENABLE_TESTING=OFF -DCMAKE_BUILD_TYPE=$CFG -DSIMPLE_INSTALL=ON"
                 cmake -GNinja $FLAGS ..
                 ninja all
                 ninja install
                 cd ..
           popd
+
+      - name: Read secrets from AWS Secrets Manager into environment variables
+        uses: abhilash1in/aws-secrets-manager-action@v1.1.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+        secrets: |
+          my_secret_1
+            app1/dev/*
+        parse-json: true
+      - name: Check if env variable is set after fetching secrets
+        run: if [ -z ${MY_SECRET_1+x} ]; then echo "MY_SECRET_1 is unset"; else echo "MY_SECRET_1 is set to '$MY_SECRET_1'"; fi
 
   nc-autotools:
 
