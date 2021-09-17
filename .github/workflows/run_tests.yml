@@ -61,6 +61,7 @@ jobs:
                 FLAGS="-DCMAKE_INSTALL_PREFIX=${AWSPREFIX} -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_MODULE_PATH=${PREFIX}/lib/cmake -DCMAKE_POLICY_DEFAULT_CMP0075=NEW -DBUILD_ONLY=s3 -DENABLE_UNITY_BUILD=ON -DENABLE_TESTING=OFF -DCMAKE_BUILD_TYPE=$CFG -DSIMPLE_INSTALL=ON"
                 cmake -GNinja $FLAGS ..
                 ninja all
+                ninja install
                 cd ..
           popd
 
