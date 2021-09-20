@@ -14,7 +14,8 @@ jobs:
 
     strategy:
       matrix:
-        hdf5: [ 1.8.21, 1.10.1, 1.10.7, 1.12.1 ]
+#        hdf5: [ 1.8.21, 1.10.1, 1.10.7, 1.12.1 ]
+        hdf5: [ 1.8.21 ]
 
     steps:
 
@@ -79,8 +80,8 @@ jobs:
             rm -fr ${HOME}/.aws
             mkdir ${HOME}/.aws
             echo "[default]" > ${HOME}/.aws/config
-            echo "aws_access_key_id = ${aws-access-key-id}" >> ${HOME}/.aws/config
-            echo "aws_secret_access_key = ${aws-secret-access-key}" >> ${HOME}/.aws/config
+            echo "aws_access_key_id = ${AWS_ACCESS_KEY_ID}" >> ${HOME}/.aws/config
+            echo "aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}" >> ${HOME}/.aws/config
             cat ${HOME}/.aws/config
 
   nc-autotools:
