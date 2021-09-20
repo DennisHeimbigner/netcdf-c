@@ -66,23 +66,13 @@ jobs:
                 cd ..
           popd
 
-      - name: Read secrets from AWS Secrets Manager into environment variables
-        uses: abhilash1in/aws-secrets-manager-action@v1.1.0
-        with:
-          aws-region: ${{ secrets.AWS_REGION }}
-          secrets: aws-default
-          parse-json: true
-        env:
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
       - name: Create the .aws/config file
+        env:
+          default_profile: ${{ secrets.default_profile }}
         run: |
             rm -fr ${HOME}/.aws
             mkdir ${HOME}/.aws
-            echo "[default]" > ${HOME}/.aws/config
-            echo "aws_access_key_id = ${aws_access_key_id}" >> ${HOME}/.aws/config
-            echo "aws_secret_access_key = ${aws_secret_access_key}" >> ${HOME}/.aws/config
+            echo -n "${default_profile}" >> ${HOME}/.aws/config
             cat ${HOME}/.aws/config
 
   nc-autotools:
