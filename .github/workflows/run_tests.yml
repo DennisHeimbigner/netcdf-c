@@ -74,8 +74,14 @@ jobs:
           secrets: aws-default
           parse-json: true
 
-      - name: Check if env variable is set after fetching secrets
-        run: if [ -z ${AWS_DEFAULT+x} ]; then echo "AWS_DEFAULT is unset"; else echo "AWS_DEFAULT is set to '$AWS_DEFAULT"; fi
+      - name: Create the .aws/config file
+        run: |
+            rm -fr ${HOME}/.aws
+            mkdir ${HOME}/.aws
+            echo "[default]" > ${HOME}/.aws/config
+            echo "aws_access_key_id = ${aws-access-key-id}" >> ${HOME}/.aws/config
+            echo "aws_secret_access_key = ${aws-secret-access-key}" >> ${HOME}/.aws/config
+            cat ${HOME}/.aws/config
 
   nc-autotools:
 
