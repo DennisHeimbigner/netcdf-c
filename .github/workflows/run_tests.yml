@@ -14,8 +14,7 @@ jobs:
 
     strategy:
       matrix:
-#        hdf5: [ 1.8.21, 1.10.1, 1.10.7, 1.12.1 ]
-        hdf5: [ 1.8.21 ]
+        hdf5: [ 1.8.21, 1.10.1, 1.10.7, 1.12.1 ]
 
     steps:
 
@@ -37,7 +36,7 @@ jobs:
 
 
       - name: Build libhdf5-${{ matrix.hdf5 }}
-        # if: steps.cache-hdf5.outputs.cache-hit != 'true'
+        if: steps.cache-hdf5.outputs.cache-hit != 'true'
         run: |
           set -x
           wget https://support.hdfgroup.org/ftp/HDF/releases/HDF4.2.15/src/hdf-4.2.15.tar.bz2
@@ -73,6 +72,7 @@ jobs:
             rm -fr ${HOME}/.aws
             mkdir ${HOME}/.aws
             echo -n "${default_profile}" >> ${HOME}/.aws/config
+            sed -e '/aws_access_key_id/p' <${HOME}/.aws/config > ${HOME}/x.txt
 
   nc-autotools:
 
@@ -303,7 +303,8 @@ jobs:
 
       - run: echo "CFLAGS=-I${HOME}/environments/${{ matrix.hdf5 }}/include" >> $GITHUB_ENV
       - run: echo "LDFLAGS=-L${HOME}/environments/${{ matrix.hdf5 }}/lib" >> $GITHUB_ENV
-       - run: echo "LD_LIBRARY_PATH=${HOME}/environments/${{ matrix.hdf5 }}/lib" >> $GITHUB_ENV
+      - run: echo "LD_LIBRARY_PATH=${HOME}/environments/${{ matrix.hdf5 }}/lib" >> $GITHUB_ENV
+
 
 ###
 # Fetch Cache
@@ -330,7 +331,7 @@ jobs:
 
       - name: Configure
         shell: bash -l {0}
-        run: CFLAGS=${CFLAGS} LDFLAGS=${LDFLAGS} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ./configure --enable-hdf4 --enable-hdf5 --enable-dap --enable-dap-long-tests --enable-nczarr-s3"
+        run: CFLAGS=${CFLAGS} LDFLAGS=${LDFLAGS} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ./configure --enable-hdf4 --enable-hdf5 --enable-dap --enable-dap-long-tests --enable-nczarr-s3
         if: ${{ success() }}
 
       - name: Look at config.log if error
