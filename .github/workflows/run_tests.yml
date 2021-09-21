@@ -73,7 +73,7 @@ jobs:
             rm -fr ${HOME}/.aws
             mkdir ${HOME}/.aws
             echo -n "${default_profile}" >> ${HOME}/.aws/config
-            cat ${HOME}/.aws/config
+	    sed -e '/aws_access_key_id/p' <${HOME}/.aws/config
 
   nc-autotools:
 
