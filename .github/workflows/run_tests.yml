@@ -73,7 +73,6 @@ jobs:
             rm -fr ${HOME}/.aws
             mkdir ${HOME}/.aws
             echo -n "${default_profile}" >> ${HOME}/.aws/config
-            wc ${HOME}/.aws/config
 
   nc-autotools:
 
@@ -304,8 +303,6 @@ jobs:
 
       - run: echo "CFLAGS=-I${HOME}/environments/${{ matrix.hdf5 }}/include" >> $GITHUB_ENV
       - run: echo "LDFLAGS=-L${HOME}/environments/${{ matrix.hdf5 }}/lib" >> $GITHUB_ENV
-      - run: echo "LD_LIBRARY_PATH=${HOME}/environments/${{ matrix.hdf5 }}/lib" >> $GITHUB_ENV
-
 
 ###
 # Fetch Cache
@@ -332,7 +329,7 @@ jobs:
 
       - name: Configure
         shell: bash -l {0}
-        run: CFLAGS=${CFLAGS} LDFLAGS=${LDFLAGS} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ./configure --enable-hdf4 --enable-hdf5 --enable-dap --enable-dap-long-tests
+        run: CFLAGS=${CFLAGS} LDFLAGS=${LDFLAGS} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ./configure --enable-hdf4 --enable-hdf5 --enable-dap --enable-dap-long-tests --enable-nczarr-s3"
         if: ${{ success() }}
 
       - name: Look at config.log if error
