@@ -40,6 +40,7 @@ jobs:
         # if: steps.cache-hdf5.outputs.cache-hit != true'
         run: |
           set -x
+          rm -fr ${HOME}/environments/${{ matrix.hdf5 }}/*
           wget https://support.hdfgroup.org/ftp/HDF/releases/HDF4.2.15/src/hdf-4.2.15.tar.bz2
           tar -jxf hdf-4.2.15.tar.bz2
           pushd hdf-4.2.15
