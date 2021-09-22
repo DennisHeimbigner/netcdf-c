@@ -14,7 +14,8 @@ jobs:
 
     strategy:
       matrix:
-        hdf5: [ 1.8.21, 1.10.1, 1.10.7, 1.12.1 ]
+#        hdf5: [ 1.8.21, 1.10.1, 1.10.7, 1.12.1 ]
+        hdf5: [ 1.10.7 ]
 
     steps:
 
@@ -62,7 +63,7 @@ jobs:
                 ninja all
                 ninja install
                 cd ..
-                ls -l ${HOME}/environments/${{ matrix.hdf5 }}/*aws*
+                find ${HOME}/environments/${{ matrix.hdf5 }} -name '*aws*'
           popd
 
       - name: Create the .aws/config file
