@@ -131,7 +131,7 @@ jobs:
 
       - name: Check Cache
         shell: bash -l {0}
-        run: ls ${HOME}/environments && ls ${HOME}/environments/${{ matrix.hdf5 }} && ls ${HOME}/environments/${{ matrix.hdf5}}/lib
+        run: ls ${HOME}/environments && ls ${HOME}/environments/${{ matrix.hdf5 }} && ls ${HOME}/environments/${{ matrix.hdf5}}/lib && find ${HOME}/environments/${{ matrix.hdf5}}/lib
 
 ###
 # Configure and build
