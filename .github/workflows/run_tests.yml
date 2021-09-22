@@ -62,6 +62,7 @@ jobs:
                 ninja all
                 ninja install
                 cd ..
+                ls -l ${HOME}/environments/${{ matrix.hdf5 }}/*aws*
           popd
 
       - name: Create the .aws/config file
