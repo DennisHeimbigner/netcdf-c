@@ -8,7 +8,11 @@ set -x
 
 # We need to find the drive letter, if any
 DL=`${NCPATHCVT} -c -e / | sed -e 's|/cygdrive/\([a-zA-Z]\)/.*|\1|'`
-DL="-d $DL"
+if test "x$DL" != x ; then
+  # Lower case drive letter
+  DLL=`echo "$DL" | tr '[:upper:]' '[:lower:]'`
+  DL="-d $DLL"
+fi
 
 testcase1() {
 T="$1"
