@@ -35,8 +35,7 @@ Options
 Output type options:
   -u convert to Unix form of path
   -w convert to Windows form of path
-  -m convert to Mingw form of path
-  -y convert to MSYS form of path
+  -m convert to MSYS form of path
   -c convert to Cygwin form of path
   
 Default is to convert to the format used by the platform.
@@ -101,10 +100,9 @@ main(int argc, char** argv)
 	case 'd': cvtoptions.drive = optarg[0]; break;
 	case 'e': cvtoptions.escapes = 1; break;
 	case 'h': usage(NULL); break;
-	case 'm': cvtoptions.target = NCPD_MINGW; break;
+	case 'm': cvtoptions.target = NCPD_MSYS; break;
 	case 'u': cvtoptions.target = NCPD_NIX; break;
 	case 'w': cvtoptions.target = NCPD_WIN; break;
-	case 'y': cvtoptions.target = NCPD_MSYS; break;
 	case 'D':
 	    sscanf(optarg,"%d",&cvtoptions.debug);
 	    break;
