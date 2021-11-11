@@ -9,10 +9,8 @@ testcase1() {
 T="$1"
 P="$2"
 echo -n "path: $T: |$P| => |" >>tmp_pathcvt.txt
-
 ${NCPATHCVT} "$T" -e "$P" >>tmp_pathcvt.txt
 echo "|" >> tmp_pathcvt.txt
-
 }
 
 testcase() {
@@ -34,6 +32,9 @@ testcase "/cygdrive/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn"
 testcase "d:\\x\\y"
 testcase "d:\\x\\y w\\z"
 
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+cat ./tmp_pathcvt.txt
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
 diff -w ${srcdir}/ref_pathcvt.txt ./tmp_pathcvt.txt
 
 exit 0
