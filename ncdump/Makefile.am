@@ -110,8 +110,8 @@ check_PROGRAMS += tst_vlen_demo
 
 # Tests for netCDF-4 behavior.
 TESTS += tst_fileinfo.sh tst_hdf5_offset.sh tst_inttags4.sh		\
-tst_netcdf4.sh tst_fillbug.sh tst_nccopy4.sh		\
-tst_nccopy5.sh tst_grp_spec.sh tst_mud.sh tst_h_scalar.sh tst_formatx4.sh		\
+tst_netcdf4.sh tst_fillbug.sh \
+tst_grp_spec.sh tst_mud.sh tst_h_scalar.sh tst_formatx4.sh		\
 run_utf8_nc4_tests.sh run_ncgen_nc4_tests.sh	\
 tst_ncgen4.sh test_scope.sh
 
@@ -138,7 +138,10 @@ endif
 
 if !ISMINGW
 if !ISCYGWIN
-TESTS += tst_output.sh tst_nccopy3.sh
+TESTS += tst_output.sh
+TESTS += tst_nccopy3.sh
+TESTS += tst_nccopy4.sh
+TESTS += tst_nccopy5.sh
 TESTS += test_unicode_directory.sh  test_unicode_path.sh
 if USE_HDF5
 TESTS += run_back_comp_tests.sh tst_netcdf4_4.sh
