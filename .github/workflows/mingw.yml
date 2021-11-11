@@ -15,14 +15,14 @@ jobs:
           update: true
           install: git mingw-w64-x86_64-toolchain automake libtool autoconf make mingw-w64-x86_64-hdf5 
       - name: CI-Build
-        shell: msys2 {0}	
+        shell: msys2 {0}
         run: |
           echo 'Running in MSYS2!'
-	  set -e
-	  upstream_version=4.8.1
-	  wget https://github.com/Unidata/netcdf-c/archive/v${upstream_version}.tar.gz
-	  tar -xf v${upstream_version}.tar.gz
-	  cd netcdf-*
-	  ./configure --prefix=/builddir     -enable-shared  --disable-static
-	  make -j4 LDFLAGS="-no-undefined  -Wl,--export-all-symbols"
-	  make check
+          set -e
+          upstream_version=4.8.1
+          wget https://github.com/Unidata/netcdf-c/archive/v${upstream_version}.tar.gz
+          tar -xf v${upstream_version}.tar.gz
+          cd netcdf-*
+          ./configure --prefix=/builddir     -enable-shared  --disable-static
+          make -j4 LDFLAGS="-no-undefined  -Wl,--export-all-symbols"
+          make check
