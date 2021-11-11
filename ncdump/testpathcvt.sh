@@ -13,6 +13,7 @@ if test "x$DL" != x ; then
   DLL=`echo "$DL" | tr '[:upper:]' '[:lower:]'`
   DL="-d $DLL"
 fi
+echo "MINGW_PREFIX=$MINGWPREFIX"
 
 testcase1() {
 T="$1"
