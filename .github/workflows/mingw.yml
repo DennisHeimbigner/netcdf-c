@@ -19,6 +19,8 @@ jobs:
         run: |
           echo 'Running in MSYS2!'
           set -e
+          git clone --single-branch --branch moreosfixes.tmp https://github.com/DennisHeimbigner/netcdf-c.git
+          cd netcdf-c
           ./configure --prefix=/builddir -enable-shared  --disable-static
           make -j LDFLAGS="-no-undefined  -Wl,--export-all-symbols"
           make check
