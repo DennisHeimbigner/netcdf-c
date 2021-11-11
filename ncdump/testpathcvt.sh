@@ -4,12 +4,17 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -e
+set -x
+
+# We need to find the drive letter, if any
+DL=`${NCPATHCVT} -c -e / | sed -e 's|/cygdrive/\([a-zA-Z]\)/.*|\1|'`
+DL="-d $DL"
 
 testcase1() {
 T="$1"
 P="$2"
 echo -n "path: $T: |$P| => |" >>tmp_pathcvt.txt
-${NCPATHCVT} "$T" -e "$P" >>tmp_pathcvt.txt
+${NCPATHCVT} ${DL} "$T" -e "$P" >>tmp_pathcvt.txt
 echo "|" >> tmp_pathcvt.txt
 }
 
