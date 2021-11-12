@@ -1304,9 +1304,11 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
                 derror("_FillValue attribute not associated with variable: %s",vsym->name);
             }
             if(tsym  == NULL) tsym = vsym->typ.basetype;
+#if 0 /* No longer require matching types */
             else if(vsym->typ.basetype != tsym) {
                 derror("_FillValue attribute type does not match variable type: %s",vsym->name);
             }
+#endif
             special->_Fillvalue = clonedatalist(list);
 	    /* Create the corresponding attribute */
             attr = makeattribute(install("_FillValue"),vsym,tsym,list,ATTRVAR);
