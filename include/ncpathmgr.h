@@ -190,10 +190,11 @@ EXTERNL int NCclosedir(DIR* ent);
 #define NCPD_MSYS 2
 #define NCPD_CYGWIN 3
 #define NCPD_WIN 4
-#define NCPD_REL 5 /* actual kind is unknown */
+#define NCPD_MINGW 5
+#define NCPD_REL 6 /* actual kind is unknown */
 
 EXTERNL char* NCpathcvt_test(const char* path, int ukind, int udrive);
-
+EXTERNL int NCgetlocalpathkind(void);
 EXTERNL void printutf8hex(const char* s, char* sx);
 
 /**************************************************/

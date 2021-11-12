@@ -91,7 +91,6 @@ static int parsepath(const char* inpath, struct Path* path);
 static int unparsepath(struct Path* p, char** pathp);
 static int getwdpath(struct Path* wd);
 static char* printPATH(struct Path* p);
-static int getlocalpathkind(void);
 static void clearPath(struct Path* path);
 static void pathinit(void);
 static int iscygwinspecial(const char* path);
@@ -124,7 +123,7 @@ NCpathcvt(const char* inpath)
     if((stat = parsepath(inpath,&canon))) {goto done;}
 
     /* Special check for special cygwin paths: /tmp,usr etc */
-    if(getlocalpathkind() == NCPD_CYGWIN
+    if(NCgetlocalpathkind() == NCPD_CYGWIN
        && iscygwinspecial(canon.path)
        && canon.kind == NCPD_NIX)
 	canon.kind = NCPD_CYGWIN;
@@ -174,6 +173,7 @@ NCpathcanonical(const char* srcpath, char** canonp)
     case NCPD_NIX:
     case NCPD_CYGWIN:
     case NCPD_MSYS:
+    case NCPD_MINGW:
     case NCPD_WIN: /* convert to cywin form */
 	len = nulllen(path.path) + strlen("/cygdrive/X") + 1;
 	canon = (char*)malloc(len);
@@ -805,6 +805,20 @@ unparsepath(struct Path* xp, char** pathp)
         for(p=path;*p;p++) {if(*p == '/') *p = '\\';}
 	break;
     case NCPD_MSYS:
+	len = nulllen(xp->path)+2+1;
+	if((path = (char*)malloc(len))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	path[0] = '\0';
+        /* MSYS supposedly can take *nix* paths */
+	if(xp->drive) {
+ 	    sdrive[0] = xp->drive;
+	    strlcat(path,"/",len);
+	    strlcat(path,sdrive,len);
+	}
+	if(xp->path)
+	    strlcat(path,xp->path,len);
+	break;
+    case NCPD_MINGW:
 	if(xp->drive == 0) {xp->drive = wdpath.drive;} /*requires a drive */
 	len = nulllen(xp->path)+2+1;
 	if((path = (char*)malloc(len))==NULL)
@@ -860,23 +874,23 @@ getwdpath(struct Path* wd)
 #endif
     stat = parsepath(path,wd);
     /* Force the kind */
-    wd->kind = getlocalpathkind();
+    wd->kind = NCgetlocalpathkind();
     nullfree(path); path = NULL;
     return stat;
 }
 
-static int
-getlocalpathkind(void)
+int
+NCgetlocalpathkind(void)
 {
     int kind = NCPD_UNKNOWN;
 #ifdef __CYGWIN__
 	kind = NCPD_CYGWIN;
-#elif defined __MINGW32__
-	kind = NCPD_WIN;
 #elif defined _MSC_VER /* not _WIN32 */
 	kind = NCPD_WIN;
 #elif defined __MSYS__
 	kind = NCPD_MSYS;
+#elif defined __MINGW__ /* And !MSYS */
+	kind = NCPD_MINGW;
 #else
 	kind = NCPD_NIX;
 #endif
