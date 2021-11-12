@@ -19,6 +19,10 @@ echo "MSYS_PREFIX=$MSYS_PREFIX"
 echo "MINGW_PREFIX=$MINGW_PREFIX"
 ${NCPATHCVT} -k
 
+XX=`pwd`
+echo "pwd=$XX"
+ls -l
+
 echo "*** creating classic file c0.nc from c0.cdl..."
 ${NCGEN3} -b -o c0.nc ${ncgen3c0}
 echo "*** creating 64-bit offset file c0_64.nc from c0.cdl..."
