@@ -21,7 +21,7 @@ KIND=`${NCPATHCVT} -k`
 
 XX=`pwd`
 ls -l
-ncpathcvt D:/a/netcdf-c/netcdf-c/netcdf-c/ncdump/ncpathcvt.exe
+${NCPATHCVT} D:/a/netcdf-c/netcdf-c/netcdf-c/ncdump/ncpathcvt.exe
 
 echo "*** creating classic file c0.nc from c0.cdl..."
 ${NCGEN3} -b -o c0.nc ${ncgen3c0}
