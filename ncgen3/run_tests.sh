@@ -17,11 +17,12 @@ if test "x$DL" != x ; then
 fi
 echo "MSYS_PREFIX=$MSYS_PREFIX"
 echo "MINGW_PREFIX=$MINGW_PREFIX"
+uname -a
 KIND=`${NCPATHCVT} -k`
-
-XX=`pwd`
-ls -l
+pwd
+'pwd'
 ${NCPATHCVT} D:/a/netcdf-c/netcdf-c/netcdf-c/ncdump/ncpathcvt.exe
+ls -l D:/a/netcdf-c/netcdf-c/netcdf-c/ncdump/c0.cdl
 
 echo "*** creating classic file c0.nc from c0.cdl..."
 ${NCGEN3} -b -o c0.nc ${ncgen3c0}

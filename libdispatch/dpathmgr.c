@@ -645,8 +645,8 @@ parsepath(const char* inpath, struct Path* path)
 
     if(inpath == NULL) goto done; /* defensive driving */
 
-    /* Convert to UTF8 */
 #if 0
+    /* Convert to UTF8 */
     if((stat = NCpath2utf8(inpath,&tmp1))) goto done;
 #else
     tmp1 = strdup(inpath);
