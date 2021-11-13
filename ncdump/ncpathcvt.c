@@ -101,6 +101,27 @@ printlocalkind(void)
     exit(0);
 }
 
+void
+printenv(void)
+{
+#ifdef __CYGWIN__
+    printf("__CYGWIN__\n");
+#endif
+#ifdef _MSC_VER
+    printf("_MSC_VER\n");
+#endif
+#ifdef _WIN32
+    printf("_WIN32\n");
+#endif
+#ifdef __MSYS__
+    printf("__MSYS__\n");
+#endif
+#ifdef __MINGW__
+    printf("__MINGW__\n");
+#endif
+    exit(0);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -111,7 +132,7 @@ main(int argc, char** argv)
     memset((void*)&cvtoptions,0,sizeof(cvtoptions));
     cvtoptions.drive = 'c';
 
-    while ((c = getopt(argc, argv, "CcD:d:ehkmuw")) != EOF) {
+    while ((c = getopt(argc, argv, "CcD:d:ehkmuwX")) != EOF) {
 	switch(c) {
 	case 'c': cvtoptions.target = NCPD_CYGWIN; break;
 	case 'd': cvtoptions.drive = optarg[0]; break;
@@ -125,6 +146,7 @@ main(int argc, char** argv)
 	case 'D':
 	    sscanf(optarg,"%d",&cvtoptions.debug);
 	    break;
+	case 'X': printenv(); break;
 	case '?':
 	   usage("unknown option");
 	   break;

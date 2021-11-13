@@ -8,6 +8,14 @@ set -e
 if test "x$srcdir" = x ;then srcdir=`pwd`; fi
 . ../test_common.sh
 
+echo "@@@@@@@@@@"
+KIND=`${NCPATHCVT} -k`
+AVAIL=`${NCPATHCVT} -X`
+${NCPATHCVT} D:/a/netcdf-c/netcdf-c/netcdf-c/ncdump/c0.cdl
+ls -l D:/a/netcdf-c/netcdf-c/netcdf-c/ncdump/c0.cdl
+${NCPATHCVT} /d/a/netcdf-c/netcdf-c/netcdf-c/ncdump/c0.cdl
+ls -l /d/a/netcdf-c/netcdf-c/netcdf-c/ncdump/c0.cdl
+
 # We need to find the drive letter, if any
 DL=`${NCPATHCVT} -c -e / | sed -e 's|/cygdrive/\([a-zA-Z]\)/.*|\1|'`
 if test "x$DL" != x ; then
@@ -15,14 +23,6 @@ if test "x$DL" != x ; then
   DLL=`echo "$DL" | tr '[:upper:]' '[:lower:]'`
   DL="-d $DLL"
 fi
-echo "MSYS_PREFIX=$MSYS_PREFIX"
-echo "MINGW_PREFIX=$MINGW_PREFIX"
-uname -a
-KIND=`${NCPATHCVT} -k`
-pwd
-'pwd'
-${NCPATHCVT} D:/a/netcdf-c/netcdf-c/netcdf-c/ncdump/ncpathcvt.exe
-ls -l D:/a/netcdf-c/netcdf-c/netcdf-c/ncdump/c0.cdl
 
 echo "*** creating classic file c0.nc from c0.cdl..."
 ${NCGEN3} -b -o c0.nc ${ncgen3c0}
