@@ -105,19 +105,29 @@ void
 printenv(void)
 {
 #ifdef __CYGWIN__
-    printf("__CYGWIN__\n");
+    printf(" __CYGWIN__");
+#else
+    printf(" !__CYGWIN__");
 #endif
 #ifdef _MSC_VER
-    printf("_MSC_VER\n");
+    printf(" _MSC_VER");
+#else
+    printf(" !_MSC_VER");
 #endif
 #ifdef _WIN32
-    printf("_WIN32\n");
+    printf(" _WIN32");
+#else
+    printf(" !_WIN32");
 #endif
 #ifdef __MSYS__
-    printf("__MSYS__\n");
+    printf(" __MSYS__");
+#else
+    printf(" !__MSYS__");
 #endif
 #ifdef __MINGW__
-    printf("__MINGW__\n");
+    printf(" __MINGW__");
+#else
+    printf(" !__MINGW__");
 #endif
     exit(0);
 }
