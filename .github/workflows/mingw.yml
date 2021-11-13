@@ -19,6 +19,8 @@ jobs:
         run: |
           echo 'Running in MSYS2!'
           set -e
+          pwd
+          ls
           git clone --single-branch --branch moreosfixes.tmp https://github.com/DennisHeimbigner/netcdf-c.git
           cd netcdf-c
           autoreconf -i --force

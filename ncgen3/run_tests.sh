@@ -8,14 +8,6 @@ set -e
 if test "x$srcdir" = x ;then srcdir=`pwd`; fi
 . ../test_common.sh
 
-echo "@@@@@@@@@@"
-KIND=`${NCPATHCVT} -k`
-AVAIL=`${NCPATHCVT} -X`
-${NCPATHCVT} /d/a/netcdf-c/netcdf-c/netcdf-c/ncdump/c0.cdl
-ls -l /d/a/netcdf-c/netcdf-c/netcdf-c/ncdump/*cdl
-${NCPATHCVT} D:/a/netcdf-c/netcdf-c/netcdf-c/ncdump/c0.cdl
-ls -l D:/a/netcdf-c/netcdf-c/netcdf-c/ncdump/*.cdl
-
 # We need to find the drive letter, if any
 DL=`${NCPATHCVT} -c -e / | sed -e 's|/cygdrive/\([a-zA-Z]\)/.*|\1|'`
 if test "x$DL" != x ; then
