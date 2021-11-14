@@ -23,12 +23,8 @@
 #include "ncexternl.h"
 
 #ifndef WINPATH
-#ifdef _WIN32
+#if defined _WIN32 || defined __MINGW32__
 #define WINPATH 1
-#endif
-#ifdef __MINGW32__
-#define WINPATH 1
-#endif
 #endif
 
 /* Define wrapper constants for use with NCaccess */
