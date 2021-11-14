@@ -16,6 +16,11 @@ if test "x$DL" != x ; then
   DL="-d $DLL"
 fi
 
+XX=`pwd`
+cd ..
+find . -name c0.cdl
+cd $XX
+
 echo "*** creating classic file c0.nc from c0.cdl..."
 ${NCGEN3} -b -o c0.nc ${ncgen3c0}
 echo "*** creating 64-bit offset file c0_64.nc from c0.cdl..."
