@@ -26,6 +26,7 @@
 #if defined _WIN32 || defined __MINGW32__
 #define WINPATH 1
 #endif
+#endif
 
 /* Define wrapper constants for use with NCaccess */
 /* Define wrapper constants for use with NCaccess */
