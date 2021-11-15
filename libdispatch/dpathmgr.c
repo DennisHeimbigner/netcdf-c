@@ -796,6 +796,7 @@ unparsepath(struct Path* xp, char** pathp)
 	    strlcat(path,xp->path,len);
 	break;
     case NCPD_WIN:
+    case NCPD_MINGW:
 	if(xp->drive == 0) {xp->drive = wdpath.drive;} /*requires a drive */
 	len = nulllen(xp->path)+2+1+1;
 	if((path = (char*)malloc(len))==NULL)
@@ -824,18 +825,6 @@ unparsepath(struct Path* xp, char** pathp)
 	    strlcat(path,"/",len);
 	    strlcat(path,sdrive,len);
 	}
-	if(xp->path)
-	    strlcat(path,xp->path,len);
-	break;
-    case NCPD_MINGW:
-	if(xp->drive == 0) {xp->drive = wdpath.drive;} /*requires a drive */
-	len = nulllen(xp->path)+2+1;
-	if((path = (char*)malloc(len))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	path[0] = '\0';
-	sdrive[0] = xp->drive;
-	strlcat(path,"/",len);
-	strlcat(path,sdrive,len);
 	if(xp->path)
 	    strlcat(path,xp->path,len);
 	break;
