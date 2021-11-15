@@ -8,7 +8,7 @@ set -x
 
 echo "${MINGW_PREFIX}"
 cygpath -w "/"
-cygpath -l "/"
+cygpath -u "/"
 pwd -W
 which pwd
 
