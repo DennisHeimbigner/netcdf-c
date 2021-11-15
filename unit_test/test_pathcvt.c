@@ -55,8 +55,11 @@ static Test PATHTESTS[] = {
 {NULL, {NULL, NULL, NULL, NULL, NULL}}
 };
 
+char* macros[128];
+
 /*Forward */
 static const char* kind2string(int kind);
+static char* expanded(const char* s);
 
 int
 main(int argc, char** argv)
@@ -65,6 +68,7 @@ main(int argc, char** argv)
     int failcount = 0;
     char* cvt = NULL;
     char* unescaped = NULL;
+    char* expanded = NULL;
     int k;
     int drive = 'c';
 
@@ -84,10 +88,11 @@ main(int argc, char** argv)
 	    }
 	    /* ensure that NC_shellUnescape does not affect result */
 	    unescaped = NC_shellUnescape(test->test);	
+	    expanded = expand(test->expected[k]);
    	    cvt = NCpathcvt_test(unescaped,kind,drive);
 #ifdef DEBUG
 	    fprintf(stderr,"TEST local=%s: input: |%s| expected=|%s| actual=|%s|: ",
-			kind2string(kind),test->test,test->expected[k],cvt);
+			kind2string(kind),test->test,expanded,cvt);
 #endif
 	    fflush(stderr); fflush(stdout);
 	    if(cvt == NULL) {
@@ -95,7 +100,7 @@ main(int argc, char** argv)
 		fprintf(stderr," ILLEGAL");
 #endif
 		failcount++;
-	    } else if(strcmp(cvt,test->expected[k]) != 0) {
+	    } else if(strcmp(cvt,expanded) != 0) {
 #ifdef DEBUG
 		fprintf(stderr," FAIL");
 #endif
@@ -109,7 +114,8 @@ main(int argc, char** argv)
 	    fprintf(stderr,"\n");
 #endif	    
 	    nullfree(unescaped); unescaped = NULL;
-	    nullfree( cvt); cvt = NULL;
+	    nullfree(expanded); expanded = NULL;
+	    nullfree(cvt); cvt = NULL;
 	}
     }
     nullfree(cvt); nullfree(unescaped);
@@ -135,4 +141,48 @@ kind2string(int kind)
     default: break;
     }
     return "unknown";
+}
+
+static char*
+expanded(const char* s)
+{
+    char *p;
+    char expanded[8192];
+    char q[2];
+
+    q[1] = '\0';
+    expanded[0] = '\0';
+    for(p=s;*p;p++) {
+	char c = *p;
+	if(c == '%') {
+	    p++;
+	    c = *p;
+	    strlcat(expanded,macros[(int)c]);
+	} else {
+	    q[0] = c;
+	    strlcat(expanded,q);
+	}
+    }
+    return strdup(expanded);
+}
+
+static void
+setmacros(void)
+{
+    int i;
+    const char* m;
+    for(i=0;i<128;i++) macros[i] = NULL;
+    if((m=getenv("MSYS2_PREFIX"))) {
+	macros['m'] = strdup(m);    
+    }
+}
+
+static void
+reclaimmacros(void)
+{
+    int i;
+    for(i=0;i<128;i++) {
+	if(macros[i]) free(macros[i]);
+	macros[i] = NULL;
+    }
 }
