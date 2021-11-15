@@ -60,6 +60,8 @@ char* macros[128];
 /*Forward */
 static const char* kind2string(int kind);
 static char* expanded(const char* s);
+static void setmacros(void);
+static void reclaimmacros(void);
 
 int
 main(int argc, char** argv)
@@ -73,6 +75,8 @@ main(int argc, char** argv)
     int drive = 'c';
 
     nc_initialize();
+
+    setmacros();
 
     /* Test localkind X path-kind */
     for(test=PATHTESTS;test->test;test++) {
@@ -120,6 +124,9 @@ main(int argc, char** argv)
     }
     nullfree(cvt); nullfree(unescaped);
     fprintf(stderr,"%s test_pathcvt\n",failcount > 0 ? "***FAIL":"***PASS");
+
+    reclaimmacros();
+
     nc_finalize();
     return (failcount > 0 ? 1 : 0);
 }
@@ -157,10 +164,11 @@ expanded(const char* s)
 	if(c == '%') {
 	    p++;
 	    c = *p;
-	    strlcat(expanded,macros[(int)c]);
+	    if(macros[(int)c] != NULL)
+	        strlcat(expanded,macros[(int)c],sizeof(expanded));
 	} else {
 	    q[0] = c;
-	    strlcat(expanded,q);
+	    strlcat(expanded,q,sizeof(expanded));
 	}
     }
     return strdup(expanded);
