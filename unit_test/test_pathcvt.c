@@ -15,7 +15,7 @@ Test the NCpathcvt
 
 #define DEBUG
 
-#define NKINDS 4
+#define NKINDS 5
 static const int kinds[NKINDS] = {NCPD_NIX,NCPD_MSYS,NCPD_CYGWIN,NCPD_WIN,NCPD_MINGW};
 
 typedef struct Test {
