@@ -8,6 +8,8 @@ set -x
 
 echo "${MINGW_PREFIX}"
 cygpath -w "/"
+cygpath -l "/"
 pwd -W
+which pwd
 
 ${execdir}/test_pathcvt

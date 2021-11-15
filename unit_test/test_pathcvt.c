@@ -130,6 +130,8 @@ kind2string(int kind)
 	return "Cygwin";
     case NCPD_WIN:
 	return "Windows";
+    case NCPD_MINGW:
+	return "MINGW";
     default: break;
     }
     return "unknown";
