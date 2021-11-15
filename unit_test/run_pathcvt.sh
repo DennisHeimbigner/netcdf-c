@@ -11,9 +11,11 @@ echo "${MSYS2_PREFIX}"
 echo "${MINGW_PREFIX}"
 cygpath -w "/"
 
-exec 2>/dev/null
-cd /usr/local
+XX=`pwd -W`
+cd /
+pwd
 pwd -W
+cd $XX
 
 ${execdir}/test_pathcvt
 
