@@ -59,7 +59,7 @@ char* macros[128];
 
 /*Forward */
 static const char* kind2string(int kind);
-static char* expanded(const char* s);
+static char* expand(const char* s);
 static void setmacros(void);
 static void reclaimmacros(void);
 
@@ -151,9 +151,9 @@ kind2string(int kind)
 }
 
 static char*
-expanded(const char* s)
+expand(const char* s)
 {
-    char *p;
+    const char *p;
     char expanded[8192];
     char q[2];
 
