@@ -354,11 +354,12 @@ NCfopen(const char* path, const char* flags)
 fprintf(stderr,">>> path=%s cvtpath=%s\n",path,cvtpath);
     /* Convert from local to wide */
     if((stat = utf82wide(cvtpath,&wpath))) goto done;    
+fwprintf(stderr,L">>> wpath=|%ls| wpath=|%s|\n",wpath,wpath);
 #if 0
     if((stat = ansi2wide(flags,&wflags))) goto done;    
     f = _wfopen(wpath,wflags);
 #else
-    f = _fopen(cvtpath,flags);
+    f = fopen(cvtpath,flags);
 #endif
 done:
     nullfree(cvtpath);    
