@@ -351,19 +351,10 @@ NCfopen(const char* path, const char* flags)
     wchar_t* wflags = NULL;
     cvtpath = NCpathcvt(path);
     if(cvtpath == NULL) return NULL;
-fprintf(stderr,">>> localkind=%s\n",NCgetkindname(NCgetlocalpathkind()));
-fprintf(stderr,">>> path=%s cvtpath=%s\n",path,cvtpath);
-fprintf(stderr,">>> path -w = %s\n",NCpathcvt_test(path,NCPD_WIN,'d'));
-fprintf(stderr,">>> path -m = %s\n",NCpathcvt_test(path,NCPD_MSYS,'d'));
     /* Convert from local to wide */
     if((stat = utf82wide(cvtpath,&wpath))) goto done;    
-fwprintf(stderr,L">>> wpath=|%ls|\n",wpath);
-#if 0
     if((stat = ansi2wide(flags,&wflags))) goto done;    
     f = _wfopen(wpath,wflags);
-#else
-    f = fopen(cvtpath,flags);
-#endif
 done:
     nullfree(cvtpath);    
     nullfree(wpath);    

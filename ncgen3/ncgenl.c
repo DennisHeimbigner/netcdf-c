@@ -1,5 +1,5 @@
 
-#line 3 "ncgenl.c"
+#line 2 "ncgenl.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -1102,7 +1102,7 @@ char errstr[100];		/* for short error messages */
                                    but make sure every action ends with
                                    "return" or "break"! */
 
-#line 1106 "ncgenl.c"
+#line 1105 "ncgenl.c"
 /* The most correct (validating) version of UTF8 character set
    (Taken from: http://www.w3.org/2005/03/23-lex-U)
 
@@ -1142,7 +1142,7 @@ ID ([A-Za-z_]|{UTF8})([A-Z.@#\[\]a-z_0-9+-]|{UTF8})*
 /* Note: this definition of string will work for utf8 as well,
    although it is a very relaxed definition
 */
-#line 1146 "ncgenl.c"
+#line 1145 "ncgenl.c"
 
 #define INITIAL 0
 
@@ -1361,7 +1361,7 @@ YY_DECL
 	{
 #line 107 "ncgen.l"
 
-#line 1365 "ncgenl.c"
+#line 1364 "ncgenl.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1712,7 +1712,7 @@ YY_RULE_SETUP
 #line 285 "ncgen.l"
 ECHO;
 	YY_BREAK
-#line 1716 "ncgenl.c"
+#line 1715 "ncgenl.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 

@@ -16,15 +16,6 @@ if test "x$DL" != x ; then
   DL="-d $DLL"
 fi
 
-XX=`pwd`
-cd ..
-find . -name c0.cdl
-cd $XX
-
-ls -l c0.cdl
-if ! ls -l /d/a/netcdf-c/netcdf-c/netcdf-c/ncgen3/c0.cdl ; then echo fail; fi
-if ! ls -l D:/a/netcdf-c/netcdf-c/netcdf-c/ncgen3/c0.cdl ; then echo fail; fi
-
 echo "*** creating classic file c0.nc from c0.cdl..."
 ${NCGEN3} -b -o c0.nc ${ncgen3c0}
 echo "*** creating 64-bit offset file c0_64.nc from c0.cdl..."
