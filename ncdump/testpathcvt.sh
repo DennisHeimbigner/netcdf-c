@@ -13,9 +13,6 @@ if test "x$DL" != x ; then
   DLL=`echo "$DL" | tr '[:upper:]' '[:lower:]'`
   DL="-d $DLL"
 fi
-echo "MSYS_PREFIX=$MSYS_PREFIX"
-echo "MINGW_PREFIX=$MINGW_PREFIX"
-${NCPATHCVT} -k
 
 testcase1() {
 T="$1"
