@@ -87,6 +87,9 @@ static const struct Path {
 static struct Path wdpath = {NCPD_UNKNOWN,0,NULL};
 static char wdstaticpath[8192];
 
+/* Keep MSYS2_PREFIX */
+static char msys2prefix[8192];
+
 static int parsepath(const char* inpath, struct Path* path);
 static int unparsepath(struct Path* p, char** pathp);
 static int getwdpath(struct Path* wd);
@@ -281,14 +284,23 @@ pathinit(void)
 	const char* s = getenv("NCPATHDEBUG");
         pathdebug = (s == NULL ? 0 : 1);
     }
-
     (void)getwdpath(&wdpath);
     /* make the path static but remember to never free it (Ugh!) */
     wdstaticpath[0] = '\0';
     strlcat(wdstaticpath,wdpath.path,sizeof(wdstaticpath));
     clearPath(&wdpath);
     wdpath.path = wdstaticpath;
-
+    /* See if MSYS2_PREFIX is defined */
+    msys2prefix[0] = '\0';
+    if(getenv(MSYS2_PREFIX)) {
+	const char* m2 = getenv(MSYS2_PREFIX);
+	size_t m2len = strlen(m2);
+	char* p;
+        strlcat(msys2prefix,m2,sizeof(msys2prefix));
+        for(p=msys2prefix;*p;p++) {if(*p == '\\') *p = '/';} /* forward slash*/
+	if(msys2prefix[m2len-1] == '/')
+	    msys2prefix[m2len-1] = '\0'; /* no trailing slash */
+    }
     pathinitialized = 1;
 }
 
@@ -639,6 +651,7 @@ parsepath(const char* inpath, struct Path* path)
     char* tmp1 = NULL;
     size_t len;
     char* p;
+    char* fullpath = NULL;
     
     assert(path);
     memset(path,0,sizeof(struct Path));
@@ -673,7 +686,7 @@ parsepath(const char* inpath, struct Path* path)
 	    {stat = NC_ENOMEM; goto done;}
 	path->kind = NCPD_WIN;
     }
-    /* 2. look for MSYS path /D/... */
+    /* 2. look for MSYS2 path /D/... */
     else if(len >= 2
 	&& (tmp1[0] == '/')
 	&& strchr(windrive,tmp1[1]) != NULL
@@ -723,13 +736,25 @@ parsepath(const char* inpath, struct Path* path)
 	    {stat = NC_ENOMEM; goto done;}
 	path->kind = NCPD_WIN;
     }
-    /* 5. look for *nix path */
+    /* 5. look for *nix* path or msys2 nix style path */
     else if(len >= 1 && tmp1[0] == '/') {
-	/* Assume this is a *nix path */
-	path->drive = 0; /* no drive letter */
-	/* Remainder */
-	path->path = tmp1; tmp1 = NULL;
-	path->kind = NCPD_NIX;	
+	if(msys2prefix[0] != '\0') {
+	    size_t fplen = len+m2len+1+1;
+	    if(fullpath == NULL) {stat = NC_ENOMEM; goto done;}
+	    fullpath[0] = '\0';
+	    strlcat(fullpath,msys2prefix,fplen);
+	    strlcat(fullpath,tmp1,fplen);
+	    /* Recurse to get proper path */
+	    if((stat=parsepath(fullpath, path))) goto done;
+	    nullfree(fullpath); fullpath = NULL;
+	    path->kind = NCPD_MINGW;
+	} else {
+	    /* Assume this is a *nix path */
+	    path->drive = 0; /* no drive letter */
+ 	    /* Remainder */
+	    path->path = tmp1; tmp1 = NULL;
+	    path->kind = NCPD_NIX;	
+	}
     } else {/* 6. Relative path of unknown type */
 	path->kind = NCPD_REL;
 	path->path = tmp1; tmp1 = NULL;

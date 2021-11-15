@@ -6,10 +6,6 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 set -e
 set -x
 
-echo "${MINGW_PREFIX}"
-cygpath -w "/"
-cygpath -u "/"
-pwd -W
-which pwd
+echo "${MSYS2_PREFIX}"
 
 ${execdir}/test_pathcvt
