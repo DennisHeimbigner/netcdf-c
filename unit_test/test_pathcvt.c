@@ -25,7 +25,7 @@ typedef struct Test {
 
 /* Path conversion tests */
 static Test PATHTESTS[] = {
-{"/xxx/a/b",{"/xxx/a/b", "/c/xxx/a/b", "/cygdrive/c/xxx/a/b", "c:\\xxx\\a\\b", "c:\\xxx\\a\\b"}},
+{"/xxx/a/b",{"/xxx/a/b", "/xxx/a/b", "/cygdrive/c/xxx/a/b", "c:\\xxx\\a\\b", "c:\\xxx\\a\\b"}},
 {"d:/x/y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y", "d:\\x\\y"}},
 {"d:\\x\\y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y", "d:\\x\\y"}},
 {"/cygdrive/d/x/y",{ "/d/x/y", "/d/x/y", "/cygdrive/d/x/y",  "d:\\x\\y", "d:\\x\\y"}},
@@ -39,11 +39,11 @@ static Test PATHTESTS[] = {
     "d:\\git\\netcdf-c\\dap4_test\\test_anon_dim.2.syn",
     "d:\\git\\netcdf-c\\dap4_test\\test_anon_dim.2.syn"}},
 /* Test relative path */
-{"x/y",{ "x/y", "x/y", "x/y",  "x\\y", "x\\y"}},
-{"x\\y",{ "x/y", "x/y", "x/y",  "x\\y", "x\\y"}},
-#ifndef _WIN32
+{"x/y",{ "x/y", "x/y", "x/y",  "x\\y", "x/y"}},
+{"x\\y",{ "x/y", "x/y", "x/y",  "x\\y", "x/y"}},
+#ifndef _WIN32X
 /* Test utf8 path */
-{"/海/海",{ "/海/海", "/c/海/海", "/cygdrive/c/海/海",  "c:\\海\\海", "c:\\海\\海"}},
+{"/海/海",{ "/海/海", "/c/海/海", "/cygdrive/c/海/海",  "c:\\海\\海", "c:/海/海"}},
 /* Test network path */
 {"//git/netcdf-c/dap4_test",{
     "/@/git/netcdf-c/dap4_test",
