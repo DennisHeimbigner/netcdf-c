@@ -351,10 +351,13 @@ NCfopen(const char* path, const char* flags)
     wchar_t* wflags = NULL;
     cvtpath = NCpathcvt(path);
     if(cvtpath == NULL) return NULL;
+fprintf(stderr,">>> localkind=%s\n",NCgetkindname(NCgetlocalpathkind()));
 fprintf(stderr,">>> path=%s cvtpath=%s\n",path,cvtpath);
+fprintf(stderr,">>> path -w = %s\n",NCpathcvt_test(path,NCPD_WIN,'d'));
+fprintf(stderr,">>> path -m = %s\n",NCpathcvt_test(path,NCPD_MSYS,'d'));
     /* Convert from local to wide */
     if((stat = utf82wide(cvtpath,&wpath))) goto done;    
-fwprintf(stderr,L">>> wpath=|%ls| wpath=|%s|\n",wpath,wpath);
+fwprintf(stderr,L">>> wpath=|%ls|\n",wpath);
 #if 0
     if((stat = ansi2wide(flags,&wflags))) goto done;    
     f = _wfopen(wpath,wflags);
@@ -901,6 +904,22 @@ NCgetlocalpathkind(void)
 	kind = NCPD_NIX;
 #endif
     return kind;
+}
+
+const char*
+NCgetkindname(int kind)
+{
+    switch (kind) {
+    case NCPD_UNKNOWN: return "NCPD_UNKNOWN";
+    case NCPD_NIX: return "NCPD_NIX";
+    case NCPD_MSYS: return "NCPD_MSYS";
+    case NCPD_CYGWIN: return "NCPD_CYGWIN";
+    case NCPD_WIN: return "NCPD_WIN";
+    case NCPD_MINGW: return "NCPD_MINGW";
+    case NCPD_REL: return "NCPD_REL";
+    default: break;
+    }
+    return "NCPD_UNDEF";
 }
 
 #ifdef WINPATH

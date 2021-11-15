@@ -192,6 +192,7 @@ EXTERNL int NCclosedir(DIR* ent);
 
 EXTERNL char* NCpathcvt_test(const char* path, int ukind, int udrive);
 EXTERNL int NCgetlocalpathkind(void);
+EXTERNL const char* NCgetkindname(int kind);
 EXTERNL void printutf8hex(const char* s, char* sx);
 
 /**************************************************/
