@@ -93,6 +93,9 @@ main(int argc, char** argv)
 	    /* ensure that NC_shellUnescape does not affect result */
 	    unescaped = NC_shellUnescape(test->test);	
 	    expanded = expand(test->expected[k]);
+#ifdef DEBUG
+	    fprintf(stderr,">>> unescaped=|%s| expanded=|%s|\n",unescaped,expanded);
+#endif
    	    cvt = NCpathcvt_test(unescaped,kind,drive);
 #ifdef DEBUG
 	    fprintf(stderr,"TEST local=%s: input: |%s| expected=|%s| actual=|%s|: ",
