@@ -288,10 +288,12 @@ pathinit(void)
         LSTATUS stat;
 	PHKEY hkey;
 	LPDWORD size = sizeof(msys2prefix);
-	stat = RegGetValueA(HKEY_LOCAL_MACHINE,"\SOFTWARE\Cygwin\setup\rootdir", NULL, RRF_RT_ANY, NULL, (PVOID)&msys2prefix, (LPDWORD)&size);
+	const LPCSTR rpath = "SOFTWARE\\Cygwin\\setup\\";
+	const LPCSTR leaf = "rootdir";
+	stat = RegGetValueA(HKEY_LOCAL_MACHINE,rpath,leaf, RRF_RT_ANY, NULL, (PVOID)&msys2prefix, (LPDWORD)&size);
 	if(stat == ERROR_SUCCESS)
 	    msys2len = size;
-fprintf(stderr,">>>> registry: msys2len=%lu msys2prefix=|%s|\n",msys2len,msys2prefix);
+fprintf(stderr,">>>> registry: msys2len=%lu msys2prefix=|%c|\n",msys2len,msys2prefix[0]);
     }
 #endif /*_WIN32*/
     if(msys2len == 0) {
