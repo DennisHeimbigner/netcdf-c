@@ -292,8 +292,8 @@ pathinit(void)
     wdpath.path = wdstaticpath;
     /* See if MSYS2_PREFIX is defined */
     msys2prefix[0] = '\0';
-    if(getenv(MSYS2_PREFIX)) {
-	const char* m2 = getenv(MSYS2_PREFIX);
+    if(getenv("MSYS2_PREFIX")) {
+	const char* m2 = getenv("MSYS2_PREFIX");
 	size_t m2len = strlen(m2);
 	char* p;
         strlcat(msys2prefix,m2,sizeof(msys2prefix));
@@ -739,6 +739,7 @@ parsepath(const char* inpath, struct Path* path)
     /* 5. look for *nix* path or msys2 nix style path */
     else if(len >= 1 && tmp1[0] == '/') {
 	if(msys2prefix[0] != '\0') {
+	    size_t m2len = strlen(msys2prefix);
 	    size_t fplen = len+m2len+1+1;
 	    if(fullpath == NULL) {stat = NC_ENOMEM; goto done;}
 	    fullpath[0] = '\0';
