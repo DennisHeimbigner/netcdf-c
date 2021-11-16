@@ -222,7 +222,7 @@ NCpathabsolute(const char* relpath)
 	/* prepend the wd path to the inpath, including drive letter, if any */
 	len = strlen(wdpath.path)+strlen(canon.path)+1+1;
 	if((tmp1 = (char*)malloc(len))==NULL)
-	    {stat = NC_ENOMEM; {goto done;}}
+	    {stat = NCTHROW(NC_ENOMEM); {goto done;}}
 	tmp1[0] = '\0';
 	strlcat(tmp1,wdpath.path,len);
 	strlcat(tmp1,"/",len);
@@ -509,7 +509,8 @@ NCgetcwd(char* cwdbuf, size_t cwdlen)
     len = strlen(path);
     if(len >= cwdlen) {status = ENAMETOOLONG; goto done;}
     if(cwdbuf == NULL) {
-	if((cwdbuf = malloc(cwdlen))==NULL) {status = ENOMEM; goto done;}
+	if((cwdbuf = malloc(cwdlen))==NULL)
+	    {status = NCTHROW(ENOMEM); goto done;}
     }
     memcpy(cwdbuf,path,len+1);
 done:
@@ -787,7 +788,7 @@ unparsepath(struct Path* xp, char** pathp)
 	}
 	len++; /* nul terminate */
 	if((path = (char*)malloc(len))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
+	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
 	if(xp->drive != 0) {
 	    strlcat(path,"/",len);
@@ -802,7 +803,7 @@ unparsepath(struct Path* xp, char** pathp)
         if(xp->drive == 0) {xp->drive = wdpath.drive;} /*may require a drive */
         len = nulllen(xp->path)+cdlen+1+1;
         if((path = (char*)malloc(len))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
+	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
 	if(!cygspecial) {
             strlcat(path,"/cygdrive/",len);
@@ -817,7 +818,7 @@ unparsepath(struct Path* xp, char** pathp)
 	if(xp->drive == 0) {xp->drive = wdpath.drive;} /*requires a drive */
 	len = nulllen(xp->path)+2+1+1;
 	if((path = (char*)malloc(len))==NULL)
-	    {stat = NC_ENOMEM; goto done;}	
+	    {stat = NCTHROW(NC_ENOMEM); goto done;}	
 	path[0] = '\0';
 	if(xp->drive == netdrive)
 	    strlcat(path,"/",len); /* second slash will come from path */
@@ -834,7 +835,7 @@ unparsepath(struct Path* xp, char** pathp)
     case NCPD_MSYS:
 	len = nulllen(xp->path)+2+1;
 	if((path = (char*)malloc(len))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
+	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
         /* MSYS supposedly can take *nix* paths */
 	if(xp->drive) {
@@ -953,7 +954,7 @@ ansi2utf8(const char* local, char** u8p)
         n = MultiByteToWideChar(CP_ACP, 0,  local, -1, NULL, 0);
         if (!n) {stat = NC_EINVAL; goto done;}
         if((u16 = malloc(sizeof(wchar_t) * n))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
+	    {stat = NCTHROW(NC_ENOMEM); goto done;}
         /* do the conversion */
         if (!MultiByteToWideChar(CP_ACP, 0, local, -1, u16, n))
             {stat = NC_EINVAL; goto done;}
@@ -961,7 +962,7 @@ ansi2utf8(const char* local, char** u8p)
         n = WideCharToMultiByte(CP_UTF8, 0, u16, -1, NULL, 0, NULL, NULL);
         if (!n) {stat = NC_EINVAL; goto done;}
         if((u8 = malloc(sizeof(char) * n))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
+	    {stat = NCTHROW(NC_ENOMEM); goto done;}
         if (!WideCharToMultiByte(CP_UTF8, 0, u16, -1, u8, n, NULL, NULL))
             {stat = NC_EINVAL; goto done;}
     }
@@ -982,7 +983,7 @@ ansi2wide(const char* local, wchar_t** u16p)
     n = MultiByteToWideChar(CP_ACP, 0,  local, -1, NULL, 0);
     if (!n) {stat = NC_EINVAL; goto done;}
     if((u16 = malloc(sizeof(wchar_t) * n))==NULL)
-	{stat = NC_ENOMEM; goto done;}
+	{stat = NCTHROW(NC_ENOMEM); goto done;}
     /* do the conversion */
     if (!MultiByteToWideChar(CP_ACP, 0, local, -1, u16, n))
         {stat = NC_EINVAL; goto done;}
@@ -1003,7 +1004,7 @@ utf82wide(const char* utf8, wchar_t** u16p)
     n = MultiByteToWideChar(CP_UTF8, 0,  utf8, -1, NULL, 0);
     if (!n) {stat = NC_EINVAL; goto done;}
     if((u16 = malloc(sizeof(wchar_t) * n))==NULL)
-	{stat = NC_ENOMEM; goto done;}
+	{stat = NCTHROW(NC_ENOMEM); goto done;}
     /* do the conversion */
     if (!MultiByteToWideChar(CP_UTF8, 0, utf8, -1, u16, n))
         {stat = NC_EINVAL; goto done;}
@@ -1024,7 +1025,7 @@ wide2utf8(const wchar_t* u16, char** u8p)
     n = WideCharToMultiByte(CP_UTF8, 0,  u16, -1, NULL, 0, NULL, NULL);
     if (!n) {stat = NC_EINVAL; goto done;}
     if((u8 = malloc(sizeof(char) * n))==NULL)
-	{stat = NC_ENOMEM; goto done;}
+	{stat = NCTHROW(NC_ENOMEM); goto done;}
     /* do the conversion */
     if (!WideCharToMultiByte(CP_UTF8, 0, u16, -1, u8, n, NULL, NULL))
         {stat = NC_EINVAL; goto done;}
