@@ -290,10 +290,14 @@ pathinit(void)
 	LPDWORD size = sizeof(msys2prefix);
 	const LPCSTR rpath = "SOFTWARE\\Cygwin\\setup\\";
 	const LPCSTR leaf = "rootdir";
-	stat = RegGetValueA(HKEY_LOCAL_MACHINE,rpath,leaf, RRF_RT_ANY, NULL, (PVOID)&msys2prefix, (LPDWORD)&size);
-	if(stat == ERROR_SUCCESS)
+	
+	stat = RegGetValueA(HKEY_LOCAL_MACHINE, rpath, leaf, RRF_RT_REG_SZ, NULL, (PVOID)&msys2prefix, (LPDWORD)&size);
+	if(stat == ERROR_SUCCESS) {
 	    msys2len = size;
 fprintf(stderr,">>>> registry: msys2len=%lu msys2prefix=|%c|\n",msys2len,msys2prefix[0]);
+        } else {
+            wprintf(L"The subkey could not be opened. Error code: %li\n", stat);
+	}
     }
 #endif /*_WIN32*/
     if(msys2len == 0) {
