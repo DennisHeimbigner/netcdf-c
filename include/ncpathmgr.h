@@ -65,15 +65,15 @@
 WARNING: you should never need to explictly call this function;
 rather it is invoked as part of the wrappers for e.g. NCfopen, etc.
 
-This function attempts to take an arbitrary path and convert
-it to a canonical form.
+This function attempts to take an arbitrary path and converts
+it to a form acceptable to the current platform.
 Assumptions about Input path:
 1. It is a relative or absolute path
 2. It is not a URL
 3. It conforms to the format expected by one of the following:
        Linux (/x/y/...),
        Cygwin (/cygdrive/D/...),
-       Windows (D:\...),
+       Windows|MINGW (D:\...),
        Windows network path (\\mathworks\...)
        MSYS (/D/...),
        or relative (x/y...)
@@ -84,17 +84,43 @@ Assumptions about Input path:
    Note that in any case, the path must be representable in the
    local Code Page.
 
-On output it produces a re-written path that has the following
-properties:
-1. The path is normalized to match the platform on which the code
-   is running (e.g. cygwin, windows, msys, linux). So for example
-   using a cygwin path under visual studio will convert e.g.
-   /cygdrive/d/x/y to d:\x\y. See ../unit_test/test_pathcvt.c
-   for example conversions.
-It returns the converted path.
+Parsing Rules:
+1. a leading single alpha-character path element (e.g. /D/...)
+   will be interpreted as a windows drive letter.
+2. a leading '/cygdrive/X' will be converted to
+   a drive letter X if X is alpha-char.
+3. a leading D:/... is treated as a windows drive letter
+4. a leading /d/... is treated as a windows drive letter
+   if the platform is MSYS2.
+5. a leading // is a windows network path and is converted
+   to a drive letter using the fake drive letter "@".
+6. If any of the above is encountered, then forward slashes
+   will be converted to backslashes.
+7. All other cases are assumed to be Unix variants with no drive letter. 
 
-Note that this function is intended to be Idempotent: f(f(x) == f(x).
-This means it is ok to call it repeatedly with no harm.
+After parsing, the following pieces of information are kept in a struct.
+a. kind: The inferred path type (e.g. cygwin, unix, etc)
+b. drive: The drive letter if any
+c. path: The path is everything after the drive letter
+
+For output NCpathcvt produces a re-written path that is acceptable
+to the current platform (the one on which the code is running).
+
+The re-write rules (unparsing) are given the above three pieces
+of info + the current platform
+The conversion is as follows.
+
+  Platform  |    Output
+-----------------------------
+NCPD_NIX    | <path> or /<drive>/path if drive is defined
+NCPD_CYGWIN | /cygdrive/<drive>/<path>
+NCPD_WIN    | <drive>:<path>
+NCPD_MSYS   | <drive>:<path>
+
+Notes:
+1. MINGW is treated like WIN.
+2. This function is intended to be Idempotent: f(f(x) == f(x).
+   This means it is ok to call it repeatedly with no harm.
 */
 EXTERNL char* NCpathcvt(const char* path);
 
@@ -106,7 +132,7 @@ that has some desirable properties:
    with a '/' separator. The exception being if the base part
    may be absolute, in which case, suffixing only is allowed;
    the user is responsible for getting this right.
-To this end we choose the linux/cygwin format as our standard canonical form.
+To this end we choose the cygwin format as our standard canonical form.
 If the path has a windows drive letter, then it is represented
 in the cygwin "/cygdrive/<drive-letter>" form.
 If it is a windows network path, then it starts with "//".
@@ -187,7 +213,7 @@ EXTERNL int NCclosedir(DIR* ent);
 #define NCPD_MSYS 2
 #define NCPD_CYGWIN 3
 #define NCPD_WIN 4
-#define NCPD_MINGW 5
+/* #define NCPD_MINGW NCPD_WIN *alias*/
 #define NCPD_REL 6 /* actual kind is unknown */
 
 EXTERNL char* NCpathcvt_test(const char* path, int ukind, int udrive);

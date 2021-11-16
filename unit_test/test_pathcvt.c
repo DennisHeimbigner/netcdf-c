@@ -15,8 +15,8 @@ Test the NCpathcvt
 
 #define DEBUG
 
-#define NKINDS 5
-static const int kinds[NKINDS] = {NCPD_NIX,NCPD_MSYS,NCPD_CYGWIN,NCPD_WIN,NCPD_MINGW};
+#define NKINDS 4
+static const int kinds[NKINDS] = {NCPD_NIX,NCPD_MSYS,NCPD_CYGWIN,NCPD_WIN};
 
 typedef struct Test {
     char* test;
@@ -25,34 +25,32 @@ typedef struct Test {
 
 /* Path conversion tests */
 static Test PATHTESTS[] = {
-{"/xxx/a/b",{"/xxx/a/b", "/xxx/a/b", "/cygdrive/c/xxx/a/b", "c:\\xxx\\a\\b", "c:\\xxx\\a\\b"}},
-{"d:/x/y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y", "d:\\x\\y"}},
-{"d:\\x\\y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y", "d:\\x\\y"}},
-{"/cygdrive/d/x/y",{ "/d/x/y", "/d/x/y", "/cygdrive/d/x/y",  "d:\\x\\y", "d:\\x\\y"}},
-{"/d/x/y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y", "d:\\x\\y"}},
-{"/cygdrive/d",{ "/d", "/d",  "/cygdrive/d",  "d:", "d:"}},
-{"/d", {"/d", "/d",  "/cygdrive/d",  "d:", "d:"}},
+{"/xxx/a/b",{"/xxx/a/b", "/xxx/a/b", "/cygdrive/c/xxx/a/b", "c:\\xxx\\a\\b"}},
+{"d:/x/y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y"}},
+{"d:\\x\\y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y"}},
+{"/cygdrive/d/x/y",{ "/d/x/y", "/d/x/y", "/cygdrive/d/x/y",  "d:\\x\\y"}},
+{"/d/x/y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y"}},
+{"/cygdrive/d",{ "/d", "/d",  "/cygdrive/d",  "d:"}},
+{"/d", {"/d", "/d",  "/cygdrive/d",  "d:"}},
 {"/cygdrive/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn",{
     "/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn",
     "/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn",
     "/cygdrive/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn",
-    "d:\\git\\netcdf-c\\dap4_test\\test_anon_dim.2.syn",
     "d:\\git\\netcdf-c\\dap4_test\\test_anon_dim.2.syn"}},
 /* Test relative path */
-{"x/y",{ "x/y", "x/y", "x/y",  "x\\y", "x/y"}},
-{"x\\y",{ "x/y", "x/y", "x/y",  "x\\y", "x/y"}},
+{"x/y",{ "x/y", "x/y", "x/y",  "x\\y"}},
+{"x\\y",{ "x/y", "x/y", "x/y",  "x\\y"}},
 #ifndef _WIN32X
 /* Test utf8 path */
-{"/海/海",{ "/海/海", "/海/海", "/cygdrive/c/海/海",  "c:\\海\\海", "c:\\海\\海"}},
+{"/海/海",{ "/海/海", "/海/海", "/cygdrive/c/海/海",  "c:\\海\\海"}},
 /* Test network path */
 {"//git/netcdf-c/dap4_test",{
     "/@/git/netcdf-c/dap4_test",
     "/@/git/netcdf-c/dap4_test",
     "/cygdrive/@/git/netcdf-c/dap4_test",
-    "\\\\git\\netcdf-c\\dap4_test",
     "\\\\git\\netcdf-c\\dap4_test"}},
 #endif
-{NULL, {NULL, NULL, NULL, NULL, NULL}}
+{NULL, {NULL, NULL, NULL, NULL}}
 };
 
 char* macros[128];
@@ -146,8 +144,6 @@ kind2string(int kind)
 	return "Cygwin";
     case NCPD_WIN:
 	return "Windows";
-    case NCPD_MINGW:
-	return "MINGW";
     default: break;
     }
     return "unknown";

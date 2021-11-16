@@ -53,17 +53,7 @@
 Code to provide some path conversion code so that
 cygwin and (some) mingw paths can be passed to open/fopen
 for Windows. Other cases will be added as needed.
-Rules:
-1. a leading single alpha-character path element (e.g. /D/...)
-   will be interpreted as a windows drive letter.
-2. a leading '/cygdrive/X' will be converted to
-   a drive letter X if X is alpha-char.
-3. a leading D:/... is treated as a windows drive letter
-4. a leading // is a windows network path and is converted
-   to a drive letter using the fake drive letter "@".
-5. If any of the above is encountered, then forward slashes
-   will be converted to backslashes.
-All other cases are passed thru unchanged
+See the documentation in ncpathmgr.h for details.
 */
 
 /* Define legal windows drive letters */
@@ -89,6 +79,7 @@ static char wdstaticpath[8192];
 
 /* Keep MSYS2_PREFIX */
 static char msys2prefix[8192];
+static int msys2len; /* strlen(msys2prefix) */
 
 static int parsepath(const char* inpath, struct Path* path);
 static int unparsepath(struct Path* p, char** pathp);
@@ -176,8 +167,8 @@ NCpathcanonical(const char* srcpath, char** canonp)
     case NCPD_NIX:
     case NCPD_CYGWIN:
     case NCPD_MSYS:
-    case NCPD_MINGW:
-    case NCPD_WIN: /* convert to cywin form */
+    case NCPD_WIN: /* | NCPD_MINGW*/
+	/* convert to cywin form */
 	len = nulllen(path.path) + strlen("/cygdrive/X") + 1;
 	canon = (char*)malloc(len);
 	if(canon != NULL) {
@@ -290,16 +281,37 @@ pathinit(void)
     strlcat(wdstaticpath,wdpath.path,sizeof(wdstaticpath));
     clearPath(&wdpath);
     wdpath.path = wdstaticpath;
-    /* See if MSYS2_PREFIX is defined */
+    msys2len = 0;
     msys2prefix[0] = '\0';
-    if(getenv("MSYS2_PREFIX")) {
-	const char* m2 = getenv("MSYS2_PREFIX");
-	size_t m2len = strlen(m2);
+#ifdef _WIN32
+    { /* See if we can get the MSYS2 prefix from the registry */
+        LSTATUS stat;
+	PHKEY hkey;
+	LPDWORD size = sizeof(msys2prefix);
+	stat = RegGetValueA(HKEY_LOCAL_MACHINE,"\SOFTWARE\Cygwin\setup\rootdir", NULL, RRF_RT_ANY, NULL, (PVOID)&msys2prefix, (LPDWORD)&size);
+	if(stat == ERROR_SUCCESS)
+	    msys2len = size;
+fprintf(stderr,">>>> registry: msys2len=%lu msys2prefix=|%s|\n",msys2len,msys2prefix);
+    }
+#endif /*_WIN32*/
+    if(msys2len == 0) {
+	msys2prefix[0] = '\0';
+        /* See if MSYS2_PREFIX is defined */
+        if(getenv("MSYS2_PREFIX")) {
+	    const char* m2 = getenv("MSYS2_PREFIX");
+  	    char* p;
+	    msys2len = strlen(m2);
+            strlcat(msys2prefix,m2,msys2len);
+	}
+fprintf(stderr,">>>> prefix: msys2len=%lu msys2prefix=|%s|\n",msys2len,msys2prefix);
+    }
+    if(msys2len > 0) {
 	char* p;
-        strlcat(msys2prefix,m2,sizeof(msys2prefix));
         for(p=msys2prefix;*p;p++) {if(*p == '\\') *p = '/';} /* forward slash*/
-	if(msys2prefix[m2len-1] == '/')
-	    msys2prefix[m2len-1] = '\0'; /* no trailing slash */
+	if(msys2prefix[msys2len-1] == '/') {
+	    msys2len--;
+	    msys2prefix[msys2len] = '\0'; /* no trailing slash */
+	}
     }
     pathinitialized = 1;
 }
@@ -665,7 +677,7 @@ parsepath(const char* inpath, struct Path* path)
 #else
     tmp1 = strdup(inpath);
 #endif
-    /* Convert to forward slash */
+    /* Convert to forward slash to simplify later code */
     for(p=tmp1;*p;p++) {if(*p == '\\') *p = '/';}
 
     /* parse all paths to 2 parts:
@@ -675,7 +687,8 @@ parsepath(const char* inpath, struct Path* path)
 
     len = strlen(tmp1);
 
-    /* 1. look for Windows network path //... */
+    /* 1. look for Windows network path //...; drive letter is faked using
+          the character '@' */
     if(len >= 2 && (tmp1[0] == '/') && (tmp1[1] == '/')) {
 	path->drive = netdrive;
 	/* Remainder */
@@ -692,7 +705,7 @@ parsepath(const char* inpath, struct Path* path)
 	&& (tmp1[0] == '/')
 	&& strchr(windrive,tmp1[1]) != NULL
 	&& (tmp1[2] == '/' || tmp1[2] == '\0')) {
-	/* Assume this is a mingw path */
+	/* Assume this is an MSYS2 path */
 	path->drive = tmp1[1];
 	/* Remainder */
 	if(tmp1[2] == '\0')
@@ -735,28 +748,15 @@ parsepath(const char* inpath, struct Path* path)
 	    path->path = strdup(tmp1+2);
 	if(path == NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	path->kind = NCPD_WIN;
+	path->kind = NCPD_WIN; /* Might be MINGW */
     }
-    /* 5. look for *nix* path or msys2 nix style path */
+    /* 5. look for *nix* path */
     else if(len >= 1 && tmp1[0] == '/') {
-	if(msys2prefix[0] != '\0') {
-	    size_t m2len = strlen(msys2prefix);
-	    size_t fplen = len+m2len+1+1;
-	    if(fullpath == NULL) {stat = NC_ENOMEM; goto done;}
-	    fullpath[0] = '\0';
-	    strlcat(fullpath,msys2prefix,fplen);
-	    strlcat(fullpath,tmp1,fplen);
-	    /* Recurse to get proper path */
-	    if((stat=parsepath(fullpath, path))) goto done;
-	    nullfree(fullpath); fullpath = NULL;
-	    path->kind = NCPD_MINGW;
-	} else {
-	    /* Assume this is a *nix path */
-	    path->drive = 0; /* no drive letter */
- 	    /* Remainder */
-	    path->path = tmp1; tmp1 = NULL;
-	    path->kind = NCPD_NIX;	
-	}
+	/* Assume this is a *nix path */
+	path->drive = 0; /* no drive letter */
+ 	/* Remainder */
+	path->path = tmp1; tmp1 = NULL;
+	path->kind = NCPD_NIX;	
     } else {/* 6. Relative path of unknown type */
 	path->kind = NCPD_REL;
 	path->path = tmp1; tmp1 = NULL;
@@ -786,11 +786,15 @@ unparsepath(struct Path* xp, char** pathp)
 	    len += 2;
 	    sdrive[0] = xp->drive;
 	}
+	if(msys2len > 0)  len += (msys2len+1); /* +1 for possible separator */
 	len++; /* nul terminate */
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
-	if(xp->drive != 0) {
+	/* If the MSYS2 mount point prefix is defined, then use it */
+	if(msys2len > 0) /* MSYS2_PREFIX is defined, so use it */
+	    strlcat(path,msys2prefix,len);
+	else if(xp->drive != 0) { /* prefix with /<drive> */
 	    strlcat(path,"/",len);
 	    strlcat(path,sdrive,len);
 	}	
@@ -813,8 +817,7 @@ unparsepath(struct Path* xp, char** pathp)
   	if(xp->path)
 	    strlcat(path,xp->path,len);
 	break;
-    case NCPD_WIN:
-    case NCPD_MINGW:
+    case NCPD_WIN: /* | NCPD_MINGW */
 	if(xp->drive == 0) {xp->drive = wdpath.drive;} /*requires a drive */
 	len = nulllen(xp->path)+2+1+1;
 	if((path = (char*)malloc(len))==NULL)
@@ -905,8 +908,8 @@ NCgetlocalpathkind(void)
 	kind = NCPD_WIN;
 #elif defined __MSYS__
 	kind = NCPD_MSYS;
-#elif defined __MINGW32__ /* And !MSYS */
-	kind = NCPD_MINGW;
+#elif defined __MINGW__
+	kind = NCPD_WIN; /* alias */
 #else
 	kind = NCPD_NIX;
 #endif
@@ -922,7 +925,7 @@ NCgetkindname(int kind)
     case NCPD_MSYS: return "NCPD_MSYS";
     case NCPD_CYGWIN: return "NCPD_CYGWIN";
     case NCPD_WIN: return "NCPD_WIN";
-    case NCPD_MINGW: return "NCPD_MINGW";
+    /* same as WIN case NCPD_MINGW: return "NCPD_MINGW";*/
     case NCPD_REL: return "NCPD_REL";
     default: break;
     }

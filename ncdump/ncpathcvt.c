@@ -94,7 +94,6 @@ printlocalkind(void)
     case NCPD_MSYS: s = "msys"; break;
     case NCPD_CYGWIN: s = "cygwin"; break;
     case NCPD_WIN: s = "win"; break;
-    case NCPD_MINGW: s = "mingw"; break;
     default: s = "unknown"; break;
     }
     printf("%s",s);
