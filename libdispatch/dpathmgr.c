@@ -65,7 +65,8 @@ static const size_t cdlen = 10; /* strlen("/cygdrive/") */
 
 static int pathinitialized = 0;
 
-static int pathdebug = -1;
+//static int pathdebug = -1;
+static int pathdebug = 1;
 
 static const struct Path {
     int kind;
@@ -132,7 +133,7 @@ NCpathcvt(const char* inpath)
 
 done:
     if(pathdebug) {
-        fprintf(stderr,"xxx: inpath=|%s| result=|%s|\n",
+        fprintf(stderr,">>> inpath=|%s| result=|%s|\n",
             inpath?inpath:"NULL",result?result:"NULL");
         fflush(stderr);
     }
@@ -206,10 +207,10 @@ NCpathabsolute(const char* relpath)
 	goto done;
     }
     /* rebuild */
-    if((stat=unparsepath(&canon,&result))) goto done;
+    if((stat=unparsepath(&canon,&result,NCgetlocalpathkind()))) goto done;
 done:
     if(pathdebug) {
-        fprintf(stderr,"xxx: relpath=|%s| result=|%s|\n",
+        fprintf(stderr,">>> relpath=|%s| result=|%s|\n",
             relpath?relpath:"NULL",result?result:"NULL");
         fflush(stderr);
     }
@@ -244,7 +245,7 @@ NCpathcvt_test(const char* inpath, int ukind, int udrive)
     wdprefix[0] = '\0';
     strlcat(wdprefix,sdrive,sizeof(wdprefix));
     if(pathdebug)
-	fprintf(stderr,"xxx: wd=|%s|",wdprefix);
+	fprintf(stderr,">>> wd=|%s|",wdprefix);
     result = NCpathcvt(inpath);
     strlcat(wdprefix,oldwd,sizeof(wdprefix));
     wdlen = strlen(wdprefix);
@@ -513,7 +514,7 @@ NCgetcwd(char* cwdbuf, size_t cwdlen)
     if(!pathinitialized) pathinit();
     if((status = getwdpath())) {status = ENOENT; goto done;}
     if((status = parsepath(wdprefix,&wd))) {status = EINVAL; goto done;}
-    if((status = unparsepath(&wd,&path))) {status = EINVAL; goto done;}
+    if((status = unparsepath(&wd,&path,NCgetlocalpathkind()))) {status = EINVAL; goto done;}
     len = strlen(path);
     if(len >= cwdlen) {status = ENAMETOOLONG; goto done;}
     if(cwdbuf == NULL) {
@@ -755,7 +756,7 @@ done:
 }
 
 static int
-unparsepath(struct Path* xp, char** pathp)
+unparsepath(struct Path* xp, char** pathp, int target)
 {
     int stat = NC_NOERR;
     size_t len;
@@ -765,7 +766,7 @@ unparsepath(struct Path* xp, char** pathp)
     int kind = xp->kind;
     int cygspecial = 0;
     
-    switch (kind) {
+    switch (target) {
     case NCPD_NIX:
 	len = nulllen(xp->path);
 	if(xp->drive != 0) {
@@ -834,14 +835,6 @@ unparsepath(struct Path* xp, char** pathp)
 	}
 	if(xp->path)
 	    strlcat(path,xp->path,len);
-	break;
-    case NCPD_REL:
-	path = strdup(xp->path);	
-	/* Use local path kind to decide slashing */
-	if(NCgetlocalpathkind() == NCPD_WIN) {
-	    /* Convert forward to back */ 
-            for(p=path;*p;p++) {if(*p == '/') *p = '\\';}
-	}
 	break;
     default: stat = NC_EINTERNAL; goto done;
     }
