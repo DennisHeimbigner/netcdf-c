@@ -68,7 +68,7 @@ rather it is invoked as part of the wrappers for e.g. NCfopen, etc.
 This function attempts to take an arbitrary path and converts
 it to a form acceptable to the current platform.
 Assumptions about Input path:
-1. It is a relative or absolute path
+1. It is an absolute path
 2. It is not a URL
 3. It conforms to the format expected by one of the following:
        Linux (/x/y/...),
@@ -76,24 +76,23 @@ Assumptions about Input path:
        Windows|MINGW (D:\...),
        Windows network path (\\mathworks\...)
        MSYS (/D/...),
-       or relative (x/y...)
-4. It is encoded in the local platform character set.
-   Note that for most systems, this is utf-8. But for Windows,
-   the encoding is most likely some form of ANSI code page, probably
-   the windows 1252 encoding.
-   Note that in any case, the path must be representable in the
-   local Code Page.
+4. It is encoded in the local platform character set.  Note that
+   for most systems, this is utf-8. But for Windows, the
+   encoding is most likely some form of ANSI code page, probably
+   the windows 1252 encoding.  Note that in any case, the path
+   must be representable in the local Code Page.
 
 Parsing Rules:
 1. a leading single alpha-character path element (e.g. /D/...)
-   will be interpreted as a windows drive letter.
-2. a leading '/cygdrive/X' will be converted to
-   a drive letter X if X is alpha-char.
+   will be interpreted as windows drive letter D.
+2. a leading '/cygdrive/D' will be converted to
+   drive letter D if D is alpha-char.
 3. a leading D:/... is treated as a windows drive letter
 4. a leading /d/... is treated as a windows drive letter
    if the platform is MSYS2.
 5. a leading // is a windows network path and is converted
    to a drive letter using the fake drive letter "@".
+   So '//svc/x/y' translates to '@:/svc/x/y'.
 6. If any of the above is encountered, then forward slashes
    will be converted to backslashes.
 7. All other cases are assumed to be Unix variants with no drive letter. 
@@ -108,25 +107,25 @@ to the current platform (the one on which the code is running).
 
 The re-write rules (unparsing) are given the above three pieces
 of info + the current platform
-The conversion is as follows.
+The conversion rules are as follows.
 
-  Platform  |    Output
------------------------------
-NCPD_NIX    | <path> or /<drive>/path if drive is defined
-NCPD_CYGWIN | /cygdrive/<drive>/<path>
-NCPD_WIN    | <drive>:<path>
-NCPD_MSYS   | <drive>:<path>
+  Platform  | No Input Drive | Input Drive
+----------------------------------------------------
+NCPD_NIX    | <path>         | /<drive>/path
+NCPD_CYGWIN | <path>         | /cygdrive/<drive>/<path>
+NCPD_WIN    | error          | <drive>:<path>
+NCPD_MSYS   | <mount>/<path> | <drive>:<path>
 
 Notes:
-1. MINGW is treated like WIN.
+1. MINGW without MSYS is treated like WIN.
+2. The reason msys prefixes the mount point is because
+   the IO functions are handled directly by Windows, hence
+   the conversion must look like a true windows path.
 2. This function is intended to be Idempotent: f(f(x) == f(x).
    This means it is ok to call it repeatedly with no harm.
-3. This function actually calls NCpathcvtto with a seconf argument
-   taken from NCgetlocalpathkind(); 
+   Unless, of course, an error occurs.
 */
 EXTERNL char* NCpathcvt(const char* path);
-
-EXTERNL char* NCpathcvtto(const char* path, int targetkind);
 
 /**
 It is often convenient to convert a path to some canonical format

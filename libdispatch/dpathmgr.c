@@ -40,7 +40,7 @@
 #include "ncuri.h"
 #include "ncutf8.h"
 
-#undef PATHFORMAT
+#define DEBUGPATH
 
 #ifdef _WIN32
 #define access _access 
@@ -51,8 +51,8 @@
 
 /*
 Code to provide some path conversion code so that
-cygwin and (some) mingw paths can be passed to open/fopen
-for Windows. Other cases will be added as needed.
+paths in one format can be used on a platform that uses
+a different format.
 See the documentation in ncpathmgr.h for details.
 */
 
@@ -82,9 +82,8 @@ static char mountprefix[8192];
 static int mountlen; /* strlen(mountprefix) */
 
 static int parsepath(const char* inpath, struct Path* path);
-static int unparsepath(struct Path* p, char** pathp);
+static int unparsepath(struct Path* p, char** pathp, int target);
 static int getwdpath(void);
-static char* printPATH(struct Path* p);
 static void clearPath(struct Path* path);
 static void pathinit(void);
 static int iscygwinspecial(const char* path);
@@ -97,21 +96,19 @@ static int utf82wide(const char* utf8, wchar_t** u16p);
 static int wide2utf8(const wchar_t* u16, char** u8p);
 #endif
 
-EXTERNL
-char* /* caller frees */
-NCpathcvt(const char* inpath)
-{
-    return NCpathcvtto(inpath,NCgetlocalpathkind());
-}
+#ifdef DEBUGPATH
+static char* printPATH(struct Path* p);
+#endif
 
 EXTERNL
 char* /* caller frees */
-NCpathcvtto(const char* inpath, int target)
+NCpathcvt(const char* inpath)
 {
     int stat = NC_NOERR;
     char* tmp1 = NULL;
     char* result = NULL;
     struct Path inparsed = empty;
+    int target = NCgetlocalpathkind();
 
     if(inpath == NULL) goto done; /* defensive driving */
 
@@ -121,40 +118,21 @@ NCpathcvtto(const char* inpath, int target)
 	if((result = strdup(inpath))==NULL) stat = NC_ENOMEM;
 	goto done;
     }
-
     if((stat = parsepath(inpath,&inparsed))) {goto done;}
+    if(pathdebug)
+        fprintf(stderr,">>> NCpathcvt: inparsed=%s\n",printPATH(&inparsed));
 
-    if(inparsed.kind == NCPD_REL) goto unparse; /* short circuit
-
-    /* Special cases */
-
-    /* Check for special cygwin paths: /tmp,usr etc */
-    if(NCgetlocalpathkind() == NCPD_CYGWIN
-       && iscygwinspecial(inparsed.path)
-       && inparsed.kind == NCPD_NIX)
-	inparsed.kind = NCPD_CYGWIN;
-
-     /* If the inpath looks like a unix path and the target kind
-        is not unix-like, then prefix the path with the mount path,
-        if any, and reparse */
-     if(inparsed.drive == 0 && inparsed.kind == NCPD_NIX) {
-	if(target == NCPD_MSYS && mountlen > 0) {	    
-	    size_t len = mountlen + strlen(inparsed.path) + 1;
-	    if((tmp1 = malloc(len)) == NULL) goto done;
-	    tmp1[0] = '\0';
-	    strlcat(tmp1,mountprefix,len);
-	    strlcat(tmp1,inparsed.path,len);
-	    result = NCpathcvtto(tmp1,target); /* reparse */
-	    goto done;
-        }        
+    if(inparsed.kind == NCPD_REL) { /* Pass thru relative paths */
+	if((result = strdup(inpath))==NULL) stat = NC_ENOMEM;
+	goto done;
     }
-    
-unparse:
-    if((stat = unparsepath(&inparsed,&result))) {goto done;}
+
+    if((stat = unparsepath(&inparsed,&result,NCgetlocalpathkind())))
+        goto done;
 
 done:
     if(pathdebug) {
-        fprintf(stderr,"xxx: inpath=|%s| outpath=|%s|\n",
+        fprintf(stderr,"xxx: inpath=|%s| result=|%s|\n",
             inpath?inpath:"NULL",result?result:"NULL");
         fflush(stderr);
     }
@@ -183,29 +161,10 @@ NCpathcanonical(const char* srcpath, char** canonp)
 
     /* parse the src path */
     if((stat = parsepath(srcpath,&path))) {goto done;}
-    switch (path.kind) {
-    case NCPD_REL:
-	/* use as is */
-	canon = path.path; path.path = NULL;
-	break;	
-    case NCPD_NIX:
-    case NCPD_CYGWIN:
-    case NCPD_MSYS:
-    case NCPD_WIN: /* | NCPD_MINGW*/
-	/* convert to cywin form */
-	len = nulllen(path.path) + strlen("/cygdrive/X") + 1;
-	canon = (char*)malloc(len);
-	if(canon != NULL) {
-	    canon[0] = '\0';
-	    if(path.drive != 0) {
-	        strlcat(canon,"/cygdrive/X",len);
-	        canon[10] = path.drive;
-	    }
-	    if(path.path != NULL) strlcat(canon,path.path,len);
-	}
-	break;		
-    default: goto done; /* return NULL */
-    }
+    /* Convert to cygwin form */
+    if((stat = unparsepath(&path,&canon, NCPD_CYGWIN)))
+        goto done;
+
     if(canonp) {*canonp = canon; canon = NULL;}
 
 done:
@@ -377,6 +336,7 @@ iscygwinspecial(const char* path)
     return 0;
 }
 
+
 /* return 1 if path looks like a url; 0 otherwise */
 static int
 testurl(const char* path)
@@ -544,14 +504,15 @@ char*
 NCgetcwd(char* cwdbuf, size_t cwdlen)
 {
     int status = NC_NOERR;
-    struct Path wd = empty;
     char* path = NULL;
     size_t len;
+    struct Path wd;
 
     errno = 0;
     if(cwdlen == 0) {status = ENAMETOOLONG; goto done;}
     if(!pathinitialized) pathinit();
-    if((status = getwdpath(&wd))) {status = ENOENT; goto done;}
+    if((status = getwdpath())) {status = ENOENT; goto done;}
+    if((status = parsepath(wdprefix,&wd))) {status = EINVAL; goto done;}
     if((status = unparsepath(&wd,&path))) {status = EINVAL; goto done;}
     len = strlen(path);
     if(len >= cwdlen) {status = ENAMETOOLONG; goto done;}
@@ -1070,6 +1031,7 @@ nc_setlocale_utf8(void)
 
 #endif /*WINPATH*/
 
+#ifdef DEBUGPATH
 static char*
 printPATH(struct Path* p)
 {
@@ -1079,6 +1041,7 @@ printPATH(struct Path* p)
 	p->kind,(p->drive > 0?p->drive:'0'),p->path);
     return buf;
 }
+#endif
 
 #if 0
 static int
