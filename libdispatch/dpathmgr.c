@@ -74,16 +74,16 @@ static const struct Path {
 } empty = {NCPD_UNKNOWN,0,NULL};
 
 /* Keep the working directory kind and drive */
-static struct Path wdpath = {NCPD_UNKNOWN,0,NULL};
-static char wdstaticpath[8192];
+static char wdprefix[8192];
+static size_t wdlen;
 
-/* Keep MSYS2_PREFIX */
-static char msys2prefix[8192];
-static int msys2len; /* strlen(msys2prefix) */
+/* Keep CYGWIN/MSYS2 mount point */
+static char mountprefix[8192];
+static int mountlen; /* strlen(mountprefix) */
 
 static int parsepath(const char* inpath, struct Path* path);
 static int unparsepath(struct Path* p, char** pathp);
-static int getwdpath(struct Path* wd);
+static int getwdpath(void);
 static char* printPATH(struct Path* p);
 static void clearPath(struct Path* path);
 static void pathinit(void);
@@ -101,47 +101,71 @@ EXTERNL
 char* /* caller frees */
 NCpathcvt(const char* inpath)
 {
+    return NCpathcvtto(inpath,NCgetlocalpathkind());
+}
+
+EXTERNL
+char* /* caller frees */
+NCpathcvtto(const char* inpath, int target)
+{
     int stat = NC_NOERR;
     char* tmp1 = NULL;
-    struct Path canon = empty;
+    char* result = NULL;
+    struct Path inparsed = empty;
 
     if(inpath == NULL) goto done; /* defensive driving */
 
     if(!pathinitialized) pathinit();
 
     if(testurl(inpath)) { /* Pass thru URLs */
-	if((tmp1 = strdup(inpath))==NULL) stat = NC_ENOMEM;
+	if((result = strdup(inpath))==NULL) stat = NC_ENOMEM;
 	goto done;
     }
 
-    if((stat = parsepath(inpath,&canon))) {goto done;}
+    if((stat = parsepath(inpath,&inparsed))) {goto done;}
 
-    /* Special check for special cygwin paths: /tmp,usr etc */
+    if(inparsed.kind == NCPD_REL) goto unparse; /* short circuit
+
+    /* Special cases */
+
+    /* Check for special cygwin paths: /tmp,usr etc */
     if(NCgetlocalpathkind() == NCPD_CYGWIN
-       && iscygwinspecial(canon.path)
-       && canon.kind == NCPD_NIX)
-	canon.kind = NCPD_CYGWIN;
+       && iscygwinspecial(inparsed.path)
+       && inparsed.kind == NCPD_NIX)
+	inparsed.kind = NCPD_CYGWIN;
 
-    if(canon.kind != NCPD_REL && wdpath.kind != canon.kind) {
-	nclog(NCLOGWARN,"NCpathcvt: path mismatch: platform=%d inpath=%d\n",
-		wdpath.kind,canon.kind);
-	canon.kind = wdpath.kind; /* override */
+     /* If the inpath looks like a unix path and the target kind
+        is not unix-like, then prefix the path with the mount path,
+        if any, and reparse */
+     if(inparsed.drive == 0 && inparsed.kind == NCPD_NIX) {
+	if(target == NCPD_MSYS && mountlen > 0) {	    
+	    size_t len = mountlen + strlen(inparsed.path) + 1;
+	    if((tmp1 = malloc(len)) == NULL) goto done;
+	    tmp1[0] = '\0';
+	    strlcat(tmp1,mountprefix,len);
+	    strlcat(tmp1,inparsed.path,len);
+	    result = NCpathcvtto(tmp1,target); /* reparse */
+	    goto done;
+        }        
     }
+    
+unparse:
+    if((stat = unparsepath(&inparsed,&result))) {goto done;}
 
-    if((stat = unparsepath(&canon,&tmp1))) {goto done;}
 done:
     if(pathdebug) {
         fprintf(stderr,"xxx: inpath=|%s| outpath=|%s|\n",
-            inpath?inpath:"NULL",tmp1?tmp1:"NULL");
+            inpath?inpath:"NULL",result?result:"NULL");
         fflush(stderr);
     }
     if(stat) {
-        nullfree(tmp1); tmp1 = NULL;
+        nullfree(result); result = NULL;
 	nclog(NCLOGERR,"NCpathcvt: stat=%d (%s)",
 		stat,nc_strerror(stat));
     }
-    clearPath(&canon);
-    return tmp1;
+    nullfree(tmp1);
+    clearPath(&inparsed);
+    return result;
 }
 
 EXTERNL
@@ -190,7 +214,6 @@ done:
     return stat;
 }
 
-
 EXTERNL
 char* /* caller frees */
 NCpathabsolute(const char* relpath)
@@ -211,17 +234,17 @@ NCpathabsolute(const char* relpath)
     /* See if relative */
     if(canon.kind == NCPD_REL) {
 	/* prepend the wd path to the inpath, including drive letter, if any */
-	len = strlen(wdpath.path)+strlen(canon.path)+1+1;
+	len = strlen(wdprefix)+strlen(canon.path)+1+1;
 	if((tmp1 = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); {goto done;}}
 	tmp1[0] = '\0';
-	strlcat(tmp1,wdpath.path,len);
+	strlcat(tmp1,wdprefix,len);
 	strlcat(tmp1,"/",len);
 	strlcat(tmp1,canon.path,len);
        	nullfree(canon.path);
-	canon.path = tmp1; tmp1 = NULL;
-	canon.drive = wdpath.drive;
-	canon.kind = wdpath.kind;
+	/* Reparse */
+	result = NCpathabsolute(tmp1);
+	goto done;
     }
     /* rebuild */
     if((stat=unparsepath(&canon,&result))) goto done;
@@ -250,18 +273,22 @@ char* /* caller frees */
 NCpathcvt_test(const char* inpath, int ukind, int udrive)
 {
     char* result = NULL;
-    struct Path oldwd = wdpath;
+    char oldwd[8192];
+    char sdrive[4] = "x:/";
+
+    oldwd[0] = '\0';
+    strlcat(oldwd,wdprefix,sizeof(oldwd));
 
     if(!pathinitialized) pathinit();
-    /* Override */
-    wdpath.kind = ukind;
-    wdpath.drive = udrive;
-    wdpath.path = strdup("/");
+
+    sdrive[0] = (char)udrive;
+    wdprefix[0] = '\0';
+    strlcat(wdprefix,sdrive,sizeof(wdprefix));
     if(pathdebug)
-	fprintf(stderr,"xxx: wd=|%s|",printPATH(&wdpath));
+	fprintf(stderr,"xxx: wd=|%s|",wdprefix);
     result = NCpathcvt(inpath);
-    clearPath(&wdpath);
-    wdpath = oldwd;
+    strlcat(wdprefix,oldwd,sizeof(wdprefix));
+    wdlen = strlen(wdprefix);
     return result;
 }
 
@@ -275,48 +302,50 @@ pathinit(void)
 	const char* s = getenv("NCPATHDEBUG");
         pathdebug = (s == NULL ? 0 : 1);
     }
-    (void)getwdpath(&wdpath);
-    /* make the path static but remember to never free it (Ugh!) */
-    wdstaticpath[0] = '\0';
-    strlcat(wdstaticpath,wdpath.path,sizeof(wdstaticpath));
-    clearPath(&wdpath);
-    wdpath.path = wdstaticpath;
-    msys2len = 0;
-    msys2prefix[0] = '\0';
+    (void)getwdpath();
+    mountlen = 0;
+    mountprefix[0] = '\0';
 #ifdef _WIN32
     { /* See if we can get the MSYS2 prefix from the registry */
         LSTATUS stat;
 	PHKEY hkey;
-	LPDWORD size = sizeof(msys2prefix);
+	LPDWORD size = sizeof(mountprefix);
 	const LPCSTR rpath = "SOFTWARE\\Cygwin\\setup\\";
 	const LPCSTR leaf = "rootdir";
+	HKEY key;
 	
-	stat = RegGetValueA(HKEY_LOCAL_MACHINE, rpath, leaf, RRF_RT_REG_SZ, NULL, (PVOID)&msys2prefix, (LPDWORD)&size);
-	if(stat == ERROR_SUCCESS) {
-	    msys2len = size;
-fprintf(stderr,">>>> registry: msys2len=%lu msys2prefix=|%c|\n",msys2len,msys2prefix[0]);
-        } else {
-            wprintf(L"The subkey could not be opened. Error code: %li\n", stat);
+	stat =  RegOpenKeyA(HKEY_LOCAL_MACHINE, rpath, &key);
+	if(stat != ERROR_SUCCESS) {
+            wprintf(L"RegOpenKeyA failed. Error code: %li\n", stat);
+	    goto next;
 	}
+	stat = RegGetValueA(key, NULL, leaf, RRF_RT_REG_SZ, NULL, (PVOID)&mountprefix, (LPDWORD)&size);
+	if(stat != ERROR_SUCCESS) {
+            wprintf(L"RegGetValueA failed. Error code: %li\n", stat);
+	    goto next;	
+	}
+        mountlen = size;
+fprintf(stderr,">>>> registry: mountlen=%lu mountprefix=|%s|\n",mountlen,mountprefix);
     }
+next:
 #endif /*_WIN32*/
-    if(msys2len == 0) {
-	msys2prefix[0] = '\0';
+    if(mountlen == 0) {
+	mountprefix[0] = '\0';
         /* See if MSYS2_PREFIX is defined */
         if(getenv("MSYS2_PREFIX")) {
 	    const char* m2 = getenv("MSYS2_PREFIX");
   	    char* p;
-	    msys2len = strlen(m2);
-            strlcat(msys2prefix,m2,msys2len);
+	    mountlen = strlen(m2);
+            strlcat(mountprefix,m2,mountlen);
 	}
-fprintf(stderr,">>>> prefix: msys2len=%lu msys2prefix=|%s|\n",msys2len,msys2prefix);
+fprintf(stderr,">>>> prefix: mountlen=%lu mountprefix=|%s|\n",mountlen,mountprefix);
     }
-    if(msys2len > 0) {
+    if(mountlen > 0) {
 	char* p;
-        for(p=msys2prefix;*p;p++) {if(*p == '\\') *p = '/';} /* forward slash*/
-	if(msys2prefix[msys2len-1] == '/') {
-	    msys2len--;
-	    msys2prefix[msys2len] = '\0'; /* no trailing slash */
+        for(p=mountprefix;*p;p++) {if(*p == '\\') *p = '/';} /* forward slash*/
+	if(mountprefix[mountlen-1] == '/') {
+	    mountlen--;
+	    mountprefix[mountlen] = '\0'; /* no trailing slash */
 	}
     }
     pathinitialized = 1;
@@ -627,11 +656,6 @@ NChasdriveletter(const char* path)
     if(!pathinitialized) pathinit();     
 
     if((stat = parsepath(path,&canon))) goto done;
-    if(canon.kind == NCPD_REL) {
-	clearPath(&canon);
-        /* Get the drive letter (if any) from the local wd */
-	canon.drive = wdpath.drive;	
-    }
     hasdl = (canon.drive != 0);
 done:
     clearPath(&canon);
@@ -648,11 +672,6 @@ NCisnetworkpath(const char* path)
     if(!pathinitialized) pathinit();     
 
     if((stat = parsepath(path,&canon))) goto done;
-    if(canon.kind == NCPD_REL) {
-	clearPath(&canon);
-        /* Get the drive letter (if any) from the local wd */
-	canon.drive = wdpath.drive;	
-    }
     isnp = (canon.drive == netdrive);
 done:
     clearPath(&canon);
@@ -792,14 +811,14 @@ unparsepath(struct Path* xp, char** pathp)
 	    len += 2;
 	    sdrive[0] = xp->drive;
 	}
-	if(msys2len > 0)  len += (msys2len+1); /* +1 for possible separator */
+	if(mountlen > 0)  len += (mountlen+1); /* +1 for possible separator */
 	len++; /* nul terminate */
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
 	/* If the MSYS2 mount point prefix is defined, then use it */
-	if(msys2len > 0) /* MSYS2_PREFIX is defined, so use it */
-	    strlcat(path,msys2prefix,len);
+	if(mountlen > 0) /* MSYS2_PREFIX is defined, so use it */
+	    strlcat(path,mountprefix,len);
 	else if(xp->drive != 0) { /* prefix with /<drive> */
 	    strlcat(path,"/",len);
 	    strlcat(path,sdrive,len);
@@ -810,7 +829,7 @@ unparsepath(struct Path* xp, char** pathp)
     case NCPD_CYGWIN:
 	/* Is this one of the special cygwin paths? */
 	cygspecial = iscygwinspecial(xp->path);
-        if(xp->drive == 0) {xp->drive = wdpath.drive;} /*may require a drive */
+	if(xp->drive == 0) abort(); /*requires a drive */
         len = nulllen(xp->path)+cdlen+1+1;
         if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
@@ -824,7 +843,7 @@ unparsepath(struct Path* xp, char** pathp)
 	    strlcat(path,xp->path,len);
 	break;
     case NCPD_WIN: /* | NCPD_MINGW */
-	if(xp->drive == 0) {xp->drive = wdpath.drive;} /*requires a drive */
+	if(xp->drive == 0) abort(); /*requires a drive */
 	len = nulllen(xp->path)+2+1+1;
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}	
@@ -857,8 +876,8 @@ unparsepath(struct Path* xp, char** pathp)
 	break;
     case NCPD_REL:
 	path = strdup(xp->path);	
-	/* Use wdpath to decide slashing */
-	if(wdpath.kind == NCPD_WIN) {
+	/* Use local path kind to decide slashing */
+	if(NCgetlocalpathkind() == NCPD_WIN) {
 	    /* Convert forward to back */ 
             for(p=path;*p;p++) {if(*p == '/') *p = '\\';}
 	}
@@ -872,13 +891,12 @@ done:
 }
 
 static int
-getwdpath(struct Path* wd)
+getwdpath(void)
 {
     int stat = NC_NOERR;
     char* path = NULL;
 
-    if(wd->path != NULL) return stat;
-    memset(wd,0,sizeof(struct Path));
+    wdprefix[0] = '\0';
 #ifdef _WIN32
     {
         wchar_t* wcwd = NULL;
@@ -892,14 +910,9 @@ getwdpath(struct Path* wd)
     }
 #else
     {
-        char cwd[8192];
-        path = getcwd(cwd, sizeof(cwd));
-        path = strdup(path);
+        getcwd(wdprefix, sizeof(wdprefix));
     }
 #endif
-    stat = parsepath(path,wd);
-    /* Force the kind */
-    wd->kind = NCgetlocalpathkind();
     nullfree(path); path = NULL;
     return stat;
 }

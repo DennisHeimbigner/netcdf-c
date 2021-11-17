@@ -25,7 +25,7 @@ typedef struct Test {
 
 /* Path conversion tests */
 static Test PATHTESTS[] = {
-{"/xxx/a/b",{"/xxx/a/b", "/xxx/a/b", "/cygdrive/c/xxx/a/b", "c:\\xxx\\a\\b"}},
+{"/xxx/a/b",{"%m/xxx/a/b", "/xxx/a/b", "/cygdrive/c/xxx/a/b", "c:\\xxx\\a\\b"}},
 {"d:/x/y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y"}},
 {"d:\\x\\y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y"}},
 {"/cygdrive/d/x/y",{ "/d/x/y", "/d/x/y", "/cygdrive/d/x/y",  "d:\\x\\y"}},

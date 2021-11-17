@@ -121,8 +121,12 @@ Notes:
 1. MINGW is treated like WIN.
 2. This function is intended to be Idempotent: f(f(x) == f(x).
    This means it is ok to call it repeatedly with no harm.
+3. This function actually calls NCpathcvtto with a seconf argument
+   taken from NCgetlocalpathkind(); 
 */
 EXTERNL char* NCpathcvt(const char* path);
+
+EXTERNL char* NCpathcvtto(const char* path, int targetkind);
 
 /**
 It is often convenient to convert a path to some canonical format
