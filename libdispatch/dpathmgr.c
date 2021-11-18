@@ -890,7 +890,7 @@ NCgetlocalpathkind(void)
 	kind = NCPD_WIN;
 #elif defined __MSYS__
 	kind = NCPD_MSYS;
-#elif defined __MINGW__
+#elif defined __MINGW32__
 	kind = NCPD_WIN; /* alias */
 #else
 	kind = NCPD_NIX;

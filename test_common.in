@@ -84,7 +84,7 @@ if test "x@ISMINGW@" = xyes; then
   if test "x${MSYS2_PREFIX}" = x ; then
     XX=`pwd`
     cd /
-    MSYS2_PREFIX=`pwd -W`
+    MSYS2_PREFIX=`pwd`
     cd $XX
     export MSYS2_PREFIX
   fi
