@@ -8,6 +8,9 @@ set -e
 if test "x$srcdir" = x ;then srcdir=`pwd`; fi
 . ../test_common.sh
 
+${NCPATHCVT} -X
+${NCPATHCVT} -k
+
 echo "*** creating classic file c0.nc from c0.cdl..."
 ${NCGEN3} -b -o c0.nc ${ncgen3c0}
 echo "*** creating 64-bit offset file c0_64.nc from c0.cdl..."
