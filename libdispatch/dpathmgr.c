@@ -841,6 +841,10 @@ unparsepath(struct Path* xp, char** pathp, int target)
 #endif
     default: stat = NC_EINTERNAL; goto done;
     }
+
+if(pathdebug)
+fprintf(stderr,">>> unparse: xp=%s path=|%s|\n",printPATH(xp),path);
+
     if(pathp) {*pathp = path; path = NULL;}
 done:
     nullfree(path);
