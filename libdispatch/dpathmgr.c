@@ -265,8 +265,7 @@ pathinit(void)
     (void)getwdpath();
     mountlen = 0;
     mountprefix[0] = '\0';
-//#ifdef _MSC_SVC /* Not _WIN32 */
-#ifdef _WIN32 /* Not _WIN32 */
+#ifdef _MSC_SVC /* Not _WIN32 */
     { /* See if we can get the MSYS2 prefix from the registry */
         LSTATUS stat;
 	PHKEY hkey;
@@ -275,7 +274,6 @@ pathinit(void)
 	const LPCSTR leaf = "rootdir";
 	HKEY key;
 	
-fprintf(stderr,">>> trying registry\n");
 	stat =  RegOpenKeyA(HKEY_LOCAL_MACHINE, rpath, &key);
 	if(stat != ERROR_SUCCESS) {
             wprintf(L"RegOpenKeyA failed. Error code: %li\n", stat);
@@ -287,7 +285,8 @@ fprintf(stderr,">>> trying registry\n");
 	    goto next;	
 	}
         mountlen = size;
-fprintf(stderr,">>>> registry: mountlen=%lu mountprefix=|%s|\n",mountlen,mountprefix);
+if(pathdebug)
+  fprintf(stderr,">>>> registry: mountlen=%lu mountprefix=|%s|\n",mountlen,mountprefix);
     }
 next:
 #endif
@@ -300,7 +299,8 @@ next:
 	    mountlen = strlen(m2);
             strlcat(mountprefix,m2,sizeof(mountprefix));
 	}
-fprintf(stderr,">>>> prefix: mountlen=%lu mountprefix=|%s|\n",mountlen,mountprefix);
+if(pathdebug)
+  fprintf(stderr,">>>> prefix: mountlen=%lu mountprefix=|%s|\n",mountlen,mountprefix);
     }
     if(mountlen > 0) {
 	char* p;
