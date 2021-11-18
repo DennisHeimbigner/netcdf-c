@@ -772,7 +772,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
     
     switch (target) {
     case NCPD_NIX:
-    case NCPD_MSYS2:
+    case NCPD_MSYS:
 	len = nulllen(xp->path);
 	if(xp->drive != 0) {
 	    len += 2;
