@@ -123,11 +123,17 @@ printenv(void)
 #else
     printf(" !__MSYS__");
 #endif
+#ifdef __MSYS2__
+    printf(" __MSYS2__");
+#else
+    printf(" !__MSYS2__");
+#endif
 #ifdef __MINGW32__
     printf(" __MINGW32__");
 #else
     printf(" !__MINGW32__");
 #endif
+    printf("\n");
     exit(0);
 }
 
