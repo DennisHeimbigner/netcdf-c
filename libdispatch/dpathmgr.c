@@ -843,7 +843,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
     }
 
 if(pathdebug)
-fprintf(stderr,">>> unparse: xp=%s path=|%s|\n",printPATH(xp),path);
+fprintf(stderr,">>> unparse: target=%s xp=%s path=|%s|\n",NCgetkindname(target),printPATH(xp),path);
 
     if(pathp) {*pathp = path; path = NULL;}
 done:
