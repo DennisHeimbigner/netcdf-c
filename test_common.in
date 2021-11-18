@@ -82,8 +82,10 @@ if test "x$SETX" = x1 ; then set -x ; fi
 if test "x@ISMINGW@" = xyes; then
   alias pwd='pwd -W'
   if test "x${MSYS2_PREFIX}" = x ; then
-    MSYS2_PREFIX=`cygpath -u '/'`
-    MSYS2_PREFIX=`cygpath '/'`
+    XX=`pwd`
+    cd /
+    MSYS2_PREFIX=`pwd -W`
+    cd $XX
     export MSYS2_PREFIX
   fi
 fi
