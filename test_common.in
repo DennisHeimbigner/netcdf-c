@@ -80,14 +80,16 @@ if test "x$SETX" = x1 ; then set -x ; fi
 # but executables compiled for Windows do not recognise the mount point.
 # Here we ensure that Windows paths are used in tests of Windows executables.
 if test "x@ISMINGW@" = xyes; then
-  alias pwd='pwd -W'
   if test "x${MSYS2_PREFIX}" = x ; then
     XX=`pwd`
     cd /
     MSYS2_PREFIX=`pwd`
     cd $XX
+    YY=`cygpath /`
+    ZZ=`cygpath -w /`
     export MSYS2_PREFIX
   fi
+  alias pwd='pwd -W'
 fi
 
 # We assume that TOPSRCDIR and TOPBUILDDIR are defined
