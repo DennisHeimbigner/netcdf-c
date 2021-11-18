@@ -295,8 +295,9 @@ next:
         if(getenv("MSYS2_PREFIX")) {
 	    const char* m2 = getenv("MSYS2_PREFIX");
   	    char* p;
+fprintf(stderr,">>> MSYS2_PREFIX=%s\n",m2);
 	    mountlen = strlen(m2);
-            strlcat(mountprefix,m2,mountlen);
+            strlcat(mountprefix,m2,sizeof(mountprefix));
 	}
 fprintf(stderr,">>>> prefix: mountlen=%lu mountprefix=|%s|\n",mountlen,mountprefix);
     }
