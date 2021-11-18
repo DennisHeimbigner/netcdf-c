@@ -295,7 +295,6 @@ next:
         if(getenv("MSYS2_PREFIX")) {
 	    const char* m2 = getenv("MSYS2_PREFIX");
   	    char* p;
-fprintf(stderr,">>> MSYS2_PREFIX=%s\n",m2);
 	    mountlen = strlen(m2);
             strlcat(mountprefix,m2,sizeof(mountprefix));
 	}
@@ -805,6 +804,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
   	if(xp->path)
 	    strlcat(path,xp->path,len);
 	break;
+    case NCPD_MSYS: /* fall thru */
     case NCPD_WIN: /* | NCPD_MINGW */
 	if(xp->drive == 0) abort(); /*requires a drive */
 	len = nulllen(xp->path)+2+1+1;
@@ -823,6 +823,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	/* Convert forward to back */ 
         for(p=path;*p;p++) {if(*p == '/') *p = '\\';}
 	break;
+#if 0
     case NCPD_MSYS:
 	len = nulllen(xp->path)+2+1;
 	if((path = (char*)malloc(len))==NULL)
@@ -837,6 +838,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	if(xp->path)
 	    strlcat(path,xp->path,len);
 	break;
+#endif
     default: stat = NC_EINTERNAL; goto done;
     }
     if(pathp) {*pathp = path; path = NULL;}
