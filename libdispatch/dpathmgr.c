@@ -265,7 +265,8 @@ pathinit(void)
     (void)getwdpath();
     mountlen = 0;
     mountprefix[0] = '\0';
-#ifdef _MSC_SVC /* Not _WIN32 */
+//#ifdef _MSC_SVC /* Not _WIN32 */
+#ifdef _WIN32 /* Not _WIN32 */
     { /* See if we can get the MSYS2 prefix from the registry */
         LSTATUS stat;
 	PHKEY hkey;
@@ -288,7 +289,7 @@ pathinit(void)
 fprintf(stderr,">>>> registry: mountlen=%lu mountprefix=|%s|\n",mountlen,mountprefix);
     }
 next:
-#endif /*_WIN32*/
+#endif
     if(mountlen == 0) {
 	mountprefix[0] = '\0';
         /* See if MSYS2_PREFIX is defined */
