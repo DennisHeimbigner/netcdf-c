@@ -275,6 +275,7 @@ pathinit(void)
 	const LPCSTR leaf = "rootdir";
 	HKEY key;
 	
+fprintf(stderr,">>> trying registry\n");
 	stat =  RegOpenKeyA(HKEY_LOCAL_MACHINE, rpath, &key);
 	if(stat != ERROR_SUCCESS) {
             wprintf(L"RegOpenKeyA failed. Error code: %li\n", stat);
