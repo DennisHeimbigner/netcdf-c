@@ -22,50 +22,8 @@
 #endif
 #include "ncexternl.h"
 
-#ifndef WINPATH
-#if defined _WIN32 || defined __MINGW32__
-#define WINPATH 1
-#endif
-#endif
-
-/* Define wrapper constants for use with NCaccess */
-/* Define wrapper constants for use with NCaccess */
-#ifdef _WIN32
-#define ACCESS_MODE_EXISTS 0
-#define ACCESS_MODE_R 4
-#define ACCESS_MODE_W 2
-#define ACCESS_MODE_RW 6
-#ifndef O_RDONLY
-#define O_RDONLY _O_RDONLY
-#define O_RDWR _O_RDWR
-#define O_APPEND _O_APPEND
-#define O_BINARY _O_BINARY
-#define O_CREAT _O_CREAT
-#define O_EXCL _O_EXCL
-#endif
-#else
-#define ACCESS_MODE_EXISTS (F_OK)
-#define ACCESS_MODE_R (R_OK)
-#define ACCESS_MODE_W (W_OK)
-#define ACCESS_MODE_RW (R_OK|W_OK)
-#endif
-
-#ifdef _WIN32
-#ifndef S_IFDIR
-#define S_IFDIR _S_IFDIR
-#define S_IFREG _S_IFREG
-#endif
-#ifndef S_ISDIR
-#define S_ISDIR(mode) ((mode) & _S_IFDIR)
-#define S_ISREG(mode) ((mode) & _S_IFREG)
-#endif
-#endif /*_WIN32*/
-
 /*
-WARNING: you should never need to explictly call this function;
-rather it is invoked as part of the wrappers for e.g. NCfopen, etc.
-
-This function attempts to take an arbitrary path and converts
+The path management code attempts to take an arbitrary path and convert
 it to a form acceptable to the current platform.
 Assumptions about Input path:
 1. It is an absolute path
@@ -121,9 +79,54 @@ Notes:
 2. The reason msys prefixes the mount point is because
    the IO functions are handled directly by Windows, hence
    the conversion must look like a true windows path.
-2. This function is intended to be Idempotent: f(f(x) == f(x).
-   This means it is ok to call it repeatedly with no harm.
-   Unless, of course, an error occurs.
+*/
+
+#ifndef WINPATH
+#if defined _WIN32 || defined __MINGW32__
+#define WINPATH 1
+#endif
+#endif
+
+/* Define wrapper constants for use with NCaccess */
+/* Define wrapper constants for use with NCaccess */
+#ifdef _WIN32
+#define ACCESS_MODE_EXISTS 0
+#define ACCESS_MODE_R 4
+#define ACCESS_MODE_W 2
+#define ACCESS_MODE_RW 6
+#ifndef O_RDONLY
+#define O_RDONLY _O_RDONLY
+#define O_RDWR _O_RDWR
+#define O_APPEND _O_APPEND
+#define O_BINARY _O_BINARY
+#define O_CREAT _O_CREAT
+#define O_EXCL _O_EXCL
+#endif
+#else
+#define ACCESS_MODE_EXISTS (F_OK)
+#define ACCESS_MODE_R (R_OK)
+#define ACCESS_MODE_W (W_OK)
+#define ACCESS_MODE_RW (R_OK|W_OK)
+#endif
+
+#ifdef _WIN32
+#ifndef S_IFDIR
+#define S_IFDIR _S_IFDIR
+#define S_IFREG _S_IFREG
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(mode) ((mode) & _S_IFDIR)
+#define S_ISREG(mode) ((mode) & _S_IFREG)
+#endif
+#endif /*_WIN32*/
+
+
+/*
+WARNING: you should never need to explictly call this function;
+rather it is invoked as part of the wrappers for e.g. NCfopen, etc.
+This function is intended to be Idempotent: f(f(x) == f(x).
+This means it is ok to call it repeatedly with no harm.
+Unless, of course, an error occurs.
 */
 EXTERNL char* NCpathcvt(const char* path);
 

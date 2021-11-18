@@ -689,23 +689,7 @@ parsepath(const char* inpath, struct Path* path)
 	    {stat = NC_ENOMEM; goto done;}
 	path->kind = NCPD_WIN;
     }
-    /* 2. look for MSYS2 path /D/... */
-    else if(len >= 2
-	&& (tmp1[0] == '/')
-	&& strchr(windrive,tmp1[1]) != NULL
-	&& (tmp1[2] == '/' || tmp1[2] == '\0')) {
-	/* Assume this is an MSYS2 path */
-	path->drive = tmp1[1];
-	/* Remainder */
-	if(tmp1[2] == '\0')
-	    path->path = NULL;
-	else
-	    path->path = strdup(tmp1+2);
-	if(path == NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	path->kind = NCPD_MSYS;
-    }
-    /* 3. Look for leading /cygdrive/D where D is a single-char drive letter */
+    /* 2. Look for leading /cygdrive/D where D is a single-char drive letter */
     else if(len >= (cdlen+1)
 	&& memcmp(tmp1,"/cygdrive/",cdlen)==0
 	&& strchr(windrive,tmp1[cdlen]) != NULL
@@ -739,7 +723,25 @@ parsepath(const char* inpath, struct Path* path)
 	    {stat = NC_ENOMEM; goto done;}
 	path->kind = NCPD_WIN; /* Might be MINGW */
     }
-    /* 5. look for *nix* path */
+#if 0
+    /* X. look for MSYS2 path /D/... */
+    else if(len >= 2
+	&& (tmp1[0] == '/')
+	&& strchr(windrive,tmp1[1]) != NULL
+	&& (tmp1[2] == '/' || tmp1[2] == '\0')) {
+	/* Assume this is an MSYS2 path */
+	path->drive = tmp1[1];
+	/* Remainder */
+	if(tmp1[2] == '\0')
+	    path->path = NULL;
+	else
+	    path->path = strdup(tmp1+2);
+	if(path == NULL)
+	    {stat = NC_ENOMEM; goto done;}
+	path->kind = NCPD_MSYS;
+    }
+#endif
+    /* 5. look for *nix* path; note this includes MSYS2 paths as well */
     else if(len >= 1 && tmp1[0] == '/') {
 	/* Assume this is a *nix path */
 	path->drive = 0; /* no drive letter */
@@ -770,6 +772,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
     
     switch (target) {
     case NCPD_NIX:
+    case NCPD_MSYS2:
 	len = nulllen(xp->path);
 	if(xp->drive != 0) {
 	    len += 2;
@@ -806,7 +809,6 @@ unparsepath(struct Path* xp, char** pathp, int target)
   	if(xp->path)
 	    strlcat(path,xp->path,len);
 	break;
-    case NCPD_MSYS: /* fall thru */
     case NCPD_WIN: /* | NCPD_MINGW */
 	if(xp->drive == 0) abort(); /*requires a drive */
 	len = nulllen(xp->path)+2+1+1;
