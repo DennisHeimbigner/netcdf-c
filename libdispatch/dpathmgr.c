@@ -97,9 +97,7 @@ static int utf82wide(const char* utf8, wchar_t** u16p);
 static int wide2utf8(const wchar_t* u16, char** u8p);
 #endif
 
-#ifdef DEBUGPATH
 static char* printPATH(struct Path* p);
-#endif
 
 EXTERNL
 char* /* caller frees */
@@ -1031,7 +1029,6 @@ nc_setlocale_utf8(void)
 
 #endif /*WINPATH*/
 
-#ifdef DEBUGPATH
 static char*
 printPATH(struct Path* p)
 {
@@ -1041,7 +1038,6 @@ printPATH(struct Path* p)
 	p->kind,(p->drive > 0?p->drive:'0'),p->path);
     return buf;
 }
-#endif
 
 #if 0
 static int
