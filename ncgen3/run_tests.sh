@@ -18,7 +18,11 @@ XX=`pwd`
 echo "pwd=${XX}"
 
 echo "*** creating classic file c0.nc from c0.cdl..."
-${NCGEN3} -b -o c0.nc ${ncgen3c0}
+if ${NCGEN3} -b -o c0.nc ${ncgen3c0} ; then
+echo "***PASS"
+else
+echo "***fail"
+fi
 echo "*** creating 64-bit offset file c0_64.nc from c0.cdl..."
 #${NCGEN3} -k 64-bit-offset -b -o c0_64.nc ${ncgen3c0}
 
