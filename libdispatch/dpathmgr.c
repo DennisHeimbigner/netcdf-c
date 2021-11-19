@@ -40,7 +40,10 @@
 #include "ncuri.h"
 #include "ncutf8.h"
 
-#define DEBUGPATH
+#undef DEBUGPATH
+static int pathdebug = -1;
+//static int pathdebug = 1;
+
 
 #ifdef _WIN32
 #define access _access 
@@ -64,9 +67,6 @@ static const char netdrive = '@';
 static const size_t cdlen = 10; /* strlen("/cygdrive/") */
 
 static int pathinitialized = 0;
-
-//static int pathdebug = -1;
-static int pathdebug = 1;
 
 static const struct Path {
     int kind;
@@ -128,7 +128,7 @@ NCpathcvt(const char* inpath)
 	goto done;
     }
 
-    if((stat = unparsepath(&inparsed,&result,NCgetlocalpathkind())))
+    if((stat = unparsepath(&inparsed,&result,target)))
         goto done;
 
 done:
@@ -153,7 +153,6 @@ NCpathcanonical(const char* srcpath, char** canonp)
 {
     int stat = NC_NOERR;
     char* canon = NULL;
-    size_t len;
     struct Path path = empty;
     
     if(srcpath == NULL) goto done;
@@ -295,12 +294,11 @@ next:
         /* See if MSYS2_PREFIX is defined */
         if(getenv("MSYS2_PREFIX")) {
 	    const char* m2 = getenv("MSYS2_PREFIX");
-  	    char* p;
 	    mountlen = strlen(m2);
             strlcat(mountprefix,m2,sizeof(mountprefix));
 	}
 if(pathdebug)
-  fprintf(stderr,">>>> prefix: mountlen=%lu mountprefix=|%s|\n",mountlen,mountprefix);
+  fprintf(stderr,">>>> prefix: mountlen=%u mountprefix=|%s|\n",(unsigned)mountlen,mountprefix);
     }
     if(mountlen > 0) {
 	char* p;
@@ -653,7 +651,6 @@ parsepath(const char* inpath, struct Path* path)
     char* tmp1 = NULL;
     size_t len;
     char* p;
-    char* fullpath = NULL;
     
     assert(path);
     memset(path,0,sizeof(struct Path));
@@ -767,7 +764,6 @@ unparsepath(struct Path* xp, char** pathp, int target)
     char* path = NULL;
     char sdrive[2] = {'\0','\0'};
     char* p = NULL;
-    int kind = xp->kind;
     int cygspecial = 0;
     
     switch (target) {
