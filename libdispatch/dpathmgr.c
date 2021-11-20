@@ -766,21 +766,16 @@ unparsepath(struct Path* xp, char** pathp, int target)
     
     switch (target) {
     case NCPD_NIX:
-    case NCPD_MSYS:
 	len = nulllen(xp->path);
 	if(xp->drive != 0) {
 	    len += 2;
 	    sdrive[0] = xp->drive;
 	}
-	if(mountlen > 0)  len += (mountlen+1); /* +1 for possible separator */
 	len++; /* nul terminate */
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
-	/* If the MSYS2 mount point prefix is defined, then use it */
-	if(mountlen > 0) /* MSYS2_PREFIX is defined, so use it */
-	    strlcat(path,mountprefix,len);
-	else if(xp->drive != 0) { /* prefix with /<drive> */
+	if(xp->drive != 0) { /* prefix with /<drive> */
 	    strlcat(path,"/",len);
 	    strlcat(path,sdrive,len);
 	}	
@@ -803,15 +798,21 @@ unparsepath(struct Path* xp, char** pathp, int target)
   	if(xp->path)
 	    strlcat(path,xp->path,len);
 	break;
+    case NCPD_MSYS:
     case NCPD_WIN: /* | NCPD_MINGW */
 	if(xp->drive == 0) abort(); /*requires a drive */
 	len = nulllen(xp->path)+2+1+1;
+	if(mountlen > 0)  len += (mountlen+1); /* +1 for possible separator */
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}	
 	path[0] = '\0';
-	if(xp->drive == netdrive)
+	if(xp->drive == 0) {
+	    /* If the MSYS2 mount point prefix is defined, then use it */
+	    if(mountlen > 0) /* MSYS2_PREFIX is defined, so use it */
+	        strlcat(path,mountprefix,len);
+	} else if(xp->drive == netdrive)
 	    strlcat(path,"/",len); /* second slash will come from path */
-	else {
+	else { /* xp->drive != 0 */
 	    sdrive[0] = xp->drive;
 	    strlcat(path,sdrive,len);
 	    strlcat(path,":",len);
@@ -866,6 +867,7 @@ getwdpath(void)
         stat = wide2utf8(wpath, &path);
         free(wcwd);
         if (stat) return stat;
+	strlcat(wdprefix,path,sizeof(wdprefix));	
     }
 #else
     {
