@@ -185,7 +185,7 @@ main(int argc, char** argv)
        usage("more than one path specified");
 
     /* translate blanks */
-    inpath = (char*)malloc(strlen(argv[0])+1;
+    inpath = (char*)malloc(strlen(argv[0])+1);
     if(inpath == NULL) usage("Out of memory");
     {
 	const char* p = argv[0];
