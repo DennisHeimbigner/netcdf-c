@@ -29,6 +29,7 @@ static const char* USAGE =
 "Options\n"
 "  -e add backslash escapes to '\' and ' '\n"
 "  -d <driveletter> use driveletter when needed; defaults to 'c'\n"
+"  -B <char> convert occurrences of <char> to ' '\n"
 "Output type options:\n"
 "  -u convert to Unix form of path\n"
 "  -w convert to Windows form of path\n"
@@ -49,6 +50,7 @@ struct Options {
     int drive;
     int debug;
     int canon;
+    int blank;
 } cvtoptions;
 
 static char* escape(const char* path);
@@ -147,7 +149,7 @@ main(int argc, char** argv)
     memset((void*)&cvtoptions,0,sizeof(cvtoptions));
     cvtoptions.drive = 'c';
 
-    while ((c = getopt(argc, argv, "CcD:d:ehkmuwX")) != EOF) {
+    while ((c = getopt(argc, argv, "BCcD:d:ehkmuwX")) != EOF) {
 	switch(c) {
 	case 'c': cvtoptions.target = NCPD_CYGWIN; break;
 	case 'd': cvtoptions.drive = optarg[0]; break;
@@ -157,6 +159,11 @@ main(int argc, char** argv)
 	case 'm': cvtoptions.target = NCPD_MSYS; break;
 	case 'u': cvtoptions.target = NCPD_NIX; break;
 	case 'w': cvtoptions.target = NCPD_WIN; break;
+	case 'B':
+	    cvtoptions.blank = optarg[0]; break;
+	    if(cvtoptions.blank < ' ' || cvtoptions.blank == '\177')
+		usage("Bad -B argument");
+	    break;
 	case 'C': cvtoptions.canon = 1; break;
 	case 'D':
 	    sscanf(optarg,"%d",&cvtoptions.debug);
@@ -176,7 +183,20 @@ main(int argc, char** argv)
        usage("no path specified");
     if (argc > 1)
        usage("more than one path specified");
-    inpath = argv[0];
+
+    /* translate blanks */
+    inpath = (char*)malloc(strlen(argv[0])+1;
+    if(inpath == NULL) usage("Out of memory");
+    {
+	const char* p = argv[0];
+	char* q = inpath;
+	for(;;*p;p++) {
+	    char c = *p;
+	    if(c == cvtoptions.blank) c = ' ';
+	    *q++ = c;
+	}
+	*q = '\0';
+    } 
 
     /* Canonicalize */
     if(NCpathcanonical(inpath,&canon))
@@ -197,6 +217,7 @@ main(int argc, char** argv)
     }
     printf("%s",cvtpath);
     if(canon) free(canon);
+    if(inpath) free(inpath);
     if(cvtpath) free(cvtpath);
     return 0;
 }

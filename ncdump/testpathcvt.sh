@@ -17,8 +17,9 @@ fi
 testcase1() {
 T="$1"
 P="$2"
+
 echo -n "path: $T: |$P| => |" >>tmp_pathcvt.txt
-${NCPATHCVT} ${DL} "$T" -e "$P" >>tmp_pathcvt.txt
+${NCPATHCVT} -B"@" ${DL} "$T" -e "$P" >>tmp_pathcvt.txt
 echo "|" >> tmp_pathcvt.txt
 }
 
@@ -32,8 +33,8 @@ testcase() {
 
 rm -f tmp_pathcvt.txt
 
-XPATHS="/xxx/x/y d:/x/y /cygdrive/d/x/y /d/x/y /cygdrive/d /d /cygdrive/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn d:\\x\\y d:\\x\\y\ w\\z"
-PATHS="d:\\x\\y\ w\\z"
+# '@' will get translated to embedded blank
+PATHS="/xxx/x/y d:/x/y /cygdrive/d/x/y /d/x/y /cygdrive/d /d /cygdrive/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn d:\\x\\y d:\\x\\y@w\\z"
 for p in $PATHS ; do
 testcase $p
 done
