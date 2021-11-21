@@ -190,7 +190,7 @@ main(int argc, char** argv)
     {
 	const char* p = argv[0];
 	char* q = inpath;
-	for(;;*p;p++) {
+	for(;*p;p++) {
 	    char c = *p;
 	    if(c == cvtoptions.blank) c = ' ';
 	    *q++ = c;
