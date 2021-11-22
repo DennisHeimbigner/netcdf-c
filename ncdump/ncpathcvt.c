@@ -149,7 +149,7 @@ main(int argc, char** argv)
     memset((void*)&cvtoptions,0,sizeof(cvtoptions));
     cvtoptions.drive = 'c';
 
-    while ((c = getopt(argc, argv, "BCcD:d:ehkmuwX")) != EOF) {
+    while ((c = getopt(argc, argv, "B:CcD:d:ehkmuwX")) != EOF) {
 	switch(c) {
 	case 'c': cvtoptions.target = NCPD_CYGWIN; break;
 	case 'd': cvtoptions.drive = optarg[0]; break;

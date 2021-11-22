@@ -812,16 +812,16 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	assert(xp->drive == 0);
 	/* Is this one of the special cygwin paths? */
 	cygspecial = iscygwinspecial(xp->path);
-	if(!cygspecial && mountpoint.drive == 0)
-	    {stat = NC_EINVAL; goto done;} /* drive required */
-	len = cdlen + 2 + (1+1); /* /cygdrive/D/<prefix> */
-	len += nulllen(mountpoint.prefix);
+	if(!cygspecial && mountpoint.drive != 0) {
+	    len = cdlen + 2 + (1+1); /* /cygdrive/D/<prefix> */
+	    len += nulllen(mountpoint.prefix);
+	}
 	if(xp->path)
 	    len += strlen(xp->path);
         if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
-	if(!cygspecial) {
+	if(!cygspecial && mountpoint.drive != 0) {
             strlcat(path,"/cygdrive/",len);
 	    sdrive[0] = mountpoint.drive;
 	    sdrive[1] = '\0';

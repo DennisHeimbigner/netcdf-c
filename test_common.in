@@ -84,7 +84,9 @@ if test "x@ISMINGW@" = xyes || test "x@ISCYGWIN@" = xyes ; then
     MSYS2_PREFIX=`cygpath -w '/'`
     export MSYS2_PREFIX
   fi
-  alias pwd='pwd -W'
+  if test "x@ISMINGW@" = xyes ; then
+    alias pwd='pwd -W'
+  fi
 fi
 
 # We assume that TOPSRCDIR and TOPBUILDDIR are defined
