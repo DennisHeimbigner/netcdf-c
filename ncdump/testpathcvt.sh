@@ -40,9 +40,6 @@ testcase $p
 done
 exit
 
-echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-cat ./tmp_pathcvt.txt
-echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
 diff -w ${srcdir}/ref_pathcvt.txt ./tmp_pathcvt.txt
 
 exit 0

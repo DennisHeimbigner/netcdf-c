@@ -40,9 +40,8 @@
 #include "ncuri.h"
 #include "ncutf8.h"
 
-#define DEBUGPATH
-//static int pathdebug = -1;
-static int pathdebug = 1;
+#undef DEBUGPATH
+static int pathdebug = -1;
 
 #ifdef _WIN32
 #define access _access 
@@ -59,9 +58,9 @@ See the documentation in ncpathmgr.h for details.
 */
 
 /* Define legal windows drive letters */
-static const char* windrive = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ@";
+static const char* windrive = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/";
 
-static const char netdrive = '@';
+static const char netdrive = '/';
 
 static const size_t cdlen = 10; /* strlen("/cygdrive/") */
 
@@ -83,9 +82,14 @@ static char wdprefix[8192];
 static size_t wdlen;
 
 /* Keep CYGWIN/MSYS2 mount point */
-static char mountprefix[8192]; /*minus leading drive */
-static size_t mountlen; /* strlen(mountprefix) */
-static char mountdrive[3];
+static struct MountPoint {
+    int defined;
+    char prefix[8192]; /*minus leading drive */
+    char drive;
+} mountpoint;
+
+/* Pick the target kind for testing */
+static int testkind = 0;
 
 static int parsepath(const char* inpath, struct Path* path);
 static int unparsepath(struct Path* p, char** pathp, int target);
@@ -228,29 +232,23 @@ done:
 
 
 /* Testing support */
-/* Force drive and wd before invoking NCpathcvt
-   and then revert */
 EXTERNL
 char* /* caller frees */
 NCpathcvt_test(const char* inpath, int ukind, int udrive)
 {
     char* result = NULL;
-    char oldwd[8192];
-    char sdrive[4] = "x:/";
-
-    oldwd[0] = '\0';
-    strlcat(oldwd,wdprefix,sizeof(oldwd));
+    struct MountPoint old;
 
     if(!pathinitialized) pathinit();
 
-    sdrive[0] = (char)udrive;
-    wdprefix[0] = '\0';
-    strlcat(wdprefix,sdrive,sizeof(wdprefix));
-    if(pathdebug)
-	fprintf(stderr,">>> wd=|%s|\n",wdprefix);
+    old = mountpoint;
+    memset(&mountpoint,0,sizeof(mountpoint));
+
+    mountpoint.drive = (char)udrive;
+    mountpoint.defined = (mountpoint.drive || nulllen(mountpoint.prefix) > 0);
+    testkind = ukind;
     result = NCpathcvt(inpath);
-    strlcat(wdprefix,oldwd,sizeof(wdprefix));
-    wdlen = strlen(wdprefix);
+    mountpoint = old;
     return result;
 }
 
@@ -265,13 +263,12 @@ pathinit(void)
         pathdebug = (s == NULL ? 0 : 1);
     }
     (void)getwdpath();
-    mountlen = 0;
-    mountprefix[0] = '\0';
+    memset(&mountpoint,0,sizeof(mountpoint));
 #ifdef _MSC_SVC /* Not _WIN32 */
     { /* See if we can get the MSYS2 prefix from the registry */
         LSTATUS stat;
 	PHKEY hkey;
-	LPDWORD size = sizeof(mountprefix);
+	LPDWORD size = sizeof(mountpoint.prefix);
 	const LPCSTR rpath = "SOFTWARE\\Cygwin\\setup\\";
 	const LPCSTR leaf = "rootdir";
 	HKEY key;
@@ -286,41 +283,42 @@ pathinit(void)
             wprintf(L"RegGetValueA failed. Error code: %li\n", stat);
 	    goto next;	
 	}
-        mountlen = size;
+	mountpoint.defined = 1;
 if(pathdebug)
-  fprintf(stderr,">>>> registry: mountlen=%lu mountprefix=|%s|\n",mountlen,mountprefix);
+  fprintf(stderr,">>>> registry: mountlen=%lu mountprefix=|%s|\n",size,mountpoint.prefix);
     }
 next:
 #endif
-    if(mountlen == 0) {
-	mountprefix[0] = '\0';
+    if(mountpoint.defined) {
+	mountpoint.prefix[0] = '\0';
         /* See if MSYS2_PREFIX is defined */
         if(getenv("MSYS2_PREFIX")) {
 	    const char* m2 = getenv("MSYS2_PREFIX");
-	    mountlen = strlen(m2);
-            strlcat(mountprefix,m2,sizeof(mountprefix));
+	    mountpoint.prefix[0] = '\0';
+            strlcat(mountpoint.prefix,m2,sizeof(mountpoint.prefix));
 	}
     }
 if(pathdebug)
-    fprintf(stderr,">>>> prefix: mountlen=%u mountprefix=|%s|\n",(unsigned)mountlen,mountprefix);
-    if(mountlen > 0) {
+    fprintf(stderr,">>>> prefix: mountlen=%u mountprefix=|%s|\n",(unsigned)strlen(mountpoint.prefix),mountpoint.prefix);
+    if(mountpoint.defined) {
 	char* p;
-        for(p=mountprefix;*p;p++) {if(*p == '\\') *p = '/';} /* forward slash*/
-	if(mountprefix[mountlen-1] == '/') {
-	    mountlen--;
-	    mountprefix[mountlen] = '\0'; /* no trailing slash */
+	size_t size = strlen(mountpoint.prefix);	
+        for(p=mountpoint.prefix;*p;p++) {if(*p == '\\') *p = '/';} /* forward slash*/
+	if(mountpoint.prefix[size-1] == '/') {
+	    size--;
+	    mountpoint.prefix[size] = '\0'; /* no trailing slash */
 	}
 	/* Finally extract the drive letter, if any */
 	/* assumes mount prefix is in windows form */
-	mountdrive[0] = '\0'; mountdrive[0] = ':'; mountdrive[2] = '\0';
-	if(strchr(windrive,mountprefix[0]) != NULL
-           && mountprefix[1] == ':') {
-	    char* q = mountdrive;
-	    mountdrive[0] = mountprefix[0];
-            for(p=mountprefix+2;*p;p++) {*q++ = *p;}
+	mountpoint.drive = 0;
+	if(strchr(windrive,mountpoint.prefix[0]) != NULL
+           && mountpoint.prefix[1] == ':') {
+	    char* q = mountpoint.prefix;
+	    mountpoint.drive = mountpoint.prefix[0];
+	    /* Shift prefix left 2 chars */
+            for(p=mountpoint.prefix+2;*p;p++) {*q++ = *p;}
 	    *q = '\0';
 	}
-	mountlen -= 2;
     }
     pathinitialized = 1;
 }
@@ -682,7 +680,7 @@ parsepath(const char* inpath, struct Path* path)
     len = strlen(tmp1);
 
     /* 1. look for Windows network path //...; drive letter is faked using
-          the character '@' */
+          the character '/' */
     if(len >= 2 && (tmp1[0] == '/') && (tmp1[1] == '/')) {
 	path->drive = netdrive;
 	/* Remainder */
@@ -795,44 +793,49 @@ unparsepath(struct Path* xp, char** pathp, int target)
     CASE(NCPD_NIX,NCPD_WIN):
 	assert(xp->drive == 0);
 	len = nulllen(xp->path)+1;
-	if(mountlen == 0)
+	if(!mountpoint.defined)
 	    {stat = NC_EINVAL; goto done;} /* drive required */
-	len += (mountlen + 2);
+	len += (strlen(mountpoint.prefix) + 2);
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
-	assert(mountdrive[0] != 0);
-	strlcat(path,mountdrive,len);
-	strlcat(path,mountprefix,len);
+	assert(mountpoint.drive != 0);
+	sdrive[0] = mountpoint.drive;
+	sdrive[1] = ':';
+	sdrive[2] = '\0';
+	strlcat(path,sdrive,len);
+	strlcat(path,mountpoint.prefix,len);
 	if(xp->path != NULL) strlcat(path,xp->path,len);
+        for(p=path;*p;p++) {if(*p == '/') *p = '\\';} /* restore back slash */
 	break;
     CASE(NCPD_NIX,NCPD_CYGWIN):
 	assert(xp->drive == 0);
 	/* Is this one of the special cygwin paths? */
 	cygspecial = iscygwinspecial(xp->path);
-	if(!cygspecial && mountdrive[0] == 0)
+	if(!cygspecial && mountpoint.drive == 0)
 	    {stat = NC_EINVAL; goto done;} /* drive required */
-	len = cdlen + 2 + (1+1); /* /cygdrive/D */
+	len = cdlen + 2 + (1+1); /* /cygdrive/D/<prefix> */
+	len += nulllen(mountpoint.prefix);
 	if(xp->path)
 	    len += strlen(xp->path);
-        len += (mountlen+2); /* +2 for D: */
         if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
 	if(!cygspecial) {
             strlcat(path,"/cygdrive/",len);
-            strlcat(path,mountdrive,len);
-            strlcat(path,mountprefix,len);
+	    sdrive[0] = mountpoint.drive;
+	    sdrive[1] = '\0';
+            strlcat(path,sdrive,len);
+            strlcat(path,mountpoint.prefix,len);
 	}
   	if(xp->path)
 	    strlcat(path,xp->path,len);
 	break;
 
     CASE(NCPD_CYGWIN,NCPD_NIX):
-	if(xp->drive != 0) {
+        len = nulllen(xp->path); 
+        if(xp->drive != 0)
 	    len += (cdlen + 2); /* /cygdrive/D */
-	}
-	len = nulllen(xp->path);
         if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
@@ -848,20 +851,24 @@ unparsepath(struct Path* xp, char** pathp, int target)
     CASE(NCPD_CYGWIN,NCPD_WIN):
     CASE(NCPD_CYGWIN,NCPD_MSYS):
 	len = nulllen(xp->path)+1;
-	if(xp->drive == 0 && mountlen == 0)
+	if(xp->drive == 0 && !mountpoint.defined)
 	    {stat = NC_EINVAL; goto done;} /* drive required */
-	if(xp->drive == 0) 
-	    len += (mountlen + 2);
+        if (xp->drive == 0)
+            len += (strlen(mountpoint.prefix) + 2);
+        else
+            len += sizeof(sdrive);
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
 	if(xp->drive != 0)
 	    drive = xp->drive;
 	else
-	    drive = mountdrive[0];
+	    drive = mountpoint.drive;
 	sdrive[0] = drive; sdrive[1] = ':'; sdrive[2] = '\0';
         strlcat(path,sdrive,len);
-	if(xp->path != NULL) strlcat(path,xp->path,len);
+	if(xp->path != NULL)
+            strlcat(path,xp->path,len);
+        for(p=path;*p;p++) {if(*p == '/') *p = '\\';} /* restore back slash */
 	break;	
 
     CASE(NCPD_CYGWIN,NCPD_CYGWIN):
@@ -872,40 +879,45 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
 	if(xp->drive != 0) {
-	    sdrive[0] = drive; sdrive[1] = '\0';
-	    strlcat(path,"/cygdrive",len);
+	    sdrive[0] = xp->drive; sdrive[1] = '\0';
+	    strlcat(path,"/cygdrive/",len);
 	    strlcat(path,sdrive,len);
 	}
 	if(xp->path != NULL)
 	    strlcat(path,xp->path,len);
 	break;
 
-    CASE(NCPD_WIN,NCPD_WIN):
-    CASE(NCPD_MSYS,NCPD_MSYS):
-    CASE(NCPD_WIN,NCPD_MSYS):
-    CASE(NCPD_MSYS,NCPD_WIN):
-	len = nulllen(xp->path)+1;
-	if(xp->drive == 0 && mountlen == 0)
+    CASE(NCPD_WIN, NCPD_WIN) :
+    CASE(NCPD_MSYS, NCPD_MSYS) :
+    CASE(NCPD_WIN, NCPD_MSYS) :
+    CASE(NCPD_MSYS, NCPD_WIN) :
+	if(xp->drive == 0 && !mountpoint.defined)
 	    {stat = NC_EINVAL; goto done;} /* drive required */
+        len = nulllen(xp->path) + 1 + sizeof(sdrive);
 	if(xp->drive == 0) 
-	    len += (mountlen + 2);
+	    len += strlen(mountpoint.prefix);
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
 	if(xp->drive != 0)
 	    drive = xp->drive;
 	else
-	    drive = mountdrive[0];
-	sdrive[0] = drive; sdrive[1] = ':'; sdrive[2] = '\0';
+	    drive = mountpoint.drive;
+	sdrive[0] = drive;
+	sdrive[1] = (drive == netdrive ? '\0' : ':');
+	sdrive[2] = '\0';
         strlcat(path,sdrive,len);
-	if(xp->path != NULL) strlcat(path,xp->path,len);
+	if(xp->path != NULL)
+            strlcat(path,xp->path,len);
+        for(p=path;*p;p++) {if(*p == '/') *p = '\\';} /* restore back slash */
 	break;	
 
     CASE(NCPD_WIN,NCPD_NIX):
     CASE(NCPD_MSYS,NCPD_NIX):
 	assert(xp->drive != 0);
 	len = nulllen(xp->path)+1;
-        len += 2;
+	if(xp->drive != 0)
+            len += sizeof(sdrive);
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
@@ -924,10 +936,11 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
-        sdrive[0] = '/'; sdrive[1] = xp->drive; sdrive[2] = '\0';
-	strlcat(path,"/cygpath",len);
+        sdrive[0] = xp->drive; sdrive[1] = '\0';
+	strlcat(path,"/cygdrive/",len);
         strlcat(path,sdrive,len);
 	if(xp->path != NULL) strlcat(path,xp->path,len);
+fprintf(stderr,"xxx: path=%s\n",path);
 	break;	
 
     default: stat = NC_EINTERNAL; goto done;
@@ -971,9 +984,28 @@ getwdpath(void)
 }
 
 int
+NCgetinputpathkind(const char* inpath)
+{
+    struct Path p;
+    int result = NCPD_UNKNOWN;
+
+    memset(&p,0,sizeof(p));
+    if(inpath == NULL) goto done; /* defensive driving */
+    if(testurl(inpath)) goto done;
+    if(!pathinitialized) pathinit();
+    if(parsepath(inpath,&p)) goto done;
+
+done:
+    result = p.kind;
+    clearPath(&p);
+    return result;
+}
+
+int
 NCgetlocalpathkind(void)
 {
     int kind = NCPD_UNKNOWN;
+    if(testkind) return testkind;
 #ifdef __CYGWIN__
 	kind = NCPD_CYGWIN;
 #elif defined _MSC_VER /* not _WIN32 */

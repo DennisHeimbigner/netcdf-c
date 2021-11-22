@@ -8,15 +8,6 @@ set -e
 if test "x$srcdir" = x ;then srcdir=`pwd`; fi
 . ../test_common.sh
 
-${NCPATHCVT} -X
-${NCPATHCVT} -k
-echo "top_srcdir=${top_srcdir}"
-echo "bind=${bindir}"
-XX=`'pwd'`
-echo "'pwd'=${XX}"
-XX=`pwd`
-echo "pwd=${XX}"
-
 echo "*** creating classic file c0.nc from c0.cdl..."
 if ${NCGEN3} -b -o c0.nc ${ncgen3c0} ; then
 echo "***PASS"

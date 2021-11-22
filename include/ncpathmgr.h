@@ -26,9 +26,8 @@
 The path management code attempts to take an arbitrary path and convert
 it to a form acceptable to the current platform.
 Assumptions about Input path:
-1. It is an absolute path
-2. It is not a URL
-3. It conforms to the format expected by one of the following:
+1. It is not a URL
+2. It conforms to the format expected by one of the following:
        Linux (/x/y/...),
        Cygwin (/cygdrive/D/...),
        Windows|MINGW (D:\...),
@@ -40,45 +39,50 @@ Assumptions about Input path:
    the windows 1252 encoding.  Note that in any case, the path
    must be representable in the local Code Page.
 
+Note that all input paths first have all back slashes (\)
+converted to forward (/), so following rules are in terms of /.
+
 Parsing Rules:
-1. a leading single alpha-character path element (e.g. /D/...)
-   will be interpreted as windows drive letter D.
-2. a leading '/cygdrive/D' will be converted to
+1. A relative path is left as is with no drive letter.
+2. A leading '/cygdrive/D' will be converted to
    drive letter D if D is alpha-char.
-3. a leading D:/... is treated as a windows drive letter
-4. a leading /d/... is treated as a windows drive letter
+3. A leading D:/... is treated as a windows drive letter
+4. A leading /d/... is treated as a windows drive letter
    if the platform is MSYS2.
-5. a leading // is a windows network path and is converted
-   to a drive letter using the fake drive letter "@".
-   So '//svc/x/y' translates to '@:/svc/x/y'.
-6. If any of the above is encountered, then forward slashes
-   will be converted to backslashes.
-7. All other cases are assumed to be Unix variants with no drive letter. 
+5. A leading // is a windows network path and is converted
+   to a drive letter using the fake drive letter "/".
+   So '//svc/x/y' translates to '/:/svc/x/y'.
+6. All other cases are assumed to be Unix variants with no drive letter. 
 
 After parsing, the following pieces of information are kept in a struct.
 a. kind: The inferred path type (e.g. cygwin, unix, etc)
 b. drive: The drive letter if any
 c. path: The path is everything after the drive letter
 
-For output NCpathcvt produces a re-written path that is acceptable
+For output, NCpathcvt produces a re-written path that is acceptable
 to the current platform (the one on which the code is running).
 
+Additional root mount point information is obtained for Cygwin and MSYS.
+The root mount point is found as follows (in order of precedence):
+1. Registry: get the value of the key named "HKEY_LOCAL_MACHINE/SOFTWARE/Cygwin/setup".
+2. Environment: get the value of MSYS2_PREFIX
+
 The re-write rules (unparsing) are given the above three pieces
-of info + the current platform
+of info + the current platform + the root mount point (if any).
 The conversion rules are as follows.
 
-  Platform  | No Input Drive | Input Drive
+  Platform  | No Input Driv       | Input Drive
 ----------------------------------------------------
-NCPD_NIX    | <path>         | /<drive>/path
-NCPD_CYGWIN | <path>         | /cygdrive/<drive>/<path>
-NCPD_WIN    | error          | <drive>:<path>
-NCPD_MSYS   | <mount>/<path> | <drive>:<path>
+NCPD_NIX    | <path>              | /<drive>/path
+NCPD_CYGWIN | /<path>             | /cygdrive/<drive>/<path>
+NCPD_WIN    | <mountpoint>/<path> | <drive>:<path>
+NCPD_MSYS   | <mountpoint>/<path> | <drive>:<path>
 
 Notes:
 1. MINGW without MSYS is treated like WIN.
-2. The reason msys prefixes the mount point is because
+2. The reason msys and win prefix the mount point is because
    the IO functions are handled directly by Windows, hence
-   the conversion must look like a true windows path.
+   the conversion must look like a true windows path with a drive.
 */
 
 #ifndef WINPATH
@@ -224,6 +228,7 @@ EXTERNL int NCclosedir(DIR* ent);
 
 EXTERNL char* NCpathcvt_test(const char* path, int ukind, int udrive);
 EXTERNL int NCgetlocalpathkind(void);
+EXTERNL int NCgetinputpathkind(const char* inpath);
 EXTERNL const char* NCgetkindname(int kind);
 EXTERNL void printutf8hex(const char* s, char* sx);
 

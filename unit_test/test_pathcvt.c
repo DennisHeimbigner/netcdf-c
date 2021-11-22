@@ -25,30 +25,82 @@ typedef struct Test {
 
 /* Path conversion tests */
 static Test PATHTESTS[] = {
-{"/xxx/a/b",{"%m/xxx/a/b", "/xxx/a/b", "/cygdrive/c/xxx/a/b", "c:\\xxx\\a\\b"}},
-{"d:/x/y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y"}},
-{"d:\\x\\y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y"}},
-{"/cygdrive/d/x/y",{ "/d/x/y", "/d/x/y", "/cygdrive/d/x/y",  "d:\\x\\y"}},
-{"/d/x/y",{ "/d/x/y", "/d/x/y",  "/cygdrive/d/x/y",  "d:\\x\\y"}},
-{"/cygdrive/d",{ "/d", "/d",  "/cygdrive/d",  "d:"}},
-{"/d", {"/d", "/d",  "/cygdrive/d",  "d:"}},
+{"/xxx/a/b",{
+	"/xxx/a/b",		/*NCPD_LINUX*/
+	"c:\\xxx\\a\\b",	/*NCPD_MSYS*/
+	"/cygdrive/c/xxx/a/b",	/*NCPD_CYGWIN*/
+	"c:\\xxx\\a\\b"		/*NCPD_WIN*/
+	}},
+{"d:/x/y",{
+	 "/d/x/y",		/*NCPD_LINUX*/
+	"d:\\x\\y",		/*NCPD_MSYS*/
+	 "/cygdrive/d/x/y",	/*NCPD_CYGWIN*/
+	 "d:\\x\\y"		/*NCPD_WIN*/
+	}},
+{"d:\\x\\y",{
+	 "/d/x/y",		/*NCPD_LINUX*/
+	"d:\\x\\y",		/*NCPD_MSYS*/
+	 "/cygdrive/d/x/y",	/*NCPD_CYGWIN*/
+	 "d:\\x\\y"		/*NCPD_WIN*/
+	}},
+{"/cygdrive/d/x/y",{
+	 "/cygdrive/d/x/y",	/*NCPD_LINUX*/
+	"d:\\x\\y",		/*NCPD_MSYS*/
+	"/cygdrive/d/x/y",	/*NCPD_CYGWIN*/
+	 "d:\\x\\y"		/*NCPD_WIN*/
+	}},
+{"/d/x/y",{
+	 "/d/x/y",		/*NCPD_LINUX*/
+	"c:\\d\\x\\y",		/*NCPD_MSYS*/
+	 "/cygdrive/c/d/x/y",	/*NCPD_CYGWIN*/
+	 "c:\\d\\x\\y"		/*NCPD_WIN*/
+	}},
+{"/cygdrive/d",{
+	 "/cygdrive/d",		/*NCPD_LINUX*/
+	"d:",			/*NCPD_MSYS*/
+	 "/cygdrive/d",		/*NCPD_CYGWIN*/
+	 "d:"			/*NCPD_WIN*/
+	}},
+{"/d", {
+	"/d",			/*NCPD_LINUX*/
+	"c:\\d",		/*NCPD_MSYS*/
+	 "/cygdrive/c/d",	/*NCPD_CYGWIN*/
+	 "c:\\d"		/*NCPD_WIN*/
+	}},
 {"/cygdrive/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn",{
-    "/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn",
-    "/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn",
-    "/cygdrive/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn",
-    "d:\\git\\netcdf-c\\dap4_test\\test_anon_dim.2.syn"}},
+    "/cygdrive/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn",	/*NCPD_LINUX*/
+    "d:\\git\\netcdf-c\\dap4_test\\test_anon_dim.2.syn",	/*NCPD_MSYS*/
+    "/cygdrive/d/git/netcdf-c/dap4_test/test_anon_dim.2.syn",	/*NCPD_CYGWIN*/
+    "d:\\git\\netcdf-c\\dap4_test\\test_anon_dim.2.syn"		/*NCPD_WIN*/
+    }},
 /* Test relative path */
-{"x/y",{ "x/y", "x/y", "x/y",  "x\\y"}},
-{"x\\y",{ "x/y", "x/y", "x/y",  "x\\y"}},
+{"x/y",{
+	 "x/y",	/*NCPD_LINUX*/
+	"x/y",	/*NCPD_MSYS*/
+	"x/y",	/*NCPD_CYGWIN*/
+	 "x/y"	/*NCPD_WIN*/
+	}},
+{"x\\y",{
+	 "x\\y",/*NCPD_LINUX*/
+	"x\\y",	/*NCPD_MSYS*/
+	"x\\y",	/*NCPD_CYGWIN*/
+	 "x\\y"	/*NCPD_WIN*/
+	}},
 #ifndef _WIN32X
 /* Test utf8 path */
-{"/海/海",{ "/海/海", "/海/海", "/cygdrive/c/海/海",  "c:\\海\\海"}},
+{"/海/海",{
+	 "/海/海",		/*NCPD_LINUX*/
+	"c:\\海\\海",		/*NCPD_MSYS*/
+	"/cygdrive/c/海/海",	/*NCPD_CYGWIN*/
+	 "c:\\海\\海"		/*NCPD_WIN*/
+	}},
 /* Test network path */
 {"//git/netcdf-c/dap4_test",{
-    "/@/git/netcdf-c/dap4_test",
-    "/@/git/netcdf-c/dap4_test",
-    "/cygdrive/@/git/netcdf-c/dap4_test",
-    "\\\\git\\netcdf-c\\dap4_test"}},
+    NULL /*meaningless*/,		/*NCPD_LINUX*/
+    "\\\\git\\netcdf-c\\dap4_test",	/*NCPD_MSYS*/
+    NULL /*meaningless*/,		/*NCPD_CYGWIN*/
+    "\\\\git\\netcdf-c\\dap4_test"	/*NCPD_WIN*/
+    }},
 #endif
 {NULL, {NULL, NULL, NULL, NULL}}
 };
@@ -78,13 +130,14 @@ main(int argc, char** argv)
 
     /* Test localkind X path-kind */
     for(test=PATHTESTS;test->test;test++) {
+	int inputkind = NCgetinputpathkind(test->test);
         /* Iterate over the test paths */
         for(k=0;k<NKINDS;k++) {
 	    int kind = kinds[k];
 	    /* Compare output for the localkind */
             if(test->expected[k] == NULL) {
 #ifdef DEBUG
-	        fprintf(stderr,"TEST local=%s: %s ignored\n",kind2string(kind),test->test);
+	        fprintf(stderr,"TEST input=%s target=%s: %s ignored\n",kind2string(inputkind),kind2string(kind),test->test);
 #endif
 	        continue;
 	    }
@@ -94,10 +147,13 @@ main(int argc, char** argv)
 #ifdef DEBUG
 	    fprintf(stderr,">>> unescaped=|%s| expanded=|%s|\n",unescaped,expanded);
 #endif
+#ifdef DEBUG
+	    fprintf(stderr,"TEST input=%s target=%s: input: |%s|\n",
+			kind2string(inputkind),kind2string(kind),test->test);
+#endif
    	    cvt = NCpathcvt_test(unescaped,kind,drive);
 #ifdef DEBUG
-	    fprintf(stderr,"TEST local=%s: input: |%s| expected=|%s| actual=|%s|: ",
-			kind2string(kind),test->test,expanded,cvt);
+	    fprintf(stderr,"\texpected=|%s| actual=|%s|: ",expanded,cvt);
 #endif
 	    fflush(stderr); fflush(stdout);
 	    if(cvt == NULL) {
@@ -144,9 +200,11 @@ kind2string(int kind)
 	return "Cygwin";
     case NCPD_WIN:
 	return "Windows";
+    case NCPD_REL:
+	return "Relative";
     default: break;
     }
-    return "unknown";
+    return "Unknown";
 }
 
 static char*
