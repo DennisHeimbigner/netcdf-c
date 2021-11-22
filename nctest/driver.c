@@ -85,6 +85,7 @@ main(int argc, char **argv)
 
       /* Run all the tests for this format. */
       nerrs += test_nccreate(testfile);
+fprintf(stderr,">>> test_ncopen: testfile=%s\n",testfile);
       nerrs += test_ncopen(testfile);
       nerrs += test_ncredef(testfile);
       nerrs += test_ncendef(testfile);
