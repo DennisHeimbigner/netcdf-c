@@ -2882,6 +2882,7 @@ nc4_H5Fopen(const char *filename0, unsigned flags, hid_t fapl_id)
 #endif
     if((localname = NCpathcvt(filename))==NULL)
 	{hid = H5I_INVALID_HID; goto done;}
+fprintf(stderr,">>> H5Fopen: localname=%s\n",localname);
     hid = H5Fopen(localname, flags, fapl_id);
 done:
     nullfree(filename);
