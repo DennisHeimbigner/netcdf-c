@@ -192,6 +192,11 @@ test_ncopen(path)
     }
     if ((ncid1 = ncopen(path, NC_NOWRITE)) == -1) {
 #ifndef vms
+{
+char s[8192];
+snprintf(s,sizeof(s),"find . -name '%s'\n",path);
+system(s);
+}
 	error("%s: second ncopen failed", pname);
 	nerrs++;
 #else
@@ -726,6 +731,11 @@ test_ncsync(path)
 	}
 	if ((ncid1 = ncopen(path, NC_NOWRITE)) == -1) {
 #ifndef vms
+{
+char s[8192];
+snprintf(s,sizeof(s),"find . -name '%s'\n",path);
+system(s);
+}
 	    error("%s: second ncopen failed", pname);
 	    nerrs++;
 #else

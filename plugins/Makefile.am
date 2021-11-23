@@ -22,8 +22,12 @@ if ENABLE_FILTER_TESTING
 lib_LTLIBRARIES = libh5bzip2.la
 libh5bzip2_la_SOURCES = H5Zbzip2.c h5bzip2.h ${BZIP2SRC}
 	     
-noinst_LTLIBRARIES = libh5misc.la libh5noop.la libh5noop1.la libnczmisc.la libnczdefaults.la \
+noinst_LTLIBRARIES = libh5misc.la libh5noop.la libh5noop1.la libnczmisc.la \
 		     libh5shuffle.la libh5fletcher32.la libh5deflate.la
+
+if USE_HDF5
+noinst_LTLIBRARIES += libnczdefaults.la
+endif
 
 libh5shuffle_la_SOURCES = H5Zshuffle.c
 libh5fletcher32_la_SOURCES = H5Zfletcher32.c H5checksum.c
@@ -43,7 +47,9 @@ libh5misc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h
 
 libnczmisc_la_SOURCES = NCZmisc.c
 
+if USE_HDF5
 libnczdefaults_la_SOURCES = NCZdefaults.c
+endif
 
 # The noop filter is to allow testing of multifilters and filter order
 # Need two distinct instances

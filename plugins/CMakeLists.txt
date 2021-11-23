@@ -25,7 +25,9 @@ SET(h5fletcher32_SOURCES H5Zfletcher32.c H5checksum.c)
 SET(h5deflate_SOURCES H5Zdeflate.c)
 
 SET(nczmisc_SOURCES NCZmisc.c)
+if(USE_HDF5)
 SET(nczdefaults_SOURCES NCZdefaults.c)
+ENDIF()
 
 IF(ENABLE_FILTER_TESTING)
 IF(BUILD_UTILITIES)
@@ -65,7 +67,9 @@ buildplugin(h5fletcher32 "h5fletcher32")
 buildplugin(h5deflate "h5deflate")
 
 buildplugin(nczmisc "nczmisc")
+if(USE_HDF5)
 buildplugin(nczdefaults "nczdefaults" netcdf)
+endif()
 
 IF(ENABLE_BLOSC)
 SET(h5blosc_SOURCES H5Zblosc.c)
