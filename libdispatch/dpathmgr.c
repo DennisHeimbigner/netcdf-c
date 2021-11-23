@@ -128,7 +128,7 @@ NCpathcvt(const char* inpath)
 	goto done;
     }
     if((stat = parsepath(inpath,&inparsed))) {goto done;}
-    if(pathdebug)
+    if(pathdebug > 0)
         fprintf(stderr,">>> NCpathcvt: inparsed=%s\n",printPATH(&inparsed));
 
     if(inparsed.kind == NCPD_REL) { /* Pass thru relative paths */
@@ -140,7 +140,7 @@ NCpathcvt(const char* inpath)
         goto done;
 
 done:
-    if(pathdebug) {
+    if(pathdebug > 0) {
         fprintf(stderr,">>> inpath=|%s| result=|%s|\n",
             inpath?inpath:"NULL",result?result:"NULL");
         fflush(stderr);
@@ -216,7 +216,7 @@ NCpathabsolute(const char* relpath)
     /* rebuild */
     if((stat=unparsepath(&canon,&result,NCgetlocalpathkind()))) goto done;
 done:
-    if(pathdebug) {
+    if(pathdebug > 0) {
         fprintf(stderr,">>> relpath=|%s| result=|%s|\n",
             relpath?relpath:"NULL",result?result:"NULL");
         fflush(stderr);
@@ -285,7 +285,7 @@ pathinit(void)
 	    goto next;	
 	}
 	mountpoint.defined = 1;
-if(pathdebug)
+if(pathdebug > 0)
   fprintf(stderr,">>>> registry: mountlen=%lu mountprefix=|%s|\n",size,mountpoint.prefix);
     }
 next:
@@ -299,7 +299,7 @@ next:
             strlcat(mountpoint.prefix,m2,sizeof(mountpoint.prefix));
 	}
     }
-if(pathdebug)
+if(pathdebug > 0)
     fprintf(stderr,">>>> prefix: mountlen=%u mountprefix=|%s|\n",(unsigned)strlen(mountpoint.prefix),mountpoint.prefix);
     if(mountpoint.defined) {
 	char* p;
@@ -947,7 +947,7 @@ fprintf(stderr,"xxx: path=%s\n",path);
     default: stat = NC_EINTERNAL; goto done;
     }
 
-if(pathdebug)
+if(pathdebug > 0)
 fprintf(stderr,">>> unparse: target=%s xp=%s path=|%s|\n",NCgetkindname(target),printPATH(xp),path);
 
     if(pathp) {*pathp = path; path = NULL;}
