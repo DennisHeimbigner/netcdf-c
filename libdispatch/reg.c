@@ -36,7 +36,7 @@ getmountpoint(char* keyvalue, size_t size)
         wprintf(L"RegGetValueA failed. Error code: %li\n", stat);
         goto done;
     }
-
+fprintf(stderr,">>> reg.c: keyvalue=%s\n",keyvalue);
 done:
     return (stat == ERROR_SUCCESS ? 0 : -1);
 }
