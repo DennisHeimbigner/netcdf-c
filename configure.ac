@@ -1219,8 +1219,8 @@ AC_SUBST([ISMINGW], [${ISMINGW}])
 if test "x$ISMSVC" != x ; then REGEDIT=yes; fi
 if test "x$ISMINGW" != x ; then REGEDIT=yes; fi
 if test "x$ISCYGWIN" != x ; then REGEDIT=yes; fi
-if test "x$REGEDIT" = xyest; then
-  AC_DEFINE([REGEDIT], 1, [reg.c available])
+if test "x$REGEDIT" = xyes; then
+  AC_DEFINE([REGEDIT], 1, [reg.c usable])
 fi
 AM_CONDITIONAL(REGEDIT, [test "x$REGEDIT" = xyes])
 

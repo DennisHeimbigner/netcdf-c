@@ -2409,6 +2409,7 @@ configure_file(
 SET(ISCMAKE "1")
 IF(MSVC)
 SET(ISMSVC "1")
+(SET REGEDIT 1)
 ENDIF()
 
 ####
