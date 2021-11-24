@@ -276,7 +276,7 @@ pathinit(void)
 	    goto next;
 	mountpoint.defined = 1;
 if(pathdebug > 0)
-  fprintf(stderr,">>>> registry: mountlen=%lu mountprefix=|%s|\n",size,mountpoint.prefix);
+  fprintf(stderr,">>>> registry: mountprefix=|%s|\n",mountpoint.prefix);
     }
 next:
 #endif
@@ -290,7 +290,7 @@ next:
 	}
     }
     if(pathdebug > 0) {
-        fprintf(stderr,">>>> prefix: mountlen=%u mountprefix=|%s|\n",(unsigned)strlen(mountpoint.prefix),mountpoint.prefix);
+        fprintf(stderr,">>>> prefix: mountprefix=|%s|\n",mountpoint.prefix);
     }
     if(mountpoint.defined) {
 	char* p;
