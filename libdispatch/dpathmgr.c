@@ -80,7 +80,6 @@ static const struct Path {
 
 /* Keep the working directory kind and drive */
 static char wdprefix[8192];
-static size_t wdlen;
 
 /* Keep CYGWIN/MSYS2 mount point */
 static struct MountPoint {
@@ -265,25 +264,10 @@ pathinit(void)
     }
     (void)getwdpath();
     memset(&mountpoint,0,sizeof(mountpoint));
-#ifdef _MSC_SVC /* Not _WIN32 */
+#ifdef REGEDIT
     { /* See if we can get the MSYS2 prefix from the registry */
-        LSTATUS stat;
-	PHKEY hkey;
-	LPDWORD size = sizeof(mountpoint.prefix);
-	const LPCSTR rpath = "SOFTWARE\\Cygwin\\setup\\";
-	const LPCSTR leaf = "rootdir";
-	HKEY key;
-	
-	stat =  RegOpenKeyA(HKEY_LOCAL_MACHINE, rpath, &key);
-	if(stat != ERROR_SUCCESS) {
-            wprintf(L"RegOpenKeyA failed. Error code: %li\n", stat);
+	if(getmountpoint(mountpoint.prefix,sizeof(mountpoint.prefix)))
 	    goto next;
-	}
-	stat = RegGetValueA(key, NULL, leaf, RRF_RT_REG_SZ, NULL, (PVOID)&mountprefix, (LPDWORD)&size);
-	if(stat != ERROR_SUCCESS) {
-            wprintf(L"RegGetValueA failed. Error code: %li\n", stat);
-	    goto next;	
-	}
 	mountpoint.defined = 1;
 if(pathdebug > 0)
   fprintf(stderr,">>>> registry: mountlen=%lu mountprefix=|%s|\n",size,mountpoint.prefix);
@@ -299,8 +283,9 @@ next:
             strlcat(mountpoint.prefix,m2,sizeof(mountpoint.prefix));
 	}
     }
-if(pathdebug > 0)
-    fprintf(stderr,">>>> prefix: mountlen=%u mountprefix=|%s|\n",(unsigned)strlen(mountpoint.prefix),mountpoint.prefix);
+    if(pathdebug > 0) {
+        fprintf(stderr,">>>> prefix: mountlen=%u mountprefix=|%s|\n",(unsigned)strlen(mountpoint.prefix),mountpoint.prefix);
+    }
     if(mountpoint.defined) {
 	char* p;
 	size_t size = strlen(mountpoint.prefix);	

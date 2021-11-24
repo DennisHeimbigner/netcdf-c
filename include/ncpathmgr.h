@@ -231,6 +231,7 @@ EXTERNL int NCgetlocalpathkind(void);
 EXTERNL int NCgetinputpathkind(const char* inpath);
 EXTERNL const char* NCgetkindname(int kind);
 EXTERNL void printutf8hex(const char* s, char* sx);
+EXTERNL int getmountpoint(char*, size_t);
 
 /**************************************************/
 /* From dutil.c */

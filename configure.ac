@@ -1216,6 +1216,14 @@ AC_SUBST([ISCYGWIN], [${ISCYGWIN}])
 AC_SUBST([ISOSX], [${ISOSX}])
 AC_SUBST([ISMINGW], [${ISMINGW}])
 
+if test "x$ISMSVC" != x ; then REGEDIT=yes; fi
+if test "x$ISMINGW" != x ; then REGEDIT=yes; fi
+if test "x$ISCYGWIN" != x ; then REGEDIT=yes; fi
+if test "x$REGEDIT" = xyest; then
+  AC_DEFINE([REGEDIT], 1, [reg.c available])
+fi
+AM_CONDITIONAL(REGEDIT, [test "x$REGEDIT" = xyes])
+
 ###
 # Crude hack to work around an issue
 # in Cygwin.
