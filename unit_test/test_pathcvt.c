@@ -76,9 +76,9 @@ static Test PATHTESTS[] = {
 /* Test relative path */
 {"x/y",{
 	 "x/y",	/*NCPD_LINUX*/
-	"x/y",	/*NCPD_MSYS*/
+	"x\\y",	/*NCPD_MSYS*/
 	"x/y",	/*NCPD_CYGWIN*/
-	 "x/y"	/*NCPD_WIN*/
+	 "x\\y"	/*NCPD_WIN*/
 	}},
 {"x\\y",{
 	 "x\\y",/*NCPD_LINUX*/

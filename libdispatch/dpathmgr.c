@@ -126,12 +126,18 @@ NCpathcvt(const char* inpath)
 	if((result = strdup(inpath))==NULL) stat = NC_ENOMEM;
 	goto done;
     }
+
     if((stat = parsepath(inpath,&inparsed))) {goto done;}
     if(pathdebug > 0)
         fprintf(stderr,">>> NCpathcvt: inparsed=%s\n",printPATH(&inparsed));
 
-    if(inparsed.kind == NCPD_REL) { /* Pass thru relative paths */
+    if(inparsed.kind == NCPD_REL) {
+	/* Pass thru relative paths, but with proper slashes */
 	if((result = strdup(inpath))==NULL) stat = NC_ENOMEM;
+	if(target == NCPD_WIN || target == NCPD_MSYS) {
+	    char* p;
+            for(p=result;*p;p++) {if(*p == '/') *p = '\\';} /* back slash*/
+	}
 	goto done;
     }
 
