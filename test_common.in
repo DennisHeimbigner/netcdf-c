@@ -16,6 +16,11 @@ FP_ISMINGW=@ISMINGW@
 FP_ISMSYS=@ISMSYS@
 FP_ISREGEDIT=@ISREGEDIT@
 
+if test "x$FP_ISMSYS != x || test "x$FP_ISCYGWIN != x || test "x$FP_ISMINGW != x ; then
+regtool list "HKEY_LOCAL_MACHINE\\SOFTWARE\\Cygwin\\setup";
+regtool list "HKEY_LOCAL_MACHINE/SOFTWARE/Cygwin/setup";
+fi
+
 # Feature flags
 FEATURE_HDF5=@HAS_HDF5@
 

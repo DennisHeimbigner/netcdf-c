@@ -280,7 +280,7 @@ if(pathdebug > 0)
     }
 next:
 #endif
-    if(mountpoint.defined) {
+    if(!mountpoint.defined) {
 	mountpoint.prefix[0] = '\0';
         /* See if MSYS2_PREFIX is defined */
         if(getenv("MSYS2_PREFIX")) {
@@ -289,9 +289,9 @@ fprintf(stderr,">>> m2: %s\n",m2);
 	    mountpoint.prefix[0] = '\0';
             strlcat(mountpoint.prefix,m2,sizeof(mountpoint.prefix));
 	}
-    }
-    if(pathdebug > 0) {
-        fprintf(stderr,">>>> prefix: mountprefix=|%s|\n",mountpoint.prefix);
+        if(pathdebug > 0) {
+            fprintf(stderr,">>>> prefix: mountprefix=|%s|\n",mountpoint.prefix);
+        }
     }
     if(mountpoint.defined) {
 	char* p;
