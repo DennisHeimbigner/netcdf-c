@@ -1207,10 +1207,10 @@ case "`uname`" in
   MINGW*) ISMINGW=yes;;
 esac
 
-case "$MSYSTEM" in
-  MSYS*) ISMSYS=yes;;
-  MINGW*) ISMINGW=yes;;
-esac
+if test "x$MSYSTEM" != x ; then
+ISMINGW=yes
+ISMSYS=yes
+fi
 
 AM_CONDITIONAL(ISCYGWIN, [test "x$ISCYGWIN" = xyes])
 AM_CONDITIONAL(ISMSVC, [test "x$ISMSVC" = xyes])
