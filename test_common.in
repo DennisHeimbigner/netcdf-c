@@ -5,6 +5,7 @@
 
 # See netcdf-c/COPYRIGHT file for more info.
 
+set -x
 # Define location of execution
 TOPSRCDIR='@abs_top_srcdir@'
 TOPBUILDDIR='@abs_top_builddir@'
@@ -92,8 +93,6 @@ fi
 if test "x${FP_ISMINGW}" = xyes ; then
     alias pwd='pwd -W'
 fi
-printenv
-
 
 # We assume that TOPSRCDIR and TOPBUILDDIR are defined
 # At the top of this shell script
