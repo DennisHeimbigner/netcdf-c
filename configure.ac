@@ -1231,6 +1231,7 @@ if test "x$REGEDIT" = xyes; then
   AC_DEFINE([REGEDIT], 1, [reg.c usable])
 fi
 AM_CONDITIONAL(REGEDIT, [test "x$REGEDIT" = xyes])
+AC_SUBST([ISREGEDIT], [yes])
 
 ###
 # Crude hack to work around an issue

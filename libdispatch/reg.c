@@ -26,18 +26,26 @@ getmountpoint(char* keyvalue, size_t size)
     const LPCSTR leaf = "rootdir";
     HKEY key;
 	
-fprintf(stderr,">>> enter getmountpoint\n");
+    if(size == 0 || keyvalue == NULL)
+	return -1;
+
+    keyvalue[0] = '\0';
+
+fprintf(stderr,">>> getmountpoint 1\n");
     stat =  RegOpenKeyA(HKEY_LOCAL_MACHINE, rpath, &key);
     if(stat != ERROR_SUCCESS) {
+fprintf(stderr,">>> getmountpoint f1\n");
         wprintf(L"RegOpenKeyA failed. Error code: %li\n", stat);
         goto done;
     }
+fprintf(stderr,">>> getmountpoint 2\n");
     stat = RegGetValueA(key, NULL, leaf, RRF_RT_REG_SZ, NULL, (PVOID)keyvalue, (LPDWORD)&size);
     if(stat != ERROR_SUCCESS) {
+fprintf(stderr,">>> getmountpoint f2\n");
         wprintf(L"RegGetValueA failed. Error code: %li\n", stat);
         goto done;
     }
-fprintf(stderr,">>> reg.c: keyvalue=%s\n",keyvalue);
+fprintf(stderr,">>> getmountpoint 3: keyvalue='%c'\n",keyvalue[0]);
 done:
 fprintf(stderr,">>> exit getmountpoint: |%s|\n",keyvalue);
     return (stat == ERROR_SUCCESS ? 0 : -1);
