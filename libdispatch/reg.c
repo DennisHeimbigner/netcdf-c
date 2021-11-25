@@ -26,6 +26,7 @@ getmountpoint(char* keyvalue, size_t size)
     const LPCSTR leaf = "rootdir";
     HKEY key;
 	
+fprintf(stderr,">>> enter getmountpoint\n");
     stat =  RegOpenKeyA(HKEY_LOCAL_MACHINE, rpath, &key);
     if(stat != ERROR_SUCCESS) {
         wprintf(L"RegOpenKeyA failed. Error code: %li\n", stat);
@@ -38,5 +39,6 @@ getmountpoint(char* keyvalue, size_t size)
     }
 fprintf(stderr,">>> reg.c: keyvalue=%s\n",keyvalue);
 done:
+fprintf(stderr,">>> exit getmountpoint\n");
     return (stat == ERROR_SUCCESS ? 0 : -1);
 }

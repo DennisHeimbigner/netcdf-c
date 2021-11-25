@@ -125,9 +125,6 @@ cd $builddir; builddir=`pwd` ; cd $WD
 cd $top_builddir; top_builddir=`pwd` ; cd $WD
 cd $execdir; execdir=`pwd` ; cd $WD
 
-# If we have cygpath (which only exists under CYGWIN),
-# then try to normalize selected file paths.
-
 # For sun os
 export srcdir top_srcdir builddir top_builddir execdir
 
