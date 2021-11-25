@@ -93,6 +93,7 @@ nc_findtestserver(const char* path, const char* serverlist)
 	return NULL;
     }
     reportsearch = (getenv("NC_REPORTSEARCH") != NULL);
+reportsearch = 1;
     for(svc=svclist;*svc;svc++) {
 	if(strlen(*svc) == 0)
 	    goto done;
