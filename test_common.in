@@ -81,9 +81,6 @@ if test "x$SETX" = x1 ; then set -x ; fi
 # On MINGW, bash and other POSIX utilities use a mounted root directory,
 # but executables compiled for Windows do not recognise the mount point.
 # Here we ensure that Windows paths are used in tests of Windows executables.
-echo "FP_MINGW=${FP_MINGW}"
-echo "FP_CYGWIN=${FP_CYGWIN}"
-echo `which cygpath`
 if test "x${FP_ISMSYS}" = xyes || test "xFP_ISCYGWIN" = xyes ; then
   if test "x${MSYS2_PREFIX}" = x ; then
     MSYS2_PREFIX=`cygpath -w '/'`
