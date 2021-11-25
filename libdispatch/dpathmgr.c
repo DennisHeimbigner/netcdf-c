@@ -131,16 +131,6 @@ NCpathcvt(const char* inpath)
     if(pathdebug > 0)
         fprintf(stderr,">>> NCpathcvt: inparsed=%s\n",printPATH(&inparsed));
 
-    if(inparsed.kind == NCPD_REL) {
-	/* Pass thru relative paths, but with proper slashes */
-	if((result = strdup(inpath))==NULL) stat = NC_ENOMEM;
-	if(target == NCPD_WIN || target == NCPD_MSYS) {
-	    char* p;
-            for(p=result;*p;p++) {if(*p == '/') *p = '\\';} /* back slash*/
-	}
-	goto done;
-    }
-
     if((stat = unparsepath(&inparsed,&result,target)))
         goto done;
 
@@ -174,6 +164,7 @@ NCpathcanonical(const char* srcpath, char** canonp)
 
     /* parse the src path */
     if((stat = parsepath(srcpath,&path))) {goto done;}
+
     /* Convert to cygwin form */
     if((stat = unparsepath(&path,&canon, NCPD_CYGWIN)))
         goto done;
@@ -766,6 +757,17 @@ unparsepath(struct Path* xp, char** pathp, int target)
     int cygspecial = 0;
     int drive = 0;
     
+    /* Short circuit a relative path */
+    if(xp->kind == NCPD_REL) {
+	/* Pass thru relative paths, but with proper slashes */
+	if((path = strdup(xp->path))==NULL) stat = NC_ENOMEM;
+	if(target == NCPD_WIN || target == NCPD_MSYS) {
+	    char* p;
+            for(p=result;*p;p++) {if(*p == '/') *p = '\\';} /* back slash*/
+	}
+	goto exit;
+    }
+
     /* We need a two level switch with an arm
        for every pair of (xp->kind,target)
     */
@@ -942,6 +944,7 @@ fprintf(stderr,"xxx: path=%s\n",path);
 if(pathdebug > 0)
 fprintf(stderr,">>> unparse: target=%s xp=%s path=|%s|\n",NCgetkindname(target),printPATH(xp),path);
 
+exit:
     if(pathp) {*pathp = path; path = NULL;}
 done:
     nullfree(path);
