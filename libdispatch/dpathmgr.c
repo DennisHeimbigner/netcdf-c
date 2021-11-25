@@ -763,7 +763,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	if((path = strdup(xp->path))==NULL) stat = NC_ENOMEM;
 	if(target == NCPD_WIN || target == NCPD_MSYS) {
 	    char* p;
-            for(p=result;*p;p++) {if(*p == '/') *p = '\\';} /* back slash*/
+            for(p=path;*p;p++) {if(*p == '/') *p = '\\';} /* back slash*/
 	}
 	goto exit;
     }
