@@ -39,6 +39,6 @@ fprintf(stderr,">>> enter getmountpoint\n");
     }
 fprintf(stderr,">>> reg.c: keyvalue=%s\n",keyvalue);
 done:
-fprintf(stderr,">>> exit getmountpoint\n");
+fprintf(stderr,">>> exit getmountpoint: |%s|\n",keyvalue);
     return (stat == ERROR_SUCCESS ? 0 : -1);
 }
