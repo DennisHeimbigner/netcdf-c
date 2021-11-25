@@ -1206,18 +1206,26 @@ case "`uname`" in
   WIN*) ISMSVC=yes;;
   MINGW*) ISMINGW=yes;;
 esac
+
+case "$MSYSTEM" in
+  MSYS*) ISMSYS=yes;;
+  MINGW*) ISMINGW=yes;;
+esac
+
 AM_CONDITIONAL(ISCYGWIN, [test "x$ISCYGWIN" = xyes])
 AM_CONDITIONAL(ISMSVC, [test "x$ISMSVC" = xyes])
 AM_CONDITIONAL(ISOSX, [test "x$ISOSX" = xyes])
 AM_CONDITIONAL(ISMINGW, [test "x$ISMINGW" = xyes])
+AM_CONDITIONAL(ISMSYS, [test "x$ISMSYS" = xyes])
 
 AC_SUBST([ISMSVC], [${ISMSVC}])
 AC_SUBST([ISCYGWIN], [${ISCYGWIN}])
 AC_SUBST([ISOSX], [${ISOSX}])
 AC_SUBST([ISMINGW], [${ISMINGW}])
+AC_SUBST([ISMSYS], [${ISMSYS}])
 
 if test "x$ISMSVC" != x ; then REGEDIT=yes; fi
-if test "x$ISMINGW" != x ; then REGEDIT=yes; fi
+if test "x$ISMSYS" != x ; then REGEDIT=yes; fi
 if test "x$ISCYGWIN" != x ; then REGEDIT=yes; fi
 if test "x$REGEDIT" = xyes; then
   AC_DEFINE([REGEDIT], 1, [reg.c usable])
