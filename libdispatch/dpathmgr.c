@@ -205,6 +205,7 @@ NCpathabsolute(const char* relpath)
 	strlcat(tmp1,"/",len);
 	strlcat(tmp1,canon.path,len);
        	nullfree(canon.path);
+        canon.path = NULL;
 	/* Reparse */
 	result = NCpathabsolute(tmp1);
 	goto done;
@@ -806,12 +807,14 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	assert(xp->drive == 0);
 	/* Is this one of the special cygwin paths? */
 	cygspecial = iscygwinspecial(xp->path);
+	len = 0;
 	if(!cygspecial && mountpoint.drive != 0) {
-	    len = cdlen + 2 + (1+1); /* /cygdrive/D/<prefix> */
+	    len = cdlen + 1+1; /* /cygdrive/D */
 	    len += nulllen(mountpoint.prefix);
 	}
 	if(xp->path)
 	    len += strlen(xp->path);
+	len++; /* nul term */
         if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
@@ -830,6 +833,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
         len = nulllen(xp->path); 
         if(xp->drive != 0)
 	    len += (cdlen + 2); /* /cygdrive/D */
+	len++;
         if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
@@ -851,6 +855,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
             len += (strlen(mountpoint.prefix) + 2);
         else
             len += sizeof(sdrive);
+        len++;
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
@@ -869,6 +874,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	len = nulllen(xp->path)+1;
 	if(xp->drive != 0)
 	    len += (cdlen + 2);
+	len++;
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
@@ -890,6 +896,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
         len = nulllen(xp->path) + 1 + sizeof(sdrive);
 	if(xp->drive == 0) 
 	    len += strlen(mountpoint.prefix);
+	len++;
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
@@ -912,6 +919,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	len = nulllen(xp->path)+1;
 	if(xp->drive != 0)
             len += sizeof(sdrive);
+	len++;
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';
@@ -927,6 +935,7 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	assert(xp->drive != 0);
 	len = nulllen(xp->path)+1;
         len += (cdlen + 2);
+	len++;
 	if((path = (char*)malloc(len))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	path[0] = '\0';

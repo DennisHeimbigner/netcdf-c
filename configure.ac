@@ -1180,10 +1180,13 @@ fi
 AC_MSG_CHECKING([whether dynamically loaded plugins is enabled])
 AC_ARG_ENABLE([plugins],
               [AS_HELP_STRING([--disable-plugins],
-                              [allow dynamically loaded plugins])])
-if test "x$have_libdld" = xno ; then enable_plugins=no; fi
+                              [disallow dynamically loaded plugins])])
 test "x$enable_plugins" = xno || enable_plugins=yes
-AC_MSG_RESULT($enable_plugins)
+AC_MSG_RESULT([$enable_plugins])
+if test "x$have_libdld" = xno ; then
+  enable_plugins=no
+  AC_MSG_WARN([libdld required for enable-plugins.])  
+fi
 if test "x$enable_plugins" = xyes; then
     AC_DEFINE([ENABLE_PLUGINS], [1], [if true, support dynamically loaded plugins])
 fi

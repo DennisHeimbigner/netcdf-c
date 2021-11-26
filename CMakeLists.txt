@@ -1091,7 +1091,7 @@ ELSE()
 ENDIF()
 
 # libdl is always available; built-in in Windows and OSX
-SET(ENABLE_PLUGINS TRUE)
+OPTION(ENABLE_PLUGINS "Enable dynamically loaded plugins (default on)." ON)
 IF(NOT WIN32)
   IF(HAVE_DLFCN_H)
     INCLUDE_DIRECTORIES("dlfcn.h")
