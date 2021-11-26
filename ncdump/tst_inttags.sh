@@ -12,6 +12,9 @@ ${NCGEN} -lb -o inttags.nc $srcdir/inttags.cdl
 echo "*** creating tst_inttags.cdl from inttags.nc..."
 ${NCDUMP} inttags.nc > tst_inttags.cdl
 echo "*** comparing tst_inttags.cdl to ref_inttags.nc..."
+echo '@@@@@@@@@@@@@@'
+cat tst_inttags.cdl
+echo '@@@@@@@@@@@@@@'
 diff -b -w tst_inttags.cdl $srcdir/ref_inttags.cdl
 
 rm inttags.nc tst_inttags.cdl
