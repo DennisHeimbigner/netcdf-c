@@ -81,9 +81,9 @@ static Test PATHTESTS[] = {
 	 "x\\y"	/*NCPD_WIN*/
 	}},
 {"x\\y",{
-	 "x\\y",/*NCPD_LINUX*/
+	 "x/y",/*NCPD_LINUX*/
 	"x\\y",	/*NCPD_MSYS*/
-	"x\\y",	/*NCPD_CYGWIN*/
+	"x/y",	/*NCPD_CYGWIN*/
 	 "x\\y"	/*NCPD_WIN*/
 	}},
 #ifndef _WIN32X
