@@ -17,7 +17,7 @@ FP_ISMSYS=@ISMSYS@
 FP_ISREGEDIT=@ISREGEDIT@
 
 if test "x$FP_ISMSYS" != x || test "x$FP_ISCYGWIN" != x || test "x$FP_ISMINGW" != x ; then
-regtool get "/HKLM/SOFTWARE/Cygwin/setup/rootdir";
+#regtool get "/HKLM/SOFTWARE/Cygwin/setup/rootdir";
 regtool list "/HKLM/SOFTWARE/Cygwin/setup";
 fi
 
