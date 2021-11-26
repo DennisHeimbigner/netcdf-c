@@ -276,7 +276,6 @@ next:
         /* See if MSYS2_PREFIX is defined */
         if(getenv("MSYS2_PREFIX")) {
 	    const char* m2 = getenv("MSYS2_PREFIX");
-fprintf(stderr,">>> m2: %s\n",m2);
 	    mountpoint.prefix[0] = '\0';
             strlcat(mountpoint.prefix,m2,sizeof(mountpoint.prefix));
 	}
