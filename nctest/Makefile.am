@@ -29,15 +29,17 @@ nctest_classic.cdl ref_nctest_classic.cdl
 # Run nctest and the script that compares the output with the
 # reference file.
 #TESTPROGRAMS = nctest tst_rename
-TESTPROGRAMS = run_nctest.sh tst_rename
-check_PROGRAMS = $(TESTPROGRAMS)
-TESTS = $(TESTPROGRAMS) compare_test_files.sh
+#check_PROGRAMS = $(TESTPROGRAMS) nctest
+#TESTS = $(TESTPROGRAMS) compare_test_files.sh
+TESTPROGRAMS = tst_rename
+check_PROGRAMS = $(TESTPROGRAMS) nctest
+TESTS = $(TESTPROGRAMS) run_nctest.sh 
 
 # Note which tests depend on other tests. Necessary for make -j check.
 TEST_EXTENSIONS = .sh
 
 # compare_test_files depends on nctest executing first.
-compare_test_files.log: nctest.log
+#compare_test_files.log: nctest.log
 
 # These are the source files for the nctest program.
 nctest_SOURCES = add.c add.h atttests.c cdftests.c dimtests.c driver.c	\
