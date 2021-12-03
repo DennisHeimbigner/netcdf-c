@@ -5,5 +5,6 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
-find . -name nctest_netcdf4_classic.nc
+echo "@@@@@"
+find . -name '*.nc'
 ${execdir}/nctest
