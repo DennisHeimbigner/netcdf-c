@@ -106,13 +106,12 @@ BENCHMARKS_DIR = nc_perf
 endif # BUILD_BENCHMARKS
 
 # Define Test directories
-TESTDIRS = $(UNIT_TEST)
-#if BUILD_TESTSETS
-#TESTDIRS = $(H5_TEST_DIR) 
-#TESTDIRS += $(UNIT_TEST) $(V2_TEST) nc_test $(NC_TEST4)
-#TESTDIRS += $(BENCHMARKS_DIR) $(HDF4_TEST_DIR) $(NCDAP2TESTDIR) $(NCDAP4TESTDIR)
-#TESTDIRS += ${ZARR_TEST_DIR}
-#endif
+if BUILD_TESTSETS
+TESTDIRS = $(H5_TEST_DIR) 
+TESTDIRS += $(UNIT_TEST) $(V2_TEST) nc_test $(NC_TEST4)
+TESTDIRS += $(BENCHMARKS_DIR) $(HDF4_TEST_DIR) $(NCDAP2TESTDIR) $(NCDAP4TESTDIR)
+TESTDIRS += ${ZARR_TEST_DIR}
+endif
 
 # This is the list of subdirs for which Makefiles will be constructed
 # and run. ncgen must come before ncdump, because their tests
@@ -120,8 +119,8 @@ TESTDIRS = $(UNIT_TEST)
 SUBDIRS = include ${XML} libdispatch libsrc $(LIBSRC4_DIR)	\
 $(LIBSRCP) $(LIBHDF4) $(LIBHDF5) $(OCLIB) $(DAP2) ${DAP4} \
 ${NCPOCO} ${ZARR} liblib \
-$(NCGEN3) $(NCGEN) $(NCDUMP) ${PLUGIN_DIR} $(TESTDIRS) docs		
-#$(EXAMPLES)
+$(NCGEN3) $(NCGEN) $(NCDUMP) ${PLUGIN_DIR} $(TESTDIRS) docs	\
+$(EXAMPLES)
 
 # Remove these generated files, for a distclean.
 DISTCLEANFILES = VERSION comps.txt test_prog libnetcdf.settings	\
