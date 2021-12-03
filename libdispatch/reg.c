@@ -33,12 +33,12 @@ getmountpoint(char* keyvalue, size_t size)
 
     stat =  RegOpenKeyA(HKEY_LOCAL_MACHINE, rpath, &key);
     if(stat != ERROR_SUCCESS) {
-        wprintf(L"RegOpenKeyA failed. Error code: %li\n", stat);
+//        wprintf(L"RegOpenKeyA failed. Error code: %li\n", stat);
         goto done;
     }
     stat = RegGetValueA(key, NULL, leaf, RRF_RT_REG_SZ, NULL, (PVOID)keyvalue, (LPDWORD)&size);
     if(stat != ERROR_SUCCESS) {
-        wprintf(L"RegGetValueA failed. Error code: %li\n", stat);
+//        wprintf(L"RegGetValueA failed. Error code: %li\n", stat);
         goto done;
     }
 done:
