@@ -39,7 +39,9 @@ endif # USE_NETCDF4
 check_PROGRAMS += test_aws
 TESTS += run_aws.sh
 
-EXTRA_DIST = CMakeLists.txt run_aws.sh run_pathcvt.sh
+TESTS += test_mingw
+
+EXTRA_DIST = CMakeLists.txt run_aws.sh run_pathcvt.sh nctest_netcdf4_classic.nc
 
 # If valgrind is present, add valgrind targets.
 @VALGRIND_CHECK_RULES@

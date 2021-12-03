@@ -106,16 +106,18 @@ BENCHMARKS_DIR = nc_perf
 endif # BUILD_BENCHMARKS
 
 # Define Test directories
-if BUILD_TESTSETS
-TESTDIRS = $(UNIT_TEST) $(V2_TEST) nc_test $(NC_TEST4)
-TESTDIRS += $(BENCHMARKS_DIR) $(HDF4_TEST_DIR) $(NCDAP2TESTDIR) $(NCDAP4TESTDIR)
-TESTDIRS += ${ZARR_TEST_DIR}
-endif
+TESTDIRS = $(UNIT_TEST)
+#if BUILD_TESTSETS
+#TESTDIRS = $(H5_TEST_DIR) 
+#TESTDIRS += $(UNIT_TEST) $(V2_TEST) nc_test $(NC_TEST4)
+#TESTDIRS += $(BENCHMARKS_DIR) $(HDF4_TEST_DIR) $(NCDAP2TESTDIR) $(NCDAP4TESTDIR)
+#TESTDIRS += ${ZARR_TEST_DIR}
+#endif
 
 # This is the list of subdirs for which Makefiles will be constructed
 # and run. ncgen must come before ncdump, because their tests
 # depend on it.
-SUBDIRS = include $(H5_TEST_DIR) ${XML} libdispatch libsrc $(LIBSRC4_DIR)	\
+SUBDIRS = include ${XML} libdispatch libsrc $(LIBSRC4_DIR)	\
 $(LIBSRCP) $(LIBHDF4) $(LIBHDF5) $(OCLIB) $(DAP2) ${DAP4} \
 ${NCPOCO} ${ZARR} liblib \
 $(NCGEN3) $(NCGEN) $(NCDUMP) ${PLUGIN_DIR} $(TESTDIRS) docs		\
