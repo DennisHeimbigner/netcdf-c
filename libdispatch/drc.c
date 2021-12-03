@@ -23,6 +23,8 @@ See COPYRIGHT for license information.
 #include "ncauth.h"
 #include "ncpathmgr.h"
 
+#define NOREAD
+
 #undef DRCDEBUG
 #undef LEXDEBUG
 #undef PARSEDEBUG
@@ -109,6 +111,7 @@ ncrc_initialize(void)
     if(NCRCinitialized) return;
     NCRCinitialized = 1; /* prevent recursion */
     
+#ifndef NOREAD
     /* Load entrys */
     if((stat = NC_rcload())) {
         nclog(NCLOGWARN,".rc loading failed");
@@ -117,6 +120,7 @@ ncrc_initialize(void)
     if((stat = aws_load_credentials(ncrc_globalstate))) {
         nclog(NCLOGWARN,"AWS config file not loaded");
     }
+#endif
 }
 
 static void
@@ -189,6 +193,7 @@ NC_rcload(void)
     if(!NCRCinitialized) ncrc_initialize();
     globalstate = ncrc_getglobalstate();
     
+
     if(globalstate->rcinfo.ignore) {
         nclog(NCLOGDBG,".rc file loading suppressed");
 	goto done;
