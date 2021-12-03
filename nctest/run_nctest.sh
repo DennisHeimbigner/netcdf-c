@@ -6,5 +6,10 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 set -e
 
 echo "@@@@@"
+if ${execdir}/nctest ; then
+ret=0
+else
+ret=1
+fi
 find . -name '*.nc'
-${execdir}/nctest
+exit $ret
