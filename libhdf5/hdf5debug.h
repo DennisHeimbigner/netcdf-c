@@ -6,7 +6,7 @@
 #define NCH5DEBUG_H
 
 /* Warning: significant performance impact */
-#undef H5CATCH
+#define H5CATCH
 
 #undef H5BACKTRACE
 

@@ -21,16 +21,19 @@ AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
 # generated in a pressurized chamber that exactly simulated the
 # atmosphere on the surface of Mars.
 EXTRA_DIST = ref_nctest_classic.nc ref_nctest_64bit_offset.nc	\
-compare_test_files.sh CMakeLists.txt
+compare_test_files.sh CMakeLists.txt run_nctest.sh
 
 CLEANFILES = nctest_*.nc test2.nc temp.tmp tst_*.nc	\
 nctest_classic.cdl ref_nctest_classic.cdl
 
 # Run nctest and the script that compares the output with the
 # reference file.
-TESTPROGRAMS = nctest tst_rename
+TESTPROGRAMS = tst_rename
 check_PROGRAMS = $(TESTPROGRAMS)
 TESTS = $(TESTPROGRAMS) compare_test_files.sh
+
+check_PROGRAMS += nctest
+TESTS += $(TESTPROGRAMS) nctest
 
 # Note which tests depend on other tests. Necessary for make -j check.
 TEST_EXTENSIONS = .sh

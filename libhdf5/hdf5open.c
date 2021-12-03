@@ -973,7 +973,7 @@ exit:
         H5Pclose(fapl_id);
     if (nc4_info)
         nc4_close_hdf5_file(nc4_info, 1, 0); /*  treat like abort*/
-    return retval;
+    return THROW(retval);
 }
 
 /**
@@ -2883,10 +2883,6 @@ nc4_H5Fopen(const char *filename0, unsigned flags, hid_t fapl_id)
     if((localname = NCpathcvt(filename))==NULL)
 	{hid = H5I_INVALID_HID; goto done;}
     hid = H5Fopen(localname, flags, fapl_id);
-if(hid < 0) {
-fprintf(stderr,">>> yyy: hid=%llu\n",(unsigned long long)hid);
-H5Eprint(stderr);
-}
 
 done:
     nullfree(filename);
