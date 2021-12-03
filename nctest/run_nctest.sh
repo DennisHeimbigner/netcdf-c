@@ -12,4 +12,5 @@ else
 ret=1
 fi
 find . -name '*.nc'
+${execdir}/ncdump/ncdump nctest_netcdf4_classic.nc
 exit $ret
