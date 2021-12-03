@@ -23,7 +23,7 @@ See COPYRIGHT for license information.
 #include "ncauth.h"
 #include "ncpathmgr.h"
 
-#define NOREAD
+#undef NOREAD
 
 #undef DRCDEBUG
 #undef LEXDEBUG
