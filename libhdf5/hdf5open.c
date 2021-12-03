@@ -2877,12 +2877,13 @@ nc4_H5Fopen(const char *filename0, unsigned flags, hid_t fapl_id)
 
 #ifdef HDF5_UTF8_PATHS
     NCpath2utf8(filename0,&filename);
+fprintf(stderr,">>> yyy: filename0=|%s| filename=|%s|\n",filename0,filename);
 #else    
     filename = strdup(filename0);
 #endif
     if((localname = NCpathcvt(filename))==NULL)
 	{hid = H5I_INVALID_HID; goto done;}
-fprintf(stderr,">>> H5Fopen: localname=%s\n",localname);
+fprintf(stderr,">>> xxx: H5Fopen: filename=|%s| localname=|%s|\n",filename,localname);
     hid = H5Fopen(localname, flags, fapl_id);
 done:
     nullfree(filename);
