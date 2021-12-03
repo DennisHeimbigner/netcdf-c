@@ -12,7 +12,6 @@ Test the handling of aws profiles and regions.
 #include <string.h>
 #include <assert.h>
 #include "netcdf.h"
-#include "ncpathmgr.h"
 
 #define DEBUG
 
@@ -20,6 +19,7 @@ static int
 test(void)
 {
     int stat = NC_NOERR;
+    int ncid;
     if((stat=nc_create("test_mingw.nc",NC_NETCDF4|NC_CLOBBER,&ncid)))
         {fprintf(stderr,"line %d stat=%d\n",__LINE__,stat);goto done;}
     if((stat=nc_close(ncid)))

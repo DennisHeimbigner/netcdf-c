@@ -29,19 +29,21 @@ check_PROGRAMS += tst_exhash tst_xcache
 tst_exhash_SOURCES = tst_exhash.c timer_utils.c timer_utils.h 
 tst_xcache_SOURCES = tst_xcache.c timer_utils.c timer_utils.h
 
-TESTS += tst_nclist test_ncuri run_pathcvt.sh  tst_exhash tst_xcache
+#TESTS += tst_nclist test_ncuri run_pathcvt.sh  tst_exhash tst_xcache
 
 if USE_NETCDF4
 check_PROGRAMS += tst_nc4internal
-TESTS += tst_nc4internal
+#TESTS += tst_nc4internal
 endif # USE_NETCDF4
 
 check_PROGRAMS += test_aws
-TESTS += run_aws.sh
+#TESTS += run_aws.sh
 
-TESTS += test_mingw
+check_PROGRAMS += test_mingw
+TESTS += run_mingw.sh
 
-EXTRA_DIST = CMakeLists.txt run_aws.sh run_pathcvt.sh nctest_netcdf4_classic.nc
+EXTRA_DIST = CMakeLists.txt run_aws.sh run_pathcvt.sh
+EXTRA_DIST += nctest_netcdf4_classic.nc run_mingw.sh
 
 # If valgrind is present, add valgrind targets.
 @VALGRIND_CHECK_RULES@
