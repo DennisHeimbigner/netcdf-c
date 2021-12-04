@@ -7,6 +7,8 @@ set -e
 
 find .
 
-cmp nctest_classic.nc $srcdir/ref_nctest_classic.nc
-cmp nctest_64bit_offset.nc $srcdir/ref_nctest_64bit_offset.nc
+WS=`${NCPATHCVT} ${srcdir}`
+
+cmp nctest_classic.nc "$WS/ref_nctest_classic.nc"
+cmp nctest_64bit_offset.nc "$WS/ref_nctest_64bit_offset.nc"
 
