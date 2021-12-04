@@ -39,7 +39,7 @@ TESTS += $(TESTPROGRAMS) run_nctest
 TEST_EXTENSIONS = .sh
 
 # compare_test_files depends on nctest executing first.
-compare_test_files.log: nctest.log
+compare_test_files.log: run_nctest.log
 
 # These are the source files for the nctest program.
 nctest_SOURCES = add.c add.h atttests.c cdftests.c dimtests.c driver.c	\
