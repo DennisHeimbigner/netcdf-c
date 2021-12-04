@@ -33,7 +33,7 @@ check_PROGRAMS = $(TESTPROGRAMS)
 TESTS = $(TESTPROGRAMS) compare_test_files.sh
 
 check_PROGRAMS += nctest
-TESTS += $(TESTPROGRAMS) nctest
+TESTS += $(TESTPROGRAMS) run_nctest
 
 # Note which tests depend on other tests. Necessary for make -j check.
 TEST_EXTENSIONS = .sh
