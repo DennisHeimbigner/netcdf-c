@@ -190,6 +190,7 @@ test_ncopen(path)
 	error("%s: ncopen failed with NC_NOWRITE mode", pname);
 	return ++nerrs;
     }
+fprintf(stderr,"xxxxxxxxxxxxxxxxxxx\n"); fflush(stderr);
     if ((ncid1 = ncopen(path, NC_NOWRITE)) == -1) {
 #ifndef vms
 {
@@ -202,6 +203,7 @@ system(s);
 #else
 	fprintf(stderr,"Doesn't support shared access on vms\n") ;
 #endif
+fprintf(stderr,"yyyyyyyyyyyyyyyyyyy\n"); fflush(stderr);
     }
     else
     {
@@ -729,6 +731,7 @@ test_ncsync(path)
 	    error("%s: ncsync after putting data failed", pname);
 	    nerrs++;
 	}
+fprintf(stderr,"aaaaaaaaaaaaaaaaaaaaaaaaa\n"); fflush(stderr);
 	if ((ncid1 = ncopen(path, NC_NOWRITE)) == -1) {
 #ifndef vms
 {
@@ -741,6 +744,7 @@ system(s);
 #else
 	    fprintf(stderr,"Doesn't support shared access on vms\n") ;
 #endif
+fprintf(stderr,"bbbbbbbbbbbbbbbbbbbbbbbb\n"); fflush(stderr);
 	} else {
 		if (ncid0 == ncid1) {
 		    error("%s: second ncopen should return distinct handle",
