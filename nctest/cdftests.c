@@ -195,7 +195,7 @@ fprintf(stderr,"xxxxxxxxxxxxxxxxxxx\n"); fflush(stderr);
 #ifndef vms
 {
 char s[8192];
-snprintf(s,sizeof(s),"find . -name '%s'\n",path);
+snprintf(s,sizeof(s),"echo "XXXXXXXXXXXXX"; find . -name '%s'\n",path);
 system(s);
 }
 	error("%s: second ncopen failed", pname);
@@ -736,7 +736,7 @@ fprintf(stderr,"aaaaaaaaaaaaaaaaaaaaaaaaa\n"); fflush(stderr);
 #ifndef vms
 {
 char s[8192];
-snprintf(s,sizeof(s),"find . -name '%s'\n",path);
+snprintf(s,sizeof(s),"echo "AAAAAAAAA"; find . -name '%s'\n",path);
 system(s);
 }
 	    error("%s: second ncopen failed", pname);
