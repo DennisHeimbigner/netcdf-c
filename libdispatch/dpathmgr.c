@@ -40,9 +40,9 @@
 #include "ncuri.h"
 #include "ncutf8.h"
 
-#define DEBUGPATH
-static int pathdebug = 1;
-//static int pathdebug = -1;
+#undef DEBUGPATH
+//static int pathdebug = 1;
+static int pathdebug = -1;
 
 #ifdef _WIN32
 #define access _access 
