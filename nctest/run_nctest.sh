@@ -6,6 +6,9 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 set -e
 
 export NETCDF_LOG_LEVEL=10
-if test ${execdir}/nctest ; then ret=0; else ret=1; fi
+if ${execdir}/nctest ; then ret=0; else ret=1; fi
 unset NETCDF_LOG_LEVEL
+
+find .
+
 exit $ret

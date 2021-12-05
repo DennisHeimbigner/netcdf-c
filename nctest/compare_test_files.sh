@@ -5,8 +5,6 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
-find .
-
 WS=`${NCPATHCVT} ${srcdir}`
 
 cmp nctest_classic.nc "$WS/ref_nctest_classic.nc"
