@@ -160,7 +160,7 @@ if test "x$enable_dap" = xyes & test "x$found_curl" = xno ; then
   enable_dap=no
 fi
 
-AC_MSG_CHECKING([whether netcdf zarr storage format should be disabled])
+AC_MSG_CHECKING([whether netcdf zarr storage format should be enabled])
 AC_ARG_ENABLE([nczarr],
               [AS_HELP_STRING([--disable-nczarr],
                               [disable netcdf zarr storage support])])
@@ -1614,6 +1614,10 @@ AC_ARG_ENABLE([nczarr-filters], [AS_HELP_STRING([--disable-nczarr-filters],
               [disable NCZarr filters])])
 test "x$enable_nczarr_filters" = xno || enable_nczarr_filters=yes
 AC_MSG_RESULT([$enable_nczarr_filters])
+if test "x$enable_nczarr" == "xno" ; then
+ AC_MSG_WARN([NCZarr filters disabled because =-disable-nczarr])
+enable_nczarr_filters=no
+fi
 if test "x$enable_nczarr_filters" = xyes; then
    AC_DEFINE([ENABLE_NCZARR_FILTERS], [1], [if true, enable NCZarr filters])
 fi

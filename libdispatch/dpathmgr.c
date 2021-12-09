@@ -41,7 +41,6 @@
 #include "ncutf8.h"
 
 #undef DEBUGPATH
-//static int pathdebug = 1;
 static int pathdebug = -1;
 
 #ifdef _WIN32
@@ -356,19 +355,29 @@ NCfopen(const char* path, const char* flags)
 {
     int stat = NC_NOERR;
     FILE* f = NULL;
+    char* bflags = NULL;
     char* cvtpath = NULL;
     wchar_t* wpath = NULL;
     wchar_t* wflags = NULL;
+    size_t flaglen = strlen(flags)+1+1;
+
+    bflags = (char*)malloc(flaglen);
+    bflags[0] = '\0';
+    strlcat(bflags,flags,flaglen);
+#ifdef _WIN32
+    strlcat(bflags,"b",flaglen);    
+#endif
     cvtpath = NCpathcvt(path);
     if(cvtpath == NULL) return NULL;
     /* Convert from local to wide */
     if((stat = utf82wide(cvtpath,&wpath))) goto done;    
-    if((stat = ansi2wide(flags,&wflags))) goto done;    
+    if((stat = ansi2wide(bflags,&wflags))) goto done;    
     f = _wfopen(wpath,wflags);
 done:
     nullfree(cvtpath);    
     nullfree(wpath);    
     nullfree(wflags);    
+    nullfree(bflags);
     return f;
 }
 
@@ -384,6 +393,9 @@ NCopen3(const char* path, int flags, int mode)
     if(cvtpath == NULL) goto done;
     /* Convert from utf8 to wide */
     if((stat = utf82wide(cvtpath,&wpath))) goto done;    
+#ifdef _WIN32
+    flags |= O_BINARY;
+#endif
     fd = _wopen(wpath,flags,mode);
 done:
     nullfree(cvtpath);    
@@ -566,7 +578,7 @@ NCstat(char* path, struct stat* buf)
     wchar_t* wpath = NULL;
     if((cvtpath = NCpathcvt(path)) == NULL) {status=ENOMEM; goto done;}
     if((status = utf82wide(cvtpath,&wpath))) {status = ENOENT; goto done;}
-    if(_wstat(wpath,buf) < 0) {status = errno; goto done;}
+    if(_wstat64(wpath,buf) < 0) {status = errno; goto done;}
 done:
     free(cvtpath);    
     free(wpath);    

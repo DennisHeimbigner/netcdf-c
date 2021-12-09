@@ -1620,7 +1620,6 @@ nc_set_log_level(int new_level)
     /* Remember the new level. */
     nc_log_level = new_level;
     LOG((4, "log_level changed to %d", nc_log_level));
-fprintf(stderr,">>> zzz: %d\n",new_level);
 #endif /*LOGGING */
     return 0;
 }

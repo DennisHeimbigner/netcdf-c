@@ -5,7 +5,6 @@
 
 # See netcdf-c/COPYRIGHT file for more info.
 
-set -x
 # Define location of execution
 TOPSRCDIR='@abs_top_srcdir@'
 TOPBUILDDIR='@abs_top_builddir@'

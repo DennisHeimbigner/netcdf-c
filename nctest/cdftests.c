@@ -14,6 +14,7 @@
 #include "add.h"		/* functions to update in-memory netcdf */
 #include "error.h"
 #include "tests.h"
+#include "ncpathmgr.h"
 
 #define LEN_OF(array) ((sizeof array) / (sizeof array[0]))
 
@@ -132,7 +133,7 @@ test_ncopen(path)
      * safe, because sometimes it's a .o and sometimes a .obj. So just
      * create a file!
      */
-    if (!(temp = fopen(TEMP_FILE_NAME, "w+")))
+    if (!(temp = NCfopen(TEMP_FILE_NAME, "w+")))
     {
        error("could not create temp file");
        return ++nerrs;
@@ -190,20 +191,13 @@ test_ncopen(path)
 	error("%s: ncopen failed with NC_NOWRITE mode", pname);
 	return ++nerrs;
     }
-fprintf(stderr,"xxxxxxxxxxxxxxxxxxx\n"); fflush(stderr);
     if ((ncid1 = ncopen(path, NC_NOWRITE)) == -1) {
-#ifndef vms
-{
-char s[8192];
-snprintf(s,sizeof(s),"find . -name '%s' >./XXXX\n",path);
-system(s);
-}
+#if !defined vms && !defined _WIN32
 	error("%s: second ncopen failed", pname);
 	nerrs++;
 #else
 	fprintf(stderr,"Doesn't support shared access on vms\n") ;
 #endif
-fprintf(stderr,"yyyyyyyyyyyyyyyyyyy\n"); fflush(stderr);
     }
     else
     {
@@ -731,20 +725,13 @@ test_ncsync(path)
 	    error("%s: ncsync after putting data failed", pname);
 	    nerrs++;
 	}
-fprintf(stderr,"aaaaaaaaaaaaaaaaaaaaaaaaa\n"); fflush(stderr);
 	if ((ncid1 = ncopen(path, NC_NOWRITE)) == -1) {
-#ifndef vms
-{
-char s[8192];
-snprintf(s,sizeof(s),"find . -name '%s' >./AAAA\n",path);
-system(s);
-}
+#if !defined vms && !defined _WIN32
 	    error("%s: second ncopen failed", pname);
 	    nerrs++;
 #else
 	    fprintf(stderr,"Doesn't support shared access on vms\n") ;
 #endif
-fprintf(stderr,"bbbbbbbbbbbbbbbbbbbbbbbb\n"); fflush(stderr);
 	} else {
 		if (ncid0 == ncid1) {
 		    error("%s: second ncopen should return distinct handle",

@@ -4,10 +4,10 @@
 # This file builds and runs the nctest program, which tests the netCDF
 # version 2 interface.
 
-SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-TESTS_ENVIRONMENT = export SETX=1;
+#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#TESTS_ENVIRONMENT = export SETX=1;
 
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
@@ -21,25 +21,22 @@ AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
 # generated in a pressurized chamber that exactly simulated the
 # atmosphere on the surface of Mars.
 EXTRA_DIST = ref_nctest_classic.nc ref_nctest_64bit_offset.nc	\
-compare_test_files.sh CMakeLists.txt run_nctest.sh
+compare_test_files.sh CMakeLists.txt
 
 CLEANFILES = nctest_*.nc test2.nc temp.tmp tst_*.nc	\
 nctest_classic.cdl ref_nctest_classic.cdl
 
 # Run nctest and the script that compares the output with the
 # reference file.
-TESTPROGRAMS = tst_rename
+TESTPROGRAMS = nctest tst_rename
 check_PROGRAMS = $(TESTPROGRAMS)
 TESTS = $(TESTPROGRAMS) compare_test_files.sh
-
-check_PROGRAMS += nctest
-TESTS += $(TESTPROGRAMS) run_nctest
 
 # Note which tests depend on other tests. Necessary for make -j check.
 TEST_EXTENSIONS = .sh
 
 # compare_test_files depends on nctest executing first.
-compare_test_files.log: run_nctest.log
+compare_test_files.log: nctest.log
 
 # These are the source files for the nctest program.
 nctest_SOURCES = add.c add.h atttests.c cdftests.c dimtests.c driver.c	\
