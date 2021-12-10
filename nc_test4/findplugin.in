@@ -26,18 +26,12 @@ findplugin() {
 
 FP_NAME="$1"
 
-# Figure out the compiler (some values from ./configure)
-FP_ISCMAKE=@ISCMAKE@
-FP_ISMSVC=@ISMSVC@
-FP_ISCYGWIN=@ISCYGWIN@
-FP_ISOSX=@ISOSX@
-
 FP_PLUGIN_LIB=
 FP_PLUGIN_PATH=
 
 # Figure out the plugin file name
 # Test for visual studio before cygwin since both might be true
-if test "x$FP_ISMSVC" != x ; then
+if test "x$FP_ISMSVC" != x || "x$FP_ISMINGW" != x || "x$FP_ISMSYS" != x ; then
   FP_PLUGIN_LIB="${FP_NAME}.dll"
 elif test "x$FP_ISCYGWIN" != x ; then
   FP_PLUGIN_LIB="cyg${FP_NAME}.dll"
@@ -58,6 +52,7 @@ fi
 # Figure out the path to where the lib is stored
 # This can probably be simplified
 
+alias pwd
 CURWD=`pwd`
 cd ${TOPBUILDDIR}/plugins
 FP_PLUGINS=`pwd`

@@ -88,7 +88,10 @@ if test "x${FP_ISMSYS}" = xyes || test "x${FP_ISCYGWIN}" = xyes ; then
   fi
 fi
 if test "x${FP_ISMINGW}" = xyes ; then
+    GETPWD="pwd -W"
     alias pwd='pwd -W'
+else
+    GETPWD="pwd"
 fi
 
 # We assume that TOPSRCDIR and TOPBUILDDIR are defined
