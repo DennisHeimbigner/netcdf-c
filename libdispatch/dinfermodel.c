@@ -1160,11 +1160,7 @@ openmagic(struct MagicFile* file)
 	    if(file->path == NULL || strlen(file->path)==0)
 	        {status = NC_EINVAL; goto done;}
 
-#ifdef _WIN32
-            file->fp = NCfopen(file->path, "rb");
-#else
             file->fp = NCfopen(file->path, "r");
-#endif
    	    if(file->fp == NULL)
 	        {status = errno; goto done;}
   	    /* Get its length */
