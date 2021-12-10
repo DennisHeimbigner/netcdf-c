@@ -278,12 +278,6 @@ endif()
     build_bin_test_no_prefix(tst_fillbug)
     add_sh_test(ncdump_sh tst_fillbug)
 
-    IF(HAVE_BASH)
-      IF(NOT MSVC AND NOT MINGW)
-        add_sh_test(ncdump tst_netcdf4_4)
-      ENDIF()
-    ENDIF(HAVE_BASH)
-
     ###
     # Some test reordering was required to ensure these tests
     # only ran after ncdump was built.
@@ -297,9 +291,11 @@ endif()
     add_sh_test(ncdump tst_mud)
     add_sh_test(ncdump_shell tst_h_scalar)
 
+    add_sh_test(ncdump tst_netcdf4_4)
     add_sh_test(ncdump tst_nccopy4)
     IF(HAVE_BASH)
       SET_TESTS_PROPERTIES(ncdump_tst_nccopy4 PROPERTIES RUN_SERIAL TRUE)
+      SET_TESTS_PROPERTIES(ncdump_tst_netcdf4_4 PROPERTIES RUN_SERIAL TRUE)
     ENDIF(HAVE_BASH)
 
     add_sh_test(ncdump tst_nccopy5)

@@ -119,7 +119,7 @@ tst_ncgen4.sh test_scope.sh
 tst_nccopy4.log: run_ncgen_tests.log tst_output.log tst_ncgen4.log	\
 tst_fillbug.log tst_netcdf4_4.log tst_h_scalar.log
 tst_nccopy5.log: tst_nccopy4.log
-endif #!USE_HDF5
+endif #USE_HDF5
 
 TESTS += tst_inmemory_nc3.sh tst_nccopy_w3.sh
 if USE_HDF5

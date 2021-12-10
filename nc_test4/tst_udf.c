@@ -17,6 +17,16 @@
 
 #define FILE_NAME "tst_udf.nc"
 
+#ifdef _MSC_VER
+static int
+NC4_no_show_metadata(int ncid)
+{
+    return NC_NOERR;
+}
+
+#define NC4_show_metadata NC4_no_show_metadata
+#endif
+
 int
 tst_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
          void *parameters, const NC_Dispatch *dispatch, int ncid)
