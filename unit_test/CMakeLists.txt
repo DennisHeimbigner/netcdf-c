@@ -26,8 +26,7 @@ FOREACH(CTEST ${UNIT_TESTS})
 ENDFOREACH()
 
 # Path convert test(s)
-build_bin_test(test_pathcvt)
-ADD_SH_TEST(unit_test run_pathcvt)
+add_bin_test(unit_test test_pathcvt)
 
 # Aws Tests
 build_bin_test(test_aws)
