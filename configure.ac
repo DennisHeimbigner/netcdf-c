@@ -7,10 +7,10 @@
 
 # Running autoconf on this file will trigger a warning if
 # autoconf is not at least the specified version.
-AC_PREREQ([2.59])
+AC_PREREQ([2.71])
 
 # Initialize with name, version, and support email address.
-AC_INIT([netCDF], [4.8.2-development], [support-netcdf@unidata.ucar.edu], [netcdf-c])
+AC_INIT([netCDF],[4.8.2-development],[support-netcdf@unidata.ucar.edu],[netcdf-c])
 
 ##
 # Prefer an empty CFLAGS variable instead of the default -g -O2.
@@ -92,6 +92,19 @@ AM_INIT_AUTOMAKE([foreign dist-zip subdir-objects])
 
 # Check for the existence of this file before proceeding.
 AC_CONFIG_SRCDIR([include/netcdf.h])
+
+# Figure out platforms of special interest
+case "`uname`" in
+  CYGWIN*) ISCYGWIN=yes;;
+  Darwin*) ISOSX=yes;;
+  WIN*) ISMSVC=yes;;
+  MINGW*) ISMINGW=yes;;
+esac
+
+if test "x$MSYSTEM" != x ; then
+ISMINGW=yes
+ISMSYS=yes
+fi
 
 AC_MSG_NOTICE([checking supported formats])
 
@@ -1017,7 +1030,7 @@ AC_MSG_NOTICE([checking types, headers, and functions])
 AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([libgen.h])
 #AC_CHECK_HEADERS([locale.h])
-AC_HEADER_STDC
+
 AC_CHECK_HEADERS([locale.h stdio.h stdarg.h fcntl.h malloc.h stdlib.h string.h strings.h unistd.h sys/stat.h getopt.h sys/time.h sys/types.h time.h dirent.h])
 
 # Do sys/resource.h separately
@@ -1183,10 +1196,19 @@ AC_ARG_ENABLE([plugins],
                               [disallow dynamically loaded plugins])])
 test "x$enable_plugins" = xno || enable_plugins=yes
 AC_MSG_RESULT([$enable_plugins])
-if test "x$have_libdld" = xno ; then
+if test "x$have_libdld" = xno && test "x$ISMSVC" = xno; then
   enable_plugins=no
   AC_MSG_WARN([libdld required for enable-plugins.])  
 fi
+if test "x$enable_plugins" = xyes && test "x$ISMINGW" = xyes; then
+  AC_MSG_WARN([MINGW => --disable-plugins])
+  enable_plugins=no
+fi
+if test "x$enable_plugins" = xyes && test "x$enable_shared" = xno; then
+    AC_MSG_WARN([--disable-shared => --disable-plugins])
+    enable_plugins=no
+fi
+
 if test "x$enable_plugins" = xyes; then
     AC_DEFINE([ENABLE_PLUGINS], [1], [if true, support dynamically loaded plugins])
 fi
@@ -1194,26 +1216,15 @@ AM_CONDITIONAL(ENABLE_PLUGINS, [test "x$enable_plugins" = xyes])
 
 AC_FUNC_ALLOCA
 AC_CHECK_DECLS([isnan, isinf, isfinite],,,[#include <math.h>])
-AC_STRUCT_ST_BLKSIZE
+AC_CHECK_MEMBERS([struct stat.st_blksize],[AC_DEFINE(HAVE_STAT_ST_BLKSIZE, 1,
+			    [Define to 1 if your `struct stat' has
+			     `st_blksize'.])])
 UD_CHECK_IEEE
 AC_CHECK_TYPES([size_t, ssize_t, schar, uchar, longlong, ushort, uint, int64, uint64, size64_t, ssize64_t, _off64_t, uint64_t])
 AC_TYPE_OFF_T
 AC_TYPE_UINTPTR_T
 AC_C_CHAR_UNSIGNED
 AC_C_BIGENDIAN
-
-# Figure out platforms of special interest
-case "`uname`" in
-  CYGWIN*) ISCYGWIN=yes;;
-  Darwin*) ISOSX=yes;;
-  WIN*) ISMSVC=yes;;
-  MINGW*) ISMINGW=yes;;
-esac
-
-if test "x$MSYSTEM" != x ; then
-ISMINGW=yes
-ISMSYS=yes
-fi
 
 AM_CONDITIONAL(ISCYGWIN, [test "x$ISCYGWIN" = xyes])
 AM_CONDITIONAL(ISMSVC, [test "x$ISMSVC" = xyes])
@@ -1614,13 +1625,6 @@ AC_ARG_ENABLE([nczarr-filters], [AS_HELP_STRING([--disable-nczarr-filters],
               [disable NCZarr filters])])
 test "x$enable_nczarr_filters" = xno || enable_nczarr_filters=yes
 AC_MSG_RESULT([$enable_nczarr_filters])
-if test "x$enable_nczarr" == "xno" ; then
- AC_MSG_WARN([NCZarr filters disabled because =-disable-nczarr])
-enable_nczarr_filters=no
-fi
-if test "x$enable_nczarr_filters" = xyes; then
-   AC_DEFINE([ENABLE_NCZARR_FILTERS], [1], [if true, enable NCZarr filters])
-fi
 
 # Control filter test/example
 AC_MSG_CHECKING([whether filter testing should be run])
@@ -1630,19 +1634,24 @@ AC_ARG_ENABLE([filter-testing],
 test "x$enable_filter_testing" = xno || enable_filter_testing=yes
 AC_MSG_RESULT($enable_filter_testing)
 
-if test "x$enable_nczarr" = xno ; then
+# Apply constraints
+if test "x$enable_plugins" = xno ; then
+AC_MSG_WARN([--disable-plugins => --disable-nczarr-filters])
 enable_nczarr_filters=no
 fi
 
-if test "x$enable_hdf5" = xno && test "x$enable_nczarr" = xno ; then
-AC_MSG_WARN([HDF5 and NCZarr are disabled => --disable-filter-testing])
+if test "x$enable_plugins" = xno ; then
+AC_MSG_WARN([--disable-plugins => --disable-filter-testing])
 enable_filter_testing=no
 fi
 
-if test "x$enable_shared" = xno ; then
-AC_MSG_WARN([Shared libraries are disabled => --disable-filter-testing])
-enable_filter_testing=no
-enable_nczarr_filters=no
+if test "x$enable_filter_testing" = xno; then
+AC_MSG_WARN([--disable-filter-testing => --disable-nczarr-filter-testing])
+enable_nczarr_filter_testing=no
+fi
+
+if test "x$enable_nczarr_filters" = xyes; then
+   AC_DEFINE([ENABLE_NCZARR_FILTERS], [1], [if true, enable NCZarr filters])
 fi
 
 # Client side filter registration is permanently disabled
@@ -1956,6 +1965,6 @@ AC_CONFIG_FILES([Makefile
                  plugins/Makefile
 		 nczarr_test/Makefile
                  ])
-AC_OUTPUT()
+AC_OUTPUT
 
 cat libnetcdf.settings

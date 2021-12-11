@@ -53,7 +53,7 @@ AM_CXXFLAGS = -std=c++11
 endif
 
 if REGEDIT
-libdispatch_la_SOURCES += reg.c
+libdispatch_la_SOURCES += dreg.c
 endif
 
 EXTRA_DIST=CMakeLists.txt ncsettings.hdr utf8proc_data.c

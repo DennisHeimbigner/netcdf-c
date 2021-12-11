@@ -23,7 +23,7 @@ IF(ENABLE_S3_SDK)
 ENDIF(ENABLE_S3_SDK)
 
 IF(REGEDIT)
-  SET(libdispatch_SOURCES ${libdispatch_SOURCES} reg.c)
+  SET(libdispatch_SOURCES ${libdispatch_SOURCES} dreg.c)
 ENDIF(REGEDIT)
 
 add_library(dispatch OBJECT ${libdispatch_SOURCES})
