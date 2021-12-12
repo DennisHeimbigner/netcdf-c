@@ -7,7 +7,7 @@
 
 # Running autoconf on this file will trigger a warning if
 # autoconf is not at least the specified version.
-AC_PREREQ([2.71])
+AC_PREREQ([2.59])
 
 # Initialize with name, version, and support email address.
 AC_INIT([netCDF],[4.8.2-development],[support-netcdf@unidata.ucar.edu],[netcdf-c])
@@ -173,7 +173,7 @@ if test "x$enable_dap" = xyes & test "x$found_curl" = xno ; then
   enable_dap=no
 fi
 
-AC_MSG_CHECKING([whether netcdf zarr storage format should be enabled])
+AC_MSG_CHECKING([whether netcdf zarr storage format should be disabled])
 AC_ARG_ENABLE([nczarr],
               [AS_HELP_STRING([--disable-nczarr],
                               [disable netcdf zarr storage support])])
@@ -1030,7 +1030,7 @@ AC_MSG_NOTICE([checking types, headers, and functions])
 AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([libgen.h])
 #AC_CHECK_HEADERS([locale.h])
-
+AC_HEADER_STDC
 AC_CHECK_HEADERS([locale.h stdio.h stdarg.h fcntl.h malloc.h stdlib.h string.h strings.h unistd.h sys/stat.h getopt.h sys/time.h sys/types.h time.h dirent.h])
 
 # Do sys/resource.h separately
@@ -1216,9 +1216,7 @@ AM_CONDITIONAL(ENABLE_PLUGINS, [test "x$enable_plugins" = xyes])
 
 AC_FUNC_ALLOCA
 AC_CHECK_DECLS([isnan, isinf, isfinite],,,[#include <math.h>])
-AC_CHECK_MEMBERS([struct stat.st_blksize],[AC_DEFINE(HAVE_STAT_ST_BLKSIZE, 1,
-			    [Define to 1 if your `struct stat' has
-			     `st_blksize'.])])
+AC_STRUCT_ST_BLKSIZE
 UD_CHECK_IEEE
 AC_CHECK_TYPES([size_t, ssize_t, schar, uchar, longlong, ushort, uint, int64, uint64, size64_t, ssize64_t, _off64_t, uint64_t])
 AC_TYPE_OFF_T
@@ -1242,7 +1240,7 @@ if test "x$ISMSVC" != x ; then REGEDIT=yes; fi
 if test "x$ISMSYS" != x ; then REGEDIT=yes; fi
 if test "x$ISCYGWIN" != x ; then REGEDIT=yes; fi
 if test "x$REGEDIT" = xyes; then
-  AC_DEFINE([REGEDIT], 1, [reg.c usable])
+  AC_DEFINE([REGEDIT], 1, [dreg.c usable])
 fi
 AM_CONDITIONAL(REGEDIT, [test "x$REGEDIT" = xyes])
 AC_SUBST([ISREGEDIT], [yes])
@@ -1965,6 +1963,6 @@ AC_CONFIG_FILES([Makefile
                  plugins/Makefile
 		 nczarr_test/Makefile
                  ])
-AC_OUTPUT
+AC_OUTPUT()
 
 cat libnetcdf.settings
