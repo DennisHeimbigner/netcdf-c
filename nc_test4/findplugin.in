@@ -23,6 +23,7 @@
 # variables: see hdf5plugins/CMakeLists.txt
 
 findplugin() {
+set -x
 
 FP_NAME="$1"
 
