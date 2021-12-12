@@ -55,7 +55,7 @@ fi
 # Figure out the path to where the lib is stored
 # This can probably be simplified
 
-alias pwd
+if alias pwd ; then alias pwd ; else echo no pwd alias; fi
 CURWD=`pwd`
 XCURWD=`pwd -W`
 cd ${TOPBUILDDIR}/plugins
