@@ -571,7 +571,7 @@ done:
 #ifdef HAVE_SYS_STAT_H
 EXTERNL
 int
-NCstat(char* path, struct stat* buf)
+NCstat(const char* path, struct stat* buf)
 {
     int status = 0;
     char* cvtpath = NULL;

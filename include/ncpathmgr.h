@@ -183,7 +183,7 @@ EXTERNL char* NCgetcwd(char* cwdbuf, size_t len);
 EXTERNL int NCmkstemp(char* buf);
 
 #ifdef HAVE_SYS_STAT_H
-EXTERNL int NCstat(char* path, struct stat* buf);
+EXTERNL int NCstat(const char* path, struct stat* buf);
 #endif
 #ifdef HAVE_DIRENT_H
 EXTERNL DIR* NCopendir(const char* path);

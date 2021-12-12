@@ -993,7 +993,6 @@ Return the value.
 static int
 parseULL(const char* text, unsigned long long* ullp)
 {
-    extern int errno;
     char* endptr;
     unsigned long long uint64 = 0;
 

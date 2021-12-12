@@ -1600,7 +1600,7 @@ case 21:
 YY_RULE_SETUP
 #line 209 "ncgen.l"
 {
-		if (sscanf((char*)yytext, "%hd", &short_val) != 1) {
+		if (sscanf((char*)yytext, "%d", &short_val) != 1) {
 		    sprintf(errstr,"bad short constant: %s",(char*)yytext);
 		    yyerror(errstr);
 		}
