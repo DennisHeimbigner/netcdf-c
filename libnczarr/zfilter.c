@@ -53,8 +53,8 @@
 #include "netcdf_aux.h"
 
 #undef DEBUG
-#undef DEBUGF
-#undef DEBUGL
+#define DEBUGF
+#define DEBUGL
 
 #define NULLIFY(x) ((x)?(x):"NULL")
 
