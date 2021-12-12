@@ -1038,8 +1038,9 @@ IF(NOT WIN32)
 ENDIF()
 
 # Option to Enable DAP long tests, remote tests.
+# Temporarily disable
+OPTION(ENABLE_DAP_REMOTE_TESTS "Enable DAP remote tests." OFF)
 OPTION(ENABLE_DAP_LONG_TESTS "Enable DAP long tests." OFF)
-OPTION(ENABLE_DAP_REMOTE_TESTS "Enable DAP remote tests." ON)
 SET(REMOTETESTSERVERS "remotetest.unidata.ucar.edu" CACHE STRING "test servers to use for remote test")
 
 # See if we have zlib
@@ -1092,9 +1093,13 @@ ENDIF()
 
 # libdl is always available; built-in in Windows and OSX
 OPTION(ENABLE_PLUGINS "Enable dynamically loaded plugins (default on)." ON)
-IF(NOT WIN32)
-  IF(HAVE_DLFCN_H)
-    INCLUDE_DIRECTORIES("dlfcn.h")
+IF(MINGW)
+    SET(ENABLE_PLUGINS OFF CACHE BOOL "Disable plugins" FORCE)
+ELSE()
+  IF(NOT WIN32)
+    IF(HAVE_DLFCN_H)
+      INCLUDE_DIRECTORIES("dlfcn.h")
+    ENDIF()
   ENDIF()
 ENDIF()
 
