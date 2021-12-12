@@ -858,7 +858,6 @@ platformdircontent(ZFMAP* zfmap, const char* canonpath, NClist* contents)
 	}
     }
     do {
-	char* p = NULL;
 	const char* name = NULL;
         name = FindFileData.cFileName;
 	if(strcmp(name,".")==0 || strcmp(name,"..")==0)
