@@ -1093,8 +1093,8 @@ ENDIF()
 
 # libdl is always available; built-in in Windows and OSX
 OPTION(ENABLE_PLUGINS "Enable dynamically loaded plugins (default on)." ON)
+MESSAGE("ZZZZ: CMAKE_SYSTEM_NAME=k${CMAKE_SYSTEM_NAME}")
 IF(MINGW)
-MESSAGE("XXXX: plugins disabled")
     SET(ENABLE_PLUGINS OFF CACHE BOOL "Disable plugins" FORCE)
 ELSE()
   IF(NOT WIN32)
