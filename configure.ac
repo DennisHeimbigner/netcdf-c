@@ -1244,6 +1244,9 @@ if test "x$REGEDIT" = xyes; then
 fi
 AM_CONDITIONAL(REGEDIT, [test "x$REGEDIT" = xyes])
 AC_SUBST([ISREGEDIT], [yes])
+if test "x$enable_plugins" != x; then
+AC_SUBST(USEPLUGINS, [yes])
+fi
 
 ###
 # Crude hack to work around an issue

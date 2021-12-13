@@ -127,7 +127,7 @@ if test "x$NCAUTH_HOMETEST" != x ; then RCHOME=1; fi
 
 #cd ../plugins; make clean all >/dev/null; cd ../nczarr_test
 
-if test "x$FP_ISMINGW" != xyes; then
+if test "x$FP_USEPLUGINS" != xyes; then
 # Load the findplugins function
 . ${builddir}/findplugin.sh
 echo "findplugin.sh loaded"
@@ -139,7 +139,7 @@ findplugin h5misc
 
 echo "final HDF5_PLUGIN_PATH=${HDF5_PLUGIN_PATH}"
 export HDF5_PLUGIN_PATH
-fi
+fi # USEPLUGINS
 
 resetrc() {
   if test "x$RCHOME" = x1 ; then
