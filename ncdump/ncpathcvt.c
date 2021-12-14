@@ -25,7 +25,7 @@
 #include "ncpathmgr.h"
 
 static const char* USAGE =
-"ncpathcvt [-c|-C|-m|-u|-w] [-h] [-e] [-d <driveletter>] [-B<char>] [-k] PATH\n"
+"ncpathcvt [-c|-C|-m|-u|-w] [-h] [-e] [-d <driveletter>] [-B<char>] [-k] [-p] PATH\n"
 "Options\n"
 "  -h help"
 "  -e add backslash escapes to '\' and ' '\n"
@@ -39,6 +39,7 @@ static const char* USAGE =
 "  -w convert to Windows form of path\n"
 "Other options:\n"
 "  -k return kind of the local environment\n"
+"  -p return kind of the input path\n"
 "\n"
 "Default is to convert to the format used by the platform.\n"
 ;
@@ -52,6 +53,7 @@ struct Options {
     int debug;
     int canon;
     int blank;
+    int pathkind;
 } cvtoptions;
 
 static char* escape(const char* path);
@@ -140,6 +142,23 @@ printenv(void)
     exit(0);
 }
 
+void
+printpathkind(const char* path)
+{
+    const char* s = NULL;
+    int kind = NCgetinputpathkind(path);
+    switch (kind) {
+    case NCPD_NIX: s = "unix"; break;
+    case NCPD_MSYS: s = "msys"; break;
+    case NCPD_CYGWIN: s = "cygwin"; break;
+    case NCPD_WIN: s = "win"; break;
+    case NCPD_REL: s = "relative"; break;
+    default: s = "unknown"; break;
+    }
+    printf("%s",s);
+    exit(0);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -150,7 +169,7 @@ main(int argc, char** argv)
     memset((void*)&cvtoptions,0,sizeof(cvtoptions));
     cvtoptions.drive = 'c';
 
-    while ((c = getopt(argc, argv, "B:CcD:d:ehkmuwX")) != EOF) {
+    while ((c = getopt(argc, argv, "B:CcD:d:ehkmpuwX")) != EOF) {
 	switch(c) {
 	case 'c': cvtoptions.target = NCPD_CYGWIN; break;
 	case 'd': cvtoptions.drive = optarg[0]; break;
@@ -158,6 +177,7 @@ main(int argc, char** argv)
 	case 'h': usage(NULL); break;
 	case 'k': printlocalkind(); break;
 	case 'm': cvtoptions.target = NCPD_MSYS; break;
+	case 'p': cvtoptions.pathkind = 1; break;
 	case 'u': cvtoptions.target = NCPD_NIX; break;
 	case 'w': cvtoptions.target = NCPD_WIN; break;
 	case 'B':
@@ -199,6 +219,11 @@ main(int argc, char** argv)
 	*q = '\0';
     } 
 
+    if(cvtoptions.pathkind) {
+	printpathkind(inpath);
+	goto done;
+    }
+
     /* Canonicalize */
     if(NCpathcanonical(inpath,&canon))
        usage("Could not convert to canonical form");
@@ -217,6 +242,7 @@ main(int argc, char** argv)
 	free(path);
     }
     printf("%s",cvtpath);
+done:
     if(canon) free(canon);
     if(inpath) free(inpath);
     if(cvtpath) free(cvtpath);
