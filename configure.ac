@@ -1245,6 +1245,7 @@ fi
 AM_CONDITIONAL(REGEDIT, [test "x$REGEDIT" = xyes])
 AC_SUBST([ISREGEDIT], [yes])
 if test "x$enable_plugins" != x; then
+echo "XXXXXX: useplugins: ${enable_plugins}"
 AC_SUBST(USEPLUGINS, [yes])
 fi
 
