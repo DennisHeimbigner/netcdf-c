@@ -260,14 +260,14 @@ endif()
     # It passes, but technically fails because the scientific
     # formatting omits a 0.
     ###
-    IF(EXTRA_TESTS)
-      IF(USE_HDF5)
-        IF(NOT MSVC AND NOT MINGW)
-          add_sh_test(ncdump run_back_comp_tests)
+    IF(HAVE_BASH)
+#      IF(NOT MSVC AND NOT MINGW)
+        add_sh_test(ncdump tst_netcdf4_4)
+        IF(USE_HDF5)
+           add_sh_test(ncdump run_back_comp_tests)
         ENDIF()
-      ENDIF()
-    ENDIF(EXTRA_TESTS)
-
+#      ENDIF()
+    ENDIF(HAVE_BASH) 
     # Known failure on MSVC; the number of 0's padding
     # is different, but the result is actually correct.
     IF(HAVE_BASH)
@@ -277,6 +277,12 @@ endif()
 
     build_bin_test_no_prefix(tst_fillbug)
     add_sh_test(ncdump_sh tst_fillbug)
+
+    IF(HAVE_BASH)
+      IF(NOT MSVC AND NOT MINGW)
+        add_sh_test(ncdump tst_netcdf4_4)
+      ENDIF()
+    ENDIF(HAVE_BASH)
 
     ###
     # Some test reordering was required to ensure these tests
@@ -291,17 +297,11 @@ endif()
     add_sh_test(ncdump tst_mud)
     add_sh_test(ncdump_shell tst_h_scalar)
 
-    add_sh_test(ncdump tst_netcdf4_4)
     add_sh_test(ncdump tst_nccopy4)
-    IF(HAVE_BASH)
-      SET_TESTS_PROPERTIES(ncdump_tst_nccopy4 PROPERTIES RUN_SERIAL TRUE)
-      SET_TESTS_PROPERTIES(ncdump_tst_netcdf4_4 PROPERTIES RUN_SERIAL TRUE)
-    ENDIF(HAVE_BASH)
+    SET_TESTS_PROPERTIES(ncdump_tst_nccopy4 PROPERTIES DEPENDS "ncdump_tst_netcdf4_4")
 
     add_sh_test(ncdump tst_nccopy5)
-    IF(HAVE_BASH)
-      SET_TESTS_PROPERTIES(ncdump_tst_nccopy5 PROPERTIES RUN_SERIAL TRUE)
-    ENDIF(HAVE_BASH)
+    SET_TESTS_PROPERTIES(ncdump_tst_nccopy5 PROPERTIES DEPENDS "ncdump_tst_nccopy4")
 
     IF(USE_HDF5)
       add_sh_test(ncdump tst_ncgen4)
