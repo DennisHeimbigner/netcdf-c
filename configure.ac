@@ -1212,6 +1212,9 @@ if test "x$enable_plugins" = xyes; then
     AC_DEFINE([ENABLE_PLUGINS], [1], [if true, support dynamically loaded plugins])
 fi
 AM_CONDITIONAL(ENABLE_PLUGINS, [test "x$enable_plugins" = xyes])
+if test "x$enable_plugins" != x; then
+AC_SUBST(USEPLUGINS, [yes])
+fi
 
 AC_FUNC_ALLOCA
 AC_CHECK_DECLS([isnan, isinf, isfinite],,,[#include <math.h>])
@@ -1243,10 +1246,6 @@ if test "x$REGEDIT" = xyes; then
 fi
 AM_CONDITIONAL(REGEDIT, [test "x$REGEDIT" = xyes])
 AC_SUBST([ISREGEDIT], [yes])
-if test "x$enable_plugins" != x; then
-echo "XXXXXX: useplugins: ${enable_plugins}"
-AC_SUBST(USEPLUGINS, [yes])
-fi
 
 ###
 # Crude hack to work around an issue

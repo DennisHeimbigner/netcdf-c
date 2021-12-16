@@ -1092,7 +1092,6 @@ ENDIF()
 
 # libdl is always available; built-in in Windows and OSX
 OPTION(ENABLE_PLUGINS "Enable dynamically loaded plugins (default on)." ON)
-MESSAGE("ZZZZ: CMAKE_SYSTEM_NAME=k${CMAKE_SYSTEM_NAME}")
 IF(MINGW)
     SET(ENABLE_PLUGINS OFF CACHE BOOL "Disable plugins" FORCE)
 ELSE()
@@ -1102,6 +1101,9 @@ ELSE()
     ENDIF()
   ENDIF()
 ENDIF()
+IF(ENABLE_PLUGINS)
+  SET(USEPLUGINS YES)
+fi
 
 # Enable some developer-only tests
 OPTION(ENABLE_EXTRA_TESTS "Enable Extra tests. Some may not work because of known issues. Developers only." OFF)
