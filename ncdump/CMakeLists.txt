@@ -262,11 +262,12 @@ endif()
     ###
     IF(HAVE_BASH)
 #      IF(NOT MSVC AND NOT MINGW)
+      IF(NOT CYGWIN AND NOT MINGW)
         add_sh_test(ncdump tst_netcdf4_4)
         IF(USE_HDF5)
            add_sh_test(ncdump run_back_comp_tests)
         ENDIF()
-#      ENDIF()
+      ENDIF()
     ENDIF(HAVE_BASH) 
     # Known failure on MSVC; the number of 0's padding
     # is different, but the result is actually correct.
