@@ -83,10 +83,8 @@ COLUMBIA="http://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GMAO/.MONTH
 # Known to fail
 
 XFAILTESTS=
-# Suppress some tests
-if test "x$FP_ISMSVC" = xyes || test "x$FP_ISMINGW" = xyes ; then
-    XFAILTESTS="$XFAILTESTS test.67"
-fi
+# Suppress some tests because of floating point precision issues
+XFAILTESTS="$XFAILTESTS test.67"
 
 # Following tests must be run as not cached
 NOCACHETESTS="test.07"

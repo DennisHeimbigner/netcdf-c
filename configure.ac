@@ -1207,14 +1207,13 @@ if test "x$enable_plugins" = xyes && test "x$enable_shared" = xno; then
     AC_MSG_WARN([--disable-shared => --disable-plugins])
     enable_plugins=no
 fi
+echo ">>> ISMINGW=${ISMINGW} enable_plugins=${enable_plugins}"
 
 if test "x$enable_plugins" = xyes; then
     AC_DEFINE([ENABLE_PLUGINS], [1], [if true, support dynamically loaded plugins])
 fi
 AM_CONDITIONAL(ENABLE_PLUGINS, [test "x$enable_plugins" = xyes])
-if test "x$enable_plugins" != x; then
-AC_SUBST(USEPLUGINS, [yes])
-fi
+AC_SUBST(USEPLUGINS, [${enable_plugins}])
 
 AC_FUNC_ALLOCA
 AC_CHECK_DECLS([isnan, isinf, isfinite],,,[#include <math.h>])
