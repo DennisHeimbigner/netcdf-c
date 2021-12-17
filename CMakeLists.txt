@@ -1103,7 +1103,7 @@ ELSE()
 ENDIF()
 IF(ENABLE_PLUGINS)
   SET(USEPLUGINS YES)
-fi
+ENDIF()
 
 # Enable some developer-only tests
 OPTION(ENABLE_EXTRA_TESTS "Enable Extra tests. Some may not work because of known issues. Developers only." OFF)
