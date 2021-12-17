@@ -302,7 +302,7 @@ endif()
     SET_TESTS_PROPERTIES(ncdump_tst_nccopy4 PROPERTIES DEPENDS "ncdump_tst_netcdf4_4")
 
     add_sh_test(ncdump tst_nccopy5)
-    SET_TESTS_PROPERTIES(ncdump_tst_nccopy5 PROPERTIES DEPENDS "ncdump_tst_nccopy4")
+    SET_TESTS_PROPERTIES(tst_nccopy5 PROPERTIES DEPENDS "ncdump_tst_nccopy4")
 
     IF(USE_HDF5)
       add_sh_test(ncdump tst_ncgen4)
