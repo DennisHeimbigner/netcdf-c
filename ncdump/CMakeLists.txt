@@ -299,7 +299,7 @@ endif()
     add_sh_test(ncdump_shell tst_h_scalar)
 
     add_sh_test(ncdump tst_nccopy4)
-    SET_TESTS_PROPERTIES(ncdump_tst_nccopy4 PROPERTIES DEPENDS "ncdump_tst_netcdf4_4")
+#    SET_TESTS_PROPERTIES(ncdump_tst_nccopy4 PROPERTIES DEPENDS "ncdump_tst_netcdf4_4")
 
     add_sh_test(ncdump tst_nccopy5)
 #    SET_TESTS_PROPERTIES(ncdump_tst_nccopy5 PROPERTIES DEPENDS "ncdump_tst_nccopy4")
