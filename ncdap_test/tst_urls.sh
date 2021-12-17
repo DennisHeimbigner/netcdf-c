@@ -84,7 +84,7 @@ COLUMBIA="http://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GMAO/.MONTH
 
 XFAILTESTS=
 # Suppress some tests
-if test "x$FP_ISMSVC" = xyes ; then
+if test "x$FP_ISMSVC" = xyes || test "x$FP_ISMINGW" = xyes ; then
     XFAILTESTS="$XFAILTESTS test.67"
 fi
 
