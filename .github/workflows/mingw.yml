@@ -13,7 +13,7 @@ jobs:
         with:
           msystem: MINGW64
           update: true
-          install: git mingw-w64-x86_64-toolchain automake libtool autoconf make mingw-w64-x86_64-hdf5 zip
+          install: git mingw-w64-x86_64-toolchain automake libtool autoconf make mingw-w64-x86_64-hdf5 unzip
       - name: CI-Build
         shell: msys2 {0}
         run: |
