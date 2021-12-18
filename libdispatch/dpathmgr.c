@@ -1231,8 +1231,8 @@ static void
 report(int stat, const char* msg, int line)
 {
     if(stat) {
-	nclog(NCLOGERR,"NCpathcvt(%d): stat=%d (%s)",
-		line,stat,nc_strerror(stat));
+	nclog(NCLOGERR,"NCpathcvt(%d): %s: stat=%d (%s)",
+		line,msg,stat,nc_strerror(stat));
     }
     return stat;
 }
