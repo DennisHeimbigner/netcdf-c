@@ -23,6 +23,7 @@ jobs:
           git clone --single-branch --branch moreosfixes.tmp https://github.com/DennisHeimbigner/netcdf-c.git
           cd netcdf-c
           autoreconf -i --force
-          ./configure --prefix=/builddir -enable-shared  --disable-static --disable-plugins --enable-logging --disable-dap-remote-tests
+          ./configure --prefix=/builddir -enable-shared  --disable-static --disable-plugins --disable-logging --disable-dap-remote-tests
           make -j LDFLAGS="-no-undefined  -Wl,--export-all-symbols"
-          NCLOGGING=1 make check
+          export NCLOGGING=1
+          make check
