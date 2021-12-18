@@ -40,7 +40,7 @@
 #include "ncuri.h"
 #include "ncutf8.h"
 
-#under DEBUGPATH
+#undef DEBUGPATH
 static int pathdebug = -1;
 
 #ifdef _WIN32
