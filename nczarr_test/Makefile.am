@@ -13,7 +13,7 @@ TESTS_ENVIRONMENT =
 SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-TESTS_ENVIRONMENT += export SETX=1;
+TESTS_ENVIRONMENT += export SETX=1;export NCLOGGING=1
 
 AM_CPPFLAGS += -I${top_srcdir} -I${top_srcdir}/libnczarr
 AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
