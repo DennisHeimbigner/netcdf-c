@@ -172,7 +172,7 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id , size_t n , const unsig
     NC_UNUSED(id);
     NC_UNUSED(n);
     NC_UNUSED(params);
-    return REPORT(NC_ENOTBUILT,"def_var_filter");
+    return REPORT(NC_NOERR,"def_var_filter");
 }
 
 int 
@@ -180,9 +180,9 @@ NCZ_inq_var_filter_ids(int ncid, int varid, size_t* nfilters, unsigned int* filt
 {
     NC_UNUSED(ncid);
     NC_UNUSED(varid);
-    NC_UNUSED(nfilters);
     NC_UNUSED(filterids);
-    return REPORT(NC_ENOTBUILT,"inq_var_filter_ids");
+    if(nfilters) *nfilters = 0;
+    return REPORT(NC_NOERR,"inq_var_filter_ids");
 }
 
 int
@@ -193,6 +193,6 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparams, u
     NC_UNUSED(id);
     NC_UNUSED(nparams);
     NC_UNUSED(params);
-    return REPORT(NC_ENOTBUILT,"inq_var_filter_info");
+    return REPORT(NC_ENOFILTER,"inq_var_filter_info");
 }
 #endif /*ENABLE_NCZARR_FILTERS*/

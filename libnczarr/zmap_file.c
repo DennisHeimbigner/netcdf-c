@@ -142,10 +142,12 @@ static int platformtestcontentbearing(ZFMAP* zfmap, const char* truepath);
 
 #ifdef VERIFY
 static int verify(const char* path, int isdir);
+static int verifykey(const char* key, int isdir);
 #endif
 
 static int zfinitialized = 0;
-static void zfileinitialize(void)
+static void
+zfileinitialize(void)
 {
     if(!zfinitialized) {
         ZTRACE(5,NULL);
@@ -368,7 +370,7 @@ zfileread(NCZMAP* map, const char* key, size64_t start, size64_t count, void* co
     ZTRACE(5,"map=%s key=%s start=%llu count=%llu",map->url,key,start,count);
 
 #ifdef VERIFY
-    if(!verify(key,!FLAG_ISDIR))
+    if(!verifykey(key,!FLAG_ISDIR))
         assert(!"expected file, have dir");
 #endif
 
@@ -398,7 +400,7 @@ zfilewrite(NCZMAP* map, const char* key, size64_t start, size64_t count, const v
     ZTRACE(5,"map=%s key=%s start=%llu count=%llu",map->url,key,start,count);
 
 #ifdef VERIFY
-    if(!verify(key,!FLAG_ISDIR))
+    if(!verifykey(key,!FLAG_ISDIR))
         assert(!"expected file, have dir");
 #endif
 
@@ -1203,6 +1205,24 @@ verify(const char* path, int isdir)
     if(ret < 0)
         return 1; /* If it does not exist, then it can be anything */
     ret = NCstat(path,&buf);
+    if(ret < 0) abort();
+    if(isdir && S_ISDIR(buf.st_mode)) return 1;
+    if(!isdir && S_ISREG(buf.st_mode)) return 1;           
+    return 0;
+}
+
+static int
+verifykey(const char* key, int isdir)
+{
+    int ret = 0;
+    struct stat buf;
+
+    if(key[0] == '/') key++; /* Want relative name */
+
+    ret = NCaccess(key,ACCESS_MODE_EXISTS);
+    if(ret < 0)
+        return 1; /* If it does not exist, then it can be anything */
+    ret = NCstat(key,&buf);
     if(ret < 0) abort();
     if(isdir && S_ISDIR(buf.st_mode)) return 1;
     if(!isdir && S_ISREG(buf.st_mode)) return 1;           

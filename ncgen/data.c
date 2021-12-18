@@ -11,7 +11,9 @@
 #include        "dump.h"
 
 #undef VERIFY
-#undef HHPRINT
+#ifndef __MINGW32__
+#define HHPRINT
+#endif
 
 #define XVSNPRINTF vsnprintf
 /*

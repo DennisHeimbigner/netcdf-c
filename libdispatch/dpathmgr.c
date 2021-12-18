@@ -969,14 +969,13 @@ unparsepath(struct Path* xp, char** pathp, int target)
 	strlcat(path,"/cygdrive/",len);
         strlcat(path,sdrive,len);
 	if(xp->path != NULL) strlcat(path,xp->path,len);
-fprintf(stderr,"xxx: path=%s\n",path);
 	break;	
 
     default: stat = NC_EINTERNAL; goto done;
     }
 
-if(pathdebug > 0)
-fprintf(stderr,">>> unparse: target=%s xp=%s path=|%s|\n",NCgetkindname(target),printPATH(xp),path);
+    if(pathdebug > 0)
+	fprintf(stderr,">>> unparse: target=%s xp=%s path=|%s|\n",NCgetkindname(target),printPATH(xp),path);
 
 exit:
     if(pathp) {*pathp = path; path = NULL;}
@@ -1233,6 +1232,6 @@ report(int stat, const char* msg, int line)
     if(stat) {
 	nclog(NCLOGERR,"NCpathcvt(%d): %s: stat=%d (%s)",
 		line,msg,stat,nc_strerror(stat));
+	ncbreakpoint(stat);
     }
-    return stat;
 }
