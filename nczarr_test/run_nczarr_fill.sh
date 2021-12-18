@@ -16,6 +16,7 @@ fileargs tmp_groups_regular "mode=zarr,$zext"
 deletemap $zext $file
 ${NCCOPY} ${srcdir}/ref_groups.h5 "$fileurl"
 rm -f tmp.cdl
+${execdir}/zmapio "$fileurl"
 ${NCDUMP} -s -n tmp_groups_regular "$fileurl" > tmp.cdl
 sclean tmp.cdl tmp_groups_regular_$zext.cdl
 diff -wb ${srcdir}/ref_groups_regular.cdl tmp_groups_regular_$zext.cdl
