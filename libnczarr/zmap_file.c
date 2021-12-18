@@ -180,6 +180,7 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
 {
     int stat = NC_NOERR;
     char* canonpath = NULL;
+    char* abspath = NULL;
     ZFMAP* zfmap = NULL;
     NCURI* url = NULL;
 	
@@ -200,8 +201,13 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
     if(strcasecmp(url->protocol,"file") != 0)
         {stat = NC_EURL; goto done;}
 
-    /* Canonicalize the root path */
-    if((stat = NCpathcanonical(url->path,&canonpath))) goto done;
+    /* Convert the root path */
+    if((canonpath = NCpathcvt(url->path))==NULL)
+	{stat = NC_ENOMEM; goto done;}
+
+    /* Make the root path be absolute */
+    if((abspath = NCpathabsolute(canonpath)) == NULL)
+	{stat = NC_EURL; goto done;}
 
     /* Build the zmap state */
     if((zfmap = calloc(1,sizeof(ZFMAP))) == NULL)
@@ -213,8 +219,8 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
     /* create => NC_WRITE */
     zfmap->map.mode = mode;
     zfmap->map.api = &zapi;
-    zfmap->root = canonpath;
-        canonpath = NULL;
+    zfmap->root = abspath;
+        abspath = NULL;
 
     /* If NC_CLOBBER, then delete below file tree */
     if(!fIsSet(mode,NC_NOCLOBBER))
@@ -231,6 +237,7 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
 done:
     ncurifree(url);
     nullfree(canonpath);
+    nullfree(abspath);
     if(stat)
     	zfileclose((NCZMAP*)zfmap,1);
     return ZUNTRACE(stat);
@@ -250,6 +257,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 {
     int stat = NC_NOERR;
     char* canonpath = NULL;
+    char* abspath = NULL;
     ZFMAP* zfmap = NULL;
     NCURI*url = NULL;
     
@@ -267,8 +275,13 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     if(strcasecmp(url->protocol,"file") != 0)
         {stat = NC_EURL; goto done;}
 
-    /* Canonicalize the root path */
-    if((stat = NCpathcanonical(url->path,&canonpath))) goto done;
+    /* Convert the root path */
+    if((canonpath = NCpathcvt(url->path))==NULL)
+	{stat = NC_ENOMEM; goto done;}
+
+    /* Make the root path be absolute */
+    if((abspath = NCpathabsolute(canonpath)) == NULL)
+	{stat = NC_EURL; goto done;}
 
     /* Build the zmap state */
     if((zfmap = calloc(1,sizeof(ZFMAP))) == NULL)
@@ -279,8 +292,8 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     zfmap->map.flags = flags;
     zfmap->map.mode = mode;
     zfmap->map.api = (NCZMAP_API*)&zapi;
-    zfmap->root = canonpath;
-	canonpath = NULL;
+    zfmap->root = abspath;
+	abspath = NULL;
     
     /* Verify root dir exists */
     if((stat = platformopendir(zfmap,zfmap->root)))
@@ -293,6 +306,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 done:
     ncurifree(url);
     nullfree(canonpath);
+    nullfree(abspath);
     if(stat) zfileclose((NCZMAP*)zfmap,0);
     return ZUNTRACE(stat);
 }
