@@ -42,6 +42,13 @@
 
 #undef DEBUGPATH
 static int pathdebug = -1;
+#define DEBUG
+
+#ifdef DEBUG
+#define REPORT(e,msg) report((e),(msg),__LINE__)
+#else
+#define REPORT(e,msg)
+#endif
 
 #ifdef _WIN32
 #define access _access 
@@ -105,6 +112,8 @@ static int utf82wide(const char* utf8, wchar_t** u16p);
 static int wide2utf8(const wchar_t* u16, char** u8p);
 #endif
 
+/*Forward*/
+static void report(int stat, const char* msg, int line);
 static char* printPATH(struct Path* p);
 
 EXTERNL
@@ -126,12 +135,13 @@ NCpathcvt(const char* inpath)
 	goto done;
     }
 
-    if((stat = parsepath(inpath,&inparsed))) {goto done;}
+    if((stat = parsepath(inpath,&inparsed)))
+	{REPORT(stat,"NCpathcvt: parsepath"); goto done;}
     if(pathdebug > 0)
         fprintf(stderr,">>> NCpathcvt: inparsed=%s\n",printPATH(&inparsed));
 
     if((stat = unparsepath(&inparsed,&result,target)))
-        goto done;
+        {REPORT(stat,"NCpathcvt: unparsepath"); goto done;}
 
 done:
     if(pathdebug > 0) {
@@ -191,14 +201,15 @@ NCpathabsolute(const char* relpath)
     if(!pathinitialized) pathinit();
 
     /* Decompose path */
-    if((stat = parsepath(relpath,&canon))) {goto done;}
+    if((stat = parsepath(relpath,&canon)))
+	{REPORT(stat,"pathabs: parsepath"); goto done;}
     
     /* See if relative */
     if(canon.kind == NCPD_REL) {
 	/* prepend the wd path to the inpath, including drive letter, if any */
 	len = strlen(wdprefix)+strlen(canon.path)+1+1;
 	if((tmp1 = (char*)malloc(len))==NULL)
-	    {stat = NCTHROW(NC_ENOMEM); {goto done;}}
+	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	tmp1[0] = '\0';
 	strlcat(tmp1,wdprefix,len);
 	strlcat(tmp1,"/",len);
@@ -210,7 +221,8 @@ NCpathabsolute(const char* relpath)
 	goto done;
     }
     /* rebuild */
-    if((stat=unparsepath(&canon,&result,NCgetlocalpathkind()))) goto done;
+    if((stat=unparsepath(&canon,&result,NCgetlocalpathkind())))
+	{REPORT(stat,"pathabs: unparsepath"); goto done;}
 done:
     if(pathdebug > 0) {
         fprintf(stderr,">>> relpath=|%s| result=|%s|\n",
@@ -370,8 +382,10 @@ NCfopen(const char* path, const char* flags)
     cvtpath = NCpathcvt(path);
     if(cvtpath == NULL) return NULL;
     /* Convert from local to wide */
-    if((stat = utf82wide(cvtpath,&wpath))) goto done;    
-    if((stat = ansi2wide(bflags,&wflags))) goto done;    
+    if((stat = utf82wide(cvtpath,&wpath)))
+	{REPORT(stat,"utf282wide"); goto done;}
+    if((stat = ansi2wide(bflags,&wflags)))
+	{REPORT(stat,"ansi2wide"); goto done;}
     f = _wfopen(wpath,wflags);
 done:
     nullfree(cvtpath);    
@@ -1211,4 +1225,14 @@ printutf8hex(const char* s, char* sx)
 	}
     }
     *q = '\0';
+}
+
+static void
+report(int stat, const char* msg, int line)
+{
+    if(stat) {
+	nclog(NCLOGERR,"NCpathcvt(%d): stat=%d (%s)",
+		line,stat,nc_strerror(stat));
+    }
+    return stat;
 }
