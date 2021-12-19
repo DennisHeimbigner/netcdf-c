@@ -24,10 +24,10 @@ fi
 echo "*** Testing netCDF-4 features of nccopy on ncdump/*.nc files"
 for i in $TESTFILES ; do
     echo "*** Test nccopy $i.nc copy_of_$i.nc ..."
-    if test "x$i" = xtst_vlen_data ; then
-	ls -l tst_vlen_data*
-	ls -l *.nc
-    fi
+#    if test "x$i" = xtst_vlen_data ; then
+#	ls -l tst_vlen_data*
+#	ls -l *.nc
+#    fi
     ${NCCOPY} $i.nc copy_of_$i.nc
     ${NCDUMP} -n copy_of_$i $i.nc > tmp_$i.cdl
     ${NCDUMP} copy_of_$i.nc > copy_of_$i.cdl
