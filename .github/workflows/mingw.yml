@@ -1,5 +1,5 @@
 name: NetCDF-Build MinGW
-on: []
+on: [workflow_dispatch]
 
 jobs:
   build:

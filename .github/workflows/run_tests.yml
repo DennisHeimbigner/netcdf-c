@@ -248,6 +248,7 @@ jobs:
         shell: bash -l {0}
         run: |
           cd build
+	  echo "cat Testing/Temporary/LastTest.log" > CTestCustom.ctest
           LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ctest -j 12 .
         if: ${{ success() }}
 

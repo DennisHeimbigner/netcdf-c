@@ -5,11 +5,11 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 set -x
+export SETX=1
 
 # For a netCDF-4 build, test nccopy on netCDF files in this directory
 
 if test -f tst_comp2${ext} ; then ${execdir}/tst_comp2 ; fi
-
 
 echo ""
 
@@ -122,4 +122,5 @@ FILTERS=`cat tmp_nofilters.cdl | sed -e '/var1:_Filters/p' -ed | tr -d '\t \r'`
 test "x$FILTERS" = 'x'
 
 echo "*** All nccopy tests passed!"
+
 exit 0
