@@ -3,11 +3,14 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
+set -e
+set -x
+
 # For a netCDF-4 build, test nccopy on netCDF files in this directory
 
 if test -f tst_comp2${ext} ; then ${execdir}/tst_comp2 ; fi
 
-set -e
+
 echo ""
 
 # These files are actually in $srcdir in distcheck builds, so they

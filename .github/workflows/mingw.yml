@@ -1,5 +1,5 @@
 name: NetCDF-Build MinGW
-on: [pull_request,push]
+on: []
 
 jobs:
   build:
