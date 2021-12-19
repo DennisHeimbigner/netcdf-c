@@ -9,6 +9,8 @@ export SETX=1
 
 # For a netCDF-4 build, test nccopy on netCDF files in this directory
 
+echo "@@@@@@"
+ls -l tst_comp${ext}
 if test -f tst_comp${ext} ; then ${execdir}/tst_comp ; fi
 if test -f tst_comp2${ext} ; then ${execdir}/tst_comp2 ; fi
 
