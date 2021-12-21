@@ -92,6 +92,9 @@ NOCACHETESTS="test.07"
 # Following tests must be run as not prefetch
 NOPREFETCHTESTS="test.07"
 
+# Following tests must be run as not prefetch
+NOPREFETCHTESTS="test.07"
+
 computewhich() { # set REMOTETESTS and constrained
   case "$1" in
   S0) REMOTETESTS="$S0" ; constrained=0 ;;
@@ -156,7 +159,7 @@ for x in ${REMOTETESTS} ; do
     if IGNORE=`echo -n " ${XFAILTESTS} " | fgrep " ${name} "`; then isxfail=1; fi
   fi
   ok=1
-  if ${NCDUMP} ${FLAGS} "${url}" | sed 's/\\r//g' > ${name}.dmp ; then ok=$ok; else ok=0; fi
+  if ${NCDUMP} ${DUMPFLAGS} "${url}" | sed 's/\\r//g' > ${name}.dmp ; then ok=$ok; else ok=0; fi
   # compare with expected
   if diff -w ${EXPECTED}/${name}.dmp ${name}.dmp  ; then ok=$ok; else ok=0; fi
    processstatus
