@@ -1017,7 +1017,6 @@ Return the value.
 static int
 parseLL(const char* text, long long* llp)
 {
-    extern int errno;
     char* endptr;
     long long int64 = 0;
 
