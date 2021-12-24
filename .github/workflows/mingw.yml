@@ -1,5 +1,5 @@
 name: NetCDF-Build MinGW
-on: [workflow_dispatch]
+on: [workflow_dispatch,push]
 
 jobs:
   build:
@@ -23,7 +23,7 @@ jobs:
           git clone --single-branch --branch moreosfixes.tmp https://github.com/DennisHeimbigner/netcdf-c.git
           cd netcdf-c
           autoreconf -i --force
-          ./configure --prefix=/builddir -enable-shared  --disable-static --disable-plugins --disable-logging --disable-dap-remote-tests
+          ./configure --prefix=/builddir -enable-shared  --disable-static --disable-plugins --disable-logging --disable-dap-remote-tests --disable-byterange
           make -j LDFLAGS="-no-undefined  -Wl,--export-all-symbols"
           make check
  
