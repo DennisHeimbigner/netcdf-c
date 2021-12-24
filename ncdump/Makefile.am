@@ -85,7 +85,7 @@ test_radix.sh test_rcmerge.sh
 # The tst_nccopy3.sh test uses output from a bunch of other
 # tests. This records the dependency so parallel builds work.
 tst_nccopy3.log: tst_calendars.log run_utf8_tests.log tst_output.log	\
-tst_64bit.log run_tests.log tst_lengths.log
+                 tst_64bit.log run_tests.log tst_lengths.log
 
 TESTS += tst_null_byte_padding.sh
 if USE_STRICT_NULL_BYTE_HEADER_PADDING
@@ -117,8 +117,9 @@ tst_ncgen4.sh test_scope.sh
 
 # Record interscript dependencies so parallel builds work.
 tst_nccopy4.log: run_ncgen_tests.log tst_output.log tst_ncgen4.log	\
-tst_fillbug.log tst_netcdf4_4.log tst_h_scalar.log
+		 tst_fillbug.log tst_netcdf4_4.log tst_h_scalar.log
 tst_nccopy5.log: tst_nccopy4.log
+
 endif #USE_HDF5
 
 TESTS += tst_inmemory_nc3.sh tst_nccopy_w3.sh
@@ -140,11 +141,10 @@ if !ISMINGW
 if !ISCYGWIN
 TESTS += tst_output.sh
 TESTS += tst_nccopy3.sh
-TESTS += tst_nccopy4.sh
-TESTS += tst_nccopy5.sh
 TESTS += test_unicode_directory.sh  test_unicode_path.sh
 if USE_HDF5
 TESTS += run_back_comp_tests.sh tst_netcdf4_4.sh
+TESTS += tst_nccopy4.sh tst_nccopy5.sh
 endif
 endif
 endif

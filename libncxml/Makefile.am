@@ -51,10 +51,10 @@ makelib::
 	rm -fr ezxml
 
 # Define path to the xml github dir; this value assumes it is in a parallel directory to netcdf-c (YMMV)
-REPO = https://github.com/leethomason/tinyxml2.git
+TINYREPO = https://github.com/leethomason/tinyxml2.git
 tinyxml2::
 	rm -fr ./tinyxml2 ./license.txt
-	git clone --depth=1 ${REPO}
+	git clone --depth=1 ${TINYREPO}
 	cat tinyxml2/tinyxml2.h > ./tinyxml2.h
 	cat tinyxml2/tinyxml2.cpp > ./tinyxml2.cpp
 	cat tinyxml2/LICENSE.txt > ./license.txt
