@@ -772,14 +772,13 @@ copy_types(int igrp, int ogrp)
 /* Copy netCDF-4 specific variable filter properties */
 /* Watch out if input is netcdf-3 */
 static int
-copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outkind)
+copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outkind, List* inspecs)
 {
     int stat = NC_NOERR;
     VarID vid = {igrp,varid};
     VarID ovid = {ogrp,o_varid};
     /* handle filter parameters, copying from input, overriding with command-line options */
     List* ospecs = NULL;
-    List* inspecs = NULL;
     List* actualspecs = NULL;
     struct FilterOption inspec;
     struct FilterOption* tmp = NULL;
@@ -795,8 +794,7 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
     /* Compute the output vid's FQN */
     if((stat = computeFQN(ovid,&ofqn))) goto done;
 
-    /* Clear the in and out specs */
-    inspecs = listnew();
+    /* Clear the out specs */
     ospecs = NULL;
     actualspecs = NULL;
 
@@ -838,8 +836,8 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
           *tmp = inspec;
           memset(&inspec,0,sizeof(inspec)); /*reset*/
           listpush(inspecs,tmp);
-          inputdefined = 1;
 	}
+	if(listlength(inspecs) > 0) inputdefined = 1;
 	nullfree(ids);
     }
 
@@ -892,7 +890,6 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
 done:
     /* Cleanup */
     if(ofqn != NULL) free(ofqn);
-    freefilteroptlist(inspecs); inspecs = NULL;
     listfree(ospecs); ospecs = NULL; /* Contents are also in filterspecs */
     /* Note we do not clean actualspec because it is a copy of in|out spec */
     return stat;
@@ -1104,11 +1101,12 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
     int stat = NC_NOERR;
     int innc4 = (inkind == NC_FORMAT_NETCDF4 || inkind == NC_FORMAT_NETCDF4_CLASSIC);
     int outnc4 = (outkind == NC_FORMAT_NETCDF4 || outkind == NC_FORMAT_NETCDF4_CLASSIC);
-    int deflated = 0; /* true iff deflation is applied */
     int ndims;
     char* ofqn = NULL;
     int nofilters = 0;
     VarID ovid = {ogrp,o_varid};
+    struct List* inspecs = NULL;
+    struct FilterOption* inspec = NULL;
 
     if(!outnc4)
 	return stat; /* Ignore non-netcdf4 files */
@@ -1127,31 +1125,39 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
     { /* handle compression parameters, copying from input, overriding
        * with command-line options */
 	int shuffle_in=0, deflate_in=0, deflate_level_in=0;
-	int shuffle_out=0, deflate_out=0, deflate_level_out=0;
         if(innc4) { /* See if the input variable has deflation applied */
 	    NC_CHECK(nc_inq_var_deflate(igrp, varid, &shuffle_in, &deflate_in, &deflate_level_in));
 	}
 	if(option_deflate_level == -1) {
-	    /* not specified by -d flag, copy input compression and shuffling */
-  	    shuffle_out = shuffle_in;
-	    deflate_out = deflate_in;
-	    deflate_level_out = deflate_level_in;
+	    /* not specified by -d flag, use input compression and shuffling */
 	} else if(option_deflate_level > 0) { /* change to specified compression, shuffling */
-	    shuffle_out = option_shuffle_vars;
-	    deflate_out=1;
-	    deflate_level_out = option_deflate_level;
+	    shuffle_in = option_shuffle_vars;
+	    deflate_in=1;
+	    deflate_level_in = option_deflate_level;
 	} else if(option_deflate_level == 0) { /* special case; force off */
-	    shuffle_out = 0;
-	    deflate_out = 0;
-	    deflate_level_out = 0;
+	    shuffle_in = 0;
+	    deflate_in = 0;
+	    deflate_level_in = 0;
 	}
-	/* Apply output deflation (unless suppressed) */
-	if(outnc4) {
-	    /* Note that if we invoke this function and even if shuffle and deflate flags are 0,
-               then default chunking will be turned on; so do a special check for that. */
-	    if(shuffle_out != 0 || deflate_out != 0)
-	        NC_CHECK(nc_def_var_deflate(ogrp, o_varid, shuffle_out, deflate_out, deflate_level_out));
-	    deflated = deflate_out;
+        /* Add deflate and shuffle to inspec */
+	if(shuffle_in) {
+	    inspec = (struct FilterOption*)calloc(1,sizeof(struct FilterOption));
+	    inspec->fqn = strdup(ofqn);
+	    inspec->nofilter = 0;
+	    inspec->pfs.filterid = H5Z_FILTER_SHUFFLE;
+	    listpush(inspecs,inspec);
+	    inspec = NULL;
+	}
+	if(deflate_in) {
+	    inspec = (struct FilterOption*)calloc(1,sizeof(struct FilterOption));
+	    inspec->fqn = strdup(ofqn);
+	    inspec->nofilter = 0;
+	    inspec->pfs.filterid = H5Z_FILTER_DEFLATE;
+    	    inspec->pfs.nparams = 1;
+       	    inspec->pfs.params = (unsigned*)calloc(1,sizeof(unsigned));
+	    inspec->pfs.params[0] = deflate_level_in;
+	    listpush(inspecs,inspec);
+	    inspec = NULL;
 	}
     }
     if(!nofilters && innc4 && outnc4 && ndims > 0)
@@ -1159,7 +1165,12 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
 	int fletcher32 = 0;
 	NC_CHECK(nc_inq_var_fletcher32(igrp, varid, &fletcher32));
 	if(fletcher32 != 0) {
-	    NC_CHECK(nc_def_var_fletcher32(ogrp, o_varid, fletcher32));
+	    inspec = (struct FilterOption*)calloc(1,sizeof(struct FilterOption));
+	    inspec->fqn = strdup(ofqn);
+	    inspec->nofilter = 0;
+	    inspec->pfs.filterid = H5Z_FILTER_FLETCHER32;
+	    listpush(inspecs,inspec);
+	    inspec = NULL;
 	}
     }
     if(innc4 && outnc4)
@@ -1171,11 +1182,12 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
 	}
     }
 
-    if(!nofilters && !deflated && ndims > 0) {
-        /* handle other general filters */
-        NC_CHECK(copy_var_filter(igrp, varid, ogrp, o_varid, inkind, outkind));
+    if(!nofilters && ndims > 0) {
+        /* handle all filters */
+        NC_CHECK(copy_var_filter(igrp, varid, ogrp, o_varid, inkind, outkind, inspecs));
     }
 done:
+    freefilteroptlist(inspecs); inspecs = NULL;
     if(ofqn) free(ofqn);
     return stat;
 }

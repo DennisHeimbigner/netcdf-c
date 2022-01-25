@@ -35,6 +35,14 @@
 /** The maximum allowed setting for pixels_per_block when calling nc_def_var_szip(). */
 #define NC_MAX_PIXELS_PER_BLOCK 32
 
+#ifndef H5Z_FILTER_SHUFFLE
+#define H5Z_FILTER_SHUFFLE      2
+#endif
+
+#ifndef H5Z_FILTER_FLETCHER32
+#define H5Z_FILTER_FLETCHER32      3
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

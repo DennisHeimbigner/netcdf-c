@@ -1039,6 +1039,7 @@ pr_att_specials(
 		    pratt = 1;
 		    usedeflateatt = 1;
        	            nullfree(params); params = NULL;
+		    printf(" ;\n");
 		    continue;
 		}
 		if(pratt || k == 0) {
@@ -1046,7 +1047,7 @@ pr_att_specials(
 		    printf(" = \"");
 		    pratt = 0;
 		}
-	        if(k > 0) printf("|");
+	        if(k > (usedeflateatt?1:0)) printf("|");
 		printf("%u",filterids[k]);
 		if(nparams > 0) {
 	            int i;
