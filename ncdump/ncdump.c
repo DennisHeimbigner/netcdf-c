@@ -983,6 +983,9 @@ pr_att_specials(
     } else if(contig == NC_COMPACT) {
 	    pr_att_name(ncid, varp->name, NC_ATT_STORAGE);
 	    printf(" = \"compact\" ;\n");
+    } else if(contig == NC_VIRTUAL) {
+	    pr_att_name(ncid, varp->name, NC_ATT_STORAGE);
+	    printf(" = \"virtual\" ;\n");
     } else if(contig == NC_CHUNKED) {
  	   size_t *chunkp;
 	   int i;
@@ -993,13 +996,12 @@ pr_att_specials(
 	    /* print chunking, even if it is default */
 	    pr_att_name(ncid, varp->name, NC_ATT_CHUNKING);
 	    printf(" = ");
+	    assert(varp->ndims);
 	    for(i = 0; i < varp->ndims; i++) {
-		printf("%lu%s", (unsigned long)chunkp[i], i+1 < varp->ndims ? ", " : " ;\n");
+		printf("%s%lu", (i==0?"":", "),(unsigned long)chunkp[i]);
 	    }
+	    printf(" ;\n");
 	    free(chunkp);
-    } else if(contig == NC_VIRTUAL) {
-	    pr_att_name(ncid, varp->name, NC_ATT_STORAGE);
-	    printf(" = \"virtual\" ;\n");
     } else {
 	    pr_att_name(ncid, varp->name, NC_ATT_STORAGE);
 	    printf(" = \"unknown\" ;\n");
@@ -1008,46 +1010,38 @@ pr_att_specials(
     /* _Filter (including deflate and shuffle) */
     {
 	size_t nparams, nfilters, nbytes;
-	int shuffle=NC_NOSHUFFLE;
 	unsigned int* filterids = NULL;
 	unsigned int* params = NULL;
-	int usedeflateatt = 0;
+	int otherfilter = 0;
 
 	/* Get applicable filter ids */
 	NC_CHECK(nc_inq_var_filter_ids(ncid, varid, &nfilters, NULL));
 	/* Get set of filters for this variable */
 	if(nfilters > 0) {
-	    filterids = (unsigned int*)malloc(sizeof(unsigned int)*nfilters);
-	    if(filterids == NULL) NC_CHECK(NC_ENOMEM);
-	} else
-	    filterids = NULL;
-	NC_CHECK(nc_inq_var_filter_ids(ncid, varid, &nfilters, filterids));
-        if(nfilters > 0) {
+	    int first = 1;
 	    int k;
 	    int pratt = 0;
+	    filterids = (unsigned int*)malloc(sizeof(unsigned int)*nfilters);
+	    if(filterids == NULL) NC_CHECK(NC_ENOMEM);
+  	    NC_CHECK(nc_inq_var_filter_ids(ncid, varid, &nfilters, filterids));
 	    for(k=0;k<nfilters;k++) {
+		/* Handle these later */
+		switch (filterids[k]) {
+		case H5Z_FILTER_DEFLATE: case H5Z_FILTER_SHUFFLE: case H5Z_FILTER_FLETCHER32: continue;
+		default: otherfilter = 1; break;
+		}
 		NC_CHECK(nc_inq_var_filter_info(ncid, varid, filterids[k], &nparams, NULL));
 	        if(nparams > 0) {
   	            params = (unsigned int*)calloc(1,sizeof(unsigned int)*nparams);
 	            NC_CHECK(nc_inq_var_filter_info(ncid, varid, filterids[k], &nbytes, params));
-		} else
-		    params = NULL;
-	        /* Use _Deflate if the first filter is zip */
-		if(k == 0 && filterids[k] == H5Z_FILTER_DEFLATE) {
-	            pr_att_name(ncid, varp->name, NC_ATT_DEFLATE);
-	            printf(" = %d", (int)params[0]);
-		    pratt = 1;
-		    usedeflateatt = 1;
-       	            nullfree(params); params = NULL;
-		    printf(" ;\n");
 		    continue;
 		}
-		if(pratt || k == 0) {
+		if(pratt || first) {
 		    pr_att_name(ncid,varp->name,NC_ATT_FILTER);
 		    printf(" = \"");
 		    pratt = 0;
 		}
-	        if(k > (usedeflateatt?1:0)) printf("|");
+	        if(!first) printf("|");
 		printf("%u",filterids[k]);
 		if(nparams > 0) {
 	            int i;
@@ -1055,17 +1049,11 @@ pr_att_specials(
 		        printf(",%u",params[i]);
 	        }
        	        nullfree(params); params = NULL;
+		first = 0;
 	    }
-            if(!usedeflateatt) printf("\"");
-            printf(" ;\n");
+            if(otherfilter) {printf("\""); printf(" ;\n");}
 	}
 	if(filterids) free(filterids);
-        /* Finally, do Shuffle */
-	NC_CHECK( nc_inq_var_deflate(ncid, varid, &shuffle, NULL, NULL));
-	if(shuffle != NC_NOSHUFFLE) {
-	    pr_att_name(ncid, varp->name, NC_ATT_SHUFFLE);
-	    printf(" = \"true\" ;\n");
-	}
     }
     /* _Codecs*/
     {
@@ -1098,6 +1086,22 @@ pr_att_specials(
 	    printf(" = \"true\" ;\n");
 	}
     }
+    /* _Shuffle and Deflate*/
+    { 
+	int shuffle=NC_NOSHUFFLE;
+	int deflate=0;
+	int deflatelevel=0;
+	NC_CHECK( nc_inq_var_deflate(ncid, varid, &shuffle, &deflate, &deflatelevel));
+	if(shuffle != NC_NOSHUFFLE) {
+	    pr_att_name(ncid, varp->name, NC_ATT_SHUFFLE);
+	    printf(" = \"true\" ;\n");
+	}
+	if(deflate != 0) {
+	    pr_att_name(ncid, varp->name, NC_ATT_DEFLATE);
+	    printf(" = %d ;\n",deflatelevel);
+	}
+    }
+
     /* _Endianness */
     if(varp->tinfo->size > 1) /* Endianness is meaningless for 1-byte types */
     {

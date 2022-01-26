@@ -9,6 +9,7 @@
 #include "config.h"		/* for USE_NETCDF4 macro */
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif
@@ -77,6 +78,9 @@ static int suppressfilters = 0; /* 1 => do not apply any output filters unless s
 static int copy_type(int igrp, nc_type typeid, int ogrp);
 static void freefilteroptlist(List* specs);
 static void freefilterlist(size_t nfilters, NC_H5_Filterspec** filters);
+static struct FilterOption* buildfilterspec(const char* fqn, int nofilter, int id, size_t nparams, unsigned* params);
+static struct FilterOption* vbuildfilterspec(const char* fqn, int nofilter, int id, size_t nparams, ...);
+static struct FilterOption* dupfilteropt(const struct FilterOption* opt);
 
 #endif
 
@@ -397,21 +401,22 @@ varfilterssuppress(const char* ofqn)
 }
 
 /* Return list of active filters */
-static List*
-filteroptsforvar(const char* ofqn)
+static void
+filteroptsforvar(const char* ofqn, List* list)
 {
   int i;
-  List* list = listnew();
   /* See which output filter options are defined for this output variable;
      both active and none. */
   for(i=0;i<listlength(filteroptions);i++) {
       struct FilterOption* opt = listget(filteroptions,i);
       if(strcmp(opt->fqn,"*")==0 || strcmp(opt->fqn,ofqn)==0) {
-	if(!opt->nofilter) /* Add to the list */
-	  listpush(list,opt);
+	if(!opt->nofilter) {/* Add to the list */
+	  /* Duplicate the option */
+	  struct FilterOption* dup = dupfilteropt(opt);
+	  listpush(list,dup); dup = NULL;
+	}
       }
   }
-  return list;
 }
 
 /* Return size of chunk in bytes for a variable varid in a group igrp, or 0 if
@@ -780,8 +785,7 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
     /* handle filter parameters, copying from input, overriding with command-line options */
     List* ospecs = NULL;
     List* actualspecs = NULL;
-    struct FilterOption inspec;
-    struct FilterOption* tmp = NULL;
+    struct FilterOption* spec;
     char* ofqn = NULL;
     int inputdefined, outputdefined, unfiltered;
     int innc4 = (inkind == NC_FORMAT_NETCDF4 || inkind == NC_FORMAT_NETCDF4_CLASSIC);
@@ -795,19 +799,29 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
     if((stat = computeFQN(ovid,&ofqn))) goto done;
 
     /* Clear the out specs */
-    ospecs = NULL;
+    ospecs = listnew();
     actualspecs = NULL;
 
     if(varfilterssuppress(ofqn) || option_deflate_level == 0)
         suppressvarfilters = 1;
 
-    /* Is there one or more filters on the output variable */
+    /* See if -d or -s flags are specified */
+    if(option_shuffle_vars) { /* -s defined */
+        spec = vbuildfilterspec(ofqn,0,H5Z_FILTER_SHUFFLE,0);
+	listpush(ospecs,spec);
+	spec = NULL;
+    }
+    if(option_deflate_level >= 0) { /* -d defined */
+        spec = vbuildfilterspec(ofqn,(option_deflate_level > 0 ? 0 : 1),H5Z_FILTER_DEFLATE,1,option_deflate_level);
+	listpush(ospecs,spec);
+	spec = NULL;
+    }
+    /* Are there one or more additional filters on the output variable */
     outputdefined = 0; /* default is no filter defined */
     /* See if any output filter spec is defined for this output variable */
-    ospecs = filteroptsforvar(ofqn);
+    filteroptsforvar(ofqn,ospecs);
     if(listlength(ospecs) > 0 && !suppressfilters && !suppressvarfilters)
           outputdefined = 1;
-
     /* Is there already a filter on the input variable */
     inputdefined = 0; /* default is no filter defined */
     /* Only bother to look if input is netcdf-4 variant */
@@ -820,22 +834,19 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
       if(nfilters > 0) ids = (unsigned int*)calloc(nfilters,sizeof(unsigned int));
       if((stat = nc_inq_var_filter_ids(vid.grpid,vid.varid,&nfilters,ids)))
 	goto done;
-      memset(&inspec,0,sizeof(inspec));
-
       for(k=0;k<nfilters;k++) {
-	  inspec.pfs.filterid = ids[k];
-          stat=nc_inq_var_filter_info(vid.grpid,vid.varid,inspec.pfs.filterid,&inspec.pfs.nparams,NULL);
+	  size_t nparams;
+	  unsigned* params = NULL;
+          stat=nc_inq_var_filter_info(vid.grpid,vid.varid,ids[k],&nparams,NULL);
           if(stat && stat != NC_ENOFILTER)
 	    goto done; /* true error */
-          if(inspec.pfs.nparams > 0) {
-	    inspec.pfs.params = (unsigned int*)calloc(sizeof(char*),inspec.pfs.nparams);
-            if((stat=nc_inq_var_filter_info(vid.grpid,vid.varid,inspec.pfs.filterid,NULL,inspec.pfs.params)))
-	       goto done;
+          if(nparams > 0) {
+	    params = (unsigned int*)calloc(sizeof(char*),nparams);
+            if((stat=nc_inq_var_filter_info(vid.grpid,vid.varid,ids[k],&nparams,params))) goto done;
 	  }
-          tmp = malloc(sizeof(struct FilterOption));
-          *tmp = inspec;
-          memset(&inspec,0,sizeof(inspec)); /*reset*/
-          listpush(inspecs,tmp);
+	  spec = buildfilterspec(ofqn,0,ids[k],nparams,params);
+          listpush(ospecs,spec);
+	  spec = NULL;
 	}
 	if(listlength(inspecs) > 0) inputdefined = 1;
 	nullfree(ids);
@@ -880,17 +891,25 @@ copy_var_filter(int igrp, int varid, int ogrp, int o_varid, int inkind, int outk
 	int k;
 	for(k=0;k<listlength(actualspecs);k++) {
 	    struct FilterOption* actual = (struct FilterOption*)listget(actualspecs,k);
-	    if((stat=nc_def_var_filter(ovid.grpid,ovid.varid,
+	    if(actual->pfs.filterid == H5Z_FILTER_SHUFFLE) {
+	        if((stat=nc_def_var_deflate(ovid.grpid,ovid.varid,(actual->nofilter?NC_NOSHUFFLE:NC_SHUFFLE),0,0)))
+		   goto done;
+	    } else if(actual->pfs.filterid == H5Z_FILTER_DEFLATE) {
+	        if((stat=nc_def_var_deflate(ovid.grpid,ovid.varid,NC_NOSHUFFLE,1,actual->pfs.params[0])))
+		   goto done;
+	    } else {
+	        if((stat=nc_def_var_filter(ovid.grpid,ovid.varid,
 				   actual->pfs.filterid,
 				   actual->pfs.nparams,
 				   actual->pfs.params)))
-	        goto done;
+		    goto done;
+	    }
 	}
     }
 done:
     /* Cleanup */
     if(ofqn != NULL) free(ofqn);
-    listfree(ospecs); ospecs = NULL; /* Contents are also in filterspecs */
+    freefilteroptlist(ospecs); ospecs = NULL; /* Contents are also in filterspecs */
     /* Note we do not clean actualspec because it is a copy of in|out spec */
     return stat;
 }
@@ -1105,11 +1124,11 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
     char* ofqn = NULL;
     int nofilters = 0;
     VarID ovid = {ogrp,o_varid};
-    struct List* inspecs = NULL;
-    struct FilterOption* inspec = NULL;
+    struct List* inspecs = listnew();
+    struct FilterOption* spec = NULL;
 
     if(!outnc4)
-	return stat; /* Ignore non-netcdf4 files */
+	goto done; /* Ignore non-netcdf4 files */
 
     {				/* handle chunking parameters */
 	NC_CHECK(nc_inq_varndims(igrp, varid, &ndims));
@@ -1128,36 +1147,17 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
         if(innc4) { /* See if the input variable has deflation applied */
 	    NC_CHECK(nc_inq_var_deflate(igrp, varid, &shuffle_in, &deflate_in, &deflate_level_in));
 	}
-	if(option_deflate_level == -1) {
-	    /* not specified by -d flag, use input compression and shuffling */
-	} else if(option_deflate_level > 0) { /* change to specified compression, shuffling */
-	    shuffle_in = option_shuffle_vars;
-	    deflate_in=1;
-	    deflate_level_in = option_deflate_level;
-	} else if(option_deflate_level == 0) { /* special case; force off */
-	    shuffle_in = 0;
-	    deflate_in = 0;
-	    deflate_level_in = 0;
+	if(deflate_in && option_deflate_level == -1) {
+	    /* There is no -d flag; remember the values */
+	    spec = vbuildfilterspec(ofqn,0,H5Z_FILTER_DEFLATE,1,(unsigned)deflate_level_in);
+            listpush(inspecs,spec);
+	    spec = NULL;
 	}
-        /* Add deflate and shuffle to inspec */
-	if(shuffle_in) {
-	    inspec = (struct FilterOption*)calloc(1,sizeof(struct FilterOption));
-	    inspec->fqn = strdup(ofqn);
-	    inspec->nofilter = 0;
-	    inspec->pfs.filterid = H5Z_FILTER_SHUFFLE;
-	    listpush(inspecs,inspec);
-	    inspec = NULL;
-	}
-	if(deflate_in) {
-	    inspec = (struct FilterOption*)calloc(1,sizeof(struct FilterOption));
-	    inspec->fqn = strdup(ofqn);
-	    inspec->nofilter = 0;
-	    inspec->pfs.filterid = H5Z_FILTER_DEFLATE;
-    	    inspec->pfs.nparams = 1;
-       	    inspec->pfs.params = (unsigned*)calloc(1,sizeof(unsigned));
-	    inspec->pfs.params[0] = deflate_level_in;
-	    listpush(inspecs,inspec);
-	    inspec = NULL;
+        /* Record shuffle similarly */
+	if(shuffle_in && !option_shuffle_vars) {
+	    spec = vbuildfilterspec(ofqn,0,H5Z_FILTER_SHUFFLE,0);
+	    listpush(inspecs,spec);
+	    spec = NULL;
 	}
     }
     if(!nofilters && innc4 && outnc4 && ndims > 0)
@@ -1165,12 +1165,9 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
 	int fletcher32 = 0;
 	NC_CHECK(nc_inq_var_fletcher32(igrp, varid, &fletcher32));
 	if(fletcher32 != 0) {
-	    inspec = (struct FilterOption*)calloc(1,sizeof(struct FilterOption));
-	    inspec->fqn = strdup(ofqn);
-	    inspec->nofilter = 0;
-	    inspec->pfs.filterid = H5Z_FILTER_FLETCHER32;
-	    listpush(inspecs,inspec);
-	    inspec = NULL;
+	    spec = vbuildfilterspec(ofqn,0,H5Z_FILTER_FLETCHER32,0);
+	    listpush(inspecs,spec);
+	    spec = NULL;
 	}
     }
     if(innc4 && outnc4)
@@ -1187,7 +1184,8 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid, int inkind, int ou
         NC_CHECK(copy_var_filter(igrp, varid, ogrp, o_varid, inkind, outkind, inspecs));
     }
 done:
-    freefilteroptlist(inspecs); inspecs = NULL;
+    freefilteroptlist(inspecs);
+    inspecs = NULL;
     if(ofqn) free(ofqn);
     return stat;
 }
@@ -2493,3 +2491,49 @@ freefilterlist(size_t nfilters, NC_H5_Filterspec** filters)
 }
 
 #endif
+
+static struct FilterOption*
+vbuildfilterspec(const char* fqn, int nofilter, int id, size_t nparams, ...)
+{
+    va_list args;    
+    unsigned* params = NULL;
+    if(nparams > 0) {
+	size_t i;
+        params = (unsigned*)calloc(nparams,sizeof(unsigned));;	
+        va_start(args,nparams);
+	for(i=0;i<nparams;i++) {
+	    unsigned p = va_arg(args,unsigned);
+	    params[i] = p;
+	}
+	va_end(args);
+    }
+    return buildfilterspec(fqn,nofilter,id,nparams,params);;
+}
+
+static struct FilterOption*
+buildfilterspec(const char* fqn, int nofilter, int id, size_t nparams, unsigned* params)
+{
+
+    struct FilterOption* spec = NULL;
+    spec = (struct FilterOption*)calloc(1,sizeof(struct FilterOption));
+    spec->fqn = strdup(fqn);
+    spec->nofilter = nofilter;
+    spec->pfs.filterid = id;
+    spec->pfs.nparams = nparams;
+    spec->pfs.params = params;
+    return spec;
+}
+
+static struct FilterOption*
+dupfilteropt(const struct FilterOption* opt)
+{
+
+    struct FilterOption* dup = NULL;
+    dup = (struct FilterOption*)calloc(1,sizeof(struct FilterOption));
+    *dup = *opt;
+    /* Overwrite the pointers */
+    dup->fqn = strdup(opt->fqn);
+    dup->pfs.params = (unsigned*)calloc(opt->pfs.nparams,sizeof(unsigned));
+    memcpy(dup->pfs.params,opt->pfs.params,opt->pfs.nparams*sizeof(unsigned));
+    return dup;
+}

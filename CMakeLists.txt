@@ -7,14 +7,14 @@
 ##################################
 
 #Minimum required CMake Version
-cmake_minimum_required(VERSION 3.6.1)
+cmake_minimum_required(VERSION 3.5.1)
 
 #Project Name
 project(netCDF LANGUAGES C CXX)
 set(PACKAGE "netCDF" CACHE STRING "")
 
 # Use libraries specified in CMAKE_REQUIRED_LIBRARIES for check include macros
-cmake_policy(SET CMP0075 NEW)
+#cmake_policy(SET CMP0075 NEW)
 
 #####
 # Version Info:

@@ -38,9 +38,9 @@ variables:
 	obs_t var5(dim1) ;
 		var5:_Storage = "chunked" ;
 		var5:_ChunkSizes = 6 ;
-		var5:_DeflateLevel = 2 ;
-		var5:_Shuffle = "true" ;
 		var5:_Fletcher32 = "true" ;
+		var5:_Shuffle = "true" ;
+		var5:_DeflateLevel = 2 ;
 		var5:_NoFill = "true" ;
 
 // global attributes:
