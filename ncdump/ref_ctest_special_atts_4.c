@@ -122,9 +122,9 @@ main() {/* create ref_tst_special_atts.nc */
     CHECK_ERR(stat);
     stat = nc_def_var_chunking(tst_special_atts_grp, var2_id, NC_CHUNKED, var2_chunksizes);
     CHECK_ERR(stat);
-    stat = nc_def_var_fletcher32(tst_special_atts_grp, var2_id, 1);
-    CHECK_ERR(stat);
     stat = nc_def_var_endian(tst_special_atts_grp, var2_id, NC_ENDIAN_BIG);
+    CHECK_ERR(stat);
+    stat = nc_def_var_fletcher32(tst_special_atts_grp, var2_id, 1);
     CHECK_ERR(stat);
 
     var3_dims[0] = dim1_dim;
@@ -134,9 +134,9 @@ main() {/* create ref_tst_special_atts.nc */
     CHECK_ERR(stat);
     stat = nc_def_var_chunking(tst_special_atts_grp, var3_id, NC_CHUNKED, var3_chunksizes);
     CHECK_ERR(stat);
-    stat = nc_def_var_deflate(tst_special_atts_grp, var3_id, NC_NOSHUFFLE, 1, 2);
-    CHECK_ERR(stat);
     stat = nc_def_var_endian(tst_special_atts_grp, var3_id, NC_ENDIAN_LITTLE);
+    CHECK_ERR(stat);
+    stat = nc_def_var_deflate(tst_special_atts_grp, var3_id, NC_NOSHUFFLE, 1, 2);
     CHECK_ERR(stat);
 
     var4_dims[0] = dim1_dim;
@@ -146,11 +146,11 @@ main() {/* create ref_tst_special_atts.nc */
     CHECK_ERR(stat);
     stat = nc_def_var_chunking(tst_special_atts_grp, var4_id, NC_CHUNKED, var4_chunksizes);
     CHECK_ERR(stat);
-    stat = nc_def_var_deflate(tst_special_atts_grp, var4_id, NC_SHUFFLE, 1, 2);
-    CHECK_ERR(stat);
     stat = nc_def_var_endian(tst_special_atts_grp, var4_id, NC_ENDIAN_LITTLE);
     CHECK_ERR(stat);
     stat = nc_def_var_fill(tst_special_atts_grp, var4_id, NC_NOFILL, NULL);
+    CHECK_ERR(stat);
+    stat = nc_def_var_deflate(tst_special_atts_grp, var4_id, NC_SHUFFLE, 1, 2);
     CHECK_ERR(stat);
 
     var5_dims[0] = dim1_dim;

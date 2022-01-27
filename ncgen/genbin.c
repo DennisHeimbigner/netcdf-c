@@ -141,21 +141,6 @@ genbin_netcdf(void)
     }
 #endif /*USE_NETCDF4*/
 
-    if(special->flags & _ENDIAN_FLAG) {
-        stat = nc_def_var_endian(var->container->nc_id,
-                                 var->nc_id,
-                                 (special->_Endianness == NC_ENDIAN_LITTLE?
-                                        NC_ENDIAN_LITTLE
-                                       :NC_ENDIAN_BIG));
-        CHECK_ERR(stat);
-    }
-    if(special->flags & _NOFILL_FLAG) {
-        stat = nc_def_var_fill(var->container->nc_id,
-                                 var->nc_id,
-                                 (special->_Fill?NC_FILL:NC_NOFILL),
-                                 NULL);
-        CHECK_ERR(stat);
-    }
     /* define global attributes */
     if(ngatts > 0) {
         for(iatt = 0; iatt < ngatts; iatt++) {
@@ -229,7 +214,21 @@ genbin_definespecialattributes(Symbol* var)
 	}
         CHECK_ERR(stat);
     }
-    /* Make sure that order is: Fletcher32 then Shuffle+Deflate then other filters */
+    if(special->flags & _ENDIAN_FLAG) {
+        stat = nc_def_var_endian(var->container->nc_id,
+                                 var->nc_id,
+                                 (special->_Endianness == NC_ENDIAN_LITTLE?
+                                        NC_ENDIAN_LITTLE
+                                       :NC_ENDIAN_BIG));
+        CHECK_ERR(stat);
+    }
+    if(special->flags & _NOFILL_FLAG) {
+        stat = nc_def_var_fill(var->container->nc_id,
+                                 var->nc_id,
+                                 (special->_Fill?NC_FILL:NC_NOFILL),
+                                 NULL);
+        CHECK_ERR(stat);
+    }
     if(special->flags & _FLETCHER32_FLAG) {
         stat = nc_def_var_fletcher32(var->container->nc_id,
                                      var->nc_id,
