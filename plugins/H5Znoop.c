@@ -6,7 +6,6 @@
 #include <sys/types.h>
 
 #include <netcdf_json.h>
-
 #include "netcdf_filter_build.h"
 
 #ifndef NOOP_INSTANCE
