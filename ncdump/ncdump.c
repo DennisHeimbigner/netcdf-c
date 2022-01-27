@@ -972,6 +972,8 @@ pr_att_specials(
     )
 {
     int contig = NC_CHUNKED;
+    int deflatefirst = 0; /* is deflate first real filter? */
+
     /* No special variable attributes for classic or 64-bit offset data */
     if(kind == 1 || kind == 2)
 	return;
@@ -1012,7 +1014,7 @@ pr_att_specials(
 	size_t nparams, nfilters, nbytes;
 	unsigned int* filterids = NULL;
 	unsigned int* params = NULL;
-	int otherfilter = 0;
+	int otherfilters = 0;
 
 	/* Get applicable filter ids */
 	NC_CHECK(nc_inq_var_filter_ids(ncid, varid, &nfilters, NULL));
@@ -1024,17 +1026,26 @@ pr_att_specials(
 	    filterids = (unsigned int*)malloc(sizeof(unsigned int)*nfilters);
 	    if(filterids == NULL) NC_CHECK(NC_ENOMEM);
   	    NC_CHECK(nc_inq_var_filter_ids(ncid, varid, &nfilters, filterids));
+	    /* See if deflate is first real compressor */
 	    for(k=0;k<nfilters;k++) {
-		/* Handle these later */
+		if(filterids[k] == H5Z_FILTER_DEFLATE) {
+		    deflatefirst = 1;
+		    break;
+		}
+		if(filterids[k] != H5Z_FILTER_SHUFFLE && filterids[k] != H5Z_FILTER_FLETCHER32)
+		    break;
+	    }
+	    for(k=0;k<nfilters;k++) {
 		switch (filterids[k]) {
-		case H5Z_FILTER_DEFLATE: case H5Z_FILTER_SHUFFLE: case H5Z_FILTER_FLETCHER32: continue;
-		default: otherfilter = 1; break;
+		case H5Z_FILTER_SHUFFLE: case H5Z_FILTER_FLETCHER32: continue; /* later */
+		case H5Z_FILTER_DEFLATE:
+		    if(deflatefirst) continue; /* later */
+		default: otherfilters = 1; break;
 		}
 		NC_CHECK(nc_inq_var_filter_info(ncid, varid, filterids[k], &nparams, NULL));
 	        if(nparams > 0) {
   	            params = (unsigned int*)calloc(1,sizeof(unsigned int)*nparams);
 	            NC_CHECK(nc_inq_var_filter_info(ncid, varid, filterids[k], &nbytes, params));
-		    continue;
 		}
 		if(pratt || first) {
 		    pr_att_name(ncid,varp->name,NC_ATT_FILTER);
@@ -1051,7 +1062,7 @@ pr_att_specials(
        	        nullfree(params); params = NULL;
 		first = 0;
 	    }
-            if(otherfilter) {printf("\""); printf(" ;\n");}
+            if(otherfilters) {printf("\""); printf(" ;\n");}
 	}
 	if(filterids) free(filterids);
     }
@@ -1096,7 +1107,7 @@ pr_att_specials(
 	    pr_att_name(ncid, varp->name, NC_ATT_SHUFFLE);
 	    printf(" = \"true\" ;\n");
 	}
-	if(deflate != 0) {
+	if(deflatefirst && deflate != 0) {
 	    pr_att_name(ncid, varp->name, NC_ATT_DEFLATE);
 	    printf(" = %d ;\n",deflatelevel);
 	}

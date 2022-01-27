@@ -157,8 +157,11 @@ rm -f ./tmp_filter.txt tmp_filter2.txt ./tmp_filter2.nc
 ${NCCOPY} -M0 ./tmp_filtered.nc ./tmp_filter2.nc
 ${NCDUMP} -s tmp_filter2.nc > ./tmp_filter.txt
 sed -e '/_Filter/p' -e d < ./tmp_filter.txt >tmp_filter2.txt
-test -s tmp_filter2.txt
+if test -s tmp_filter2.txt ; then
 echo "	*** Pass: pass-thru of filters"
+else
+echo "	***Fail: pass-thru of filters"
+fi
 
 echo "	*** Testing -F none"
 rm -f ./tmp_none.txt ./tmp_none2.txt ./tmp_none.nc

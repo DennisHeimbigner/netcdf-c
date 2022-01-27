@@ -5,17 +5,15 @@ dimensions:
 	dim2 = 4 ;
 variables:
 	int ivar(dim0, dim1, dim2) ;
- 		ivar:_FillValue = -2147483647 ;
+		ivar:_FillValue = -2147483647 ;
 		ivar:_Storage = @chunked@ ;
 		ivar:_ChunkSizes = 4, 4, 4 ;
-		ivar:_Filter = @IH5@ ;
-		ivar:_Codecs = @ICX@ ;
+		@IX@
 	float fvar(dim0, dim1, dim2) ;
- 		fvar:_FillValue = 9.96921e+36f ;
+		fvar:_FillValue = 9.96921e+36f ;
 		fvar:_Storage = @chunked@ ;
 		fvar:_ChunkSizes = 4, 4, 4 ;
-		fvar:_Filter = @FH5@ ;
-		fvar:_Codecs = @FCX@ ;
+		@FX@
 
 data:
 
