@@ -1,11 +1,18 @@
+#ifdef HAVE_CONFIG_H
 #include "config.h"
-#include <sys/types.h>
+#endif
+
 #include <stdlib.h>
-#include <string.h>
-#include <assert.h>
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <assert.h>
+#include <sys/types.h>
 
 #include "netcdf_filter_build.h"
+#include <netcdf_json.h>
+
+#include "h5bzip2.h"
 
 /* WARNING:
 Starting with HDF5 version 1.10.x, the plugin code MUST be
@@ -22,20 +29,6 @@ Additionally, if your filter code leaks memory, then the HDF5 library
 will generate an error.
 
 */
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-
-#include "netcdf_filter_build.h"
-#include <netcdf_json.h>
-
-#include "h5bzip2.h"
 
 /* Forward */
 static htri_t H5Z_bzip2_can_apply(hid_t dcpl_id, hid_t type_id, hid_t space_id);
