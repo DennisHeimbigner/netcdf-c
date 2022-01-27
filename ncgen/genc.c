@@ -476,26 +476,6 @@ genc_definespecialattributes(Symbol* vsym)
         codeline(");");
         codelined(1,"CHECK_ERR(stat);");
     }
-    if(special->flags & _FLETCHER32_FLAG) {
-        bbprintf0(stmt,
-                "    stat = nc_def_var_fletcher32(%s, %s, %d);\n",
-                groupncid(vsym->container),
-                varncid(vsym),
-                special->_Fletcher32);
-        codedump(stmt);
-        codelined(1,"CHECK_ERR(stat);");
-    }
-    if(special->flags & (_DEFLATE_FLAG | _SHUFFLE_FLAG)) {
-        bbprintf0(stmt,
-                "    stat = nc_def_var_deflate(%s, %s, %s, %d, %d);\n",
-                groupncid(vsym->container),
-                varncid(vsym),
-                (special->_Shuffle == 1?"NC_SHUFFLE":"NC_NOSHUFFLE"),
-                (special->_DeflateLevel >= 0?1:0),
-                (special->_DeflateLevel >= 0?special->_DeflateLevel:0));
-        codedump(stmt);
-        codelined(1,"CHECK_ERR(stat);");
-    }
     if(special->flags & _ENDIAN_FLAG) {
         bbprintf0(stmt,
                 "    stat = nc_def_var_endian(%s, %s, %s);\n",
@@ -514,6 +494,26 @@ genc_definespecialattributes(Symbol* vsym)
                 varncid(vsym),
                 (special->_Fill?"NC_FILL":"NC_NOFILL")
                 );
+        codedump(stmt);
+        codelined(1,"CHECK_ERR(stat);");
+    }
+    if(special->flags & _FLETCHER32_FLAG) {
+        bbprintf0(stmt,
+                "    stat = nc_def_var_fletcher32(%s, %s, %d);\n",
+                groupncid(vsym->container),
+                varncid(vsym),
+                special->_Fletcher32);
+        codedump(stmt);
+        codelined(1,"CHECK_ERR(stat);");
+    }
+    if(special->flags & (_DEFLATE_FLAG | _SHUFFLE_FLAG)) {
+        bbprintf0(stmt,
+                "    stat = nc_def_var_deflate(%s, %s, %s, %d, %d);\n",
+                groupncid(vsym->container),
+                varncid(vsym),
+                (special->_Shuffle == 1?"NC_SHUFFLE":"NC_NOSHUFFLE"),
+                (special->_DeflateLevel >= 0?1:0),
+                (special->_DeflateLevel >= 0?special->_DeflateLevel:0));
         codedump(stmt);
         codelined(1,"CHECK_ERR(stat);");
     }
