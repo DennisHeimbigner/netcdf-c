@@ -1194,6 +1194,10 @@ if test "x$enable_plugins" = xyes && test "x$enable_shared" = xno; then
     AC_MSG_WARN([--disable-shared => --disable-plugins])
     enable_plugins=no
 fi
+if test "x$enable_netcdf4" = "xno" ; then
+    AC_MSG_WARN([--disable-netcdf4 => --disable-plugins])
+    enable_plugins=no
+fi
 
 if test "x$enable_plugins" = xyes; then
     AC_DEFINE([ENABLE_PLUGINS], [1], [if true, support dynamically loaded plugins])
