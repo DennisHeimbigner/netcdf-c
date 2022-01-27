@@ -142,6 +142,8 @@ NC_s3urlrebuild(NCURI* url, NCURI** newurlp, char** bucketp, char** outregionp)
     ncurisetprotocol(newurl,"https");
     ncurisethost(newurl,host);
     ncurisetpath(newurl,path);
+    /* Rebuild the url->url */
+    ncurirebuild(newurl);
     /* return various items */
 #ifdef AWSDEBUG
     {
