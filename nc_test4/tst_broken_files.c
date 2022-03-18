@@ -28,7 +28,7 @@ main() {
         fclose(fp);
 
         int  ncid;
-        if (nc_open(FILE_NAME, 0, &ncid) != NC_EHDFERR) ERR;
+        if (nc_open(FILE_NAME, 0, &ncid) != NC_ENOTNC) ERR;
     }
 
     {
