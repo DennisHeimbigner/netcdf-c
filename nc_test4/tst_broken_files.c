@@ -21,16 +21,14 @@ int
 main() {
     printf("\n*** Testing NetCDF-4 with truncated (broken) sample file.\n");
     {
-        int  ncid, stat;
         printf("*** testing via file on file-system ...\n");
         FILE *fp = fopen(FILE_NAME, "w");
         if(!fp) ERR;
         if(fwrite(TRUNCATED_FILE_CONTENT, sizeof(char), sizeof(TRUNCATED_FILE_CONTENT), fp) != sizeof(TRUNCATED_FILE_CONTENT)) ERR;
         fclose(fp);
-        if((stat=nc_open(FILE_NAME, 0, &ncid)) != NC_ENOTNC) {
-	    fprintf(stderr, "stat=%d\n",stat);
-	    ERR;
-	}
+
+        int  ncid;
+        if (nc_open(FILE_NAME, 0, &ncid) != NC_ENOTNC) ERR;
     }
 
     {
