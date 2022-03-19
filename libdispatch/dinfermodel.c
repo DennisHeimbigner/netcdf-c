@@ -1160,8 +1160,10 @@ check_file_type(const char *path, int omode, int use_parallel,
     if((status = openmagic(&magicinfo))) goto done;
 
     /* Verify we have a large enough file */
-    if(magicinfo.filelen < (long long)MAGIC_NUMBER_LEN)
+{unsigned long long x = MAGIC_NUMBER_LEN;
+    if(magicinfo.filelen < (unsigned long long)MAGIC_NUMBER_LEN)
 	{status = NC_ENOTNC; goto done;}
+}
     if((status = readmagic(&magicinfo,0L,magic)) != NC_NOERR) {
 	status = NC_ENOTNC;
 	goto done;
