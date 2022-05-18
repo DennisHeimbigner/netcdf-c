@@ -281,7 +281,7 @@ NC_readfileF(FILE* stream, NCbytes* content, long long amount)
 {
     int ret = NC_NOERR;
     long long red = 0;
-    char part[1024];
+    char part[4194304];
 
     while(amount < 0 || red < amount) {
 	size_t count = fread(part, 1, sizeof(part), stream);
