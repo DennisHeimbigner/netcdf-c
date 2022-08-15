@@ -43,9 +43,10 @@ pingurl4_SOURCES = pingurl4.c
 if ENABLE_DAP_REMOTE_TESTS
 if BUILD_UTILITIES
   # relies on ncdump
-  TESTS += test_hyrax.sh test_thredds.sh
+  TESTS += test_hyrax.sh
 if AX_IGNORE
-  TESTS += test_remote.sh
+  TESTS += test_thredds.sh # disable until thredds supports dap4
+  TESTS += test_remote.sh  # disable until remotetestserver re-enabled
 endif
 endif
 endif

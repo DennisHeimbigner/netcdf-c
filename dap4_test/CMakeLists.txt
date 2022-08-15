@@ -56,7 +56,10 @@ IF(ENABLE_TESTS)
 
   IF(ENABLE_DAP_REMOTE_TESTS)
       add_sh_test(dap4_test test_hyrax)
-      add_sh_test(dap4_test test_thredds)
+      IF(OFF) 
+          add_sh_test(dap4_test test_thredds) # disable until thredds supports dap4
+          add_sh_test(dap4_test test_remote)  # disable until remotetestserver re-enabled
+      ENDIF()
   ENDIF(ENABLE_DAP_REMOTE_TESTS)
 
 ENDIF(ENABLE_TESTS)
