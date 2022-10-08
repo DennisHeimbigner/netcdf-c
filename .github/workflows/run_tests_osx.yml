@@ -46,6 +46,10 @@ jobs:
           make install -j
           popd
 
+      - name: Install aws-sdk-cpp
+        shell: bash -l {0}
+        run: |
+          brew install aws-sdk-cpp
 
   nc-autotools-osx:
 
@@ -68,7 +72,7 @@ jobs:
 ###
 
       - run: echo "CFLAGS=-I${HOME}/environments/${{ matrix.hdf5 }}/include" >> $GITHUB_ENV
-      - run: echo "LDFLAGS=-L${HOME}/environments/${{ matrix.hdf5 }}/lib" >> $GITHUB_ENV
+      - run: echo "LDFLAGS=-L${HOME}/environments/${{ matrix.hdf5 }}/lib -laws-cpp-sdk-s3" >> $GITHUB_ENV
       - run: echo "LD_LIBRARY_PATH=${HOME}/environments/${{ matrix.hdf5 }}/lib" >> $GITHUB_ENV
       - run: |
           echo "ENABLE_HDF4=--disable-hdf4" >> $GITHUB_ENV
@@ -108,10 +112,6 @@ jobs:
       - name: Install autoconf
         shell: bash -l {0}
         run: brew install automake
-
-      - name: Install aws-sdk-cpp
-        shell: bash -l {0}
-        run: brew install aws-sdk-cpp
 
       - name: Run autoconf
         shell: bash -l {0}
@@ -297,10 +297,6 @@ jobs:
       - name: Install autoconf
         shell: bash -l {0}
         run: brew install automake
-
-      - name: Install aws-sdk-cpp
-        shell: bash -l {0}
-        run: brew install aws-sdk-cpp
 
       - name: Run autoconf
         shell: bash -l {0}
