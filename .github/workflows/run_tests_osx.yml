@@ -50,7 +50,7 @@ jobs:
         shell: bash -l {0}
         run: |
           brew install aws-sdk-cpp
-          find /usr/localCellar -type f -name '*aws-*'
+          find /usr/local/Cellar -type f -name '*aws-*'
 
   nc-autotools-osx:
 
