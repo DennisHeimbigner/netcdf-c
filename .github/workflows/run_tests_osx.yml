@@ -109,6 +109,10 @@ jobs:
         shell: bash -l {0}
         run: brew install automake
 
+      - name: Install aws-cpp-sdl
+        shell: bash -l {0}
+        run: brew install aws-cpp-sdk
+
       - name: Run autoconf
         shell: bash -l {0}
         run: autoreconf -if
