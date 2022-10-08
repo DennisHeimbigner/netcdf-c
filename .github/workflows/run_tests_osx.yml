@@ -50,7 +50,7 @@ jobs:
         shell: bash -l {0}
         run: |
           brew install aws-sdk-cpp
-          find ${HOME}/environments -name 'aws-*'
+          find ${HOME}/environments -name '*aws-*'
 
   nc-autotools-osx:
 
