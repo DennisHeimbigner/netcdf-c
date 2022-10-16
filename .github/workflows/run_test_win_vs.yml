@@ -1,0 +1,55 @@
+###
+# Build hdf4, hdf5 dependencies and cache them in a combined directory.
+# See https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+# for information related to github runners.
+###
+
+name: Run Visual Studio based Tests
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+
+  build-and-test:
+
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+
+      - uses: actions/checkout@v2
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: git mingw-w64-x86_64-toolchain make cmake mingw-w64-x86_64-hdf5 unzip mingw-w64-x86_64-libxml2
+
+###
+# Configure and build
+###
+
+      - name: CMake Build
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 15 Win64" -DCMAKE_BUILD_TYPE=Release -CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH} -DENABLE_DAP=FALSE -DENABLE_HDF5=TRUE -DENABLE_NCZARR=FALSE -DENABLE_DAP_REMOTE_TESTS=FALSE -DENABLE_BYTERANGE=TRUE
+
+      - name: Print Summary
+        shell: bash -l {0}
+        run: |
+          cd build
+          cat libnetcdf.settings
+
+      - name: Build All
+        shell: bash -l {0}
+        run: |
+          cd build
+          cmake --build . --config Release
+
+      - name: Run Tests
+        shell: bash -l {0}
+        run: |
+          cd build
+          cmake --build . --config Release --target RUN_TESTS
