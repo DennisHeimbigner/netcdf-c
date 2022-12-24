@@ -340,37 +340,6 @@ parsepair(const char* pair, char** keyp, char** valuep)
     return NC_NOERR;
 }
 
-#if 0
-static int
-parseurlmode(const char* modestr, NClist* list)
-{
-    int stat = NC_NOERR;
-    const char* p = NULL;
-    const char* endp = NULL;
-
-    if(modestr == NULL || *modestr == '\0') goto done;
-
-    /* Split modestr at the commas or EOL */
-    p = modestr;
-    for(;;) {
-	char* s;
-	ptrdiff_t slen;
-	endp = strchr(p,',');
-	if(endp == NULL) endp = p + strlen(p);
-	slen = (endp - p);
-	if((s = malloc(slen+1)) == NULL) {stat = NC_ENOMEM; goto done;}
-	memcpy(s,p,slen);
-	s[slen] = '\0';
-	nclistpush(list,s);
-	if(*endp == '\0') break;
-	p = endp+1;
-    }
-
-done:
-    return check(stat);
-}
-#endif
-
 /* Split a string at a given char */
 static int
 parseonchar(const char* s, int ch, NClist* segments)
@@ -427,18 +396,34 @@ envvlist2string(NClist* envv, const char* delim)
     return result;
 }
 
-/* Given a mode= argument, fill in the impl */
+/* Given a fragment list, flatten out the mode key */
 static int
-processmodearg(const char* arg, NCmodel* model)
+flattenmode(NClist** fraglenvp)
 {
-    int stat = NC_NOERR;
-    struct FORMATMODES* format = formatmodes;
-    for(;format->tag;format++) {
-	if(strcmp(format->tag,arg)==0) {
-            model->impl = format->impl;
-	    if(format->format != 0) model->format = format->format;
+    int i,stat = NC_NOERR;
+    NClist* oldfrag = *fraglenvp;
+    NClist* newfrag = nclistnew();
+    NClist* modelist = NULL;
+    char* mode = NULL;
+    for(i=0;i<nclistlength(oldfrag);i++) {
+      char* key = nclistget(oldfrag,i);
+      char* value = nclistget(oldfrag,i+1);
+      if(strcasecmp(key,"mode") != 0) {
+        nclistpush(newfrag,key);
+        nclistpush(newfrag,value);
+      } else {
+	int j;
+        modelist = parsemode(key);
+	for(j=0;j<nclistlength(modelist);j++) {
+          char* tmp = nclistget(modelist,j);
+          nclistpush(newfrag,tmp);
+          nclistpush(newfrag,"");
 	}
+        nclistfree(modelist);
+      }
     }
+    nclistfree(oldfrag);
+    *fraglenvp = newfrag;
     return check(stat);
 }
 
@@ -589,6 +574,21 @@ negateone(const char* mode, NClist* newmodes)
         }
     }
     return changed;
+}
+
+/* Given a fragment list, fill in the impl */
+static int
+processmodearg(const char* arg, NCmodel* model)
+{
+    int stat = NC_NOERR;
+    struct FORMATMODES* format = formatmodes;
+    for(;format->tag;format++) {
+	if(strcmp(format->tag,arg)==0) {
+            model->impl = format->impl;
+	    if(format->format != 0) model->format = format->format;
+	}
+    }
+    return check(stat);
 }
 
 static void
@@ -865,6 +865,13 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
     if(uri != NULL) {
 #ifdef DEBUG
 	printlist(fraglenv,"processuri");
+#endif
+
+        /* Phase 2: de-mode the fragment by flattening the mode into the fragment:
+	   e.g. #mode=x,y&z => #x,y,z
+        if((stat = demode(&fraglenv))) goto done;
+#ifdef DEBUG
+	printlist(fraglenv,"demode");
 #endif
 
         /* Phase 2: Expand macros and add to fraglenv */
@@ -1605,3 +1612,35 @@ printlist(NClist* list, const char* tag)
 
 
 #endif
+
+#if 0
+static int
+parseurlmode(const char* modestr, NClist* list)
+{
+    int stat = NC_NOERR;
+    const char* p = NULL;
+    const char* endp = NULL;
+
+    if(modestr == NULL || *modestr == '\0') goto done;
+
+    /* Split modestr at the commas or EOL */
+    p = modestr;
+    for(;;) {
+	char* s;
+	ptrdiff_t slen;
+	endp = strchr(p,',');
+	if(endp == NULL) endp = p + strlen(p);
+	slen = (endp - p);
+	if((s = malloc(slen+1)) == NULL) {stat = NC_ENOMEM; goto done;}
+	memcpy(s,p,slen);
+	s[slen] = '\0';
+	nclistpush(list,s);
+	if(*endp == '\0') break;
+	p = endp+1;
+    }
+
+done:
+    return check(stat);
+}
+#endif
+
