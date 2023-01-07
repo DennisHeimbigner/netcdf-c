@@ -19,12 +19,12 @@ NPNCP="${top_srcdir}/ncdump/ref_no_ncproperty.nc"
 # Create various files
 ${execdir}/tst_fileinfo
 
-# Do a false negative test
+# Do a false positive test
 rm -f ./tst_fileinfo.tmp
 if $NCDUMP -s $NF | fgrep '_IsNetcdf4 = 0' > ./tst_fileinfo.tmp ; then
-   echo "Pass: False negative for file: $NF"
+   echo "Pass: _IsNetcdf4: False positive for file: $NF"
 else
-   echo "FAIL: False negative for file: $NF"
+   echo "FAIL: _IsNetcdf4: False negative for file: $NF"
    EXIT=1
 fi
 rm -f ./tst_fileinfo.tmp
