@@ -55,6 +55,7 @@ static struct S3ops {
 /* Command line options */
 struct Dumpptions {
     int debug;
+    int verbose;
     S3op s3op;
     NCURI* url;
     char* key; /* via -k flag */    
@@ -82,7 +83,7 @@ static void printcontent(size64_t len, const char* content, nc_type nctype);
 static void
 usage(void)
 {
-    fprintf(stderr,"usage: s3util  list|print|upload|download|clear -u <url> [-k <key.] [-f <filename>]\n");
+    fprintf(stderr,"usage: s3util  [-q] [-k <key.] [-f <filename>] list|print|upload|download|clear -u <url>\n");
     exit(1);
 }
 
@@ -128,7 +129,7 @@ main(int argc, char** argv)
 
     dumpoptions.nctype = NC_UBYTE; /* default */
 
-    while ((c = getopt(argc, argv, "df:k:p:t:T:u:v")) != EOF) {
+    while ((c = getopt(argc, argv, "df:hk:p:qt:T:u:v")) != EOF) {
 	switch(c) {
 	case 'd': 
 	    dumpoptions.debug = 1;	    
@@ -136,6 +137,9 @@ main(int argc, char** argv)
 	case 'f':
 	    dumpoptions.filename = strdup(optarg);
 	    break;
+	case 'h': 
+	    usage();
+	    goto done;
 	case 'k': {
 	    size_t len = strlen(optarg);
 	    dumpoptions.key = (char*)malloc(len+1+1);
@@ -151,6 +155,9 @@ main(int argc, char** argv)
 	case 'p': 
 	    dumpoptions.profile = strdup(optarg);
 	    break;
+	case 'q': 
+	    dumpoptions.verbose = 0;
+	    break;
 	case 't': 
 	    dumpoptions.nctype = typefor(optarg);
 	    break;
@@ -165,8 +172,8 @@ main(int argc, char** argv)
 		}
 	    } break;
 	case 'v': 
-	    usage();
-	    goto done;
+	    dumpoptions.verbose = 1;
+	    break;
 	case 'T':
 	    nctracelevel(atoi(optarg));
 	    break;
@@ -259,11 +266,11 @@ s3list(void)
 	/* Sort the list -- shortest first */
 	nczm_sortenvv(nkeys,keys);
 	for(i=0;i<nkeys;i++) {
-	    printf("[%u] %s\n",(unsigned)i,keys[i]);
+	    if(dumpoptions.verbose) printf("[%u] %s\n",(unsigned)i,keys[i]);
 	}
 
     } else
-	printf("<empty>\n");
+	if(dumpoptions.verbose) printf("<empty>\n");
 
 done:
     s3shutdown(0);
@@ -287,9 +294,9 @@ s3clear(void)
 	size_t i;
 	/* Sort the list -- shortest first */
 	nczm_sortenvv(nkeys,keys);
-        printf("deleted keys:\n");
+	if(dumpoptions.verbose) printf("deleted keys:\n");
 	for(i=0;i<nkeys;i++) {
-            printf("\t%s\n",keys[i]);
+            if(dumpoptions.verbose) printf("\t%s\n",keys[i]);
 #ifndef NODELETE
 	    if((stat = NC_s3sdkdeletekey(s3sdk.s3client, s3sdk.s3.bucket, keys[i], &s3sdk.errmsg)))
 		goto done;

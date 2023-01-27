@@ -12,7 +12,7 @@ echo "*** Remove /netcdf-c from S3 repository"
 
 fileargs netcdf-c
 
-if test "x$FEATURE_S3TESTS" = xyes ; then
+if test "x$FEATURE_S3" = xyes ; then
   ${execdir}/s3util -u "${NCZARR_S3_TEST_URL}" -k "/netcdf-c" clear
 fi
 
