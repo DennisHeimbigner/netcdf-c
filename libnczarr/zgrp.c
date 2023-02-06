@@ -37,6 +37,7 @@ NCZ_def_grp(int parent_ncid, const char *name, int *new_ncid)
     int stat;
 
     LOG((2, "%s: parent_ncid 0x%x name %s", __func__, parent_ncid, name));
+    ZTRACE(0, "parent_ncid=0x%x name %s", parent_ncid, name);
 
     /* Find info for this file and group, and set pointer to each. */
     if ((stat = nc4_find_grp_h5(parent_ncid, &grp, &h5)))

@@ -140,10 +140,10 @@ NCZ_sync(int ncid)
     int stat = NC_NOERR;
     NC_FILE_INFO_T* file = NULL;
 
+    LOG((2, "%s: ncid 0x%x", __func__, ncid));
     ZTRACE(0,"ncid=%d",ncid);
 
-    LOG((2, "%s: ncid 0x%x", __func__, ncid));
-
+    
     if ((stat = nc4_find_grp_h5(ncid, NULL, &file)))
         return stat;
     assert(file);

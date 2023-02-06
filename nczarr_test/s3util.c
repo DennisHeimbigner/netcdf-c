@@ -127,7 +127,10 @@ main(int argc, char** argv)
 
     memset((void*)&dumpoptions,0,sizeof(dumpoptions));
 
-    dumpoptions.nctype = NC_UBYTE; /* default */
+    /* Defaults */
+    dumpoptions.verbose = 1;
+    dumpoptions.nctype = NC_UBYTE;
+
 
     while ((c = getopt(argc, argv, "df:hk:p:qt:T:u:v")) != EOF) {
 	switch(c) {
