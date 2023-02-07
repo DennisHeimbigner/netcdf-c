@@ -109,6 +109,9 @@ EXTERNL const char** ncurifragmentparams(NCURI*);
 /* Obtain the complete list of query pairs in envv format */
 EXTERNL const char** ncuriqueryparams(NCURI*);
 
+/* Make sure query and fragment list vs field are consistent */
+EXTERNL void ncuriupdate(NCURI*);
+
 /* URL Encode/Decode */
 EXTERNL char* ncuridecode(const char* s);
 /* Partial decode */

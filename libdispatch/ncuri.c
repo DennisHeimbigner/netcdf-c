@@ -771,6 +771,14 @@ ncuriqueryparams(NCURI* uri)
     return (const char**)uri->querylist;
 }
 
+/* Obtain the complete list of query pairs in envv format */
+void
+ncuriupdate(NCURI* uri)
+{
+    ensurequerylist(uri);
+    ensurefraglist(uri);
+}
+
 #if 0
 int
 ncuriremoveparam(NCURI* uri, const char* key)
