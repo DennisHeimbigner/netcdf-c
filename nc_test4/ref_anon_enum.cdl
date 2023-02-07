@@ -1,0 +1,11 @@
+netcdf ref_anon_enum {
+types:
+  int enum EnumTest_t {RED = 0, GREEN = 1, BLUE = 2, WHITE = 3, BLACK = 4} ;
+dimensions:
+	phony_dim_0 = 10 ;
+variables:
+	EnumTest_t EnumTest(phony_dim_0) ;
+data:
+
+ EnumTest = RED, GREEN, BLUE, WHITE, BLACK, RED, GREEN, BLUE, WHITE, BLACK ;
+}

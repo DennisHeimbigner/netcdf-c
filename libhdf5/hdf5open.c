@@ -98,6 +98,9 @@ typedef struct {
     NC_VAR_INFO_T *var;
 } att_iter_info;
 
+/* Forward */
+static int read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name);
+
 /**
  * @internal Given an HDF5 type, set a pointer to netcdf type_info
  * struct, either an existing one (for user-defined types) or a newly
@@ -114,7 +117,7 @@ typedef struct {
  * @author Ed Hartnett
  */
 static int
-get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
+get_type_info2(NC_FILE_INFO_T *h5, NC_VAR_INFO_T* var, hid_t datasetid, NC_TYPE_INFO_T **type_info)
 {
     NC_HDF5_TYPE_INFO_T *hdf5_type;
     htri_t is_str, equal = 0;
@@ -233,8 +236,25 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
         NC_TYPE_INFO_T *type;
 
         /* This is a user-defined type. */
-        if((type = nc4_rec_find_hdf_type(h5, native_typeid)))
+        if((type = nc4_rec_find_hdf_type(h5, native_typeid))) {
             *type_info = type;
+	} else  if (class == H5T_ENUM || class == H5T_OPAQUE || class == H5T_COMPOUND) {
+	    int ret = NC_NOERR;
+	    /* Allow an "anonymous" type for these cases only */
+	    /* Create an anonymous name */
+	    size_t nmlen = strlen(var->hdr.name); /* var_name */
+	    nmlen += strlen("_t"); /* suffix is var_name_t */
+	    nmlen += 1; /* nul terminate */
+	    char* anon = (char*)malloc(nmlen);
+	    if(anon == NULL) return NC_ENOMEM;
+	    snprintf(anon,nmlen,"%s_t",var->hdr.name);
+	    ret = read_type(var->container, native_typeid, anon);
+	    free(anon);
+	    if(ret) return ret;
+	    /* try again */
+            if((type = nc4_rec_find_hdf_type(h5, native_typeid)))
+                *type_info = type;
+	}
 
         /* The type entry in the array of user-defined types already has
          * an open data typeid (and native typeid), so close the ones we
@@ -1585,7 +1605,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
     /* Learn all about the type of this variable. This will fail for
      * HDF5 reference types, and then the var we just created will be
      * deleted, thus ignoring HDF5 reference type objects. */
-    if ((retval = get_type_info2(var->container->nc4_info, hdf5_var->hdf_datasetid,
+    if ((retval = get_type_info2(var->container->nc4_info, var, hdf5_var->hdf_datasetid,
                                  &var->type_info)))
         BAIL(retval);
 

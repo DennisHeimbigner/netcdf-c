@@ -71,6 +71,9 @@ TESTS += test_fillonly.sh
 # H5 and nczarr Fixed string support
 TESTS += tst_fixedstring.sh
 
+# H5 Anonymous types
+TESTS += tst_anon_types.sh
+
 # Szip Tests (requires ncdump)
 if HAVE_H5Z_SZIP
 check_PROGRAMS += test_szip h5testszip
@@ -120,7 +123,8 @@ ref_filter_order_create.txt ref_filter_order_read.txt			\
 ref_any.cdl tst_specific_filters.sh tst_unknown.sh                      \
 tst_virtual_datasets.c noop1.cdl unknown.cdl  \
 tst_broken_files.c ref_bloscx.cdl tst_bloscfail.sh			\
-tst_fixedstring.sh ref_fixedstring.h5 ref_fixedstring.cdl
+tst_fixedstring.sh ref_fixedstring.h5 ref_fixedstring.cdl               \
+ref_anon_enum.h5 ref_anon_enum.cdl
 
 # The tst_filterinstall test can only be run after an install
 # occurred with --with-plugin-dir enabled. So there is no point
