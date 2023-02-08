@@ -243,11 +243,11 @@ get_type_info2(NC_FILE_INFO_T *h5, NC_VAR_INFO_T* var, hid_t datasetid, NC_TYPE_
 	    /* Allow an "anonymous" type for these cases only */
 	    /* Create an anonymous name */
 	    size_t nmlen = strlen(var->hdr.name); /* var_name */
-	    nmlen += strlen("_t"); /* suffix is var_name_t */
+	    nmlen += strlen("_enum_t"); /* suffix is var_name_enum_t */
 	    nmlen += 1; /* nul terminate */
 	    char* anon = (char*)malloc(nmlen);
 	    if(anon == NULL) return NC_ENOMEM;
-	    snprintf(anon,nmlen,"%s_t",var->hdr.name);
+	    snprintf(anon,nmlen,"%s_enum_t",var->hdr.name);
 	    ret = read_type(var->container, native_typeid, anon);
 	    free(anon);
 	    if(ret) return ret;
