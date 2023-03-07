@@ -33,6 +33,16 @@
 /* Always needed */
 #include "nc.h"
 
+/*
+The SEPDATA flag is used to mark old code relating to PR
+https://github.com/Unidata/netcdf-c/pull/2179.  The old code uses
+incorrect code for reclaiming and copying variable length data. The
+new code attempts to provide general fixes for it.
+This flag is intentionally set to use the new code and at some point,
+the old code needs to be expunged.
+*/
+#undef SEPDATA
+
 /** The file ID is stored in the first two bytes of ncid. */
 #define FILE_ID_MASK (0xffff0000)
 
