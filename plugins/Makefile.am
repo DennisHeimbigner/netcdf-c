@@ -22,9 +22,9 @@ endif !ISCYGWIN
 endif !ISMINGW
 
 # Create an alternate directory if not installing or for noinst installs.
-ALTPLUGINDIR = ${abs_top_builddir}/plugins/plugindir
+ALTPLUGINDIR = ${abs_builddir}/plugins/plugindir
 # Ditto for test plugins
-TESTPLUGINDIR = ${abs_top_builddir}/plugins/testplugins
+TESTPLUGINDIR = ${abs_builddir}/plugins/testplugins
 
 # This is where the plugins are to be installed
 if ENABLE_PLUGIN_DIR
