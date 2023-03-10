@@ -77,6 +77,8 @@ case "$zext" in
 esac
 }
 
+find ../plugins
+
 THISDIR=`pwd`
 rm -fr ${RESULTSDIR}
 mkdir -p ${RESULTSDIR}
