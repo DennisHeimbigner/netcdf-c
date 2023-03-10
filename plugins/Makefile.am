@@ -23,6 +23,8 @@ endif !ISMINGW
 
 # Create an alternate directory if not installing or for noinst installs.
 ALTPLUGINDIR = ${abs_top_builddir}/plugins/plugindir
+# Ditto for test plugins
+TESTPLUGINDIR = ${abs_top_builddir}/plugins/testplugins
 
 # This is where the plugins are to be installed
 if ENABLE_PLUGIN_DIR
@@ -36,11 +38,9 @@ plugin_LTLIBRARIES =
 plugins_to_install =
 
 # Apparently one cannot have plugin_LTLIBRARIES and also noinst_LTLIBRARIES.
-# So create a tmp location for "noinst" shared libraries.
-# tmpdir = ${ALTPLUGINDIR}
-
-check_LTLIBRARIES =
-noinst_LTLIBRARIES =
+# So create a location for "test" shared libraries.
+test_LTLIBRARIES =
+testdir = ${TESTPLUGINDIR}
 
 if ISMINGW
 LDADD =  ${top_builddir}/liblib/libnetcdf.la
@@ -120,9 +120,9 @@ lib__nczmisc_la_LDFLAGS = $(AM_LDFLAGS) -rpath $(abs_builddir)/.libs
 lib__nch5unknown_la_SOURCES = H5Zunknown.c
 lib__nch5unknown_la_LDFLAGS = $(AM_LDFLAGS) -rpath $(abs_builddir)/.libs
 
-check_LTLIBRARIES += lib__nch5noop.la lib__nch5noop1.la lib__nch5unknown.la
+test_LTLIBRARIES += lib__nch5noop.la lib__nch5noop1.la lib__nch5unknown.la
 # findplugin.sh needs these plugins, and I want to see if these get built properly
-noinst_LTLIBRARIES += lib__nch5misc.la lib__nczmisc.la
+test_LTLIBRARIES += lib__nch5misc.la lib__nczmisc.la
 
 # Bzip2 is used to test more complex filters
 lib__nch5bzip2_la_SOURCES = H5Zbzip2.c h5bzip2.h
@@ -138,7 +138,7 @@ endif #ENABLE_FILTER_TESTING
 if ENABLE_PLUGIN_DIR
 plugin_LTLIBRARIES += $(plugins_to_install)
 else
-noinst_LTLIBRARIES += $(plugins_to_install)
+test_LTLIBRARIES += $(plugins_to_install)
 endif
 
 BUILT_SOURCES = H5Znoop1.c
