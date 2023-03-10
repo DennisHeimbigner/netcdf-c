@@ -10,7 +10,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 # by means of files constructed by that other implementation
 
 set -e
-
+set -x
 UH="${NCZARR_S3_TEST_HOST}"
 UB="${NCZARR_S3_TEST_BUCKET}"
 
