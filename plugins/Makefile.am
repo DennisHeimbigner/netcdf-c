@@ -160,4 +160,4 @@ bzip2::
 
 # Custom clean
 clean-local:
-	rm -fr ${ALTPLUGINDIR}
+	rm -fr ${ALTPLUGINDIR} ${TESTPLUGINDIR}
