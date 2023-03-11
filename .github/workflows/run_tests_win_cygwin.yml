@@ -58,10 +58,10 @@ jobs:
       - name: (Autotools) Test DESTDIR install
         run: |
           make install DESTDIR=/tmp/pretend-root SHELL=/bin/dash
-          if [ -d "/tmp/pretend-root/$(pwd)" ];
+          if [ -d "/tmp/pretend-root/.$(pwd)" ];
           then
-              find /tmp/pretend-root/$(pwd)
-              if [ $(find /tmp/pretend-root/$(pwd) -type f | wc -l) -gt 0 ]; then exit 1; fi
+              find /tmp/pretend-root/.$(pwd)
+              if [ $(find /tmp/pretend-root/.$(pwd) -type f | wc -l) -gt 0 ]; then exit 1; fi
           fi
 
       - name: (Autotools) Build and run tests
