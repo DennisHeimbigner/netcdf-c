@@ -159,5 +159,5 @@ bzip2::
 	rm -fr ./${BZIP2DIR}
 
 # Custom clean
-#clean-local:
-#	rm -fr ${DESTDIR}/${ALTPLUGINDIR}
+clean-local:
+	rm -fr ${DESTDIR}/${ALTPLUGINDIR}
