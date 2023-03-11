@@ -158,6 +158,9 @@ bzip2::
 	cd ${BZIP2DIR}; cp ${BZIP2SRC} ..; cp LICENSE ../BZIP2_LICENSE ; cd ..
 	rm -fr ./${BZIP2DIR}
 
-# Custom clean
+# Custom rules
 clean-local:
 	rm -fr ${DESTDIR}/${ALTPLUGINDIR}
+
+install-exec-local:
+	rm -fr ${DESTDIR}/${ALTPLUGINDIR}/*
