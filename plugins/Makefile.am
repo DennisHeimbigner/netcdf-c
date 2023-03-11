@@ -22,9 +22,9 @@ endif !ISCYGWIN
 endif !ISMINGW
 
 # Create an alternate directory if not installing or for noinst installs.
-ALTPLUGINDIR = ${abs_builddir}/plugins/plugindir
+ALTPLUGINDIR = ${builddir}/plugindir
 # Ditto for test plugins
-TESTPLUGINDIR = ${abs_builddir}/plugins/testplugins
+TESTPLUGINDIR = ${ALTPLUGINDIR}
 
 # This is where the plugins are to be installed
 if ENABLE_PLUGIN_DIR
@@ -160,4 +160,4 @@ bzip2::
 
 # Custom clean
 clean-local:
-	rm -fr ${ALTPLUGINDIR} ${TESTPLUGINDIR}
+	rm -fr ${ALTPLUGINDIR}
