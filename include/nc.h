@@ -38,6 +38,9 @@ typedef struct {
 	char *cp;
 } NC_string;
 
+/* Forward */
+struct NClist;
+
 /* Define functions that are used across multiple dispatchers */
 
 /* Begin defined in string.c */
@@ -75,6 +78,6 @@ extern int iterate_NCList(int i,NC**); /* Walk from 0 ...; ERANGE return => stop
 
 /* Defined in nc.c */
 extern void free_NC(NC*);
-extern int new_NC(const struct NC_Dispatch*, const char*, int, NC**);
+extern int new_NC(const struct NC_Dispatch*, const char* path , int mode, struct NClist* fragments, NC**);
 
 #endif /* _NC_H_ */

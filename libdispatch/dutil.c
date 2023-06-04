@@ -490,3 +490,44 @@ done:
     ncbytesfree(buf);
     return stat;
 }
+
+/**************************************************
+/* Provide management of envv style string lists.
+These are of the type "char**" and have this form:
+[key1,value1,key2,value2...,NULL]
+where key1 cannot be NULL but value1 may be NULL.
+
+The headers for these function are in 
+
+*/
+
+
+/* quick sort a list of strings */
+void
+nczm_sortenvv(int n, char** envv)
+{
+    if(n <= 1) return;
+    qsort(envv, n, sizeof(char*), nczm_compare);
+#if 0
+{int i;
+for(i=0;i<n;i++)
+fprintf(stderr,">>> sorted: [%d] %s\n",i,(const char*)envv[i]);
+}
+#endif
+}
+
+void
+NCZ_freeenvv(int n, char** envv)
+{
+    int i;
+    char** p;
+    if(envv == NULL) return;
+    if(n < 0)
+       {for(n=0, p = envv; *p; n++); /* count number of strings */}
+    for(i=0;i<n;i++) {
+        if(envv[i]) {
+	    free(envv[i]);
+	}
+    }
+    free(envv);    
+}

@@ -83,7 +83,7 @@ free_NC(NC *ncp)
  * @author Glenn Davis, Dennis Heimbigner
  */
 int
-new_NC(const NC_Dispatch* dispatcher, const char* path, int mode, NC** ncpp)
+new_NC(const NC_Dispatch* dispatcher, const char* path, int mode, NClist* fragments, NC** ncpp)
 {
     NC *ncp = (NC*)calloc(1,sizeof(NC));
     if(ncp == NULL) return NC_ENOMEM;

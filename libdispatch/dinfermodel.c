@@ -121,7 +121,7 @@ static struct FORMATMODES {
 {NULL,0},
 };
 
-/* Selected query keys indicate the model */
+/* Selected query keys provide potential information about the model */
 static struct QUERYKEYS {
     const char* tag;
     const int impl; /* NC_FORMATX_XXX value */
@@ -153,13 +153,12 @@ static const struct MACRODEF {
 #endif
 
 /*
-Mode inferences: if mode contains key value, then add the inferred value;
-Warning: be careful how this list is constructed to avoid infinite inferences.
-In order to (mostly) avoid that consequence, any attempt to
-infer a value that is already present will be ignored.
-This effectively means that the inference graph
-must be a DAG and may not have cycles.
-You have been warned.
+Mode inferences: if mode contains key value, then add the inferred
+value; Warning: be careful how this list is constructed to avoid
+infinite inferences.  In order to (mostly) avoid that consequence, any
+attempt to infer a value that is already present will be ignored.
+This effectively means that the inference graph must be a DAG and may
+not have cycles. You have been warned.
 */
 static const struct MODEINFER {
     char* key;
@@ -174,13 +173,13 @@ static const struct MODEINFER {
 
 /* Mode negations: if mode contains key, then remove all occurrences of the inference */
 static const struct MODEINFER modenegations[] = {
-{"bytes","nczarr"}, /* bytes negates (nc)zarr */
+{"bytes","nczarr"}, /* bytes negates [nc]zarr */
 {"bytes","zarr"},
 {"noxarray","xarray"},
 {NULL,NULL}
 };
 
-/* Map FORMATX to readability to get magic number */
+/* Map FORMATX to readability to get model information (typically a magic number) */
 static struct Readable {
     int impl;
     int readable;
@@ -198,7 +197,7 @@ static struct Readable {
 };
 
 /* Selected singleton fragment keys will be converted to mode flags */
-static const char* modeables[] = {
+static const char* MODESINGLETONS[] = {
 "bytes",
 "dap4",
 "dap2",
@@ -887,10 +886,11 @@ set_default_mode(int* modep)
 @param params
 @param model
 @param newpathp
+@param fragment
 */
 
 int
-NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void* params, NCmodel* model, char** newpathp)
+NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void* params, NCmodel* model, char** newpathp, NClist* fragment)
 {
     int i,stat = NC_NOERR;
     NCURI* uri = NULL;
