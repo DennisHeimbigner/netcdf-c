@@ -8,11 +8,19 @@
 
 /* Debug flags */
 #ifdef ENABLE_THREADSAFE
+#undef THREADSAFE_DEBUG
 #undef THREADSAFE_TRACK
 #undef THREADSAFE_IDUNIQUE
 #define THREADSAFE_SINGLE
 #define THREADSAFE_SINGLE_FAIL
+
+#ifdef THREADSAFE_DEBUG
+#ifndef THREADSAFE_TRACK
+#define THREADSAFE_TRACK
 #endif
+#endif
+
+#endif /*ENABLE_THREADSAFE*/
 
 #ifdef ENABLE_THREADSAFE
 extern void NC_global_mutex_initialize(void);

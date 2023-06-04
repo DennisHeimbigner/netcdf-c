@@ -47,8 +47,12 @@ call other API call.
 
 #define MAXDEPTH 32
 
+/* Mnemonics */
+#define RECURSIVE 1
+
 #ifdef ENABLE_THREADSAFE
 
+/* Define the data structure for a mutex */
 typedef struct NCmutex {
     pthread_mutex_t mutex;
     int refcount; /* # times called by same thread */
@@ -63,7 +67,8 @@ typedef struct NCmutex {
 /**************************************************/
 /* Global data */
 
-static NCmutex NC_globalmutex;
+static NCmutex NC_mutex_global; /* General global lock */
+static NCmutex NC_mutex_nc; /* lock list of NC* instances */
 
 static volatile int global_mutex_initialized = 0; /* initialize once */
 
@@ -125,21 +130,30 @@ popfcn(void)
 static pthread_once_t once_control = PTHREAD_ONCE_INIT;  /* for pthread_once */
 
 static void
-ncmutexinit(NCmutex* mutex)
+ncmutexinit(NCmutex* mutex, int recursive)
 {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    if(recursive)
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    else
+#ifdef THREADSAFE_DEBUG
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+#else
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);    
+#endif
     pthread_mutex_init(&mutex->mutex, &attr);
     pthread_mutexattr_destroy(&attr);
 }
 
 /* Global mutex init; for use with once */
 static void
-globalncmutexinit(void)
+globalncmutexesinit(void)
 {
     assert(sizeof(pthread_t) <= PTHREAD_T_MAX_SIZE);
-    ncmutexinit(&NC_globalmutex);
+    ncmutexinit(&NC_globalmutex,RECURSIVE);
+    ncmutexinit(&NC_globalmutex,RECURSIVE);
+    ncmutexinit(&NC_globalmutex_,RECURSIVE);
 }
 
 /* Thread module init */
@@ -150,7 +164,7 @@ NC_global_mutex_initialize(void)
     memset(&NC_globalmutex,0,sizeof(NC_globalmutex));
 
     /* We use pthread_once to guarantee that the mutex is initialized */
-    pthread_once(&once_control,globalncmutexinit);
+    pthread_once(&once_control,globalncmutexesinit);
     global_mutex_initialized = 1;
 }    
 
