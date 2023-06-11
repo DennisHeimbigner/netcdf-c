@@ -74,6 +74,10 @@ EXTERNL int getoptions(int* argcp, char*** argvp);
 EXTERNL int getmetadata(int create);
 EXTERNL void cleanup(void);
 
+EXTERNL nc_type gettype(const char* name);
+EXTERNL size_t gettypesize(nc_type t);
+EXTERNL const char* gettypename(nc_type t);
+
 EXTERNL int nc__testurl(const char*,char**);
 
 EXTERNL const char* ncz_gets3testurl(void);

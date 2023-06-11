@@ -2,13 +2,11 @@
 #include "config.h"
 #endif
 #include <stdlib.h>
-#ifdef HAVE_CONFIG_H
 #include <stdio.h>
-#endif
 #include <string.h>
-#include <netcdf.h>
-#include <ncpathmgr.h>
-#include <nclist.h>
+#include "netcdf.h"
+#include "ncpathmgr.h"
+#include "nclist.h"
 
 #ifdef HAVE_HDF5_H
 #include <hdf5.h>
@@ -35,7 +33,7 @@ static int
 writedata(void)
 {
     int ret = NC_NOERR;
-    int i;
+    size_t i;
 
     for(i=0;i<dimprod;i++) data[i] = i;
  
@@ -69,7 +67,7 @@ static int
 readdata(void)
 {
     int ret = NC_NOERR;
-    int i;
+    size_t i;
     
     memset(data,0,datasize);
 
@@ -91,7 +89,7 @@ readdata(void)
         ERR(ret);
 
     for(i=0;i<dimprod;i++) {
-        printf("[%d] %d\n",i,data[i]);
+        printf("[%u] %d\n",(unsigned)i,data[i]);
     }
     if(options->wholechunk)
 	reportwholechunk();

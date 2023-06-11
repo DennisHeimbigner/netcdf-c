@@ -223,7 +223,7 @@ getmetadata(int create)
     }
 
     if(create) {
-        if((ret = nc_create(options->file,options->mode,&meta->ncid))) goto done;
+        if((ret = nc_create(options->file,options->mode|NC_CLOBBER,&meta->ncid))) goto done;
         for(i=0;i<options->rank;i++) {
             snprintf(dname,sizeof(dname),"d%d",i);
             if((ret = nc_def_dim(meta->ncid,dname,options->dimlens[i],&meta->dimids[i]))) goto done;
@@ -319,7 +319,7 @@ printvector64(int rank, const size64_t* vec)
 Odometer*
 odom_new(size_t rank, const size_t* start, const size_t* stop, const size_t* stride, const size_t* max)
 {
-     int i;
+     size_t i;
      Odometer* odom = NULL;
      if((odom = calloc(1,sizeof(Odometer))) == NULL)
 	 return NULL;
@@ -371,7 +371,7 @@ size_t
 odom_offset(Odometer* odom)
 {
      size_t offset;
-     int i;
+     size_t i;
 
      offset = 0;
      for(i=0;i<odom->rank;i++) {
@@ -417,6 +417,60 @@ odom_printshort(Odometer* odom)
 }
 
 static const char* urlexts[] = {"nzf", "zip", "nz4", NULL};
+
+nc_type
+gettype(const char* name)
+{
+    if(strcasecmp(name,"byte")==0) return NC_BYTE;
+    if(strcasecmp(name,"ubyte")==0) return NC_UBYTE;
+    if(strcasecmp(name,"short")==0) return NC_SHORT;
+    if(strcasecmp(name,"ushort")==0) return NC_USHORT;
+    if(strcasecmp(name,"int")==0) return NC_INT;
+    if(strcasecmp(name,"uint")==0) return NC_UINT;
+    if(strcasecmp(name,"int64")==0) return NC_INT64;
+    if(strcasecmp(name,"uint64")==0) return NC_UINT64;
+    if(strcasecmp(name,"float")==0) return NC_FLOAT;
+    if(strcasecmp(name,"double")==0) return NC_DOUBLE;
+    return NC_NAT;
+}
+
+size_t
+gettypesize(nc_type t)
+{
+    switch (t) {
+    case NC_BYTE: return sizeof(char);
+    case NC_UBYTE: return sizeof(unsigned char);
+    case NC_SHORT: return sizeof(short);
+    case NC_USHORT: return sizeof(unsigned short);
+    case NC_INT: return sizeof(int);
+    case NC_UINT: return sizeof(unsigned int);
+    case NC_INT64: return sizeof(long long int);
+    case NC_UINT64: return sizeof(unsigned long long int);
+    case NC_FLOAT: return sizeof(float);
+    case NC_DOUBLE: return sizeof(double);
+    default: break;
+    }
+    return 0;
+}
+
+const char*
+gettypename(nc_type t)
+{
+    switch (t) {
+    case NC_BYTE: return "byte";
+    case NC_UBYTE: return "ubyte";
+    case NC_SHORT: return "short";
+    case NC_USHORT: return "ushort";
+    case NC_INT: return "int";
+    case NC_UINT: return "uint";
+    case NC_INT64: return "int64";
+    case NC_UINT64: return "uint64";
+    case NC_FLOAT: return "float";
+    case NC_DOUBLE: return "double";
+    default: break;
+    }
+    return NULL;
+}
 
 const char*
 filenamefor(const char* f0)

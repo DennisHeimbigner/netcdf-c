@@ -82,7 +82,7 @@ usage(int err)
      if(err != 0) {
 	 fprintf(stderr,"Error: (%d) %s\n",err,nc_strerror(err));
      }
-     fprintf(stderr,"usage: ncdumpchunks -v <var> <file> \n");
+     fprintf(stderr,"usage: ncdumpchunks [-b] -v <var> <file> \n");
      fflush(stderr);
      exit(1);
 }
@@ -471,14 +471,17 @@ main(int argc, char** argv)
     /* Init some format fields */
     format.xtype = NC_INT;
 
-    while ((c = getopt(argc, argv, "bv:DT:")) != EOF) {
+    while ((c = getopt(argc, argv, "bhv:DT:")) != EOF) {
     switch(c) {
 	case 'b':
 	    format.xtype = NC_UBYTE;
-	    break;
+	    break;	
+	case 'h':
+	    usage(0);
+	    break;	
 	case 'v':
 	    strcpy(format.var_name,optarg);
-	    break;
+	    break;	
 	case 'D':
 	    format.debug = 1;
 	    break;
