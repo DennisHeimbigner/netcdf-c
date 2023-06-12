@@ -25,6 +25,8 @@
 
 #include "tst_utils.h"
 
+extern void usage(int);
+
 Options* options = NULL;
 Metadata* meta = NULL;
 
@@ -56,11 +58,8 @@ getoptions(int* argcp, char*** argvp)
     /* Set defaults */
     options->mode = 0; /* classic netcdf-3 */
 
-    while ((c = getopt(*argcp, *argvp, "T:34c:d:e:f:n:m:p:s:D:O:X:")) != EOF) {
+    while ((c = getopt(*argcp, *argvp, "34c:d:e:f:hm:n:p:s:D:O:T:X:")) != EOF) {
 	switch(c) {
-	case 'T':
-	    nctracelevel(atoi(optarg));
-	    break;	
 	case '3':
 	    options->mode = 0;
 	    break;
@@ -83,16 +82,17 @@ getoptions(int* argcp, char*** argvp)
 	    CHECKRANK(parsevector(optarg,options->start));
 	    options->flags |= HAS_START;
 	    break;
-	case 'p':
-	    CHECKRANK(parsevector(optarg,options->stop));
-	    options->flags |= HAS_STOP;
-	    break;
+	case 'h': usage(0); break;
 	case 'm':
 	    CHECKRANK(parsevector(optarg,options->max));
 	    options->flags |= HAS_MAX;
 	    break;
 	case 'n':
 	    CHECKRANK(atoi(optarg));
+	    break;
+	case 'p':
+	    CHECKRANK(parsevector(optarg,options->stop));
+	    options->flags |= HAS_STOP;
 	    break;
 	case 's':
 	    CHECKRANK(parsevector(optarg,options->stride));
@@ -104,13 +104,17 @@ getoptions(int* argcp, char*** argvp)
 	case 'O': 
 	    for(p=optarg;*p;p++) {
 	        switch (*p) {
+    	        case 'o': options->op = Odom; break;
 	        case 'r': options->op = Read; break;
+	        case 'x': options->op = Extend; break;
     	        case 'w': options->op = Write; break;
 	        case 'W': options->wholechunk = 1; break;
-    	        case 'o': options->op = Odom; break;
 		default: fprintf(stderr,"Unknown operation '%c'\n",*p); exit(1);
 	        }
 	    } break;
+	case 'T':
+	    nctracelevel(atoi(optarg));
+	    break;	
 	case 'X': 
 	    if(strcmp(optarg,"opt")==0) {
 	        options->optimize = 1;
@@ -226,7 +230,11 @@ getmetadata(int create)
         if((ret = nc_create(options->file,options->mode|NC_CLOBBER,&meta->ncid))) goto done;
         for(i=0;i<options->rank;i++) {
             snprintf(dname,sizeof(dname),"d%d",i);
-            if((ret = nc_def_dim(meta->ncid,dname,options->dimlens[i],&meta->dimids[i]))) goto done;
+	    if(options->dimlens[i] == 0)
+                ret = nc_def_dim(meta->ncid,dname,NC_UNLIMITED,&meta->dimids[i]);
+	    else
+                ret = nc_def_dim(meta->ncid,dname,options->dimlens[i],&meta->dimids[i]);
+	    if(ret) goto done;
         }
         if((ret = nc_def_var(meta->ncid,"v",NC_INT,options->rank,meta->dimids,&meta->varid))) goto done;
         if((ret = nc_def_var_fill(meta->ncid,meta->varid,0,&meta->fill))) goto done;
@@ -281,7 +289,10 @@ parsevector(const char* s0, size_t* vec)
         p = strchr(q,',');
         if(p == NULL) {p = q+strlen(q); done=1;}
         *p++ = '\0';
-        vec[i++] = (size_t)atol(q);
+	if(strcasecmp(q,"u")==0)
+            vec[i++] = 0; /* signals unlimited */
+	else
+            vec[i++] = (size_t)atol(q);
     }
     if(s) free(s);
     return i;

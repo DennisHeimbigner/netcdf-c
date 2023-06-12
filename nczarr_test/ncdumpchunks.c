@@ -30,7 +30,7 @@
 #undef DEBUG
 
 /* Short Aliases */
-#ifdef HDF5_SUPPORTS_PAR_FILTERS
+#ifdef USE_HDF5
 #define H5
 #endif
 #ifdef ENABLE_NCZARR

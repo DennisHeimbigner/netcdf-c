@@ -5,7 +5,7 @@
 
 #define ERR(e) report(e,__LINE__)
 
-typedef enum Op {None, Read, Write, Wholechunk, Odom} Op;
+typedef enum Op {None, Read, Write, Wholechunk, Odom, Extend} Op;
 
 /* Bit mask of defined options; powers of 2*/
 #define HAS_DIMLENS (1<<0)
