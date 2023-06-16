@@ -33,6 +33,7 @@ findpluginext() {
   # Note: will fail if used before plugins is built
   # Also assumes that misc filter is always built
   # Approach is to use find to see what is in plugins directory.
+find ${TOPBUILDDIR}/plugins
   TSO=`find ${TOPBUILDDIR}/plugins -name '*misc.so'`
   TDY=`find ${TOPBUILDDIR}/plugins -name '*misc.dylib'`
   TCYG=`find ${TOPBUILDDIR}/plugins -name 'cyg*misc.dll'`
