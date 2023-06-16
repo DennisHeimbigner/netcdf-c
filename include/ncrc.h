@@ -27,8 +27,11 @@ and accessing rc files (e.g. .daprc).
 #define AWS_REGION "aws_region"
 
 typedef struct NCRCentry {
-	char* host; /* combined host:port */
-	char* urlpath; /* prefix to match or NULL */
+        char* tag; /* prefix to match or NULL */
+	int urlformat; /* discriminant for pseudo-union */
+	union {
+	    char* urlpath;
+	} u;
         char* key;
         char* value;
 } NCRCentry;
@@ -59,9 +62,10 @@ extern "C" {
 
 /* From drc.c */
 EXTERNL void ncrc_initialize(void);
-EXTERNL int NC_rcfile_insert(const char* key, const char* hostport, const char* path, const char* value);
-EXTERNL char* NC_rclookup(const char* key, const char* hostport, const char* path);
-EXTERNL char* NC_rclookupx(NCURI* uri, const char* key);
+EXTERNL int NC_rcfile_insert(const char* key, const char* tag, const char* path, const char* value);
+EXTERNL char* NC_rclookup(const char* key, const char* tag, const char* path);
+EXTERNL char* NC_rclookup_uri(NCURI* uri, const char* key);
+EXTERNL char* NC_rclookup_tag(const char* tag, const char* key);
 
 /* Following are primarily for debugging */
 /* Obtain the count of number of entries */

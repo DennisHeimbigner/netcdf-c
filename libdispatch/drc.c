@@ -62,7 +62,7 @@ static void freeprofile(struct AWSprofile* profile);
 static void freeprofilelist(NClist* profiles);
 
 /* Define default rc files and aliases, also defines load order*/
-static const char* rcfilenames[] = {".ncrc", ".daprc", ".dodsrc", NULL};
+static const char* rcfilenames[] = {".daprc", ".dodsrc", ".ncrc", NULL};
 
 /* Read these files in order and later overriding earlier */
 static const char* awsconfigfiles[] = {".aws/config",".aws/credentials",NULL};
@@ -74,7 +74,7 @@ static int NCRCinitialized = 0;
 
 /**
 The most common case is to get the most general value for a key,
-where most general means that the urlpath and hostport are null
+where most general means that the tag [and urlpath] are null.
 So this function returns the value associated with the key
 where the .rc entry has the simple form "key=value".
 If that entry is not found, then return NULL.
@@ -194,10 +194,10 @@ NC_rcclear(NCRCinfo* info)
 static void
 rcfreeentry(NCRCentry* t)
 {
-	nullfree(t->host);
-	nullfree(t->urlpath);
+	nullfree(t->tag);
 	nullfree(t->key);
 	nullfree(t->value);
+	if(t->urlformat) nullfree(t->u.urlpath);
 	free(t);
 }
 
@@ -277,24 +277,32 @@ done:
 }
 
 /**
- * Locate a entry by property key and host+port (may be null)
+ * Locate a entry by property key and tag (may be null)
  * If duplicate keys, first takes precedence.
+ * If the tag is a #tag, then it must have '#' as its first character
+ * @param key to lookup
+ * @param tag that must be matched | null
+ * @param urlpath that must be matched | null
+ * @return matching value | null
  */
 char*
-NC_rclookup(const char* key, const char* hostport, const char* urlpath)
+NC_rclookup(const char* key, const char* tag, const char* urlpath)
 {
     struct NCRCentry* entry = NULL;
     if(!NCRCinitialized) ncrc_initialize();
-    entry = rclocate(key,hostport,urlpath);
+    entry = rclocate(key,tag,urlpath);
     return (entry == NULL ? NULL : entry->value);
 }
 
 /**
  * Locate a entry by property key and uri.
  * If duplicate keys, first takes precedence.
+ * @param uri take the host port and path from this
+ * @param key to match
+ * @return matching value | null
  */
 char*
-NC_rclookupx(NCURI* uri, const char* key)
+NC_rclookup_uri(NCURI* uri, const char* key)
 {
     char* hostport = NULL;
     char* result = NULL;
@@ -302,6 +310,30 @@ NC_rclookupx(NCURI* uri, const char* key)
     hostport = NC_combinehostport(uri);
     result = NC_rclookup(key,hostport,uri->path);
     nullfree(hostport);
+    return result;
+}
+
+/**
+ * Locate a entry by property key and #tag.
+ * If duplicate keys, first takes precedence.
+ * @param tag prefix match
+ * @param key to match
+ * @return matching value | null
+ */
+char*
+NC_rclookup_tag(const char* tag, const char* key)
+{
+    char* sharptag = NULL;
+    if(tag == NULL || tag[0] == '\0') return NULL;
+    if(tag[0] != '#') {
+	size_t len = strlen(tag);
+	sharptag = (char*)malloc(len+1+1); /* room for # and nul */
+	sharptag[0] = '#';
+	memcpy(sharptag+1,tag,len+1); /* include trailing nul */
+    } else
+	sharptag = tag;
+    result = NC_rclookup(key,sharptag,NULL);
+    if(tag[0] != '#') nullfree(sharptag);
     return result;
 }
 
@@ -391,7 +423,7 @@ rctrim(char* text)
     }
 }
 
-/* Order the entries: those with urls must be first,
+/* Partially order the entries: those with tags must be first,
    but otherwise relative order does not matter.
 */
 static void
@@ -402,16 +434,16 @@ rcorder(NClist* rc)
     NClist* tmprc = NULL;
     if(rc == NULL || len == 0) return;
     tmprc = nclistnew();
-    /* Two passes: 1) pull entries with host */
+    /* Two passes: 1) pull entries with tag*/
     for(i=0;i<len;i++) {
         NCRCentry* ti = nclistget(rc,i);
-	if(ti->host == NULL) continue;
+	if(ti->tag == NULL) continue;
 	nclistpush(tmprc,ti);
     }
     /* pass 2 pull entries without host*/
     for(i=0;i<len;i++) {
         NCRCentry* ti = nclistget(rc,i);
-	if(ti->host != NULL) continue;
+	if(ti->tag != NULL) continue;
 	nclistpush(tmprc,ti);
     }
     /* Move tmp to rc */
@@ -456,55 +488,64 @@ rccompile(const char* filepath)
 	char* line;
 	char* key = NULL;
         char* value = NULL;
+        char* tag = NULL;
         char* host = NULL;
         char* urlpath = NULL;
 	size_t llen;
         NCRCentry* entry;
+	int urlformat = 0;
 
-	line = rcreadline(&nextline);
 	if(line == NULL) break; /* done */
         rctrim(line);  /* trim leading and trailing blanks */
         if(line[0] == '#') continue; /* comment */
 	if((llen=strlen(line)) == 0) continue; /* empty line */
 	if(line[0] == LTAG) {
-	    char* url = ++line;
+	    char* rctag = ++line;
             char* rtag = strchr(line,RTAG);
             if(rtag == NULL) {
-                nclog(NCLOGERR, "Malformed [url] in %s entry: %s",filepath,line);
+                nclog(NCLOGERR, "Malformed [#tag|url] in %s entry: %s",filepath,line);
 		continue;
             }
             line = rtag + 1;
             *rtag = '\0';
-            /* compile the url and pull out the host and protocol */
-            if(uri) ncurifree(uri);
-            if(ncuriparse(url,&uri)) {
-                nclog(NCLOGERR, "Malformed [url] in %s entry: %s",filepath,line);
-		continue;
-            }
-	    if(NC_iss3(uri)) {
-	         NCURI* newuri = NULL;
-	        /* Rebuild the url to S3 "path" format */
-	        nullfree(bucket);
-		bucket = NULL;
-	        if((ret = NC_s3urlrebuild(uri,&bucket,NULL,&newuri))) goto done;
-		ncurifree(uri);
-		uri = newuri;
-		newuri = NULL;
+            /* compile the tag and pull out the tag or partial url */
+	    if(*rctag == '#') { /* [#tag] format */
+		tag = strdup(rctag);
+	        if(tag && strlen(tag)==0) tag = NULL; /* nullify */		
+		urlformat = 0;
+	    } else { /* Assume [url] format */
+                if(uri) ncurifree(uri);
+                if(ncuriparse(url,&uri)) {
+                    nclog(NCLOGERR, "Malformed [url] in %s entry: %s",filepath,line);
+		    continue;
+		}
+	        if(NC_iss3(uri)) {
+	            NCURI* newuri = NULL;
+	            /* Rebuild the url to S3 "path" format */
+	            nullfree(bucket);
+		    bucket = NULL;
+	            if((ret = NC_s3urlrebuild(uri,&bucket,NULL,&newuri))) goto done;
+		    ncurifree(uri);
+		    uri = newuri;
+		    newuri = NULL;
+	        }
+	        /* Get the host+port */
+                ncbytesclear(tmp);
+                ncbytescat(tmp,uri->host);
+                if(uri->port != NULL) {
+	   	    ncbytesappend(tmp,':');
+                    ncbytescat(tmp,uri->port);
+                }
+                ncbytesnull(tmp);
+                host = ncbytesextract(tmp);
+	        if(strlen(host)==0) /* nullify host */
+		    {free(host); host = NULL;}
+	        /* Get the url path part */
+	        urlpath = uri->path;
+	        if(urlpath && strlen(urlpath)==0) tag = NULL; /* nullify */
+		tag = host; host = NULL;
+		urlformat = 1;
 	    }
-	    /* Get the host+port */
-            ncbytesclear(tmp);
-            ncbytescat(tmp,uri->host);
-            if(uri->port != NULL) {
-		ncbytesappend(tmp,':');
-                ncbytescat(tmp,uri->port);
-            }
-            ncbytesnull(tmp);
-            host = ncbytesextract(tmp);
-	    if(strlen(host)==0) /* nullify host */
-		{free(host); host = NULL;}
-	    /* Get the url path part */
-	    urlpath = uri->path;
-	    if(urlpath && strlen(urlpath)==0) urlpath = NULL; /* nullify */
 	}
         /* split off key and value */
         key=line;
@@ -516,16 +557,19 @@ rccompile(const char* filepath)
             value++;
         }
 	/* See if key already exists */
-	entry = rclocate(key,host,urlpath);
+	entry = rclocate(key,host,tag);
 	if(entry == NULL) {
 	    entry = (NCRCentry*)calloc(1,sizeof(NCRCentry));
 	    if(entry == NULL) {ret = NC_ENOMEM; goto done;}
 	    nclistpush(rc,entry);
-	    entry->host = host; host = NULL;
-	    entry->urlpath = nulldup(urlpath);
+	    entry->tag = tag; tag = NULL;
+	    entry->urlformat = urlformat;
     	    entry->key = nulldup(key);
-            rctrim(entry->host);
-            rctrim(entry->urlpath);
+            rctrim(entry->tag);
+	    if(entry->urlformat) {
+	        entry->u.urlpath = nulldup(urlpath);
+                rctrim(entry->u.urlpath);
+	    }
             rctrim(entry->key);
 	}
 	nullfree(entry->value);
@@ -533,10 +577,14 @@ rccompile(const char* filepath)
         rctrim(entry->value);
 
 #ifdef DRCDEBUG
-	fprintf(stderr,"rc: host=%s urlpath=%s key=%s value=%s\n",
-		(entry->host != NULL ? entry->host : "<null>"),
-		(entry->urlpath != NULL ? entry->urlpath : "<null>"),
+	fprintf(stderr,"rc: tag=%s key=%s value=%s",
+		(entry->tag != NULL ? entry->tag : "<null>"),
 		entry->key,entry->value);
+	if(entry->urlformat) {
+	    fprintf(stderr," urlformat=%s",
+		(entry->u.urlpath != NULL ? entry->u.urlpath : "<null>"));
+	}
+	fprintf(stderr,"\n");
 #endif
 	entry = NULL;
     }
@@ -560,29 +608,32 @@ rcequal(NCRCentry* e1, NCRCentry* e2)
 {
     int nulltest;
     if(e1->key == NULL || e2->key == NULL) return 0;
+    if(e1->urlformat != e2->urlformat) return 0;
     if(strcmp(e1->key,e2->key) != 0) return 0;
-    /* test hostport; take NULL into account*/
+    /* test tag; take NULL into account*/
     nulltest = 0;
-    if(e1->host == NULL) nulltest |= 1;
-    if(e2->host == NULL) nulltest |= 2;
-    /* Use host to decide if entry applies */
+    if(e1->tag == NULL) nulltest |= 1;
+    if(e2->tag == NULL) nulltest |= 2;
+    /* Use tag to decide if entry applies */
     switch (nulltest) {
-    case 0: if(strcmp(e1->host,e2->host) != 0) {return 0;}  break;
-    case 1: break;    /* .rc->host == NULL && candidate->host != NULL */
-    case 2: return 0; /* .rc->host != NULL && candidate->host == NULL */
-    case 3: break;    /* .rc->host == NULL && candidate->host == NULL */
+    case 0: if(strcmp(e1->tag,e2->tag) != 0) {return 0;}  break;
+    case 1: break;    /* .rc->tag == NULL && candidate->tag != NULL */
+    case 2: return 0; /* .rc->tag != NULL && candidate->tag == NULL */
+    case 3: break;    /* .rc->tag == NULL && candidate->tag == NULL */
     default: return 0;
     }
-    /* test urlpath take NULL into account*/
-    nulltest = 0;
-    if(e1->urlpath == NULL) nulltest |= 1;
-    if(e2->urlpath == NULL) nulltest |= 2;
-    switch (nulltest) {
-    case 0: if(strcmp(e1->urlpath,e2->urlpath) != 0) {return 0;} break;
-    case 1: break;    /* .rc->urlpath == NULL && candidate->urlpath != NULL */
-    case 2: return 0; /* .rc->urlpath != NULL && candidate->urlpath == NULL */
-    case 3: break;    /* .rc->urlpath == NULL && candidate->urlpath == NULL */
-    default: return 0;
+    if(e1->urlformat) {
+        /* test urlpath take NULL into account*/
+        nulltest = 0;
+        if(e1->u.urlpath == NULL) nulltest |= 1;
+        if(e2->u.urlpath == NULL) nulltest |= 2;
+        switch (nulltest) {
+        case 0: if(strcmp(e1->u.urlpath,e2->u.urlpath) != 0) {return 0;} break;
+        case 1: break; /* rc->u.urlpath == NULL && candidate->u.urlpath != NULL */
+        case 2: return 0; /* rc->u.urlpath != NULL && candidate->u.urlpath == NULL */
+        case 3: break;    /* rc->u.urlpath == NULL && candidate->u.urlpath == NULL */
+        default: return 0;
+        }
     }
     return 1;
 }
@@ -590,9 +641,13 @@ rcequal(NCRCentry* e1, NCRCentry* e2)
 /**
  * (Internal) Locate a entry by property key and host+port (may be null) and urlpath (may be null)
  * If duplicate keys, first takes precedence.
+ * @param key to match
+ * @param tag to match if !NULL
+ * @param urlpath to match if urlformat
+ * @return integer position of match or -1.
  */
 static int
-rclocatepos(const char* key, const char* hostport, const char* urlpath)
+rclocatepos(const char* key, const char* tag, const char* urlpath)
 {
     int i;
     NCglobalstate* globalstate = NC_getglobalstate();
@@ -605,8 +660,8 @@ rclocatepos(const char* key, const char* hostport, const char* urlpath)
 
     candidate.key = (char*)key;
     candidate.value = (char*)NULL;
-    candidate.host = (char*)hostport;
-    candidate.urlpath = (char*)urlpath;
+    candidate.tag = (char*)tag;
+    candidate.u.urlpath = (char*)urlpath;
 
     for(i=0;i<nclistlength(rc);i++) {
       entry = (NCRCentry*)nclistget(rc,i);
@@ -618,9 +673,13 @@ rclocatepos(const char* key, const char* hostport, const char* urlpath)
 /**
  * (Internal) Locate a entry by property key and host+port (may be null or "").
  * If duplicate keys, first takes precedence.
+ * @param key to match
+ * @param tag to match if !NULL
+ * @param urlpath to match if urlformat
+ * @return matching NCRCentry
  */
 static struct NCRCentry*
-rclocate(const char* key, const char* hostport, const char* urlpath)
+rclocate(const char* key, const char* tag, const char* urlpath)
 {
     int pos;
     NCglobalstate* globalstate = NC_getglobalstate();
@@ -628,7 +687,7 @@ rclocate(const char* key, const char* hostport, const char* urlpath)
 
     if(globalstate->rcinfo->ignore) return NULL;
     if(key == NULL || info == NULL) return NULL;
-    pos = rclocatepos(key,hostport,urlpath);
+    pos = rclocatepos(key,tag,urlpath);
     if(pos < 0) return NULL;
     return NC_rcfile_ith(info,(size_t)pos);
 }
@@ -671,19 +730,31 @@ done:
     return (ret);
 }
 
+/**
+ * Insert entry into the list of NCRCentries; override any existing value.
+ * @param key to match
+ * @param tag to match if !NULL
+ * @param urlpath to match if urlformat
+ * @param value to insert
+ * @return NC_NOERR or error otherwise
+ */
 int
-NC_rcfile_insert(const char* key, const char* hostport, const char* urlpath, const char* value)
+NC_rcfile_insert(const char* key, const char* tag, const char* urlpath, const char* value)
 {
     int ret = NC_NOERR;
     /* See if this key already defined */
     struct NCRCentry* entry = NULL;
     NCglobalstate* globalstate = NULL;
     NClist* rc = NULL;
+    int urlformat = 0;
 
     if(!NCRCinitialized) ncrc_initialize();
 
     if(key == NULL || value == NULL)
         {ret = NC_EINVAL; goto done;}
+
+    if(tag != NULL && tag[0] != '\0') tag = NULL;
+    if(tag != NULL && tag[0] != '#') urlformat = 1;
 
     globalstate = NC_getglobalstate();
     rc = globalstate->rcinfo->entries;
@@ -693,17 +764,20 @@ NC_rcfile_insert(const char* key, const char* hostport, const char* urlpath, con
         globalstate->rcinfo->entries = rc;
 	if(rc == NULL) {ret = NC_ENOMEM; goto done;}
     }
-    entry = rclocate(key,hostport,urlpath);
+    entry = rclocate(key,tag,urlpath);
     if(entry == NULL) {
 	entry = (NCRCentry*)calloc(1,sizeof(NCRCentry));
 	if(entry == NULL) {ret = NC_ENOMEM; goto done;}
 	entry->key = strdup(key);
 	entry->value = NULL;
         rctrim(entry->key);
-        entry->host = nulldup(hostport);
-        rctrim(entry->host);
-        entry->urlpath = nulldup(urlpath);
-        rctrim(entry->urlpath);
+        entry->tag = nulldup(tag);
+        rctrim(entry->tag);
+	entry->urlformat = urlformat;
+	if(entry->urlformat) {
+            entry->u.urlpath = nulldup(urlpath);
+            rctrim(entry->urlpath);
+	}
 	nclistpush(rc,entry);
     }
     if(entry->value != NULL) free(entry->value);
@@ -732,7 +806,6 @@ NC_rcfile_ith(NCRCinfo* info, size_t i)
     return (NCRCentry*)nclistget(info->entries,i);
 }
 
-
 #ifdef DRCDEBUG
 static void
 storedump(char* msg, NClist* entries)
@@ -746,8 +819,16 @@ storedump(char* msg, NClist* entries)
     }
     for(i=0;i<nclistlength(entries);i++) {
 	NCRCentry* t = (NCRCentry*)nclistget(entries,i);
-        fprintf(stderr,"\t%s\t%s\t%s\n",
-                ((t->host == NULL || strlen(t->host)==0)?"--":t->host),t->key,t->value);
+	if(t->tag != NULL) {
+	    if(t->urlformat) {
+                fprintf(stderr,"\t[https://%s",t->tag);
+	        if(t->u.urlpath != NULL)
+                    fprintf(stderr,"/%s",t->u.urlpath);
+	        fprintf(stderr,"]");
+	    } else
+		fprintf(stderr,"\t[%s]",t->tag);
+	}
+        fprintf(stderr,"%s=%s\n",t->key,(t->value?t->value:""));
     }
     fflush(stderr);
 }

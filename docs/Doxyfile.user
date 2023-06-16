@@ -750,8 +750,9 @@ INPUT = \
     ./docs/file_format_specifications.md \
     ./docs/byterange.md \
     ./docs/inmemory.md \
-    ./docs/auth.md \
     ./docs/filters.md \
+    ./docs/rc.md \
+    ./docs/auth.md \
     ./docs/notes.md \
     ./docs/all-error-codes.md \
     ./docs/building-with-cmake.md \
