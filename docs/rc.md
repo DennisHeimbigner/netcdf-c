@@ -83,7 +83,7 @@ will have HTTP.VERBOSE set to 1 because its host matches the example above.
 
 Similarly,
 ````
-    http://fake.ucar.edu:9090/dts/test.01#tag=opendap
+    http://fake.ucar.edu:9090/dts/test.01#rc=opendap
 ````
 will have HTTP.VERBOSE set to 0 because the fragment tag matches the tag
 in the example above.
