@@ -740,22 +740,22 @@ if test "x$have_zstd" = "xyes" ; then
    fi
 fi
 
-# See if we have libbz2
-AC_CHECK_LIB([bz2],[BZ2_bzCompress],[have_bz2=yes],[have_bz2=no])
-if test "x$have_bz2" = "xyes" ; then
-     AC_SEARCH_LIBS([BZ2_bzCompress],[bz2 bz2.dll cygbz2.dll], [], [])
-     AC_DEFINE([HAVE_BZ2], [1], [if true, bz2 library is installed])
+# See if we have libbzip2
+AC_CHECK_LIB([bzip2],[BZ2_bzCompress],[have_bzip2=yes],[have_bzip2=no])
+if test "x$have_bzip2" = "xyes" ; then
+     AC_SEARCH_LIBS([BZ2_bzCompress],[bzip2 bzip2.dll cygbzip2.dll], [], [])
+     AC_DEFINE([HAVE_BZIP2], [1], [if true, bzip2 library is installed])
 fi
-AC_MSG_CHECKING([whether libbz2 library is available])
-AC_MSG_RESULT([${have_bz2}])
+AC_MSG_CHECKING([whether libbzip2 library is available])
+AC_MSG_RESULT([${have_bzip2}])
 
-if test "x$have_bz2" = "xno" ; then
-  have_local_bz2=yes
-  AC_MSG_NOTICE([Defaulting to internal libbz2])
+if test "x$have_bzip2" = "xno" ; then
+  have_local_bzip2=yes
+  AC_MSG_NOTICE([Defaulting to internal libbzip2])
 else
-  have_local_bz2=no
+  have_local_bzip2=no
 fi
-AM_CONDITIONAL(HAVE_LOCAL_BZ2, [test "x$have_local_bz2" = xyes])
+AM_CONDITIONAL(HAVE_LOCAL_BZIP2, [test "x$have_local_bzip2" = xyes])
 
 # Note that szip management is tricky.
 # This is because we have three things to consider:
@@ -1857,7 +1857,7 @@ AM_CONDITIONAL(HAVE_DEFLATE, [test "x$have_deflate" = xyes])
 AM_CONDITIONAL(HAVE_SZ, [test "x$have_sz" = xyes])
 AM_CONDITIONAL(HAVE_H5Z_SZIP, [test "x$enable_hdf5_szip" = xyes])
 AM_CONDITIONAL(HAVE_BLOSC, [test "x$have_blosc" = xyes])
-AM_CONDITIONAL(HAVE_BZ2, [test "x$have_bz2" = xyes])
+AM_CONDITIONAL(HAVE_BZIP2, [test "x$have_bzip2" = xyes])
 AM_CONDITIONAL(HAVE_ZSTD, [test "x$have_zstd" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
@@ -1985,7 +1985,7 @@ AC_SUBST(WHICH_S3_SDK,[none])
 fi
 
 # Always available
-std_filters="bz2"
+std_filters="bzip2"
 if test "x$have_deflate" = xyes ; then
 std_filters="${std_filters} deflate"
 fi
@@ -2112,7 +2112,7 @@ AX_SET_META([NC_HAS_QUANTIZE],[$enable_quantize],[yes])
 AX_SET_META([NC_HAS_SZIP],[$enable_hdf5_szip],[yes])
 AX_SET_META([NC_HAS_ZSTD],[$have_zstd],[yes])
 AX_SET_META([NC_HAS_BLOSC],[$have_blosc],[yes])
-AX_SET_META([NC_HAS_BZ2],[$have_bz2],[yes])
+AX_SET_META([NC_HAS_BZIP2],[$have_bzip2],[yes])
 
 # This is the version of the dispatch table. If the dispatch table is
 # changed, this should be incremented, so that user-defined format

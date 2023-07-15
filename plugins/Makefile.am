@@ -128,7 +128,7 @@ check_LTLIBRARIES += lib__nch5misc.la lib__nczmisc.la
 lib__nch5bzip2_la_SOURCES = H5Zbzip2.c h5bzip2.h
 BZIP2SRC = blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c bzlib.c bzlib.h bzlib_private.h
 EXTRA_DIST += ${BZIP2SRC} BZIP2_LICENSE
-if HAVE_LOCAL_BZ2
+if HAVE_LOCAL_BZIP2
 lib__nch5bzip2_la_SOURCES += ${BZIP2SRC}
 endif
 plugins_to_install += lib__nch5bzip2.la
