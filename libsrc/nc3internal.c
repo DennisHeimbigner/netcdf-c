@@ -1723,7 +1723,7 @@ NC3_inq_var_fill(const NC_var *varp, void *fill_value)
     /*
      * find fill value
      */
-    attrpp = NC_findattr(&varp->attrs, _FillValue);
+    attrpp = NC_findattr(&varp->attrs, NC_FillValue);
     if ( attrpp != NULL ) {
         const void *xp;
         /* User defined fill value */
