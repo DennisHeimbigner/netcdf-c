@@ -29,6 +29,10 @@ typedef struct NCZSlice {
     size64_t len; /* full dimension length */
 } NCZSlice;
 
+/* A projection defines the set of grid points
+   for a given set of slices as projected onto
+   a single chunk.
+*/
 typedef struct NCProjection {
     int id;
     int skip; /* Should this projection be skipped? */
@@ -54,7 +58,7 @@ typedef struct NCZSliceProjections {
 				   the chunk */
 } NCZSliceProjections;
 
-/* Combine some values to simplify internal argument lists */
+/* Combine some values to avoid having to pass long argument lists*/
 struct Common {
     NC_FILE_INFO_T* file;
     NC_VAR_INFO_T* var;
@@ -62,9 +66,10 @@ struct Common {
     int reading; /* 1=> read, 0 => write */
     int rank;
     int scalar; /* 1 => scalar variable */
-    size64_t* dimlens;
-    size64_t* chunklens;
-    size64_t* memshape;
+    size64_t dimlens[NC_MAX_VAR_DIMS];
+    unsigned char isunlimited[NC_MAX_VAR_DIMS];
+    size64_t chunklens[NC_MAX_VAR_DIMS];
+    size64_t memshape[NC_MAX_VAR_DIMS];
     void* memory;
     size_t typesize;
     size64_t chunkcount; /* computed product of chunklens; warning indices, not bytes */
@@ -77,7 +82,7 @@ struct Common {
 
 /**************************************************/
 /* From zchunking.c */
-EXTERNL int NCZ_compute_chunk_ranges(int rank, const NCZSlice*, const size64_t*, NCZChunkRange* ncr);
+EXTERNL int NCZ_compute_chunk_ranges(struct Common*, const NCZSlice*, NCZChunkRange* ncr);
 EXTERNL int NCZ_compute_projections(struct Common*, int r, size64_t chunkindex, const NCZSlice* slice, size_t n, NCZProjection* projections);
 EXTERNL int NCZ_compute_per_slice_projections(struct Common*, int rank, const NCZSlice*, const NCZChunkRange*, NCZSliceProjections* slp);
 EXTERNL int NCZ_compute_all_slice_projections(struct Common*, const NCZSlice* slices, const NCZChunkRange*, NCZSliceProjections*);
@@ -94,10 +99,7 @@ EXTERNL size64_t NCZ_computelinearoffset(size_t, const size64_t*, const size64_t
 /* Special entry points for unit testing */
 struct Common;
 struct NCZOdometer;
-EXTERNL int NCZ_projectslices(size64_t* dimlens,
-		  size64_t* chunklens,
-		  NCZSlice* slices,
-		  struct Common*, struct NCZOdometer**);
+EXTERNL int NCZ_projectslices(struct Common*, NCZSlice* slices, struct NCZOdometer**);
 EXTERNL int NCZ_chunkindexodom(int rank, const NCZChunkRange* ranges, size64_t*, struct NCZOdometer** odom);
 EXTERNL void NCZ_clearsliceprojections(int count, NCZSliceProjections* slpv);
 EXTERNL void NCZ_clearcommon(struct Common* common);

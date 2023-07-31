@@ -1,8 +1,3 @@
-/*
-Additonal optimizations:
-1. slice covers all of exactly one chunk: we can just tranfer whole chunk to/from memory
-
-*/
 /*********************************************************************
  *   Copyright 2018, UCAR/Unidata
  *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
@@ -33,7 +28,7 @@ astype(int typesize, void* ptr)
 {
     switch(typesize) {
     case 4: {
-	static char is[8];
+	static char is[8]; 
 	snprintf(is,sizeof(is),"%u",*((unsigned int*)ptr));
 	return is;
         } break;
@@ -71,7 +66,7 @@ can be evaluated to provide the output data.
 Note that we do not actually pass NCZSlice but rather
 (start,count,stride) vectors.
 
-@param var Controlling variable
+v@param var Controlling variable
 @param usreading reading vs writing
 @param start start vector
 @param stop stop vector
@@ -88,6 +83,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 {
     int r,stat = NC_NOERR;
     size64_t dimlens[NC_MAX_VAR_DIMS];
+    unsigned char isunlimited[NC_MAX_VAR_DIMS];
     size64_t chunklens[NC_MAX_VAR_DIMS];
     size64_t memshape[NC_MAX_VAR_DIMS];
     NCZSlice slices[NC_MAX_VAR_DIMS];
@@ -130,6 +126,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     common.chunkcount = 1;
     if(common.scalar) {
 	dimlens[0] = 1;
+	isunlimited[0] = 0;
 	chunklens[0] = 1;
 	slices[0].start = 0;
 	slices[0].stride = 1;
@@ -138,12 +135,15 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
 	common.chunkcount = 1;
 	memshape[0] = 1;
     } else for(r=0;r<common.rank;r++) {
-	    dimlens[r] = var->dim[r]->len;
+	dimlens[r] = var->dim[r]->len;
+	isunlimited[r] = var->dim[r]->unlimited;
 	chunklens[r] = var->chunksizes[r];
 	slices[r].start = start[r];
 	slices[r].stride = stride[r];
-	slices[r].stop = minimum(start[r]+(count[r]*stride[r]),dimlens[r]);
-	slices[r].len = dimlens[r];
+	slices[r].stop = start[r]+(count[r]*stride[r]);
+	if(!isunlimited[r])
+          slices[r].stop = minimum(slices[r].stop,dimlens[r]);
+	slices[r].len = var->dim[r]->len;
 	common.chunkcount *= chunklens[r];
 	memshape[r] = count[r];
     }
@@ -151,15 +151,19 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     if(wdebug >= 1) {
         fprintf(stderr,"\trank=%d",common.rank);
         if(!common.scalar) {
-            fprintf(stderr," dimlens=%s",nczprint_vector(common.rank,dimlens));
+  	    fprintf(stderr," dimlens=%s",nczprint_vector(common.rank,dimlens));
             fprintf(stderr," chunklens=%s",nczprint_vector(common.rank,chunklens));
             fprintf(stderr," memshape=%s",nczprint_vector(common.rank,memshape));
         }
 	fprintf(stderr,"\n");
     }
-    common.dimlens = dimlens; /* BAD: storing stack vector in a pointer; do not free */
-    common.chunklens = chunklens; /* ditto */
-    common.memshape = memshape; /* ditto */
+
+    /* Transfer data */
+    memcpy(common.dimlens,dimlens,sizeof(size64_t)*common.rank);
+    memcpy(common.isunlimited,isunlimited,sizeof(unsigned char)*common.rank);
+    memcpy(common.chunklens,chunklens,sizeof(size64_t)*common.rank);
+    memcpy(common.memshape,memshape,sizeof(size64_t)*common.rank);
+
     common.reader.source = ((NCZ_VAR_INFO_T*)(var->format_var_info))->cache;
     common.reader.read = readfromcache;
 
@@ -196,7 +200,8 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
         combinations of chunkranges over all dimensions.
      2. For each chunk odometer set of indices, we need a projection
         odometer that walks the set of projection slices for a given
-        set of chunk ranges over all dimensions.
+        set of chunk ranges over all dimensions. Note that this is where
+	we detect unlimited extensions.
      3. A memory odometer that walks the memory data to specify
         the locations in memory for read/write
     */     
@@ -205,8 +210,7 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	fprintf(stderr,"slices=%s\n",nczprint_slices(common->rank,slices));
     }
 
-    if((stat = NCZ_projectslices(common->dimlens, common->chunklens, slices,
-		  common, &chunkodom)))
+    if((stat = NCZ_projectslices(common, slices, &chunkodom)))
 	goto done;
 
     if(wdebug >= 4) {
@@ -360,6 +364,8 @@ wdebug2(const struct Common* common, unsigned char* slpptr, unsigned char* mempt
 #endif
 
 /*
+Walk a set of slices and transfer data.
+
 @param projv
 @param chunkodom
 @param slpodom
@@ -528,11 +534,15 @@ done:
 #endif
 
 /* Break out this piece so we can use it for unit testing */
+/**
+@param slices
+@param common
+@param odomp
+@return err code
+*/
 int
-NCZ_projectslices(size64_t* dimlens,
-                  size64_t* chunklens,
+NCZ_projectslices(struct Common* common, 
                   NCZSlice* slices,
-                  struct Common* common, 
                   NCZOdometer** odomp)
 {
     int stat = NC_NOERR;
@@ -549,11 +559,8 @@ NCZ_projectslices(size64_t* dimlens,
         {stat = NC_ENOMEM; goto done;}
     memset(ranges,0,sizeof(ranges));
 
-    /* Package common arguments */
-    common->dimlens = dimlens;
-    common->chunklens = chunklens;
     /* Compute the chunk ranges for each slice in a given dim */
-    if((stat = NCZ_compute_chunk_ranges(common->rank,slices,common->chunklens,ranges)))
+    if((stat = NCZ_compute_chunk_ranges(common,slices,ranges)))
         goto done;
 
     /* Compute the slice index vector */

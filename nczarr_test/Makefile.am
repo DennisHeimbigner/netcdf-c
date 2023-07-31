@@ -6,17 +6,18 @@
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
 
+AM_CFLAGS += -I..
+AM_CPPFLAGS += -I${top_srcdir}/libnczarr
+AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
+LDADD = ${top_builddir}/liblib/libnetcdf.la
+
 TESTS_ENVIRONMENT =
-#TEST_EXTENSIONS = .sh
+TEST_EXTENSIONS = .sh
 #SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #TESTS_ENVIRONMENT += export SETX=1;
 #TESTS_ENVIRONMENT += export NCTRACING=1;
-
-AM_CPPFLAGS += -I${top_srcdir} -I${top_srcdir}/libnczarr
-AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
-LDADD = ${top_builddir}/liblib/libnetcdf.la
 
 # Set up the tests; do the .sh first, then .c
 check_PROGRAMS =
@@ -25,21 +26,22 @@ TESTS =
 check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking 
 
 commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
-tstcommonsrc = tst_utils.c tst_utils.h
+testcommonsrc = test_utils.c test_utils.h
 
 ut_map_SOURCES = ut_map.c ${commonsrc}
 ut_mapapi_SOURCES = ut_mapapi.c ${commonsrc}
 ut_json_SOURCES = ut_json.c ${commonsrc}
 ut_projections_SOURCES = ut_projections.c ${commonsrc}
 ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
-tst_fillonlyz_SOURCES = tst_fillonlyz.c ${tstcommonsrc}
+test_fillonlyz_SOURCES = test_fillonlyz.c ${testcommonsrc}
 
-check_PROGRAMS += tst_zchunks tst_zchunks2 tst_zchunks3 tst_fillonlyz test_quantize tst_notzarr
+check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_fillonlyz test_quantize test_notzarr test_unlim_vars
 
-TESTS += run_ut_chunk.sh
+TESTS += test_unlim_vars
 
 if BUILD_UTILITIES
 
+TESTS += run_ut_chunk.sh
 TESTS += run_ut_map.sh
 TESTS += run_ut_misc.sh
 TESTS += run_ut_mapapi.sh
@@ -49,10 +51,6 @@ if USE_HDF5
 #TESTS += run_nccopyz.sh
 TESTS += run_fillonlyz.sh
 endif
-
-check_PROGRAMS += tst_chunkcases
-tst_chunkcases_SOURCES = tst_chunkcases.c ${tstcommonsrc}
-TESTS += run_chunkcases.sh
 
 TESTS += run_quantize.sh
 TESTS += run_purezarr.sh
@@ -66,17 +64,21 @@ TESTS += run_nulls.sh
 TESTS += run_notzarr.sh
 TESTS += run_external.sh
 
-endif #BUILD_UTILITIES
-
-if BUILD_UTILITIES 
-
 if ENABLE_NCZARR_ZIP
 TESTS += run_newformat.sh
 endif
 
+check_PROGRAMS += test_chunkcases
+test_chunkcases_SOURCES = test_chunkcases.c ${testcommonsrc}
+TESTS += run_chunkcases.sh
+
+check_PROGRAMS += test_unlim_io
+test_unlim_io_SOURCES = test_unlim_io.c ${testcommonsrc}
+TESTS += run_unlim_io.sh
+
 if BUILD_BENCHMARKS
 
-UTILSRC = bm_utils.c timer_utils.c tst_utils.c bm_utils.h bm_timer.h
+UTILSRC = bm_utils.c timer_utils.c test_utils.c bm_utils.h bm_timer.h
 
 bm_chunks3_SOURCES = bm_chunks3.c ${UTILSRC}
 
@@ -92,7 +94,7 @@ endif # BUILD_BENCHMARKS
 if ENABLE_FILTER_TESTING
 
 # Do simple filter functionality tests for nczarr
-check_PROGRAMS += tst_nczfilter
+check_PROGRAMS += test_nczfilter
 TESTS += run_nczfilter.sh
 
 # Echo filter tests from nc_test4
@@ -140,7 +142,7 @@ run_purezarr.sh run_interop.sh run_misc.sh \
 run_filter.sh \
 run_newformat.sh run_nczarr_fill.sh run_quantize.sh \
 run_jsonconvention.sh run_nczfilter.sh run_unknown.sh \
-run_scalar.sh run_strings.sh run_nulls.sh run_notzarr.sh run_external.sh
+run_scalar.sh run_strings.sh run_nulls.sh run_notzarr.sh run_external.sh run_unlim_io.sh
 
 EXTRA_DIST += \
 ref_ut_map_create.cdl ref_ut_map_writedata.cdl ref_ut_map_writemeta2.cdl ref_ut_map_writemeta.cdl \
@@ -170,7 +172,8 @@ ref_zarr_test_data.cdl.gz
 
 CLEANFILES = ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp tmp*.zip tmp*.nc tmp*.dump tmp*.tmp tmp*.zmap tmp_ngc.c ref_zarr_test_data.cdl tst_*.nc.zip ref_quotes.zip ref_power_901_constants.zip
 
-BUILT_SOURCES = test_quantize.c run_specific_filters.sh run_filterinstall.sh run_unknown.sh test_filter_vlen.c run_filter_vlen.sh
+BUILT_SOURCES = test_quantize.c run_specific_filters.sh run_filterinstall.sh run_unknown.sh \
+                test_filter_vlen.c run_filter_vlen.sh test_unlim_vars.c
 
 test_quantize.c: $(top_srcdir)/nc_test4/tst_quantize.c
 	rm -f $@
@@ -181,6 +184,11 @@ test_filter_vlen.c: $(top_srcdir)/nc_test4/tst_filter_vlen.c
 	rm -f $@
 	echo "#define TESTNCZARR" > $@
 	cat $(top_srcdir)/nc_test4/tst_filter_vlen.c >> $@
+
+test_unlim_vars.c: $(top_srcdir)/nc_test4/tst_unlim_vars.c
+	rm -f $@
+	echo "#define TESTNCZARR" > $@
+	cat $(top_srcdir)/nc_test4/tst_unlim_vars.c >> $@
 
 run_unknown.sh: $(top_srcdir)/nc_test4/tst_unknown.sh
 	rm -f $@ run_unknown.tmp
@@ -225,7 +233,7 @@ clean-local:
 	rm -fr rcmiscdir ref_power_901_constants.file 
 
 
-DISTCLEANFILES = findplugin.sh test_quantize.c run_specific_filters.sh run_filterinstall.sh run_unknown.sh test_filter_vlen.c run_filter_vlen.sh
+DISTCLEANFILES = findplugin.sh test_quantize.c run_specific_filters.sh run_filterinstall.sh run_unknown.sh test_filter_vlen.c run_filter_vlen.sh test_unlim_vars.c
 
 # Provide a specific s3 cleanup action
 s3cleanup::

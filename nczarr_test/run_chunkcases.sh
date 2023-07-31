@@ -21,7 +21,7 @@ s3isolate "testdir_chunkcases"
 THISDIR=`pwd`
 cd $ISOPATH
 
-TC="${execdir}/tst_chunkcases -4"
+TC="${execdir}/test_chunkcases -4"
 ZM="${execdir}/zmapio -t int"
 
 remfile() {
@@ -97,7 +97,7 @@ echo "Test chunk skipping during read"
 makefile tmp_skip
 rm -f tmp_skip_${zext}.txt tmp_skip_${zext}.cdl
 $TC -d 6,6 -c 2,2 -Ow $F
-$TC -s 5,5 -p 6,6 -Or $F > tmp_skip_${zext}.txt
+$TC -i 5,5 -p 6,6 -Or $F > tmp_skip_${zext}.txt
 ${NCDUMP} $F > tmp_skip_${zext}.cdl
 diff -b ${srcdir}/ref_skip.txt tmp_skip_${zext}.txt
 diff -b ${srcdir}/ref_skip.cdl tmp_skip_${zext}.cdl
@@ -105,7 +105,7 @@ diff -b ${srcdir}/ref_skip.cdl tmp_skip_${zext}.cdl
 echo "Test chunk skipping during write"
 makefile tmp_skipw
 rm -f tmp_skipw_${zext}.cdl
-$TC -d 6,6 -s 5,5 -p 6,6 -Ow $F
+$TC -d 6,6 -c 2,2 -i 5,5 -p 6,6 -Ow $F
 ${NCDUMP} $F > tmp_skipw_${zext}.cdl
 diff -b ${srcdir}/ref_skipw.cdl tmp_skipw_${zext}.cdl
 

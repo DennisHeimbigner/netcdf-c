@@ -20,6 +20,11 @@ FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/test_filter_vlen.c "${ASOURCE}")
 FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/../nc_test4/tst_specific_filters.sh SPSOURCE)
 STRING(PREPEND SPSOURCE "#!/bin/bash\n")
 STRING(PREPEND SPSOURCE "TESTNCZARR=1\n")
+
+FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/../nc_test4/tst_unlim_vars.c SPSOURCE)
+STRING(PREPEND SPSOURCE "#define TESTNCZARR 1\n")
+FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/test_unlim_vars.c "${ASOURCE}")
+
 # Replace with FILE(CONFIGURE) when cmake 3.18 is in common use
 
 FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/run_specific_filters.1 "${SPSOURCE}")
