@@ -49,6 +49,7 @@ makefile() {
 testcase() {
 zext=$1
 echo ""; echo "*** Test format $1"
+rm -fr tmp_unlim_io.nc tmp_unlim_io.file
 $TC -d 0 -c 2 -s 0 -e 1 -O cw tmp_unlim_io.nc
 $TC -d 0 -c 2 -s 0 -e 1 -O cw file://tmp_unlim_io.file\#mode=nczarr,file
 }

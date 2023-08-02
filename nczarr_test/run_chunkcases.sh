@@ -64,14 +64,14 @@ echo "Test whole chunk write then read"
 makefile tmp_xwhole
 rm -f tmp_xwhole_${zext}.txt tmp_xwhole_${zext}.cdl tmp_xerr_${zext}.txt
 # This should fail 
-if ! $TC -d 8,8 -c 4,4 -f 4,3 -e 4,4 -X w -OWw $F >> tmp_xerr_${zext}.txt ; then
-echo "XFAIL: wholechunk with bad -f"
+if ! $TC -d 8,8 -c 4,4 -s 4,3 -e 4,4 -O cw -OWw $F >> tmp_xerr_${zext}.txt ; then
+echo "XFAIL: wholechunk with bad -s"
 else
-echo "Unexpected PASS: wholechunk with bad -f"
+echo "Unexpected PASS: wholechunk with bad -s"
 exit 1
 fi
 remfile $file
-if ! $TC -d 8,8 -c 4,4 -f 4,4 -e 1,4 -X w -OWw $F  >> tmp_xerr_${zext}.txt ; then
+if ! $TC -d 8,8 -c 4,4 -s 4,4 -e 1,4 -OcWw $F  >> tmp_xerr_${zext}.txt ; then
 echo "XFAIL: wholechunk with bad -e"
 else
 echo "Unexpected PASS: wholechunk with bad -e"
@@ -86,8 +86,8 @@ makefile tmp_whole
 rm -f tmp_whole_${zext}.txt tmp_whole_${zext}.cdl tmp_err_${zext}.txt
 makefile tmp_whole
 # This should succeed
-$TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -X w -OWw $F
-$TC -d 8,8 -c 4,4 -f 4,4 -e 4,4 -X w -OWr $F > tmp_whole_${zext}.txt
+$TC -d 8,8 -c 4,4 -s 4,4 -e 4,4 -OWcw $F
+$TC -d 8,8 -c 4,4 -s 4,4 -e 4,4 -OWr $F > tmp_whole_${zext}.txt
 diff -b ${srcdir}/ref_whole.txt tmp_whole_${zext}.txt
 ${NCDUMP} $F > tmp_whole_${zext}.cdl
 diff -b ${srcdir}/ref_whole.cdl tmp_whole_${zext}.cdl
@@ -130,7 +130,7 @@ diff -b ${srcdir}/ref_ndims.dmp tmp_ndims_${zext}.dmp
 echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.cdl
-$TC -d 6,12,4 -c 2,3,1 -f 0,0,0 -e 6,1,4 -Ow $F
+$TC -d 6,12,4 -c 2,3,1 -s 0,0,0 -e 6,1,4 -Ow $F
 if test "x$FEATURE_S3TESTS" = xyes ; then
 ${S3UTIL} -u 'https://s3.us-east-1.amazonaws.com/unidata-zarr-test-data' -k '/netcdf-c' list
 fi
