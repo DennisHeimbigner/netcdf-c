@@ -8,8 +8,6 @@
 
 #include "ncexternl.h"
 
-/* Callback functions so we can use with unit tests */
-
 typedef int (*NCZ_reader)(void* source, size64_t* chunkindices, void** chunkdata);
 struct Reader {void* source; NCZ_reader read;};
 
@@ -76,7 +74,7 @@ struct Common {
     int swap; /* var->format_info_file->native_endianness == var->endianness */
     size64_t shape[NC_MAX_VAR_DIMS]; /* shape of the output hyperslab */
     NCZSliceProjections* allprojections;
-    /* Parametric chunk reader so we can do unittests */
+    /* Parametric chunk reader */
     struct Reader reader;
 };
 

@@ -32,7 +32,7 @@ writedata(void)
     int ret = NC_NOERR;
     size_t i;
 
-    for(i=0;i<NDATA;i++) data[i] = options->data;
+    for(i=0;i<NDATA;i++) data[i] = (options->data == 0x7fffffff ? i: options->data);
  
     if(options->debug >= 1) {
 	fprintf(stderr,"write: dimlens=%s chunklens=%s\n",

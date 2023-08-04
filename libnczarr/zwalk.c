@@ -247,8 +247,10 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	    if((stat=NCZ_copy_data(common->file,common->var->type_info,memptr,common->chunkcount,ZCLEAR,slpptr))) goto done;
 	}
 //        transfern(common,slpptr,memptr,common->chunkcount,1,chunkdata);
+#ifdef UTTEST
         if(zutest && zutest->tests & UTEST_WHOLECHUNK)
 	    zutest->print(UTEST_WHOLECHUNK, common, chunkindices);
+#endif
 	goto done;
     }
 
@@ -298,8 +300,10 @@ NCZ_transfer(struct Common* common, NCZSlice* slices)
 	    slpslices[r] = proj[r]->chunkslice;
 	    memslices[r] = proj[r]->memslice;
 	}
+#ifdef UTTEST
 	if(zutest && zutest->tests & UTEST_TRANSFER)
 	    zutest->print(UTEST_TRANSFER, common, chunkodom, slpslices, memslices);
+#endif
 
         /* Read from cache */
         stat = common->reader.read(common->reader.source, chunkindices, &chunkdata);
@@ -405,8 +409,10 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
             slpptr0 = ((unsigned char*)chunkdata)+(slpoffset * common->typesize);
 
 	    LOG((1,"%s: slpptr0=%p memptr0=%p slpoffset=%llu memoffset=%lld",__func__,slpptr0,memptr0,slpoffset,memoffset));
+#ifdef UTTEST
 	    if(zutest && zutest->tests & UTEST_WALK)
 		zutest->print(UTEST_WALK, common, chunkodom, slpodom, memodom);
+#endif
 	    /* See if we can transfer multiple values at one shot */
 	    laststride = slpodom->stride[common->rank-1];
 	    if(laststride == 1) {

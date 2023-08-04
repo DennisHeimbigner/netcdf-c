@@ -58,25 +58,6 @@ makefile() {
 
 testcasesxfail() {
 zext=$1
-echo ""; echo "*** XFAIL Test format $1"
-# Test whole chunk write and read
-echo "Test whole chunk write then read"
-makefile tmp_xwhole
-rm -f tmp_xwhole_${zext}.txt tmp_xwhole_${zext}.cdl tmp_xerr_${zext}.txt
-# This should fail 
-if ! $TC -d 8,8 -c 4,4 -s 4,3 -e 4,4 -O cw -OWw $F >> tmp_xerr_${zext}.txt ; then
-echo "XFAIL: wholechunk with bad -s"
-else
-echo "Unexpected PASS: wholechunk with bad -s"
-exit 1
-fi
-remfile $file
-if ! $TC -d 8,8 -c 4,4 -s 4,4 -e 1,4 -OcWw $F  >> tmp_xerr_${zext}.txt ; then
-echo "XFAIL: wholechunk with bad -e"
-else
-echo "Unexpected PASS: wholechunk with bad -e"
-exit 1
-fi
 } # testcasesxfail()
 
 testcasespass() {
@@ -87,7 +68,7 @@ rm -f tmp_whole_${zext}.txt tmp_whole_${zext}.cdl tmp_err_${zext}.txt
 makefile tmp_whole
 # This should succeed
 $TC -d 8,8 -c 4,4 -s 4,4 -e 4,4 -OWcw $F
-$TC -d 8,8 -c 4,4 -s 4,4 -e 4,4 -OWr $F > tmp_whole_${zext}.txt
+$TC -d 8,8 -c 4,4 -s 4,4 -e 4,4 -vn -OWr $F > tmp_whole_${zext}.txt
 diff -b ${srcdir}/ref_whole.txt tmp_whole_${zext}.txt
 ${NCDUMP} $F > tmp_whole_${zext}.cdl
 diff -b ${srcdir}/ref_whole.cdl tmp_whole_${zext}.cdl

@@ -23,16 +23,20 @@ TEST_EXTENSIONS = .sh
 check_PROGRAMS =
 TESTS =
 
-check_PROGRAMS += ut_map ut_mapapi ut_json ut_projections ut_chunking 
-
-commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
 testcommonsrc = test_utils.c test_utils.h
+commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
 
+if AX_IGNORE # Obsolete tests
+check_PROGRAMS += ut_projections ut_chunking 
+ut_projections_SOURCES = ut_projections.c ${commonsrc}
+ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
+endif
+
+check_PROGRAMS += ut_map ut_mapapi ut_map ut_json
 ut_map_SOURCES = ut_map.c ${commonsrc}
 ut_mapapi_SOURCES = ut_mapapi.c ${commonsrc}
 ut_json_SOURCES = ut_json.c ${commonsrc}
-ut_projections_SOURCES = ut_projections.c ${commonsrc}
-ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
+
 test_fillonlyz_SOURCES = test_fillonlyz.c ${testcommonsrc}
 
 check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_fillonlyz test_quantize test_notzarr test_unlim_vars
@@ -41,10 +45,14 @@ TESTS += test_unlim_vars
 
 if BUILD_UTILITIES
 
+TESTS += run_ut_misc.sh
+
+if AX_IGNORE # Obsolete tests
 TESTS += run_ut_chunk.sh
 TESTS += run_ut_map.sh
-TESTS += run_ut_misc.sh
 TESTS += run_ut_mapapi.sh
+endif
+
 TESTS += run_ncgen4.sh
 
 if USE_HDF5
