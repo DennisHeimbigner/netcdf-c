@@ -28,6 +28,12 @@ static int makeroom(NCZChunkCache* cache);
 static int flushcache(NCZChunkCache* cache);
 static int constraincache(NCZChunkCache* cache);
 
+static void
+setmodified(NCZCacheEntry* e, int tf)
+{
+    e->modified = tf;
+}
+
 /**************************************************/
 /* Dispatch table per-var cache functions */
 
@@ -336,7 +342,7 @@ NCZ_write_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void* conte
 	    {stat = NC_ENOMEM; goto done;}
 	memcpy(entry->data,content,cache->chunksize);
     }
-    entry->modified = 1;
+    setmodified(entry,1);
     nclistpush(cache->mru,entry); /* MRU order */
 #ifdef DEBUG
 fprintf(stderr,"|cache.write|=%ld\n",nclistlength(cache->mru));
@@ -440,7 +446,7 @@ NCZ_flush_chunk_cache(NCZChunkCache* cache)
 	        goto done;
 	    cache->used += entry->size;
 	}
-        entry->modified = 0;
+        setmodified(entry,0);
     }
 
 done:
@@ -529,7 +535,7 @@ NCZ_chunk_cache_modified(NCZChunkCache* cache, const size64_t* indices)
 
     /* See if already in cache */
     if(NC_hashmapget(cache->mru, key, strlen(key), (uintptr_t*)entry)) { /* found */
-	entry->modified = 1;
+	setmodified(entry,1);
     }
 
 done:
@@ -737,7 +743,7 @@ get_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
     }
     if(empty) {
 	/* fake the chunk */
-        entry->modified = (file->no_write?0:1);
+        setmodified(entry,(file->no_write?0:1));
 	entry->size = cache->chunksize;
 	entry->data = NULL;
         entry->isfixedstring = 0;

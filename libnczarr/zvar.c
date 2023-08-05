@@ -1666,7 +1666,7 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     else
 	bufr = (void *)data;
 
-    /* Read this hyperslab from memory. Does the dataset have to be
+    /* Write this hyperslab from memory to file. Does the dataset have to be
        extended? If it's already extended to the required size, it will
        do no harm to reextend it to that size. */
     if (var->ndims)

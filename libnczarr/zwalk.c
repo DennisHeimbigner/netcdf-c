@@ -118,7 +118,7 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     common.typesize = typesize;
     common.cache = zvar->cache;
 
-    /* We need to talk scalar into account */
+    /* We need to take scalar into account */
     common.rank = var->ndims;
     common.scalar = zvar->scalar;
     common.swap = (zfile->native_endianness == var->endianness ? 0 : 1);
