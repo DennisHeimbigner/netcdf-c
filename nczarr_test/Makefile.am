@@ -39,9 +39,7 @@ ut_json_SOURCES = ut_json.c ${commonsrc}
 
 test_fillonlyz_SOURCES = test_fillonlyz.c ${testcommonsrc}
 
-check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_fillonlyz test_quantize test_notzarr test_unlim_vars
-
-TESTS += test_unlim_vars
+check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_fillonlyz test_quantize test_notzarr
 
 if BUILD_UTILITIES
 
@@ -83,6 +81,9 @@ TESTS += run_chunkcases.sh
 check_PROGRAMS += test_unlim_io
 test_unlim_io_SOURCES = test_unlim_io.c ${testcommonsrc}
 TESTS += run_unlim_io.sh
+
+check_PROGRAMS += test_unlim_vars
+TESTS += test_unlim_vars
 
 if BUILD_BENCHMARKS
 

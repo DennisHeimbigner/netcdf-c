@@ -11,8 +11,9 @@ struct NCZSlice;
 typedef struct NCZOdometer {
     int rank; /*rank */
     size64_t* start;
-    size64_t* stop; /* start + (count*stride) */
+    size64_t* last; /* start + ((count-1)*stride) == start + count*stride - stride = stop - stride*/
     size64_t* stride;
+    size64_t* stop; /* start + (count*stride) */
     size64_t* len; /* for computing offset */
     size64_t* index; /* current value of the odometer*/
     struct NCZOprop {
@@ -34,5 +35,7 @@ extern void nczodom_reset(NCZOdometer* odom);
 extern void nczodom_free(NCZOdometer*);
 extern size64_t nczodom_avail(const NCZOdometer*);
 extern void nczodom_skipavail(NCZOdometer* odom);
+extern size64_t nczodom_laststride(const NCZOdometer* odom);
+extern size64_t nczodom_lastlen(const NCZOdometer* odom);
 
 #endif /*ZODOM_H*/

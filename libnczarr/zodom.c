@@ -25,8 +25,9 @@ nczodom_new(int rank, const size64_t* start, const size64_t* stop, const size64_
     odom->properties.start0 = 1; /* assume */
     for(i=0;i<rank;i++) { 
 	odom->start[i] = (size64_t)start[i];
-	odom->stop[i] = (size64_t)stop[i];
 	odom->stride[i] = (size64_t)stride[i];
+	odom->stop[i] = (size64_t)stop[i];
+	odom->last[i] = (size64_t)(stop[i] - stride[i]);
 	odom->len[i] = (size64_t)len[i];
 	if(odom->start[i] != 0) odom->properties.start0 = 0;
 	if(odom->stride[i] != 1) odom->properties.stride1 = 0;
@@ -50,6 +51,7 @@ nczodom_fromslices(int rank, const NCZSlice* slices)
 	odom->start[i] = slices[i].start;
 	odom->stop[i] = slices[i].stop;
 	odom->stride[i] = slices[i].stride;
+	odom->last[i] = slices[i].stop - slices[i].stride;
 	odom->len[i] = slices[i].len;
 	if(odom->start[i] != 0) odom->properties.start0 = 0;
 	if(odom->stride[i] != 1) odom->properties.stride1 = 0;
@@ -69,6 +71,7 @@ nczodom_free(NCZOdometer* odom)
     nullfree(odom->start);
     nullfree(odom->stop);
     nullfree(odom->stride);
+    nullfree(odom->last);
     nullfree(odom->len);
     nullfree(odom->index);
     nullfree(odom);
@@ -77,7 +80,7 @@ nczodom_free(NCZOdometer* odom)
 int
 nczodom_more(const NCZOdometer* odom)
 {
-    return (odom->index[0] < odom->stop[0]);
+    return (odom->index[0] <= odom->last[0]);
 }
 
 void
@@ -88,7 +91,7 @@ nczodom_next(NCZOdometer* odom)
     rank = odom->rank;
     for(i=rank-1;i>=0;i--) {
 	odom->index[i] += odom->stride[i];
-        if(odom->index[i] < odom->stop[i]) break;
+        if(odom->index[i] < odom->last[i]) break;
         if(i == 0) goto done; /* leave the 0th entry if it overflows */
         odom->index[i] = odom->start[i]; /* reset this position */
     }
@@ -133,6 +136,7 @@ buildodom(int rank, NCZOdometer** odomp)
         odom->rank = rank;
         if((odom->start=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
         if((odom->stop=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
+        if((odom->last=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
         if((odom->stride=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
         if((odom->len=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
         if((odom->index=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
@@ -168,7 +172,6 @@ nczodom_skipavail(NCZOdometer* odom)
         odom->index[odom->rank-1] = odom->stop[odom->rank-1];
 }
 
-#if 0
 size64_t
 nczodom_laststride(const NCZOdometer* odom)
 {
@@ -182,4 +185,29 @@ nczodom_lastlen(const NCZOdometer* odom)
     assert(odom != NULL && odom->rank > 0);
     return odom->len[odom->rank-1];
 }
-#endif
+
+void
+nczodom_print(const NCZOdometer* odom)
+{
+    size_t i;
+    fprintf(stderr,"odom{rank=%d offset=%llu avail=%llu",odom->rank,nczodom_offset(odom),nczodom_avail(odom));
+    fprintf(stderr," start=(");
+        for(i=0;i<odom->rank;i++) {fprintf(stderr,"%s%llu",(i==0?"":" "),(unsigned long long)odom->start[i]);}
+	fprintf(stderr,")");
+    fprintf(stderr," last=(");
+        for(i=0;i<odom->rank;i++) {fprintf(stderr,"%s%llu",(i==0?"":" "),(unsigned long long)odom->last[i]);}
+	fprintf(stderr,")");
+    fprintf(stderr," stride=(");
+        for(i=0;i<odom->rank;i++) {fprintf(stderr,"%s%llu",(i==0?"":" "),(unsigned long long)odom->stride[i]);}
+	fprintf(stderr,")");
+    fprintf(stderr," stop=(");
+        for(i=0;i<odom->rank;i++) {fprintf(stderr,"%s%llu",(i==0?"":" "),(unsigned long long)odom->stop[i]);}
+	fprintf(stderr,")");
+    fprintf(stderr," len=(");
+        for(i=0;i<odom->rank;i++) {fprintf(stderr,"%s%llu",(i==0?"":" "),(unsigned long long)odom->len[i]);}
+	fprintf(stderr,")");
+    fprintf(stderr," index=(");
+        for(i=0;i<odom->rank;i++) {fprintf(stderr,"%s%llu",(i==0?"":" "),(unsigned long long)odom->index[i]);}
+	fprintf(stderr,")");
+    fprintf(stderr,"}\n");
+}
