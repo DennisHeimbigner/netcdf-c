@@ -93,7 +93,7 @@ diff -b ${srcdir}/ref_skipw.cdl tmp_skipw_${zext}.cdl
 echo "Test dimlen % chunklen != 0"
 makefile tmp_rem
 rm -f tmp_rem_${zext}.txt tmp_rem_${zext}.cdl
-$TC -d 8,8 -c 3,3 -Ocw $F
+$TC -d 8,8 -c 3,3 -s 0,0 -p 8,8 -Ocw $F
 ${NCDUMP} $F > tmp_rem_${zext}.cdl
 diff -b ${srcdir}/ref_rem.cdl tmp_rem_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_rem_${zext}.txt
