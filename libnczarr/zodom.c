@@ -27,8 +27,15 @@ nczodom_new(int rank, const size64_t* start, const size64_t* stop, const size64_
 	odom->start[i] = (size64_t)start[i];
 	odom->stride[i] = (size64_t)stride[i];
 	odom->stop[i] = (size64_t)stop[i];
-	odom->last[i] = (size64_t)(stop[i] - stride[i]);
 	odom->len[i] = (size64_t)len[i];
+#if 0
+	odom->last[i] = (size64_t)(stop[i] - stride[i]);
+#else
+	if(len[i] > 0)
+	    odom->last[i] = (size64_t)(len[i] - 1);
+	else
+	    odom->last[i] = (size64_t)0;
+#endif	
 	if(odom->start[i] != 0) odom->properties.start0 = 0;
 	if(odom->stride[i] != 1) odom->properties.stride1 = 0;
     }
@@ -51,8 +58,15 @@ nczodom_fromslices(int rank, const NCZSlice* slices)
 	odom->start[i] = slices[i].start;
 	odom->stop[i] = slices[i].stop;
 	odom->stride[i] = slices[i].stride;
-	odom->last[i] = slices[i].stop - slices[i].stride;
 	odom->len[i] = slices[i].len;
+#if 0
+	odom->last[i] = slices[i].stop - slices[i].stride;
+#else
+	if(slices[i].len > 0)
+  	    odom->last[i] = slices[i].len - 1;
+	else
+      	    odom->last[i] = 0;
+#endif
 	if(odom->start[i] != 0) odom->properties.start0 = 0;
 	if(odom->stride[i] != 1) odom->properties.stride1 = 0;
     }
@@ -91,7 +105,7 @@ nczodom_next(NCZOdometer* odom)
     rank = odom->rank;
     for(i=rank-1;i>=0;i--) {
 	odom->index[i] += odom->stride[i];
-        if(odom->index[i] < odom->last[i]) break;
+        if(odom->index[i] <= odom->last[i]) break;
         if(i == 0) goto done; /* leave the 0th entry if it overflows */
         odom->index[i] = odom->start[i]; /* reset this position */
     }
@@ -134,12 +148,12 @@ buildodom(int rank, NCZOdometer** odomp)
         if((odom = calloc(1,sizeof(NCZOdometer))) == NULL)
 	    goto done;   
         odom->rank = rank;
-        if((odom->start=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
-        if((odom->stop=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
-        if((odom->last=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
-        if((odom->stride=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
-        if((odom->len=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
-        if((odom->index=malloc(sizeof(size64_t)*rank))==NULL) goto nomem;
+        if((odom->start=calloc(1,(sizeof(size64_t)*rank)))==NULL) goto nomem;
+        if((odom->stop=calloc(1,(sizeof(size64_t)*rank)))==NULL) goto nomem;
+        if((odom->last=calloc(1,(sizeof(size64_t)*rank)))==NULL) goto nomem;
+        if((odom->stride=calloc(1,(sizeof(size64_t)*rank)))==NULL) goto nomem;
+        if((odom->len=calloc(1,(sizeof(size64_t)*rank)))==NULL) goto nomem;
+        if((odom->index=calloc(1,(sizeof(size64_t)*rank)))==NULL) goto nomem;
         *odomp = odom; odom = NULL;
     }
 done:

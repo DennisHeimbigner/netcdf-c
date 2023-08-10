@@ -77,7 +77,7 @@ diff -b ${srcdir}/ref_whole.cdl tmp_whole_${zext}.cdl
 echo "Test chunk skipping during read"
 makefile tmp_skip
 rm -f tmp_skip_${zext}.txt tmp_skip_${zext}.cdl
-$TC -d 6,6 -c 2,2 -Ow $F
+$TC -d 6,6 -c 2,2 -s 0,0 -e 6,6 -Ocw $F
 $TC -i 5,5 -p 6,6 -Or $F > tmp_skip_${zext}.txt
 ${NCDUMP} $F > tmp_skip_${zext}.cdl
 diff -b ${srcdir}/ref_skip.txt tmp_skip_${zext}.txt
@@ -86,14 +86,14 @@ diff -b ${srcdir}/ref_skip.cdl tmp_skip_${zext}.cdl
 echo "Test chunk skipping during write"
 makefile tmp_skipw
 rm -f tmp_skipw_${zext}.cdl
-$TC -d 6,6 -c 2,2 -i 5,5 -p 6,6 -Ow $F
+$TC -d 6,6 -c 2,2 -i 5,5 -p 6,6 -Ocw $F
 ${NCDUMP} $F > tmp_skipw_${zext}.cdl
 diff -b ${srcdir}/ref_skipw.cdl tmp_skipw_${zext}.cdl
 
 echo "Test dimlen % chunklen != 0"
 makefile tmp_rem
 rm -f tmp_rem_${zext}.txt tmp_rem_${zext}.cdl
-$TC -d 8,8 -c 3,3 -Ow $F
+$TC -d 8,8 -c 3,3 -Ocw $F
 ${NCDUMP} $F > tmp_rem_${zext}.cdl
 diff -b ${srcdir}/ref_rem.cdl tmp_rem_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_rem_${zext}.txt
@@ -102,7 +102,7 @@ diff -b ${srcdir}/ref_rem.dmp tmp_rem_${zext}.txt
 echo "Test rank > 2"
 makefile tmp_ndims
 rm -f tmp_ndims_${zext}.txt tmp_ndims_${zext}.cdl
-$TC -d 8,8,8,8 -c 3,3,4,4 -Ow $F
+$TC -d 8,8,8,8 -c 3,3,4,4 -Ocw $F
 ${NCDUMP} $F > tmp_ndims_${zext}.cdl
 diff -b ${srcdir}/ref_ndims.cdl tmp_ndims_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_ndims_${zext}.dmp
@@ -111,7 +111,7 @@ diff -b ${srcdir}/ref_ndims.dmp tmp_ndims_${zext}.dmp
 echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.cdl
-$TC -d 6,12,4 -c 2,3,1 -s 0,0,0 -e 6,1,4 -Ow $F
+$TC -d 6,12,4 -c 2,3,1 -s 0,0,0 -e 6,1,4 -Ocw $F
 if test "x$FEATURE_S3TESTS" = xyes ; then
 ${S3UTIL} -u 'https://s3.us-east-1.amazonaws.com/unidata-zarr-test-data' -k '/netcdf-c' list
 fi

@@ -452,6 +452,7 @@ if(wdebug > 0) {wdebug2(common,slpptr0,memptr0,slpavail,laststride,chunkdata);}
 	}
         nczodom_next(memodom);
         nczodom_next(slpodom);
+fprintf(stderr,"after: ");nczodom_print(slpodom);
     }
 done:
     return stat;    
