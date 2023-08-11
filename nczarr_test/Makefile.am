@@ -85,6 +85,9 @@ TESTS += run_unlim_io.sh
 check_PROGRAMS += test_unlim_vars
 TESTS += test_unlim_vars
 
+check_PROGRAMS += test_endians
+TESTS += test_endians
+
 if BUILD_BENCHMARKS
 
 UTILSRC = bm_utils.c timer_utils.c test_utils.c bm_utils.h bm_timer.h
@@ -198,6 +201,11 @@ test_unlim_vars.c: $(top_srcdir)/nc_test4/tst_unlim_vars.c
 	rm -f $@
 	echo "#define TESTNCZARR" > $@
 	cat $(top_srcdir)/nc_test4/tst_unlim_vars.c >> $@
+
+test_endians.c: $(top_srcdir)/nc_test4/tst_h5_endians.c
+	rm -f $@
+	echo "#define TESTNCZARR" > $@
+	cat $(top_srcdir)/nc_test4/tst_h5_endians.c >> $@
 
 run_unknown.sh: $(top_srcdir)/nc_test4/tst_unknown.sh
 	rm -f $@ run_unknown.tmp

@@ -17,7 +17,11 @@
 #include <string.h>
 #include "nc_logging.h"
 
+#ifdef TESTNCZARR
+#define FILE_NAME_NC "file://tst_h5_endians.nc#mode=nczarr,file"
+#else
 #define FILE_NAME_NC "tst_h5_endians.nc"
+#endif
 
 #define NDIM 10
 #define NLON 20
