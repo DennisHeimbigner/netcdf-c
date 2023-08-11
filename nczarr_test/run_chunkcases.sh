@@ -102,7 +102,7 @@ diff -b ${srcdir}/ref_rem.dmp tmp_rem_${zext}.txt
 echo "Test rank > 2"
 makefile tmp_ndims
 rm -f tmp_ndims_${zext}.txt tmp_ndims_${zext}.cdl
-$TC -d 8,8,8,8 -c 3,3,4,4 -Ocw $F
+$TC -d 8,8,8,8 -c 3,3,4,4 -s 0,0,0,0 -p 8,8,8,8 -Ocw $F
 ${NCDUMP} $F > tmp_ndims_${zext}.cdl
 diff -b ${srcdir}/ref_ndims.cdl tmp_ndims_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_ndims_${zext}.dmp
