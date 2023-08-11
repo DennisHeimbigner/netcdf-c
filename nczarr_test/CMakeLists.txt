@@ -29,6 +29,10 @@ FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/../nc_test4/tst_h5_endians.c SPSOURCE)
 STRING(PREPEND SPSOURCE "#define TESTNCZARR 1\n")
 FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/test_endians.c "${ASOURCE}")
 
+FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/../nc_test4/tst_put_vars_two_unlim_dim.c SPSOURCE)
+STRING(PREPEND SPSOURCE "#define TESTNCZARR 1\n")
+FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/test_put_vars_two_unlim_dim.c "${ASOURCE}")
+
 # Replace with FILE(CONFIGURE) when cmake 3.18 is in common use
 
 FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/run_specific_filters.1 "${SPSOURCE}")
@@ -87,6 +91,7 @@ IF(ENABLE_TESTS)
   BUILD_BIN_TEST(test_chunkcases ${TSTCOMMONSRC})
   BUILD_BIN_TEST(test_unlim_vars ${TSTCOMMONSRC})
   BUILD_BIN_TEST(test_endians ${TSTCOMMONSRC})
+  BUILD_BIN_TEST(test_put_vars_two_unlim_dim ${TSTCOMMONSRC})
   BUILD_BIN_TEST(test_unlim_io ${TSTCOMMONSRC})
 
   TARGET_INCLUDE_DIRECTORIES(ut_map PUBLIC ../libnczarr)
@@ -101,6 +106,7 @@ IF(ENABLE_TESTS)
   TARGET_INCLUDE_DIRECTORIES(test_chunkcases PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(test_unlim_vars PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(test_endians PUBLIC ../libnczarr)
+  TARGET_INCLUDE_DIRECTORIES(test_put_vars_two_unlim_dim PUBLIC ../libnczarr)
   TARGET_INCLUDE_DIRECTORIES(test_unlim_io PUBLIC ../libnczarr)
 
   IF(FALSE) # Obsolete tests

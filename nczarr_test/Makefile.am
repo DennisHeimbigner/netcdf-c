@@ -88,6 +88,9 @@ TESTS += test_unlim_vars
 check_PROGRAMS += test_endians
 TESTS += test_endians
 
+check_PROGRAMS += test_put_vars_two_unlim_dim
+TESTS += test_put_vars_two_unlim_dim
+
 if BUILD_BENCHMARKS
 
 UTILSRC = bm_utils.c timer_utils.c test_utils.c bm_utils.h bm_timer.h
@@ -206,6 +209,11 @@ test_endians.c: $(top_srcdir)/nc_test4/tst_h5_endians.c
 	rm -f $@
 	echo "#define TESTNCZARR" > $@
 	cat $(top_srcdir)/nc_test4/tst_h5_endians.c >> $@
+
+test_put_vars_two_unlim_dim.c: $(top_srcdir)/nc_test4/tst_put_vars_two_unlim_dim.c
+	rm -f $@
+	echo "#define TESTNCZARR" > $@
+	cat $(top_srcdir)/nc_test4/tst_put_vars_two_unlim_dim.c >> $@
 
 run_unknown.sh: $(top_srcdir)/nc_test4/tst_unknown.sh
 	rm -f $@ run_unknown.tmp

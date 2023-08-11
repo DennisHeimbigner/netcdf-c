@@ -1568,6 +1568,9 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     LOG((3, "%s: var->hdr.name %s mem_nc_type %d", __func__,
 	 var->hdr.name, mem_nc_type));
 
+    if(h5->no_write)
+        return NC_EPERM;
+
     zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
 
     /* Cannot convert to user-defined types. */
