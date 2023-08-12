@@ -20,9 +20,9 @@ See \ref copyright file for more info.
 #include <stdio.h>
 
 #ifdef TESTNCZARR
-#define FILE_NAME "file://tst_put_vars_two_unlim_dim.file#mode=nczarr,file"
+#define FILE_NAME "file://tmp_put_vars_two_unlim_dim.file#mode=nczarr,file"
 #else
-#define FILE_NAME "tst_put_vars_two_unlim_dim.file"
+#define FILE_NAME "tst_put_vars_two_unlim_dim.nc"
 #endif
 
 int main(int argc, char* argv[])

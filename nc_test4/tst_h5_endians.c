@@ -20,7 +20,7 @@
 #undef BE_DEBUG
 
 #ifdef TESTNCZARR
-#define FILE_NAME_NC "file://tst_h5_endians.file#mode=nczarr,file"
+#define FILE_NAME_NC "file://tmp_h5_endians.file#mode=nczarr,file"
 #else
 #define FILE_NAME_NC "tst_h5_endians.nc"
 #endif
@@ -273,7 +273,7 @@ int main() {
         printf("\tBig-Endian Float...\t");
         if ((retval = nc_put_var(ncid,be_float_varid,fdata_in)))
             return retval;
-        if ((retval = nc_get_vars(ncid,be_float_varid,fdata_be_out)))
+        if ((retval = nc_get_var(ncid,be_float_varid,fdata_be_out)))
             return retval;
 #ifdef BE_DEBUG
 	for(i=0;i<NDIM;i++) {

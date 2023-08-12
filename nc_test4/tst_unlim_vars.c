@@ -12,7 +12,7 @@
 #include "err_macros.h"
 
 #ifdef TESTNCZARR
-#define FILE_NAME "file://tst_unlim_vars.nc#mode=nczarr,file"
+#define FILE_NAME "file://tmp_unlim_vars.file#mode=nczarr,file"
 #else
 #define FILE_NAME "tst_unlim_vars.nc"
 #endif
