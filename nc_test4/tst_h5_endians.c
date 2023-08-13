@@ -240,7 +240,7 @@ int main() {
         float fdata_le_out[NDIM];
 	double ddata_le_out[NDIM];
         int idata_be_out[NDIM];
-#ifdef TESTNCZARR
+#if defined BE_DEBUG || defined TESTNCZARR
         float fdata_be_out[NDIM];
 	double ddata_be_out[NDIM];
 #endif
@@ -254,7 +254,7 @@ int main() {
     	    fdata_le_out[i] = 0.0f;
 	    ddata_le_out[i] = 0.0;
 	    idata_be_out[i] = 0;
-#ifdef TESTNCZARR
+#if defined BE_DEBUG || defined TESTNCZARR
 	    fdata_be_out[i] = 0.0f;
 	    ddata_be_out[i] = 0.0;
 #endif
@@ -268,19 +268,17 @@ int main() {
 	for(failed=0,i=0;i<NDIM;i++) {if(fdata_in[i] != fdata_le_out[i]) {printf("failed\n"); failures++; failed++; break;}}
 	if(!failed) printf("passed\n");
 
-#ifdef TESTNCZARR
+#if defined BE_DEBUG || defined TESTNCZARR
         /* There appears to be a bug in the handling of big-endian floats and doubles */
         printf("\tBig-Endian Float...\t");
         if ((retval = nc_put_var(ncid,be_float_varid,fdata_in)))
             return retval;
         if ((retval = nc_get_var(ncid,be_float_varid,fdata_be_out)))
             return retval;
-#ifdef BE_DEBUG
 	for(i=0;i<NDIM;i++) {
 	    float f = f32swap(fdata_be_out[i]);
 	    fprintf(stderr,"[%d] %f\n",i,f);
 	}
-#endif
 	for(failed=0,i=0;i<NDIM;i++) {
 	    if(fdata_in[i] != fdata_be_out[i]) {
 	        printf("failed\n"); failures++; failed++; break;
@@ -312,19 +310,17 @@ int main() {
 	for(failed=0,i=0;i<NDIM;i++) {if(ddata_in[i] != ddata_le_out[i]) {printf("failed\n"); failures++; failed++; break;}}
 	if(!failed) printf("passed\n");
 
-#ifdef TESTNCZARR
+#if defined BE_DEBUG || defined TESTNCZARR
         /* There appears to be a bug in the handling of big-endian floats and doubles */
         printf("\tBig-Endian Double...\t");
         if ((retval = nc_put_var(ncid,be_dbl_varid,ddata_in)))
             return retval;
         if ((retval = nc_get_var(ncid,be_dbl_varid,ddata_be_out)))
             return retval;
-#ifdef BE_DEBUG
 	for(i=0;i<NDIM;i++) {
 	    double d = f64swap(ddata_be_out[i]);
 	    fprintf(stderr,"[%d] %lf\n",i,d);
 	}
-#endif
 	for(failed=0,i=0;i<NDIM;i++) {if(ddata_in[i] != ddata_be_out[i]) {printf("failed\n"); failures++; failed++; break;}}
 	if(!failed) printf("passed\n");
 #endif
