@@ -390,48 +390,58 @@ AC_ARG_WITH([default-chunk-size],
 AC_MSG_RESULT([$DEFAULT_CHUNK_SIZE])
 AC_DEFINE_UNQUOTED([DEFAULT_CHUNK_SIZE], [$DEFAULT_CHUNK_SIZE], [default chunk size in bytes])
 
-# Did the user specify a max per-var cache size?
-AC_MSG_CHECKING([whether a maximum per-variable cache size for HDF5 was specified])
-AC_ARG_WITH([max-default-cache-size],
-              [AS_HELP_STRING([--with-max-default-cache-size=<integer>],
-                              [Specify maximum size (in bytes) for the default per-var chunk cache.])],
-            [MAX_DEFAULT_CACHE_SIZE=$with_max_default_cache_size], [MAX_DEFAULT_CACHE_SIZE=67108864])
-AC_MSG_RESULT([$MAX_DEFAULT_CACHE_SIZE])
-AC_DEFINE_UNQUOTED([MAX_DEFAULT_CACHE_SIZE], [$MAX_DEFAULT_CACHE_SIZE], [max size of the default per-var chunk cache.])
+# Did the user specify a default cache size?
+AC_MSG_CHECKING([whether a default cache size was specified])
+AC_ARG_WITH([default-chunk-cache-size],
+              [AS_HELP_STRING([--with-default-chunk-cache-size=<integer>],
+                              [Specify default size (in bytes) for chunk cache.])],
+            [DEFAULT_CHUNK_CACHE_SIZE=$with_default_chunk_cache_size], [DEFAULT_CHUNK_CACHE_SIZE=16777216U])
+AC_MSG_RESULT([$DEFAULT_CHUNK_CACHE_SIZE])
+AC_DEFINE_UNQUOTED([DEFAULT_CHUNK_CACHE_SIZE], [$DEFAULT_CHUNK_CACHE_SIZE], [default size of the chunk cache.])
 
-# Did the user specify a number of chunks in default per-var cache size?
-AC_MSG_CHECKING([whether a number of chunks for the default per-variable cache was specified])
+# Did the user specify a max number of chunks in default per-var cache size?
+AC_MSG_CHECKING([whether a default number of entries for the chunk cache was specified])
 AC_ARG_WITH([default-chunks-in-cache],
               [AS_HELP_STRING([--with-default-chunks-in-cache=<integer>],
-                              [Specify the number of chunks to store in default per-variable cache.])],
-            [DEFAULT_CHUNKS_IN_CACHE=$with_default_chunks_in_cache], [DEFAULT_CHUNKS_IN_CACHE=10])
+                              [Specify the max number of chunks to store in cache.])],
+            [DEFAULT_CHUNKS_IN_CACHE=$with_default_chunks_in_cache], [DEFAULT_CHUNKS_IN_CACHE=1000])
 AC_MSG_RESULT([$DEFAULT_CHUNKS_IN_CACHE])
-AC_DEFINE_UNQUOTED([DEFAULT_CHUNKS_IN_CACHE], [$DEFAULT_CHUNKS_IN_CACHE], [num chunks in default per-var chunk cache.])
+AC_DEFINE_UNQUOTED([DEFAULT_CHUNKS_IN_CACHE], [$DEFAULT_CHUNKS_IN_CACHE], [default max num chunks in chunk cache.])
 
+# Did the user specify a default cache preemption
+AC_MSG_CHECKING([whether a default cache preemption was specified])
+AC_ARG_WITH([default-chunk-cache-preemption],
+              [AS_HELP_STRING([--with-chunk-cache-preemption=<float between 0 and 1 inclusive>],
+                              [Specify default file chunk cache preemption policy (a number between 0 and 1, inclusive).])],
+            [DEFAULT_CHUNK_CACHE_PREEMPTION=$with_chunk_cache_preemption], [DEFAULT_CHUNK_CACHE_PREEMPTION=0.75])
+AC_MSG_RESULT([$DEFAULT_CHUNK_CACHE_PREEMPTION])
+AC_DEFINE_UNQUOTED([DEFAULT_CHUNK_CACHE_PREEMPTION], [$DEFAULT_CHUNK_CACHE_PREEMPTION], [default file chunk cache preemption policy.])
+
+# These three options are redundant over the --with-default... options above.
 # Did the user specify a default cache size for HDF5?
 AC_MSG_CHECKING([whether a default file cache size for HDF5 was specified])
 AC_ARG_WITH([chunk-cache-size],
               [AS_HELP_STRING([--with-chunk-cache-size=<integer>],
                               [Specify default file cache chunk size for HDF5 files in bytes.])],
-            [CHUNK_CACHE_SIZE=$with_chunk_cache_size], [CHUNK_CACHE_SIZE=16777216])
+            [CHUNK_CACHE_SIZE=$with_chunk_cache_size], [CHUNK_CACHE_SIZE=DEFAULT_CHUNK_CACHE_SIZE])
 AC_MSG_RESULT([$CHUNK_CACHE_SIZE])
 AC_DEFINE_UNQUOTED([CHUNK_CACHE_SIZE], [$CHUNK_CACHE_SIZE], [default file chunk cache size in bytes.])
 
-# Did the user specify a default cache nelems?
+# Did the user specify a default max cache entries for HDF5
 AC_MSG_CHECKING([whether a default file cache maximum number of elements for HDF5 was specified])
 AC_ARG_WITH([chunk-cache-nelems],
               [AS_HELP_STRING([--with-chunk-cache-nelems=<integer>],
                               [Specify default maximum number of elements in the file chunk cache chunk for HDF5 files (should be prime number).])],
-            [CHUNK_CACHE_NELEMS=$with_chunk_cache_nelems], [CHUNK_CACHE_NELEMS=4133])
+            [CHUNK_CACHE_NELEMS=$with_chunk_cache_nelems], [CHUNK_CACHE_NELEMS=DEFAULT_CHUNKS_IN_CACHE])
 AC_MSG_RESULT([$CHUNK_CACHE_NELEMS])
 AC_DEFINE_UNQUOTED([CHUNK_CACHE_NELEMS], [$CHUNK_CACHE_NELEMS], [default file chunk cache nelems.])
 
-# Did the user specify a default cache preemption?
+# Did the user specify a default cache preemption for HDF5?
 AC_MSG_CHECKING([whether a default cache preemption for HDF5 was specified])
 AC_ARG_WITH([chunk-cache-preemption],
               [AS_HELP_STRING([--with-chunk-cache-preemption=<float between 0 and 1 inclusive>],
                               [Specify default file chunk cache preemption policy for HDF5 files (a number between 0 and 1, inclusive).])],
-            [CHUNK_CACHE_PREEMPTION=$with_chunk_cache_preemption], [CHUNK_CACHE_PREEMPTION=0.75])
+            [CHUNK_CACHE_PREEMPTION=$with_chunk_cache_preemption], [CHUNK_CACHE_PREEMPTION=DEFAULT_CHUNK_CACHE_PREEMPTION])
 AC_MSG_RESULT([$CHUNK_CACHE_PREEMPTION])
 AC_DEFINE_UNQUOTED([CHUNK_CACHE_PREEMPTION], [$CHUNK_CACHE_PREEMPTION], [default file chunk cache preemption policy.])
 
@@ -789,7 +799,7 @@ AC_ARG_ENABLE([filter-bz2],
                [AS_HELP_STRING([--disable-filter-bz2],
                                [disable external bz2 filter support. bz2 support defaults to internal implementation if this is disabled or if the external library is not found.])])
 test "x$enable_filter_bz2" = xno || enable_filter_bz2=yes
-AC_MSG_RESULT($enable_filter_bz2)
+AC_MSG_RESULT([$enable_filter_bz2])
 
 if test "x$enable_filter_bz2" = "xyes" ; then
 
@@ -801,14 +811,27 @@ if test "x$enable_filter_bz2" = "xyes" ; then
    AC_MSG_CHECKING([whether libbz2 library is available])
    AC_MSG_RESULT([${have_bz2}])
 
+fi
 
+# How about bzip2
 
-   if test "x$have_bz2" = "xno" ; then
-   have_local_bz2=yes
-   AC_MSG_NOTICE([Defaulting to internal libbz2])
-   else
-   have_local_bz2=no
+if test "x$have_bz2" = x ; then
+
+   AC_CHECK_LIB([bzip2],[BZ2_bzCompress],[have_bz2=yes],[have_bz2=no])
+   if test "x$have_bz2" = "xyes" ; then
+      AC_SEARCH_LIBS([BZ2_bzCompress],[bzip2 bzip2.dll cygbzip2.dll], [], [])
+      AC_DEFINE([HAVE_BZ2], [1], [if true, bzip2 library is installed])
    fi
+   AC_MSG_CHECKING([whether libbzip2 library is available])
+   AC_MSG_RESULT([${have_bz2}])
+
+fi
+
+if test "x$have_bz2" = "xno" ; then
+  have_local_bz2=yes
+  AC_MSG_NOTICE([Defaulting to internal libbz2])
+else
+  have_local_bz2=no
 fi
 
 AM_CONDITIONAL(HAVE_LOCAL_BZ2, [test "x$have_local_bz2" = xyes])
@@ -952,16 +975,6 @@ AC_DEFINE_UNQUOTED([WITH_S3_TESTING], [$with_s3_testing], [control S3 testing.])
 if test "x$with_s3_testing" = xyes ; then
   AC_MSG_WARN([*** DO NOT SPECIFY WITH_S3_TESTING=YES UNLESS YOU HAVE ACCESS TO THE UNIDATA S3 BUCKET! ***])
 fi
-
-# Set default
-# Did the user specify a default cache size for NCZarr?
-AC_MSG_CHECKING([whether a default file cache size for NCZarr was specified])
-AC_ARG_WITH([chunk-cache-size-nczarr],
-              [AS_HELP_STRING([--with-chunk-cache-size-nczarr=<integer>],
-                              [Specify default maximum space used by the chunk cache NCZarr.])],
-            [CHUNK_CACHE_SIZE_NCZARR=$with_chunk_cache_size_nczarr], [CHUNK_CACHE_SIZE_NCZARR=4194304])
-AC_MSG_RESULT([$CHUNK_CACHE_SIZE_NCZARR])
-AC_DEFINE_UNQUOTED([CHUNK_CACHE_SIZE_NCZARR], [$CHUNK_CACHE_SIZE_NCZARR], [default nczarr chunk cache size.])
 
 # Check whether we want to enable strict null byte header padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information.
