@@ -27,9 +27,10 @@ testcommonsrc = test_utils.c test_utils.h
 commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
 
 if AX_IGNORE # Obsolete tests
-check_PROGRAMS += ut_projections ut_chunking 
+check_PROGRAMS += ut_projections ut_chunking ut_walk
 ut_projections_SOURCES = ut_projections.c ${commonsrc}
 ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
+ut_walk_SOURCES = ut_walk.c ${commonsrc}
 endif
 
 check_PROGRAMS += ut_map ut_mapapi ut_map ut_json
@@ -44,11 +45,11 @@ check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_fillonlyz test_q
 if BUILD_UTILITIES
 
 TESTS += run_ut_misc.sh
+TESTS += run_ut_map.sh
+TESTS += run_ut_mapapi.sh
 
 if AX_IGNORE # Obsolete tests
 TESTS += run_ut_chunk.sh
-TESTS += run_ut_map.sh
-TESTS += run_ut_mapapi.sh
 endif
 
 TESTS += run_ncgen4.sh

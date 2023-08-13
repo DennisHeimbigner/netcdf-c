@@ -112,8 +112,10 @@ IF(ENABLE_TESTS)
   IF(FALSE) # Obsolete tests
       BUILD_BIN_TEST(ut_projections ${COMMONSRC})
       BUILD_BIN_TEST(ut_chunking ${COMMONSRC})
+      BUILD_BIN_TEST(ut_walk ${COMMONSRC})
       TARGET_INCLUDE_DIRECTORIES(ut_projections PUBLIC ../libnczarr)
       TARGET_INCLUDE_DIRECTORIES(ut_chunking PUBLIC ../libnczarr)
+      TARGET_INCLUDE_DIRECTORIES(ut_walk PUBLIC ../libnczarr)
   ENDIF()
 
   # Helper programs for testing
@@ -140,7 +142,6 @@ IF(ENABLE_TESTS)
     add_sh_test(nczarr_test run_ut_map)
     add_sh_test(nczarr_test run_ut_mapapi)
     add_sh_test(nczarr_test run_ut_misc)
-    add_sh_test(nczarr_test run_ut_chunk)
     IF(USE_HDF5)
 #    add_sh_test(nczarr_test run_nccopyz)
     add_sh_test(nczarr_test run_fillonlyz)
@@ -182,6 +183,10 @@ IF(ENABLE_TESTS)
   if(ENABLE_NCZARR_ZIP)
       add_sh_test(nczarr_test run_newformat)
   endif()
+
+  IF(FALSE) # Obsolete tests
+      add_sh_test(nczarr_test run_ut_chunk)
+  ENDIF()
 
   ENDIF(BUILD_UTILITIES)
 
