@@ -71,7 +71,7 @@ IF(ENABLE_TESTS)
 
   SET(COMMONSRC ut_util.c ut_test.c ${XGETOPTSRC})
   
-  SET(TSTCOMMONSRC tst_utils.c ${XGETOPTSRC})
+  SET(TSTCOMMONSRC test_utils.c ${XGETOPTSRC})
 
   # Base tests
   # The tests are set up as a combination of shell scripts and executables that
