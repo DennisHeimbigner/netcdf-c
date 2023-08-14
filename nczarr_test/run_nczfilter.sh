@@ -17,7 +17,14 @@ cd $ISOPATH
 
 echo ">>>>>>"
 find ${execdir} -name 'test_nczfilter*'
-ntldd ${execdir}/test_nczfilter
+D:/a/netcdf-c/netcdf-c/nczarr_test/.libs/test_nczfilter.exe
+
+D:/a/netcdf-c/netcdf-c/nczarr_test/test_nczfilter
+D:/a/netcdf-c/netcdf-c/nczarr_test/test_nczfilter.exe
+
+D:/a/netcdf-c/netcdf-c/nczarr_test/test_nczfilter
+
+ntldd D:/a/netcdf-c/netcdf-c/nczarr_test/.libs/test_nczfilter.exe
 ${execdir}/test_nczfilter
 
 if test "x$FEATURE_S3TESTS" = xyes ; then s3sdkdelete "/${S3ISOPATH}" ; fi # Cleanup
