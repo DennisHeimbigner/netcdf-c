@@ -13,9 +13,9 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 
 TESTS_ENVIRONMENT =
 TEST_EXTENSIONS = .sh
-SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #TESTS_ENVIRONMENT += export SETX=1;
 #TESTS_ENVIRONMENT += export NCTRACING=1;
 
@@ -54,11 +54,6 @@ endif
 
 TESTS += run_ncgen4.sh
 
-if USE_HDF5
-#TESTS += run_nccopyz.sh
-TESTS += run_fillonlyz.sh
-endif
-
 TESTS += run_quantize.sh
 TESTS += run_purezarr.sh
 TESTS += run_interop.sh
@@ -79,9 +74,6 @@ check_PROGRAMS += test_chunkcases
 test_chunkcases_SOURCES = test_chunkcases.c ${testcommonsrc}
 TESTS += run_chunkcases.sh
 
-check_PROGRAMS += test_unlim_io
-test_unlim_io_SOURCES = test_unlim_io.c ${testcommonsrc}
-TESTS += run_unlim_io.sh
 
 check_PROGRAMS += test_unlim_vars
 TESTS += test_unlim_vars
@@ -91,6 +83,14 @@ TESTS += test_endians
 
 check_PROGRAMS += test_put_vars_two_unlim_dim
 TESTS += test_put_vars_two_unlim_dim
+
+if USE_HDF5
+TESTS += run_nccopyz.sh
+TESTS += run_fillonlyz.sh
+check_PROGRAMS += test_unlim_io
+test_unlim_io_SOURCES = test_unlim_io.c ${testcommonsrc}
+TESTS += run_unlim_io.sh
+endif
 
 if BUILD_BENCHMARKS
 

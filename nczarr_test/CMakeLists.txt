@@ -53,6 +53,8 @@ IF(ENABLE_TESTS)
   
   SET(TSTCOMMONSRC test_utils.c ${XGETOPTSRC})
 
+  INCLUDE_DIRECTORIES(../libnczarr)
+
   # Base tests
   # The tests are set up as a combination of shell scripts and executables that
   # must be run in a particular order. It is painful but will use macros to help
@@ -69,33 +71,16 @@ IF(ENABLE_TESTS)
   BUILD_BIN_TEST(test_quantize ${TSTCOMMONSRC})
   BUILD_BIN_TEST(test_notzarr ${TSTCOMMONSRC})
   BUILD_BIN_TEST(test_chunkcases ${TSTCOMMONSRC})
-  BUILD_BIN_TEST(test_unlim_vars ${TSTCOMMONSRC})
-  BUILD_BIN_TEST(test_endians ${TSTCOMMONSRC})
-  BUILD_BIN_TEST(test_put_vars_two_unlim_dim ${TSTCOMMONSRC})
   BUILD_BIN_TEST(test_unlim_io ${TSTCOMMONSRC})
 
-  TARGET_INCLUDE_DIRECTORIES(ut_map PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(ut_mapapi PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(ut_json PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_zchunks PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_zchunks2 PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_zchunks3 PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_fillonlyz PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_quantize PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_notzarr PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_chunkcases PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_unlim_vars PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_endians PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_put_vars_two_unlim_dim PUBLIC ../libnczarr)
-  TARGET_INCLUDE_DIRECTORIES(test_unlim_io PUBLIC ../libnczarr)
+  ADD_BIN_TEST(nczarr_test test_unlim_vars ${TSTCOMMONSRC})
+  ADD_BIN_TEST(nczarr_test test_endians ${TSTCOMMONSRC})
+  ADD_BIN_TEST(nczarr_test test_put_vars_two_unlim_dim ${TSTCOMMONSRC})
 
   IF(FALSE) # Obsolete tests
       BUILD_BIN_TEST(ut_projections ${COMMONSRC})
       BUILD_BIN_TEST(ut_chunking ${COMMONSRC})
       BUILD_BIN_TEST(ut_walk ${COMMONSRC})
-      TARGET_INCLUDE_DIRECTORIES(ut_projections PUBLIC ../libnczarr)
-      TARGET_INCLUDE_DIRECTORIES(ut_chunking PUBLIC ../libnczarr)
-      TARGET_INCLUDE_DIRECTORIES(ut_walk PUBLIC ../libnczarr)
   ENDIF()
 
   # Helper programs for testing
@@ -105,27 +90,20 @@ IF(ENABLE_TESTS)
   BUILD_BIN_TEST(zs3parse ${COMMONSRC})
   TARGET_INCLUDE_DIRECTORIES(zs3parse PUBLIC ../libnczarr)
   BUILD_BIN_TEST(zmapio ${COMMONSRC})
-  TARGET_INCLUDE_DIRECTORIES(zmapio PUBLIC ../libnczarr)
 
   IF(ENABLE_S3 AND NOT WITH_S3_TESTING STREQUAL "NO")
   # Helper programs for testing
   BUILD_BIN_TEST(s3util ${COMMONSRC})
-  TARGET_INCLUDE_DIRECTORIES(s3util PUBLIC ../libnczarr)
   endif()
   
   SET(ncdumpchunks_SOURCE ncdumpchunks.c)
   SET(ncdumpchunks_SOURCE ${ncdumpchunks_SOURCE} ${XGETOPTSRC})
   BUILD_BIN_TEST(ncdumpchunks ${ncdumpchunks_SOURCE})
-  TARGET_INCLUDE_DIRECTORIES(ncdumpchunks PUBLIC ../libnczarr)
 
   IF(BUILD_UTILITIES)
     add_sh_test(nczarr_test run_ut_map)
     add_sh_test(nczarr_test run_ut_mapapi)
     add_sh_test(nczarr_test run_ut_misc)
-    IF(USE_HDF5)
-#    add_sh_test(nczarr_test run_nccopyz)
-    add_sh_test(nczarr_test run_fillonlyz)
-    ENDIF()
     add_sh_test(nczarr_test run_ncgen4)
     add_sh_test(nczarr_test run_chunkcases)
     add_sh_test(nczarr_test run_purezarr)
@@ -142,6 +120,12 @@ IF(ENABLE_TESTS)
 
     if(ENABLE_S3)
 	add_sh_test(nczarr_test run_s3_cleanup)
+    ENDIF()
+
+    IF(USE_HDF5)
+    add_sh_test(nczarr_test run_nccopyz)
+    add_sh_test(nczarr_test run_fillonlyz)
+    add_sh_test(nczarr_test run_unlim_io)
     ENDIF()
 
   IF(ENABLE_FILTER_TESTING)
