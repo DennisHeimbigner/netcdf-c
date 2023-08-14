@@ -15,6 +15,9 @@ pwd
 s3isolate "testdir_nczfilter"
 cd $ISOPATH
 
-${execdir}/test_nczfilter 
+echo ">>>>>>"
+ldd ${execdir}/test_nczfilter
+
+${execdir}/test_nczfilter
 
 if test "x$FEATURE_S3TESTS" = xyes ; then s3sdkdelete "/${S3ISOPATH}" ; fi # Cleanup
