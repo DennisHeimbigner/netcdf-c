@@ -10,14 +10,12 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 set -x
 set -e
 
-pwd
-
 s3isolate "testdir_nczfilter"
+THISDIR=`pwd`
 cd $ISOPATH
 
 echo ">>>>>>"
-find ${execdir} -name 'test_nczfilter*'
-ntldd D:/a/netcdf-c/netcdf-c/nczarr_test/.libs/test_nczfilter.exe
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:D:/a/netcdf-c/netcdf-c/liblib/.libs"
 ${execdir}/test_nczfilter
 
 if test "x$FEATURE_S3TESTS" = xyes ; then s3sdkdelete "/${S3ISOPATH}" ; fi # Cleanup
