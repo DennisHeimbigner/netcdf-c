@@ -647,12 +647,6 @@ done:
 #endif /*HAVE_ZSTD*/
 ````
 
-# 5. NCZarr Slicing Algorithms
-
-
-
-
-
 # Point of Contact {#intern_poc}
 
 *Author*: Dennis Heimbigner<br>
