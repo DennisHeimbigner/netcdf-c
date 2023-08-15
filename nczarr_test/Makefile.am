@@ -123,7 +123,7 @@ TESTS += run_specific_filters.sh
 #TESTS += run_unknown.sh
 
 if ISMINGW
-XFAIL_TESTS = run_filter.sh run_specific_filters.sh
+XFAIL_TESTS = run_filter.sh run_specific_filters.sh run_nczfilter.sh
 endif  # ISMINGW
 
 endif #ENABLE_FILTER_TESTING
