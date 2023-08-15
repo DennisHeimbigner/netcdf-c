@@ -17,13 +17,6 @@ cd $ISOPATH
 
 echo ">>>>>>"
 find ${execdir} -name 'test_nczfilter*'
-D:/a/netcdf-c/netcdf-c/nczarr_test/.libs/test_nczfilter.exe
-
-D:/a/netcdf-c/netcdf-c/nczarr_test/test_nczfilter
-D:/a/netcdf-c/netcdf-c/nczarr_test/test_nczfilter.exe
-
-D:/a/netcdf-c/netcdf-c/nczarr_test/test_nczfilter
-
 ntldd D:/a/netcdf-c/netcdf-c/nczarr_test/.libs/test_nczfilter.exe
 ${execdir}/test_nczfilter
 
