@@ -65,6 +65,7 @@ TESTS += run_scalar.sh
 TESTS += run_nulls.sh
 TESTS += run_notzarr.sh
 TESTS += run_external.sh
+TESTS += run_mud.sh
 
 if ENABLE_NCZARR_ZIP
 TESTS += run_newformat.sh
@@ -188,8 +189,8 @@ ref_zarr_test_data.cdl.gz
 
 CLEANFILES = ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp tmp*.zip tmp*.nc tmp*.dump tmp*.tmp tmp*.zmap tmp_ngc.c ref_zarr_test_data.cdl tst_*.nc.zip ref_quotes.zip ref_power_901_constants.zip
 
-BUILT_SOURCES = test_quantize.c run_specific_filters.sh run_filterinstall.sh run_unknown.sh \
-                test_filter_vlen.c run_filter_vlen.sh test_unlim_vars.c
+BUILT_SOURCES = test_quantize.c test_filter_vlen.c test_unlim_vars.c test_endians.c test_put_vars_two_unlim_dim.c \
+                run_unknown.sh run_specific_filters.sh run_filter_vlen.sh run_filterinstall.sh run_mud.sh
 
 test_quantize.c: $(top_srcdir)/nc_test4/tst_quantize.c
 	rm -f $@
@@ -251,6 +252,15 @@ run_filterinstall.sh: $(top_srcdir)/nc_test4/tst_filterinstall.sh
 	tr -d '\r' < run_filterinstall.tmp > $@
 	chmod a+x $@
 	rm -f run_filterinstall.tmp
+
+run_mud.sh: $(top_srcdir)/ncdump/tst_mud.sh
+	rm -f $@ run_mud.tmp
+	echo "#!/bin/bash" > run_mud.tmp
+	echo "TESTNCZARR=1" >> run_mud.tmp
+	cat $(top_srcdir)/nc_test4/tst_mud.sh >> run_mud.tmp
+	tr -d '\r' < run_mud.tmp > $@
+	chmod a+x $@
+	rm -f run_mud.tmp
 
 # Remove directories
 clean-local:

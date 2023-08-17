@@ -10,8 +10,8 @@ SET(abs_top_srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 remove_definitions(-DDLL_EXPORT)
 
 # Create nczarr tests from nc_test4 tests
-macro(NCZARR_SH_TEST basename)
-FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/../nc_test4/tst_${basename}.sh SHSOURCE)
+macro(NCZARR_SH_TEST basename src)
+FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/../${src}/tst_${basename}.sh SHSOURCE)
 STRING(PREPEND SHSOURCE "#!/bin/bash\n")
 STRING(PREPEND SHSOURCE "TESTNCZARR=1\n")
 # Replace with FILE(CONFIGURE) when cmake 3.18 is in common use
@@ -32,9 +32,10 @@ NCZARR_C_TEST(unlim_vars unlim_vars)
 NCZARR_C_TEST(h5_endians endians)
 NCZARR_C_TEST(put_vars_two_unlim_dim put_vars_two_unlim_dim)
 
-NCZARR_SH_TEST(specific_filters)
-NCZARR_SH_TEST(unknown)
-NCZARR_SH_TEST(filter_vlen)
+NCZARR_SH_TEST(specific_filters nc_test4)
+NCZARR_SH_TEST(unknown nc_test4)
+NCZARR_SH_TEST(filter_vlen nc_test4)
+NCZARR_SH_TEST(mud ncdump)
 
 FILE(GLOB COPY_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.sh
 ${CMAKE_CURRENT_SOURCE_DIR}/ref*.cdl
@@ -126,6 +127,7 @@ IF(ENABLE_TESTS)
     add_sh_test(nczarr_test run_nccopyz)
     add_sh_test(nczarr_test run_fillonlyz)
     add_sh_test(nczarr_test run_unlim_io)
+    add_sh_test(nczarr_test run_mud)
     ENDIF()
 
   IF(ENABLE_FILTER_TESTING)
@@ -138,6 +140,7 @@ IF(ENABLE_TESTS)
 	  ADD_SH_TEST(nczarr_test run_nczfilter)
 	  ADD_SH_TEST(nczarr_test run_filter)
 	  ADD_SH_TEST(nczarr_test run_specific_filters)
+  	  ADD_SH_TEST(nczarr_test run_filter_vlen)
 	  IF(FALSE)
 	    # This test is too dangerous to run in a parallel make environment.
             # It causes race conditions. So suppress and only test by hand.
