@@ -107,6 +107,13 @@ IF(ENABLE_TESTS)
     add_sh_test(nczarr_test run_ut_misc)
     add_sh_test(nczarr_test run_ncgen4)
     add_sh_test(nczarr_test run_chunkcases)
+
+    if(LARGE_FILE_TESTS)
+      BUILD_BIN_TEST(test_readcaching})
+      BUILD_BIN_TEST(test_writecaching})
+      add_sh_test(nczarr_test run_cachetest)
+    ENDIF()
+
     add_sh_test(nczarr_test run_purezarr)
     add_sh_test(nczarr_test run_interop)
     add_sh_test(nczarr_test run_misc)

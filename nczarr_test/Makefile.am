@@ -67,6 +67,15 @@ TESTS += run_notzarr.sh
 TESTS += run_external.sh
 TESTS += run_mud.sh
 
+if LARGE_FILE_TESTS
+check_PROGRAMS += test_writecaching test_readcaching
+TESTS += run_cachetest.sh
+endif
+
+endif #BUILD_UTILITIES
+
+if BUILD_UTILITIES 
+
 if ENABLE_NCZARR_ZIP
 TESTS += run_newformat.sh
 endif
