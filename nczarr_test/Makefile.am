@@ -257,7 +257,7 @@ run_mud.sh: $(top_srcdir)/ncdump/tst_mud.sh
 	rm -f $@ run_mud.tmp
 	echo "#!/bin/bash" > run_mud.tmp
 	echo "TESTNCZARR=1" >> run_mud.tmp
-	cat $(top_srcdir)/nc_test4/tst_mud.sh >> run_mud.tmp
+	cat $(top_srcdir)/ncdump/tst_mud.sh >> run_mud.tmp
 	tr -d '\r' < run_mud.tmp > $@
 	chmod a+x $@
 	rm -f run_mud.tmp
