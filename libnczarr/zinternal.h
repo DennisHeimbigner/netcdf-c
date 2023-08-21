@@ -105,8 +105,8 @@ Inserted into any .zattrs ? or should it go into the container?
 #define NCZ_MAXSTR_DEFAULT 128
 
 /* Mnemonics */
-#define ZCLEAR	0 /* For NCZ_copy_data */
-#define ZCLOSE	1 /* this is closeorabort as opposed to enddef */
+#define ZCLOSE	 1 /* this is closeorabort as opposed to enddef */
+#define ZREADING 1 /* this is reading data rather than writing */
 
 /* Useful macro */
 #define ncidforx(file,grpid) ((file)->controller->ext_ncid | (grpid))

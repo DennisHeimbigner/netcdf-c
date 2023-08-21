@@ -27,10 +27,10 @@ testcommonsrc = test_utils.c test_utils.h
 commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
 
 if AX_IGNORE # Obsolete tests
-check_PROGRAMS += ut_projections ut_chunking ut_walk
-ut_projections_SOURCES = ut_projections.c ${commonsrc}
-ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
-ut_walk_SOURCES = ut_walk.c ${commonsrc}
+#check_PROGRAMS += ut_projections ut_chunking ut_walk
+#ut_projections_SOURCES = ut_projections.c ${commonsrc}
+#ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
+#ut_walk_SOURCES = ut_walk.c ${commonsrc}
 endif
 
 check_PROGRAMS += ut_map ut_mapapi ut_map ut_json
@@ -40,7 +40,14 @@ ut_json_SOURCES = ut_json.c ${commonsrc}
 
 test_fillonlyz_SOURCES = test_fillonlyz.c ${testcommonsrc}
 
-check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_fillonlyz test_quantize test_notzarr
+check_PROGRAMS += test_fillonlyz test_quantize test_notzarr
+
+# Unlimited Dimension tests
+check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_chunking test_unlim_vars test_put_vars_two_unlim_dim
+if USE_HDF5
+check_PROGRAMS += test_unlim_io
+test_unlim_io_SOURCES = test_unlim_io.c ${testcommonsrc}
+endif
 
 if BUILD_UTILITIES
 
@@ -65,7 +72,12 @@ TESTS += run_scalar.sh
 TESTS += run_nulls.sh
 TESTS += run_notzarr.sh
 TESTS += run_external.sh
-TESTS += run_mud.sh
+
+# Unlimited Dimension tests (at least in part)
+TESTS += run_nccopy5.sh run_mud.sh run_nccopy5.sh test_unlim_vars test_put_vars_two_unlim_dim
+if USE_HDF5
+TESTS += run_unlim_io.sh run_nccopyz.sh
+endif
 
 if LARGE_FILE_TESTS
 check_PROGRAMS += test_writecaching test_readcaching
@@ -84,22 +96,11 @@ check_PROGRAMS += test_chunkcases
 test_chunkcases_SOURCES = test_chunkcases.c ${testcommonsrc}
 TESTS += run_chunkcases.sh
 
-
-check_PROGRAMS += test_unlim_vars
-TESTS += test_unlim_vars
-
 check_PROGRAMS += test_endians
 TESTS += test_endians
 
-check_PROGRAMS += test_put_vars_two_unlim_dim
-TESTS += test_put_vars_two_unlim_dim
-
 if USE_HDF5
-TESTS += run_nccopyz.sh
 TESTS += run_fillonlyz.sh
-check_PROGRAMS += test_unlim_io
-test_unlim_io_SOURCES = test_unlim_io.c ${testcommonsrc}
-TESTS += run_unlim_io.sh
 endif
 
 if BUILD_BENCHMARKS
@@ -162,7 +163,7 @@ noinst_PROGRAMS += ncdumpchunks
 ncdumpchunks_SOURCES = ncdumpchunks.c
 
 EXTRA_DIST = CMakeLists.txt \
-run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ut_chunk.sh run_ncgen4.sh \
+run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ncgen4.sh \
 run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh run_s3_cleanup.sh \
 run_purezarr.sh run_interop.sh run_misc.sh \
 run_filter.sh \
@@ -199,7 +200,7 @@ ref_zarr_test_data.cdl.gz
 CLEANFILES = ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp tmp*.zip tmp*.nc tmp*.dump tmp*.tmp tmp*.zmap tmp_ngc.c ref_zarr_test_data.cdl tst_*.nc.zip ref_quotes.zip ref_power_901_constants.zip
 
 BUILT_SOURCES = test_quantize.c test_filter_vlen.c test_unlim_vars.c test_endians.c test_put_vars_two_unlim_dim.c \
-                run_unknown.sh run_specific_filters.sh run_filter_vlen.sh run_filterinstall.sh run_mud.sh
+                run_unknown.sh run_specific_filters.sh run_filter_vlen.sh run_filterinstall.sh run_mud.sh run_nccopy5.sh
 
 test_quantize.c: $(top_srcdir)/nc_test4/tst_quantize.c
 	rm -f $@
@@ -225,6 +226,11 @@ test_put_vars_two_unlim_dim.c: $(top_srcdir)/nc_test4/tst_put_vars_two_unlim_dim
 	rm -f $@
 	echo "#define TESTNCZARR" > $@
 	cat $(top_srcdir)/nc_test4/tst_put_vars_two_unlim_dim.c >> $@
+
+test_chunking.c: $(top_srcdir)/ncdump/tst_chunking.c
+	rm -f $@
+	echo "#define TESTNCZARR" > $@
+	cat $(top_srcdir)/ncdump/tst_chunking.c >> $@
 
 run_unknown.sh: $(top_srcdir)/nc_test4/tst_unknown.sh
 	rm -f $@ run_unknown.tmp
@@ -271,6 +277,15 @@ run_mud.sh: $(top_srcdir)/ncdump/tst_mud.sh
 	chmod a+x $@
 	rm -f run_mud.tmp
 
+run_nccopy5.sh: $(top_srcdir)/ncdump/tst_nccopy5.sh
+	rm -f $@ run_nccopy5.tmp
+	echo "#!/bin/bash" > run_nccopy5.tmp
+	echo "TESTNCZARR=1" >> run_nccopy5.tmp
+	cat $(top_srcdir)/ncdump/tst_nccopy5.sh >> run_nccopy5.tmp
+	tr -d '\r' < run_nccopy5.tmp > $@
+	chmod a+x $@
+	rm -f run_nccopy5.tmp
+
 # Remove directories
 clean-local:
 	rm -fr testdir_*
@@ -278,7 +293,7 @@ clean-local:
 	rm -fr rcmiscdir ref_power_901_constants.file 
 
 
-DISTCLEANFILES = findplugin.sh test_quantize.c run_specific_filters.sh run_filterinstall.sh run_unknown.sh test_filter_vlen.c run_filter_vlen.sh test_unlim_vars.c
+DISTCLEANFILES = findplugin.sh test_quantize.c run_specific_filters.sh run_filterinstall.sh run_unknown.sh test_filter_vlen.c run_filter_vlen.sh test_unlim_vars.c run_mud.sh run_nccopy5.sh
 
 # Provide a specific s3 cleanup action
 s3cleanup::

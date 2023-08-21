@@ -789,7 +789,7 @@ get_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
 	if(cache->fillchunk == NULL)
 	    {if((stat = NCZ_ensure_fill_chunk(cache))) goto done;}
 	if((entry->data = calloc(1,entry->size))==NULL) {stat = NC_ENOMEM; goto done;}
-	if((stat = NCZ_copy_data(file,cache->var,cache->fillchunk,cache->chunkcount,!ZCLEAR,entry->data))) goto done;
+	if((stat = NCZ_copy_data(file,cache->var,cache->fillchunk,cache->chunkcount,ZREADING,entry->data))) goto done;
 	stat = NC_NOERR;
     }
 #ifdef ENABLE_NCZARR_FILTERS

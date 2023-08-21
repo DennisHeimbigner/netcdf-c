@@ -506,13 +506,13 @@ transfern(const struct Common* common, unsigned char* slpptr, unsigned char* mem
 
     if(common->reading) {
 	if(slpstride == 1) {
-	    if((stat=NCZ_copy_data(common->file,common->var,slpptr,avail,!ZCLEAR,memptr))) goto done;
+	    if((stat=NCZ_copy_data(common->file,common->var,slpptr,avail,common->reading,memptr))) goto done;
 ///            memcpy(memptr,slpptr,len); /* straight copy */
 	} else {
 	    for(m=0,s=0;s<avail;s+=slpstride,m++) {
 		size_t soffset = s*typesize;
 		size_t moffset = m*typesize;
- 	        if((stat=NCZ_copy_data(common->file,common->var,slpptr+soffset,1,!ZCLEAR,memptr+moffset))) goto done;
+ 	        if((stat=NCZ_copy_data(common->file,common->var,slpptr+soffset,1,common->reading,memptr+moffset))) goto done;
 ///	    memcpy(memptr+moffset,slpptr+soffset,typesize);
 	    }
 	}
@@ -523,13 +523,13 @@ unsigned char* srcbase = (common->reading?chunkdata:common->memory);
 unsigned srcoff = (unsigned)(memptr - srcbase);
 unsigned srcidx = srcoff / sizeof(unsigned); (void)srcidx;
 	if(slpstride == 1) {
-	    if((stat=NCZ_copy_data(common->file,common->var,memptr,avail,!ZCLEAR,slpptr))) goto done;
+	    if((stat=NCZ_copy_data(common->file,common->var,memptr,avail,common->reading,slpptr))) goto done;
 ///            memcpy(slpptr,memptr,len); /* straight copy */
 	} else {
 	    for(m=0,s=0;s<avail;s+=slpstride,m++) {
 		size_t soffset = s*typesize;
 		size_t moffset = m*typesize;
- 	        if((stat=NCZ_copy_data(common->file,common->var,memptr+moffset,1,!ZCLEAR,slpptr+soffset))) goto done;
+ 	        if((stat=NCZ_copy_data(common->file,common->var,memptr+moffset,1,common->reading,slpptr+soffset))) goto done;
 ///		memcpy(slpptr+soffset,memptr+moffset,typesize);
 	    }
 	}
@@ -778,11 +778,15 @@ NCZ_transferscalar(struct Common* common)
     /* Figure out memory address */
     memptr = ((unsigned char*)common->memory);
     slpptr = ((unsigned char*)chunkdata);
+#ifdef TRANSFERN
+    if((stat = transfern(common,slpptr,memptr,1,1,chunkdata))) goto done;
+#else
     if(common->reading) {
         if((stat=NCZ_copy_data(common->file,common->var,slpptr,common->chunkcount,!ZCLEAR,memptr))) goto done;
     } else {
         if((stat=NCZ_copy_data(common->file,common->var,memptr,common->chunkcount,ZCLEAR,slpptr))) goto done;
     }
+#endif
 
 done:
     return stat;

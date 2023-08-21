@@ -26,7 +26,7 @@ fileargs tmp_string_nczarr "mode=nczarr,$zext"
 nczarrurl="$fileurl"
 nczarrfile="$file"
 
-# setup
+# setupp
 deletemap $zext $zarrfile
 deletemap $zext $nczarrfile
 

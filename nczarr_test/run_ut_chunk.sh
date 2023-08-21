@@ -8,7 +8,7 @@ set -e
 # Test chunking code
 
 # Control which test sets are executed
-# possible sets: proj(obsolete) walk
+# possible sets: proj(obsolete) walk(obsolete)
 TESTS=walk
 
 # Functions

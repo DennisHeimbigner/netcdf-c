@@ -151,6 +151,9 @@ tmp_bzip2.c bzip2.nc noop.nc tmp_*.dmp tmp_*.cdl
 
 DISTCLEANFILES = findplugin.sh run_par_test.sh
 
+clean-local:
+	rm -fr testdir_*
+
 # If valgrind is present, add valgrind targets.
 @VALGRIND_CHECK_RULES@
 

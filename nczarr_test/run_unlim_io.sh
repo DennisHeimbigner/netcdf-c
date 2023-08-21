@@ -52,7 +52,7 @@ zext=$1
 echo ""; echo "*** Test simple use of unlimited"
 rm -fr tmp_unlim_io1.nc tmp_unlim_io1.$zext tmp_unlim_io1.nc.txt tmp_unlim_io1.${zext}.txt
 $TC -d 0 -c 2 -s 0 -e 1 -Ocw tmp_unlim_io1.nc
-$TC -d 0 -c 2 -s 0 -e 1 -Ocw "file://tmp_unlim_io1.$zext\#mode=nczarr,$zext"
+$TC -d 0 -c 2 -s 0 -e 1 -Ocw "file://tmp_unlim_io1.$zext#mode=nczarr,$zext"
 ${NCDUMP} tmp_unlim_io1.nc >tmp_unlim_io1.nc.txt
 ${NCDUMP} "file://tmp_unlim_io1.$zext#mode=nczarr,$zext" >tmp_unlim_io1.${zext}.txt
 diff -b tmp_unlim_io1.nc.txt tmp_unlim_io1.${zext}.txt
@@ -63,7 +63,7 @@ zext=$1
 echo ""; echo "*** Test 2-d chunking"
 rm -fr tmp_unlim_io2.nc tmp_unlim_io2.$zext tmp_unlim_io2.nc.txt tmp_unlim_io2.${zext}.txt
 $TC -d 0,0 -c 2,2 -s 0,0 -e 2,2 -v 17 -Ocw tmp_unlim_io2.nc
-$TC -d 0,0 -c 2,2 -s 0,0 -e 2,2 -v 17 -Ocw "file://tmp_unlim_io2.$zext\#mode=nczarr,$zext"
+$TC -d 0,0 -c 2,2 -s 0,0 -e 2,2 -v 17 -Ocw "file://tmp_unlim_io2.$zext#mode=nczarr,$zext"
 ${NCDUMP} tmp_unlim_io2.nc >tmp_unlim_io2.nc.txt
 ${NCDUMP} "file://tmp_unlim_io2.$zext#mode=nczarr,$zext" >tmp_unlim_io2.${zext}.txt
 diff -b tmp_unlim_io2.nc.txt tmp_unlim_io2.${zext}.txt
@@ -75,7 +75,7 @@ zext=$1
 echo ""; echo "*** Test multi-chunk extension"
 rm -fr tmp_unlim_io3.nc tmp_unlim_io3.$zext tmp_unlim_io3.nc.txt tmp_unlim_io3.${zext}.txt
 $TC -d 0,0 -c 2,2 -s 6,6 -e 2,2 -v 17 -Ocw tmp_unlim_io3.nc
-$TC -d 0,0 -c 2,2 -s 6,6 -e 2,2 -v 17 -Ocw "file://tmp_unlim_io3.$zext\#mode=nczarr,$zext"
+$TC -d 0,0 -c 2,2 -s 6,6 -e 2,2 -v 17 -Ocw "file://tmp_unlim_io3.$zext#mode=nczarr,$zext"
 ${NCDUMP} tmp_unlim_io3.nc >tmp_unlim_io3.nc.txt
 ${NCDUMP} "file://tmp_unlim_io3.$zext#mode=nczarr,$zext" >tmp_unlim_io3.${zext}.txt
 diff -b tmp_unlim_io3.nc.txt tmp_unlim_io3.${zext}.txt
@@ -86,7 +86,7 @@ zext=$1
 echo ""; echo "*** Test unlimited as second dimension"
 rm -fr tmp_unlim_io4.nc tmp_unlim_io4.$zext tmp_unlim_io4.nc.txt tmp_unlim_io4.${zext}.txt
 $TC -d 8,0 -c 2,2 -s 6,6 -e 2,2 -v 17 -Ocw tmp_unlim_io4.nc
-$TC -d 8,0 -c 2,2 -s 6,6 -e 2,2 -v 17 -Ocw "file://tmp_unlim_io4.$zext\#mode=nczarr,$zext"
+$TC -d 8,0 -c 2,2 -s 6,6 -e 2,2 -v 17 -Ocw "file://tmp_unlim_io4.$zext#mode=nczarr,$zext"
 ${NCDUMP} tmp_unlim_io4.nc >tmp_unlim_io4.nc.txt
 ${NCDUMP} "file://tmp_unlim_io4.$zext#mode=nczarr,$zext" >tmp_unlim_io4.${zext}.txt
 diff -b tmp_unlim_io4.nc.txt tmp_unlim_io4.${zext}.txt
