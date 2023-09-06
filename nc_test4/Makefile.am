@@ -86,10 +86,12 @@ check_PROGRAMS += tst_multifilter tst_filter_vlen
 TESTS += tst_filter.sh
 TESTS += tst_specific_filters.sh
 TESTS += tst_bloscfail.sh
-TESTS += tst_filter_vlen.sh
 if ISMINGW
 XFAIL_TESTS += tst_filter.sh
 endif # ISMINGW
+
+TESTS += tst_filter_vlen.sh
+TESTS += tst_filter_misc.sh
 
 if AX_MANUAL
 # This test is too dangerous to run in a parallel make environment.
@@ -134,7 +136,7 @@ ref_any.cdl tst_specific_filters.sh tst_unknown.sh                      \
 tst_virtual_datasets.c noop1.cdl unknown.cdl  \
 tst_broken_files.c ref_bloscx.cdl tst_bloscfail.sh			\
 tst_fixedstring.sh ref_fixedstring.h5 ref_fixedstring.cdl               \
-tst_filterinstall.sh tst_filter_vlen.sh
+tst_filterinstall.sh tst_filter_vlen.sh tst_filter_misc.sh
 
 CLEANFILES = tst_mpi_parallel.bin cdm_sea_soundings.nc bm_chunking.nc	\
 tst_floats_1D.cdl floats_1D_3.nc floats_1D.cdl tst_*.nc tmp_*.txt       \

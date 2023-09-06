@@ -152,18 +152,19 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	    if((stat = NC_s3sdkbucketcreate(z3map->s3client,z3map->s3.region,z3map->s3.bucket,&z3map->errmsg)))
 	        goto done;
 	}
-	/* The root object should not exist */
+	/* The root object may or may not already exist */
         switch (stat = NC_s3sdkinfo(z3map->s3client,z3map->s3.bucket,z3map->s3.rootkey,NULL,&z3map->errmsg)) {
 	case NC_EEMPTY: /* no such object */
 	    stat = NC_NOERR;  /* which is what we want */
 	    errclear(z3map);
 	    break;
-	case NC_NOERR: stat = NC_EOBJECT; goto done; /* already exists */
-	default: reporterr(z3map); goto done;
-	}
-	if(!stat) {
+	case NC_NOERR:
+	    stat = NC_EOBJECT;
+	    errclear(z3map);
             /* Delete objects inside root object tree */
             s3clear(z3map,z3map->s3.rootkey);
+	    goto done; /* already exists */
+	default: reporterr(z3map); goto done;
 	}
     }
     
@@ -352,6 +353,7 @@ zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
     case NC_EEMPTY:
 	memsize = endwrite;
 	isempty = 1;
+	stat = NC_NOERR; /* reset */
         break;
     default: reporterr(z3map); goto done;
     }

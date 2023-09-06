@@ -522,6 +522,7 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
     int d;
     int retval = NC_NOERR;
     int storage = NC_CHUNKED;
+    size_t contigchunksizes[NC_MAX_VAR_DIMS]; /* Fake chunksizes if storage is contiguous or compact */
 
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
@@ -632,13 +633,15 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 	    if (nclistlength(((NClist*)var->filters)) > 0)
 		{retval = NC_EINVAL; goto done;}
 #endif
-	    for (d = 0; d < var->ndims; d++)
+	    for (d = 0; d < var->ndims; d++) {
 		if (var->dim[d]->unlimited)
 		    {retval = NC_EINVAL; goto done;}
+	        contigchunksizes[d] = var->dim[d]->len; /* Fake a single big chunk */
+	    }
+	    chunksizes = (const size_t*)contigchunksizes;
 	    storage = NC_CHUNKED; /*only chunked supported */
 	}
 
-	/* Handle chunked storage settings. */
 	if (storage == NC_CHUNKED && var->ndims == 0) {
 	    {retval = NC_EINVAL; goto done;}
 	} else if (storage == NC_CHUNKED && var->ndims > 0) {
@@ -658,10 +661,6 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 			chunksizes[d] > var->dim[d]->len)
 			{retval = NC_EBADCHUNK; goto done;}
 	    }
-	}
-	else if (storage == NC_CONTIGUOUS || storage == NC_COMPACT)
-	{
-	    var->storage = NC_CHUNKED;
 	}
 
 	/* Is this a variable with a chunksize greater than the current

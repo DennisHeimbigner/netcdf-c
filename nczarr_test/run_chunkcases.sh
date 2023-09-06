@@ -112,9 +112,6 @@ echo "Test miscellaneous 1"
 makefile tmp_misc1
 rm -f tmp_misc1_${zext}.txt tmp_misc1_${zext}.cdl
 $TC -d 6,12,4 -c 2,3,1 -s 0,0,0 -e 6,1,4 -Ocw $F
-if test "x$FEATURE_S3TESTS" = xyes ; then
-${S3UTIL} -u 'https://s3.us-east-1.amazonaws.com/unidata-zarr-test-data' -k '/netcdf-c' list
-fi
 ${NCDUMP} $F > tmp_misc1_${zext}.cdl
 diff -b ${srcdir}/ref_misc1.cdl tmp_misc1_${zext}.cdl
 ${execdir}/ncdumpchunks -v v $F > tmp_misc1_${zext}.dmp
@@ -129,5 +126,3 @@ testcases() {
 testcases file
 if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testcases zip; fi
 if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
-
-if test "x$FEATURE_S3TESTS" = xyes ; then s3sdkdelete "/${S3ISOPATH}" ; fi # Cleanup

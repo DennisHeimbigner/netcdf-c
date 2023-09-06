@@ -32,5 +32,3 @@ for t in $TESTCASES ; do
 testcase "$t"
 done
 fi
-
-if test "x$FEATURE_S3TESTS" = xyes ; then s3sdkdelete "/${S3ISOPATH}" ; fi # Cleanup

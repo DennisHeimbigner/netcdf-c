@@ -20,10 +20,12 @@
 #undef BE_DEBUG
 
 #ifdef TESTNCZARR
+#include "test_utils.h"
 #define FILE_NAME_NC "file://tmp_h5_endians.file#mode=nczarr,file"
 #else
 #define FILE_NAME_NC "tst_h5_endians.nc"
 #endif
+
 #define NDIM 10
 #define NLON 20
 #define DIM_NAME "x"
@@ -36,7 +38,7 @@
 #define LE_DBL_VARNAME "dbl_le"
 #define BE_DBL_VARNAME "dbl_be"
 
-#ifdef BE_DEBUG
+#if defined BE_DEBUG || defined TESTNCZARR
 static float
 f32swap(float x)
 {

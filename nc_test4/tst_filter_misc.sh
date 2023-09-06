@@ -1,9 +1,5 @@
 #!/bin/bash 
 
-# Test the filter install
-# This cannot be run as a regular test
-# because installation will not have occurred
-
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
@@ -22,11 +18,11 @@ s3isolate
 fi
 
 if test "x$TESTNCZARR" = x1; then
-    TFAVAIL =${execdir}/test_filter_avail
-    TFVLEN =${execdir}/test_filter_vlen
+    TFAVAIL=${execdir}/test_filter_avail
+    TFVLEN=${execdir}/test_filter_vlen
 else
-    TFAVAIL =${execdir}/tst_filter_avail
-    TFVLEN =${execdir}/tst_filter_vlen
+    TFAVAIL=${execdir}/tst_filter_avail
+    TFVLEN=${execdir}/tst_filter_vlen
 fi
 
 # Load the findplugins function

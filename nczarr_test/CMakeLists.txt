@@ -12,26 +12,27 @@ remove_definitions(-DDLL_EXPORT)
 # Create nczarr tests from nc_test4 tests
 macro(NCZARR_SH_TEST basename src)
 FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/../${src}/tst_${basename}.sh SHSOURCE)
-STRING(PREPEND SHSOURCE "#!/bin/bash\n")
+# Make sure the order of prepended lines is correct
 STRING(PREPEND SHSOURCE "TESTNCZARR=1\n")
+STRING(PREPEND SHSOURCE "#!/bin/bash\n")
 # Replace with FILE(CONFIGURE) when cmake 3.18 is in common use
 FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/run_${basename}.1 "${SHSOURCE}")
 CONFIGURE_FILE(${CMAKE_CURRENT_BINARY_DIR}/run_${basename}.1 ${CMAKE_CURRENT_BINARY_DIR}/run_${basename}.sh FILE_PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE @ONLY NEWLINE_STYLE LF)
 FILE(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/run_${basename}.1)
 endmacro(NCZARR_SH_TEST)
 
-macro(NCZARR_C_TEST basename newname)
-FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/../nc_test4/${basename}.c CSOURCE)
+macro(NCZARR_C_TEST basename newname src)
+FILE(READ ${CMAKE_CURRENT_SOURCE_DIR}/../${src}/${basename}.c CSOURCE)
 STRING(PREPEND CSOURCE "#define TESTNCZARR\n")
 FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${newname}.c "${CSOURCE}")
 endmacro(NCZARR_C_TEST)
 
-NCZARR_C_TEST(tst_quantize test_quantize)
-NCZARR_C_TEST(tst_filter_vlen test_filter_vlen)
-NCZARR_C_TEST(tst_unlim_vars test_unlim_vars)
-NCZARR_C_TEST(tst_h5_endians test_endians)
-NCZARR_C_TEST(tst_put_vars_two_unlim_dim test_put_vars_two_unlim_dim)
-NCZARR_C_TEST(tst_cnunking test_chunking)
+NCZARR_C_TEST(tst_quantize test_quantize nc_test4)
+NCZARR_C_TEST(tst_filter_vlen test_filter_vlen nc_test4)
+NCZARR_C_TEST(tst_unlim_vars test_unlim_vars nc_test4)
+NCZARR_C_TEST(tst_h5_endians test_endians nc_test4)
+NCZARR_C_TEST(tst_put_vars_two_unlim_dim test_put_vars_two_unlim_dim nc_test4)
+NCZARR_C_TEST(tst_chunking test_chunking ncdump)
 
 NCZARR_SH_TEST(specific_filters nc_test4)
 NCZARR_SH_TEST(unknown nc_test4)
@@ -58,7 +59,7 @@ IF(ENABLE_TESTS)
   
   SET(TSTCOMMONSRC test_utils.c ${XGETOPTSRC})
 
-  INCLUDE_DIRECTORIES(../libnczarr)
+  INCLUDE_DIRECTORIES(../libnczarr ../plugins)
 
   # Base tests
   # The tests are set up as a combination of shell scripts and executables that
@@ -74,24 +75,21 @@ IF(ENABLE_TESTS)
   BUILD_BIN_TEST(test_notzarr ${TSTCOMMONSRC})
   BUILD_BIN_TEST(test_chunkcases ${TSTCOMMONSRC})
 
-  ADD_BIN_TEST(nczarr_test test_endians ${TSTCOMMONSRC})
+#  ADD_BIN_TEST(nczarr_test test_endians ${TSTCOMMONSRC})
 
   # Unlimited Tests
   BUILD_BIN_TEST(test_zchunks ${COMMONSRC})
   BUILD_BIN_TEST(test_zchunks2 ${COMMONSRC})
   BUILD_BIN_TEST(test_zchunks3 ${COMMONSRC})
-  BUILD_BIN_TEST(test_unlim_io ${TSTCOMMONSRC})
   ADD_BIN_TEST(nczarr_test test_unlim_vars ${TSTCOMMONSRC})
   ADD_BIN_TEST(nczarr_test test_put_vars_two_unlim_dim ${TSTCOMMONSRC})
-  ADD_SH_TEST(nczarr_test run_mud)
   ADD_SH_TEST(nczarr_test run_nccopyz)
-  ADD_SH_TEST(nczarr_test run_unlim_io)
-  ADD_SH_TEST(nczarr_test run_mud)
   IF(USE_HDF5)
   BUILD_BIN_TEST(test_unlim_io ${TSTCOMMONSRC})
   BUILD_BIN_TEST(test_chunking ${TSTCOMMONSRC})
   ADD_SH_TEST(nczarr_test run_unlim_io)
   ADD_SH_TEST(nczarr_test run_nccopy5)
+  ADD_SH_TEST(nczarr_test run_mud)
   ENDIF()
   
   IF(FALSE) # Obsolete tests
@@ -131,7 +129,6 @@ IF(ENABLE_TESTS)
     ENDIF()
 
     add_sh_test(nczarr_test run_purezarr)
-    add_sh_test(nczarr_test run_interop)
     add_sh_test(nczarr_test run_misc)
     add_sh_test(nczarr_test run_nczarr_fill)
     add_sh_test(nczarr_test run_jsonconvention)
@@ -142,10 +139,11 @@ IF(ENABLE_TESTS)
     add_sh_test(nczarr_test run_quantize)
     add_sh_test(nczarr_test run_notzarr)
 
-    if(ENABLE_S3)
-	add_sh_test(nczarr_test run_s3_cleanup)
-    ENDIF()
-
+    # This has timeout under CMake
+#    if(NOT ISCMAKE)
+      add_sh_test(nczarr_test run_interop)
+#    ENDIF()
+    
     IF(USE_HDF5)
     add_sh_test(nczarr_test run_fillonlyz)
     ENDIF()

@@ -38,5 +38,3 @@ echo '*** SUCCESS!!!'
 testcases file
 if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testcases zip; fi
 if test "x$FEATURE_S3TESTS" = xyes ; then testcases s3; fi
-
-if test "x$FEATURE_S3TESTS" = xyes ; then s3sdkdelete "/${S3ISOPATH}" ; fi # Cleanup

@@ -210,9 +210,6 @@ SET(EXTRA_DEPS "")
 ENABLE_TESTING()
 INCLUDE(CTest)
 
-# Copy the CTest customization file into binary directory, as required.
-FILE(COPY ${CMAKE_CURRENT_SOURCE_DIR}/CTestCustom.cmake DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-
 # Set Memory test program for non-MSVC based builds.
 # Assume valgrind for now.
 IF((NOT MSVC) AND (NOT MINGW) AND (NOT ISCYGWIN))
@@ -1296,7 +1293,7 @@ IF(NOT ENABLE_REMOTE_FUNCTIONALITY)
 ENDIF()
 
 # Control S3 Testing: Multi-valued option
-SET(WITH_S3_TESTING OFF CACHE STRING "Control S3 Testing: ON (i.e. all) OFF (i.e. none)  PUBLIC")
+SET(WITH_ING OFF CACHE STRING "Control S3 Testing: ON (i.e. all) OFF (i.e. none)  PUBLIC")
     SET_PROPERTY(CACHE WITH_S3_TESTING PROPERTY STRINGS ON OFF PUBLIC)  #
 IF(WITH_S3_TESTING STREQUAL "")
   SET(WITH_S3_TESTING OFF CACHE STRING "") # Default
@@ -1340,11 +1337,6 @@ ELSE()
   SET(ENABLE_S3_AWS OFF CACHE BOOL "S3 AWS" FORCE)
 ENDIF()
 
-# Unless/until we get aws-sdk-cpp working for Windows, force use of internal
-IF(ENABLE_S3 AND MSVC)
-  SET(ENABLE_S3_INTERNAL ON CACHE BOOL "S3 Intern" FORCE)
-ENDIF()
-
 IF(ENABLE_S3)
   IF(NOT ENABLE_S3_AWS AND NOT ENABLE_S3_INTERNAL)
     message(FATAL_ERROR "S3 support library not found; please specify option -DENABLE_S3=NO")
@@ -1362,6 +1354,10 @@ IF(WITH_S3_TESTING STREQUAL "PUBLIC" OR WITH_S3_TESTING)
   SET(WITH_S3_TESTING OFF CACHE STRING "" FORCE)
 ENDIF()
 ENDIF()
+
+# The working S3 path tree within the Unidata bucket.
+# WARNING: this must match the value in configure.ac
+SET(S3TESTSUBTREE netcdf-x CACHE STRING "Working S3 path.")
 
 OPTION(ENABLE_LIBXML2 "Link against libxml2 if it is available, use the packaged tinyxml2 parser otherwise." ON)
 SET(XMLPARSER "tinyxml2 (bundled)")
@@ -2600,14 +2596,18 @@ SET(NC_WHICH_S3_SDK "none")
 endif()
 
 if(WITH_S3_TESTING STREQUAL PUBLIC)
-SET(DO_S3_TESTING "public")
+SET(ENABLE_S3_TESTING "public")
 elseif(WITH_S3_TESTING)
-SET(DO_S3_TESTING "yes")
+SET(ENABLE_S3_TESTING "yes")
+SET(ENABLE_S3_TESTALL "yes")
 elseif(NOT WITH_S3_TESTING)
-SET(DO_S3_TESTING "no")
+SET(ENABLE_S3_TESTING "no")
 else()
-SET(DO_S3_TESTING "no")
+SET(ENABLE_S3_TESTING "no")
 endif()
+
+# Copy the CTest customization file into binary directory, as required.
+CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/CTestCustom.cmake.in" "${CMAKE_CURRENT_BINARY_DIR}/CTestCustom.cmake")
 
 # Generate file from template.
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/libnetcdf.settings.in"
@@ -2679,6 +2679,13 @@ IF(ENABLE_TESTS)
     # Build dap4_test/pingurl4.c
     #####
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/pingurl.c ${CMAKE_CURRENT_BINARY_DIR}/dap4_test/pingurl4.c @ONLY NEWLINE_STYLE LF)
+
+    #####
+    # Build CTestCustom.cmake to cleanup S3 after tests are done.
+    #####
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/CTestCustom.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/CTestCustom.cmake NEWLINE_STYLE LF)
+   
+
 ENDIF()
 
 if(DEFINED ENV{LIB_FUZZING_ENGINE})

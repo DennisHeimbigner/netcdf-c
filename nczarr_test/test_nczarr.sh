@@ -36,7 +36,7 @@ s3isolate() {
 if test "x$S3ISOPATH" = x ; then
   if test "x$ISOPATH" = x ; then isolate "$1"; fi
   S3ISODIR="$ISODIR"
-  S3ISOPATH="netcdf-c"
+  S3ISOPATH="${S3TESTSUBTREE}"
   if test "x$S3ISODIR" = x ; then
     S3ISODIR=`${execdir}/../libdispatch/ncrandom`
   fi
@@ -172,19 +172,8 @@ resetrc() {
   unset DAPRCFILE
 }
 
-# Enforce cleanup
-atexit() {
-  atexit_cleanup() {
-    if test "x$S3ISOPATH" != x ; then
-      if test "x$FEATURE_S3TESTS" = xyes ; then s3sdkdelete "/${S3ISOPATH}" ; fi # Cleanup
-    fi
-  }
-  trap atexit_cleanup EXIT
-}
-
 GDBB="gdb -batch -ex r -ex bt -ex q --args"
 
 resetrc
-atexit
 
 fi #TEST_NCZARR_SH

@@ -846,7 +846,7 @@ NCZ_applyfilterchain(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* cha
 {
     int i, stat = NC_NOERR;
     void* lastbuffer = NULL; /* if not null, then last allocated buffer */
-
+    
     ZTRACE(6,"|chain|=%u inlen=%u indata=%p encode=%d", (unsigned)nclistlength(chain), (unsigned)inlen, indata, encode);
 
     /* Make sure all the filters are loaded && setup */
@@ -1155,7 +1155,7 @@ static int
 NCZ_load_all_plugins(void)
 {
     int i,j,ret = NC_NOERR;
-    const char* pluginroots = NULL;
+    char* pluginroots = NULL;
     struct stat buf;
     NClist* dirs = nclistnew();
     char* defaultpluginpath = NULL;
@@ -1185,7 +1185,7 @@ NCZ_load_all_plugins(void)
     pluginroots = getenv(PLUGIN_ENV); /* Usually HDF5_PLUGIN_PATH */
     if(pluginroots  != NULL && strlen(pluginroots) == 0) pluginroots = NULL;
     if(pluginroots == NULL) {
-	pluginroots = strdup(defaultpluginpath);
+	pluginroots = defaultpluginpath;
     }
     assert(pluginroots != NULL);
     ZTRACEMORE(6,"pluginroots=%s",(pluginroots?pluginroots:"null"));

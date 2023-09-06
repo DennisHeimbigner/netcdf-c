@@ -642,3 +642,11 @@ ncz_gets3testurl(void)
     }
     return s3testurlp;
 }
+
+void
+ncz_report(int err, int lineno)
+{
+    fprintf(stderr,"Error: %d: %s\n", lineno, nc_strerror(err));
+    exit(1);
+}
+

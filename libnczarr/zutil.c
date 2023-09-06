@@ -280,6 +280,9 @@ fprintf(stderr,"uploadjson: %s\n",key); fflush(stderr);
 	goto done;
     ZTRACEMORE(4,"\tjson=%s",content);
     
+if(getenv("NCS3JSON") != NULL)
+fprintf(stderr,">>>> uploadjson: %s: %s\n",key,content);
+
     /* Write the metadata */
     if((stat = nczmap_write(zmap, key, 0, strlen(content), content)))
 	goto done;

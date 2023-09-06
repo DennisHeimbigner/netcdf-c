@@ -113,7 +113,7 @@ lib__nch5noop1_la_LDFLAGS = $(AM_LDFLAGS) ${RPATH}
 
 # The misc filter is to allow testing of filter arguments
 lib__nch5misc_la_SOURCES = H5Zmisc.c H5Zutil.c h5misc.h
-lib__nch5misc_la_LDFLAGS = $(AM_LDFLAGS) ${RPATH}
+lib__nch5misc_la_LDFLAGS = ${top_builddir}/liblib/libnetcdf.la $(AM_LDFLAGS) ${RPATH}
 lib__nczmisc_la_SOURCES = NCZmisc.c
 lib__nczmisc_la_LDFLAGS = $(AM_LDFLAGS) ${RPATH}
 

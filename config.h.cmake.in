@@ -163,6 +163,9 @@ are set when opening a binary file on Windows. */
 /* if true, enable S3 testing*/
 #cmakedefine WITH_S3_TESTING "PUBLIC"
 
+/* S3 Working subtree */
+#define S3TESTSUBTREE "${S3TESTSUBTREE}"
+
 /* if true, run extra tests which may not work yet */
 #cmakedefine EXTRA_TESTS 1
 

@@ -8,7 +8,7 @@ include $(top_srcdir)/lib_flags.am
 
 AM_CFLAGS += -I..
 AM_CPPFLAGS += -I${top_srcdir}/libnczarr
-AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
+AM_CPPFLAGS += -I${top_srcdir}/plugins
 LDADD = ${top_builddir}/liblib/libnetcdf.la
 
 TESTS_ENVIRONMENT =
@@ -43,7 +43,7 @@ test_fillonlyz_SOURCES = test_fillonlyz.c ${testcommonsrc}
 check_PROGRAMS += test_fillonlyz test_quantize test_notzarr
 
 # Unlimited Dimension tests
-check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_chunking test_unlim_vars test_put_vars_two_unlim_dim
+check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_unlim_vars test_put_vars_two_unlim_dim
 if USE_HDF5
 check_PROGRAMS += test_unlim_io
 test_unlim_io_SOURCES = test_unlim_io.c ${testcommonsrc}
@@ -74,7 +74,15 @@ TESTS += run_notzarr.sh
 TESTS += run_external.sh
 
 # Unlimited Dimension tests (at least in part)
-TESTS += run_nccopy5.sh run_mud.sh run_nccopy5.sh test_unlim_vars test_put_vars_two_unlim_dim
+TESTS += run_mud.sh test_unlim_vars test_put_vars_two_unlim_dim
+
+# Unlimited Dimension tests
+check_PROGRAMS += test_chunking
+TESTS += run_nccopy5.sh
+
+check_PROGRAMS += test_filter_avail test_filter_vlen
+TESTS += run_filter_vlen.sh run_filter_misc.sh
+
 if USE_HDF5
 TESTS += run_unlim_io.sh run_nccopyz.sh
 endif
@@ -195,12 +203,14 @@ ref_nulls_nczarr.baseline ref_nulls_zarr.baseline ref_nulls.cdl ref_notzarr.tar.
 
 # Interoperability files
 EXTRA_DIST += ref_power_901_constants_orig.zip ref_power_901_constants.cdl ref_quotes_orig.zip ref_quotes.cdl \
-ref_zarr_test_data.cdl.gz
+ref_zarr_test_data.cdl.gz ref_zarr_test_data_2d.cdl.gz
 
 CLEANFILES = ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp tmp*.zip tmp*.nc tmp*.dump tmp*.tmp tmp*.zmap tmp_ngc.c ref_zarr_test_data.cdl tst_*.nc.zip ref_quotes.zip ref_power_901_constants.zip
 
-BUILT_SOURCES = test_quantize.c test_filter_vlen.c test_unlim_vars.c test_endians.c test_put_vars_two_unlim_dim.c \
-                run_unknown.sh run_specific_filters.sh run_filter_vlen.sh run_filterinstall.sh run_mud.sh run_nccopy5.sh
+BUILT_SOURCES = test_quantize.c test_filter_vlen.c test_unlim_vars.c test_endians.c \
+                test_put_vars_two_unlim_dim.c test_chunking.c \
+                run_unknown.sh run_specific_filters.sh run_filter_vlen.sh run_filterinstall.sh \
+		run_mud.sh run_nccopy5.sh run_filter_misc.sh
 
 test_quantize.c: $(top_srcdir)/nc_test4/tst_quantize.c
 	rm -f $@
@@ -259,6 +269,15 @@ run_filter_vlen.sh: $(top_srcdir)/nc_test4/tst_filter_vlen.sh
 	chmod a+x $@
 	rm -f run_filter_vlen.tmp
 
+run_filter_misc.sh: $(top_srcdir)/nc_test4/tst_filter_misc.sh
+	rm -f $@ run_filter_misc.tmp
+	echo "#!/bin/bash" > run_filter_misc.tmp
+	echo "TESTNCZARR=1" >> run_filter_misc.tmp
+	cat $(top_srcdir)/nc_test4/tst_filter_misc.sh >> run_filter_misc.tmp
+	tr -d '\r' < run_filter_misc.tmp > $@
+	chmod a+x $@
+	rm -f run_filter_misc.tmp
+
 run_filterinstall.sh: $(top_srcdir)/nc_test4/tst_filterinstall.sh
 	rm -f $@ run_filterinstall.tmp
 	echo "#!/bin/bash" > run_filterinstall.tmp
@@ -292,12 +311,16 @@ clean-local:
 	rm -fr tmp_*.nc tmp_*.zarr tst_quantize*.zarr tmp*.file results.file results.s3 results.zip
 	rm -fr rcmiscdir ref_power_901_constants.file 
 
-
-DISTCLEANFILES = findplugin.sh test_quantize.c run_specific_filters.sh run_filterinstall.sh run_unknown.sh test_filter_vlen.c run_filter_vlen.sh test_unlim_vars.c run_mud.sh run_nccopy5.sh
-
+if ENABLE_S3_TESTALL
 # Provide a specific s3 cleanup action
-s3cleanup::
-	${srcdir}/run_s3_cleanup.sh
+.PHONY: s3clean
+s3clean:
+	${abs_srcdir}/run_s3_cleanup.sh ${abs_builddir} ${S3TESTSUBTREE}
+else
+s3clean:
+endif
+
+DISTCLEANFILES = findplugin.sh ${BUILT_SOURCES}
 
 # If valgrind is present, add valgrind targets.
 @VALGRIND_CHECK_RULES@

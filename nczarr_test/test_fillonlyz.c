@@ -18,7 +18,7 @@ static void
 nccheck(int ret, int lineno)
 {
     if(ret == NC_NOERR) return;
-    report(ret,lineno);
+    ncz_report(ret,lineno);
 }
 
 #define NCCHECK(err) nccheck(err,__LINE__)

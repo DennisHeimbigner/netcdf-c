@@ -5,8 +5,8 @@
 #ifndef ZDEBUG_H
 #define ZDEBUG_H
 
-#undef ZCATCH /* Warning: significant performance impact */
-#undef ZTRACING /* Warning: significant performance impact */
+#define ZCATCH /* Warning: significant performance impact */
+#define ZTRACING /* Warning: significant performance impact */
 
 #undef ZDEBUG /* general debug */
 #undef ZDEBUG1 /* detailed debug */
@@ -22,6 +22,7 @@
 
 #ifdef ZCATCH
 /* Place breakpoint on zbreakpoint to catch errors close to where they occur*/
+/* WARNING: Do not evaluate e more than once */
 #define THROW(e) zthrow((e),__FILE__, __func__, __LINE__)
 #define REPORT(e,msg) zreport((e),(msg),__FILE__, __func__, __LINE__)
 #define ZCHECK(e) if((e)) {THROW(stat); goto done;} else {}

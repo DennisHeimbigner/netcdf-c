@@ -3,8 +3,6 @@
 
 #include "netcdf.h"
 
-#define ERR(e) report(e,__LINE__)
-
 typedef enum Op {None=0, Create=1, Read=2, Write=3, Wholechunk=4, Odom=5, Extend=6} Op;
 
 /* Bit mask of defined options; powers of 2*/
@@ -91,15 +89,11 @@ EXTERNL int nc__testurl(const char*,char**);
 
 EXTERNL const char* ncz_gets3testurl(void);
 
-static void
-report(int err, int lineno)
-{
-    fprintf(stderr,"Error: %d: %s\n", lineno, nc_strerror(err));
-    exit(1);
-}
-
 EXTERNL Options* options;
 EXTERNL Metadata* meta;
-EXTERNL NClist* capture;
+
+EXTERNL void ncz_report(int err, int line);
+
+#define ERR(e) ncz_report(e,__LINE__)
 
 #endif /*TST_UTILS_H*/

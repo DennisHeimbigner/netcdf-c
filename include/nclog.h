@@ -49,7 +49,8 @@ EXTERNL int ncbreakpoint(int err);
 
 /* Debug support */
 #if defined(NCCATCH)
-#define NCTHROW(e) ((e) == NC_NOERR ? (e) : ncthrow(e,__FILE__,__LINE__))
+/* Warning: do not evaluate e more than once */
+#define NCTHROW(e) ncthrow(e,__FILE__,__LINE__)
 #else
 #define NCTHROW(e) (e)
 #endif

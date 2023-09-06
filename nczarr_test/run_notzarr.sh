@@ -60,5 +60,3 @@ echo "Test non-zarr S3 file"
 RET=`${execdir}/test_notzarr "https://$URL/${S3ISOPATH}/notzarr.s3#mode=zarr,s3"`
 testfailed "$RET"
 fi
-
-if test "x$FEATURE_S3TESTS" = xyes ; then s3sdkdelete "/${S3ISOPATH}" ; fi # Cleanup

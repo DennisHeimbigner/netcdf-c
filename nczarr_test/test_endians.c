@@ -21,10 +21,12 @@
 #undef BE_DEBUG
 
 #ifdef TESTNCZARR
+#include "test_utils.h"
 #define FILE_NAME_NC "file://tmp_h5_endians.file#mode=nczarr,file"
 #else
 #define FILE_NAME_NC "tst_h5_endians.nc"
 #endif
+
 #define NDIM 10
 #define NLON 20
 #define DIM_NAME "x"
@@ -37,7 +39,7 @@
 #define LE_DBL_VARNAME "dbl_le"
 #define BE_DBL_VARNAME "dbl_be"
 
-#ifdef BE_DEBUG
+#if defined BE_DEBUG || defined TESTNCZARR
 static float
 f32swap(float x)
 {
@@ -276,12 +278,10 @@ int main() {
             return retval;
         if ((retval = nc_get_var(ncid,be_float_varid,fdata_be_out)))
             return retval;
-#ifdef BE_DEBUG
 	for(i=0;i<NDIM;i++) {
 	    float f = f32swap(fdata_be_out[i]);
 	    fprintf(stderr,"[%d] %f\n",i,f);
 	}
-#endif
 	for(failed=0,i=0;i<NDIM;i++) {
 	    if(fdata_in[i] != fdata_be_out[i]) {
 	        printf("failed\n"); failures++; failed++; break;
@@ -320,12 +320,10 @@ int main() {
             return retval;
         if ((retval = nc_get_var(ncid,be_dbl_varid,ddata_be_out)))
             return retval;
-#ifdef BE_DEBUG
 	for(i=0;i<NDIM;i++) {
 	    double d = f64swap(ddata_be_out[i]);
 	    fprintf(stderr,"[%d] %lf\n",i,d);
 	}
-#endif
 	for(failed=0,i=0;i<NDIM;i++) {if(ddata_in[i] != ddata_be_out[i]) {printf("failed\n"); failures++; failed++; break;}}
 	if(!failed) printf("passed\n");
 #endif

@@ -974,6 +974,7 @@ AC_DEFINE_UNQUOTED([WITH_S3_TESTING], [$with_s3_testing], [control S3 testing.])
 
 if test "x$with_s3_testing" = xyes ; then
   AC_MSG_WARN([*** DO NOT SPECIFY WITH_S3_TESTING=YES UNLESS YOU HAVE ACCESS TO THE UNIDATA S3 BUCKET! ***])
+  AC_DEFINE([ENABLE_S3_TESTALL], [yes], [control S3 testing.])
 fi
 
 # Check whether we want to enable strict null byte header padding.
@@ -2033,7 +2034,7 @@ AC_SUBST(HAS_S3_AWS,[$enable_s3_aws])
 AC_SUBST(HAS_S3_INTERNAL,[$enable_s3_internal])
 AC_SUBST(HAS_HDF5_ROS3,[$has_hdf5_ros3])
 AC_SUBST(HAS_NCZARR,[$enable_nczarr])
-AC_SUBST(DO_S3_TESTING,[$with_s3_testing])
+AC_SUBST(ENABLE_S3_TESTING,[$with_s3_testing])
 AC_SUBST(HAS_NCZARR_ZIP,[$enable_nczarr_zip])
 AC_SUBST(DO_NCZARR_ZIP_TESTS,[$enable_nczarr_zip])
 AC_SUBST(HAS_QUANTIZE,[$enable_quantize])
@@ -2055,6 +2056,11 @@ fi
 if test "x$enable_s3_aws" = xno && test "x$enable_s3_internal" = xno; then
 AC_SUBST(WHICH_S3_SDK,[none])
 fi
+
+# The working S3 path tree within the Unidata bucket.
+# WARNING: this must match the value in CMakeLists.txt
+AC_DEFINE([S3TESTSUBTREE], ["netcdf-x"], [S3 working path])
+AC_SUBST([S3TESTSUBTREE],[netcdf-x])
 
 # Always available
 std_filters="bz2"

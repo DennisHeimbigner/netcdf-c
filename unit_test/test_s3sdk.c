@@ -66,10 +66,7 @@ check(int code, const char* fcn, int line)
 {
     if(code == NC_NOERR) return code;
     fprintf(stderr,"***FAIL: (%d) %s @ %s:%d\n",code,nc_strerror(code),fcn,line);
-#ifdef DEBUG
     abort();
-#endif
-    exit(1);
 }
 
 static enum Actions
@@ -261,9 +258,9 @@ testgetkeys(void)
     printf("\n");
 
 done:
-    cleanup();
     for(i=0;i<nkeys;i++) nullfree(keys[i]);
-    nullfree(keys);
+    nullfree(keys); keys = NULL;
+    cleanup();
     return stat;
 }
 

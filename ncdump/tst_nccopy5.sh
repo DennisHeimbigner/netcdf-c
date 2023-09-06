@@ -4,6 +4,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -e
+
 if test "x$TESTNCZARR" = x1 ; then
 . "$srcdir/test_nczarr.sh"
 s3isolate "testdir_nccopy5"
@@ -25,12 +26,12 @@ fi
 echo ""
 
 # Trim off leading and trailing whitespace
-# Also remove any <cr>
+# Also remove any <cr> and de-tabify
 # usage: trim <line>
 # Leaves result in variable TRIMMED
 trim() {
     # trim leading whitespace and remove <cr>
-    TMP=`echo "$1" |tr -d '\r' | sed -e 's/^[ 	]*//'`
+    TMP=`echo "$1" |tr -d '\r' | tr '\t' ' ' |sed -e 's/^[ 	]*//'`
     # trim trailing whitespace
     TRIMMED=`echo "$TMP" | sed -e 's/[ 	]*$//'`
 }
@@ -201,7 +202,8 @@ ${CHUNKTEST} ${file} unlimited
 ${NCDUMP} -n tmp_nc5_base ${file} > tmp_nc5.cdl
 
 echo "*** Test nccopy -c with unlimited dimension; classic ->enhanced"
-${NCCOPY} -M500 -c ivar:5,3 $file tmp_nc34.nc
+# Warning: make sure that nccopy does not convert small chunking to contiguous => -M<small value>
+${NCCOPY} -M50 -c ivar:5,3 $file tmp_nc34.nc
 ${NCDUMP} -n tmp_nc5_base tmp_nc34.nc > tmp_nc34.cdl
 diff tmp_nc5.cdl tmp_nc34.cdl
 

@@ -31,7 +31,7 @@ AM_DISTCHECK_CONFIGURE_FLAGS = --without-plugin-dir
 EXTRA_DIST = README.md COPYRIGHT INSTALL.md test_prog.c lib_flags.am	\
 cmake CMakeLists.txt COMPILE.cmake.txt config.h.cmake.in		\
 cmake_uninstall.cmake.in FixBundle.cmake.in nc-config.cmake.in		\
-RELEASE_NOTES.md CTestCustom.cmake CTestConfig.cmake.in			\
+RELEASE_NOTES.md CTestConfig.cmake.in CTestCustom.cmake.in		\
 libnetcdf.settings.in netCDFConfig.cmake.in CMakeInstallation.cmake	\
 test-driver-verbose test_common.in fuzz
 
@@ -213,3 +213,13 @@ all-local: liblib/libnetcdf.la
 	echo ${PACKAGE_VERSION} > VERSION
 # Remove the VERSION file
 CLEANFILES = VERSION
+
+if ENABLE_S3_TESTALL
+# Cleanup S3 resources
+distcleancheck: s3clean
+
+.PHONY: s3clean
+# Provide a specific s3 cleanup action
+s3clean:
+	echo ">>>> ${abs_srcdir}/run_s3_cleanup.sh ${abs_builddir} ${S3TESTSUBTREE}"
+endif

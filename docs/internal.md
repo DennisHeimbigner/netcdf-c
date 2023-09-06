@@ -647,6 +647,44 @@ done:
 #endif /*HAVE_ZSTD*/
 ````
 
+# 5. Test Interference {#intern_isolation}
+
+At some point, Unidata switched from running tests serially to running tests in parallel.
+It soon became apparent that there were resources shared between tests and that parallel
+execution sometimes caused interference between tests.
+
+In order to fix the inter-test interference, several approaches were used.
+1. Renaming resources (primarily files) so that tests would create difference test files.
+2. Telling the test system that there were explicit dependencies between tests so that they would not be run in parallel.
+3.  Isolating test resources by creating independent directories for each test.
+
+## Test Isolation
+The isolation mechanism is currently used mostly in nczarr_tests.
+It requires that tests are all executed inside a shell script.
+When the script starts, it invokes a shell function called "isolate".
+Suppose, for example, that the shell script is called "run_XXXX.sh".
+The isolate function creates a directory with the general name "testdir_XXXX_<random>".
+The "<random>" part is a randomly generated 32-bit positive integer.
+The range of the random number needs to be big enough to ensure that their is a low probability the same number will occur for some other test.
+So the isolation directory is created and then the test is executed inside that directory.
+The cleanup requires that this test directory be deleted in order to release all created resources.
+
+## Cloud Test Isolation
+When testing against the cloud (currently Amazon S3), the interference problem is intensified.
+This is because the current cloud testing uses a single S3 bucket, which means that not only is there inter-test interference, but there is also potential interference across builds.
+This means, for example, that testing by github actions could interfere with local testing by individual users.
+This problem is not completely solvable because it requires that certain things be done at the beginning of all tests and at the end of all tests.
+This is possible with cmake, but not (as yet) possible with automake.
+
+In any case, there is a shell function called s3isolate in nczarr_test/test_nczarr.sh that operates on cloud resources in a way that is similar to the isolate function.
+The s3isolate does two things:
+1. It invokes isolate to ensure local isolation.
+2. It creates a path prefix relative to the Unidata S3 bucket that has the same name as the test directory created by isolate.
+
+The test then ensures that any cloud resources are created as extensions of the path prefix.
+Cleanup is also somewhat more complex and requires removing all the test directories and cloud paths created by any test.
+
+
 # Point of Contact {#intern_poc}
 
 *Author*: Dennis Heimbigner<br>

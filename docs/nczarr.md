@@ -487,9 +487,9 @@ A separate tabulation of S3 support is in the document cloud.md.
 <tr><td>Linux            <td> Automake     <td> yes
 <tr><td>Linux            <td> CMake        <td> yes
 <tr><td>Cygwin           <td> Automake     <td> yes
-<tr><td>Cygwin           <td> CMake        <td> unknown
-<tr><td>OSX              <td> Automake     <td> unknown
-<tr><td>OSX              <td> CMake        <td> unknown
+<tr><td>Cygwin           <td> CMake        <td> yes
+<tr><td>OSX              <td> Automake     <td> yes
+<tr><td>OSX              <td> CMake        <td> yes
 <tr><td>Visual Studio    <td> CMake        <td> yes
 </table>
 

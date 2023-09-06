@@ -11,9 +11,11 @@ set -e
 if test "x$TESTNCZARR" = x1 ; then
 . "$srcdir/test_nczarr.sh"
 s3isolate "testdir_mud4"
+else
+ISOPATH=`pwd`
+fi
 THISDIR=`pwd`
 cd $ISOPATH
-fi
 
 echo ""
 echo "*** Testing ncdump output for multiple unlimited dimensions"
@@ -71,7 +73,6 @@ if test "x$TESTNCZARR" = x1 ; then
     testcase file
     if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testcase zip ; fi
     if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3 ; fi
-    if test "x$FEATURE_S3TESTS" = xyes ; then s3sdkdelete "/${S3ISOPATH}" ; fi # Cleanup
 else
     testcase nc
 fi
