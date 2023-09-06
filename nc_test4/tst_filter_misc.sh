@@ -21,6 +21,14 @@ if test "x$TESTNCZARR" = x1; then
 s3isolate
 fi
 
+if test "x$TESTNCZARR" = x1; then
+    TFAVAIL =${execdir}/test_filter_avail
+    TFVLEN =${execdir}/test_filter_vlen
+else
+    TFAVAIL =${execdir}/tst_filter_avail
+    TFVLEN =${execdir}/tst_filter_vlen
+fi
+
 # Load the findplugins function
 . ${builddir}/findplugin.sh
 echo "findplugin.sh loaded"
@@ -85,20 +93,12 @@ setfilter() {
 testavail() {
   zext=$1
   if ! filteravail bzip2; then return 0; fi
-  if test "x$TESTNCZARR" = x1 ; then
-      ${execdir}/test_filter_avail
-  else
-      ${execdir}/tst_filter_avail
-  fi
+  ${TFAVAIL}
 }
 
 testvlen() {
   zext=$1
-  if test "x$TESTNCZARR" = x1 ; then
-      ${execdir}/test_filter_vlen
-  else
-      ${execdir}/tst_filter_vlen
-  fi
+  ${TFVLEN}
 }
 
 testset() {

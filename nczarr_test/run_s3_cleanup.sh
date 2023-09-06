@@ -1,19 +1,9 @@
 #!/bin/sh
 
-if test "x$srcdir" = x ; then srcdir=`pwd`; fi 
-. ../test_common.sh
+set -x
+TESTDIR="$1"
+S3TESTSUBTREE="$2"
 
-. "$srcdir/test_nczarr.sh"
-
-set -e
-
-echo ""
-echo "*** Remove /netcdf-c from S3 repository"
-
-fileargs netcdf-c
-
-if test "x$FEATURE_S3TESTS" = xyes ; then
-${execdir}/s3util -u "${NCZARR_S3_TEST_URL}" -k "/netcdf-c" clear
-fi
-
+echo ">>> *** Remove /${TESTSUBTREE} from S3 repository"
+echo ${TESTDIR}/nczarr_test/s3util -u "https://s3.us-east-1.amazonaws.com/unidata-zarr-test-data" -k "/${S3TESTSUBTREE}" clear
 exit 0
