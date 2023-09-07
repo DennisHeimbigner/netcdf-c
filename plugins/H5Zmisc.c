@@ -4,9 +4,10 @@
 #include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include "netcdf_aux.h"
 
 #include "h5misc.h"
+
+#include "netcdf_aux.h"
 
 /* WARNING:
 Starting with HDF5 version 1.10.x, the plugin code MUST be
