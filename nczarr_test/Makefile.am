@@ -43,6 +43,7 @@ test_fillonlyz_SOURCES = test_fillonlyz.c ${testcommonsrc}
 check_PROGRAMS += test_fillonlyz test_quantize test_notzarr
 
 # Unlimited Dimension tests
+test_put_vars_two_unlim_dim_SOURCES = test_put_vars_two_unlim_dim.c ${testcommonsrc}
 check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_unlim_vars test_put_vars_two_unlim_dim
 if USE_HDF5
 check_PROGRAMS += test_unlim_io
