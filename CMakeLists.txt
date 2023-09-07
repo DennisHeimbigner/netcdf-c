@@ -2133,6 +2133,7 @@ MACRO(build_bin_test_no_prefix F)
 ENDMACRO()
 
 MACRO(add_bin_test prefix F)
+message(">>>> $F.source = ${F}.c ${ARGN}")
   ADD_EXECUTABLE(${prefix}_${F} ${F}.c ${ARGN})
   TARGET_LINK_LIBRARIES(${prefix}_${F}
     ${ALL_TLL_LIBS}
