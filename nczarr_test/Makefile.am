@@ -76,9 +76,11 @@ TESTS += run_external.sh
 # Unlimited Dimension tests (at least in part)
 TESTS += run_mud.sh test_unlim_vars test_put_vars_two_unlim_dim
 
+if USE_HDF5
 # Unlimited Dimension tests
 check_PROGRAMS += test_chunking
 TESTS += run_nccopy5.sh
+endif
 
 check_PROGRAMS += test_filter_avail test_filter_vlen
 TESTS += run_filter_vlen.sh run_filter_misc.sh
