@@ -11,6 +11,9 @@
 #    define DECLSPEC extern
 #endif
 
+#include "netcdf_filter_build.h"
+#include "netcdf_filter_hdf5_build.h"
+
 /* use an integer greater than 256 to be id of the registered filter. */
 #define H5Z_FILTER_TEST 32768
 

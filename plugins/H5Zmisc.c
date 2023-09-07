@@ -4,10 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include "netcdf_filter_build.h"
-#include "netcdf_filter_hdf5_build.h"
 #include "netcdf_aux.h"
-
 
 #include "h5misc.h"
 
