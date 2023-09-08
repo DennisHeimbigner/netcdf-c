@@ -26,7 +26,13 @@ See \ref copyright file for more info.
 #define FILE_NAME "tst_put_vars_two_unlim_dim.nc"
 #endif
 
-int main(int argc, char* argv[])
+/* ,,,,, */
+static void ignore()
+{
+}
+
+int
+main(int argc, char* argv[])
 {
     int ret;
     int ncid;
