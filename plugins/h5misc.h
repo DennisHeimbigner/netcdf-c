@@ -55,7 +55,7 @@ static struct All spec = {
 789.0f,			/* float */
 -9223372036854775807LL,	/* signed int64 */
 18446744073709551615ULL,/* unsigned int64 */
-12345678.12345678d	/* double */
+(double)12345678.12345678/* double */
 };
 
 /* declare the hdf5 interface */
