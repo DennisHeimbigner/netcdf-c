@@ -24,6 +24,15 @@
 #include <aws/core/utils/logging/DefaultLogSystem.h>
 #include <aws/core/utils/logging/AWSLogging.h>
 #include <aws/core/Version.h>
+
+#ifdef TRANSFER
+#include <aws/core/utils/memory/AWSMemory.h>
+#include <aws/core/utils/memory/stl/AWSStreamFwd.h>
+#include <aws/core/utils/stream/PreallocatedStreamBuf.h>
+#include <aws/transfer/TransferManager.h>
+#include <aws/transfer/TransferHandle.h>
+#endif
+
 #include <ios>
 #include <iostream>
 #include <fstream>

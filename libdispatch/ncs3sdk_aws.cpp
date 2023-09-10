@@ -8,6 +8,9 @@
 #define NOOP
 #define DEBUG
 
+/* Use Aws::Transfer instead of direct REST API */
+#define TRANSFER
+
 #include "awsincludes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +41,12 @@ extern char* strdup(const char*);
 #endif
 
 #define size64_t unsigned long long
+
+#ifdef TRANSFER
+#define AWSS3CLIENT std::shared_ptr<Aws::S3::S3Client>*
+#else
+#define AWSS3CLIENT Aws::S3::S3Client*
+#endif
 
 struct KeySet {
     size_t nkeys;
@@ -169,26 +178,53 @@ s3sdkcreateconfig(NCS3INFO* info)
     return config;
 }
 
+static AWSS3CLIENT
+buildclient(Aws::Client::ClientConfiguration* config, Aws::Auth::AWSCredentials* creds)
+{
+    AWSS3CLIENT s3client = NULL;
+#ifdef TRANSFER
+    std::shared_ptr<Aws::S3::S3Client> client;
+    if(creds != NULL) {
+        client = Aws::MakeShared<Aws::S3::S3Client>("S3Client",*creds,*config,
+                               Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::RequestDependent,
+			       false);
+    } else {
+        client = Aws::MakeShared<Aws::S3::S3Client>("S3Client",*config,
+                               Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::RequestDependent,
+			       false);
+    }
+    s3client = new std::shared_ptr<Aws::S3::S3Client>;
+    *s3client = client;
+#else
+    if(creds != NULL) {
+        s3client = new Aws::S3::S3Client(*creds,*config,
+                               Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::RequestDependent,
+			       false);
+    } else {
+        s3client = new Aws::S3::S3Client(*config,
+                               Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::RequestDependent,
+			       false);
+    }
+#endif
+    return s3client;
+}
+
 EXTERNL void*
 NC_s3sdkcreateclient(NCS3INFO* info)
 {
-    int stat = NC_NOERR;
     NCTRACE(11,NULL);
 
     Aws::Client::ClientConfiguration config = s3sdkcreateconfig(info);
-    Aws::S3::S3Client *s3client;
+    AWSS3CLIENT s3client;
 
     if(info->profile == NULL || strcmp(info->profile,"none")==0) {
         Aws::Auth::AWSCredentials creds;
         creds.SetAWSAccessKeyId(Aws::String(""));
         creds.SetAWSSecretKey(Aws::String(""));
-        s3client = new Aws::S3::S3Client(creds,config,
-                               Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::RequestDependent,
-			       false);
+
+        s3client = buildclient(&config,&creds);
     } else {
-        s3client = new Aws::S3::S3Client(config,
-                               Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::RequestDependent,
-			       false);
+        s3client = buildclient(&config,NULL);
     }
 //    delete config;
     NCUNTRACENOOP(NC_NOERR);
@@ -200,7 +236,7 @@ NC_s3sdkbucketexists(void* s3client0, const char* bucket, int* existsp, char** e
 {
     int stat = NC_NOERR;
     int exists = 0;
-    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
+    AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
 
     NCTRACE(11,"bucket=%s",bucket);
     if(errmsgp) *errmsgp = NULL;
@@ -236,7 +272,7 @@ NC_s3sdkbucketcreate(void* s3client0, const char* region, const char* bucket, ch
     int stat = NC_NOERR;
     
     NCTRACE(11,"region=%s bucket=%s",region,bucket);
-    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
+    AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
     if(errmsgp) *errmsgp = NULL;
     const Aws::S3::Model::BucketLocationConstraint &awsregion = s3findregion(region);
     if(awsregion == Aws::S3::Model::BucketLocationConstraint::NOT_SET)
@@ -271,7 +307,7 @@ NC_s3sdkbucketdelete(void* s3client0, NCS3INFO* info, char** errmsgp)
 
     NCTRACE(11,"info=%s%s",dumps3info(info));
 
-    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
+    AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
     
     if(errmsgp) *errmsgp = NULL;
     const Aws::S3::Model::BucketLocationConstraint &awsregion = s3findregion(info->region);
@@ -311,7 +347,7 @@ NC_s3sdkinfo(void* s3client0, const char* bucket, const char* pathkey, size64_t*
 
     NCTRACE(11,"bucket=%s pathkey=%s",bucket,pathkey);
 
-    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
+    AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
     Aws::S3::Model::HeadObjectRequest head_request;
     if(*pathkey != '/') return NC_EINTERNAL;
     /* extract the true s3 key*/
@@ -343,6 +379,19 @@ NC_s3sdkinfo(void* s3client0, const char* bucket, const char* pathkey, size64_t*
     return NCUNTRACEX(stat,"len=%d",(int)(lenp?*lenp:-1));
 }
 
+/**
+ * In-memory stream implementation
+ */
+class MyUnderlyingStream : public Aws::IOStream
+{
+    public:
+        using Base = Aws::IOStream;
+        // Provide a customer-controlled streambuf to hold data from the bucket.
+        explicit MyUnderlyingStream(std::streambuf* buf) : Base(buf) {}
+        ~MyUnderlyingStream() override = default;
+};
+
+
 /*
 @return NC_NOERR if success
 @return NC_EXXX if fail
@@ -357,21 +406,44 @@ NC_s3sdkread(void* s3client0, const char* bucket, const char* pathkey, size64_t 
 
     NCTRACE(11,"bucket=%s pathkey=%s start=%llu count=%llu content=%p",bucket,pathkey,start,count,content);
 
-    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
-    Aws::S3::Model::GetObjectRequest object_request;
+    AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
 
     if(count == 0) return NCUNTRACE(stat);
-
     if(*pathkey != '/') return NC_EINTERNAL;
     if((stat = makes3key(pathkey,&key))) return NCUNTRACE(stat);
     
+#ifdef TRANSFER
+    auto executor = Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>("executor", 25);
+    Aws::Transfer::TransferManagerConfiguration transfer_config(executor.get());
+    transfer_config.s3Client = s3client;
+    // The local variable 'streamBuffer' is captured by reference in a lambda.
+    // It must persist until all downloading by the 'transfer_manager' is complete.
+    Stream::PreallocatedStreamBuf downloadBuffer(content, count - start);
+    auto transfer_manager = Aws::Transfer::TransferManager::Create(transfer_config);
+    auto downloadHandle = transfer_manager->DownloadFile(downloadBuffer, bucket, key,
+		start, count,
+                [&]() { //Define a lambda expression for the callback method parameter to stream back the data.
+                    return Aws::New<MyUnderlyingStream>("TestTag", &downloadBuffer);});
+    downloadHandle->WaitUntilFinished();
+    bool success = downloadHandle->GetStatus() == Transfer::TransferStatus::COMPLETED; 
+    if (!success) {
+        auto err = downloadHandle->GetLastError();           
+	if(errmsgp) *errmsgp = makeerrmsg(err,key);
+	stat = NC_ES3;
+    } else {
+	size64_t transferred = downloadHandle->GetBytesTransferred();
+	size64_t totalsize = downloadHandle->GetBytesTotalSize();
+        assert(count == totalsize);
+    }
+#else
+    Aws::S3::Model::GetObjectRequest object_request;
     object_request.SetBucket(bucket);
     object_request.SetKey(key);
     rangeend = (start+count)-1;
     snprintf(range,sizeof(range),"bytes=%llu-%llu",start,rangeend);
     object_request.SetRange(range);
     auto get_object_result = s3client->GetObject(object_request);
-    if(!get_object_result.IsSuccess()) {
+    if(!get_object_result.isSuccess()) {
 	if(errmsgp) *errmsgp = makeerrmsg(get_object_result.GetError(),key);
 	stat = NC_ES3;
     } else {
@@ -385,6 +457,7 @@ NC_s3sdkread(void* s3client0, const char* bucket, const char* pathkey, size64_t 
 	if(content)
 	    memcpy(content,s,slen);
     }
+#endif
     return NCUNTRACE(stat);
 }
 
@@ -400,7 +473,7 @@ NC_s3sdkwriteobject(void* s3client0, const char* bucket, const char* pathkey,  s
 
     NCTRACE(11,"bucket=%s pathkey=%s count=%lld content=%p",bucket,pathkey,count,content);
     
-    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
+    AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
     Aws::S3::Model::PutObjectRequest put_request;
 
     if(*pathkey != '/') return NCUNTRACE(NC_EINTERNAL);
@@ -429,7 +502,7 @@ NC_s3sdkclose(void* s3client0, NCS3INFO* info, int deleteit, char** errmsgp)
 
     NCTRACE(11,"info=%s rootkey=%s deleteit=%d",dumps3info(info),deleteit);
     
-    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
+    AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
     if(deleteit) {
         /* Delete the root key; ok it if does not exist */
         switch (stat = NC_s3sdkdeletekey(s3client0,info->bucket,info->rootkey,errmsgp)) {
@@ -455,7 +528,7 @@ getkeys(void* s3client0, const char* bucket, const char* prefixkey0, const char*
     char* prefixdir = NULL;
     bool istruncated = false;
     char* continuetoken = NULL;
-    Aws::S3::S3Client* s3client = NULL;
+    AWSS3CLIENT s3client = NULL;
     KeySet commonkeys;
     KeySet realkeys;
     KeySet allkeys;
@@ -465,7 +538,7 @@ getkeys(void* s3client0, const char* bucket, const char* prefixkey0, const char*
     if(*prefixkey0 != '/') {stat = NC_EINTERNAL; goto done;}
     if(errmsgp) *errmsgp = NULL;
 
-    s3client = (Aws::S3::S3Client*)s3client0;
+    s3client = (AWSS3CLIENT)s3client0;
 
     do {
         Aws::S3::Model::ListObjectsV2Request objects_request;
@@ -548,7 +621,7 @@ NC_s3sdkdeletekey(void* s3client0, const char* bucket, const char* pathkey, char
 
     NCTRACE(11,"bucket=%s pathkey=%s",bucket,pathkey);
 
-    Aws::S3::S3Client* s3client = (Aws::S3::S3Client*)s3client0;
+    AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
     Aws::S3::Model::DeleteObjectRequest delete_request;
 
     assert(pathkey != NULL && *pathkey == '/');
