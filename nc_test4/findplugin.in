@@ -54,8 +54,8 @@ findpluginext() {
     FP_PLUGIN_EXT="dll"
     FP_PLUGIN_PRE="__nc"  
   else # unknown
-    unset FP_PLUGIN_EXT
-    unset FP_PLUGIN_PRE
+    echo "Cannot find plugin extension: please execute 'cd ../plugins; make check'"
+    exit 1
   fi
 }
   

@@ -211,15 +211,6 @@ install-data-hook:
 # in case it is being used by packagers
 all-local: liblib/libnetcdf.la
 	echo ${PACKAGE_VERSION} > VERSION
+
 # Remove the VERSION file
 CLEANFILES = VERSION
-
-if ENABLE_S3_TESTALL
-# Cleanup S3 resources
-distcleancheck: s3clean
-
-.PHONY: s3clean
-# Provide a specific s3 cleanup action
-s3clean:
-	echo ">>>> ${abs_srcdir}/run_s3_cleanup.sh ${abs_builddir} ${S3TESTSUBTREE}"
-endif

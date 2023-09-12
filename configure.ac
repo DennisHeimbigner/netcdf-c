@@ -2058,9 +2058,12 @@ AC_SUBST(WHICH_S3_SDK,[none])
 fi
 
 # The working S3 path tree within the Unidata bucket.
-# WARNING: this must match the value in CMakeLists.txt
 AC_DEFINE([S3TESTSUBTREE], ["netcdf-x"], [S3 working path])
 AC_SUBST([S3TESTSUBTREE],[netcdf-x])
+# Build a unique id based on the date
+TESTUID=`date +%s`
+AC_DEFINE_UNQUOTED([TESTUID], [${TESTUID}], [S3 working path])
+AC_SUBST([TESTUID],${TESTUID})
 
 # Always available
 std_filters="bz2"

@@ -1357,7 +1357,7 @@ ENDIF()
 
 # The working S3 path tree within the Unidata bucket.
 # WARNING: this must match the value in configure.ac
-SET(S3TESTSUBTREE netcdf-x CACHE STRING "Working S3 path.")
+SET(S3TESTSUBTREE "netcdf-x" CACHE STRING "Working S3 path.")
 
 OPTION(ENABLE_LIBXML2 "Link against libxml2 if it is available, use the packaged tinyxml2 parser otherwise." ON)
 SET(XMLPARSER "tinyxml2 (bundled)")

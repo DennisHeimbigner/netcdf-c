@@ -51,6 +51,8 @@ FEATURE_LARGE_TESTS=@DO_LARGE_TESTS@
 # All S3 tests should use this to store intermediate results.
 S3TESTSUBTREE=@S3TESTSUBTREE@
 
+TESTUID=@TESTUID@
+
 set -e
 
 # Figure out various locations in the src/build tree.
@@ -201,29 +203,21 @@ cd $builddir
 # As a protection against this, the isolate() function supports the creation of an
 # isolation directory in which created products are stored.
 # Cleanup can be accomplished by deleting the whole isolation directory.
-# The name of the isolation directory is by convention "testdir_XXXX_<random>",
-# where XXX is some string uniquely associated with the test name.
+# The name of the isolation directory is by convention "testdir_<random>".
 # The isolation dir is created within the ${builddir} directory.
 # The <random> is a generated 32 bit unsigned random integer to make the chance
 # of collision very small.
 # Process ID was not used because of the small but real chance of collision.
 
 isolate() {
-local rnd
-if test "x$ISOPATH" = x ; then
-  ISOPATH=${builddir}
-  if test "x$NOISOPATH" = x ; then  
-  ISODIR="$1"
-  if test "x$ISODIR" != x ; then
-    # Make sure the path is unique
-    rnd=`${execdir}/../libdispatch/ncrandom`
-    ISODIR="${ISODIR}_$rnd"
-    ISOPATH="${ISOPATH}/$ISODIR"
-    rm -fr $ISOPATH
-    mkdir $ISOPATH
+  if test "x$ISOPATH" = x ; then
+      ISOTESTSET="${builddir}/testset_"
+      if test "x$NOISOPATH" = x ; then ISOTESTSET="${ISOTESTSET}${TESTUID}"; fi    
+      ISODIR="$1"
+      ISOPATH="${ISOTESTSET}/$ISODIR"
+      rm -fr $ISOPATH
+      mkdir -p $ISOPATH
   fi
-  fi
-fi
 }
 
 fi #TEST_COMMON_SH
