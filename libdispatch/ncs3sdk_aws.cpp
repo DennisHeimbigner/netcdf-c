@@ -5,11 +5,13 @@
 
 /* WARNING: changes to this file may need to be propagated to libsrc/s3sdk.cpp */
 
-#define NOOP
-#define DEBUG
+#undef DEBUG
 
 /* Use Aws::Transfer instead of direct REST API */
 #define TRANSFER
+
+/* Disable bucket creation/deletion */
+#define NOOPBUCKET
 
 #include "awsincludes.h"
 #include <stdlib.h>
@@ -18,6 +20,14 @@
 #include <streambuf>
 #include "netcdf.h"
 #include "ncrc.h"
+
+#ifdef TRANSFER
+#include <aws/core/utils/memory/AWSMemory.h>
+#include <aws/core/utils/memory/stl/AWSStreamFwd.h>
+#include <aws/core/utils/stream/PreallocatedStreamBuf.h>
+#include <aws/transfer/TransferManager.h>
+#include <aws/transfer/TransferHandle.h>
+#endif
 
 #include "ncs3sdk.h"
 
@@ -44,8 +54,10 @@ extern char* strdup(const char*);
 
 #ifdef TRANSFER
 #define AWSS3CLIENT std::shared_ptr<Aws::S3::S3Client>*
+#define AWSS3GET(x) (((AWSS3CLIENT)(x))->get())
 #else
 #define AWSS3CLIENT Aws::S3::S3Client*
+#define AWSS3GET(x) ((AWSS3CLIENT)(x))
 #endif
 
 struct KeySet {
@@ -193,6 +205,7 @@ buildclient(Aws::Client::ClientConfiguration* config, Aws::Auth::AWSCredentials*
                                Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::RequestDependent,
 			       false);
     }
+    // Create allocated client space
     s3client = new std::shared_ptr<Aws::S3::S3Client>;
     *s3client = client;
 #else
@@ -259,7 +272,7 @@ NC_s3sdkbucketexists(void* s3client0, const char* bucket, int* existsp, char** e
 #else
     Aws::S3::Model::HeadBucketRequest request;
     request.SetBucket(bucket);
-    auto result = s3client->HeadBucket(request);
+    auto result = AWSS3GET(s3client)->HeadBucket(request);
     exists = result.IsSuccess() ? 1 : 0;
 #endif
     if(existsp) *existsp = exists;
@@ -286,9 +299,9 @@ NC_s3sdkbucketcreate(void* s3client0, const char* region, const char* bucket, ch
         bucket_config.SetLocationConstraint(awsregion);
         create_request.SetCreateBucketConfiguration(bucket_config);
     }
-#ifdef NOOP
+#ifdef NOOPBUCKET
     /* Create the bucket */
-    auto create_result = s3client->CreateBucket(create_request);
+    auto create_result = AWSS3GET(s3client)->CreateBucket(create_request);
     if(!create_result.IsSuccess()) {
 	if(errmsgp) *errmsgp = makeerrmsg(create_result.GetError());	
 	stat = NC_ES3;;
@@ -317,9 +330,9 @@ NC_s3sdkbucketdelete(void* s3client0, NCS3INFO* info, char** errmsgp)
     Aws::S3::Model::DeleteBucketRequest request;
     request.SetBucket(info->bucket);
 
-#ifdef NOOP
+#ifdef NOOPBUCKET
     /* Delete the bucket */
-    auto result = s3client->DeleteBucket(request);
+    auto result = AWSS3GET(s3client)->DeleteBucket(request);
     if(!result.IsSuccess()) {
 	if(errmsgp) *errmsgp = makeerrmsg(result.GetError());	
 	stat = NC_ES3;;
@@ -356,7 +369,7 @@ NC_s3sdkinfo(void* s3client0, const char* bucket, const char* pathkey, size64_t*
     if(errmsgp) *errmsgp = NULL;
     head_request.SetBucket(bucket);
     head_request.SetKey(key);
-    auto head_outcome = s3client->HeadObject(head_request);
+    auto head_outcome = AWSS3GET(s3client)->HeadObject(head_request);
     if(head_outcome.IsSuccess()) {
 	long long l  = head_outcome.GetResult().GetContentLength(); 
 	if(lenp) *lenp = (size64_t)l;
@@ -380,17 +393,25 @@ NC_s3sdkinfo(void* s3client0, const char* bucket, const char* pathkey, size64_t*
 }
 
 /**
- * In-memory stream implementation
+ * In-memory stream implementations
  */
-class MyUnderlyingStream : public Aws::IOStream
+class DownLoadStream : public Aws::IOStream
 {
     public:
         using Base = Aws::IOStream;
         // Provide a customer-controlled streambuf to hold data from the bucket.
-        explicit MyUnderlyingStream(std::streambuf* buf) : Base(buf) {}
-        ~MyUnderlyingStream() override = default;
+        explicit DownLoadStream(std::streambuf* buf) : Base(buf) {}
+        ~DownLoadStream() override = default;
 };
 
+class UpLoadStream : public Aws::IOStream
+{
+    public:
+        using Base = Aws::IOStream;
+        // Provide a customer-controlled streambuf to hold data from the bucket.
+        explicit UpLoadStream(std::streambuf* buf) : Base(buf) {}
+        ~UpLoadStream() override = default;
+};
 
 /*
 @return NC_NOERR if success
@@ -400,32 +421,30 @@ EXTERNL int
 NC_s3sdkread(void* s3client0, const char* bucket, const char* pathkey, size64_t start, size64_t count, void* content, char** errmsgp)
 {
     int stat = NC_NOERR;
-    char range[1024];
     const char* key = NULL;
-    size64_t rangeend;
 
     NCTRACE(11,"bucket=%s pathkey=%s start=%llu count=%llu content=%p",bucket,pathkey,start,count,content);
 
     AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
 
     if(count == 0) return NCUNTRACE(stat);
+    if(errmsgp) *errmsgp = NULL;
     if(*pathkey != '/') return NC_EINTERNAL;
     if((stat = makes3key(pathkey,&key))) return NCUNTRACE(stat);
     
 #ifdef TRANSFER
     auto executor = Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>("executor", 25);
     Aws::Transfer::TransferManagerConfiguration transfer_config(executor.get());
-    transfer_config.s3Client = s3client;
-    // The local variable 'streamBuffer' is captured by reference in a lambda.
+    transfer_config.s3Client = *s3client;
+    // The local variable downloadBuffer' is captured by reference in a lambda.
     // It must persist until all downloading by the 'transfer_manager' is complete.
-    Stream::PreallocatedStreamBuf downloadBuffer(content, count - start);
-    auto transfer_manager = Aws::Transfer::TransferManager::Create(transfer_config);
-    auto downloadHandle = transfer_manager->DownloadFile(downloadBuffer, bucket, key,
-		start, count,
-                [&]() { //Define a lambda expression for the callback method parameter to stream back the data.
-                    return Aws::New<MyUnderlyingStream>("TestTag", &downloadBuffer);});
+    Aws::Utils::Stream::PreallocatedStreamBuf downloadBuffer((unsigned char*)content, count - start);
+    auto transfer_manager = Aws::Transfer::TransferManager::Create(transfer_config); 
+    auto creationFunction = [&downloadBuffer]() { //Define a lambda expression for the callback method parameter to stream back the data.
+		                    return Aws::New<DownLoadStream>("downloadHandle", &downloadBuffer);};
+    auto downloadHandle = transfer_manager->DownloadFile(bucket, key, start, count, creationFunction);
     downloadHandle->WaitUntilFinished();
-    bool success = downloadHandle->GetStatus() == Transfer::TransferStatus::COMPLETED; 
+    bool success = downloadHandle->GetStatus() == Aws::Transfer::TransferStatus::COMPLETED; 
     if (!success) {
         auto err = downloadHandle->GetLastError();           
 	if(errmsgp) *errmsgp = makeerrmsg(err,key);
@@ -433,17 +452,19 @@ NC_s3sdkread(void* s3client0, const char* bucket, const char* pathkey, size64_t 
     } else {
 	size64_t transferred = downloadHandle->GetBytesTransferred();
 	size64_t totalsize = downloadHandle->GetBytesTotalSize();
-        assert(count == totalsize);
+        assert(count == totalsize && transferred == totalsize);
     }
 #else
+    char range[1024];
+    size64_t rangeend;
     Aws::S3::Model::GetObjectRequest object_request;
     object_request.SetBucket(bucket);
     object_request.SetKey(key);
     rangeend = (start+count)-1;
     snprintf(range,sizeof(range),"bytes=%llu-%llu",start,rangeend);
     object_request.SetRange(range);
-    auto get_object_result = s3client->GetObject(object_request);
-    if(!get_object_result.isSuccess()) {
+    auto get_object_result = AWSS3GET(s3client)->GetObject(object_request);
+    if(!get_object_result.IsSuccess()) {
 	if(errmsgp) *errmsgp = makeerrmsg(get_object_result.GetError(),key);
 	stat = NC_ES3;
     } else {
@@ -474,12 +495,32 @@ NC_s3sdkwriteobject(void* s3client0, const char* bucket, const char* pathkey,  s
     NCTRACE(11,"bucket=%s pathkey=%s count=%lld content=%p",bucket,pathkey,count,content);
     
     AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
-    Aws::S3::Model::PutObjectRequest put_request;
 
+    if(errmsgp) *errmsgp = NULL;
     if(*pathkey != '/') return NCUNTRACE(NC_EINTERNAL);
     if((stat = makes3key(pathkey,&key))) return NCUNTRACE(stat);
-    
-    if(errmsgp) *errmsgp = NULL;
+
+#ifdef TRANSFER
+    auto executor = Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>("executor", 25);
+    Aws::Transfer::TransferManagerConfiguration transfer_config(executor.get());
+    transfer_config.s3Client = *s3client;
+    auto transfer_manager = Aws::Transfer::TransferManager::Create(transfer_config); 
+    std::shared_ptr<Aws::IOStream> uploadStream = std::shared_ptr<Aws::IOStream>(new Aws::StringStream());
+    uploadStream->rdbuf()->pubsetbuf((char*)content,count);
+    auto uploadHandle = transfer_manager->UploadFile(uploadStream, bucket, key, "application/octet-stream", Aws::Map<Aws::String, Aws::String>());
+    uploadHandle->WaitUntilFinished();
+    bool success = uploadHandle->GetStatus() == Aws::Transfer::TransferStatus::COMPLETED; 
+    if (!success) {
+        auto err = uploadHandle->GetLastError();           
+	if(errmsgp) *errmsgp = makeerrmsg(err,key);
+	stat = NC_ES3;
+    } else {
+	size64_t transferred = uploadHandle->GetBytesTransferred();
+	size64_t totalsize = uploadHandle->GetBytesTotalSize();
+        assert(count == totalsize && transferred == totalsize);
+    }
+#else
+    Aws::S3::Model::PutObjectRequest put_request;
     put_request.SetBucket(bucket);
     put_request.SetKey(key);
     put_request.SetContentLength((long long)count);
@@ -487,11 +528,12 @@ NC_s3sdkwriteobject(void* s3client0, const char* bucket, const char* pathkey,  s
     std::shared_ptr<Aws::IOStream> data = std::shared_ptr<Aws::IOStream>(new Aws::StringStream());
     data->rdbuf()->pubsetbuf((char*)content,count);
     put_request.SetBody(data);
-    auto put_result = s3client->PutObject(put_request);
+    auto put_result = AWSS3GET(s3client)->PutObject(put_request);
     if(!put_result.IsSuccess()) {
         if(errmsgp) *errmsgp = makeerrmsg(put_result.GetError(),key);
         stat = NC_ES3;
     }
+#endif
     return NCUNTRACE(stat);
 }
 
@@ -511,7 +553,11 @@ NC_s3sdkclose(void* s3client0, NCS3INFO* info, int deleteit, char** errmsgp)
         default: break;
         }
     }
+#ifdef TRANSFER
     delete s3client;
+#else
+    delete s3client;
+#endif
     return NCUNTRACE(stat);
 }
 
@@ -558,7 +604,7 @@ getkeys(void* s3client0, const char* bucket, const char* prefixkey0, const char*
             objects_request.SetContinuationToken(continuetoken);
             free(continuetoken); continuetoken = NULL;
         }
-        auto objects_outcome = s3client->ListObjectsV2(objects_request);
+        auto objects_outcome = AWSS3GET(s3client)->ListObjectsV2(objects_request);
         if(objects_outcome.IsSuccess()) {
 	    const Aws::S3::Model::ListObjectsV2Result& result = objects_outcome.GetResult();
 	    istruncated = result.GetIsTruncated();
@@ -629,7 +675,7 @@ NC_s3sdkdeletekey(void* s3client0, const char* bucket, const char* pathkey, char
     /* Delete this key object */
     delete_request.SetBucket(bucket);
     delete_request.SetKey(key);
-    auto delete_result = s3client->DeleteObject(delete_request);
+    auto delete_result = AWSS3GET(s3client)->DeleteObject(delete_request);
     if(!delete_result.IsSuccess()) {
         if(errmsgp) *errmsgp = makeerrmsg(delete_result.GetError(),key);
         stat = NC_ES3;
