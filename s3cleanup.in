@@ -1,0 +1,60 @@
+#!/bin/sh
+
+if test "x$srcdir" = x ; then srcdir=`pwd`; fi 
+. ./test_common.sh
+
+# Sanity checks
+
+# 1. This requires that the AWS CLI (command line interface) is installed.
+if ! which aws ; then
+    echo ">>>> The s3cleanup script requires the \"aws\" command (i.e. the AWS command line interface program)"
+    echo ">>>> Try installing \"awscli\" package with apt or equivalent."
+    exit 1;
+fi
+
+# 2. Make sure S3TESTSUBTREE is defined
+if test "x$S3TESTSUBTREE" = x ; then
+    echo ">>>> The s3cleanup script requires that S3TESTSUBTREE is defined."
+    exit 1;
+fi
+
+rm -f s3cleanup.json s3cleanup.uids s3cleanup.keys
+
+# Get complete set of keys in ${S3TESTSUBTREE} prefix
+unset ALLKEYS
+aws s3api list-objects-v2 --bucket unidata-zarr-test-data --prefix "${S3TESTSUBTREE}" | fgrep Key >s3cleanup.keys
+while read -r line; do
+  KEY=`echo "$line" | sed -e 's|[^"]*"Key":[^"]*"\([^"]*\)".*|\1|'`
+  # Ignore keys that do not start with ${S3TESTSUBTREE}
+  PREFIX=`echo "$KEY" | sed -e 's|\([^/]*\)/.*|\1|'`
+  if test "x$PREFIX" = "x$S3TESTSUBTREE" ; then
+      ALLKEYS+=" $KEY"
+  fi
+done < s3cleanup.keys
+
+set -x
+# get the uid's for all the subtrees to be deleted
+# UIDS=`cat ${top_srcdir}/s3cleanup.txt | tr -d '\r | tr '\n' ' '`
+UIDS=" 1694460156"
+# Capture the keys matching any uid
+DELLIST="{\"Objects\":[
+DELLIST+="],\"Quiet\":false}"
+MATCH=
+for uid in $UIDS ; do
+    for key in $ALLKEYS ; do
+        case "$key" in
+            "$S3TESTSUBTREE/testset_${uid}"*)
+                # capture the key'
+		DELLIST+="{\"Key\":\"$key\"}"
+                MATCH=1
+                ;;
+            *) echo "Ignoring \"$key\"";;
+        esac
+    done
+    if test "x$MATCH" = x1 ;then
+	echo "$DELLIST" > s3cleanup.json
+echo        aws s3api delete-objects --bucket unidata-zarr-test-data --delete "file://s3cleanuplist.json"
+     fi
+done
+#rm -f s3cleanup.json s3cleanup.uids s3cleanup.keys
+
