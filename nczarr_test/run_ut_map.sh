@@ -13,9 +13,11 @@ set -e
 # cannot easily look inside S3 storage
 # except using the aws-cli, if available
 
-
 # Common
 CMD="${execdir}/ut_map${ext}"
+
+ldd .libs/test_put_vars_two_unlim_dim.exe
+ldd .libs/test_put_vars_two_unlim_dim
 
 testmapcreate() {
   echo ""; echo "*** Test zmap create -k $1"
