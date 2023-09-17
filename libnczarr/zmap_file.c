@@ -390,12 +390,13 @@ done:
 }
 
 static int
-zfilewrite(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content)
+zfilewrite(NCZMAP* map, const char* key, size64_t count, const void* content)
 {
     int stat = NC_NOERR;
     FD fd = FDNUL;
     ZFMAP* zfmap = (ZFMAP*)map; /* cast to true type */
     char* truepath = NULL;
+    size64_t start = 0;
 
     ZTRACE(5,"map=%s key=%s start=%llu count=%llu",map->url,key,start,count);
 

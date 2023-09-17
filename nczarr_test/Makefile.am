@@ -13,9 +13,9 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 
 TESTS_ENVIRONMENT =
 TEST_EXTENSIONS = .sh
-SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #TESTS_ENVIRONMENT += export SETX=1;
 #TESTS_ENVIRONMENT += export NCTRACING=1;
 
@@ -310,17 +310,13 @@ run_nccopy5.sh: $(top_srcdir)/ncdump/tst_nccopy5.sh
 
 # Remove directories
 clean-local:
-	rm -fr testdir_*
+	rm -fr testdir_* testset_*
 	rm -fr tmp_*.nc tmp_*.zarr tst_quantize*.zarr tmp*.file results.file results.s3 results.zip
 	rm -fr rcmiscdir ref_power_901_constants.file 
 
 if ENABLE_S3_TESTALL
-# Provide a specific s3 cleanup action
-.PHONY: s3clean
-s3clean:
-	${abs_srcdir}/run_s3_cleanup.sh ${abs_builddir} ${S3TESTSUBTREE}
-else
-s3clean:
+check-local:
+	bash -x ${top_srcdir}/s3cleanup.sh
 endif
 
 DISTCLEANFILES = findplugin.sh ${BUILT_SOURCES}

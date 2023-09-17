@@ -139,9 +139,9 @@ nczmap_read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* 
 }
 
 int
-nczmap_write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content)
+nczmap_write(NCZMAP* map, const char* key, size64_t count, const void* content)
 {
-    return map->api->write(map, key, start, count, content);
+    return map->api->write(map, key, count, content);
 }
 
 /* Define a static qsort comparator for strings for use with qsort */

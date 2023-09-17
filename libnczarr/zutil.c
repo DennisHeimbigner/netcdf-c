@@ -284,7 +284,7 @@ if(getenv("NCS3JSON") != NULL)
 fprintf(stderr,">>>> uploadjson: %s: %s\n",key,content);
 
     /* Write the metadata */
-    if((stat = nczmap_write(zmap, key, 0, strlen(content), content)))
+    if((stat = nczmap_write(zmap, key, strlen(content), content)))
 	goto done;
 
 done:

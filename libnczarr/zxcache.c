@@ -696,7 +696,7 @@ put_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
 #endif
 
     path = NCZ_chunkpath(entry->key);
-    stat = nczmap_write(map,path,0,entry->size,entry->data);
+    stat = nczmap_write(map,path,entry->size,entry->data);
     nullfree(path); path = NULL;
 
     switch(stat) {

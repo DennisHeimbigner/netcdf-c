@@ -26,6 +26,8 @@ and do the command:
 #include "ncjson.h"
 
 #undef NCJDEBUG
+#define NCJTRACE
+
 #ifdef NCJDEBUG
 /* Warning: do not evaluate err more than once */
 #define NCJTHROW(err) ncjbreakpoint(err)
@@ -64,6 +66,8 @@ typedef struct NCJparser {
     long long num;
     int tf;
     int status; /* NCJ_ERR|NCJ_OK */
+    unsigned flags;
+#     define NCJ_TRACE 1
 } NCJparser;
 
 typedef struct NCJbuf {
@@ -87,7 +91,7 @@ typedef struct NCJbuf {
 #define nulldup(x) ((x)?strdup(x):(x))
 #endif
 
-#ifdef NCJDEBUG
+#if defined NCJDEBUG || defined NCJTRACE
 static char* tokenname(int token);
 #endif
 
@@ -149,6 +153,7 @@ NCJparsen(size_t len, const char* text, unsigned flags, NCjson** jsonp)
     parser = calloc(1,sizeof(NCJparser));
     if(parser == NULL)
 	{stat = NCJTHROW(NCJ_ERR); goto done;}
+    parser->flags = flags;
     parser->text = (char*)malloc(len+1+1);
     if(parser->text == NULL)
 	{stat = NCJTHROW(NCJ_ERR); goto done;}
@@ -430,6 +435,16 @@ fprintf(stderr,"%s(%d): |%s|\n",tokenname(token),token,parser->yytext);
 done:
     if(parser->status == NCJ_ERR)
         token = NCJ_UNDEF;
+#ifdef NCJTRACE
+    if(parser->flags & NCJ_TRACE) {
+	const char* txt = NULL;
+	switch(token) {
+	case NCJ_STRING: case NCJ_INT: case NCJ_DOUBLE: case NCJ_BOOLEAN: txt = parser->yytext; break;
+        default: break;
+	}
+        fprintf(stderr,">>>> token=%s:'%s'\n",tokenname(token),(txt?txt:""));
+    }
+#endif
     return token;
 }
 
@@ -662,7 +677,7 @@ unescape1(int c)
     return c;
 }
 
-#ifdef NCJDEBUG
+#if defined NCJDEBUG || defined NCJTRACE
 static char*
 tokenname(int token)
 {

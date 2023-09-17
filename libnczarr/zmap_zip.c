@@ -29,7 +29,7 @@
 
 #define NCZM_ZIP_V1 1
 
-#define ZIP_PROPERTIES (NCZM_WRITEONCE|NCZM_ZEROSTART)
+#define ZIP_PROPERTIES (NCZM_WRITEONCE)
 
 /*
 Do a simple mapping of our simplified map model
@@ -375,7 +375,7 @@ done:
 }
 
 static int
-zipwrite(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content)
+zipwrite(NCZMAP* map, const char* key, size64_t count, const void* content)
 {
     int stat = NC_NOERR;
     ZZMAP* zzmap = (ZZMAP*)map; /* cast to true type */
@@ -387,12 +387,9 @@ zipwrite(NCZMAP* map, const char* key, size64_t start, size64_t count, const voi
     zip_error_t zerror;
     void* localbuffer = NULL;
 
-    ZTRACE(6,"map=%s key=%s start=%llu count=%llu",map->url,key,start,count);
+    ZTRACE(6,"map=%s key=%s count=%llu",map->url,key,count);
 
     zip_error_init(&zerror);
-
-    if(start != 0 && (ZIP_PROPERTIES & NCZM_ZEROSTART))
-        {stat = NC_EEDGE; goto done;}
 
     /* Create directories */
     if((stat = zzcreategroup(zzmap,key,SKIPLAST))) goto done;

@@ -329,57 +329,37 @@ done:
 @return NC_EXXX return true error
 */
 static int
-zs3write(NCZMAP* map, const char* key, size64_t start, size64_t count, const void* content)
+zs3write(NCZMAP* map, const char* key, size64_t count, const void* content)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map; /* cast to true type */
     char* chunk = NULL; /* use char* so we can do arithmetic with it */
-    size64_t objsize = 0;
-    size64_t memsize = 0;
-    size64_t endwrite = start+count; /* first pos just above overwritten data */
     char* truekey = NULL;
-    int isempty = 0;
+    size64_t objsize;
 	
-    ZTRACE(6,"map=%s key=%s start=%llu count=%llu",map->url,key,start,count);
+    ZTRACE(6,"map=%s key=%s count=%llu",map->url,key,count);
 
     if((stat = maketruekey(z3map->s3.rootkey,key,&truekey))) goto done;
 
     /* Apparently S3 has no write byterange operation, so we need to read the whole object,
        copy data, and then rewrite */       
     switch (stat=NC_s3sdkinfo(z3map->s3client, z3map->s3.bucket, truekey, &objsize, &z3map->errmsg)) {
-    case NC_NOERR: /* Figure out the memory size of the object */
-	memsize = (endwrite > objsize ? endwrite : objsize);
+    case NC_NOERR: /* Figure out the new size of the object */
         break;
     case NC_EEMPTY:
-	memsize = endwrite;
-	isempty = 1;
 	stat = NC_NOERR; /* reset */
         break;
     default: reporterr(z3map); goto done;
     }
 
-    if(isempty)
-        chunk = (char*)calloc(1,memsize); /* initialize it */
-    else
-        chunk = (char*)malloc(memsize);
+    chunk = (char*)calloc(1,count); /* initialize it */
     if(chunk == NULL)
 	{stat = NC_ENOMEM; goto done;}
-    if(start > 0 && objsize > 0) { /* must read to preserve data before start */
-        if((stat = NC_s3sdkread(z3map->s3client, z3map->s3.bucket, truekey, 0, objsize, (void*)chunk, &z3map->errmsg)))
-            goto done;
-    }
-#if 0
-    if(newsize > objsize) {
-        /* Zeroize the part of the object added */
-	memset(((char*)chunk)+objsize,0,(newsize-objsize));
-	objsize = newsize;
-    }
-#endif
     /* overwrite the relevant part of the memory with the contents */
     if(count > 0)
-        memcpy(((char*)chunk)+start,content,count); /* there may be data above start+count */
+        memcpy((char*)chunk,content,count);
     /* (re-)write */
-    if((stat = NC_s3sdkwriteobject(z3map->s3client, z3map->s3.bucket, truekey, memsize, (void*)chunk, &z3map->errmsg)))
+    if((stat = NC_s3sdkwriteobject(z3map->s3client, z3map->s3.bucket, truekey, count, (void*)chunk, &z3map->errmsg)))
         goto done;
 
 done:

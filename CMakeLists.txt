@@ -1355,10 +1355,6 @@ IF(WITH_S3_TESTING STREQUAL "PUBLIC" OR WITH_S3_TESTING)
 ENDIF()
 ENDIF()
 
-# The working S3 path tree within the Unidata bucket.
-# WARNING: this must match the value in configure.ac
-SET(S3TESTSUBTREE netcdf-x CACHE STRING "Working S3 path.")
-
 OPTION(ENABLE_LIBXML2 "Link against libxml2 if it is available, use the packaged tinyxml2 parser otherwise." ON)
 SET(XMLPARSER "tinyxml2 (bundled)")
 
@@ -2537,7 +2533,9 @@ SET(host_vendor "${osname}")
 SET(host_os "${osrel}")
 SET(abs_top_builddir "${CMAKE_CURRENT_BINARY_DIR}")
 SET(abs_top_srcdir "${CMAKE_CURRENT_SOURCE_DIR}")
-
+STRING(RANDOM LENGTH 3 ALPHABET "0123456789" PLATFORMUID)
+MATH(EXPR PLATFORMUID "${PLATFORMUID} + 1" OUTPUT_FORMAT DECIMAL)
+       
 SET(CC_VERSION "${CMAKE_C_COMPILER}")
 
 # Build *FLAGS for libnetcdf.settings.
@@ -2606,6 +2604,15 @@ else()
 SET(ENABLE_S3_TESTING "no")
 endif()
 
+# The working S3 path tree within the Unidata bucket.
+# WARNING: this must match the value in configure.ac
+SET(S3TESTSUBTREE "netcdf-x" CACHE STRING "Working S3 path.")
+# Build a unique id based on the date
+string(TIMESTAMP TESTUID "%s")
+if(ENABLE_S3_TESTING)
+FILE(APPEND "s3cleanup_${PLATFORMUID}.uids" "${TESTUID}\n")
+endif()
+
 # Copy the CTest customization file into binary directory, as required.
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/CTestCustom.cmake.in" "${CMAKE_CURRENT_BINARY_DIR}/CTestCustom.cmake")
 
@@ -2652,6 +2659,15 @@ SET(EXTRA_DIST ${EXTRA_DIST} ${CMAKE_CURRENT_SOURCE_DIR}/test_common.in)
 SET(TOPSRCDIR "${CMAKE_CURRENT_SOURCE_DIR}")
 SET(TOPBUILDDIR "${CMAKE_CURRENT_BINARY_DIR}")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/test_common.in ${CMAKE_CURRENT_BINARY_DIR}/test_common.sh @ONLY NEWLINE_STYLE LF)
+
+####
+# Build s3cleanup.sh and s3gc.sh
+#####
+SET(EXTRA_DIST ${EXTRA_DIST} ${CMAKE_CURRENT_SOURCE_DIR}/s3cleanup.in ${CMAKE_CURRENT_SOURCE_DIR}/s3gc.in)
+SET(TOPSRCDIR "${CMAKE_CURRENT_SOURCE_DIR}")
+SET(TOPBUILDDIR "${CMAKE_CURRENT_BINARY_DIR}")
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/s3cleanup.in ${CMAKE_CURRENT_BINARY_DIR}/s3cleanup.sh @ONLY NEWLINE_STYLE LF)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/s3gc.in ${CMAKE_CURRENT_BINARY_DIR}/s3gc.sh @ONLY NEWLINE_STYLE LF)
 
 #####
 # Build and copy nc_test4/findplugin.sh to various places

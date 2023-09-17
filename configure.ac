@@ -2058,9 +2058,18 @@ AC_SUBST(WHICH_S3_SDK,[none])
 fi
 
 # The working S3 path tree within the Unidata bucket.
-# WARNING: this must match the value in CMakeLists.txt
 AC_DEFINE([S3TESTSUBTREE], ["netcdf-x"], [S3 working path])
 AC_SUBST([S3TESTSUBTREE],[netcdf-x])
+# 
+f# Build a small unique id to avoid interference on same platform
+PLATFORMUID="$RANDOM"
+# Make sure uid > 0
+PLATFORMUID=$((PLATFORMUID % 1000 + 1))
+# Build a unique id based on the date
+TESTUID=`date +%s`
+AC_DEFINE_UNQUOTED([TESTUID], [${TESTUID}], [S3 working path])
+AC_SUBST([TESTUID],${TESTUID})
+AC_SUBST([PLATFORMUID],${PLATFORMUID})
 
 # Always available
 std_filters="bz2"
@@ -2214,6 +2223,8 @@ AM_CONDITIONAL([AX_MANUAL], [test xno = xyes])
 
 AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)
+AC_CONFIG_FILES(s3cleanup.sh:s3cleanup.in)
+AC_CONFIG_FILES(s3gc.sh:s3gc.in)
 AC_CONFIG_FILES(nc_test4/findplugin.sh:nc_test4/findplugin.in)
 AC_CONFIG_FILES(nczarr_test/findplugin.sh:nc_test4/findplugin.in)
 AC_CONFIG_FILES(plugins/findplugin.sh:nc_test4/findplugin.in)
