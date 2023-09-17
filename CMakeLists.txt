@@ -1324,7 +1324,7 @@ ENDIF()
 IF(ENABLE_S3)
   IF(NOT ENABLE_S3_INTERNAL)
     # See if aws-s3-sdk is available
-    find_package(AWSSDK REQUIRED COMPONENTS s3;core)
+    find_package(AWSSDK REQUIRED COMPONENTS s3;transfer)
     IF(AWSSDK_FOUND)
       SET(service s3;core)
       AWSSDK_DETERMINE_LIBS_TO_LINK(service AWS_LINK_LIBRARIES)
