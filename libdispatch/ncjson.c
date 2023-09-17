@@ -67,6 +67,7 @@ typedef struct NCJparser {
     int tf;
     int status; /* NCJ_ERR|NCJ_OK */
     unsigned flags;
+#     define NCJ_TRACE 1
 } NCJparser;
 
 typedef struct NCJbuf {
@@ -954,7 +955,6 @@ NCJunparseR(const NCjson* json, NCJbuf* buf, unsigned flags)
 
     switch (NCJsort(json)) {
     case NCJ_STRING:
-	if(
 	bytesappendquoted(buf,json->string);
 	break;
     case NCJ_INT:

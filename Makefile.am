@@ -209,8 +209,12 @@ install-data-hook:
 
 # Create the VERSION file after the build
 # in case it is being used by packagers
+# Also track the S3 cleanup id
 all-local: liblib/libnetcdf.la
 	echo ${PACKAGE_VERSION} > VERSION
+if ENABLE_S3_TESTALL
+	echo "@TESTUID@" >> s3cleanup_@PLATFORMUID@.uids
+endif
 
 # Remove the VERSION file
 CLEANFILES = VERSION

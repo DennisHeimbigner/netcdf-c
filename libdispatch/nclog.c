@@ -138,6 +138,7 @@ ncvlog(int tag, const char* fmt, va_list ap)
     int was = -1;
 
     if(!nclogginginitialized) ncloginit();
+    /* Always report errors */
     if(tag == NCLOGERR) was = ncsetlogging(1);
     if(!nclog_global.nclogging || nclog_global.nclogstream == NULL) return was;
     prefix = nctagname(tag);
@@ -147,6 +148,7 @@ ncvlog(int tag, const char* fmt, va_list ap)
     }
     fprintf(nclog_global.nclogstream, "\n" );
     fflush(nclog_global.nclogstream);
+    if(was >= 0) ncsetlogging(was);
     return was;
 }
 

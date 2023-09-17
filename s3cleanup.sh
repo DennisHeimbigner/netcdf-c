@@ -1,7 +1,18 @@
 #!/bin/sh
 
-if test "x$srcdir" = x ; then srcdir=`pwd`; fi 
-. ./test_common.sh
+# Uncomment to get verbose output
+VERBOSE=1
+
+if test "x$VERBOSE" = x1 ; then set -x; fi
+
+# Constants passed in from configure.ac/CMakeLists
+abs_top_srcdir='/home/dmh/git/netcdf.fork'
+abs_top_builddir='/home/dmh/git/netcdf.fork'
+# The process id
+puid='14'
+
+# Additional configuration information
+. ${abs_top_builddir}/test_common.sh
 
 # Sanity checks
 
@@ -18,12 +29,17 @@ if test "x$S3TESTSUBTREE" = x ; then
     exit 1;
 fi
 
-rm -f s3cleanup.json s3cleanup.uids s3cleanup.keys
+rm -f s3cleanup_${puid}.json s3cleanup_${puid}.uids s3cleanup_${puid}.keys
 
 # Get complete set of keys in ${S3TESTSUBTREE} prefix
 unset ALLKEYS
-aws s3api list-objects-v2 --bucket unidata-zarr-test-data --prefix "${S3TESTSUBTREE}" | grep -F '"Key":' >s3cleanup.keys
-set +x
+if ! aws s3api list-objects-v2 --bucket unidata-zarr-test-data --prefix "${S3TESTSUBTREE}" | grep -F '"Key":' >s3cleanup_${puid}.keys ; then
+    echo "No keys found"
+    rm -f s3cleanup_${puid}.uids s3cleanup_${puid}.keys
+    rm -f s3cleanup_${puid}.json
+    exit 0
+fi
+
 while read -r line; do
   KEY=`echo "$line" | sed -e 's|[^"]*"Key":[^"]*"\([^"]*\)".*|\1|'`
   # Ignore keys that do not start with ${S3TESTSUBTREE}
@@ -31,36 +47,34 @@ while read -r line; do
   if test "x$PREFIX" = "x$S3TESTSUBTREE" ; then
       ALLKEYS="$ALLKEYS $KEY"
   fi
-done < s3cleanup.keys
-set -x
+done < s3cleanup_${puid}.keys
 
 # get the uid's for all the subtrees to be deleted
-UIDS=`cat ${top_srcdir}/s3cleanup.uids | tr -d '\r | tr '\n' ' '`
+UIDS=`cat ${top_srcdir}/s3cleanup_${puid}.uids | tr -d '\r' | tr '\n' ' '`
 # Capture the keys matching any uid
 unset DELLIST
 unset MATCH
 FIRST=1
 DELLIST="{\"Objects\":["
-set +x
 for key in $ALLKEYS ; do
     for uid in $UIDS ; do
         case "$key" in
             "$S3TESTSUBTREE/testset_${uid}"*)
                 # capture the key'
                 if test $FIRST = 0 ; then DELLIST="${DELLIST},"; fi
-		DELLIST="${DELLIST}\n{\"Key\":\"$key\"}"
+		DELLIST="${DELLIST}
+{\"Key\":\"$key\"}"
                 MATCH=1
                 ;;
-            *) echo "Ignoring \"$key\"";;
+            *) if test "x$VERBOSE" = x1 ; then echo "Ignoring \"$key\""; fi ;;
         esac
     done
     FIRST=0
 done
-set -x
 DELLIST="${DELLIST}],\"Quiet\":false}"
 if test "x$MATCH" = x1 ;then
-    echo "$DELLIST" > s3cleanup.json
-echo        aws s3api delete-objects --bucket unidata-zarr-test-data --delete "file://s3cleanup.json"
+    echo "$DELLIST" > s3cleanup_${puid}.json
+    aws s3api delete-objects --bucket unidata-zarr-test-data --delete "file://s3cleanup_${puid}.json"
 fi
-rm -f s3cleanup.uids s3cleanup.keys
-#rm -f s3cleanup.json
+rm -f s3cleanup_${puid}.uids s3cleanup_${puid}.keys
+rm -f s3cleanup_${puid}.json

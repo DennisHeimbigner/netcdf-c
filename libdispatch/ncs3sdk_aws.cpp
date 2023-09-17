@@ -172,7 +172,6 @@ s3sdkcreateconfig(NCS3INFO* info)
 EXTERNL void*
 NC_s3sdkcreateclient(NCS3INFO* info)
 {
-    int stat = NC_NOERR;
     NCTRACE(11,NULL);
 
     Aws::Client::ClientConfiguration config = s3sdkcreateconfig(info);

@@ -82,9 +82,9 @@ Currently the following build cases are known to work.
 <tr><td>Linux		<td>CMake	<td>aws-s3-sdk	<td>yes
 <tr><td>Linux		<td>CMake	<td>nch5s3comms	<td>yes
 <tr><td>OSX		<td>Automake	<td>aws-s3-sdk	<td>unknown
-<tr><td>OSX		<td>Automake	<td>nch5s3comms	<td>unknown
+<tr><td>OSX		<td>Automake	<td>nch5s3comms	<td>yes
 <tr><td>OSX		<td>CMake	<td>aws-s3-sdk	<td>unknown
-<tr><td>OSX		<td>CMake	<td>nch5s3comms	<td>unknown
+<tr><td>OSX		<td>CMake	<td>nch5s3comms	<td>yes
 <tr><td>Visual Studio	<td>CMake	<td>aws-s3-sdk	<td>no (tests fail)
 <tr><td>Visual Studio	<td>CMake	<td>nch5s3comms	<td>yes
 <tr><td>Cygwin		<td>Automake	<td>aws-s3-sdk	<td>no (tests fail)
@@ -92,9 +92,9 @@ Currently the following build cases are known to work.
 <tr><td>Cygwin		<td>CMake	<td>aws-s3-sdk	<td>no
 <tr><td>Cygwin		<td>CMake	<td>nch5s3comms	<td>yes
 <tr><td>Mingw		<td>Automake	<td>aws-s3-sdk	<td>unknown
-<tr><td>Mingw		<td>Automake	<td>nch5s3comms	<td>unknown
+<tr><td>Mingw		<td>Automake	<td>nch5s3comms	<td>yes
 <tr><td>Mingw		<td>CMake	<td>aws-s3-sdk	<td>unknown
-<tr><td>Mingw		<td>CMake	<td>nch5s3comms	<td>unknown
+<tr><td>Mingw		<td>CMake	<td>nch5s3comms	<td>yes
 </table>
 
 ## Automake

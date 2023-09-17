@@ -314,11 +314,12 @@ clean-local:
 	rm -fr tmp_*.nc tmp_*.zarr tst_quantize*.zarr tmp*.file results.file results.s3 results.zip
 	rm -fr rcmiscdir ref_power_901_constants.file 
 
-DISTCLEANFILES = findplugin.sh ${BUILT_SOURCES}
-
+if ENABLE_S3_TESTALL
 check-local:
-	echo "@@@@ ./checklocal.sh"
+	bash -x ${top_srcdir}/s3cleanup.sh
+endif
 
+DISTCLEANFILES = findplugin.sh ${BUILT_SOURCES}
 
 # If valgrind is present, add valgrind targets.
 @VALGRIND_CHECK_RULES@

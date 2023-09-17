@@ -1,7 +1,16 @@
 #!/bin/bash
 
-if test "x$srcdir" = x ; then srcdir=`pwd`; fi 
-. ./test_common.sh
+# Uncomment to get verbose output
+VERBOSE=1
+
+if test "x$VERBOSE" = x1 ; then set -x; fi
+
+# Constants passed in from configure.ac/CMakeLists
+abs_top_srcdir='/home/dmh/git/netcdf.fork'
+abs_top_builddir='/home/dmh/git/netcdf.fork'
+
+# Additional configuration information
+. ${abs_top_builddir}/test_common.sh
 
 delta="$1"
 
@@ -45,8 +54,12 @@ lastdate=$((current-deltasec))
 rm -f s3gc.json
 
 # Get complete set of keys in ${S3TESTSUBTREE} prefix
+if ! aws s3api list-objects-v2 --bucket unidata-zarr-test-data --prefix "${S3TESTSUBTREE}" | grep -F '"Key":' >s3gc.keys ; then
+    echo "No keys found"
+    rm -f s3gc.json
+    exit 0
+fi
 aws s3api list-objects-v2 --bucket unidata-zarr-test-data --prefix "${S3TESTSUBTREE}" | grep -F '"Key":' >s3gc.keys
-set +x
 while read -r line; do
   KEY=`echo "$line" | sed -e 's|[^"]*"Key":[^"]*"\([^"]*\)".*|\1|'`
   # Ignore keys that do not start with ${S3TESTSUBTREE}
@@ -55,7 +68,7 @@ while read -r line; do
       ALLKEYS="$ALLKEYS $KEY"
   fi
 done < s3gc.keys
-set -x
+
 # Look at each key and see if it is less than lastdate.
 # If so, then record that key
 
@@ -79,7 +92,8 @@ for key in $K500 ; do
                 # Test age of the uid
                 if test $((s3uid < lastdate)) = 1; then
                     if test $FIRST = 0 ; then DELLIST="${DELLIST},"; fi
-                    DELLIST="${DELLIST}\n{\"Key\":\"$key\"}"
+                    DELLIST="${DELLIST}
+{\"Key\":\"$key\"}"
                     MATCH=1
                 fi
              else
@@ -94,8 +108,7 @@ DELLIST="${DELLIST}],\"Quiet\":false}"
 rm -f s3gc.json
 if test "x$MATCH" = x1 ;then
     echo "$DELLIST" > s3gc.json
-echo        aws s3api delete-objects --bucket unidata-zarr-test-data --delete "file://s3gc.json"
+    aws s3api delete-objects --bucket unidata-zarr-test-data --delete "file://s3gc.json"
 fi
 done
-#rm -f s3gc.json
-
+rm -f s3gc.json
