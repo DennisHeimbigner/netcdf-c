@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Uncomment to get verbose output
-VERBOSE=1
+#VERBOSE=1
 
 if test "x$VERBOSE" = x1 ; then set -x; fi
 
@@ -11,7 +11,7 @@ abs_top_builddir='@abs_top_builddir@'
 
 # Additional configuration information
 . ${abs_top_builddir}/test_common.sh
-
+v
 delta="$1"
 
 # Sanity checks
@@ -73,16 +73,8 @@ done < s3gc.keys
 # If so, then record that key
 
 # Capture the keys with old uids to delete
-unset DELLIST
-unset MATCH
-FIRST=1
-DELLIST="{\"Objects\":["
-# We can delete at most 1000 objects at a time, so divide into sets of size 500
-REM="$ALLKEYS"
-while test "x$REM" != x ; do
-K500=`echo "$REM" | cut -d' ' -f 1-500`
-REM=`echo "$REM" | cut -d' ' -f 501-`
-for key in $K500 ; do
+unset MATCHKEYS
+for key in $ALLKEYS ; do
     case "$key" in
         "$S3TESTSUBTREE/testset_"*)
              # Capture the uid for this key         
@@ -91,24 +83,38 @@ for key in $K500 ; do
              if test "x$s3uid" != x ; then
                 # Test age of the uid
                 if test $((s3uid < lastdate)) = 1; then
-                    if test $FIRST = 0 ; then DELLIST="${DELLIST},"; fi
-                    DELLIST="${DELLIST}
-{\"Key\":\"$key\"}"
-                    MATCH=1
+                    MATCHKEYS="${MATCHKEYS} $key"
                 fi
              else
-                echo "Excluding \"$key\""
+                 if test "x$VERBOSE" = x1 ; then echo "Excluding \"$key\""; fi
              fi
 	     ;;
-        *) echo "Ignoring \"$key\"";;
+        *) if test "x$VERBOSE" = x1; then echo "Ignoring \"$key\""; fi ;;
     esac
-    FIRST=0
 done
-DELLIST="${DELLIST}],\"Quiet\":false}"
-rm -f s3gc.json
-if test "x$MATCH" = x1 ;then
-    echo "$DELLIST" > s3gc.json
-    aws s3api delete-objects --bucket unidata-zarr-test-data --delete "file://s3gc.json"
-fi
+
+# We can delete at most 1000 objects at a time, so divide into sets of size 500
+REM="$MATCHKEYS"
+while test "x$REM" != x ; do
+    K500=`echo "$REM" | cut -d' ' -f 1-500`
+    REM=`echo "$REM" | cut -d' ' -f 501-`
+    unset DELLIST
+    MATCH=0
+    FIRST=1
+    DELLIST="{\"Objects\":["
+    for key in $K500 ; do
+        if test $FIRST = 0 ; then DELLIST="${DELLIST},"; fi
+        DELLIST="${DELLIST}
+{\"Key\":\"$key\"}"
+        FIRST=0
+        MATCH=1
+    done
+    DELLIST="${DELLIST}],\"Quiet\":false}"
+    rm -f s3gc.json
+    if test "x$MATCH" = x1 ;then
+	rm -f s3gc.json
+        echo "$DELLIST" > s3gc.json
+        aws s3api delete-objects --bucket unidata-zarr-test-data --delete "file://s3gc.json"
+    fi
 done
 rm -f s3gc.json

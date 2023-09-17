@@ -103,9 +103,11 @@ if ENABLE_NCZARR_ZIP
 TESTS += run_newformat.sh
 endif
 
+if LARGE_FILE_TESTS
 check_PROGRAMS += test_chunkcases
 test_chunkcases_SOURCES = test_chunkcases.c ${testcommonsrc}
 TESTS += run_chunkcases.sh
+endif
 
 check_PROGRAMS += test_endians
 TESTS += test_endians

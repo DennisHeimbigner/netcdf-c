@@ -739,6 +739,12 @@ It is unfortunately complex, but roughly it does the following.
    "aws delete-objects" command. This file is called "s3cleanup_\<pid\>.json".
 5. Use the "aws delete-objects" command to delete the keys.
 
+Note that there is a resource limitation here. The delete-objects command will accept
+only 1000 or less keys. It is currently unlikely that this is an issue for s3cleanup.
+But beware that if you accumulate a lot of uids because of "make check" failures,
+you may encounter this issue. In this case, you will need to use s3gc.sh to remove
+extra keys.
+
 The pid is a small random number to avoid local interference.
 It is important to note that this script assumes that the
 AWS command line package is installed.
@@ -755,9 +761,11 @@ All keys for all uids on or before the stop date.
 It operates as follows:
 1. Get a list of date based uids created above.
 2. Iterate over the keys and collect all that are on or before the stop date.
-3. Convert the set of keys from step 2 into a properly formatted JSON file suitable for use by the
+3. Divide the keys into sets of 500. This is in recognition of the 1000 key limit mentioned previously.
+4. Convert each set of 500 keys from step 3 into a properly formatted JSON file suitable for use by the
    "aws delete-objects" command. This file is called "s3cleanup_\<pid\>.json".
-4. Use the "aws delete-objects" command to delete the keys.
+5. Use the "aws delete-objects" command to delete the keys.
+6. Repeat steps 4 and 5 for each set of 500 keys.
 
 # Point of Contact {#intern_poc}
 

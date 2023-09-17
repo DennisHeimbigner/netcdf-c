@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Uncomment to get verbose output
-VERBOSE=1
+#VERBOSE=1
 
 if test "x$VERBOSE" = x1 ; then set -x; fi
 
@@ -52,29 +52,41 @@ done < s3cleanup_${puid}.keys
 # get the uid's for all the subtrees to be deleted
 UIDS=`cat ${top_srcdir}/s3cleanup_${puid}.uids | tr -d '\r' | tr '\n' ' '`
 # Capture the keys matching any uid
-unset DELLIST
-unset MATCH
-FIRST=1
-DELLIST="{\"Objects\":["
+unset MATCHKEYS
 for key in $ALLKEYS ; do
     for uid in $UIDS ; do
         case "$key" in
             "$S3TESTSUBTREE/testset_${uid}"*)
                 # capture the key'
-                if test $FIRST = 0 ; then DELLIST="${DELLIST},"; fi
-		DELLIST="${DELLIST}
-{\"Key\":\"$key\"}"
-                MATCH=1
+                MATCHKEYS="$MATCHKEYS $key"
                 ;;
             *) if test "x$VERBOSE" = x1 ; then echo "Ignoring \"$key\""; fi ;;
         esac
     done
-    FIRST=0
 done
-DELLIST="${DELLIST}],\"Quiet\":false}"
-if test "x$MATCH" = x1 ;then
-    echo "$DELLIST" > s3cleanup_${puid}.json
-    aws s3api delete-objects --bucket unidata-zarr-test-data --delete "file://s3cleanup_${puid}.json"
-fi
-rm -f s3cleanup_${puid}.uids s3cleanup_${puid}.keys
-rm -f s3cleanup_${puid}.json
+
+# We can delete at most 1000 objects at a time, so divide into sets of size 500
+REM="$MATCHKEYS"
+while test "x$REM" != x ; do
+    K500=`echo "$REM" | cut -d' ' -f 1-500`
+    REM=`echo "$REM" | cut -d' ' -f 501-`
+    unset DELLIST
+    MATCH=0
+    FIRST=1
+    DELLIST="{\"Objects\":["
+    for key in $K500 ; do
+        if test $FIRST = 0 ; then DELLIST="${DELLIST},"; fi
+        DELLIST="${DELLIST}
+{\"Key\":\"$key\"}"
+        FIRST=0
+        MATCH=1
+    done
+    DELLIST="${DELLIST}],\"Quiet\":false}"
+    if test "x$MATCH" = x1 ;then
+	rm -f s3cleanup_${puid}.json
+        echo "$DELLIST" > s3cleanup_${puid}.json
+        aws s3api delete-objects --bucket unidata-zarr-test-data --delete "file://s3cleanup_${puid}.json"
+    fi
+done
+#rm -f s3cleanup_${puid}.json
+#rm -f s3cleanup_${puid}.uids s3cleanup_${puid}.keys

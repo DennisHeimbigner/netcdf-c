@@ -73,7 +73,6 @@ IF(ENABLE_TESTS)
   BUILD_BIN_TEST(test_fillonlyz ${TSTCOMMONSRC})
   BUILD_BIN_TEST(test_quantize ${TSTCOMMONSRC})
   BUILD_BIN_TEST(test_notzarr ${TSTCOMMONSRC})
-  BUILD_BIN_TEST(test_chunkcases ${TSTCOMMONSRC})
 
 #  ADD_BIN_TEST(nczarr_test test_endians ${TSTCOMMONSRC})
 
@@ -120,12 +119,12 @@ IF(ENABLE_TESTS)
     add_sh_test(nczarr_test run_ut_mapapi)
     add_sh_test(nczarr_test run_ut_misc)
     add_sh_test(nczarr_test run_ncgen4)
-    add_sh_test(nczarr_test run_chunkcases)
-
     if(LARGE_FILE_TESTS)
       BUILD_BIN_TEST(test_readcaching})
       BUILD_BIN_TEST(test_writecaching})
+      BUILD_BIN_TEST(test_chunkcases ${TSTCOMMONSRC})
       add_sh_test(nczarr_test run_cachetest)
+      add_sh_test(nczarr_test run_chunkcases)
     ENDIF()
 
     add_sh_test(nczarr_test run_purezarr)
