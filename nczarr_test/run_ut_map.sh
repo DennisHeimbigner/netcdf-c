@@ -16,8 +16,12 @@ set -e
 # Common
 CMD="${execdir}/ut_map${ext}"
 
+if test -f .libs/test_put_vars_two_unlim_dim.exe ; then
 ldd .libs/test_put_vars_two_unlim_dim.exe
+fi
+if test -f .libs/test_put_vars_two_unlim_dim ; then
 ldd .libs/test_put_vars_two_unlim_dim
+fi
 
 testmapcreate() {
   echo ""; echo "*** Test zmap create -k $1"
