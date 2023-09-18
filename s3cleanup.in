@@ -33,7 +33,7 @@ rm -f s3cleanup_${puid}.json s3cleanup_${puid}.uids s3cleanup_${puid}.keys
 
 # Get complete set of keys in ${S3TESTSUBTREE} prefix
 unset ALLKEYS
-if ! aws s3api list-objects-v2 --bucket unidata-zarr-test-data --prefix "${S3TESTSUBTREE}" | grep -F '"Key":' >s3cleanup_${puid}.keys ; then
+if ! aws s3api list-objects-v2 --bucket ${S3TESTBUCKET} --prefix "${S3TESTSUBTREE}" | grep -F '"Key":' >s3cleanup_${puid}.keys ; then
     echo "No keys found"
     rm -f s3cleanup_${puid}.uids s3cleanup_${puid}.keys
     rm -f s3cleanup_${puid}.json
@@ -85,8 +85,8 @@ while test "x$REM" != x ; do
     if test "x$MATCH" = x1 ;then
 	rm -f s3cleanup_${puid}.json
         echo "$DELLIST" > s3cleanup_${puid}.json
-        aws s3api delete-objects --bucket unidata-zarr-test-data --delete "file://s3cleanup_${puid}.json"
+        aws s3api delete-objects --bucket ${S3TESTBUCKET} --delete "file://s3cleanup_${puid}.json"
     fi
 done
-#rm -f s3cleanup_${puid}.json
-#rm -f s3cleanup_${puid}.uids s3cleanup_${puid}.keys
+rm -f s3cleanup_${puid}.json
+rm -f s3cleanup_${puid}.uids s3cleanup_${puid}.keys

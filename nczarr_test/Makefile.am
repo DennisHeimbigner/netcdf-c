@@ -177,7 +177,7 @@ ncdumpchunks_SOURCES = ncdumpchunks.c
 
 EXTRA_DIST = CMakeLists.txt \
 run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh run_ncgen4.sh \
-run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh run_s3_cleanup.sh \
+run_nccopyz.sh run_fillonlyz.sh run_chunkcases.sh test_nczarr.sh run_perf_chunks1.sh \
 run_purezarr.sh run_interop.sh run_misc.sh \
 run_filter.sh \
 run_newformat.sh run_nczarr_fill.sh run_quantize.sh \
@@ -318,7 +318,7 @@ clean-local:
 
 if ENABLE_S3_TESTALL
 check-local:
-	bash -x ${top_srcdir}/s3cleanup.sh
+	bash ${top_srcdir}/s3cleanup.sh
 endif
 
 DISTCLEANFILES = findplugin.sh ${BUILT_SOURCES}

@@ -14,8 +14,6 @@
 set(CTEST_CUSTOM_MAXIMUM_NUMBER_OF_WARNINGS "500")
 
 IF(ENABLE_S3_TESTING)
-# Before and after all tests are run, we need to try to cleanup the junk left in the Unidata S3 bucket.
 # Assume run in top-level CMAKE_BINARY_DIR
-message(">>> execute: ${CMAKE_BINARY_DIR}/s3cleanup.sh")
-set(CTEST_CUSTOM_POST_TEST "bash -x ${CMAKE_BINARY_DIR}/s3cleanup.sh")
+set(CTEST_CUSTOM_POST_TEST "bash ${CMAKE_BINARY_DIR}/s3cleanup.sh")
 ENDIF()

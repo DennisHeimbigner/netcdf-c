@@ -2057,11 +2057,16 @@ if test "x$enable_s3_aws" = xno && test "x$enable_s3_internal" = xno; then
 AC_SUBST(WHICH_S3_SDK,[none])
 fi
 
+# The Unidata testing S3 bucket
+AC_DEFINE([S3TESTBUCKET], ["unidata-zarr-test-data"], [S3 test bucket])
+AC_SUBST([S3TESTBUCKET],["unidata-zarr-test-data"])
+
 # The working S3 path tree within the Unidata bucket.
-AC_DEFINE([S3TESTSUBTREE], ["netcdf-x"], [S3 working path])
+AC_DEFINE([S3TESTSUBTREE], ["netcdf-x"], [S3 test path prefix])
 AC_SUBST([S3TESTSUBTREE],[netcdf-x])
-# 
-f# Build a small unique id to avoid interference on same platform
+
+
+# Build a small unique id to avoid interference on same platform
 PLATFORMUID="$RANDOM"
 # Make sure uid > 0
 PLATFORMUID=$((PLATFORMUID % 1000 + 1))

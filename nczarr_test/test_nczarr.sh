@@ -12,8 +12,7 @@ if test "x$NCZARR_S3_TEST_HOST" = x ; then
     export NCZARR_S3_TEST_HOST=s3.us-east-1.amazonaws.com
 fi
 if test "x$NCZARR_S3_TEST_BUCKET" = x ; then
-#    export NCZARR_S3_TEST_BUCKET=unidata-netcdf-zarr-testing
-    export NCZARR_S3_TEST_BUCKET=unidata-zarr-test-data
+    export NCZARR_S3_TEST_BUCKET="${S3TESTBUCKET}"
 fi
 export NCZARR_S3_TEST_URL="https://${NCZARR_S3_TEST_HOST}/${NCZARR_S3_TEST_BUCKET}"
 

@@ -47,6 +47,10 @@ FEATURE_LARGE_TESTS=@DO_LARGE_TESTS@
 # Thredds-test server is currently disabled
 #FEATURE_THREDDSTEST=1
 
+# This is the Unidate S3 test bucket
+# All S3 tests should use this to store intermediate results.
+S3TESTBUCKET=@S3TESTBUCKET@
+
 # This is the s3 path within the Unidata bucket;
 # All S3 tests should use this to store intermediate results.
 S3TESTSUBTREE=@S3TESTSUBTREE@
@@ -130,8 +134,10 @@ if test "x$srcdir" = x ; then
   # we need to figure out our directory
   # pick off the last component as the relative name of this directory
   srcdir=`pwd`
-  current=`basename $srcdir`
-  srcdir="${top_srcdir}/$current"
+  if test "x$srcdir" != "x$top_srcdir" ; then
+      current=`basename $srcdir`
+      srcdir="${top_srcdir}/$current"
+  fi
 fi
 
 # We also assume we are executing in builddir

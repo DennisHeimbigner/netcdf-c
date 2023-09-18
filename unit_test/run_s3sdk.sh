@@ -7,7 +7,7 @@ set -e
 
 #CMD="valgrind --leak-check=full"
 
-URL="https://s3.us-east-1.amazonaws.com/unidata-zarr-test-data"
+URL="https://s3.us-east-1.amazonaws.com/${S3TESTBUCKET}"
 
 isolate "testdir_uts3sdk"
 
