@@ -2221,8 +2221,9 @@ AC_DEFINE_UNQUOTED([NC_DISPATCH_VERSION], [${NC_DISPATCH_VERSION}], [Dispatch ta
 # This would be true for a cmake build.
 AC_SUBST([ISCMAKE], [])
 
-# Provide  conditional to temporarily suppress tests and such
-AM_CONDITIONAL([AX_IGNORE], [test xno = xyes])
+# Provide  true/false conditionals to temporarily suppress tests and such
+AM_CONDITIONAL([AX_FALSE], [test xno = xyes])
+AM_CONDITIONAL([AX_TRUE], [test xyes = xyes])
 # Provide  conditional to identify tests that must be run manually
 AM_CONDITIONAL([AX_MANUAL], [test xno = xyes])
 

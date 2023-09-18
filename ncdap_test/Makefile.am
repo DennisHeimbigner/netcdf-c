@@ -47,9 +47,10 @@ if BUILD_UTILITIES
 TESTS += tst_ber.sh tst_remote3.sh tst_formatx.sh testurl.sh tst_fillmismatch.sh tst_zero_len_var.sh
 endif
 
-if AX_IGNORE
+if AX_TRUE
 # Apparently iridl.ldeo.columbia.edu is down for now
 TESTS += tst_encode.sh
+TESTS + tst_hyrax.sh
 endif
 
 TESTS += test_partvar
