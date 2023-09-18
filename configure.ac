@@ -2222,8 +2222,8 @@ AC_DEFINE_UNQUOTED([NC_DISPATCH_VERSION], [${NC_DISPATCH_VERSION}], [Dispatch ta
 AC_SUBST([ISCMAKE], [])
 
 # Provide  true/false conditionals to temporarily suppress tests and such
-AM_CONDITIONAL([AX_FALSE], [test xno = xyes])
-AM_CONDITIONAL([AX_TRUE], [test xyes = xyes])
+AM_CONDITIONAL([AX_DISABLE], [test xno = xyes])
+AM_CONDITIONAL([AX_ENABLE], [test xyes = xyes])
 # Provide  conditional to identify tests that must be run manually
 AM_CONDITIONAL([AX_MANUAL], [test xno = xyes])
 
@@ -2292,6 +2292,7 @@ AC_CONFIG_FILES([Makefile
                  ncdap_test/testdata3/Makefile
                  ncdap_test/expected3/Makefile
                  ncdap_test/expectremote3/Makefile
+                 ncdap_test/expectedhyrax/Makefile
                  dap4_test/Makefile
                  plugins/Makefile
 		 nczarr_test/Makefile
