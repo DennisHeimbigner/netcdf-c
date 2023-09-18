@@ -10,6 +10,7 @@ if test "x$TESTNCZARR" = x1; then
 fi
 
 set -e
+set -x
 
 isolate "testdir_filter_vlen"
 THISDIR=`pwd`
