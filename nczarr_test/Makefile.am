@@ -48,6 +48,7 @@ test_put_vars_two_unlim_dim_SOURCES = test_put_vars_two_unlim_dim.c ${testcommon
 check_PROGRAMS += test_zchunks test_zchunks2 test_zchunks3 test_unlim_vars test_put_vars_two_unlim_dim
 check_PROGRAMS += test_unlim_io
 test_unlim_io_SOURCES = test_unlim_io.c ${testcommonsrc}
+TESTS += run_put_vars_two_unlim_dim.sh
 endif
 
 if BUILD_UTILITIES
