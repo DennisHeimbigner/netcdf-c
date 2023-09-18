@@ -24,6 +24,10 @@ fi
 . ${builddir}/findplugin.sh
 echo "findplugin.sh loaded"
 
+# Find deflate
+findplugin h5deflate
+
+
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent
 sclean() {
