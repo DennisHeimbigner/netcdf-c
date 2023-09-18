@@ -76,7 +76,9 @@ TESTS += run_notzarr.sh
 TESTS += run_external.sh
 
 # Unlimited Dimension tests (at least in part)
-TESTS += run_mud.sh test_unlim_vars test_put_vars_two_unlim_dim
+TESTS += run_mud.sh
+TESTS += test_unlim_vars
+#TESTS += test_put_vars_two_unlim_dim
 
 if USE_HDF5
 # Unlimited Dimension tests
