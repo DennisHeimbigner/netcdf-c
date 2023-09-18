@@ -47,7 +47,7 @@ FEATURE_LARGE_TESTS=@DO_LARGE_TESTS@
 # Thredds-test server is currently disabled
 #FEATURE_THREDDSTEST=1
 
-# This is the Unidate S3 test bucket
+# This is the Unidata S3 test bucket
 # All S3 tests should use this to store intermediate results.
 S3TESTBUCKET=@S3TESTBUCKET@
 

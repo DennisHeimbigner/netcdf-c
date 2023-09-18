@@ -572,6 +572,6 @@ main(int argc, char **argv)
     init(argc,argv);
     if(!test_test1()) ERRR;
     if(!test_test2()) ERRR;
-//    if(!test_test3()) ERRR;
+    if(!test_test3()) ERRR;
     exit(nerrs > 0?1:0);
 }

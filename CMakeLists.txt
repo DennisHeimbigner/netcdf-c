@@ -2604,6 +2604,10 @@ else()
 SET(ENABLE_S3_TESTING "no")
 endif()
 
+# The Unidata testing S3 bucket
+# WARNING: this must match the value in configure.ac
+SET(S3TESTBUCKET "unidata-zarr-test-data" CACHE STRING "S3 test bucket")
+
 # The working S3 path tree within the Unidata bucket.
 # WARNING: this must match the value in configure.ac
 SET(S3TESTSUBTREE "netcdf-x" CACHE STRING "Working S3 path.")

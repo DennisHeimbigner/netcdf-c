@@ -2058,13 +2058,13 @@ AC_SUBST(WHICH_S3_SDK,[none])
 fi
 
 # The Unidata testing S3 bucket
+# WARNING: this must match the value in configure.ac
 AC_DEFINE([S3TESTBUCKET], ["unidata-zarr-test-data"], [S3 test bucket])
 AC_SUBST([S3TESTBUCKET],["unidata-zarr-test-data"])
 
 # The working S3 path tree within the Unidata bucket.
 AC_DEFINE([S3TESTSUBTREE], ["netcdf-x"], [S3 test path prefix])
 AC_SUBST([S3TESTSUBTREE],[netcdf-x])
-
 
 # Build a small unique id to avoid interference on same platform
 PLATFORMUID="$RANDOM"

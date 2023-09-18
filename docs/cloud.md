@@ -181,7 +181,7 @@ cd build
 PREFIX=/usr/local
 FLAGS="-DCMAKE_INSTALL_PREFIX=/usr/local \
        -DCMAKE_POLICY_DEFAULT_CMP0075=NEW \
-       -DBUILD_ONLY=s3 \
+       -DBUILD_ONLY=s3;transfer \
        -DENABLE_UNITY_BUILD=ON \
        -DCMAKE_BUILD_TYPE=Release \
        -DSIMPLE_INSTALL=ON \
