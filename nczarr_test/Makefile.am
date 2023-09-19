@@ -85,9 +85,6 @@ check_PROGRAMS += test_chunking
 TESTS += run_nccopy5.sh
 endif
 
-check_PROGRAMS += test_filter_avail test_filter_vlen
-TESTS += run_filter_vlen.sh run_filter_misc.sh
-
 if USE_HDF5
 TESTS += run_unlim_io.sh run_nccopyz.sh
 endif
@@ -133,7 +130,11 @@ endif
 
 endif # BUILD_BENCHMARKS
 
+if ENABLE_NCZARR_FILTERS
 if ENABLE_FILTER_TESTING
+
+check_PROGRAMS += test_filter_avail test_filter_vlen
+TESTS += run_filter_vlen.sh run_filter_misc.sh
 
 # Do simple filter functionality tests for nczarr
 check_PROGRAMS += test_nczfilter
@@ -153,6 +154,7 @@ XFAIL_TESTS = run_filter.sh run_specific_filters.sh run_nczfilter.sh
 endif  # ISMINGW
 
 endif #ENABLE_FILTER_TESTING
+endif #ENABLE_NCZARR_FILTERS
 
 endif #BUILD_UTILITIES
 
