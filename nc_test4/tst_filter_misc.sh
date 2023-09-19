@@ -29,7 +29,8 @@ fi
 . ${builddir}/findplugin.sh
 echo "findplugin.sh loaded"
 
-if ! filteravail bzip2 ; then 
+# test for deflate filter
+if test no == `${execdir}/../ncdump/ncfilteravail 1` ; then
    echo ">>> Filter bzip2 not available; discontinuing test"
    exit 0;
 fi

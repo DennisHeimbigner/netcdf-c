@@ -20,13 +20,8 @@ if test "x$TESTNCZARR" = x1; then
 s3isolate
 fi
 
-# Load the findplugins function
-. ${builddir}/findplugin.sh
-echo "findplugin.sh loaded"
-
 # Find deflate
-findplugin h5deflate
-
+if avail 1 ; then HAVE_DEFLATE=1; else HAVE_DEFLATE=0; fi
 
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent
