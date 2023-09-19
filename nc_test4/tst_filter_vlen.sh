@@ -12,6 +12,13 @@ fi
 set -e
 set -x
 
+# Load the findplugins function
+. ${builddir}/findplugin.sh
+echo "findplugin.sh loaded"
+
+findplugin h5deflate
+echo "HDF5_PLUGIN_DIR=$HDF5_PLUGIN_DIR"
+
 isolate "testdir_filter_vlen"
 THISDIR=`pwd`
 cd $ISOPATH

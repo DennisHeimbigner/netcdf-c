@@ -30,7 +30,8 @@ fi
 echo "findplugin.sh loaded"
 
 # test for deflate filter
-if test no == `${execdir}/../ncdump/ncfilteravail 1` ; then
+if avail 1 ; then HAVE_DEFLATE=1; else HAVE_DEFLATE=0; fi
+if test "$HAVE_DEFLAGE" = 0 ; then
    echo ">>> Filter bzip2 not available; discontinuing test"
    exit 0;
 fi
