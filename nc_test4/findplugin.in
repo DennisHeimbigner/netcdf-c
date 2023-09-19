@@ -111,7 +111,7 @@ FP_PLUGIN_LIB="${FP_PLUGIN_PRE}${FP_NAME}.${FP_PLUGIN_EXT}"
 
 # Verify
 if ! test -f "$FP_PLUGIN_DIR/$FP_PLUGIN_LIB" ; then
-  echo "***Fail: Could not locate a usable HDF5_PLUGIN_LIB"
+  echo "***Fail: Could not locate a usable $FP_PLUGIN_LIB
   return 1
 fi
 
