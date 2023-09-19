@@ -95,6 +95,9 @@ fi
 # Make local path
 FP_PLUGIN_DIR=`${NCPATHCVT} -F $FP_PLUGIN_DIR`
 HDF5_PLUGIN_DIR="$FP_PLUGIN_DIR"
+if test "x$HDF5_PLUGIN_PATH" = x ; then
+    HDF5_PLUGIN_PATH="$HDF5_PLUGIN_DIR"
+fi
 }
 
 findplugin() {    
@@ -115,7 +118,6 @@ fi
 # Set the final output variables
 HDF5_PLUGIN_LIB="$FP_PLUGIN_LIB"
 HDF5_PLUGIN_DIR="$FP_PLUGIN_DIR"
-
 return 0
 }
 

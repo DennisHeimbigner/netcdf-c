@@ -12,6 +12,9 @@ fi
 set -e
 set -x
 
+echo ">>>>"
+find ../plugins
+
 # Load the findplugins function
 . ${builddir}/findplugin.sh
 echo "findplugin.sh loaded"
