@@ -63,8 +63,8 @@ EXTRA_DIST += NCZhdf5filters.c NCZstdfilters.c
 EXTRA_DIST += H5checksum.c
 
 if ENABLE_FILTER_TESTING
-
 if ENABLE_NCZARR_FILTERS
+
 plugins_to_install += lib__nch5fletcher32.la lib__nch5shuffle.la 
 lib__nch5shuffle_la_SOURCES = H5Zshuffle.c
 lib__nch5fletcher32_la_SOURCES = H5Zfletcher32.c H5checksum.c
@@ -79,10 +79,9 @@ plugins_to_install += lib__nch5szip.la
 lib__nch5szip_la_SOURCES = H5Zszip.c H5Zszip.h
 endif
 
-endif # ENABLE_NCZARR_FILTERS
-
 if ENABLE_PLUGINS
 
+if ENABLE_NCZARR_FILTERS
 # The NCZarr codec libraries (they need libnetcdf)
 lib__nczstdfilters_la_SOURCES = NCZstdfilters.c
 lib__nczstdfilters_la_LIBADD = $(LIBADD)  $(top_builddir)/liblib/libnetcdf.la
@@ -91,6 +90,7 @@ lib__nczhdf5filters_la_LIBADD = $(LIBADD) $(top_builddir)/liblib/libnetcdf.la
 
 plugins_to_install += lib__nczhdf5filters.la
 plugins_to_install += lib__nczstdfilters.la
+endif
 
 if HAVE_BLOSC
 lib__nch5blosc_la_SOURCES = H5Zblosc.c H5Zblosc.h
