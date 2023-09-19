@@ -88,7 +88,7 @@ fi
 
 # Verify
 if test "x$FP_PLUGIN_DIR" = x ; then
-  echo "***Fail: Could not locate a usable HDF5_PLUGIN_DIR"
+  echo "***Fail: Could not locate a usable $FP_PLUGIN_DIR"
   return 1
 fi
 
