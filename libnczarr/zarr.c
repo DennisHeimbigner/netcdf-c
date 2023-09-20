@@ -339,7 +339,7 @@ applycontrols(NCZ_FILE_INFO_T* zinfo)
     /* Process other controls */
     if((value = controllookup((const char**)zinfo->envv_controls,"log")) != NULL) {
 	zinfo->controls.flags |= FLAG_LOGGING;
-        ncsetlogging(1);
+        ncsetloglevel(NCLOGNOTE);
     }
     if((value = controllookup((const char**)zinfo->envv_controls,"show")) != NULL) {
 	if(strcasecmp(value,"fetch")==0)

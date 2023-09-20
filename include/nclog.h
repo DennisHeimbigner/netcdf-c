@@ -30,12 +30,12 @@ extern "C" {
 #endif
 
 EXTERNL void ncloginit(void);
-EXTERNL int ncsetlogging(int tf);
+EXTERNL int ncsetloglevel(int level);
 EXTERNL int nclogopen(FILE* stream);
 
 /* The tag value is an arbitrary integer */
 EXTERNL void nclog(int tag, const char* fmt, ...);
-EXTERNL int ncvlog(int tag, const char* fmt, va_list ap);
+EXTERNL void ncvlog(int tag, const char* fmt, va_list ap);
 EXTERNL void nclogtext(int tag, const char* text);
 EXTERNL void nclogtextn(int tag, const char* text, size_t count);
 

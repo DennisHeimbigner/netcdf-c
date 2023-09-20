@@ -2397,7 +2397,7 @@ main(int argc, char *argv[])
 	    nc_set_log_level(level);
 	  }
 #endif
-	  ncsetlogging(1);
+	  ncsetloglevel(NCLOGNOTE);
 	  break;
 	case 'F':
 	  formatting_specs.filter_atts = true;

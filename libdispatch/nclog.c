@@ -49,7 +49,6 @@ static struct NCLOGGLOBAL {
 } nclog_global = {0,-1,NULL};
 
 static const char* nctagset[] = {"Error","Warning","Note","Debug"};
-static const int nctagsize = sizeof(nctagset)/sizeof(char*);
 
 /* Forward */
 static const char* nctagname(int tag);
@@ -74,7 +73,7 @@ ncloginit(void)
     /* Use environment variables to preset nclogging state*/
     envv = getenv(NCENVLOGGING);
     if(envv != NULL) ncsetloglevel(atoi(envv));
-    envv = getenv(NCENVTRACEING);
+    envv = getenv(NCENVTRACING);
     if(envv != NULL) nctracelevel(atoi(envv));
 }
 
@@ -135,7 +134,7 @@ ncvlog(int level, const char* fmt, va_list ap)
     if(!nclogginginitialized) ncloginit();
     if(nclog_global.loglevel > level || nclog_global.nclogstream == NULL)
 	return;
-    prefix = nctagname(tag);
+    prefix = nctagname(level);
     fprintf(nclog_global.nclogstream,"%s: ",prefix);
     if(fmt != NULL) {
       vfprintf(nclog_global.nclogstream, fmt, ap);
@@ -160,7 +159,7 @@ Each line will be sent using nclog with the specified tag.
 void
 nclogtextn(int level, const char* text, size_t count)
 {
-    if(nclog_global.level > level || nclog_global.nclogstream == NULL)
+    if(nclog_global.loglevel > level || nclog_global.nclogstream == NULL)
 	return;
     fwrite(text,1,count,nclog_global.nclogstream);
     fflush(nclog_global.nclogstream);
@@ -188,10 +187,8 @@ nctracelevel(int level)
     oldlevel = nclog_global.tracelevel;
     if(level < 0) {
       nclog_global.tracelevel = level;
-      ncsetlogging(0);
     } else { /*(level >= 0)*/
         nclog_global.tracelevel = level;
-        ncsetlogging(1);
 	nclogopen(NULL); /* use stderr */    
     }
     return oldlevel;
@@ -220,7 +217,6 @@ ncvtrace(int level, const char* fcn, const char* fmt, va_list ap)
 {
     struct Frame* frame;
     if(!nclogginginitialized) ncloginit();
-    if(nclog_global.tracelevel < 0) ncsetlogging(0);
     if(fcn != NULL) {
         frame = &nclog_global.frames[nclog_global.depth];
         frame->fcn = fcn;
