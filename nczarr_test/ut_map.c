@@ -242,7 +242,6 @@ writedata(void)
     int i;
     size64_t totallen;
     char* data1p = (char*)&data1[0]; /* byte level version of data1 */
-    NCZM_FEATURES features;
 
     /* Create the data */
     for(i=0;i<DATA1LEN;i++) data1[i] = i;

@@ -48,10 +48,11 @@ static struct NCLOGGLOBAL {
     } frames[NC_MAX_FRAMES];
 } nclog_global = {0,-1,NULL};
 
-static const char* nctagset[] = {"Error","Warning","Note","Debug"};
+static const char* nctagset[] = {"OFF","ERR","WARN","NOTE","DEBUG",NULL};
 
 /* Forward */
 static const char* nctagname(int tag);
+static int nctagforname(const char* tag);
  
 /*!\defgroup NClog NClog Management
 @{*/
@@ -67,12 +68,15 @@ ncloginit(void)
 	return;
     nclogginginitialized = 1;
     memset(&nclog_global,0,sizeof(nclog_global));
-    nclog_global.loglevel = NCLOGERR;   
+    ncsetloglevel(NCLOGOFF);
     nclog_global.tracelevel = -1;    
     nclog_global.nclogstream = stderr;
     /* Use environment variables to preset nclogging state*/
     envv = getenv(NCENVLOGGING);
-    if(envv != NULL) ncsetloglevel(atoi(envv));
+    if(envv != NULL) {
+	int level = nctagforname(envv);
+        if(level < 0) ncsetloglevel(level);
+    }
     envv = getenv(NCENVTRACING);
     if(envv != NULL) nctracelevel(atoi(envv));
 }
@@ -91,7 +95,7 @@ ncsetloglevel(int level)
     int was;
     if(!nclogginginitialized) ncloginit();
     was = nclog_global.loglevel;
-    if(level >= NCLOGDBG && level <= NCLOGNOTE)
+    if(level >= 0 && level <= NCLOGDEBUG)
 	nclog_global.loglevel = level;
     if(nclog_global.nclogstream == NULL) nclogopen(NULL);
     return was;
@@ -168,9 +172,20 @@ nclogtextn(int level, const char* text, size_t count)
 static const char*
 nctagname(int tag)
 {
-    if(tag < NCLOGERR || tag >= NCLOGDBG)
+    if(tag < NCLOGOFF || tag >= NCLOGDEBUG)
 	return "unknown";
     return nctagset[tag];
+}
+
+static int
+nctagforname(const char* tag)
+{
+    int level;
+    const char** p = NULL;
+    for(level=0,p=nctagset;*p;p++,level++) {
+	if(strcasecmp(*p,tag)==0) return level;
+    }
+    return -1;
 }
 
 /*!

@@ -2141,14 +2141,17 @@ NCZ_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
     /* Short-circuit the filter-related inquiries */
     if(shufflep) {
 	*shufflep = 0;
-	if((retval = NCZ_inq_var_filter_info(ncid,varid,2,NULL,NULL))==NC_NOERR)
+	if((retval = NCZ_inq_var_filter_info(ncid,varid,H5Z_FILTER_SHUFFLE,NULL,NULL))==NC_NOERR)
 	    *shufflep = 1;
     }
+    retval = NC_NOERR; /* reset */
+
     if(fletcher32p) {
 	*fletcher32p = 0;
-	if((retval = NCZ_inq_var_filter_info(ncid,varid,3,NULL,NULL))==NC_NOERR)
+	if((retval = NCZ_inq_var_filter_info(ncid,varid,H5Z_FILTER_FLETCHER32,NULL,NULL))==NC_NOERR)
 	    *fletcher32p = 1;
     }
+    retval = NC_NOERR; /* reset */
 
     /* Now that lazy atts have been read, use the libsrc4 function to
      * get the answers. */

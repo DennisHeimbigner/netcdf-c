@@ -367,7 +367,6 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
     /* Before anything else, find the matching plugin */
     if((stat = NCZ_plugin_loaded(id,&plugin))) goto done;
     if(plugin == NULL) {
-	ZLOG(NCLOGWARN,"no such plugin: %u",(unsigned)id);
 	stat = THROW(NC_ENOFILTER);
 	goto done;
     }
@@ -437,7 +436,6 @@ NCZ_filter_remove(NC_VAR_INFO_T* var, unsigned int id)
 	    goto done;
 	}
     }
-    ZLOG(NCLOGERR,"no such filter: %u",(unsigned)id);
     stat = THROW(NC_ENOFILTER);
 done:
     return ZUNTRACE(stat);
@@ -566,10 +564,12 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
     /* See if deflate &/or szip is defined */
     if((stat = NCZ_filter_lookup(var,H5Z_FILTER_DEFLATE,&tmp))) goto done;
     havedeflate = (tmp == NULL ? 0 : 1);
+    stat = NC_NOERR; /* reset */
 
     if((stat = NCZ_filter_lookup(var,H5Z_FILTER_SZIP,&tmp))) goto done;
     haveszip = (tmp == NULL ? 0 : 1);
-
+    stat = NC_NOERR; /* reset */
+    
     /* If incoming filter not already defined, then check for conflicts */
     if(oldspec == NULL) {
         if(id == H5Z_FILTER_DEFLATE) {
@@ -710,7 +710,6 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, 
         if(params && spec->hdf5.visible.nparams > 0)
 	    memcpy(params,spec->hdf5.visible.params,sizeof(unsigned int)*spec->hdf5.visible.nparams);
     } else {
-        ZLOG(NCLOGWARN,"no such filter: %u",(unsigned)id);
         stat = THROW(NC_ENOFILTER);
     } 
 done:
@@ -991,7 +990,6 @@ NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* j
     /* Get the id of this codec filter */
     if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jvalue) != NCJ_STRING) {
-        ZLOG(NCLOGERR,"no such filter: %s",NCJstring(jvalue));
 	stat = THROW(NC_ENOFILTER); goto done;
     }
 

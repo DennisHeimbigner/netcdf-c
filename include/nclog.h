@@ -17,10 +17,11 @@
 
 /* Log level: linear order */
 /* Suggested tag values */
-#define NCLOGERR  (0)	/* Errors */
-#define NCLOGWARN (1)	/* Warnings */
-#define NCLOGNOTE (2)	/* General info */
-#define NCLOGDBG  (3)	/* Everything */
+#define NCLOGOFF   (0)	/* Stop Logging */
+#define NCLOGERR   (1)	/* Errors */
+#define NCLOGWARN  (2)	/* Warnings */
+#define NCLOGNOTE  (3)	/* General info */
+#define NCLOGDEBUG (4)	/* Everything */
 
 /* Support ptr valued arguments that are used to store results */
 #define PTRVAL(t,p,d) ((t)((p) == NULL ? (d) : *(p)))

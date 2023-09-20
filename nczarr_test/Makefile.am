@@ -13,9 +13,9 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 
 TESTS_ENVIRONMENT =
 TEST_EXTENSIONS = .sh
-SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #TESTS_ENVIRONMENT += export SETX=1;
 #TESTS_ENVIRONMENT += export NCTRACING=1;
 
@@ -145,9 +145,11 @@ check_PROGRAMS += testfilter testfilter_misc testfilter_order testfilter_repeat 
 TESTS += run_filter.sh 
 TESTS += run_specific_filters.sh
 
+if AX_DISABLE
 # This test is too dangerous to run in a parallel make environment.
 # It causes race conditions. So suppress and only test by hand.
-#TESTS += run_unknown.sh
+TESTS += run_unknown.sh
+endif
 
 if ISMINGW
 XFAIL_TESTS = run_filter.sh run_specific_filters.sh run_nczfilter.sh
