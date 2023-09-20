@@ -116,9 +116,7 @@ endif
 
 # Optionally build test plugins
 if ENABLE_PLUGINS
-if ENABLE_FILTER_TESTING
 PLUGIN_DIR = plugins
-endif
 endif
 
 # If benchmarks were turned on, build and run a bunch more tests.
