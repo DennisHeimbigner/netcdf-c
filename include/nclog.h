@@ -15,11 +15,12 @@
 #define NCENVLOGGING "NCLOGGING"
 #define NCENVTRACING "NCTRACING"
 
+/* Log level: linear order */
 /* Suggested tag values */
-#define NCLOGNOTE 0
-#define NCLOGWARN 1
-#define NCLOGERR 2
-#define NCLOGDBG 3
+#define NCLOGERR  (0)	/* Errors */
+#define NCLOGWARN (1)	/* Warnings */
+#define NCLOGNOTE (2)	/* General info */
+#define NCLOGDBG  (3)	/* Everything */
 
 /* Support ptr valued arguments that are used to store results */
 #define PTRVAL(t,p,d) ((t)((p) == NULL ? (d) : *(p)))
