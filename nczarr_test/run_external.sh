@@ -4,6 +4,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -e
+set -x
 
 . "$srcdir/test_nczarr.sh"
 
