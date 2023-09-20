@@ -10,7 +10,6 @@ if test "x$TESTNCZARR" = x1; then
 fi
 
 set -e
-set -x
 
 echo ">>>>"
 find ../plugins

@@ -14,11 +14,7 @@
 #include "ncexternl.h"
 #include "nclog.h"
 
-#ifdef LOGGING
 #define ZLOG(tag,...) nclog(tag,__VA_ARGS__)
-#else
-#define ZLOG(tag,...)
-#endif
 
 #ifdef ZCATCH
 /* Place breakpoint on zbreakpoint to catch errors close to where they occur*/
