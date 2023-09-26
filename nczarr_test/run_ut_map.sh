@@ -7,6 +7,10 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
+s3isolate "testdir_utmap"
+THISDIR=`pwd`
+cd $ISOPATH
+
 # Test those map implementations where
 # it is possible to look at the actual storage.
 # in some cases. Note that we

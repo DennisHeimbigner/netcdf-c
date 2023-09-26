@@ -13,9 +13,9 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 
 TESTS_ENVIRONMENT =
 TEST_EXTENSIONS = .sh
-SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 #TESTS_ENVIRONMENT += export SETX=1;
 #TESTS_ENVIRONMENT += export NCTRACING=1;
 
@@ -26,12 +26,11 @@ TESTS =
 testcommonsrc = test_utils.c test_utils.h
 commonsrc = ut_util.c ut_test.c ut_includes.h ut_test.h ut_util.h test_nczarr_utils.h
 
-if AX_DISABLE # Obsolete tests
-check_PROGRAMS += ut_projections ut_chunking ut_walk
-ut_projections_SOURCES = ut_projections.c ${commonsrc}
-ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
-ut_walk_SOURCES = ut_walk.c ${commonsrc}
-endif
+# Obsolete tests
+#check_PROGRAMS += ut_projections ut_chunking ut_walk
+#ut_projections_SOURCES = ut_projections.c ${commonsrc}
+#ut_chunking_SOURCES = ut_chunking.c ${commonsrc}
+#ut_walk_SOURCES = ut_walk.c ${commonsrc}
 
 check_PROGRAMS += ut_map ut_mapapi ut_map ut_json
 ut_map_SOURCES = ut_map.c ${commonsrc}
@@ -324,7 +323,7 @@ clean-local:
 
 if ENABLE_S3_TESTALL
 check-local:
-	bash ${top_srcdir}/s3cleanup.sh
+	bash ${abs_top_builddir}/s3cleanup.sh
 endif
 
 DISTCLEANFILES = findplugin.sh ${BUILT_SOURCES}

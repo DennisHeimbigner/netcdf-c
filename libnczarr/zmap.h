@@ -209,6 +209,7 @@ typedef struct NCZMAP_DS_API {
     NCZM_FEATURES features;
     int (*create)(const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);
     int (*open)(const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);
+    int (*truncate)(const char* url);
 } NCZMAP_DS_API;
 
 extern NCZMAP_DS_API zmap_file;
@@ -298,6 +299,15 @@ next segment of legal objects that are immediately contained by the prefix key.
 @return NC_EXXX if the operation failed for one of several possible reasons
 */
 EXTERNL int nczmap_search(NCZMAP* map, const char* prefix, struct NClist* matches);
+
+/**
+"Truncate" the storage associated with a map. Delete all contents except
+the root, which is sized to zero.
+@param url -- the url specifying the root object.
+@return NC_NOERR if the truncation succeeded
+@return NC_EXXX if the operation failed for one of several possible reasons
+*/
+EXTERNL int nczmap_truncate(NCZM_IMPL impl, const char* url);
 
 /**
 Close a map

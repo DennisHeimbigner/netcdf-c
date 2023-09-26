@@ -107,7 +107,7 @@ profilesetup(const char* url)
         fprintf(stderr,"URI parse fail: %s\n",url);
         goto done;
     }
-    CHECK(NC_s3urlprocess(purl, &s3info));
+    CHECK(NC_s3urlprocess(purl, &s3info, NULL));
 
     CHECK(NC_getactives3profile(purl, &activeprofile));
     CHECK(NC_s3profilelookup(activeprofile, "aws_access_key_id", &accessid));

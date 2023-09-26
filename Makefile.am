@@ -211,7 +211,12 @@ install-data-hook:
 all-local: liblib/libnetcdf.la
 	echo ${PACKAGE_VERSION} > VERSION
 if ENABLE_S3_TESTALL
-	echo "@TESTUID@" >> s3cleanup_@PLATFORMUID@.uids
+	echo "@TESTUID@" >> ${abs_top_builddir}/s3cleanup_@PLATFORMUID@.uids
+endif
+
+if ENABLE_S3_TESTALL
+distclean-local:
+	rm -f ${abs_top_builddir}/s3cleanup_@PLATFORMUID@.uids
 endif
 
 # Remove the VERSION file

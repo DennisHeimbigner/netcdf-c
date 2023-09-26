@@ -142,7 +142,7 @@ typedef struct NCZ_FILE_INFO {
 	    unsigned long release;
 	} nczarr_version;
     } zarr;
-    int created; /* 1=> created 0=>open */
+    int creating; /* 1=> created 0=>open */
     int native_endianness; /* NC_ENDIAN_LITTLE | NC_ENDIAN_BIG */
     char** envv_controls; /* Envv format */
     struct Controls {

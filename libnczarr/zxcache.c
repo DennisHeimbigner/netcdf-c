@@ -172,7 +172,6 @@ NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, char dimsep, NCZC
     if(chunksize == 0) return NC_EINVAL;
 
     zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
-    
     if((cache = calloc(1,sizeof(NCZChunkCache))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
     cache->var = var;

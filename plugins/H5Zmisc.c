@@ -152,7 +152,7 @@ fprintf(stderr,"TC_EXPANDED: decompress: nbytes=%u buf_size=%u xdata[0..8]=|",(u
 #if 0	
 fprintf(stderr,"TC_EXPANDED: compress: nbytes=%u buf_size=%u size=%u\n",(unsigned)nbytes,(unsigned)*buf_size,(unsigned)size);
 #endif
-	    /* Replace buffer with one that is bigger than the chunk size */
+	    /* Replace buffer with one that is bigger than the input size */
             newbuf = H5allocate_memory(size,0);
             if(newbuf == NULL) abort();
 	    b = (float*)newbuf;

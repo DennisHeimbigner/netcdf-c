@@ -55,7 +55,7 @@ static int zs3len(NCZMAP* map, const char* key, size64_t* lenp);
 static void freevector(size_t nkeys, char** list);
 
 static void zs3initialize(void);
-static int s3clear(ZS3MAP* z3map, const char* key);
+static int s3clear(void* s3client, const char* bucket, const char* key);
 
 static int maketruekey(const char* rootpath, const char* key, char** truekeyp);
 
@@ -136,7 +136,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
         {stat = NC_EURL; goto done;}
 
     /* Convert to canonical path-style */
-    if((stat = NC_s3urlprocess(url,&z3map->s3))) goto done;
+    if((stat = NC_s3urlprocess(url,&z3map->s3,NULL))) goto done;
     /* Verify the root path */
     if(z3map->s3.rootkey == NULL)
         {stat = NC_EURL; goto done;}
@@ -162,7 +162,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	    stat = NC_EOBJECT;
 	    errclear(z3map);
             /* Delete objects inside root object tree */
-            s3clear(z3map,z3map->s3.rootkey);
+            s3clear(z3map->s3client,z3map->s3.bucket,z3map->s3.rootkey);
 	    goto done; /* already exists */
 	default: reporterr(z3map); goto done;
 	}
@@ -215,7 +215,7 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
         {stat = NC_EURL; goto done;}
 
     /* Convert to canonical path-style */
-    if((stat = NC_s3urlprocess(url,&z3map->s3))) goto done;
+    if((stat = NC_s3urlprocess(url,&z3map->s3,NULL))) goto done;
     /* Verify root path */
     if(z3map->s3.rootkey == NULL)
         {stat = NC_EURL; goto done;}
@@ -239,6 +239,30 @@ done:
     ncurifree(url);
     if(stat) nczmap_close((NCZMAP*)z3map,0);
     return ZUNTRACE(stat);
+}
+
+/* This uses url so we can get bucket */ 
+static int
+zs3truncate(const char *s3url)
+{
+    int stat = NC_NOERR;
+    void* s3client = NULL;
+    NCURI* url = NULL;
+    NCURI* purl = NULL;
+    NCS3INFO info;
+
+    ZTRACE(6,"url=%s",s3url);
+    ncuriparse(s3url,&url);
+    if(url == NULL) {stat = NC_EURL; goto done;}
+    if((stat=NC_s3urlprocess(url,&info,&purl))) goto done;
+    if((s3client = NC_s3sdkcreateclient(&info))) {stat = NC_ES3; goto done;}
+    if((stat = s3clear(s3client,info.bucket,purl->path))) goto done;
+done:
+    if(s3client) {stat=NC_s3sdkclose(s3client,&info,1,NULL);}
+    ncurifree(url);
+    ncurifree(purl);
+    (void)NC_s3clear(&info);
+    return stat;
 }
 
 /**************************************************/
@@ -378,8 +402,8 @@ zs3close(NCZMAP* map, int deleteit)
     ZTRACE(6,"map=%s deleteit=%d",map->url, deleteit);
 
     if(deleteit) 
-        s3clear(z3map,z3map->s3.rootkey);
-    if(z3map->s3client && z3map->s3.bucket && z3map->s3.rootkey) {
+        s3clear(z3map->s3client,z3map->s3.bucket,z3map->s3.rootkey);
+     if(z3map->s3client && z3map->s3.bucket && z3map->s3.rootkey) {
         NC_s3sdkclose(z3map->s3client, &z3map->s3, deleteit, &z3map->errmsg);
     }
     reporterr(z3map);
@@ -467,18 +491,19 @@ done:
 /* S3 Utilities */
 
 /*
-Remove all objects with keys which have
+Remove all objects in bucket with keys which have
 rootkey as prefix; rootkey is a truekey
 */
 static int
-s3clear(ZS3MAP* z3map, const char* rootkey)
+s3clear(void* s3client, const char* bucket, const char* rootkey)
 {
     int stat = NC_NOERR;
     char** list = NULL;
     char** p;
     size_t nkeys = 0;
-    if(z3map->s3client && z3map->s3.bucket && rootkey) {
-        if((stat = NC_s3sdksearch(z3map->s3client, z3map->s3.bucket, rootkey, &nkeys, &list, &z3map->errmsg)))
+
+    if(s3client && bucket && rootkey) {
+        if((stat = NC_s3sdksearch(s3client, bucket, rootkey, &nkeys, &list, NULL)))
             goto done;
         if(list != NULL) {
             for(p=list;*p;p++) {
@@ -487,14 +512,13 @@ s3clear(ZS3MAP* z3map, const char* rootkey)
 #ifdef S3DEBUG
 fprintf(stderr,"s3clear: %s\n",*p);
 #endif
-                if((stat = NC_s3sdkdeletekey(z3map->s3client, z3map->s3.bucket, *p, &z3map->errmsg)))	
+                if((stat = NC_s3sdkdeletekey(s3client, bucket, *p, NULL)))	
 	            goto done;
 	    }
         }
     }
 
 done:
-    reporterr(z3map);
     NCZ_freestringvec(nkeys,list);
     return THROW(stat);
 }
@@ -550,6 +574,7 @@ NCZMAP_DS_API zmap_s3sdk = {
     ZS3_PROPERTIES,
     zs3create,
     zs3open,
+    zs3truncate,
 };
 
 static NCZMAP_API

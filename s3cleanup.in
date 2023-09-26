@@ -2,6 +2,7 @@
 
 # Uncomment to get verbose output
 #VERBOSE=1
+#VERBOSE=2
 
 if test "x$VERBOSE" = x1 ; then set -x; fi
 
@@ -10,6 +11,7 @@ abs_top_srcdir='@abs_top_srcdir@'
 abs_top_builddir='@abs_top_builddir@'
 # The process id
 puid='@PLATFORMUID@'
+
 
 # Additional configuration information
 . ${abs_top_builddir}/test_common.sh
@@ -29,17 +31,24 @@ if test "x$S3TESTSUBTREE" = x ; then
     exit 1;
 fi
 
-rm -f s3cleanup_${puid}.json s3cleanup_${puid}.uids s3cleanup_${puid}.keys
+test_cleanup() {
+rm -f s3cleanup_${puid}.json
+rm -f s3cleanup_${puid}.keys
+rm -f ${abs_top_builddir}/s3cleanup_${puid}.uids 
+}
+trap test_cleanup EXIT
+
+rm -f s3cleanup_${puid}.json s3cleanup_${puid}.keys
 
 # Get complete set of keys in ${S3TESTSUBTREE} prefix
 unset ALLKEYS
 if ! aws s3api list-objects-v2 --bucket ${S3TESTBUCKET} --prefix "${S3TESTSUBTREE}" | grep -F '"Key":' >s3cleanup_${puid}.keys ; then
     echo "No keys found"
-    rm -f s3cleanup_${puid}.uids s3cleanup_${puid}.keys
-    rm -f s3cleanup_${puid}.json
+    test_cleanup
     exit 0
 fi
 
+if test "x$VERBOSE" = x1 ; then set +x; fi
 while read -r line; do
   KEY=`echo "$line" | sed -e 's|[^"]*"Key":[^"]*"\([^"]*\)".*|\1|'`
   # Ignore keys that do not start with ${S3TESTSUBTREE}
@@ -48,11 +57,13 @@ while read -r line; do
       ALLKEYS="$ALLKEYS $KEY"
   fi
 done < s3cleanup_${puid}.keys
+if test "x$VERBOSE" = x1 ; then set -x; fi
 
 # get the uid's for all the subtrees to be deleted
-UIDS=`cat ${top_srcdir}/s3cleanup_${puid}.uids | tr -d '\r' | tr '\n' ' '`
+UIDS=`cat ${abs_top_builddir}/s3cleanup_${puid}.uids | tr -d '\r' | tr '\n' ' '`
 # Capture the keys matching any uid
 unset MATCHKEYS
+if test "x$VERBOSE" = x1 ; then set +x; fi
 for key in $ALLKEYS ; do
     for uid in $UIDS ; do
         case "$key" in
@@ -64,6 +75,7 @@ for key in $ALLKEYS ; do
         esac
     done
 done
+if test "x$VERBOSE" = x1 ; then set -x; fi
 
 # We can delete at most 1000 objects at a time, so divide into sets of size 500
 REM="$MATCHKEYS"
@@ -74,6 +86,7 @@ while test "x$REM" != x ; do
     MATCH=0
     FIRST=1
     DELLIST="{\"Objects\":["
+    if test "x$VERBOSE" = x1 ; then set +x; fi
     for key in $K500 ; do
         if test $FIRST = 0 ; then DELLIST="${DELLIST},"; fi
         DELLIST="${DELLIST}
@@ -81,6 +94,7 @@ while test "x$REM" != x ; do
         FIRST=0
         MATCH=1
     done
+    if test "x$VERBOSE" = x1 ; then set -x; fi
     DELLIST="${DELLIST}],\"Quiet\":false}"
     if test "x$MATCH" = x1 ;then
 	rm -f s3cleanup_${puid}.json
@@ -88,5 +102,7 @@ while test "x$REM" != x ; do
         aws s3api delete-objects --bucket ${S3TESTBUCKET} --delete "file://s3cleanup_${puid}.json"
     fi
 done
-rm -f s3cleanup_${puid}.json
-rm -f s3cleanup_${puid}.uids s3cleanup_${puid}.keys
+
+# Final cleanup
+test_cleanup
+

@@ -2614,7 +2614,7 @@ SET(S3TESTSUBTREE "netcdf-x" CACHE STRING "Working S3 path.")
 # Build a unique id based on the date
 string(TIMESTAMP TESTUID "%s")
 if(ENABLE_S3_TESTING)
-FILE(APPEND "s3cleanup_${PLATFORMUID}.uids" "${TESTUID}\n")
+FILE(APPEND "${CMAKE_CURRENT_BINARY_DIR}/s3cleanup_${PLATFORMUID}.uids" "${TESTUID}\n")
 endif()
 
 # Copy the CTest customization file into binary directory, as required.

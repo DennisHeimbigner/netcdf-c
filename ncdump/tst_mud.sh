@@ -12,6 +12,7 @@ if test "x$TESTNCZARR" = x1 ; then
 . "$srcdir/test_nczarr.sh"
 s3isolate "testdir_mud4"
 else
+isolate "testdir_mud4"
 ISOPATH=`pwd`
 fi
 THISDIR=`pwd`

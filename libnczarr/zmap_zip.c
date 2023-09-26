@@ -269,6 +269,58 @@ done:
     return ZUNTRACE(stat);
 }
 
+static int
+ziptruncate(const char* surl)
+{
+    int stat = NC_NOERR;
+    NCURI* url = NULL;
+    int errorp = 0;
+    zip_t *zip = NULL;
+
+    ZTRACE(6,"url=%s",surl);
+    ncuriparse(surl,&url);
+    if(url == NULL) {stat = NC_EURL; goto done;}
+    zip = zip_open(url->path, ZIP_CREATE | ZIP_TRUNCATE, &errorp);
+    zip_close(zip);
+done:
+    ncurifree(url);
+    return stat;    
+}
+
+/**************************************************/
+/* Map API */
+
+static int
+zipclose(NCZMAP* map, int delete)
+{
+    int stat = NC_NOERR;
+    int zerrno = 0;
+    ZZMAP* zzmap = (ZZMAP*)map;
+
+    if(zzmap == NULL) return NC_NOERR;
+
+    ZTRACE(6,"map=%s delete=%d",map->url,delete);
+    
+    /* Close the zip */
+    if(delete)
+        zip_discard(zzmap->archive);
+    else {
+        if((zerrno=zip_close(zzmap->archive)))
+	    stat = ziperrno(zerrno);
+    }
+    if(delete)
+        NCremove(zzmap->root);
+
+    zzmap->archive = NULL;
+    nczm_clear(map);
+    nullfree(zzmap->root);
+    nullfree(zzmap->dataset);
+    zzmap->root = NULL;
+    freesearchcache(zzmap->searchcache);
+    free(zzmap);
+    return ZUNTRACE(stat);
+}
+
 /**************************************************/
 /* Object API */
 
@@ -439,37 +491,6 @@ done:
     nullfree(localbuffer);
     zip_error_fini(&zerror);
     nullfree(truekey);
-    return ZUNTRACE(stat);
-}
-
-static int
-zipclose(NCZMAP* map, int delete)
-{
-    int stat = NC_NOERR;
-    int zerrno = 0;
-    ZZMAP* zzmap = (ZZMAP*)map;
-
-    if(zzmap == NULL) return NC_NOERR;
-
-    ZTRACE(6,"map=%s delete=%d",map->url,delete);
-    
-    /* Close the zip */
-    if(delete)
-        zip_discard(zzmap->archive);
-    else {
-        if((zerrno=zip_close(zzmap->archive)))
-	    stat = ziperrno(zerrno);
-    }
-    if(delete)
-        NCremove(zzmap->root);
-
-    zzmap->archive = NULL;
-    nczm_clear(map);
-    nullfree(zzmap->root);
-    nullfree(zzmap->dataset);
-    zzmap->root = NULL;
-    freesearchcache(zzmap->searchcache);
-    free(zzmap);
     return ZUNTRACE(stat);
 }
 
@@ -716,6 +737,7 @@ NCZMAP_DS_API zmap_zip = {
     ZIP_PROPERTIES,
     zipcreate,
     zipopen,
+    ziptruncate,
 };
 
 static NCZMAP_API zapi = {
