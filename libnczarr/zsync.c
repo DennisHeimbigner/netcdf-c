@@ -94,6 +94,8 @@ ncz_collect_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jdimsp)
 {
     int i, stat=NC_NOERR;
     NCjson* jdims = NULL;
+    NCjson* jdimsize = NULL;
+    NCjson* jdimargs = NULL;
 
     LOG((3, "%s: ", __func__));
     ZTRACE(3,"file=%s grp=%s",file->controller->path,grp->hdr.name);
@@ -102,14 +104,23 @@ ncz_collect_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jdimsp)
     for(i=0; i<ncindexsize(grp->dim); i++) {
 	NC_DIM_INFO_T* dim = (NC_DIM_INFO_T*)ncindexith(grp->dim,i);
 	char slen[128];
-        NCjson* jdimargs = NULL;
-	NCJnew(NCJ_DICT,&jdimargs);
+
         snprintf(slen,sizeof(slen),"%llu",(unsigned long long)dim->len);
-	if((stat = NCJaddstring(jdimargs,NCJ_STRING,"size"))) goto done;
-	if((stat = NCJaddstring(jdimargs,NCJ_INT,slen))) goto done;
+	if((stat = NCJnewstring(NCJ_INT,slen,&jdimsize))) goto done;
+
+	/* If dim is not unlimited, then write in the old format to provide
+           maximum back compatibility.
+        */
 	if(dim->unlimited) {
+	    NCJnew(NCJ_DICT,&jdimargs);
+	    if((stat = NCJaddstring(jdimargs,NCJ_STRING,"size"))) goto done;
+	    if((stat = NCJappend(jdimargs,jdimsize))) goto done;
+	    jdimsize = NULL;
   	    if((stat = NCJaddstring(jdimargs,NCJ_STRING,"unlimited"))) goto done;
 	    if((stat = NCJaddstring(jdimargs,NCJ_INT,"1"))) goto done;
+	} else { /* !dim->unlimited */
+	    jdimargs = jdimsize;
+	    jdimsize = NULL;
 	}
 	if((stat = NCJaddstring(jdims,NCJ_STRING,dim->hdr.name))) goto done;
 	if((stat = NCJappend(jdims,jdimargs))) goto done;
