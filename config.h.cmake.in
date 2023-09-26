@@ -343,6 +343,9 @@ are set when opening a binary file on Windows. */
 /* Define to 1 if you have the `snprintf' function. */
 #cmakedefine HAVE_SNPRINTF 1
 
+/* Define to 1 if the system has the type `mode_t'. */
+#cmakedefine HAVE_MODE_T 1
+
 /* Define to 1 if the system has the type `ssize_t'. */
 #cmakedefine HAVE_SSIZE_T 1
 

@@ -38,6 +38,10 @@ defined and missing types defined.
 typedef SSIZE_T ssize_t;
 #define HAVE_SSIZE_T 1
 #endif
+#ifndef HAVE_MODE_T
+typedef int mode_t;
+#define HAVE_MODE_T 1
+#endif
 #endif
 
 /*Warning: Cygwin with -ansi does not define these functions
