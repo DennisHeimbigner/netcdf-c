@@ -2056,6 +2056,7 @@ if test "x$enable_s3_aws" = xno && test "x$enable_s3_internal" = xno; then
 AC_SUBST(WHICH_S3_SDK,[none])
 fi
 
+# If user wants, then install selected standard filters
 # Always available
 std_filters="bz2"
 if test "x$have_deflate" = xyes ; then
@@ -2070,10 +2071,8 @@ fi
 if test "x$have_zstd" = xyes ; then
 std_filters="${std_filters} zstd"
 fi
-
 AC_SUBST(STD_FILTERS,[$std_filters])
 
-# If user wants, then install selected standard filters
 AC_MSG_CHECKING([whether and where we should install plugins])
 AC_ARG_WITH([plugin-dir], [AS_HELP_STRING([--with-plugin-dir=<absolute directory>|no|--without-plugin-dir],
               [Install selected standard filters in specified or default directory])],
