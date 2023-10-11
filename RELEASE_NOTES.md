@@ -7,18 +7,30 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.9.3 - TBD
 
+* Mitigate the problem of test interference. See [Github #2755](https://github.com/Unidata/netcdf-c/pull/2755).
+* Extend NCZarr to support unlimited dimensions. See [Github #2755](https://github.com/Unidata/netcdf-c/pull/2755).
+* Fix significant bug in the NCZarr cache management. See [Github #2737](https://github.com/Unidata/netcdf-c/pull/2737).
+* Fix default parameters for caching of NCZarr. See [Github #2734](https://github.com/Unidata/netcdf-c/pull/2734).
+* Introducing configure-time options to disable various filters, even if the required libraries are available on the system, in support of [GitHub #2712](https://github.com/Unidata/netcdf-c/pull/2712). 
+* Fix memory leak WRT unreclaimed HDF5 plist. See [Github #2752](https://github.com/Unidata/netcdf-c/pull/2752).
+* Support HDF5 transient types when reading an HDF5 file.  See [Github #2724](https://github.com/Unidata/netcdf-c/pull/2724).
+* Suppress filters on variables with non-fixed-size types. See [Github #2716](https://github.com/Unidata/netcdf-c/pull/2716).
+* Provide a single option to disable all network access and testing. See [Github #2708](https://github.com/Unidata/netcdf-c/pull/2708).
+* Fix some problems with earthdata authorization and data access. See [Github #2709](https://github.com/Unidata/netcdf-c/pull/2709).
+* Fix a race condition in some ncdump tests. See [Github #2682](https://github.com/Unidata/netcdf-c/pull/2682).
+* Fix a minor bug in reporting the use of szip. See [Github #2679](https://github.com/Unidata/netcdf-c/pull/2679).
+* Simplify the handling of XGetopt. See [Github #2678](https://github.com/Unidata/netcdf-c/pull/2678).
+* Improve performance and testing of the new nc_reclaim/copy functions. See [Github #2699](https://github.com/Unidata/netcdf-c/pull/2699).
 * [Bug Fix] Provide a partial fix to the libcurl certificates problem. See [Github #2690](https://github.com/Unidata/netcdf-c/pull/2690).
 * Improve S3 documentation, testing, and support See [Github #2686](https://github.com/Unidata/netcdf-c/pull/2686).
 * Remove obsolete code. See [Github #2680](https://github.com/Unidata/netcdf-c/pull/2680).
 * [Bug Fix] Add a crude test to see if an NCZarr path looks like a valid NCZarr/Zarr file. See [Github #2658](https://github.com/Unidata/netcdf-c/pull/2658).
+* Fix 'make distcheck' error in run_interop.sh. See [Github #2631](https://github.com/Unidata/netcdf-c/pull/2631).
 
 ## 4.9.2 - March 14, 2023
 
 This is the maintenance release which adds support for HDF5 version 1.14.0, in addition to a handful of other changes and bugfixes.  
 
-* Fix 'make distcheck' error in run_interop.sh. See [Github #2631](https://github.com/Unidata/netcdf-c/pull/2631).
-* Fix a minor bug in reporting the use of szip. See [Github #2679](https://github.com/Unidata/netcdf-c/pull/2679).
-* Simplify the handling of XGetopt. See [Github #2678](https://github.com/Unidata/netcdf-c/pull/2678).
 * Update `nc-config` to remove inclusion from automatically-detected `nf-config` and `ncxx-config` files, as the wrong files could be included in the output.  This is in support of [GitHub #2274](https://github.com/Unidata/netcdf-c/issues/2274).
 * Update H5FDhttp.[ch] to work with HDF5 version 1.13.2 and later. See [Github #2635](https://github.com/Unidata/netcdf-c/pull/2635).
 * [Bug Fix] Update DAP code to enable CURLOPT_ACCEPT_ENCODING by default. See [Github #2630](https://github.com/Unidata/netcdf-c/pull/2630).
@@ -467,7 +479,7 @@ See [GitHub #1251](https://github.com/Unidata/netcdf-c/issues/1251).
 
 ### 4.4.1-RC1 - April 15, 2016
 
-* [Bug Fix][Enhancement] Fixed an issue with netCDF4 files generated using version `1.10.0` of the HDF5 library.  The 1.10 release potentially changed the underlying file format, introducing a backwards compatibility issue with the files generated.  HDF5 provided an API for retaining the 1.8.x file format, which is now on by default.  See [GitHub Issue #250](https://github.com/Unidata/netcdf-c/issues/250) for more information.
+* [Bug Fix][Enhancement][File Change] Fixed an issue with netCDF4 files generated using version `1.10.0` of the HDF5 library.  The 1.10 release potentially changed the underlying file format, introducing a backwards compatibility issue with the files generated.  HDF5 provided an API for retaining the 1.8.x file format, which is now on by default.  See [GitHub Issue #250](https://github.com/Unidata/netcdf-c/issues/250) for more information.
 * [Bug Fix] Corrected an issue with autotools-based builds performed out-of-source-tree.  See [GitHub Issue #242](https://github.com/Unidata/netcdf-c/issues/242) for more information.
 * [Enhancement] Modified `nc_inq_type()` so that it would work more broadly without requiring a valid ncid.  See [GitHub Issue #240](https://github.com/Unidata/netcdf-c/issues/240) for more information.
 * [Enhancement] Accepted a patch code which added a hashmap lookup for rapid var and dim retrieval in nc3 files, contributed by Greg Sjaardema.  See [GitHub Pull Request #238](https://github.com/Unidata/netcdf-c/pull/238) for more information.
@@ -521,7 +533,7 @@ See [GitHub #1251](https://github.com/Unidata/netcdf-c/issues/1251).
     2. Given #1, then the NC_PNETCDF mode flag becomes a subset of NC_MPIIO, so made NC_PNETCDF an alias for NC_MPII.
     3. NC_FORMAT_64BIT is now deprecated.  Use NC_FORMAT_64BIT_OFFSET.
 
-Further information regarding the CDF-5 file format specifrication may be found here: http://cucis.ece.northwestern.edu/projects/PnetCDF/CDF-5.html
+Further information regarding the CDF-5 file format specification may be found here: http://cucis.ece.northwestern.edu/projects/PnetCDF/CDF-5.html
 
 * Modified configure.ac to provide finer control over parallel
   support. Specifically, add flags for:

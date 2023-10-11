@@ -31,7 +31,7 @@ AM_DISTCHECK_CONFIGURE_FLAGS = --without-plugin-dir
 EXTRA_DIST = README.md COPYRIGHT INSTALL.md test_prog.c lib_flags.am	\
 cmake CMakeLists.txt COMPILE.cmake.txt config.h.cmake.in		\
 cmake_uninstall.cmake.in FixBundle.cmake.in nc-config.cmake.in		\
-RELEASE_NOTES.md CTestCustom.cmake CTestConfig.cmake.in			\
+RELEASE_NOTES.md CTestConfig.cmake.in CTestCustom.cmake.in		\
 libnetcdf.settings.in netCDFConfig.cmake.in CMakeInstallation.cmake	\
 test-driver-verbose test_common.in fuzz
 
@@ -116,9 +116,7 @@ endif
 
 # Optionally build test plugins
 if ENABLE_PLUGINS
-if ENABLE_FILTER_TESTING
 PLUGIN_DIR = plugins
-endif
 endif
 
 # If benchmarks were turned on, build and run a bunch more tests.
@@ -168,32 +166,6 @@ mm4::
 	  b=`basename $$m` ; d=`dirname $$m`;\
 	  pushd $$d; m4 -s $${b}.m4 > $${b}.c ; popd; done
 
-#####
-# If ENABLE_FORTRAN was turned on,
-# we have new make targets, build-netcdf-fortran and
-# install-netcdf-fortran.
-#####
-
-###
-# build-netcdf-fortran
-###
-if BUILD_FORTRAN
-
-build-netcdf-fortran:
-	echo "Downloading and Building NetCDF-Fortran"
-	chmod u+x $(abs_top_builddir)/postinstall.sh
-	sh -c "$(abs_top_builddir)/postinstall.sh -t autotools -a build"
-
-###
-# install-netcdf-fortran
-###
-install-netcdf-fortran:
-	echo "Installing NetCDF-Fortran"
-	chmod u+x $(abs_top_builddir)/postinstall.sh
-	sh -c "$(abs_top_builddir)/postinstall.sh -t autotools -a install"
-
-endif
-
 check_nc_config:
 	$(CC) `./nc-config --cflags` test_prog.c -o test_prog `./nc-config --libs`
 	./test_prog
@@ -235,7 +207,17 @@ install-data-hook:
 
 # Create the VERSION file after the build
 # in case it is being used by packagers
+# Also track the S3 cleanup id
 all-local: liblib/libnetcdf.la
 	echo ${PACKAGE_VERSION} > VERSION
+if ENABLE_S3_TESTALL
+	echo "@TESTUID@" >> ${abs_top_builddir}/s3cleanup_@PLATFORMUID@.uids
+endif
+
+if ENABLE_S3_TESTALL
+distclean-local:
+	rm -f ${abs_top_builddir}/s3cleanup_@PLATFORMUID@.uids
+endif
+
 # Remove the VERSION file
 CLEANFILES = VERSION

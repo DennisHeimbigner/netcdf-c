@@ -7,9 +7,8 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 . $srcdir/test_ncdump.sh
 
-isolate "testdir_ncdump_netcdf4"
-
-# Move into isolation directory
+isolate "testdir_nccopy4"
+THISDIR=`pwd`
 cd $ISOPATH
 
 set -e

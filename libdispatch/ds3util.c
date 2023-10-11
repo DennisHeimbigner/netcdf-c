@@ -150,10 +150,10 @@ NC_s3urlrebuild(NCURI* url, char** inoutbucketp, char** inoutregionp, NCURI** ne
 
     /* Construct the revised path */
     ncbytesclear(buf);
-    ncbytescat(buf,"/");
-    if(bucket == NULL)
-        {stat = NC_EURL; goto done;}
-    ncbytescat(buf,bucket);
+    if(bucket != NULL) {
+        ncbytescat(buf,"/");
+        ncbytescat(buf,bucket);
+    }
     for(i=0;i<nclistlength(pathsegments);i++) {
 	ncbytescat(buf,"/");
 	ncbytescat(buf,nclistget(pathsegments,i));
@@ -203,7 +203,7 @@ endswith(const char* s, const char* suffix)
 /* S3 utilities */
 
 EXTERNL int
-NC_s3urlprocess(NCURI* url, NCS3INFO* s3)
+NC_s3urlprocess(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
 {
     int stat = NC_NOERR;
     NCURI* url2 = NULL;
@@ -228,6 +228,7 @@ NC_s3urlprocess(NCURI* url, NCS3INFO* s3)
         nullfree(seg);
     }
     if((stat = NC_join(pathsegments,&s3->rootkey))) goto done;
+    if(newurlp) {*newurlp = url2; url2 = NULL;}
 
 done:
     ncurifree(url2);

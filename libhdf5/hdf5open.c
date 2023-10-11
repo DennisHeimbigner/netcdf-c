@@ -13,6 +13,7 @@
 #include "hdf5internal.h"
 #include "hdf5err.h"
 #include "hdf5debug.h"
+#include "nc4internal.h"
 #include "ncrc.h"
 #include "ncauth.h"
 #include "ncmodel.h"
@@ -63,6 +64,7 @@ extern int NC4_open_image_file(NC_FILE_INFO_T* h5);
 
 /* Defined later in this file. */
 static int rec_read_metadata(NC_GRP_INFO_T *grp);
+static int read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name);
 
 /**
  * @internal Struct to track HDF5 object info, for
@@ -103,7 +105,7 @@ typedef struct {
  * struct, either an existing one (for user-defined types) or a newly
  * created one.
  *
- * @param h5 Pointer to HDF5 file info struct.
+ * @param h5_grp Pointer to group info struct.
  * @param datasetid HDF5 dataset ID.
  * @param type_info Pointer to pointer that gets type info struct.
  *
@@ -114,7 +116,7 @@ typedef struct {
  * @author Ed Hartnett
  */
 static int
-get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
+get_type_info2(NC_GRP_INFO_T *h5_grp, hid_t datasetid, NC_TYPE_INFO_T **type_info)
 {
     NC_HDF5_TYPE_INFO_T *hdf5_type;
     htri_t is_str, equal = 0;
@@ -123,7 +125,7 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
     H5T_order_t order;
     int t;
 
-    assert(h5 && type_info);
+    assert(h5_grp && type_info);
 
     /* Because these N5T_NATIVE_* constants are actually function calls
      * (!) in H5Tpublic.h, I can't initialize this array in the usual
@@ -183,6 +185,7 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
                 /* Set a class for the type */
                 t = NUM_TYPES - 1;
                 (*type_info)->nc_type_class = NC_STRING;
+		NC4_set_varsize(*type_info);
             }
             else
             {
@@ -231,10 +234,22 @@ get_type_info2(NC_FILE_INFO_T *h5, hid_t datasetid, NC_TYPE_INFO_T **type_info)
     else
     {
         NC_TYPE_INFO_T *type;
+        NC_FILE_INFO_T *h5 = h5_grp->nc4_info;
 
         /* This is a user-defined type. */
         if((type = nc4_rec_find_hdf_type(h5, native_typeid)))
             *type_info = type;
+
+        /* If we didn't find the type, then it's probably a transient
+         * type, stored in the dataset itself, so let's read it now */
+        if (type == NULL) {
+          /* If we still can't read the type, ignore it, it probably
+           * means this object is a reference */
+          if (read_type(h5_grp, native_typeid, NULL))
+            return NC_EBADTYPID;
+          if((type = nc4_rec_find_hdf_type(h5, native_typeid)))
+            *type_info = type;
+        }
 
         /* The type entry in the array of user-defined types already has
          * an open data typeid (and native typeid), so close the ones we
@@ -943,6 +958,8 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
       if (!(crt_order_flags & H5P_CRT_ORDER_TRACKED)) {
 	  nc4_info->no_attr_create_order = NC_TRUE;
       }
+      if (H5Pclose(pid) < 0)
+	  BAIL(NC_EHDFERR);
     }
 
     /* Now read in all the metadata. Some types and dimscale
@@ -1060,6 +1077,7 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
     int f;
     int stat = NC_NOERR;
     NC_HDF5_VAR_INFO_T *hdf5_var;
+    int varsized = 0;
 
     assert(var);
 
@@ -1069,17 +1087,26 @@ static int get_filter_info(hid_t propid, NC_VAR_INFO_T *var)
     if ((num_filters = H5Pget_nfilters(propid)) < 0)
 	{stat = NC_EHDFERR; goto done;}
 
+    /* If the type of the variable is variable length, and
+       it has filters defined, suppress the variable. */
+    varsized = NC4_var_varsized(var);
+
     for (f = 0; f < num_filters; f++)
     {
-	int flags = 0;
 	htri_t avail = -1;
+        unsigned flags = 0;
 	cd_nelems = 0;
-        if ((filter = H5Pget_filter2(propid, f, NULL, &cd_nelems, NULL, 0, NULL, NULL)) < 0)
+        if ((filter = H5Pget_filter2(propid, f, &flags, &cd_nelems, NULL, 0, NULL, NULL)) < 0)
  	    {stat = NC_ENOFILTER; goto done;} /* Assume this means an unknown filter */
 	if((avail = H5Zfilter_avail(filter)) < 0)
  	    {stat = NC_EHDFERR; goto done;} /* Something in HDF5 went wrong */
 	if(!avail) {
 	    flags |= NC_HDF5_FILTER_MISSING;
+	    /* mark variable as unreadable */
+	    hdf5_var->flags |= NC_HDF5_VAR_FILTER_MISSING;
+	}
+	/* If variable type is varsized and filter is mandatory then this variable is unreadable */
+	if(varsized && (flags & H5Z_FLAG_MANDATORY) != 0) {
 	    /* mark variable as unreadable */
 	    hdf5_var->flags |= NC_HDF5_VAR_FILTER_MISSING;
 	}
@@ -1578,7 +1605,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
     /* Learn all about the type of this variable. This will fail for
      * HDF5 reference types, and then the var we just created will be
      * deleted, thus ignoring HDF5 reference type objects. */
-    if ((retval = get_type_info2(var->container->nc4_info, hdf5_var->hdf_datasetid,
+    if ((retval = get_type_info2(var->container, hdf5_var->hdf_datasetid,
                                  &var->type_info)))
         BAIL(retval);
 
@@ -1953,7 +1980,7 @@ hdf5free(void* memory)
  *
  * @param grp Pointer to group info struct.
  * @param hdf_typeid HDF5 type ID.
- * @param type_name Pointer that gets the type name.
+ * @param type_name Pointer that gets the type name; NULL => anonymous
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADID Bad ncid.
@@ -1965,18 +1992,33 @@ hdf5free(void* memory)
 static int
 read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
 {
-    NC_TYPE_INFO_T *type;
-    NC_HDF5_TYPE_INFO_T *hdf5_type;
+    NC_FILE_INFO_T *h5 = NULL; 
+    NC_TYPE_INFO_T *type = NULL;
+    NC_HDF5_FILE_INFO_T *hdf5_info = NULL;
+    NC_HDF5_TYPE_INFO_T *hdf5_type = NULL;
     H5T_class_t class;
     hid_t native_typeid;
     size_t type_size;
     int nmembers;
     int retval;
+    char transientname[NC_MAX_NAME];
 
-    assert(grp && type_name);
+    assert(grp);
 
-    LOG((4, "%s: type_name %s grp->hdr.name %s", __func__, type_name,
+    LOG((4, "%s: type_name %s grp->hdr.name %s", __func__, (type_name?type_name:"NULL"),
          grp->hdr.name));
+
+    /* Get HDF5-specific object info. */
+    h5 = (NC_FILE_INFO_T *)grp->nc4_info;
+    hdf5_info = (NC_HDF5_FILE_INFO_T*)h5->format_file_info;
+
+    /* What is the class of this type, compound, vlen, etc. */
+    if ((class = H5Tget_class(hdf_typeid)) < 0)
+        return NC_EHDFERR;
+
+    /* Explicitly don't handle reference types */
+    if (class == H5T_REFERENCE)
+        return NC_EBADCLASS;
 
     /* What is the native type for this platform? */
     if ((native_typeid = H5Tget_native_type(hdf_typeid, H5T_DIR_DEFAULT)) < 0)
@@ -1986,6 +2028,20 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
     if (!(type_size = H5Tget_size(native_typeid)))
         return NC_EHDFERR;
     LOG((5, "type_size %d", type_size));
+
+    if(type_name == NULL) {
+        /* This is a transient/anonymous type, so generate a name for it */
+	const char* suffix = NULL; /* class */
+	switch (class) {
+	case H5T_ENUM: suffix = "Enum"; break;
+	case H5T_COMPOUND: suffix = "Compound"; break;
+	case H5T_VLEN: suffix = "Vlen"; break;
+	case H5T_OPAQUE: suffix = "Opaque"; break;
+	default: suffix = "Unknown"; break;
+	}
+	snprintf(transientname,sizeof(transientname),"_Anonymous%s%u",suffix,++hdf5_info->transientid);
+	type_name = transientname;
+    }
 
     /* Add to the list for this new type, and get a local pointer to it. */
     if ((retval = nc4_type_list_add(grp, type_size, type_name, &type)))
@@ -2007,13 +2063,11 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
     if (H5Iinc_ref(hdf5_type->hdf_typeid) < 0)
         return NC_EHDFERR;
 
-    /* What is the class of this type, compound, vlen, etc. */
-    if ((class = H5Tget_class(hdf_typeid)) < 0)
-        return NC_EHDFERR;
     switch (class)
     {
     case H5T_STRING:
         type->nc_type_class = NC_STRING;
+        if((retval = NC4_set_varsize(type))) return retval;
         break;
 
     case H5T_COMPOUND:
@@ -2026,6 +2080,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
 #endif
 
         type->nc_type_class = NC_COMPOUND;
+        if((retval = NC4_set_varsize(type))) return retval;
 
         if ((nmembers = H5Tget_nmembers(hdf_typeid)) < 0)
             return NC_EHDFERR;
@@ -2045,7 +2100,6 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
              * compound type. */
             if ((member_hdf_typeid = H5Tget_member_type(native_typeid, m)) < 0)
                 return NC_EHDFERR;
-
             if ((member_native_typeid = H5Tget_native_type(member_hdf_typeid,
                                                            H5T_DIR_DEFAULT)) < 0)
                 return NC_EHDFERR;
@@ -2107,11 +2161,8 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
                     return retval;
             }
 
-	    {   /* See if this changes from fixed size to variable size */
-		int fixedsize;
-                if((retval = NC4_inq_type_fixed_size(grp->nc4_info->controller->ext_ncid,member_xtype,&fixedsize))) return retval;
-		if(!fixedsize) type->u.c.varsized = 1;
-	    }
+	    /* See if this changes from fixed size to variable size */
+	    if((retval=NC4_recheck_varsize(type,member_xtype))) return retval;
 
             hdf5free(member_name);
         }
@@ -2156,11 +2207,13 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
             /* Remember the base type for this vlen. */
             type->u.v.base_nc_typeid = base_nc_type;
         }
+        if((retval = NC4_set_varsize(type))) return retval;
     }
     break;
 
     case H5T_OPAQUE:
         type->nc_type_class = NC_OPAQUE;
+        if((retval = NC4_set_varsize(type))) return retval;
         break;
 
     case H5T_ENUM:
@@ -2175,7 +2228,8 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
 #endif
 
         type->nc_type_class = NC_ENUM;
-
+        if((retval = NC4_set_varsize(type))) return retval;
+	
         /* Find the base type of this enum (i.e. what is this a
          * enum of?) */
         if (!(base_hdf_typeid = H5Tget_super(hdf_typeid)))
@@ -2236,6 +2290,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
         LOG((0, "unknown class"));
         return NC_EBADCLASS;
     }
+
     return retval;
 }
 

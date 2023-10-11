@@ -62,7 +62,7 @@ static void freeprofile(struct AWSprofile* profile);
 static void freeprofilelist(NClist* profiles);
 
 /* Define default rc files and aliases, also defines load order*/
-static const char* rcfilenames[] = {".ncrc", ".daprc", ".dodsrc",NULL};
+static const char* rcfilenames[] = {".ncrc", ".daprc", ".dodsrc", NULL};
 
 /* Read these files in order and later overriding earlier */
 static const char* awsconfigfiles[] = {".aws/config",".aws/credentials",NULL};
@@ -135,7 +135,6 @@ done:
 /*
 Initialize defaults and load:
 * .ncrc
-* .daprc
 * .dodsrc
 * ${HOME}/.aws/config
 * ${HOME}/.aws/credentials
@@ -230,7 +229,7 @@ NC_rcload(void)
     globalstate = NC_getglobalstate();
 
     if(globalstate->rcinfo->ignore) {
-        nclog(NCLOGDBG,".rc file loading suppressed");
+        nclog(NCLOGNOTE,".rc file loading suppressed");
 	goto done;
     }
     if(globalstate->rcinfo->loaded) goto done;
@@ -238,13 +237,11 @@ NC_rcload(void)
     /* locate the configuration files in order of use:
        1. Specified by NCRCENV_RC environment variable.
        2. If NCRCENV_RC is not set then merge the set of rc files in this order:
-	  1. $RCHOME/.ncrc
-  	  2. $RCHOME/.daprc
-	  3. $RCHOME/.docsrc
-	  4. $CWD/.ncrc
-  	  5. $CWD/.daprc
-	  6. $CWD/.docsrc
-	  Entry in later files override any of the earlier files
+	  1. $HOME/.ncrc
+	  2. $HOME/.dodsrc
+	  3. $CWD/.ncrc
+	  4. $CWD/.dodsrc
+	  Entries in later files override any of the earlier files
     */
     if(globalstate->rcinfo->rcfile != NULL) { /* always use this */
 	nclistpush(rcfileorder,strdup(globalstate->rcinfo->rcfile));
@@ -660,7 +657,7 @@ rcsearch(const char* prefix, const char* rcname, char** pathp)
     /* see if file is readable */
     f = NCfopen(path,"r");
     if(f != NULL)
-        nclog(NCLOGDBG, "Found rc file=%s",path);
+        nclog(NCLOGNOTE, "Found rc file=%s",path);
 done:
     if(f == NULL || ret != NC_NOERR) {
 	nullfree(path);
@@ -1162,6 +1159,15 @@ aws_load_credentials(NCglobalstate* gstate)
 	    const char* text = ncbytescontents(buf);
             if((stat = awsparse(text,profiles))) goto done;
 	}
+    }
+  
+    /* add a "none" credentials */
+    {
+	struct AWSprofile* noprof = (struct AWSprofile*)calloc(1,sizeof(struct AWSprofile));
+    if(noprof == NULL) {stat = NC_ENOMEM; goto done;}
+	noprof->name = strdup("none");
+	noprof->entries = nclistnew();
+	nclistpush(profiles,noprof); noprof = NULL;
     }
 
     if(gstate->rcinfo->s3profiles)

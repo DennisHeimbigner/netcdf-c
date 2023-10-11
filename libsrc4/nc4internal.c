@@ -1109,6 +1109,9 @@ nc4_type_list_add(NC_GRP_INFO_T *grp, size_t size, const char *name,
     ncindexadd(grp->type, (NC_OBJ *)new_type);
     obj_track(grp->nc4_info,(NC_OBJ*)new_type);
 
+    /* back link */
+    new_type->container = grp;
+
     /* Return a pointer to the new type. */
     *type = new_type;
 
@@ -1337,7 +1340,7 @@ nc4_att_free(NC_ATT_INFO_T *att)
 	assert(parent->sort == NCGRP);
 	h5 = ((NC_GRP_INFO_T*)parent)->nc4_info;
 	/* Reclaim the attribute data */
-	if((stat = nc_reclaim_data(h5->controller->ext_ncid,att->nc_typeid,att->data,att->len))) goto done;
+	if((stat = NC_reclaim_data(h5->controller,att->nc_typeid,att->data,att->len))) goto done;
 	free(att->data); /* reclaim top level */
 	att->data = NULL;
     }
@@ -1386,9 +1389,8 @@ var_free(NC_VAR_INFO_T *var)
 
     /* Delete any fill value allocation. */
     if (var->fill_value) {
-	int ncid = var->container->nc4_info->controller->ext_ncid;
 	int tid = var->type_info->hdr.id;
-        if((retval = nc_reclaim_data_all(ncid, tid, var->fill_value, 1))) return retval;
+        if((retval = NC_reclaim_data_all(var->container->nc4_info->controller, tid, var->fill_value, 1))) return retval;
 	var->fill_value = NULL;
     }
 
@@ -1563,7 +1565,7 @@ nc4_rec_grp_del_att_data(NC_GRP_INFO_T *grp)
     /* Free attribute data in this group */
     for (i = 0; i < ncindexsize(grp->att); i++) {
 	NC_ATT_INFO_T * att = (NC_ATT_INFO_T*)ncindexith(grp->att, i);
-	if((retval = nc_reclaim_data_all(grp->nc4_info->controller->ext_ncid,att->nc_typeid,att->data,att->len)))
+	if((retval = NC_reclaim_data_all(grp->nc4_info->controller,att->nc_typeid,att->data,att->len)))
 	    return retval;
 	att->data = NULL;
 	att->len = 0;
@@ -1576,7 +1578,7 @@ nc4_rec_grp_del_att_data(NC_GRP_INFO_T *grp)
 	NC_VAR_INFO_T* v = (NC_VAR_INFO_T *)ncindexith(grp->vars, i);
 	for(j=0;j<ncindexsize(v->att);j++) {
 	    NC_ATT_INFO_T* att = (NC_ATT_INFO_T*)ncindexith(v->att, j);
-   	    if((retval = nc_reclaim_data_all(grp->nc4_info->controller->ext_ncid,att->nc_typeid,att->data,att->len)))
+   	    if((retval = NC_reclaim_data_all(grp->nc4_info->controller,att->nc_typeid,att->data,att->len)))
 	        return retval;
 	    att->data = NULL;
 	    att->len = 0;
@@ -2082,9 +2084,9 @@ NC_createglobalstate(void)
     if(tmp != NULL && strlen(tmp) > 0)
         nc_globalstate->rcinfo->rcfile = strdup(tmp);
     /* Initialize chunk cache defaults */
-    nc_globalstate->chunkcache.size = CHUNK_CACHE_SIZE;            /**< Default chunk cache size. */
-    nc_globalstate->chunkcache.nelems = CHUNK_CACHE_NELEMS;        /**< Default chunk cache number of elements. */
-    nc_globalstate->chunkcache.preemption = CHUNK_CACHE_PREEMPTION; /**< Default chunk cache preemption. */
+    nc_globalstate->chunkcache.size = DEFAULT_CHUNK_CACHE_SIZE;		    /**< Default chunk cache size. */
+    nc_globalstate->chunkcache.nelems = DEFAULT_CHUNKS_IN_CACHE;	    /**< Default chunk cache number of elements. */
+    nc_globalstate->chunkcache.preemption = DEFAULT_CHUNK_CACHE_PREEMPTION; /**< Default chunk cache preemption. */
     
 done:
     return stat;
