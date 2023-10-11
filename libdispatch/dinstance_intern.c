@@ -606,7 +606,7 @@ NC_copy_data_all(NC* nc, nc_type xtype, const void* memory, size_t count, void**
             (void)NC_reclaim_data_all(nc,xtype,copy,count);
 	    copy = NULL;
 	}
-lock:
+unlock:
 	NCUNLOCK;
     }
 #endif
