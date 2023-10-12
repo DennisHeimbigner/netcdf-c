@@ -6,11 +6,6 @@
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
 
-AM_CFLAGS += -I..
-AM_CPPFLAGS += -I${top_srcdir}/libnczarr
-AM_CPPFLAGS += -I${top_srcdir}/plugins
-LDADD = ${top_builddir}/liblib/libnetcdf.la
-
 TESTS_ENVIRONMENT =
 TEST_EXTENSIONS = .sh
 #SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
@@ -19,10 +14,14 @@ TEST_EXTENSIONS = .sh
 #TESTS_ENVIRONMENT += export SETX=1;
 #TESTS_ENVIRONMENT += export NCTRACING=1;
 
-AM_CPPFLAGS += -I${top_srcdir} -I${top_srcdir}/libnczarr
-AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
+AM_CFLAGS += -I..
+AM_CPPFLAGS += -I${top_srcdir}
+AM_CPPFLAGS += -I${top_srcdir}/libnczarr
+AM_CPPFLAGS += -I${top_srcdir}/plugins
 LDADD = ${top_builddir}/liblib/libnetcdf.la
+AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
 AM_CXXFLAGS = 
+
 # Set up the tests; do the .sh first, then .c
 check_PROGRAMS =
 TESTS =

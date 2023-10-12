@@ -61,10 +61,8 @@ extern "C" {
 #endif
 
 /* WARNING: in some systems, these functions may be defined as macros, so check */
-#ifndef HAVE_STRDUP
 #ifndef strdup
 char* strdup(const char*);
-#endif
 #endif
 
 #ifndef HAVE_STRLCAT
