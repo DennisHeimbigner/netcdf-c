@@ -125,6 +125,7 @@ sed -i.bak -e '/_global attributes:/d' $1
 # Function to rewrite selected key values in a zmapio output.
 # because these values might be platform dependent
 zmapclean() {
+sed -i.bak -e 's|^\([^(]*\)([0-9][0-9]*)|\1()|' $1
 sed -i.bak -e 's/"_NCProperties":[ ]*"version=\([0-9]\),[^"]*"/"_NCProperties": "version=\1,netcdf=0.0.0,nczarr=0.0.0"/g' $1
 sed -i.bak -e 's/"_nczarr_superblock":[ ]*{[^}]*}/"_nczarr_superblock": {"version": "0.0.0", "format": 2}/g' $1
 sed -i.bak -e 's/"_nczarr_superblock":[ ]*{[^}]*}/"_nczarr_superblock": {"version": "0.0.0", "format": 2}/g' $1

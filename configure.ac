@@ -215,15 +215,20 @@ AC_ARG_ENABLE([nczarr],
 test "x$enable_nczarr" = xno || enable_nczarr=yes
 AC_MSG_RESULT($enable_nczarr)
 
-# Decide default Zarr Format for creation
-AC_MSG_CHECKING([which Zarr format is the default])
-AC_ARG_WITH([default-zarr-format],
-              [AS_HELP_STRING([--with-default-zarr-format=2|3],
-                              [Specify the default Zarr format.])],
-            [DFALTZARRFORMAT=$with_default_zarr_format], [DFALTZARRFORMAT=2])
-AC_MSG_RESULT([${DFALTZARRFORMAT}])
-AC_SUBST([DFALTZARRFORMAT],[${DFALTZARRFORMAT}])
-AC_DEFINE_UNQUOTED([DFALTZARRFORMAT], [$DFALTZARRFORMAT], [the default Zarr format.])
+# Choose the default Zarr format
+AC_MSG_CHECKING([whether Zarr format 3 is the default])
+AC_ARG_ENABLE([default-zarr-format_v3],
+              [AS_HELP_STRING([--enable-default-zarr-format_v3],
+                              [Specify the default Zarr format.])])
+test "x$enable_default_zarr_format_v3" = xyes | enable_default_zarr_format_v3=no # V2 is the default by default
+AC_MSG_RESULT([$enable_default_zarr_format_v3}])
+if test "x$enable_default_zarr_format_v3" = xyes; then
+   DFALTZARRFORMAT=3
+else
+DFALTZARRFORMAT=2
+fi
+AC_DEFINE_UNQUOTED([DFALTZARRFORMAT], [$DFALTZARRFORMAT], [Default Zarr format])
+AC_SUBST([DFALTZARRFORMAT],[$DFALTZARRFORMAT])
 
 # HDF5 | HDF4 | NCZarr => netcdf-4
 if test "x$enable_hdf5" = xyes || test "x$enable_hdf4" = xyes || test "x$enable_nczarr" = xyes ; then
@@ -726,13 +731,6 @@ if test "x$enable_nczarr" = xyes; then
    AC_SUBST(ENABLE_NCZARR)
 fi
 AM_CONDITIONAL(ENABLE_NCZARR, [test x$enable_nczarr = xyes])
-
-if test "x$enable_nczarr" = xyes; then
-   enable_nczarr_v3=yes
-   # V3 is enabled if NCzarr is enabled
-   AC_DEFINE([ENABLE_NCZARR_V3], [1], [if true, build NCZarr V3 client])
-fi
-AM_CONDITIONAL(ENABLE_NCZARR_S3, [test x$enable_nczarr_V3 = xyes])
 
 ##########
 # Look for Standardized libraries

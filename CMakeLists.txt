@@ -492,6 +492,21 @@ OPTION(ENABLE_PNETCDF "Build with parallel I/O for CDF-1, 2, and 5 files using P
 SET(ENABLE_CDF5 AUTO CACHE STRING "AUTO")
 OPTION(ENABLE_CDF5 "Enable CDF5 support" ON)
 
+# Decide default Zarr Format for creation
+OPTION(ENABLE_DEFAULT_ZARR_FORMAT_V3 "Specify the default Zarr format is V3" OFF)
+IF(ENABLE_DEFAULT_ZARR_FORMAT_V3)
+SET(DFALTZARRFORMAT 3 CACHE STRING "")
+ELSE()
+SET(DFALTZARRFORMAT 2 CACHE STRING "")
+ENDIF()
+
+IF(ENABLE_NCZARR)
+  SET(ENABLE_NCZARR_V3 ON CACHE BOOL "Enable Zarr V3" FORCE)
+  # V3 is enabled if NCzarr is enabled
+ELSE()
+  SET(ENABLE_NCZARR_V3 OFF CACHE BOOL "Enable Zarr V3" FORCE)
+ENDIF()
+
 # Netcdf-4 support (i.e. libsrc4) is required by more than just HDF5 (e.g. NCZarr)
 # So depending on what above formats are enabled, enable netcdf-4
 if(ENABLE_HDF5 OR ENABLE_HDF4 OR ENABLE_NCZARR)
@@ -499,16 +514,8 @@ if(ENABLE_HDF5 OR ENABLE_HDF4 OR ENABLE_NCZARR)
   SET(ENABLE_NETCDF4 ON CACHE BOOL "Enable netCDF4 Alias" FORCE)
 endif()
 
-IF(ENABLE_NCZARR)
-  SET(ENABLE_NCZARR_V3 ON CACHE BOOL "Enable Zarr V3" FORCE)
-  # V3 is enabled if NCzarr is enabled
-ELSE()
-  SET(ENABLE_NCZARR_V3 OFF CACHE BOOL "Enable Zarr V3" FORCE)
-fi
-
 # enable|disable all forms of network access
 OPTION(ENABLE_REMOTE_FUNCTIONALITY "Enable|disable all forms remote data access (DAP, S3, etc)" ON)
-MESSAGE(">>> ENABLE_REMOTE_FUNCTIONALITY=${ENABLE_REMOTE_FUNCTIONALITY}")
 if(NOT ENABLE_REMOTE_FUNCTIONALITY)
 MESSAGE(WARNING "ENABLE_REMOTE_FUNCTIONALITY=NO => ENABLE_DAP[4]=NO")
 SET(ENABLE_DAP OFF CACHE BOOL "ENABLE_REMOTE_FUNCTIONALITY=NO => ENABLE_DAP=NO" FORCE)
