@@ -184,15 +184,15 @@ write_grp(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
         jsubgrps = NULL; /* avoid memory problems */
     }
 
-    /* build ZGROUP contents */
+    /* build Z3GROUP contents */
     if((stat = NCJnew(NCJ_DICT,&jgroup)))
 	goto done;
     snprintf(version,sizeof(version),"%d",zfile->zarr.zarr_format);
     if((stat = NCJaddstring(jgroup,NCJ_STRING,"zarr_format"))) goto done;
     if((stat = NCJaddstring(jgroup,NCJ_INT,version))) goto done;
     if(!purezarr && grp->parent == NULL) { /* Root group */
-	/* This is for back compatibility */
-        snprintf(version,sizeof(version),"%u.0.0",(unsigned) zfile->zarr.nczarr_format);
+	/* Track the library version that wrote this */
+	strncpy(version,NCZARR_PACKAGE_VERSION,sizeof(version));
 	if((stat = NCJnew(NCJ_DICT,&jsuper))) goto done;
 	if((stat=NCJnewstring(NCJ_STRING,version,&jtmp))) goto done;
 	if((stat = NCJinsert(jsuper,"version",jtmp))) goto done;
@@ -201,13 +201,13 @@ write_grp(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
 	if((stat=NCJnewstring(NCJ_INT,version,&jtmp))) goto done;
 	if((stat = NCJinsert(jsuper,"format",jtmp))) goto done;
 	jtmp = NULL;
-	if((stat = NCJinsert(jgroup,NCZ_V2_SUPERBLOCK,jsuper))) goto done;
+	if((stat = NCJinsert(jgroup,NCZ_V3_SUPERBLOCK,jsuper))) goto done;
 	jsuper = NULL;
     }
 
     if(!purezarr) {
-        /* Insert the "_NCZARR_GROUP" dict */
-        if((stat = NCJinsert(jgroup,NCZ_V2_GROUP,json))) goto done;
+        /* Insert the "_nczarr_group" dict */
+        if((stat = NCJinsert(jgroup,NCZ_V3_GROUP,json))) goto done;
         json = NULL;
     }
 
@@ -391,7 +391,7 @@ write_var_meta(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_VAR
 
     /* Compressor and Filters */
     /* compressor key */
-    /* From V2 Spec: A JSON object identifying the primary compression codec and providing
+    /* From V3 Spec: A JSON object identifying the primary compression codec and providing
        configuration parameters, or ``null`` if no compressor is to be used. */
     if((stat = NCJaddstring(jvar,NCJ_STRING,"compressor"))) goto done;
 #ifdef ENABLE_NCZARR_FILTERS
@@ -410,7 +410,7 @@ write_var_meta(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_VAR
     jtmp = NULL;
 
     /* filters key */
-    /* From V2 Spec: A list of JSON objects providing codec configurations,
+    /* From V3 Spec: A list of JSON objects providing codec configurations,
        or null if no filters are to be applied. Each codec configuration
        object MUST contain a "id" key identifying the codec to be used. */
     /* A list of JSON objects providing codec configurations, or ``null``
@@ -457,7 +457,7 @@ write_var_meta(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_VAR
 	}
     }
 
-    /* Build the NCZ_V2_ARRAY dict entry */
+    /* Build the NCZ_V3_ARRAY dict entry */
     {
 	/* Create the dimrefs json object */
 	if((stat = NCJnew(NCJ_ARRAY,&jdimrefs)))
@@ -487,7 +487,7 @@ write_var_meta(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_VAR
 	jtmp = NULL;
 
 	if(!purezarr) {
-	    if((stat = NCJinsert(jvar,NCZ_V2_ARRAY,jncvar))) goto done;
+	    if((stat = NCJinsert(jvar,NCZ_V3_ARRAY,jncvar))) goto done;
 	    jncvar = NULL;
 	}
     }
@@ -704,14 +704,14 @@ write_atts(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_OBJ* co
 
     if(NCJlength(jatts) > 0) {
         if(!purezarr) {
-	    /* Insert the NCZ_V2_ATTR attribute */
+	    /* Insert the NCZ_V3_ATTR attribute */
             if((stat = NCJnew(NCJ_DICT,&jdict)))
                 goto done;
 	    if(jtypes != NULL)
                 {if((stat = NCJinsert(jdict,"types",jtypes))) goto done;}
             jtypes = NULL;
 	    if(jdict != NULL)
-                {if((stat = NCJinsert(jatts,NCZ_V2_ATTR,jdict))) goto done;}
+                {if((stat = NCJinsert(jatts,NCZ_V3_ATTR,jdict))) goto done;}
             jdict = NULL;
 	}
         /* write .zattrs path */
@@ -740,6 +740,8 @@ done:
 }
 
 /**************************************************/
+
+/**************************************************/
 /* Map->Internal */
 
 
@@ -758,7 +760,7 @@ ZF3_readmeta(NC_FILE_INFO_T* file)
 {
     int stat = NC_NOERR;
     int purezarr = 0;
-    int  nczarr_format = 0;
+    int nczarr_format = 0;
     NCZ_FILE_INFO_T* zfile = NULL;
     NCZMAP* map = NULL;
 
@@ -774,6 +776,8 @@ ZF3_readmeta(NC_FILE_INFO_T* file)
     case NC_NOERR: break;
     case NC_EEMPTY:
         if(!purezarr) {stat = NC_ENOTZARR; goto done;}
+	stat = NC_NOERR;
+	break;
     default: goto done;
     }
 
@@ -956,18 +960,29 @@ read_superblock(NC_FILE_INFO_T* file, int* nczarrvp)
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     NCjson* jblock = NULL;
     NCjson* jtmp = NULL;
+    NCjson* jtmp2 = NULL;
 
     ZTRACE(3,"file=%s",file->controller->path);
 
-    /* Get the zarr root group */
-    switch(stat = NCZ_downloadjson(zfile->map, Z3METAROOT, &jblock)) {
+    /* Get the Zarr root group */
+    switch(stat = NCZ_downloadjson(zfile->map, Z2METAROOT, &jblock)) {
     case NC_EEMPTY: /* not there */
-	nczarr_format = NCZARRFORMAT0; /* apparently pure zarr */
+        nczarr_format = NCZARRFORMAT0; /* apparently pure zarr */	    
+	stat = NC_NOERR; /* reset */
 	goto done;
     case NC_NOERR:
-	if((stat = NCJdictget(jblock,"nczarr_format",&jtmp))) goto done;
-	if(jtmp == NULL) {stat = NC_ENCZARR; goto done;}
-	sscanf(NCJstring(jtmp),"%d",&nczarr_format);
+	/* See if _nczarr_superblock key exists */
+	if((stat = NCJdictget(jblock,NCZ_V3_SUPERBLOCK,&jtmp))) goto done;
+	if(jtmp != NULL) {
+	    /* in any case this is nczarr format 2 */
+	    nczarr_format = 2;
+	    /* See if superblock has version and (optionally) format */
+	    if((stat = NCJdictget(jtmp,"version",&jtmp2))) goto done;
+	    if(jtmp2 == NULL) {stat = NC_ENCZARR; goto done;} /* Malformed */
+    	    if((stat = NCJdictget(jtmp,"format",&jtmp2))) goto done;
+	    if(jtmp2 != NULL)
+	        sscanf(NCJstring(jtmp2),"%d",&nczarr_format);
+	}
 	break;
     default: goto done;
     }
@@ -1012,8 +1027,8 @@ read_grp(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO_
 	if((stat = NCZ_parse_group_content_pure(zfile,grp,varnames,subgrps)))
 	    goto done;
     } else { /*!purezarr*/
-        /* build NCZGROUP path */
-	if((stat = nczm_concat(fullpath,NCZGROUP,&key))) goto done;
+        /* build Z2METAROOT path */
+	if((stat = nczm_concat(fullpath,Z2METAROOT,&key))) goto done;
         /* Read */
 	jdict = NULL;
 	stat=NCZ_downloadjson(map,key,&jdict);
@@ -1064,13 +1079,20 @@ read_dims(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
     for(i = 0; i < nclistlength(diminfo); i+=3) {
 	NC_DIM_INFO_T* dim = NULL;
 	size64_t len = 0;
+	long long isunlim = 0;
 	const char* name = nclistget(diminfo,i);
 	const char* slen = nclistget(diminfo,i+1);
+	const char* sisunlimited = nclistget(diminfo,i+2);
 
 	/* Create the NC_DIM_INFO_T object */
 	sscanf(slen,"%lld",&len); /* Get length */
+	if(sisunlimited != NULL)
+	    sscanf(sisunlimited,"%lld",&isunlim); /* Get unlimited flag */
+	else
+	    isunlim = 0;
 	if((stat = nc4_dim_list_add(grp, name, (size_t)len, -1, &dim)))
 	    goto done;
+	dim->unlimited = (isunlim ? 1 : 0);
 	if((dim->format_dim_info = calloc(1,sizeof(NCZ_DIM_INFO_T))) == NULL)
 	    {stat = NC_ENOMEM; goto done;}
 	((NCZ_DIM_INFO_T*)dim->format_dim_info)->common.file = file;
@@ -1096,36 +1118,40 @@ read_vars(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
 {
     int stat = NC_NOERR;
     int i,j;
-    char* varpath = NULL;
-    char* key = NULL;
-    NC_VAR_INFO_T* var = NULL;
-    NCZ_VAR_INFO_T* zvar = NULL;
-    NCjson* jvar = NULL;
-    NCjson* jncvar = NULL;
-    NCjson* jdimrefs = NULL;
-    NCjson* jvalue = NULL;
     int purezarr = 0;
-    nc_type vtype;
-    int vtypelen;
-    size64_t* shapes = NULL;
-    int rank = 0;
-    int zarr_rank = 1; /* Need to watch out for scalars */
-    NClist* dimnames = nclistnew();
-#ifdef ENABLE_NCZARR_FILTERS
-    NCjson* jfilter = NULL;
-    int chainindex;
-#endif
 
     ZTRACE(3,"file=%s grp=%s |varnames|=%u",file->controller->path,grp->hdr.name,nclistlength(varnames));
-
-    zfile = file->format_file_info;
-    map = zfile->map;
 
     if(zfile->controls.flags & FLAG_PUREZARR) purezarr = 1;
 
     /* Load each var in turn */
     for(i = 0; i < nclistlength(varnames); i++) {
-	const char* varname = nclistget(varnames,i);
+	/* per-variable info */
+        NC_VAR_INFO_T* var = NULL;
+        NCZ_VAR_INFO_T* zvar = NULL;
+        NCjson* jvar = NULL;
+        NCjson* jncvar = NULL;
+        NCjson* jdimrefs = NULL;
+        NCjson* jvalue = NULL;
+        char* varpath = NULL;
+        char* key = NULL;
+	const char* varname = NULL;
+        size64_t* shapes = NULL;
+        NClist* dimnames = NULL;
+        int varsized = 0;
+        int suppress = 0; /* Abort processing of this variable */
+        nc_type vtype = NC_NAT;
+        int vtypelen = 0;
+        int rank = 0;
+        int zarr_rank = 0; /* Need to watch out for scalars */
+#ifdef ENABLE_NCZARR_FILTERS
+        NCjson* jfilter = NULL;
+        int chainindex = 0;
+#endif
+
+	varname = nclistget(varnames,i);
+        dimnames = nclistnew();
+
 	if((stat = nc4_var_list_add2(grp, varname, &var)))
 	    goto done;
 
@@ -1164,6 +1190,7 @@ read_vars(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
 	    if(version != zfile->zarr.zarr_format)
 		{stat = (THROW(NC_ENCZARR)); goto done;}
 	}
+
 	/* Set the type and endianness of the variable */
 	{
 	    int endianness;
@@ -1186,15 +1213,12 @@ read_vars(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
 	}
 
 	if(!purezarr) {
-  	    /* Extract the NCZARRAY values */
+  	    /* Extract the _NCZARR_ARRAY values */
 	    /* Do this first so we know about storage esp. scalar */
-	    /* Construct the path to the zarray object */
-	    if((stat = nczm_concat(varpath,NCZARRAY,&key)))
-		goto done;
-	    /* Download the nczarray object */
-	    if((stat=NCZ_readdict(map,key,&jncvar)))
-		goto done;
-	    nullfree(key); key = NULL;
+	    /* Extract the NCZ_V3_ARRAY dict */
+	    if((stat = NCJdictget(jvar,NCZ_V3_ARRAY,&jncvar))) goto done;
+	    if(!stat && jncvar == NULL)
+	        {if((stat = NCJdictget(jvar,NCZ_V3_ARRAY_UC,&jncvar))) goto done;}
 	    if(jncvar == NULL) {stat = NC_ENCZARR; goto done;}
    	    assert((NCJsort(jncvar) == NCJ_DICT));
 	    /* Extract scalar flag */
@@ -1234,23 +1258,6 @@ read_vars(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
 	    jdimrefs = NULL;
 	}
 
-	/* shape */
-	{
-	    if((stat = NCJdictget(jvar,"shape",&jvalue))) goto done;
-	    if(NCJsort(jvalue) != NCJ_ARRAY) {stat = (THROW(NC_ENCZARR)); goto done;}
-            if(zvar->scalar) {
-	        rank = 0;
-		zarr_rank = 1; /* Zarr does not support scalars */
-	    } else 
-		rank = (zarr_rank = NCJlength(jvalue));
-	    /* Save the rank of the variable */
-	    if((stat = nc4_var_set_ndims(var, rank))) goto done;
-	    /* extract the shapes */
-	    if((shapes = (size64_t*)malloc(sizeof(size64_t)*zarr_rank)) == NULL)
-	        {stat = (THROW(NC_ENOMEM)); goto done;}
-	    if((stat = NCZ_decodeints(jvalue, shapes))) goto done;
-	}
-
 	/* Capture dimension_separator (must precede chunk cache creation) */
 	{
 	    NCglobalstate* ngs = NC_getglobalstate();
@@ -1286,6 +1293,36 @@ read_vars(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
 	    }
 	}
 
+	/* shape */
+	{
+	    if((stat = NCJdictget(jvar,"shape",&jvalue))) goto done;
+	    if(NCJsort(jvalue) != NCJ_ARRAY) {stat = (THROW(NC_ENCZARR)); goto done;}
+	    
+	    /* Process the rank */
+	    zarr_rank = NCJlength(jvalue);
+	    if(zarr_rank == 0) {
+		/* suppress variable */
+		ZLOG(NCLOGWARN,"Empty shape for variable %s suppressed",var->hdr.name);
+		suppress = 1;
+		goto suppressvar;
+	    }
+
+	    if(zvar->scalar) {
+	        rank = 0;
+		zarr_rank = 1; /* Zarr does not support scalars */
+	    } else 
+		rank = (zarr_rank = NCJlength(jvalue));
+
+	    if(zarr_rank > 0) {
+  	        /* Save the rank of the variable */
+	        if((stat = nc4_var_set_ndims(var, rank))) goto done;
+	        /* extract the shapes */
+	        if((shapes = (size64_t*)malloc(sizeof(size64_t)*zarr_rank)) == NULL)
+	            {stat = (THROW(NC_ENOMEM)); goto done;}
+	        if((stat = NCZ_decodeints(jvalue, shapes))) goto done;
+	    }
+	}
+
 	/* chunks */
 	{
 	    size64_t chunks[NC_MAX_VAR_DIMS];
@@ -1293,8 +1330,7 @@ read_vars(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
 	    if(jvalue != NULL && NCJsort(jvalue) != NCJ_ARRAY)
 		{stat = (THROW(NC_ENCZARR)); goto done;}
 	    /* Verify the rank */
-	    assert (zarr_rank == NCJlength(jvalue));
-	    if(zvar->scalar) {
+	    if(zvar->scalar || zarr_rank == 0) {
 		if(var->ndims != 0)
 		    {stat = (THROW(NC_ENCZARR)); goto done;}
 		zvar->chunkproduct = 1;
@@ -1371,37 +1407,46 @@ read_vars(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
 		if((stat = NCZ_filter_build(file,var,jfilter,chainindex++))) goto done;
 	    }
 	}
+	/* Suppress variable if there are filters and var is not fixed-size */
+	if(varsized && nclistlength((NClist*)var->filters) > 0)
+	    suppress = 1;
 #endif
-	if((stat = NCZ_computedimrefs(file, zfile, map, var, rank, dimnames, shapes, var->dim)))
-	    goto done;
-
-	if(!zvar->scalar) {
-	    /* Extract the dimids */
-	    for(j=0;j<rank;j++)
-	        var->dimids[j] = var->dim[j]->hdr.id;
+	if(zarr_rank > 0) {
+    	    if((stat = NCZ_computedimrefs(file, zfile, map, var, rank, dimnames, shapes, var->dim)))
+	        goto done;
+   	    if(!zvar->scalar) {
+	        /* Extract the dimids */
+	        for(j=0;j<rank;j++)
+	            var->dimids[j] = var->dim[j]->hdr.id;
+	    }
 	}
 
 #ifdef ENABLE_NCZARR_FILTERS
-        /* At this point, we can finalize the filters */
-        if((stat = NCZ_filter_setup(var))) goto done;
+	if(!suppress) {
+    	    /* At this point, we can finalize the filters */
+            if((stat = NCZ_filter_setup(var))) goto done;
+	}
 #endif
 
+suppressvar:
+        if(suppress) {
+	    /* Reclaim NCZarr variable specific info */
+	    (void)NCZ_zclose_var1(var);
+	    /* Remove from list of variables and reclaim the top level var object */
+	    (void)nc4_var_list_del(grp, var);
+	    var = NULL;
+	}
+
 	/* Clean up from last cycle */
-	nclistfreeall(dimnames); dimnames = nclistnew();
+	nclistfreeall(dimnames); dimnames = NULL;
         nullfree(varpath); varpath = NULL;
         nullfree(shapes); shapes = NULL;
-        NCJreclaim(jncvar); jncvar = NULL;
+        nullfree(key); key = NULL;
         NCJreclaim(jvar); jvar = NULL;
         var = NULL;
     }
 
 done:
-    nullfree(shapes);
-    nullfree(varpath);
-    nullfree(key);
-    nclistfreeall(dimnames);
-    NCJreclaim(jvar);
-    NCJreclaim(jncvar);
     return ZUNTRACE(THROW(stat));
 }
 
@@ -1500,9 +1545,9 @@ NCZ_load_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattrsp, NClist** atypes
 
     if(jattrs != NULL) {
 	/* Get _nczarr_attrs from .zattrs */
-        stat = NCJdictget(jattrs,NCZ_V2_ATTR,&jncattr);
+        stat = NCJdictget(jattrs,NCZ_V3_ATTR,&jncattr);
 	if(!stat && jncattr == NULL)
-	    {stat = NCJdictget(jattrs,NCZ_V2_ATTR_UC,&jncattr);}
+	    {stat = NCJdictget(jattrs,NCZ_V3_ATTR_UC,&jncattr);}
 	nullfree(key); key = NULL;
 	switch (stat) {
 	case NC_NOERR: break;
@@ -1592,10 +1637,17 @@ NCZ_parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NCl
 {
     int i,stat = NC_NOERR;
     NCjson* jvalue = NULL;
+    NCjson* jgrp = NULL;
+
 
     ZTRACE(3,"jcontent=|%s| |dimdefs|=%u |varnames|=%u |subgrps|=%u",NCJtotext(jcontent),(unsigned)nclistlength(dimdefs),(unsigned)nclistlength(varnames),(unsigned)nclistlength(subgrps));
 
-    if((stat=NCJdictget(jcontent,"dims",&jvalue))) goto done;
+    /* Get the _nczarr_group key */
+    if((stat=NCJdictget(jcontent,NCZ_V3_GROUP,&jgrp))) goto done;
+    if(jgrp == NULL) {stat = NC_ENCZARR; goto done;}
+    
+    /* Now get nczarr specific keys */
+    if((stat=NCJdictget(jgrp,"dims",&jvalue))) goto done;
     if(jvalue != NULL) {
 	if(NCJsort(jvalue) != NCJ_DICT) {stat = (THROW(NC_ENCZARR)); goto done;}
 	/* Extract the dimensions defined in this group */
@@ -1628,7 +1680,7 @@ NCZ_parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NCl
 	}
     }
 
-    if((stat=NCJdictget(jcontent,"vars",&jvalue))) goto done;
+    if((stat=NCJdictget(jgrp,"vars",&jvalue))) goto done;
     if(jvalue != NULL) {
 	/* Extract the variable names in this group */
 	for(i=0;i<NCJlength(jvalue);i++) {
@@ -1641,7 +1693,7 @@ NCZ_parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NCl
 	}
     }
 
-    if((stat=NCJdictget(jcontent,"groups",&jvalue))) goto done;
+    if((stat=NCJdictget(jgrp,"groups",&jvalue))) goto done;
     if(jvalue != NULL) {
 	/* Extract the subgroup names in this group */
 	for(i=0;i<NCJlength(jvalue);i++) {
@@ -2278,9 +2330,9 @@ done:
 /**************************************************/
 /* Format Dispatch table */
 
-static const NCZ_Formatter NCZ_formatter3_table = {
+static const NCZ_Formatter NCZ_formatter2_table = {
     NCZARRFORMAT1,
-    ZARRFORMAT3,
+    ZARRFORMAT2,
     NCZ_FORMATTER_VERSION,
 
     ZF3_create,
@@ -2291,7 +2343,7 @@ static const NCZ_Formatter NCZ_formatter3_table = {
     ZF3_close
 };
 
-const NCZ_Formatter* NCZ_formatter3 = &NCZ_formatter3_table;
+const NCZ_Formatter* NCZ_formatter2 = &NCZ_formatter2_table;
 
 int
 NCZF3_initialize(void)

@@ -72,7 +72,8 @@
 
 /* V3 Reserved Objects */
 #define Z3METAROOT "/zarr.json"
-#define Z2TAG "zarr.info"
+#define Z2GROUP "zarr.json"
+#define Z2ARRAY "zarr.json"
 
 /* Pure Zarr pseudo names */
 #define ZDIMANON "_zdim"
