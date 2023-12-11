@@ -20,6 +20,8 @@ TESTCASES="${TESTCASES} OR_ABI;;;http://s3.amazonaws.com/noaa-goes16/ABI-L1b-Rad
 TESTCASES="${TESTCASES} cesmLE;blosc;;http://s3.us-west-2.amazonaws.com/ncar-cesm-lens/atm/daily/cesmLE-20C-FLNS.zarr#mode=zarr,s3"
 # Test TEST_REGION defaulting and s3 inferencing
 TESTCASES="${TESTCASES} wtk;;us-west-2;https://nrel-pds-wtk.s3.amazonaws.com/wtk-techno-economic/pywtk-data/met_data/0/0.nc#mode=bytes"
+# Test external appliance
+TESTCASES="${TESTCASES} app;;;https://s3.datalake.cnes.fr/campus-rt-netcdfstreaming/SWOT_L2_HR_PIXC_509_011_242R_20230503T014506_20230503T014517_PIA1_01.nczarr#mode=zarr,s3"
 fi
 
 testcase() {
