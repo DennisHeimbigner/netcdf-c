@@ -1175,6 +1175,12 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
     if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_FAILONERROR, 1L))
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_FAILONERROR).");
 
+    if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_NOPROGRESS, 1L))
+        HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_NOPROGRESS).");
+
+    if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_FOLLOWLOCATION, 1L))
+        HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_FOLLOWLOCATION).");
+
     handle->curlhandle = curlh;
 
     /*********************
@@ -2626,6 +2632,9 @@ perform_request(s3r_t* handle, long* httpcodep)
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "problem setting error buffer");
 
     p_status = curl_easy_perform(curlh);
+
+    long count = -1;
+    curl_easy_getinfo(curlh, CURLINFO_REDIRECT_COUNT, &count);
 
     /* Get response code */
     if (CURLE_OK != curl_easy_getinfo(curlh, CURLINFO_RESPONSE_CODE, &httpcode))

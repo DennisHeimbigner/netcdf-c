@@ -10,6 +10,7 @@ AM_CFLAGS += -I..
 AM_CPPFLAGS += -I${top_srcdir}/libnczarr
 AM_CPPFLAGS += -I${top_srcdir}/plugins
 LDADD = ${top_builddir}/liblib/libnetcdf.la
+AM_CXXFLAGS = 
 
 TESTS_ENVIRONMENT =
 TEST_EXTENSIONS = .sh
@@ -19,10 +20,6 @@ TEST_EXTENSIONS = .sh
 #TESTS_ENVIRONMENT += export SETX=1;
 #TESTS_ENVIRONMENT += export NCTRACING=1;
 
-AM_CPPFLAGS += -I${top_srcdir} -I${top_srcdir}/libnczarr
-AM_LDFLAGS += ${top_builddir}/liblib/libnetcdf.la
-LDADD = ${top_builddir}/liblib/libnetcdf.la
-AM_CXXFLAGS = 
 # Set up the tests; do the .sh first, then .c
 check_PROGRAMS =
 TESTS =
@@ -344,8 +341,15 @@ clean-local:
 	rm -fr tmp_*.nc tmp_*.zarr tst_quantize*.zarr tmp*.file results.file results.s3 results.zip
 	rm -fr rcmiscdir ref_power_901_constants.file 
 
-if ENABLE_S3_TESTALL
 check-local:
+	rm -fr ${execdir}/v3tests.sh
+	echo "#!/bin/sh" > ${EXECDIR}.v3tests.sh
+	echo "am_check_pre" >> ${execdir}/v3tests.sh
+	echo "T=\"$TESTS\"" >> ${execdir}/v3tests.sh
+	cat ${srcdir}/v3tests.in >> ${execdir}/v3tests.sh
+	chmod a+x ${execdir}/v3tests.sh
+	source ${execdir}/v3tests.sh
+if ENABLE_S3_TESTALL
 	bash ${abs_top_builddir}/s3cleanup.sh
 endif
 
