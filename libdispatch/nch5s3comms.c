@@ -2902,7 +2902,7 @@ trace(CURL* curl, int onoff)
 {
     int stat = NC_NOERR;
     CURLcode cstat = CURLE_OK;
-    if(getenv("S3TRACE") == NULL) goto done;
+    if(getenv("S3TRACE") == NULL && getenv("CURLOPT_VERBOSE") == NULL) goto done;
     cstat = curl_easy_setopt(curl, CURLOPT_VERBOSE, onoff?1L:0L);
     if(cstat != CURLE_OK) {stat = NC_ECURL; goto done;}
     cstat = curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, my_trace);

@@ -190,22 +190,21 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
 	/* bucket is unknown at this point */
 	svc = NCS3GS;
     } else { /* Presume Format (8) */
-        if((host = strdup(url->host))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
         /* region is unknown */
 	/* bucket is unknown */
+	svc = NCS3APP;
     }
 
     /* region = (1) from url, (2) s3->region, (3) default */
     if(region == NULL && s3 != NULL)
 	region = nulldup(s3->region);
-    if(region == NULL) {
+    if(region == NULL && svc != NCS3APP) {
         const char* region0 = NULL;
 	/* Get default region */
 	if((stat = NC_getdefaults3region(url,&region0))) goto done;
 	region = nulldup(region0);
     }
-    if(region == NULL) {stat = NC_ES3; goto done;}
+    if(region == NULL && svc != NCS3APP) {stat = NC_ES3; goto done;}
 
     /* bucket = (1) from url, (2) s3->bucket */
     if(bucket == NULL && nclistlength(pathsegments) > 0) {
@@ -228,6 +227,8 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
     } else if(svc == NCS3GS) {
 	nullfree(host);
 	host = strdup(GOOGLEHOST);
+    } else if(svc == NCS3APP) {
+        if((host = strdup(url->host))==NULL) {stat = NC_ENOMEM; goto done;}
     }
 
     ncbytesclear(buf);
