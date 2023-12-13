@@ -33,9 +33,9 @@ URL=`echo "$1" | cut -d';' -f4`
 echo "*** Test: $NM = $URL"
 rm -f "tmp_external_$NM.cdl"
 if test "x$FILT" = x || avail $FILT; then
-    if test "x$REG" != x ; then export TEST_REGION="$REG"; fi
+    if test "x$REG" != x ; then export AWS_REGION="$REG"; fi
     ${NCDUMP} -h -s -n $NM $URL > "tmp_external_${NM}.cdl"
-    unset TEST_REGION
+    unset AWS_REGION
 fi
 }
 
