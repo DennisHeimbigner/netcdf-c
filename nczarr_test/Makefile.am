@@ -340,15 +340,6 @@ clean-local:
 	rm -fr testdir_* testset_*
 	rm -fr tmp_*.nc tmp_*.zarr tst_quantize*.zarr tmp*.file results.file results.s3 results.zip
 	rm -fr rcmiscdir ref_power_901_constants.file 
-
-check-local:
-	rm -fr ${execdir}/v3tests.sh
-	echo "#!/bin/sh" > ${EXECDIR}.v3tests.sh
-	echo "am_check_pre" >> ${execdir}/v3tests.sh
-	echo "T=\"$TESTS\"" >> ${execdir}/v3tests.sh
-	cat ${srcdir}/v3tests.in >> ${execdir}/v3tests.sh
-	chmod a+x ${execdir}/v3tests.sh
-	source ${execdir}/v3tests.sh
 if ENABLE_S3_TESTALL
 	bash ${abs_top_builddir}/s3cleanup.sh
 endif
