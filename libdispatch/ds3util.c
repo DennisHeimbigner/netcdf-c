@@ -119,6 +119,8 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
     if(url == NULL)
         {stat = NC_EURL; goto done;}
 
+    assert(NC_iss3(url,NULL));
+
     /* Parse the hostname */
     hostsegments = nclistnew();
     /* split the hostname by "." */
@@ -129,7 +131,7 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
     /* split the path by "/" */
     if((stat = NC_split_delim(url->path,'/',pathsegments))) goto done;
 
-    /* Distinguish path-style from virtual-host style from s3: and from other.
+    /* Distinguish path-style from virtual-host style from (g)s3: and from an appliance.
        Virtual: https://<bucket-name>.s3.<region>.amazonaws.com/<path>				(1)
             or: https://<bucket-name>.s3.amazonaws.com/<path> -- region defaults (to us-east-1)	(2)
        Path: https://s3.<region>.amazonaws.com/<bucket-name>/<path>				(3)
@@ -137,7 +139,7 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
        S3: s3://<bucket-name>/<path>								(5)
        Google: https://storage.googleapis.com/<bucket-name>/<path>				(6)
            or: gs3://<bucket-name>/<path>							(7)
-       Other: https://<host>/<bucket-name>/<path>						(8)
+       Appliance: https://<host>/<bucket-name>/<path>						(8)
     */
     if(url->host == NULL || strlen(url->host) == 0)
         {stat = NC_EURL; goto done;}
@@ -188,22 +190,21 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
 	/* bucket is unknown at this point */
 	svc = NCS3GS;
     } else { /* Presume Format (8) */
-        if((host = strdup(url->host))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
         /* region is unknown */
 	/* bucket is unknown */
+	svc = NCS3APP;
     }
 
     /* region = (1) from url, (2) s3->region, (3) default */
     if(region == NULL && s3 != NULL)
 	region = nulldup(s3->region);
-    if(region == NULL) {
+    if(region == NULL && svc != NCS3APP) {
         const char* region0 = NULL;
 	/* Get default region */
 	if((stat = NC_getdefaults3region(url,&region0))) goto done;
 	region = nulldup(region0);
     }
-    if(region == NULL) {stat = NC_ES3; goto done;}
+    if(region == NULL && svc != NCS3APP) {stat = NC_ES3; goto done;}
 
     /* bucket = (1) from url, (2) s3->bucket */
     if(bucket == NULL && nclistlength(pathsegments) > 0) {
@@ -226,6 +227,8 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
     } else if(svc == NCS3GS) {
 	nullfree(host);
 	host = strdup(GOOGLEHOST);
+    } else if(svc == NCS3APP) {
+        if((host = strdup(url->host))==NULL) {stat = NC_ENOMEM; goto done;}
     }
 
     ncbytesclear(buf);
@@ -304,6 +307,9 @@ NC_s3urlprocess(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
 
     if(url == NULL || s3 == NULL)
         {stat = NC_EURL; goto done;}
+
+    assert(NC_iss3(url,NULL));
+
     /* Get current profile */
     if((stat = NC_getactives3profile(url,&profile0))) goto done;
     if(profile0 == NULL) profile0 = "no";
@@ -366,21 +372,24 @@ Check if a url has indicators that signal an S3 or Google S3 url.
 int
 NC_iss3(NCURI* uri, enum NCS3SVC* svcp)
 {
-    int iss3 = 0;
     NCS3SVC svc = NCS3UNK;
+    int iss3 = 0;
+    int s3proto = 0; /* s3|gs3://host... */
+    int s3mode = 0;  /* proto://host/...#mode=s3|gs3 */
 
     if(uri == NULL) goto done; /* not a uri */
     /* is the protocol "s3" or "gs3" ? */
-    if(strcasecmp(uri->protocol,"s3")==0) {iss3 = 1; svc = NCS3; goto done;}
-    if(strcasecmp(uri->protocol,"gs3")==0) {iss3 = 1; svc = NCS3GS; goto done;}
-    /* Is "s3" or "gs3" in the mode list? */
-    if(NC_testmode(uri,"s3")) {iss3 = 1; svc = NCS3; goto done;}
-    if(NC_testmode(uri,"gs3")) {iss3 = 1; svc = NCS3GS; goto done;}    
-    /* Last chance; see if host looks s3'y */
-    if(uri->host != NULL) {
-        if(endswith(uri->host,AWSHOST)) {iss3 = 1; svc = NCS3; goto done;}
-        if(strcasecmp(uri->host,GOOGLEHOST)==0) {iss3 = 1; svc = NCS3GS; goto done;}
+    if(strcasecmp(uri->protocol,"s3")==0) {s3proto = 1; svc = NCS3;}
+    else if(strcasecmp(uri->protocol,"gs3")==0) {s3proto = 1; svc = NCS3GS;}
+    /* Look for "s3" in the mode list */
+    if(NC_testmode(uri,"s3")) s3mode = 1;
+    /* Classify the host */
+    if(uri->host != NULL && svc == NCS3UNK) {
+        if(endswith(uri->host,AWSHOST)) svc = NCS3;
+        else if(strcasecmp(uri->host,GOOGLEHOST)==0) svc = NCS3GS;
+	else if(!s3proto) svc = NCS3APP;
     }    
+    iss3 = (svc != NCS3UNK || s3proto || s3mode);
     if(svcp) *svcp = svc;
 done:
     return iss3;

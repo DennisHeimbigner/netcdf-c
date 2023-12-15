@@ -1175,6 +1175,12 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
     if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_FAILONERROR, 1L))
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_FAILONERROR).");
 
+    if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_NOPROGRESS, 1L))
+        HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_NOPROGRESS).");
+
+    if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_FOLLOWLOCATION, 1L))
+        HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_FOLLOWLOCATION).");
+
     handle->curlhandle = curlh;
 
     /*********************
@@ -2627,6 +2633,9 @@ perform_request(s3r_t* handle, long* httpcodep)
 
     p_status = curl_easy_perform(curlh);
 
+    long count = -1;
+    curl_easy_getinfo(curlh, CURLINFO_REDIRECT_COUNT, &count);
+
     /* Get response code */
     if (CURLE_OK != curl_easy_getinfo(curlh, CURLINFO_RESPONSE_CODE, &httpcode))
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "problem getting response code");
@@ -2902,7 +2911,7 @@ trace(CURL* curl, int onoff)
 {
     int stat = NC_NOERR;
     CURLcode cstat = CURLE_OK;
-    if(getenv("S3TRACE") == NULL) goto done;
+    if(getenv("S3TRACE") == NULL && getenv("CURLOPT_VERBOSE") == NULL) goto done;
     cstat = curl_easy_setopt(curl, CURLOPT_VERBOSE, onoff?1L:0L);
     if(cstat != CURLE_OK) {stat = NC_ECURL; goto done;}
     cstat = curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, my_trace);

@@ -136,7 +136,6 @@ static const struct MACRODEF {
 {"xarray","mode",{"zarr", NULL}},
 {"noxarray","mode",{"nczarr", "noxarray", NULL}},
 {"zarr","mode",{"nczarr","zarr", NULL}},
-{"gs3","mode",{"gs3","nczarr",NULL}}, /* Google S3 API */
 {NULL,NULL,{NULL}}
 };
 
@@ -197,7 +196,6 @@ static struct NCPROTOCOLLIST {
     {"dods","http","mode=dap2"},
     {"dap4","http","mode=dap4"},
     {"s3","s3","mode=s3"},
-    {"gs3","gs3","mode=gs3"},
     {NULL,NULL,NULL} /* Terminate search */
 };
 
