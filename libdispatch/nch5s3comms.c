@@ -1722,6 +1722,9 @@ done:
     return (ret_value);
 } /* end H5FD__s3comms_load_aws_creds_from_file() */
 
+#if 0
+Currently not used. See instead NC_aws_load_credentials.
+
 /*----------------------------------------------------------------------------
  * Function: NCH5_s3comms_load_aws_profile()
  * Purpose :
@@ -1805,6 +1808,7 @@ done:
 
     return (ret_value);
 } /* end NCH5_s3comms_load_aws_profile() */
+#endif /*0*/
 
 /*----------------------------------------------------------------------------
  * Function: NCH5_s3comms_nlowercase()

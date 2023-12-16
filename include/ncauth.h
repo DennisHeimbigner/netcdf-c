@@ -49,7 +49,6 @@ typedef struct NCauth {
 	char *user; /*CURLOPT_USERNAME*/
 	char *pwd; /*CURLOPT_PASSWORD*/
     } creds;
-    char* s3profile;
 } NCauth;
 
 #if defined(__cplusplus)
