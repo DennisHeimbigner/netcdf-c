@@ -3,7 +3,6 @@ Copyright (c) 1998-2018 University Corporation for Atmospheric Research/Unidata
 See COPYRIGHT for license information.
 */
 
-
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -177,16 +176,6 @@ NC_authsetup(NCauth** authp, NCURI* uri)
       nullfree(user);
       nullfree(pwd);
     }
-
-    /* Get the Default profile */
-    if((ret=NC_authgets3profile("no",&ap))) goto done;
-    if(ap == NULL)
-        if((ret=NC_authgets3profile("default",&ap))) goto done;
-    if(ap != NULL)
-        auth->s3profile = strdup(ap->name);
-    else
-        auth->s3profile = NULL;
-
     if(authp) {*authp = auth; auth = NULL;}
 done:
     nullfree(uri_hostport);
@@ -217,7 +206,6 @@ NC_authfree(NCauth* auth)
     nullfree(auth->proxy.pwd);
     nullfree(auth->creds.user);
     nullfree(auth->creds.pwd);
-    nullfree(auth->s3profile);
     nullfree(auth);
 }
 
