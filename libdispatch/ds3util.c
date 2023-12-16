@@ -387,7 +387,7 @@ NC_iss3(NCURI* uri, enum NCS3SVC* svcp)
     if(uri->host != NULL && svc == NCS3UNK) {
         if(endswith(uri->host,AWSHOST)) svc = NCS3;
         else if(strcasecmp(uri->host,GOOGLEHOST)==0) svc = NCS3GS;
-	else if(!s3proto) svc = NCS3APP;
+	/* else we have some random host, so we cannot tell if it is an S3 appliance or not; assume not */
     }    
     iss3 = (svc != NCS3UNK || s3proto || s3mode);
     if(svcp) *svcp = svc;

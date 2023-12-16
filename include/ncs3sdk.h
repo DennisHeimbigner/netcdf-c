@@ -17,7 +17,7 @@ typedef enum NCS3SVC {
 		 NCS3UNK=0, /* unknown */
                  NCS3=1,    /* s3.amazon.aws */
 		 NCS3GS=2,  /* storage.googleapis.com */
- 		 NCS3APP=3, /* some other S3-supportin appliance */ 
+ 		 NCS3APP=3, /* some other S3-supporting appliance */ 
 } NCS3SVC;
 
 typedef struct NCS3INFO {
