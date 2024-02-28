@@ -15,8 +15,11 @@
 #define ZARRVERSION "2"
 
 /* NCZARRVERSION is independent of Zarr version,
-   but NCZARRVERSION => ZARRVERSION */
-#define NCZARRVERSION "2.0.0"
+   but NCZARRVERSION => ZARRVERSION;
+   Changes to the NCZarr format are carried in
+   the second digit: 2.x.0
+*/
+#define NCZARRVERSION "2.1.0"
 
 /* These have to do with creating chunked datasets in ZARR. */
 #define NCZ_CHUNKSIZE_FACTOR (10)
@@ -39,7 +42,13 @@
 #  endif
 #endif
 
-/* V1 reserved objects */
+#define ZMETAROOT "/.zgroup"
+#define ZGROUP ".zgroup"
+#define ZATTRS ".zattrs"
+#define ZARRAY ".zarray"
+
+#if 0
+/* V1 reserved objects (Obsolete) */
 #define NCZMETAROOT "/.nczarr"
 #define NCZGROUP ".nczgroup"
 #define NCZARRAY ".nczarray"
@@ -47,37 +56,46 @@
 /* Deprecated */
 #define NCZVARDEP ".nczvar"
 #define NCZATTRDEP ".nczattr"
-
-#define ZMETAROOT "/.zgroup"
-#define ZGROUP ".zgroup"
-#define ZATTRS ".zattrs"
-#define ZARRAY ".zarray"
+#endif
 
 /* Pure Zarr pseudo names */
-#define ZDIMANON "_zdim"
+#define ZDIMANON "_Anonymous_Dim"
 
 /* V2 Reserved Attributes */
 /*
-Inserted into /.zgroup
-_nczarr_superblock: {"version": "2.0.0"}
-Inserted into any .zgroup
+For nczarr version 2.0.0, the following
+(key,value) pairs are stored in .zgroup
+and/or .zarray.
+For nczarr version 2.1.0, the following
+(key,value) pairs are stored in .zattrs
+as if they were standard attributes.
+The cost is that lazy attribute reading
+is no longer possible.
+
+Inserted into /.zgroup || /.zattrs:
+_nczarr_superblock: {"version": "2.1.0"}
+
+Inserted into any .zgroup || .zattrs (at group level)
 "_nczarr_group": "{
-\"dimensions\": {\"d1\": \"1\", \"d2\": \"1\",...}
+\"dimensions\": {\"d1\": 1, \"d2\": 1,...} or {\"d1\": {\"size\": 1, \"unlimited\": 1|0}, \"d2\": {...}, ...}
 \"variables\": [\"v1\", \"v2\", ...]
 \"groups\": [\"g1\", \"g2\", ...]
 }"
-Inserted into any .zarray
+
+Inserted into any .zarray || .zattrs (at array level)
 "_nczarr_array": "{
 \"dimensions\": [\"/g1/g2/d1\", \"/d2\",...]
-\"storage\": \"scalar\"|\"contiguous\"|\"compact\"|\"chunked\"
+\"storage\": \"contiguous\" | \"chunked\"
 }"
-Inserted into any .zattrs ? or should it go into the container?
+Note that contiguous <=> scalar.
+
+Inserted into any .zattrs
 "_nczarr_attrs": "{
 \"types\": {\"attr1\": \"<i4\", \"attr2\": \"<i1\",...}
 }
-+
-+Note: _nczarr_attrs type include non-standard use of a zarr type "|U1" => NC_CHAR.
-+
+Note: _nczarr_attrs type include non-standard use of a zarr type ">S1" => NC_CHAR
+and "|J0" for json valued attributes.
+
 */
 
 #define NCZ_V2_SUPERBLOCK "_nczarr_superblock"
@@ -151,7 +169,6 @@ typedef struct NCZ_FILE_INFO {
 #		define FLAG_SHOWFETCH   2
 #		define FLAG_LOGGING     4
 #		define FLAG_XARRAYDIMS  8
-#		define FLAG_NCZARR_V1   16
 	NCZM_IMPL mapimpl;
     } controls;
     int default_maxstrlen; /* default max str size for variables of type string */

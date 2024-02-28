@@ -246,7 +246,7 @@ NCZ_downloadjson(NCZMAP* zmap, const char* key, NCjson** jsonp)
 	goto done;
     content[len] = '\0';
 
-    if((stat = NCJparse(content,0,&json)) < 0)
+    if(NCJparse(content,0,&json) < 0)
 	{stat = NC_ENCZARR; goto done;}
 
     if(jsonp) {*jsonp = json; json = NULL;}
@@ -277,8 +277,7 @@ NCZ_uploadjson(NCZMAP* zmap, const char* key, NCjson* json)
 fprintf(stderr,"uploadjson: %s\n",key); fflush(stderr);
 #endif
     /* Unparse the modified json tree */
-    if((stat = NCJunparse(json,0,&content)))
-	goto done;
+    if(NCJunparse(json,0,&content) < 0) {stat = NC_EJSON; goto done;}
     ZTRACEMORE(4,"\tjson=%s",content);
     
 if(getenv("NCS3JSON") != NULL)
@@ -323,8 +322,7 @@ NCZ_createdict(NCZMAP* zmap, const char* key, NCjson** jsonp)
 	goto done;
     }
     /* Create the empty dictionary */
-    if((stat = NCJnew(NCJ_DICT,&json)))
-	goto done;
+    NCJcheck(NCJnew(NCJ_DICT,&json));
     if(jsonp) {*jsonp = json; json = NULL;}
 done:
     NCJreclaim(json);
@@ -352,8 +350,7 @@ NCZ_createarray(NCZMAP* zmap, const char* key, NCjson** jsonp)
 	    if((stat = nczmap_def(zmap,key,NCZ_ISMETA)))
 		goto done;	    
 	    /* Create the initial array */
-	    if((stat = NCJnew(NCJ_ARRAY,&json)))
-		goto done;
+	    NCJcheck(NCJnew(NCJ_ARRAY,&json));
         } else {
 	    stat = NC_EINVAL;
 	    goto done;

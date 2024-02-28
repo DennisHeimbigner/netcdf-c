@@ -552,19 +552,19 @@ NCZ_stringconvert(nc_type typeid, size_t len, void* data0, NCjson** jdatap)
     /* Handle char type specially */
     if(typeid == NC_CHAR) {
 	/* Apply the JSON write convention */
-        if((stat = NCJparsen(len,src,0,&jdata))) { /* !parseable */
+        if(NCJparsen(len,src,0,&jdata) < 0) { /* !parseable */
   	    /* Create a string valued json object */
-	    if((stat = NCJnewstringn(NCJ_STRING,len,src,&jdata))) goto done;
+	    NCJcheck(NCJnewstringn(NCJ_STRING,len,src,&jdata));
 	}
     } else if(len == 1) { /* create singleton */
-	if((stat = NCJnew(jtype,&jdata))) goto done;
+	NCJcheck(NCJnew(jtype,&jdata));
         if((stat = NCZ_stringconvert1(typeid, src, jdata))) goto done;
     } else { /* len > 1 create array of values */
-	if((stat = NCJnew(NCJ_ARRAY,&jdata))) goto done;
+	NCJcheck(NCJnew(NCJ_ARRAY,&jdata));
 	for(i=0;i<len;i++) {
-	    if((stat = NCJnew(jtype,&jvalue))) goto done;
+	    NCJcheck(NCJnew(jtype,&jvalue));
 	    if((stat = NCZ_stringconvert1(typeid, src, jvalue))) goto done;
-	    NCJappend(jdata,jvalue);
+	    NCJcheck(NCJappend(jdata,jvalue));
 	    jvalue = NULL;
 	    src += typelen;
 	}

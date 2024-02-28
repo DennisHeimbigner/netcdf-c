@@ -59,6 +59,7 @@
 #define SKIPLAST 1
 #define WHOLEPATH 0
 
+/* Current API struct versions */
 #define NCZM_FILE_V1 1
 
 #ifdef S_IRUSR
