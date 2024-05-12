@@ -34,8 +34,6 @@ See LICENSE.txt for license information.
 
 #define MAXPATH 1024
 
-
-
 /* Define vectors of zeros and ones for use with various nc_get_varX functions */
 /* Note, this form of initialization fails under Cygwin */
 size_t NC_coord_zero[NC_MAX_VAR_DIMS] = {0};

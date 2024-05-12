@@ -106,6 +106,9 @@ typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP, NCFIL} NC_SORT;
 /** Subset of readonly flags; readable by name only thru the API. */
 #define NAMEONLYFLAG 4
 
+/** Mark reserved attributes that are constructed on the fly when accessed */
+#define VIRTUALFLAG 8
+
 /** Per-variable attribute, as opposed to global */
 #define VARFLAG 16
 
@@ -238,7 +241,7 @@ typedef struct NC_TYPE_INFO
     size_t size;                 /**< Size of the type in memory, in bytes */
     nc_bool_t committed;         /**< True when datatype is committed in the file */
     nc_type nc_type_class;       /**< NC_VLEN, NC_COMPOUND, NC_OPAQUE, NC_ENUM, NC_INT, NC_FLOAT, or NC_STRING. */
-    void *format_type_info;      /**< HDF5-specific type info. */
+    void *format_type_info;      /**< dispatcher-specific type info. */
     int varsized; 	         /**< <! 1 if this type is (recursively) variable sized; 0 if fixed size */
 
     /** Information for each type or class */
@@ -274,7 +277,7 @@ typedef struct NC_GRP_INFO
 } NC_GRP_INFO_T;
 
 /* These constants apply to the flags field in the
- * HDF5_FILE_INFO_T defined below. */
+ * NC_FILE_INFO_T defined below. */
 #define NC_INDEF  0x01  /**< in define mode, cleared by ncendef */
 
 /** This is the metadata we need to keep track of for each
@@ -346,6 +349,10 @@ typedef struct NCglobalstate {
     } alignment;
     struct ChunkCache chunkcache;
 } NCglobalstate;
+
+/* Global State Management */
+extern NCglobalstate* NC_getglobalstate(void);
+extern void NC_freeglobalstate(void);
 
 /** Variable Length Datatype struct in memory. Must be identical to
  * HDF5 hvl_t. (This is only used for VL sequences, not VL strings,
@@ -481,12 +488,11 @@ extern int log_metadata_nc(NC_FILE_INFO_T *h5);
 /** @internal Names of atomic types. */
 extern const char* nc4_atomic_name[NUM_ATOMIC_TYPES];
 
+/**************************************************/
 /* Binary searcher for reserved attributes */
 extern const NC_reservedatt* NC_findreserved(const char* name);
-
-/* Global State Management */
-extern NCglobalstate* NC_getglobalstate(void);
-extern void NC_freeglobalstate(void);
+/* reserved attribute initializer */
+extern void NC_initialize_reserved(void);
 
 /* Generic reserved Attributes */
 #define NC_ATT_REFERENCE_LIST "REFERENCE_LIST"

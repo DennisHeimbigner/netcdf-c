@@ -280,8 +280,8 @@ AC_SUBST([DOXYGEN_SERVER_BASED_SEARCH], ["NO"])
 AC_ARG_ENABLE([doxygen-pdf-output],
     [AS_HELP_STRING([--enable-doxygen-pdf-output],
         [Build netCDF library documentation in PDF format. Experimental.])])
-               AM_CONDITIONAL([NC_NETCDF_ENABLE_DOXYGEN_PDF_OUTPUT], [test "x$enable_doxygen_pdf_output" = xyes])
 AC_SUBST([NC_NETCDF_ENABLE_DOXYGEN_PDF_OUTPUT], [$enable_doxygen_pdf_output])
+AM_CONDITIONAL([NC_NETCDF_ENABLE_DOXYGEN_PDF_OUTPUT], [test "x$enable_doxygen_pdf_output" = xyes])
 
 AC_ARG_ENABLE([dot],
 	[AS_HELP_STRING([--enable-dot],
@@ -466,7 +466,6 @@ if test "x$enable_set_log_level_func" = xyes -a "x$enable_netcdf_4" = xyes; then
 fi
 AC_MSG_RESULT($enable_set_log_level_func)
 
-
 # CURLOPT_USERNAME is not defined until curl version 7.19.1
 # CURLOPT_PASSWORD is not defined until curl version 7.19.1
 # CURLOPT_KEYPASSWD is not defined until curl version 7.16.4
@@ -632,6 +631,12 @@ if test "x$enable_dap" = "xno" ; then
   enable_dap_remote_tests=no
 fi
 AC_MSG_RESULT($enable_dap_remote_tests)
+
+# Provide a global control for remotetest.
+if test "xREMOTETESTDOWN" = xyes ; then
+  AC_MSG_WARN("ENV(REMOTETESTDOWN) => netcdf_enable_dap_remote_tests == no")
+  enable_dap_remote_tests=no
+fi
 
 AC_MSG_CHECKING([whether use of external (non-unidata) servers should be enabled])
 AC_ARG_ENABLE([external-server-tests],
@@ -1875,25 +1880,15 @@ AC_MSG_WARN([--disable-plugins => --disable-filter-testing])
 enable_filter_testing=no
 fi
 
-if test "x$enable_filter_testing" = xno; then
-AC_MSG_WARN([--disable-filter-testing => --disable-nczarr-filter-testing])
-enable_nczarr_filter_testing=no
-fi
-
 if test "x$enable_nczarr" = xno; then
 AC_MSG_WARN([--disable-nczarr => --disable-nczarr-filters])
 enable_nczarr_filters=no
-enable_nczarr_filter_testing=no
 fi
 
 if test "x$enable_nczarr_filters" = xyes; then
    AC_DEFINE([NETCDF_ENABLE_NCZARR_FILTERS], [1], [if true, enable NCZarr filters])
 fi
 
-# Client side filter registration is permanently disabled
-enable_clientside_filters=no
-
-AM_CONDITIONAL(ENABLE_CLIENTSIDE_FILTERS, [test x$enable_clientside_filters = xyes])
 AM_CONDITIONAL(NETCDF_ENABLE_FILTER_TESTING, [test x$enable_filter_testing = xyes])
 AM_CONDITIONAL(NETCDF_ENABLE_NCZARR_FILTERS, [test x$enable_nczarr_filters = xyes])
 
@@ -1925,10 +1920,11 @@ AM_CONDITIONAL(USE_DISPATCH, [test x$enable_dispatch = xyes])
 AM_CONDITIONAL(BUILD_MMAP, [test x$enable_mmap = xyes])
 AM_CONDITIONAL(BUILD_DOCS, [test x$enable_doxygen = xyes])
 AM_CONDITIONAL(SHOW_DOXYGEN_TAG_LIST, [test x$enable_doxygen_tasks = xyes])
-AM_CONDITIONAL(ENABLE_METADATA_PERF, [test x$enable_metadata_perf = xyes])
+AM_CONDITIONAL(NETCDF_ENABLE_METADATA_PERF, [test x$enable_metadata_perf = xyes])
 AM_CONDITIONAL(NETCDF_ENABLE_BYTERANGE, [test "x$enable_byterange" = xyes])
 AM_CONDITIONAL(RELAX_COORD_BOUND, [test "xyes" = xyes])
 AM_CONDITIONAL(HAS_PAR_FILTERS, [test x$hdf5_supports_par_filters = xyes ])
+AM_CONDITIONAL(NETCDF_ENABLE_NCZARR_FILTERS, [test x$enable_nczarr_filters = xyes])
 # We need to simplify the set of S3 and Zarr flag combinations
 AM_CONDITIONAL(NETCDF_ENABLE_S3, [test "x$enable_s3" = xyes])
 AM_CONDITIONAL(NETCDF_ENABLE_S3_AWS, [test "x$enable_s3_aws" = xyes])
@@ -2024,7 +2020,6 @@ AC_SUBST(HAS_DAP,[$enable_dap])
 AC_SUBST(HAS_DAP2,[$enable_dap])
 AC_SUBST(HAS_DAP4,[$enable_dap4])
 AC_SUBST(HAS_NC2,[$nc_build_v2])
-AC_SUBST(HAS_NC4,[$enable_netcdf_4])
 AC_SUBST(HAS_CDF5,[$enable_cdf5])
 AC_SUBST(HAS_HDF4,[$enable_hdf4])
 AC_SUBST(HAS_BENCHMARKS,[$enable_benchmarks])
@@ -2047,7 +2042,6 @@ AC_SUBST(HAS_HDF5_ROS3,[$has_hdf5_ros3])
 AC_SUBST(HAS_NCZARR,[$enable_nczarr])
 AC_SUBST(NETCDF_ENABLE_S3_TESTING,[$with_s3_testing])
 AC_SUBST(HAS_NCZARR_ZIP,[$enable_nczarr_zip])
-AC_SUBST(DO_NCZARR_ZIP_TESTS,[$enable_nczarr_zip])
 AC_SUBST(HAS_QUANTIZE,[$enable_quantize])
 AC_SUBST(HAS_LOGGING,[$enable_logging])
 AC_SUBST(DO_FILTER_TESTS,[$enable_filter_testing])
@@ -2190,7 +2184,6 @@ AC_DEFUN([AX_SET_META],[
 #####
 AC_SUBST([NC_VERSION]) NC_VERSION=$VERSION
 AX_SET_META([NC_HAS_NC2],[$nc_build_v2],[yes])
-AX_SET_META([NC_HAS_NC4],[$enable_netcdf_4],[yes])
 AX_SET_META([NC_HAS_HDF4],[$enable_hdf4],[yes])
 AX_SET_META([NC_HAS_BENCHMARKS],[$enable_benchmarks],[yes])
 AX_SET_META([NC_HAS_HDF5],[$enable_hdf5],[yes])
@@ -2243,10 +2236,9 @@ AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)
 AC_CONFIG_FILES(s3cleanup.sh:s3cleanup.in, [chmod ugo+x s3cleanup.sh])
 AC_CONFIG_FILES(s3gc.sh:s3gc.in, [chmod ugo+x s3gc.sh])
-AC_CONFIG_FILES(nc_test4/findplugin.sh:nc_test4/findplugin.in, [chmod ugo+x nc_test4/findplugin.sh])
-AC_CONFIG_FILES(nczarr_test/findplugin.sh:nc_test4/findplugin.in, [chmod ugo+x nczarr_test/findplugin.sh])
-AC_CONFIG_FILES(plugins/findplugin.sh:nc_test4/findplugin.in, [chmod ugo+x plugins/findplugin.sh])
-AC_CONFIG_FILES(examples/C/findplugin.sh:nc_test4/findplugin.in, [chmod ugo+x examples/C/findplugin.sh])
+for FP in plugins nc_test4 nczarr_test examples/C ; do
+AC_CONFIG_FILES(${FP}/findplugin.sh:plugins/findplugin.in, [chmod ugo+x ${FP}/findplugin.sh])
+done
 AC_CONFIG_FILES(ncdap_test/findtestserver.c:ncdap_test/findtestserver.c.in, [chmod ugo+x ncdap_test/findtestserver.c])
 AC_CONFIG_FILES([nc_test/run_pnetcdf_tests.sh:nc_test/run_pnetcdf_tests.sh.in],[chmod ugo+x nc_test/run_pnetcdf_tests.sh])
 AC_CONFIG_FILES(dap4_test/findtestserver4.c:ncdap_test/findtestserver.c.in)

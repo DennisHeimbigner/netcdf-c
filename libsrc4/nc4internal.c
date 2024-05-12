@@ -36,30 +36,32 @@
 */
 
 /** @internal List of reserved attributes.
-    WARNING: This list must be in (strcmp) sorted order for binary search. */
-static const NC_reservedatt NC_reserved[] = {
+    WARNING: This list will be sorted in (strcmp) sorted order for binary search. 
+    So order here does not matter; the table will be modified by sorting.
+*/
+static NC_reservedatt NC_reserved[] = {
     {NC_ATT_CLASS, READONLYFLAG|HIDDENATTRFLAG},			/*CLASS*/
     {NC_ATT_DIMENSION_LIST, READONLYFLAG|HIDDENATTRFLAG},		/*DIMENSION_LIST*/
     {NC_ATT_NAME, READONLYFLAG|HIDDENATTRFLAG},				/*NAME*/
     {NC_ATT_REFERENCE_LIST, READONLYFLAG|HIDDENATTRFLAG},		/*REFERENCE_LIST*/
-    {NC_XARRAY_DIMS, READONLYFLAG|NAMEONLYFLAG|HIDDENATTRFLAG},		/*_ARRAY_DIMENSIONS*/
+    {NC_XARRAY_DIMS, READONLYFLAG|HIDDENATTRFLAG},			/*_ARRAY_DIMENSIONS*/
     {NC_ATT_CODECS, VARFLAG|READONLYFLAG|NAMEONLYFLAG},			/*_Codecs*/
     {NC_ATT_FORMAT, READONLYFLAG},					/*_Format*/
-    {ISNETCDF4ATT, READONLYFLAG|NAMEONLYFLAG},				/*_IsNetcdf4*/
+    {ISNETCDF4ATT, READONLYFLAG|NAMEONLYFLAG|VIRTUALFLAG},		/*_IsNetcdf4*/
     {NCPROPS,READONLYFLAG|NAMEONLYFLAG|HIDDENATTRFLAG},			/*_NCProperties*/
-    {NC_NCZARR_ATTR_UC, READONLYFLAG|HIDDENATTRFLAG},			/*_NCZARR_ATTR */
+    {NC_NCZARR_ATTR_UC, READONLYFLAG|NAMEONLYFLAG|HIDDENATTRFLAG},	/*_NCZARR_ATTR */
     {NC_ATT_COORDINATES, READONLYFLAG|HIDDENATTRFLAG},			/*_Netcdf4Coordinates*/
     {NC_ATT_DIMID_NAME, READONLYFLAG|HIDDENATTRFLAG},			/*_Netcdf4Dimid*/
-    {SUPERBLOCKATT, READONLYFLAG|NAMEONLYFLAG},				/*_SuperblockVersion*/
+    {SUPERBLOCKATT, READONLYFLAG|NAMEONLYFLAG|VIRTUALFLAG},		/*_SuperblockVersion*/
     {NC_ATT_NC3_STRICT_NAME, READONLYFLAG},				/*_nc3_strict*/
     {NC_ATT_NC3_STRICT_NAME, READONLYFLAG},				/*_nc3_strict*/
     {NC_NCZARR_ATTR, READONLYFLAG|HIDDENATTRFLAG},			/*_nczarr_attr */
 };
-#define NRESERVED (sizeof(NC_reserved) / sizeof(NC_reservedatt))  /*|NC_reservedatt|*/
+#define NRESERVED (sizeof(NC_reserved) / sizeof(NC_reservedatt))  /*|NC_reservedatt*/
 
 static int NC4_move_in_NCList(NC* nc, int new_id);
 
-#if NC_HAS_LOGGING
+#if LOGGING
 /* This is the severity level of messages which will be logged. Use
    severity 0 for errors, 1 for important log messages, 2 for less
    important, etc. */
@@ -129,7 +131,7 @@ nc_log(int severity, const char *fmt, ...)
     fprintf(f, "\n");
     fflush(f);
 }
-#endif /* NC_HAS_LOGGING */
+#endif /* LOGGING */
 
 /**
  * @internal Check and normalize and name.
@@ -1719,7 +1721,7 @@ nc4_init_logging(void)
 {
     int ret = NC_NOERR;
 
-#if NC_HAS_LOGGING
+#if LOGGING
 #if NC_HAS_PARALLEL4
     if (!LOG_FILE && nc_log_level >= 0)
     {
@@ -1745,7 +1747,7 @@ nc4_init_logging(void)
             return NC_EINTERNAL;
     }
 #endif /* NC_HAS_PARALLEL4 */
-#endif /* NC_HAS_LOGGING */
+#endif /* LOGGING */
 
     return ret;
 }
@@ -1759,7 +1761,7 @@ nc4_init_logging(void)
 void
 nc4_finalize_logging(void)
 {
-#if NC_HAS_LOGGING
+#if LOGGING
 #if NC_HAS_PARALLEL4
     if (LOG_FILE)
     {
@@ -1767,7 +1769,7 @@ nc4_finalize_logging(void)
         LOG_FILE = NULL;
     }
 #endif /* NC_HAS_PARALLEL4 */
-#endif /* NC_HAS_LOGGING */
+#endif /* LOGGING */
 }
 
 /**
@@ -1786,7 +1788,7 @@ nc4_finalize_logging(void)
 int
 nc_set_log_level(int new_level)
 {
-#if NC_HAS_LOGGING
+#if LOGGING
     /* Remember the new level. */
     nc_log_level = new_level;
 
@@ -1809,7 +1811,7 @@ nc_set_log_level(int new_level)
 }
 #endif /* ENABLE_SET_LOG_LEVEL */
 
-#if NC_HAS_LOGGING
+#if LOGGING
 #define MAX_NESTS 10
 /**
  * @internal Recursively print the metadata of a group.
@@ -1978,7 +1980,7 @@ log_metadata_nc(NC_FILE_INFO_T *h5)
     return NC_NOERR;
 }
 
-#endif /*NC_HAS_LOGGING */
+#endif /*LOGGING */
 
 /**
  * @internal Show the in-memory metadata for a netcdf file. This
@@ -1995,7 +1997,7 @@ int
 NC4_show_metadata(int ncid)
 {
     int retval = NC_NOERR;
-#if NC_HAS_LOGGING
+#if LOGGING
     NC_FILE_INFO_T *h5;
     int old_log_level = nc_log_level;
 
@@ -2007,7 +2009,7 @@ NC4_show_metadata(int ncid)
     nc_log_level = 2;
     retval = log_metadata_nc(h5);
     nc_log_level = old_log_level;
-#endif /*NC_HAS_LOGGING*/
+#endif /*LOGGING*/
     return retval;
 }
 
@@ -2039,6 +2041,7 @@ NC_findreserved(const char* name)
     return NULL;
 }
 
+/* Ed Hartness requires this function */
 static int
 NC4_move_in_NCList(NC* nc, int new_id)
 {
@@ -2051,6 +2054,13 @@ NC4_move_in_NCList(NC* nc, int new_id)
     return stat;
 }
 
+void
+NC_initialize_reserved(void)
+{
+    /* Guarantee the reserved attribute list is sorted */
+    qsort((void*)NC_reserved,NRESERVED,sizeof(NC_reservedatt),sortcmp);
+    return stat;
+}
 /**************************************************/
 /* NCglobal state management */
 
