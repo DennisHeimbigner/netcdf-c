@@ -171,7 +171,7 @@ jobs:
 
       - name: Configure
         shell: bash -l {0}
-        run: CFLAGS=${CFLAGS} LDFLAGS=${LDFLAGS} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ./configure --enable-hdf5 --enable-dap --disable-dap-remote-tests  --enable-doxygen  --enable-external-server-tests --disable-xml2
+        run: CFLAGS=${CFLAGS} LDFLAGS=${LDFLAGS} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ./configure --enable-hdf5 --enable-dap --disable-dap-remote-tests  --enable-doxygen  --enable-external-server-tests --disable-libxml2
         if: ${{ success() }}
 
       - name: Look at config.log if error
@@ -266,7 +266,7 @@ jobs:
 
       - name: Configure
         shell: bash -l {0}
-        run: CFLAGS=${CFLAGS} LDFLAGS=${LDFLAGS} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ./configure --enable-hdf5 --enable-dap --disable-dap-remote-tests  --enable-doxygen  --enable-external-server-tests --disable-xml2 --disable-shared --enable-static
+        run: CFLAGS=${CFLAGS} LDFLAGS=${LDFLAGS} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ./configure --enable-hdf5 --enable-dap --disable-dap-remote-tests  --enable-doxygen  --enable-external-server-tests --disable-libxml2 --disable-shared --enable-static
         if: ${{ success() }}
 
       - name: Look at config.log if error
