@@ -56,6 +56,8 @@ static int computefieldinfo(struct NCAUX_CMPD* cmpd);
 
 static int filterspec_cvt(const char* txt, size_t* nparamsp, unsigned int* params);
 
+EXTERNL int nc_dump_data(int ncid, nc_type xtype, void* memory, size_t count, char** bufp);
+
 /**************************************************/
 /*
 This code is a variant of the H5detect.c code from HDF5.
@@ -952,6 +954,4 @@ ncaux_dump_data(int ncid, int xtype, void* memory, size_t count, char** bufp)
 {
     return nc_dump_data(ncid, xtype, memory, count, bufp);
 }
-
-EXTERNL int nc_dump_data(int ncid, nc_type xtype, void* memory, size_t count, char** bufp);
 
