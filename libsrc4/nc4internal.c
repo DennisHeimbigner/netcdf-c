@@ -59,7 +59,10 @@ static NC_reservedatt NC_reserved[] = {
 };
 #define NRESERVED (sizeof(NC_reserved) / sizeof(NC_reservedatt))  /*|NC_reservedatt*/
 
+/*Forward */
 static int NC4_move_in_NCList(NC* nc, int new_id);
+static int bincmp(const void* arg1, const void* arg2);
+static int sortcmp(const void* arg1, const void* arg2);
 
 #if LOGGING
 /* This is the severity level of messages which will be logged. Use
@@ -2023,6 +2026,7 @@ NC4_show_metadata(int ncid)
 const NC_reservedatt*
 NC_findreserved(const char* name)
 {
+#if 0
     int n = NRESERVED;
     int L = 0;
     int R = (n - 1);
@@ -2039,6 +2043,9 @@ NC_findreserved(const char* name)
             R = (m - 1);
     }
     return NULL;
+#else
+    return (const NC_reservedatt*)bsearch(name,NC_reserved,NRESERVED,sizeof(NC_reservedatt),bincmp);
+#endif
 }
 
 /* Ed Hartness requires this function */
@@ -2054,6 +2061,22 @@ NC4_move_in_NCList(NC* nc, int new_id)
     return stat;
 }
 
+static int
+sortcmp(const void* arg1, const void* arg2)
+{
+    NC_reservedatt* r1 = (NC_reservedatt*)arg1;
+    NC_reservedatt* r2 = (NC_reservedatt*)arg2;
+    return strcmp(r1->name,r2->name);
+}
+
+static int
+bincmp(const void* arg1, const void* arg2)
+{
+    const char* name = (const char*)arg1;
+    NC_reservedatt* ra = (NC_reservedatt*)arg2;
+    return strcmp(name,ra->name);
+}
+
 void
 NC_initialize_reserved(void)
 {
@@ -2061,6 +2084,7 @@ NC_initialize_reserved(void)
     qsort((void*)NC_reserved,NRESERVED,sizeof(NC_reservedatt),sortcmp);
     return stat;
 }
+
 /**************************************************/
 /* NCglobal state management */
 
