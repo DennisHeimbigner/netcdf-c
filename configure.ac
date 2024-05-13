@@ -132,29 +132,47 @@ AC_DEFINE_UNQUOTED([WINVERBUILD], [$WINVERBUILD], [windows version build])
 
 AC_MSG_NOTICE([checking supported formats])
 
-# An explicit disable of netcdf-4 | netcdf4 is treated as if it was disable-hdf5
-AC_MSG_CHECKING([whether we should build with netcdf4 (alias for HDF5)])
-AC_ARG_ENABLE([netcdf4], [AS_HELP_STRING([--disable-netcdf4],
-              [(Deprecated) Synonym for --enable-hdf5)])])
-test "x$enable_netcdf4" = xno || enable_netcdf4=yes
-AC_MSG_RESULT([$enable_netcdf4 (Deprecated) Please use --disable-hdf5)])
-AC_MSG_CHECKING([whether we should build with netcdf-4 (alias for HDF5)])
-AC_ARG_ENABLE([netcdf-4], [AS_HELP_STRING([--disable-netcdf-4],
-              [(synonym for --disable-netcdf4)])])
-test "x$enable_netcdf_4" = xno || enable_netcdf_4=yes
-AC_MSG_RESULT([$enable_netcdf_4])
-# Propagate the alias
-if test "x$enable_netcdf_4" = xno ; then enable_netcdf4=no; fi
-if test "x$enable_netcdf4" = xno ; then enable_netcdf_4=no; fi
+# As a long term goal, and because it is now the case that --enable-nczarr
+# => USE_NETCDF4, make the external options --enable-netcdf-4 and
+# --enable-netcdf4 obsolete in favor of --enable-hdf5
+# We will do the following for one more release cycle.
+# 1. Make --enable-netcdf-4 be an alias for --enable-netcdf4.
+# 2. Make --enable-netcdf4 an alias for --enable-hdf5.
+# 3. Internally, convert most uses of USE_NETCDF_4 ad USE_NETCDF4 to USE_HDF5
 
-# Does the user want to use HDF5?
+# Collect the values of --enable-netcdf-4, --enable-netcdf4, and --enable-hdf5.
+# Also determine which have been explicitly set on the command line.
+
+AC_ARG_ENABLE([netcdf-4], [AS_HELP_STRING([--enable-netcdf-4],
+              [(Deprecated) Synonym for --enable-hdf5; default yes])])
+AC_ARG_ENABLE([netcdf4], [AS_HELP_STRING([--enable-netcdf4],
+              [(Deprecated) Synonym for --enable-hdf5; default yes])])
+AC_ARG_ENABLE([hdf5], [AS_HELP_STRING([--enable-hdf5],[default yes])])
+
+# Complain about the use of --enable-netcdf-4/--enable-netcdf4
+if test "x$enable_netcdf_4" != x ; then
+    AC_MSG_WARN([--enable-netcdf-4 is deprecated; please use --enable-hdf5])
+fi
+if test "x$enable_netcdf4" != x ; then
+    AC_MSG_WARN([--enable-netcdf4 is deprecated; please use --enable-hdf5])
+fi
+
+# --enable-netcdf-4 overrides --enable-netcdf4 if latter not defined
+if test "x$enable_netcdf_4" != x && test "x$enable_netcdf4" == x ; then
+enable_netcdf4="$enable_netcdf_4"
+fi
+# --enable-netcdf4 overrides --enable-hdf5 if latter not defined
+if test "x$enable_netcdf4" != x && test "x$enable_hdf5" == x ; then
+enable_hdf5="$enable_netcdf4"
+fi
+# Otherwise, use --enable-hdf5
 AC_MSG_CHECKING([whether we should build with HDF5])
-AC_ARG_ENABLE([hdf5], [AS_HELP_STRING([--disable-hdf5],
-              [do not build with HDF5])])
 test "x$enable_hdf5" = xno || enable_hdf5=yes
-if test "x$enable_netcdf4" = xno ; then enable_hdf5=no ; fi
-# disable-netcdf4 is synonym for disable-hdf5
 AC_MSG_RESULT([$enable_hdf5])
+
+# Turn off enable_netcdf4 because it will be used
+# as a shorthand for enable_hdf5|enable_hdf4|enable_nczarr
+enable_netcdf4=no
 
 # Check whether we want to enable CDF5 support.
 AC_MSG_CHECKING([whether CDF5 support should be disabled])
@@ -217,12 +235,8 @@ AC_MSG_RESULT($enable_nczarr)
 
 # HDF5 | HDF4 | NCZarr => netcdf-4
 if test "x$enable_hdf5" = xyes || test "x$enable_hdf4" = xyes || test "x$enable_nczarr" = xyes ; then
-enable_netcdf_4=yes
+enable_netcdf4=yes
 fi
-AC_MSG_CHECKING([whether netcdf-4 should be forcibly enabled])
-AC_MSG_RESULT([$enable_netcdf_4])
-# Synonym
-enable_netcdf4=${enable_netcdf_4}
 
 AC_MSG_NOTICE([checking user options])
 
@@ -314,24 +328,6 @@ test "x$enable_fsync" = xno || enable_fsync=yes
 AC_MSG_RESULT($enable_fsync)
 if test "x$enable_fsync" = xyes ; then
 AC_DEFINE([USE_FSYNC], [1], [if true, include experimental fsync code])
-fi
-
-# Temporary until JNA bug is fixed (which is probably never).
-# The problem being solved is this:
-# > On Windows using the microsoft runtime, it is an error
-# > for one library to free memory allocated by a different library.
-# This is probably only an issue when using the netcdf-c library
-# via JNA under Java.
-AC_MSG_CHECKING([if jna bug workaround is enabled])
-AC_ARG_ENABLE([jna],
-              [AS_HELP_STRING([--enable-jna],
-                              [enable jna bug workaround])],
-				[],
-				[enable_jna=no])
-test "x$enable_jna" = xno || enable_jna=yes
-AC_MSG_RESULT($enable_jna)
-if test "x$enable_jna" = xyes ; then
-AC_DEFINE([JNA], [1], [if true, include jna bug workaround code])
 fi
 
 # Does the user want to turn off unit tests (useful for test coverage
@@ -461,7 +457,7 @@ AC_MSG_CHECKING([whether nc_set_log_level() function is included (will do nothin
 AC_ARG_ENABLE([set_log_level_func], [AS_HELP_STRING([--disable-set-log-level-func],
               [disable the nc_set_log_level function])])
 test "x$enable_set_log_level_func" = xno -a "x$enable_logging" = xno || enable_set_log_level_func=yes
-if test "x$enable_set_log_level_func" = xyes -a "x$enable_netcdf_4" = xyes; then
+if test "x$enable_set_log_level_func" = xyes -a "x$enable_hdf5" = xyes; then
    AC_DEFINE([ENABLE_SET_LOG_LEVEL], 1, [If true, define nc_set_log_level.])
 fi
 AC_MSG_RESULT($enable_set_log_level_func)
@@ -706,14 +702,6 @@ AC_MSG_RESULT([$enable_dap_long_tests])
 if test "x$enable_dap_remote_tests" = "xno" || test "x$enable_external_server_tests" = "xno" ; then
   AC_MSG_NOTICE([--disable-dap-remote|external-server-tests => --disable_dap_long_tests])
   enable_dap_long_tests=no
-fi
-
-# Control zarr storage
-if test "x$enable_nczarr" = xyes ; then
-  if test "x$enable_netcdf_4" = xno ; then
-    AC_MSG_WARN([netCDF-4 disabled, so you must not enable nczarr])
-    enable_nczarr=no
-  fi
 fi
 
 if test "x$enable_nczarr" = xyes; then
@@ -1330,7 +1318,7 @@ AC_CHECK_TYPES([struct timespec])
 
 # disable dap4 if hdf5 is disabled
 if test "x$enable_hdf5" = "xno" ; then
-    AC_MSG_WARN([netcdf-4 not enabled; disabling DAP4])
+    AC_MSG_WARN([hdf5 not enabled; disabling DAP4])
     enable_dap4=no
 fi
 
@@ -1590,7 +1578,7 @@ fi
 AC_CHECK_LIB([m], [floor], [],
 [AC_MSG_ERROR([Can't find or link to the math library.])])
 
-if test "x$enable_netcdf_4" = xyes; then
+if test "x$enable_netcdf4" = xyes; then
    AC_DEFINE([USE_NETCDF4], [1], [if true, build netCDF-4])
 fi
 
@@ -1846,7 +1834,7 @@ fi
 AC_SUBST(M4FLAGS)
 
 # No logging for netcdf-3.
-if test "x$enable_netcdf_4" = xno; then
+if test "x$enable_netcdf4" = xno; then
    enable_logging=no
 fi
 if test "x$enable_logging" = xyes; then
@@ -1910,11 +1898,11 @@ AM_CONDITIONAL(NETCDF_ENABLE_DAP_LONG_TESTS, [test "x$enable_dap_long_tests" = x
 AM_CONDITIONAL(USE_PNETCDF_DIR, [test ! "x$PNETCDFDIR" = x])
 AM_CONDITIONAL(USE_LOGGING, [test "x$enable_logging" = xyes])
 AM_CONDITIONAL(CROSS_COMPILING, [test "x$cross_compiling" = xyes])
-AM_CONDITIONAL(USE_NETCDF4, [test x$enable_netcdf_4 = xyes])
+AM_CONDITIONAL(USE_NETCDF4, [test x$enable_netcdf4 = xyes])
 AM_CONDITIONAL(USE_HDF5, [test x$enable_hdf5 = xyes])
 AM_CONDITIONAL(USE_HDF4, [test x$enable_hdf4 = xyes])
 AM_CONDITIONAL(USE_HDF4_FILE_TESTS, [test x$enable_hdf4_file_tests = xyes])
-AM_CONDITIONAL(USE_RENAMEV3, [test x$enable_netcdf_4 = xyes -o x$enable_dap = xyes])
+AM_CONDITIONAL(USE_RENAMEV3, [test x$enable_netcdf4 = xyes -o x$enable_dap = xyes])
 AM_CONDITIONAL(USE_PNETCDF, [test x$enable_pnetcdf = xyes])
 AM_CONDITIONAL(USE_DISPATCH, [test x$enable_dispatch = xyes])
 AM_CONDITIONAL(BUILD_MMAP, [test x$enable_mmap = xyes])
@@ -1942,7 +1930,7 @@ AM_CONDITIONAL(HAVE_ZSTD, [test "x$have_zstd" = xyes])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
-if test "x$enable_netcdf_4" = xyes; then
+if test "x$enable_netcdf4" = xyes; then
    AC_TYPE_LONG_LONG_INT
    AC_TYPE_UNSIGNED_LONG_LONG_INT
 dnl    if test ! "x$ac_cv_type_long_long_int" = xyes -o ! "x$ac_cv_type_unsigned_long_long_int" = xyes; then
@@ -1959,7 +1947,7 @@ fi
 # meteor strike.
 AC_MSG_CHECKING([what to call the output of the ftpbin target])
 BINFILE_NAME=binary-netcdf-$PACKAGE_VERSION
-test "x$enable_netcdf_4" = xno && BINFILE_NAME=${BINFILE_NAME}_nc3
+test "x$enable_netcdf4" = xno && BINFILE_NAME=${BINFILE_NAME}_nc3
 BINFILE_NAME=${BINFILE_NAME}.tar
 AC_SUBST(BINFILE_NAME)
 AC_MSG_RESULT([$BINFILE_NAME $FC $CXX])
@@ -2030,7 +2018,6 @@ AC_SUBST(HAS_PARALLEL,[$enable_parallel])
 AC_SUBST(HAS_PARALLEL4,[$enable_parallel4])
 AC_SUBST(HAS_DISKLESS,[yes])
 AC_SUBST(HAS_MMAP,[$enable_mmap])
-AC_SUBST(HAS_JNA,[$enable_jna])
 AC_SUBST(HAS_ERANGE_FILL,[$enable_erange_fill])
 AC_SUBST(HAS_BYTERANGE,[$enable_byterange])
 AC_SUBST(RELAX_COORD_BOUND,[yes])
@@ -2191,7 +2178,6 @@ AX_SET_META([NC_HAS_DAP2],[$enable_dap],[yes])
 AX_SET_META([NC_HAS_DAP4],[$enable_dap4],[yes])
 AX_SET_META([NC_HAS_DISKLESS],[yes],[yes])
 AX_SET_META([NC_HAS_MMAP],[$enable_mmap],[yes])
-AX_SET_META([NC_HAS_JNA],[$enable_jna],[yes])
 AX_SET_META([NC_HAS_PNETCDF],[$enable_pnetcdf],[yes])
 AX_SET_META([NC_HAS_PARALLEL],[$enable_parallel],[yes])
 AX_SET_META([NC_HAS_PARALLEL4],[$enable_parallel4],[yes])

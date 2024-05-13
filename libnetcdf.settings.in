@@ -46,7 +46,6 @@ NCZarr Support:		@HAS_NCZARR@
 
 Diskless Support:	@HAS_DISKLESS@
 MMap Support:		@HAS_MMAP@
-JNA Support:		@HAS_JNA@
 ERANGE Fill Support:	@HAS_ERANGE_FILL@
 Relaxed Boundary Check:	@RELAX_COORD_BOUND@
 

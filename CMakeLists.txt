@@ -432,20 +432,52 @@ endif()
 # Format Option checks
 ################################
 
-# We need to now treat enable-netcdf4 and enable-hdf5 as separate,
-# but for back compatability, we need to treat enable-netcdf4
-# as equivalent to enable-hdf5.
-# We detect this using these rules:
-# 1. if NETCDF_ENABLE_HDF5 is off then disable hdf5
-# 2. if NETCDF_ENABLE_NETCDF_4 is off then disable hdf5
-# 3. else enable hdf5
-option(NETCDF_ENABLE_NETCDF_4 "Use HDF5." ON)
-option(NETCDF_ENABLE_HDF5 "Use HDF5." ON)
-if(NOT NETCDF_ENABLE_HDF5 OR NOT NETCDF_ENABLE_NETCDF_4)
-  set(NETCDF_ENABLE_HDF5 OFF CACHE BOOL "Use HDF5" FORCE)
-endif()
-option(NETCDF_ENABLE_HDF4 "Build netCDF-4 with HDF4 read capability(HDF4, HDF5 and Zlib required)." OFF)
+# As a long term goal, and because it is now the case that
+# -DNETCDF_ENABLE_NCZARR => USE_NETCDF4, so make the external options
+# -DNETCDF_ENABLE-NETCDF-4 and _DNETCDF_ENABLE-NETCDF4 obsolete
+# in favor of --NETCDF_ENABLE-HDF5.
+# We will do the following for one more release cycle.
+# 1. Make --NETCDF_ENABLE-NETCDF-4 be an alias for --NETCDF_ENABLE-NETCDF4.
+# 2. Make --NETCDF_ENABLE-NETCDF4 an alias for --NETCDF_ENABLE-HDF5.
+# 3. Internally, convert most (but not all) uses of USE_NETCDF_4 and USE_NETCDF4 to USE_HDF5.
 
+# Collect the values of -DNETCDF_ENABLE-NETCDF-4, -DNETCDF_ENABLE-NETCDF4, and -DNETCDF_ENABLE-HDF5.
+option(NETCDF_ENABLE_NETCDF_4 "" "UNDEF")
+option(NETCDF_ENABLE_NETCDF4 "" "UNDEF")
+option(NETCDF_ENABLE_HDF5 "" "UNDEF")
+
+message("@@@ NETCDF_ENABLE_NETCDF_4=${NETCDF_ENABLE_NETCDF_4}")
+message("@@@ NETCDF_ENABLE_NETCDF4=${NETCDF_ENABLE_NETCDF4}")
+message("@@@ NETCDF_ENABLE_HDF5=${NETCDF_ENABLE_HDF5}")
+
+if(NOT "${NETCDF_ENABLE_NETCDF_4}" STREQUAL "UNDEF")
+message(WARNING "--enable-netcdf_4 is deprecated; please use --enable-hdf5")
+endif()
+
+if(NOT "${NETCDF_ENABLE_NETCDF4}" STREQUAL "UNDEF")
+message(WARNING "--enable-netcdf4 is deprecated; please use --enable-hdf5")
+endif()
+
+# NETCDF_ENABLE_NETCDF_4 overrides NETCDF_ENABLE_NETCDF4 if latter not defined.
+if(NETCDF_ENABLE_NETCDF_4 AND "${NETCDF_ENABLE_NETCDF4}" STREQUAL "UNDEF")
+set(NETCDF_ENABLE_NETCDF4 "${NETCDF_ENABLE_NETCDF_4}" CACHE BOOL "") 
+endif()
+# NETCDF_ENABLE_NETCDF4 overrides NETCDF_ENABLE_HDF5 if latter not defined.
+if(NETCDF_ENABLE_NETCDF4 AND "${NETCDF_ENABLE_HDF5}" STREQUAL "UNDEF")
+set(NETCDF_ENABLE_HDF5 "${NETCDF_ENABLE_HDF5}" CACHE BOOL "") 
+endif()
+# OTHERWISE, USE NETCDF_ENABLE_HDF5
+if("${NETCDF_ENABLE_HDF5}" STREQUAL "UNDEF")
+set(NETCDF_ENABLE_HDF5 ON CACHE BOOL "") 
+endif()
+
+message("@@@ NETCDF_ENABLE_NETCDF_4=${NETCDF_ENABLE_NETCDF_4}")
+message("@@@ NETCDF_ENABLE_NETCDF4=${NETCDF_ENABLE_NETCDF4}")
+message("@@@ NETCDF_ENABLE_HDF5=${NETCDF_ENABLE_HDF5}")
+
+# Turn off enable_netcdf4 because it will be used
+# as a shorthand for ENABLE_HDF5|ENABLE_HDF4|ENABLE_NCZARR
+set(NETCDF_ENABLE_NETCDF4 OFF CACHE BOOL "")
 
 option(NETCDF_ENABLE_DAP "Enable DAP2 and DAP4 Client." ON)
 option(NETCDF_ENABLE_NCZARR "Enable NCZarr Client." ON)
@@ -453,14 +485,10 @@ option(NETCDF_ENABLE_PNETCDF "Build with parallel I/O for CDF-1, 2, and 5 files 
 set(NETCDF_ENABLE_CDF5 AUTO CACHE STRING "AUTO")
 option(NETCDF_ENABLE_CDF5 "Enable CDF5 support" ON)
 
-if(DEFINED NETCDF_ENABLE_NETCDF4)
-  message(FATAL_ERROR "NETCDF_ENABLE_NETCDF4 is deprecated. Please use NETCDF_ENABLE_NETCDF_4 instead.")
-endif()
-
 # Netcdf-4 support (i.e. libsrc4) is required by more than just HDF5 (e.g. NCZarr)
 # So depending on what above formats are enabled, enable netcdf-4
 if(NETCDF_ENABLE_HDF5 OR NETCDF_ENABLE_HDF4 OR NETCDF_ENABLE_NCZARR)
-  set(NETCDF_ENABLE_NETCDF_4 ON CACHE BOOL "Enable netCDF-4 API" FORCE)
+  set(NETCDF_ENABLE_NETCDF4 ON CACHE BOOL "Enable netCDF-4 API" FORCE)
 endif()
 
 # enable|disable all forms of network access
@@ -484,9 +512,9 @@ endif()
 # Did the user specify a default minimum blocksize for posixio?
 set(NCIO_MINBLOCKSIZE 256 CACHE STRING "Minimum I/O Blocksize for netCDF classic and 64-bit offset format files.")
 
-if(NETCDF_ENABLE_NETCDF_4)
+if(NETCDF_ENABLE_NETCDF4)
   set(USE_NETCDF4 ON CACHE BOOL "")
-  set(NETCDF_ENABLE_NETCDF_4 ON CACHE BOOL "")
+  set(NETCDF_ENABLE_NETCDF4 ON CACHE BOOL "")
 else()
   set(USE_HDF4_FILE_TESTS OFF)
   set(USE_HDF4 OFF)
@@ -496,7 +524,7 @@ endif()
 
 # Option Logging, only valid for netcdf4.
 option(NETCDF_ENABLE_LOGGING "Enable Logging." OFF)
-if(NOT NETCDF_ENABLE_NETCDF_4)
+if(NOT NETCDF_ENABLE_NETCDF4)
 set(NETCDF_ENABLE_LOGGING OFF)
 endif()
 if(NETCDF_ENABLE_LOGGING)
@@ -505,7 +533,7 @@ if(NETCDF_ENABLE_LOGGING)
   set(NETCDF_ENABLE_SET_LOG_LEVEL ON)
 endif()
 option(NETCDF_ENABLE_SET_LOG_LEVEL_FUNC "Enable definition of nc_set_log_level()." ON)
-if(NETCDF_ENABLE_NETCDF_4 AND NOT NETCDF_ENABLE_LOGGING AND NETCDF_ENABLE_SET_LOG_LEVEL_FUNC)
+if(NETCDF_ENABLE_NETCDF4 AND NOT NETCDF_ENABLE_LOGGING AND NETCDF_ENABLE_SET_LOG_LEVEL_FUNC)
   target_compile_definitions(netcdf PRIVATE -DNETCDF_ENABLE_SET_LOG_LEVEL)
   set(NETCDF_ENABLE_SET_LOG_LEVEL ON)
 endif()
@@ -843,12 +871,6 @@ set(TEMP_LARGE "." CACHE STRING "Location to store large file tests.")
 option(NETCDF_ENABLE_FSYNC "Enable experimental fsync code." OFF)
 if(NETCDF_ENABLE_FSYNC)
   set(USE_FSYNC ON)
-endif()
-
-# Temporary
-OPTION (ENABLE_JNA "Enable jna bug fix code." OFF)
-if(ENABLE_JNA)
-  set(JNA ON)
 endif()
 
 # Linux specific large file support flags.
@@ -1630,7 +1652,7 @@ is_disabled(BUILD_SHARED_LIBS enable_static)
 is_enabled(BUILD_SHARED_LIBS enable_shared)
 
 is_enabled(NETCDF_ENABLE_V2_API HAS_NC2)
-is_enabled(NETCDF_ENABLE_NETCDF_4 HAS_NC4)
+is_enabled(NETCDF_ENABLE_NETCDF4 HAS_NC4)
 is_enabled(NETCDF_ENABLE_HDF4 HAS_HDF4)
 is_enabled(USE_HDF5 HAS_HDF5)
 is_enabled(OFF HAS_BENCHMARKS)
@@ -1643,7 +1665,6 @@ is_enabled(NETCDF_ENABLE_DAP4 HAS_DAP4)
 is_enabled(NETCDF_ENABLE_BYTERANGE HAS_BYTERANGE)
 is_enabled(NETCDF_ENABLE_DISKLESS HAS_DISKLESS)
 is_enabled(USE_MMAP HAS_MMAP)
-is_enabled(JNA HAS_JNA)
 is_enabled(ENABLE_ZERO_LENGTH_COORD_BOUND RELAX_COORD_BOUND)
 is_enabled(USE_CDF5 HAS_CDF5)
 is_enabled(NETCDF_ENABLE_ERANGE_FILL HAS_ERANGE_FILL)
