@@ -2082,7 +2082,6 @@ NC_initialize_reserved(void)
 {
     /* Guarantee the reserved attribute list is sorted */
     qsort((void*)NC_reserved,NRESERVED,sizeof(NC_reservedatt),sortcmp);
-    return stat;
 }
 
 /**************************************************/
