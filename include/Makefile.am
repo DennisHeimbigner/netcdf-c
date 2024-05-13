@@ -48,5 +48,6 @@ BUILT_SOURCES = netcdf_json.h
 # Give the recipe for building netcdf_json.h
 netcdf_json.h: ${top_srcdir}/libdispatch/ncjson.c ${top_srcdir}/include/ncjson.h
 	sed -e 's/NCJSON_H/NETCDF_JSON_H/' -e '/ncjson.h/d' -e '/#endif[^!]*!NETCDF_JSON_H!/d' <${srcdir}/ncjson.h > netcdf_json.h
+	echo '#ifdef NETCDF_JSON_H' >> netcdf_json.h
 	sed -e '/ncjson.h/d' < ${srcdir}/../libdispatch/ncjson.c >> netcdf_json.h
 	echo '#endif /*NETCDF_JSON_H*/' >> netcdf_json.h
