@@ -13,7 +13,6 @@
 #include "netcdf.h"
 
 #include "config.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
@@ -55,9 +54,6 @@ typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP, NCFIL} NC_SORT;
 /** One mega-byte. */
 #define MEGABYTE 1048576
 
-/** The HDF5 ID for the szip filter. */
-#define HDF5_FILTER_SZIP 4
-
 #define X_SCHAR_MIN     (-128)          /**< Minimum signed char value. */
 #define X_SCHAR_MAX     127             /**< Maximum signed char value. */
 #define X_UCHAR_MAX     255U            /**< Maximum unsigned char value. */
@@ -84,9 +80,6 @@ typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP, NCFIL} NC_SORT;
 #define X_DOUBLE_MAX    1.7976931348623157e+308 /**< Maximum double value. */
 #define X_DOUBLE_MIN    (-X_DOUBLE_MAX)         /**< Minimum double value. */
 
-/** This is the number of netCDF atomic types. */
-#define NUM_ATOMIC_TYPES (NC_MAX_ATOMIC_TYPE + 1)
-
 /** Number of parameters needed for ZLIB filter. */
 #define CD_NELEMS_ZLIB 1
 
@@ -97,20 +90,16 @@ typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP, NCFIL} NC_SORT;
 #define NC4_DATA_SET(nc,data) ((nc)->dispatchdata = (void *)(data))
 
 /* Reserved attribute flags: must be powers of 2. */
-/** Hidden attributes; immutable and unreadable thru API. */
-#define HIDDENATTRFLAG 1
-
-/** Readonly attributes; readable, but immutable thru the API. */
-#define READONLYFLAG 2
-
-/** Subset of readonly flags; readable by name only thru the API. */
-#define NAMEONLYFLAG 4
-
-/** Mark reserved attributes that are constructed on the fly when accessed */
-#define VIRTUALFLAG 8
-
-/** Per-variable attribute, as opposed to global */
-#define VARFLAG 16
+    /** Hidden attributes; immutable and unreadable thru API. */
+#   define HIDDENATTRFLAG 1
+    /** Readonly attributes; readable, but immutable thru the API. */
+#   define READONLYFLAG 2
+    /** Subset of readonly flags; readable by name only thru the API. */
+#   define NAMEONLYFLAG 4
+    /** Mark reserved attributes that are constructed on the fly when accessed */
+#   define VIRTUALFLAG 8
+    /** Per-variable attribute, as opposed to global */
+#   define VARFLAG 16
 
 /** Boolean type, to make the code easier to read. */
 typedef enum {NC_FALSE = 0, NC_TRUE = 1} nc_bool_t;
@@ -325,35 +314,6 @@ typedef struct NC_FILE_INFO
     } mem;
 } NC_FILE_INFO_T;
 
-/* Collect global state info in one place */
-typedef struct NCglobalstate {
-    int initialized;
-    char* tempdir; /* track a usable temp dir */
-    char* home; /* track $HOME */
-    char* cwd; /* track getcwd */
-    struct NCRCinfo* rcinfo; /* Currently only one rc file per session */
-    struct GlobalZarr { /* Zarr specific parameters */
-	char dimension_separator;
-    } zarr;
-    struct GlobalAWS { /* AWS S3 specific parameters/defaults */
-	char* default_region;
-	char* config_file;
-	char* profile;
-	char* access_key_id;
-	char* secret_access_key;
-    } aws;
-    struct Alignment { /* H5Pset_alignment parameters */
-        int defined; /* 1 => threshold and alignment explicitly set */
-	int threshold;
-	int alignment;
-    } alignment;
-    struct ChunkCache chunkcache;
-} NCglobalstate;
-
-/* Global State Management */
-extern NCglobalstate* NC_getglobalstate(void);
-extern void NC_freeglobalstate(void);
-
 /** Variable Length Datatype struct in memory. Must be identical to
  * HDF5 hvl_t. (This is only used for VL sequences, not VL strings,
  * which are stored in char *'s) */
@@ -370,7 +330,7 @@ extern int nc4_convert_type(const void *src, void *dest, const nc_type src_type,
 			    const void *fill_value, int strict_nc3, int quantize_mode,
 			    int nsd);
 
-/* These functions do HDF5 things. */
+/* These functions do netcdf-4 things. */
 extern int nc4_reopen_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 extern int nc4_read_atts(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 
@@ -470,16 +430,17 @@ extern int nc4_close_netcdf4_file(NC_FILE_INFO_T *h5, int abort, NC_memio *memio
 extern int nc4_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 extern int nc4_check_chunksizes(NC_GRP_INFO_T* grp, NC_VAR_INFO_T* var, const size_t* chunksizes);
 
-/* HDF5 initialization/finalization */
-extern int nc4_hdf5_initialized;
-extern void nc4_hdf5_initialize(void);
-extern void nc4_hdf5_finalize(void);
-
 /* This is only included if --enable-logging is used for configure; it
    prints info about the metadata to stderr. */
 #ifdef LOGGING
 extern int log_metadata_nc(NC_FILE_INFO_T *h5);
 #endif
+
+/**************************************************/
+/* Atomic types constants and functions */
+
+/** This is the number of netCDF atomic types (as opposed to max) . */
+#define NUM_ATOMIC_TYPES (NC_MAX_ATOMIC_TYPE + 1)
 
 /** @internal Names of atomic types. */
 extern const char* nc4_atomic_name[NUM_ATOMIC_TYPES];
@@ -545,9 +506,13 @@ extern void NC_initialize_reserved(void);
 #define NC_ATT_NC3_STRICT_NAME "_nc3_strict"
 #define NC_XARRAY_DIMS "_ARRAY_DIMENSIONS"
 #define NC_ATT_CODECS "_Codecs"
-#define NC_NCZARR_ATTR "_nczarr_attr"
-#define NC_NCZARR_ATTR_UC "_NCZARR_ATTR"
-#define NC_NCZARR_MAXSTRLEN_ATTR "_nczarr_maxstrlen"
-#define NC_NCZARR_DEFAULT_MAXSTRLEN_ATTR "_nczarr_default_maxstrlen"
+
+/* Must match values in libnczarr/zinternal.h */
+#define NC_NCZARR_SUPERBLOCK "_nczarr_superblock"
+#define NC_NCZARR_GROUP "_nczarr_group"
+#define NC_NCZARR_ARRAY "_nczarr_array"
+#define NC_NCZARR_ATTR "_nczarr_attrs"
+#define NC_NCZARR_ATTR_UC "_NCZARR_ATTRS" /* deprecated */
+
 
 #endif /* _NC4INTERNAL_ */
