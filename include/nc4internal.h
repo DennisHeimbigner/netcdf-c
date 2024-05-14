@@ -363,11 +363,7 @@ typedef struct
     void *p;    /**< Pointer to VL data */
 } nc_hvl_t;
 
-/* Misc functions */
-extern int NC4_inq_atomic_type(nc_type typeid1, char *name, size_t *size);
-extern int NC4_lookup_atomic_type(const char *name, nc_type* idp, size_t *sizep);
-
-/* These functions convert between netcdf and HDF5 types. */
+/* These functions convert between different netcdf types. */
 extern int nc4_get_typelen_mem(NC_FILE_INFO_T *h5, nc_type xtype, size_t *len);
 extern int nc4_convert_type(const void *src, void *dest, const nc_type src_type,
 			    const nc_type dest_type, const size_t len, int *range_error,
@@ -487,6 +483,49 @@ extern int log_metadata_nc(NC_FILE_INFO_T *h5);
 
 /** @internal Names of atomic types. */
 extern const char* nc4_atomic_name[NUM_ATOMIC_TYPES];
+
+/* Misc functions */
+extern int NC4_inq_atomic_type(nc_type typeid1, char *name, size_t *size);
+extern int NC4_lookup_atomic_type(const char *name, nc_type* idp, size_t *sizep);
+extern int NC4_inq_atomic_typeid(int ncid, const char *name, nc_type *typeidp);
+extern int NC4_get_atomic_typeclass(nc_type xtype, int *type_class);
+
+/**************************************************/
+/* Type alignment related functions */
+
+extern int nc_set_alignment(int threshold, int alignment);
+extern int nc_get_alignment(int* thresholdp, int* alignmentp);
+
+/**************************************************/
+/* Begin to collect global state info in one place (more to do) */
+
+typedef struct NCglobalstate {
+    int initialized;
+    char* tempdir; /* track a usable temp dir */
+    char* home; /* track $HOME */
+    char* cwd; /* track getcwd */
+    struct NCRCinfo* rcinfo; /* Currently only one rc file per session */
+    struct GlobalZarr { /* Zarr specific parameters */
+	char dimension_separator;
+	int default_zarrformat;
+    } zarr;
+    struct GlobalAWS { /* AWS S3 specific parameters/defaults */
+	char* default_region;
+	char* config_file;
+	char* profile;
+	char* access_key_id;
+	char* secret_access_key;
+    } aws;
+    struct Alignment { /* H5Pset_alignment parameters */
+        int defined; /* 1 => threshold and alignment explicitly set */
+	int threshold;
+	int alignment;
+    } alignment;
+    struct ChunkCache chunkcache;
+} NCglobalstate;
+
+extern struct NCglobalstate* NC_getglobalstate(void);
+extern void NC_freeglobalstate(void);
 
 /**************************************************/
 /* Binary searcher for reserved attributes */
