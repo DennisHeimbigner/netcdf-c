@@ -240,10 +240,12 @@ NC_find_equal_type(int ncid1, nc_type xtype1, int ncid2, nc_type *xtype2)
       return NC_NOERR;
    }
 
+#ifdef USE_NETCDF4
    /* Recursively search group ncid2 and its children
       to find a type that is equal (using compare_type)
       to xtype1. */
    ret = NC_rec_find_nc_type(ncid1, xtype1 , ncid2, xtype2);
+#endif /* USE_NETCDF4 */
    return ret;
 }
 
@@ -732,4 +734,5 @@ done:
     return ret;
 }
 
-#endif
+#endif /* USE_NETCDF4 */
+
