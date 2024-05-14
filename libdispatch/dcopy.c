@@ -12,9 +12,10 @@
 #include "nc_logging.h"
 #include "nclist.h"
 
+static int NC_find_equal_type(int ncid1, nc_type xtype1, int ncid2, nc_type *xtype2);
+
 #ifdef USE_NETCDF4
 
-static int NC_find_equal_type(int ncid1, nc_type xtype1, int ncid2, nc_type *xtype2);
 static int searchgroup(int ncid1, int tid1, int grp, int* tid2);
 static int searchgrouptree(int ncid1, int tid1, int grp, int* tid2);
 
