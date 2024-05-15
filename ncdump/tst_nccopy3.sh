@@ -5,6 +5,7 @@
 # nccopy.
 # Dennis Heimbigner
 
+export SETX=1
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
