@@ -587,7 +587,6 @@ nc4_get_typeclass(const NC_FILE_INFO_T *h5, nc_type xtype, int *type_class)
         if (!type)
             BAIL(NC_EBADTYPE);
         *type_class = type->nc_type_class;
-    }
 
 exit:
     return retval;

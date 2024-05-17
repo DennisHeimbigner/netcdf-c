@@ -140,7 +140,7 @@ nclistinsert(NClist* l, size_t index, void* elem)
   if(l == NULL) return FALSE;
   if(index > l->length) return FALSE;
   nclistsetalloc(l,0);
-  for(i=(long)l->length;i>index;i--) l->content[i] = l->content[i-1];
+  for(i=(long)l->length;i>(long)index;i--) l->content[i] = l->content[i-1];
   l->content[index] = elem;
   l->length++;
   return TRUE;

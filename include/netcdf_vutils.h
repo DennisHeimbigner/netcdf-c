@@ -234,12 +234,12 @@ util_initialize(void)
 
 /* Following are always "in-lined"*/
 #define vlistcontents(l)  ((l)==NULL?NULL:(l)->content)
-#define vlistlength(l)  ((l)==NULL?0:(int)(l)->length)
+#define vlistlength(l)  ((l)==NULL?0:(l)->length)
 #define vlistclear(l)  vlistsetlength(l,0)
 #define vlistsetlength(l,len)  do{if((l)!=NULL) (l)->length=len;} while(0)
 
 #define vscontents(vs)  ((vs)==NULL?NULL:(vs)->content)
-#define vslength(vs)  ((vs)==NULL?0:(int)(vs)->length)
+#define vslength(vs)  ((vs)==NULL?0:(vs)->length)
 #define vscat(vs,s)  vsappendn(vs,s,0)
 #define vsclear(vs)  vssetlength(vs,0)
 #define vssetlength(vs,len)  do{if((vs)!=NULL) (vs)->length=len;} while(0)
