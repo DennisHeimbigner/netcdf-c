@@ -92,7 +92,7 @@
 
 #include "netcdf.h"
 #include "ncuri.h"
-#include "ncutil.h"
+#include "netcdf_vsutils.h"
 
 /*****************/
 
@@ -399,7 +399,7 @@ curlreadcallback(char *ptr, size_t size, size_t nmemb, void *userdata)
     if (sds->magic != S3COMMS_CALLBACK_STRUCT_MAGIC)
         return CURL_READFUNC_ABORT;
 
-    avail = (vslength(sds->data) - sds->pos);
+    avail = (vslength(sds->data) - (size_t)sds->pos);
     towrite = (product > avail ? avail : product);
     if (towrite > 0) {
 	const char* data = vscontents(sds->data);

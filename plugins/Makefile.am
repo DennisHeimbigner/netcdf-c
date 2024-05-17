@@ -17,7 +17,7 @@ ALTPLUGINDIR = ${abs_top_builddir}/plugins/plugindir
 RPATH = -rpath $(abs_builddir)/.libs
 
 # This is where the plugins are to be installed
-if NETCDF_ENABLE_PLUGIN_DIR
+if ENABLE_PLUGIN_DIR
   plugindir = @PLUGIN_INSTALL_DIR@
 else
   plugindir = ${ALTPLUGINDIR}
@@ -119,7 +119,7 @@ lib__nch5bzip2_la_SOURCES += ${BZIP2SRC}
 endif
 plugins_to_install += lib__nch5bzip2.la
 
-if NETCDF_ENABLE_PLUGIN_DIR
+if ENABLE_PLUGIN_DIR
 plugin_LTLIBRARIES += $(plugins_to_install)
 else
 check_LTLIBRARIES += $(plugins_to_install)
