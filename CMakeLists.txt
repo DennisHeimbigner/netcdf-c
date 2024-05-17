@@ -495,8 +495,24 @@ option(NETCDF_ENABLE_PNETCDF "Build with parallel I/O for CDF-1, 2, and 5 files 
 set(NETCDF_ENABLE_CDF5 AUTO CACHE STRING "AUTO")
 option(NETCDF_ENABLE_CDF5 "Enable CDF5 support" ON)
 
+# Decide default Zarr Format for creation
+OPTION(NETCDF_ENABLE_DEFAULT_ZARR_FORMAT_V3 "Specify the default Zarr format is V3" OFF)
+if(NETCDF_ENABLE_DEFAULT_ZARR_FORMAT_V3)
+SET(DFALTZARRFORMAT 3 CACHE STRING "")
+ELSE()
+SET(DFALTZARRFORMAT 2 CACHE STRING "")
+ENDIF()
+
+IF(NETCDF_ENABLE_NCZARR)
+  SET(NETCDF_ENABLE_NCZARR_V3 ON CACHE BOOL "Enable Zarr V3" FORCE)
+  # V3 is enabled if NCzarr is enabled
+ELSE()
+  SET(NETCDF_ENABLE_NCZARR_V3 OFF CACHE BOOL "Enable Zarr V3" FORCE)
+ENDIF()
+
 # Netcdf-4 support (i.e. libsrc4) is required by more than just HDF5 (e.g. NCZarr)
 # So depending on what above formats are enabled, enable netcdf-4
+# as a short-hand for this boolean expression
 if(NETCDF_ENABLE_HDF5 OR NETCDF_ENABLE_HDF4 OR NETCDF_ENABLE_NCZARR)
   set(NETCDF_ENABLE_NETCDF4 ON CACHE BOOL "Enable netCDF-4 API" FORCE)
 endif()
@@ -522,10 +538,7 @@ endif()
 # Did the user specify a default minimum blocksize for posixio?
 set(NCIO_MINBLOCKSIZE 256 CACHE STRING "Minimum I/O Blocksize for netCDF classic and 64-bit offset format files.")
 
-if(NETCDF_ENABLE_NETCDF4)
-  set(USE_NETCDF4 ON CACHE BOOL "")
-  set(NETCDF_ENABLE_NETCDF4 ON CACHE BOOL "")
-else()
+if(NOT USE_NETCDF4)
   set(USE_HDF4_FILE_TESTS OFF)
   set(USE_HDF4 OFF)
   set(NETCDF_ENABLE_HDF4_FILE_TESTS OFF)
@@ -534,7 +547,7 @@ endif()
 
 # Option Logging, only valid for netcdf4.
 option(NETCDF_ENABLE_LOGGING "Enable Logging." OFF)
-if(NOT NETCDF_ENABLE_NETCDF4)
+if(NOT USE_NETCDF4)
 set(NETCDF_ENABLE_LOGGING OFF)
 endif()
 if(NETCDF_ENABLE_LOGGING)
@@ -542,6 +555,7 @@ if(NETCDF_ENABLE_LOGGING)
   set(LOGGING ON)
   set(NETCDF_ENABLE_SET_LOG_LEVEL ON)
 endif()
+
 option(NETCDF_ENABLE_SET_LOG_LEVEL_FUNC "Enable definition of nc_set_log_level()." ON)
 if(NETCDF_ENABLE_NETCDF4 AND NOT NETCDF_ENABLE_LOGGING AND NETCDF_ENABLE_SET_LOG_LEVEL_FUNC)
   target_compile_definitions(netcdf PRIVATE -DNETCDF_ENABLE_SET_LOG_LEVEL)
@@ -643,7 +657,7 @@ if(NOT ENABLE_PLUGIN_INSTALL)
     unset(PLUGIN_INSTALL_DIR CACHE)
 endif()
 
-if(ENABLE_PLUGIN_INSTALL)
+if(NETCDF_ENABLE_PLUGIN_INSTALL)
     if(NOT DEFINED PLUGIN_INSTALL_DIR)
       # Default to HDF5_PLUGIN_PATH or its default directories
       if(DEFINED ENV{HDF5_PLUGIN_PATH})
@@ -659,7 +673,7 @@ if(ENABLE_PLUGIN_INSTALL)
     endif()
 endif()
 
-if(ENABLE_PLUGIN_INSTALL)
+if(NETCDF_ENABLE_PLUGIN_INSTALL)
   # Use the lowest priority dir in the path
   if(NOT ISMSVC AND NOT ISMINGW)
     string(REPLACE ":" ";" PATH_LIST ${PLUGIN_INSTALL_DIR})
@@ -968,7 +982,7 @@ endif(NETCDF_ENABLE_ERANGE_FILL)
 # Now NETCDF_ENABLE_ERANGE_FILL is either AUTO, ON, or OFF
 
 # More relaxed coordinate check is now mandatory for all builds.
-set(ENABLE_ZERO_LENGTH_COORD_BOUND ON)
+set(NETCDF_ENABLE_ZERO_LENGTH_COORD_BOUND ON)
 
 # check and conform with PnetCDF settings on ERANGE_FILL and RELAX_COORD_BOUND
 if(USE_PNETCDF)
@@ -991,7 +1005,7 @@ if(NETCDF_ENABLE_ERANGE_FILL)
   set(M4FLAGS "-DERANGE_FILL" CACHE STRING "")
 endif()
 
-if(ENABLE_ZERO_LENGTH_COORD_BOUND)
+if(NETCDF_ENABLE_ZERO_LENGTH_COORD_BOUND)
   message(STATUS "Enabling a more relaxed check for NC_EINVALCOORDS")
   target_compile_definitions(netcdf PRIVATE RELAX_COORD_BOUND)
 endif()
@@ -1509,6 +1523,12 @@ if(NETCDF_ENABLE_TESTS)
   if(NETCDF_ENABLE_NCZARR)
     include_directories(nczarr_test)
     add_subdirectory(nczarr_test)
+    if(NOT ISCMAKE)
+      # Cannot create target because another target with
+      # the same name already exists.
+      # See documentation for policy CMP0002 for more details.
+      add_subdirectory(v3_nczarr_test)
+     endif()
   endif()
 endif()
 
@@ -1662,9 +1682,9 @@ is_disabled(BUILD_SHARED_LIBS enable_static)
 is_enabled(BUILD_SHARED_LIBS enable_shared)
 
 is_enabled(NETCDF_ENABLE_V2_API HAS_NC2)
-is_enabled(NETCDF_ENABLE_NETCDF4 HAS_NC4)
 is_enabled(NETCDF_ENABLE_HDF4 HAS_HDF4)
 is_enabled(USE_HDF5 HAS_HDF5)
+is_enabled(USE_NETCDF4 HAS_NC4)
 is_enabled(OFF HAS_BENCHMARKS)
 is_enabled(STATUS_PNETCDF HAS_PNETCDF)
 is_enabled(STATUS_PARALLEL HAS_PARALLEL)

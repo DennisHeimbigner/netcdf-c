@@ -238,6 +238,21 @@ if test "x$enable_hdf5" = xyes || test "x$enable_hdf4" = xyes || test "x$enable_
 enable_netcdf4=yes
 fi
 
+# Choose the default Zarr format
+AC_MSG_CHECKING([whether Zarr format 3 is the default])
+AC_ARG_ENABLE([default-zarr-format_v3],
+              [AS_HELP_STRING([--enable-default-zarr-format_v3],
+                              [Specify the default Zarr format.])])
+test "x$enable_default_zarr_format_v3" = xyes | enable_default_zarr_format_v3=no # V2 is the default by default
+AC_MSG_RESULT([$enable_default_zarr_format_v3}])
+if test "x$enable_default_zarr_format_v3" = xyes; then
+   DFALTZARRFORMAT=3
+else
+DFALTZARRFORMAT=2
+fi
+AC_DEFINE_UNQUOTED([DFALTZARRFORMAT], [$DFALTZARRFORMAT], [Default Zarr format])
+AC_SUBST([DFALTZARRFORMAT],[$DFALTZARRFORMAT])
+
 AC_MSG_NOTICE([checking user options])
 
 # Did the user specify a default minimum blocksize (NCIO_MINBLOCKSIZE) for posixio?
@@ -252,7 +267,7 @@ AC_DEFINE_UNQUOTED([NCIO_MINBLOCKSIZE], [$NCIO_MINBLOCKSIZE], [min blocksize for
 # Find valgrind, if available, and add targets for it.
 AX_VALGRIND_DFLT([sgcheck], [off])
 AX_VALGRIND_CHECK
-AM_CONDITIONAL(ENABLE_VALGRIND, [test "x$VALGRIND_ENABLED" = xyes])
+AM_CONDITIONAL(NETCDF_ENABLE_VALGRIND, [test "x$VALGRIND_ENABLED" = xyes])
 
 ###
 # Doxygen and doxygen-related options.
@@ -626,6 +641,13 @@ test "x$enable_dap_remote_tests" = xno || enable_dap_remote_tests=yes
 if test "x$enable_dap" = "xno" ; then
   enable_dap_remote_tests=no
 fi
+
+# Provide a global control for remotetest.
+if test "xREMOTETESTDOWN" = xyes ; then
+  AC_MSG_WARN("ENV(REMOTETESTDOWN) => netcdf_enable_dap_remote_tests == no")
+  enable_dap_remote_tests=no
+fi
+
 AC_MSG_RESULT($enable_dap_remote_tests)
 
 # Provide a global control for remotetest.
@@ -864,8 +886,6 @@ else
    AC_MSG_RESULT([${have_zip}])
    enable_nczarr_zip=${have_zip} # alias
 
-
-
    AC_MSG_CHECKING([whether nczarr zip support is enabled])
    AC_MSG_RESULT([${enable_nczarr_zip}])
 
@@ -980,6 +1000,26 @@ else
    AC_MSG_WARN([*** DO NOT SPECIFY WITH_S3_TESTING=YES UNLESS YOU HAVE ACCESS TO THE UNIDATA S3 BUCKET! ***])
    AC_DEFINE([NETCDF_ENABLE_S3_TESTALL], [yes], [control S3 testing.])
    fi
+fi
+
+# For convenience, define USE_NETCDF4
+if test "x${enable_hdf5}" = xyes || test "x${enable_nczarr}" = xyes || test "x${enable_dap4}" = xyes ; then
+enable_netcdf4=yes
+AC_DEFINE([USE_NETCDF4], [1], [convenience to avoid having to specify the above test])
+else
+enable_netcdf4=no
+fi
+AM_CONDITIONAL([USE_NETCDF4], [test x$enable_netcdf4 = xyes])
+
+# Does the user want to turn off nc_set_log_level() function? (It will
+# always be defined if --enable-logging is used.)
+AC_MSG_CHECKING([whether nc_set_log_level() function is included (will do nothing unless enable-logging is also used)])
+AC_ARG_ENABLE([set_log_level_func], [AS_HELP_STRING([--disable-set-log-level-func],
+              [disable the nc_set_log_level function])])
+test "x$enable_set_log_level_func" = xno -a "x$enable_logging" = xno || enable_set_log_level_func=yes
+AC_MSG_RESULT($enable_set_log_level_func)
+if test "x$enable_set_log_level_func" = xyes -a "x$enable_netcdf4" = xyes; then
+   AC_DEFINE([NETCDF_ENABLE_SET_LOG_LEVEL], 1, [If true, define nc_set_log_level.])
 fi
 
 # Check whether we want to enable strict null byte header padding.
@@ -1849,14 +1889,6 @@ AC_ARG_ENABLE([nczarr-filters], [AS_HELP_STRING([--disable-nczarr-filters],
 test "x$enable_nczarr_filters" = xno || enable_nczarr_filters=yes
 AC_MSG_RESULT([$enable_nczarr_filters])
 
-# Control filter test/example
-AC_MSG_CHECKING([whether filter testing should be run])
-AC_ARG_ENABLE([filter-testing],
-              [AS_HELP_STRING([--disable-filter-testing],
-                              [Do not run filter test and example; requires shared libraries and HDF5|NCZarr])])
-test "x$enable_filter_testing" = xno || enable_filter_testing=yes
-AC_MSG_RESULT($enable_filter_testing)
-
 # Apply constraints
 if test "x$enable_plugins" = xno ; then
 AC_MSG_WARN([--disable-plugins => --disable-nczarr-filters])
@@ -2029,6 +2061,7 @@ AC_SUBST(HAS_HDF5_ROS3,[$has_hdf5_ros3])
 AC_SUBST(HAS_NCZARR,[$enable_nczarr])
 AC_SUBST(NETCDF_ENABLE_S3_TESTING,[$with_s3_testing])
 AC_SUBST(HAS_NCZARR_ZIP,[$enable_nczarr_zip])
+AC_SUBST(NCZARR_DEFAULT_FORMAT,[$DFALTZARRFORMAT])
 AC_SUBST(HAS_QUANTIZE,[$enable_quantize])
 AC_SUBST(HAS_LOGGING,[$enable_logging])
 AC_SUBST(DO_FILTER_TESTS,[$enable_filter_testing])
@@ -2242,6 +2275,11 @@ AC_CONFIG_FILES(nczarr_test/test_filter_repeat.c:nc_test4/test_filter_repeat.c)
 AC_CONFIG_FILES(nczarr_test/test_filter_order.c:nc_test4/test_filter_order.c)
 AC_CONFIG_FILES([examples/C/run_par_test.sh], [chmod ugo+x examples/C/run_par_test.sh])
 AC_CONFIG_FILES([nc-config], [chmod 755 nc-config])
+
+# Config and copy into nczarr_test/v3_nczarr_test
+AC_CONFIG_FILES(nczarr_test/findplugin.sh:plugins/findplugin.in, [chmod ugo+x nczarr_test/findplugin.sh])
+AC_CONFIG_FILES(v3_nczarr_test/findplugin.sh:plugins/findplugin.in, [chmod ugo+x v3_nczarr_test/findplugin.sh])
+
 AC_CONFIG_FILES([Makefile
                  netcdf.pc
                  libnetcdf.settings
@@ -2286,6 +2324,7 @@ AC_CONFIG_FILES([Makefile
                  dap4_test/Makefile
                  plugins/Makefile
 		 nczarr_test/Makefile
+ 		 v3_nczarr_test/Makefile
                  ])
 AC_OUTPUT()
 

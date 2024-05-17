@@ -96,14 +96,11 @@ Inserted into any .zarray || .zattrs (at array level)
 \"dimensions\": [\"/g1/g2/d1\", \"/d2\",...]
 \"storage\": \"contiguous\" | \"chunked\"
 }"
-Note that contiguous <=> scalar for Zarr V2.
-
-Inserted into any .zattrs
-"_nczarr_attrs": "{
-\"types\": {\"attr1\": \"<i4\", \"attr2\": \"json\", \"attr2\": \"char\",...}
+Inserted into any .zattrs ? or should it go into the container?
+"_nczarr_attr": "{
+\"types\": {\"attr1\": \"<i4\", \"attr2\": \"<i1\",...}
 }
-Note: _nczarr_attrs type include non-standard use of a zarr type ">S1" => NC_CHAR
-and "|J0" for json valued attributes.
+Note: _nczarr_attr type include non-standard use of a zarr type "|U1" => NC_CHAR.
 */
 
 /* V3 Reserved Attributes */
@@ -190,6 +187,9 @@ Optionally Inserted into any group zarr.json or array zarr.json is the extra att
 #define NCZARR_DEFAULT_MAXSTRLEN_ATTR "_nczarr_default_maxstrlen"
 #define FORMAT2CONTROL "v2"
 #define FORMAT3CONTROL "v3"
+
+#define NC_NCZARR_MAXSTRLEN_ATTR "_nczarr_maxstrlen"
+#define NC_NCZARR_DEFAULT_MAXSTRLEN_ATTR "_nczarr_default_maxstrlen"
 
 #define LEGAL_DIM_SEPARATORS "./"
 #define DFALT_DIM_SEPARATOR_V2 '.'

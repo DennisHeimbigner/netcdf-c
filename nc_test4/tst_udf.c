@@ -24,7 +24,7 @@ NC4_no_show_metadata(int ncid)
     return NC_NOERR;
 }
 
-#define NC4_show_metadata NC4_no_show_metadata
+//#define NC4_show_metadata NC4_no_show_metadata
 #endif
 
 int
