@@ -1889,6 +1889,14 @@ AC_ARG_ENABLE([nczarr-filters], [AS_HELP_STRING([--disable-nczarr-filters],
 test "x$enable_nczarr_filters" = xno || enable_nczarr_filters=yes
 AC_MSG_RESULT([$enable_nczarr_filters])
 
+# Control filter testing
+AC_MSG_CHECKING([whether filter testing should be run])
+AC_ARG_ENABLE([filter-testing],
+              [AS_HELP_STRING([--disable-filter-testing],
+                              [Do not run filter test and example; requires shared libraries and HDF5|NCZarr])])
+test "x$enable_filter_testing" = xno || enable_filter_testing=yes
+AC_MSG_RESULT($enable_filter_testing)
+
 # Apply constraints
 if test "x$enable_plugins" = xno ; then
 AC_MSG_WARN([--disable-plugins => --disable-nczarr-filters])
