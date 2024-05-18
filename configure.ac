@@ -2156,7 +2156,7 @@ else # --with-plugin-dir=<dir|path>
     with_plugin_dir_setting="$with_plugin_dir"
     enable_plugin_dir=yes
 fi
-AM_CONDITIONAL([ENABLE_PLUGIN_DIR], [test "x$enable_plugin_dir" = xyes])
+AM_CONDITIONAL([NETCDF_ENABLE_PLUGIN_DIR], [test "x$enable_plugin_dir" = xyes])
 AC_SUBST([PLUGIN_INSTALL_DIR], [$with_plugin_dir])
 # Better value for libnetcdf.settings
 AC_SUBST([PLUGIN_INSTALL_DIR_SETTING], [$with_plugin_dir_setting])
