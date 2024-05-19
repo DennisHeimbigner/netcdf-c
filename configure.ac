@@ -142,7 +142,6 @@ AC_MSG_NOTICE([checking supported formats])
 
 # Collect the values of --enable-netcdf-4, --enable-netcdf4, and --enable-hdf5.
 # Also determine which have been explicitly set on the command line.
-
 AC_ARG_ENABLE([netcdf-4], [AS_HELP_STRING([--enable-netcdf-4],
               [(Deprecated) Synonym for --enable-hdf5; default yes])])
 AC_ARG_ENABLE([netcdf4], [AS_HELP_STRING([--enable-netcdf4],
@@ -2051,6 +2050,7 @@ AC_SUBST(HAS_NC2,[$nc_build_v2])
 AC_SUBST(HAS_CDF5,[$enable_cdf5])
 AC_SUBST(HAS_HDF4,[$enable_hdf4])
 AC_SUBST(HAS_BENCHMARKS,[$enable_benchmarks])
+AC_SUBST(HAS_NC4,[$enable_netcdf4])
 AC_SUBST(HAS_HDF5,[$enable_hdf5])
 AC_SUBST(HAS_PNETCDF,[$enable_pnetcdf])
 AC_SUBST(HAS_LOGGING, [$enable_logging])

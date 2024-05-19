@@ -432,18 +432,18 @@ endif()
 # Format Option checks
 ################################
 
-# As a long term goal, and because it is now the case that
-# -DNETCDF_ENABLE_NCZARR => USE_NETCDF4, so make the external options
-# -DNETCDF_ENABLE-NETCDF-4 and _DNETCDF_ENABLE-NETCDF4 obsolete
-# in favor of --NETCDF_ENABLE-HDF5.
+# As a long term goal, and because it is now the case that --enable-nczarr
+# => USE_NETCDF4, make the external options --enable-netcdf-4 and
+# --enable-netcdf4 obsolete in favor of --enable-hdf5
 # We will do the following for one more release cycle.
-# 1. Make --NETCDF_ENABLE-NETCDF-4 be an alias for --NETCDF_ENABLE-NETCDF4.
-# 2. Make --NETCDF_ENABLE-NETCDF4 an alias for --NETCDF_ENABLE-HDF5.
-# 3. Internally, convert most (but not all) uses of USE_NETCDF_4 and USE_NETCDF4 to USE_HDF5.
+# 1. Make --enable-netcdf-4 be an alias for --enable-netcdf4.
+# 2. Make --enable-netcdf4 an alias for --enable-hdf5.
+# 3. Internally, convert most uses of USE_NETCDF_4 ad USE_NETCDF4 to USE_HDF5
 
 # Collect the values of -DNETCDF_ENABLE-NETCDF-4, -DNETCDF_ENABLE-NETCDF4, and -DNETCDF_ENABLE-HDF5.
+# Also determine which have been explicitly set on the command line.
 
-# Figure out which options are defined and process options
+# Figure out which options are defined
 if(DEFINED NETCDF_ENABLE_NETCDF_4)
     set(UNDEF_NETCDF_4 OFF CACHE BOOL "") 
     option(NETCDF_ENABLE_NETCDF_4 "" ON)
@@ -485,6 +485,9 @@ if(UNDEF_HDF5)
 set(NETCDF_ENABLE_HDF5 ON CACHE BOOL "" FORCE) 
 endif()
 
+# Turn off enable_netcdf_4 because it is no longer needed
+set(NETCDF_ENABLE_NETCDF_4 OFF CACHE BOOL "" FORCE)
+
 # Turn off enable_netcdf4 because it will be used
 # as a shorthand for ENABLE_HDF5|ENABLE_HDF4|ENABLE_NCZARR
 set(NETCDF_ENABLE_NETCDF4 OFF CACHE BOOL "" FORCE)
@@ -515,6 +518,8 @@ ENDIF()
 # as a short-hand for this boolean expression
 if(NETCDF_ENABLE_HDF5 OR NETCDF_ENABLE_HDF4 OR NETCDF_ENABLE_NCZARR)
   set(NETCDF_ENABLE_NETCDF4 ON CACHE BOOL "Enable netCDF-4 API" FORCE)
+  # For convenience, define USE_NETCDF4
+  set(USE_NETCDF4 ON CACHE BOOL "Enable netCDF-4 API" FORCE)
 endif()
 
 # enable|disable all forms of network access
