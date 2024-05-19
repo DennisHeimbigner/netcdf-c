@@ -9,7 +9,7 @@ name: Run macOS-based netCDF Tests
 on: [push,pull_request,workflow_dispatch]
 
 env:
-  REMOTETESTDOWN: ${{ vars.REMOTETESTDOWN }}
+  REMOTETESTDOWN: no
 
 concurrency:  
   group: ${{ github.workflow}}-${{ github.head_ref }}  
