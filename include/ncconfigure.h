@@ -36,6 +36,7 @@ typedef unsigned int uint;
 #ifndef ushort
 typedef unsigned short ushort;
 #endif
+#endif /*__APPLE__*/
 
 #include <errno.h>
 #include <assert.h>
