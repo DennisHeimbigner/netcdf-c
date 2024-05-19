@@ -40,7 +40,7 @@ typedef unsigned short ushort;
 #include <errno.h>
 #include <assert.h>
 
--#ifdef _WIN32
+#ifdef _WIN32
 #include <windows.h>
 #include <io.h>
 #endif
