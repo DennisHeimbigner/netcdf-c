@@ -8,9 +8,9 @@ name: Run MSYS2, MinGW64-based Tests (Not Visual Studio)
 
 env:
   #CPPFLAGS: "-D_BSD_SOURCE"
-  REMOTETESTDOWN: ${{ vars.REMOTETESTDOWN }}
+  REMOTETESTDOWN: no
 
-on: [pull_request,workflow_dispatch]
+on: [push,pull_request,workflow_dispatch]
 
 concurrency:  
   group: ${{ github.workflow}}-${{ github.head_ref }}  
