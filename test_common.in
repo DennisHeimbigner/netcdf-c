@@ -178,6 +178,7 @@ fi
 export NCDUMP="${abs_top_builddir}/ncdump${VS}/${DL}ncdump${ext}"
 export NCCOPY="${abs_top_builddir}/ncdump${VS}/${DL}nccopy${ext}"
 export NCGEN="${abs_top_builddir}/ncgen${VS}/${DL}ncgen${ext}"
+export NCVALID="${abs_top_builddir}/ncgen${VS}/${DL}ncvalidator${ext}"
 export NCGEN3="${abs_top_builddir}/ncgen3${VS}/${DL}ncgen3${ext}"
 export NCPATHCVT="${abs_top_builddir}/ncdump${VS}/${DL}ncpathcvt${ext}"
 
