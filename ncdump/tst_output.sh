@@ -4,6 +4,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 # This shell script tests the output from several previous tests.
 
+set -x
 set -e
 
 echo ""
@@ -13,7 +14,7 @@ echo "*** Testing that ncgen produces correct C code from c0.cdl."
 ${execdir}/ref_ctest
 date
 ${NCGEN} -lc -o ctest0.nc $srcdir/../ncgen/c0.cdl > tst_output_ctest.c
-ls -l ctest0.c tst_output_ctest.c
+ls -l ctest0.nc tst_output_ctest.c
 diff -wb tst_output_ctest.c $srcdir/ref_ctest.c
 
 echo "*** creating tst_output_ctest1.cdl from ctest0.nc..."
