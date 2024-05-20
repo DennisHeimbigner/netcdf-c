@@ -31,6 +31,7 @@ echo "*** test output for ncdump -k"
 KIND=`${NCDUMP} -k tst_output_c0.nc |tr -d '\r'`
 test "$KIND" = "classic";
 ${NCGEN} -k $KIND -b -o tst_output_c0tmp.nc ${ncgenc0}
+# Bit-b-bit compare is problematic
 cmp tst_output_c0tmp.nc tst_output_c0.nc
 
 echo "*** test output for ncdump -x"
@@ -69,6 +70,7 @@ echo "*** test output for ncdump -k"
 KIND=`${NCDUMP} -k tst_output_c0_64.nc | tr -d '\r'`
 test "$KIND" = "64-bit offset";
 ${NCGEN} -k nc6 -b -o tst_output_c0_64_tmp.nc ${ncgenc0}
+# Bit-b-bit compare is problematic
 cmp tst_output_c0_64_tmp.nc tst_output_c0_64.nc
 
 echo "*** test output for ncdump -s"
