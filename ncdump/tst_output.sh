@@ -11,10 +11,12 @@ echo "*** Testing ncgen and ncdump test output for classic format."
 
 echo "*** Testing that ncgen produces correct C code from c0.cdl."
 ${execdir}/ref_ctest
+date
 ${NCGEN} -lc -o ctest0.nc $srcdir/../ncgen/c0.cdl > tst_output_ctest.c
-diff -b tst_output_ctest.c $srcdir/ref_ctest.c
+ls -l ctest0.c tst_output_ctest.c
+diff -wb tst_output_ctest.c $srcdir/ref_ctest.c
 
-echo "*** creating ctest1.cdl from tst_output_ctest0.nc..."
+echo "*** creating tst_output_ctest1.cdl from ctest0.nc..."
 ${NCDUMP} -n c1 ${builddir}/ctest0.nc | sed 's/e+0/e+/g' > tst_output_ctest1.cdl
 echo "*** creating tst_output_c0.nc from c0.cdl..."
 ${NCGEN} -b -o tst_output_c0.nc ${ncgenc0}
@@ -51,7 +53,7 @@ echo "*** All ncgen and ncdump test output for classic format passed!"
 echo "*** Testing that ncgen with c0.cdl for 64-bit offset format."
 ${execdir}/ref_ctest64
 ${NCGEN}  -k2 -lc -o ctest0_64.nc $srcdir/../ncgen/c0.cdl > tst_output_ctest64.c
-diff -b tst_output_ctest64.c $srcdir/ref_ctest64.c
+diff -wb tst_output_ctest64.c $srcdir/ref_ctest64.c
 
 echo "*** Testing ncgen and ncdump test output for 64-bit offset format."
 echo "*** creating ctest1_64.cdl from test0_64.nc..."
