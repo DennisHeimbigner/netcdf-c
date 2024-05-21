@@ -6,7 +6,7 @@
 
 name: Run MSYS2, MinGW64-based Tests (Not Visual Studio)
 
-on: [push,pull_request,workflow_dispatch]
+on: [pull_request,workflow_dispatch]
 
 concurrency:  
   group: ${{ github.workflow}}-${{ github.head_ref }}  
