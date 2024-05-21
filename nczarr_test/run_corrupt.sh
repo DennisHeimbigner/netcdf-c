@@ -8,7 +8,10 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 . "${srcdir}/test_nczarr.sh"
 
+set -x
 set -e
+
+df -h
 
 s3isolate "testdir_corrupt"
 THISDIR=`pwd`
