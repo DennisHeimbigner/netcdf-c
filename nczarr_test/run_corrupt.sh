@@ -21,6 +21,8 @@ testnoshape1() {
   unzip ${srcdir}/ref_noshape.file.zip
   fileargs ${ISOPATH}/ref_noshape "mode=zarr,$zext"
   rm -f tmp_noshape1_${zext}.cdl
+  find $fileurl
+  ${ZMD} -h -t int $fileurl
   ${NCDUMP} $flags $fileurl > tmp_noshape1_${zext}.cdl
 }
 
