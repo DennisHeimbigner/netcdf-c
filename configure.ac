@@ -878,7 +878,6 @@ AC_MSG_RESULT([${have_sz}])
 if test "x$enable_nczarr" = xno ; then
    enable_nczarr_zip=no
 else
-
    # See if we have libzip for NCZarr
    AC_SEARCH_LIBS([zip_open],[zip zip.dll cygzip.dll],[have_zip=yes],[have_zip=no])
    AC_MSG_CHECKING([whether libzip library is available])
@@ -887,7 +886,7 @@ else
 
    AC_MSG_CHECKING([whether nczarr zip support is enabled])
    AC_MSG_RESULT([${enable_nczarr_zip}])
-
+enable_nczarr_zip=no #@@@
    if test "x$enable_nczarr_zip" = xyes ; then
    AC_DEFINE([NETCDF_ENABLE_NCZARR_ZIP], [1], [If true, then libzip found])
    fi
