@@ -1585,7 +1585,8 @@ isdaoscontainer(const char* path)
 {
     int stat = NC_NOERR;
 #ifndef _WIN32
-#if defined(USE_HDF5) && H5_VERSION_GE(1,12,0)
+#ifdef USE_HDF5
+#if H5_VERSION_GE(1,12,0)
     htri_t accessible;
     hid_t fapl_id;
     FILE *fp;
@@ -1608,6 +1609,7 @@ isdaoscontainer(const char* path)
     /* Test for DAOS container */
     stat = (rc == 1 ? NC_NOERR : NC_ENOTNC);
 done:
+#endif
 #endif
 #endif
     errno = 0; /* reset */
