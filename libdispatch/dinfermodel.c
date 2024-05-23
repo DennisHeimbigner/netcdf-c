@@ -17,6 +17,11 @@
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
+#ifndef _WIN32
+#ifdef USE_HDF5
+#include <hdf5.h>
+#endif /* USE_HDF5 */
+#endif /* _WIN32 */
 
 #include "ncdispatch.h"
 #include "ncpathmgr.h"
@@ -229,6 +234,7 @@ static int replacemode(NClist* envv, const char* newval);
 static void infernext(NClist* current, NClist* next);
 static int negateone(const char* mode, NClist* modes);
 static void cleanstringlist(NClist* strs, int caseinsensitive);
+static int isdaoscontainer(const char* path);
 
 /*
 If the path looks like a URL, then parse it, reformat it.
@@ -848,7 +854,7 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
     const char* modeval = NULL;
     char* abspath = NULL;
     NClist* tmp = NULL;
-    
+
     /* Phase 1:
        1. convert special protocols to http|https
        2. begin collecting fragments
@@ -967,15 +973,22 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
         if((stat = NC_omodeinfer(useparallel,omode,model))) goto done;
     }
 
-    /* Phase 9: Infer from file content, if possible;
-       this has highest precedence, so it may override
-       previous decisions. Note that we do this last
-       because we need previously determined model info
-       to guess if this file is readable.
-    */
-    if(!iscreate && isreadable(uri,model)) {
-	/* Ok, we need to try to read the file */
-	if((stat = check_file_type(path, omode, useparallel, params, model, uri))) goto done;
+    /* Phase 9: Special case for file stored in DAOS container */
+    if(isdaoscontainer(path) == NC_NOERR) {
+        /* This is a DAOS container, so immediately assume it is HDF5. */
+        model->impl = NC_FORMATX_NC_HDF5;
+        model->format = NC_FORMAT_NETCDF4;
+    } else {
+        /* Phase 10: Infer from file content, if possible;
+           this has highest precedence, so it may override
+           previous decisions. Note that we do this last
+           because we need previously determined model info
+           to guess if this file is readable.
+        */
+        if(!iscreate && isreadable(uri,model)) {
+	     /* Ok, we need to try to read the file */
+            if((stat = check_file_type(path, omode, useparallel, params, model, uri))) goto done;
+        }
     }
 
     /* Need a decision */
@@ -1564,6 +1577,41 @@ done:
      }    
 
      return check(status);
+}
+
+/* Return NC_NOERR if path is a DAOS container; return NC_EXXX otherwise */
+static int
+isdaoscontainer(const char* path)
+{
+    int stat = NC_NOERR;
+#ifndef _WIN32
+#if defined(USE_HDF5) && H5_VERSION_GE(1,12,0)
+    htri_t accessible;
+    hid_t fapl_id;
+    FILE *fp;
+    char cmd[4096];
+    int rc;
+    /* Check for a DAOS container */
+    if((fapl_id = H5Pcreate(H5P_FILE_ACCESS)) < 0) {stat = NC_EHDFERR; goto done;}
+    H5Pset_fapl_sec2(fapl_id);
+    accessible = H5Fis_accessible(path, fapl_id);
+    H5Pclose(fapl_id); /* Ignore any error */
+    rc = 0;
+    if(accessible > 0) {
+        memset(cmd,0,sizeof(cmd));
+        snprintf(cmd,sizeof(cmd),"getfattr %s | grep -c '.daos'",path);
+        if((fp = popen(cmd, "r")) != NULL) {
+            fscanf(fp, "%d", &rc);
+            pclose(fp);
+        }
+    }
+    /* Test for DAOS container */
+    stat = (rc == 1 ? NC_NOERR : NC_ENOTNC);
+done:
+#endif
+#endif
+    errno = 0; /* reset */
+    return stat;
 }
 
 #ifdef DEBUG
