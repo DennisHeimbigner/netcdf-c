@@ -1305,6 +1305,9 @@ AC_CHECK_HEADERS([sys/resource.h])
 # See if we have ftw.h to walk directory trees
 AC_CHECK_HEADERS([ftw.h])
 
+# See if we have attr/xattr.h to look at file attributes
+AC_CHECK_HEADERS([attr/xattr.h])
+
 # Check for these functions...
 AC_CHECK_FUNCS([strlcat snprintf strcasecmp fileno \
                 strdup strtoll strtoull \

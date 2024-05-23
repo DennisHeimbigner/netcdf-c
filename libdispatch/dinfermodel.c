@@ -22,6 +22,9 @@
 #include <hdf5.h>
 #endif /* USE_HDF5 */
 #endif /* _WIN32 */
+#ifdef HAVE_ATTR_XATTR_H
+#include <attr/xattr.h>
+#endif
 
 #include "ncdispatch.h"
 #include "ncpathmgr.h"
@@ -1599,12 +1602,44 @@ isdaoscontainer(const char* path)
     H5Pclose(fapl_id); /* Ignore any error */
     rc = 0;
     if(accessible > 0) {
+#ifdef HAVE_ATTR_XATTR_H
+	ssize_t xlen;
+	xlen = listxattr(path, NULL, 0);
+	if(xlen > 0) {
+  	    char* xlist = NULL;
+	    char* xvalue = NULL;
+	    char* p;
+	    char* endp;
+	    if((xlist = (char*)calloc(1,xlen))==NULL)
+		{stat = NC_ENOMEM; goto done;}
+	    (void)listxattr(path, list, (size_t)xlen); /* Get xattr names */
+	    p = list; endp = p + xlen; /* delimit names */
+	    /* walk the list of xattr names */
+	    for(;p < endp;p += (strlen(p)+1)) {
+		/* The popen version looks for the string ".daos";
+                   It would be nice if we know whether that occurred
+		   int the xattr's name or it value.
+		   Oh well, we will do the general search */
+		/* Look for '.daos' in the key */
+		if(strcasestr(p,".daos") != NULL) {rc = 1; break;} /* success */
+		/* Else get the p'th xattr's value size */
+		xlen = getxattr(path, p, NULL, 0);
+		if((xvalue = (char*)calloc(1,xlen))==NULL)
+		    {stat = NC_ENOMEM; goto done;}
+		/* Read the value */
+		(void)getxattr(path, p, xvalue, xlen);
+		/* Look for '.daos' in the value */
+		if(strcasestr(xvalue,".daos") != NULL) {rc = 1; break;} /* success */
+	    }
+	}
+#else /*!HAVE_ATTR_XATTR_H*/
         memset(cmd,0,sizeof(cmd));
         snprintf(cmd,sizeof(cmd),"getfattr %s | grep -c '.daos'",path);
         if((fp = popen(cmd, "r")) != NULL) {
             fscanf(fp, "%d", &rc);
             pclose(fp);
         }
+#endif /*HAVE_ATTR_XATTR_H*/
     }
     /* Test for DAOS container */
     stat = (rc == 1 ? NC_NOERR : NC_ENOTNC);
