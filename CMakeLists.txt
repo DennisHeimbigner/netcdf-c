@@ -1173,7 +1173,7 @@ CHECK_INCLUDE_file("execinfo.h" HAVE_EXECINFO_H)
 CHECK_INCLUDE_file("dirent.h" HAVE_DIRENT_H)
 CHECK_INCLUDE_file("time.h" HAVE_TIME_H)
 CHECK_INCLUDE_file("dlfcn.h" HAVE_DLFCN_H)
-CHECK_INCLUDE_file("attr/xattr.h" HAVE_ATTR_XATTR_H)
+CHECK_INCLUDE_file("sys/xattr.h" HAVE_SYS_XATTR_H)
 
 # Symbol Exists
 CHECK_SYMBOL_EXISTS(isfinite "math.h" HAVE_DECL_ISFINITE)
