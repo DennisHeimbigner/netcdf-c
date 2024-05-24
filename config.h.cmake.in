@@ -397,6 +397,9 @@ are set when opening a binary file on Windows. */
 /* Define to 1 if you have the `strcasecmp` function. */
 #cmakedefine HAVE_STRCASECMP
 
+/* Define to 1 if you have the `strcasestr` function. */
+#cmakedefine HAVE_STRCASESTR
+
 /* Define to 1 if you have the `strlcat' function. */
 #cmakedefine HAVE_STRLCAT 1
 
@@ -405,6 +408,9 @@ are set when opening a binary file on Windows. */
 
 /* Define to 1 if you have the `strlen' function. */
 #cmakedefine HAVE_STRLEN 1
+
+/* Define to 1 if you have the `strstr` function. */
+#cmakedefine HAVE_STRSTR
 
 /* Define to 1 if you have the `strtoll' function. */
 #cmakedefine HAVE_STRTOLL 1

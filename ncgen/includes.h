@@ -40,6 +40,7 @@
 #define ENABLE_JAVA
 
 #include "netcdf.h"
+#include "nc_logging.h"
 #include "netcdf_filter.h"
 #include "nc4internal.h"
 #include "ncoffsets.h"

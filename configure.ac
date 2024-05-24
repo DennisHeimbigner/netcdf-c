@@ -457,7 +457,7 @@ AC_MSG_CHECKING([whether nc_set_log_level() function is included (will do nothin
 AC_ARG_ENABLE([set_log_level_func], [AS_HELP_STRING([--disable-set-log-level-func],
               [disable the nc_set_log_level function])])
 test "x$enable_set_log_level_func" = xno -a "x$enable_logging" = xno || enable_set_log_level_func=yes
-if test "x$enable_set_log_level_func" = xyes -a "x$enable_hdf5" = xyes; then
+if test "x$enable_set_log_level_func" = xyes -a "x$enable_netcf4" = xyes; then
    AC_DEFINE([ENABLE_SET_LOG_LEVEL], 1, [If true, define nc_set_log_level.])
 fi
 AC_MSG_RESULT($enable_set_log_level_func)
@@ -1313,7 +1313,7 @@ AC_CHECK_FUNCS([strlcat snprintf strcasecmp fileno \
                 strdup strtoll strtoull \
 		mkstemp mktemp random \
 		getrlimit gettimeofday fsync MPI_Comm_f2c MPI_Info_f2c \
-		strncasecmp strlcpy])
+		strncasecmp strlcpy strstr strcasestr])
 
 # See if clock_gettime is available and its arg types.
 AC_CHECK_FUNCS([clock_gettime])
