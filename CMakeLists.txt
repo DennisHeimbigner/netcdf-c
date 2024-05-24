@@ -544,9 +544,9 @@ endif()
 option(NETCDF_ENABLE_SET_LOG_LEVEL_FUNC "Enable definition of nc_set_log_level()." ON)
 if(LOGGING AND NETCDF_ENABLE_SET_LOG_LEVEL_FUNC)
   set(NETCDF_ENABLE_SET_LOG_LEVEL ON CACHE BOOL "")
-else
+else()
   set(NETCDF_ENABLE_SET_LOG_LEVEL OFF CACHE BOOL "")
-fi
+endif()
 
 # Option to allow for strict null file padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information
