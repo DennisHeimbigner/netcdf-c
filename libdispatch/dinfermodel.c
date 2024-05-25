@@ -1587,7 +1587,7 @@ done:
 static int
 isdaoscontainer(const char* path)
 {
-    int stat = NC_NOERR;
+    int stat = NC_ENOTNC; /* default is that this is not a DAOS container */
 #ifndef _WIN32
 #ifdef USE_HDF5
 #if H5_VERSION_GE(1,12,0)
