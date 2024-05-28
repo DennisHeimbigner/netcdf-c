@@ -126,7 +126,8 @@ if(USE_HDF5)
 
   #####
   # First, find the C and HL libraries.
-  #####
+  ##### 
+set(HDF5_FIND_DEBUG ON CACHE BOOL "")
   find_package(HDF5 ${HDF5_VERSION_REQUIRED} COMPONENTS C HL REQUIRED)
 
   message(STATUS "Using HDF5 include dir: ${HDF5_INCLUDE_DIRS}")
@@ -219,9 +220,10 @@ endif(USE_HDF5)
 # and NCZARR with S3 Support
 ################################
 
-if( (NETCDF_ENABLE_DAP AND (NETCDF_ENABLE_DAP2 OR NETCDF_ENABLE_DAP4 OR NETCDF_ENABLE_BYTERANGE_SUPPORT)) OR (NETCDF_ENABLE_NCZARR AND NETCDF_ENABLENCZARR_S3))
+if(NETCDF_ENABLE_DAP OR NETCDF_ENABLE_DAP4 OR NETCDF_ENABLE_BYTERANGE_SUPPORT OR (NETCDF_ENABLE_NCZARR AND NETCDF_ENABLENCZARR_S3))
 
   # See if we have libcurl
+message("@@@ CURL_PACK")
   find_package(CURL)
   #target_compile_options(netcdf
   #  PRIVATE
@@ -231,6 +233,7 @@ if( (NETCDF_ENABLE_DAP AND (NETCDF_ENABLE_DAP2 OR NETCDF_ENABLE_DAP4 OR NETCDF_E
   #  PRIVATE
   #    ${CURL_INCLUDE_DIRS}
   #)
+message("@@@ CURL_FOUND=${CURL_FOUND}")
   if(CURL_FOUND)
     set(FOUND_CURL TRUE)
     target_link_libraries(netcdf

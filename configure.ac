@@ -208,7 +208,7 @@ if test "x$found_curl" = "xyes" ; then
    AC_SEARCH_LIBS([curl_easy_setopt],[curl curl.dll cygcurl.dll], [],[])
 fi
 
-## Capture the state of the --enable-dap flag => enable dap2+dap4
+## Capture the state of the --enable-dap flag => enable dap2 + (optionally)dap4
 AC_MSG_CHECKING([whether DAP client(s) are to be built])
 AC_ARG_ENABLE([dap],
                  [AS_HELP_STRING([--disable-dap],
@@ -627,6 +627,8 @@ AM_CONDITIONAL(NETCDF_ENABLE_QUANTIZE, [test x$enable_quantize = xyes])
 
 # --enable-dap => enable-dap4
 enable_dap4=$enable_dap
+
+# Remotetest?
 AC_MSG_CHECKING([whether dap use of remotetest server should be enabled])
 AC_ARG_ENABLE([dap-remote-tests],
               [AS_HELP_STRING([--disable-dap-remote-tests],
@@ -2018,7 +2020,6 @@ NC_FLIBS="-lnetcdff $NC_LIBS"
 
 AC_SUBST(NC_LIBS,[$NC_LIBS])
 AC_SUBST(HAS_DAP,[$enable_dap])
-AC_SUBST(HAS_DAP2,[$enable_dap])
 AC_SUBST(HAS_DAP4,[$enable_dap4])
 AC_SUBST(HAS_NC2,[$nc_build_v2])
 AC_SUBST(HAS_CDF5,[$enable_cdf5])

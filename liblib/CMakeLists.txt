@@ -46,7 +46,7 @@ if(FOUND_CURL)
   target_link_libraries(netcdf PRIVATE CURL::libcurl)
 endif()
 
-if(NETCDF_ENABLE_DAP2)
+if(NETCDF_ENABLE_DAP)
   target_sources(netcdf
     PRIVATE
       $<TARGET_OBJECTS:oc2>

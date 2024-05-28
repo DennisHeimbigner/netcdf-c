@@ -58,6 +58,7 @@ SET (_HDF5_PATHS
     /usr/local/hdf5
     /usr/local/hdf5/share
 )
+
 FIND_PATH (HDF5_ROOT_DIR "hdf5-config.cmake"
     HINTS ${_HDF5_HINTS}
     PATHS ${_HDF5_PATHS}
@@ -82,4 +83,3 @@ IF (HDF5_INCLUDE_DIR)
   SET (HDF5_FOUND "YES")
   INCLUDE (${HDF5_ROOT_DIR}/hdf5-config.cmake)
 ENDIF (HDF5_INCLUDE_DIR)
-
