@@ -17,6 +17,7 @@
 
 #define FILE_NAME "tst_udf.nc"
 
+#if 0
 #ifdef _WIN32
 static int
 NC4_no_show_metadata(int ncid)
@@ -24,7 +25,8 @@ NC4_no_show_metadata(int ncid)
     return NC_NOERR;
 }
 
-//#define NC4_show_metadata NC4_no_show_metadata
+#define NC4_show_metadata NC4_no_show_metadata
+#endif
 #endif
 
 int
