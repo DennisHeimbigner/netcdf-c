@@ -36,7 +36,7 @@ jobs:
           msystem: ${{ matrix.msystem }}
           update: true
           pacboy: cc:p autotools:p hdf5:p curl:p libxml2:p zlib:p blosc:p bzip2:p
-          install: diffutils m4 git unzip libasan
+          install: diffutils m4 git unzip
 
 ###
 # Configure and build
