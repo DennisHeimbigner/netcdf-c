@@ -17,16 +17,14 @@
 
 #define FILE_NAME "tst_udf.nc"
 
-#if 0
-#ifdef _WIN32
-static int
+#if defined(_WIN32) || defined(_MSC_VER)
+int
 NC4_no_show_metadata(int ncid)
 {
     return NC_NOERR;
 }
 
 #define NC4_show_metadata NC4_no_show_metadata
-#endif
 #endif
 
 int
