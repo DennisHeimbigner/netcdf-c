@@ -10,6 +10,8 @@
 #####
 
 # netcdf_json.h
+message(status "Building Source: netcdf_json.h"
+file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/netcdf_json.h")
 set(TMP1 "")
 set(TMP2 "")
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/ncjson.h TMP1)
@@ -23,8 +25,11 @@ file(READ ${CMAKE_SOURCE_DIR}/libdispatch/ncjson.c TMP1)
 string(REPLACE "#include \"ncjson.h\"" "" TMP2 "${TMP1}")
 FILE(APPEND ${CMAKE_CURRENT_BINARY_DIR}/netcdf_json.h "${TMP2}")
 FILE(APPEND ${CMAKE_CURRENT_BINARY_DIR}/netcdf_json.h "#endif /*NETCDF_JSON_H*/\n")
+message(status "Built Source: netcdf_json.h"
 
 # netcdf_proplist.h
+message(status "Building Source: netcdf_proplist.h"
+file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/netcdf_proplist.h")
 set(TMP1 "")
 set(TMP2 "")
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/ncproplist.h TMP1)
@@ -38,6 +43,7 @@ file(READ ${CMAKE_SOURCE_DIR}/libdispatch/ncproplist.c TMP1)
 string(REPLACE "#include \"ncproplist.h\"" "" TMP2 "${TMP1}")
 file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/netcdf_proplist.h "${TMP2}")
 file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/netcdf_proplist.h "#endif /*NETCDF_PROPLIST_H*/\n")
+message(status "Built Source: netcdf_proplist.h"
 
 #####
 # Installation of various netCDF headers.
