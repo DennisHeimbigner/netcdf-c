@@ -52,14 +52,14 @@ const H5Z_class2_t H5Z_TEST[1] = {{
 }};
 
 /* External Discovery Functions */
-DLLEXPORT
+DECLSPEC
 H5PL_type_t
 H5PLget_plugin_type(void)
 {
     return H5PL_TYPE_FILTER;
 }
 
-DLLEXPORT
+DECLSPEC
 const void*
 H5PLget_plugin_info(void)
 {
