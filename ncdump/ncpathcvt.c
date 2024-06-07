@@ -190,6 +190,7 @@ int
 main(int argc, char** argv)
 {
     int c;
+    size_t len;
     char* cvtpath = NULL;
     char* inpath, *canon = NULL;
 
@@ -233,18 +234,19 @@ main(int argc, char** argv)
     if (argc > 1)
        usage("more than one path specified");
 
-    /* translate blanks */
-    inpath = (char*)malloc(strlen(argv[0])+1);
+    if(argv[0] == NULL) {
+        len = 0;
+	inpath = strdup("");
+    } else {
+        len = strlen(argv[0]);
+        inpath = strdup(argv[0]);
+    }
     if(inpath == NULL) usage("Out of memory");
-    {
-	const char* p = argv[0];
-	char* q = inpath;
+    { /* translate blanks */
+	char* p = inpath;
 	for(;*p;p++) {
-	    char c = *p;
-	    if(c == cvtoptions.blank) c = ' ';
-	    *q++ = c;
+	    if(*p == cvtoptions.blank) *p = ' ';
 	}
-	*q = '\0';
     } 
 
     if(cvtoptions.pathkind) {
@@ -255,7 +257,6 @@ main(int argc, char** argv)
     /* Canonicalize */
     if(NCpathcanonical(inpath,&canon))
        usage("Could not convert to canonical form");
-
     if(cvtoptions.canon) {
 	cvtpath = canon; canon = NULL;
     } else if(cvtoptions.target == NCPD_UNKNOWN) {
@@ -263,7 +264,6 @@ main(int argc, char** argv)
     } else {
         cvtpath = NCpathcvt_test(canon,cvtoptions.target,(char)cvtoptions.drive);
     }
-
     if(cvtpath && cvtoptions.escapes) {
 	char* path = cvtpath; cvtpath = NULL;
         cvtpath = escape(path);

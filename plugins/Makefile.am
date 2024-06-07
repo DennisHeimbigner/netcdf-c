@@ -11,6 +11,8 @@ plugin_version_info = -version-info 0:0:0
 
 AM_LDFLAGS += -module -avoid-version -shared -export-dynamic $(NOUNDEFINED)
 
+DISTCLEANFILES =
+
 # Create an alternate directory if not installing.
 ALTPLUGINDIR = ${abs_top_builddir}/plugins/plugindir
 
@@ -125,8 +127,10 @@ else
 check_LTLIBRARIES += $(plugins_to_install)
 endif
 
+DISTCLEANFILES += findplugin.sh
+DISTCLEANFILES += H5Znoop1.c H5Znoop2.c ncjson.h
+
 BUILT_SOURCES = H5Znoop1.c
-DISTCLEANFILES = H5Znoop1.c H5Znoop2.c ncjson.h
 H5Znoop1.c: Makefile H5Znoop.c
 	echo '#define NOOP_INSTANCE 1' > $@
 	cat ${srcdir}/H5Znoop.c >> $@
