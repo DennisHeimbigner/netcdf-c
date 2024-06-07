@@ -36,10 +36,10 @@ The inverse is true also. A legal _Zarr_ dataset is expected to also be a legal 
 In addition, certain non-Zarr features are allowed and used.
 Specifically the XArray ''\_ARRAY\_DIMENSIONS'' attribute is one such.
 
-There are two other, secondary assumption:
+There are two other, secondary, assumptions:
 
 1. The actual storage format in which the dataset is stored -- a zip file, for example -- can be read by the _Zarr_ implementation.
-2. The compressors (aka filters) used by the dataset can be encoded/decoded by the implementation. NCZarr uses HDF5-style filters, so ensuring access to such filters is somewhat complicated. See [the companion document on
+2. The compressors (aka filters) used by the dataset can be encoded/decoded by the implementation. NCZarr uses HDF5-style filters, so ensuring access to such filters is somewhat complicated. See the [companion document on
 filters](./md_filters.html "filters") for details.
 
 Briefly, the data model supported by NCZarr is netcdf-4 minus
@@ -248,7 +248,7 @@ so they are not included in the zmap data structure.
 
 __A Note on Error Codes:__
 
-The zmap API returns some distinguished error code:
+The zmap API returns some distinguished error codes:
 1. NC_NOERR if a operation succeeded
 2. NC_EEMPTY is returned when accessing a key that has no content.
 3. NC_EOBJECT is returned when an object is found which should not exist
@@ -295,9 +295,9 @@ This requirement imposed some constraints on the reading of Zarr datasets using 
 1. Zarr allows some primitive types not recognized by NCZarr.
 Over time, the set of unrecognized types is expected to diminish.
 Examples of currently unsupported types are as follows:
-  * "c" -- complex floating point
-  * "m" -- timedelta
-  * "M" -- datetime
+    * "c" -- complex floating point
+    * "m" -- timedelta
+    * "M" -- datetime
 2. The Zarr dataset may reference filters and compressors unrecognized by NCZarr.
 3. The Zarr dataset may store data in column-major order instead of row-major order. The effect of encountering such a dataset is to output the data in the wrong order.
 
@@ -314,7 +314,7 @@ A good value of _n_ is 9.
 # Zip File Support {#nczarr_zip}
 
 In order to use the _zip_ storage format, the libzip [3] library must be installed.
-Note that this is different from zlib.
+Note that this is different from zlib (aka "deflate").
 
 ## Addressing Style
 
@@ -325,12 +325,12 @@ Amazon S3 accepts two forms for specifying the endpoint for accessing the data
 1. Virtual -- the virtual addressing style places the bucket in the host part of a URL.
 For example:
 ```
-https://<bucketname>.s2.&lt;region&gt.amazonaws.com/
+https://<bucketname>.s2.<region>.amazonaws.com/
 ```
 2. Path -- the path addressing style places the bucket in at the front of the path part of a URL.
 For example:
 ```
-https://s3.&lt;region&gt.amazonaws.com/<bucketname>/
+https://s3.<region>.amazonaws.com/<bucketname>/
 ```
 
 The NCZarr code will accept either form, although internally, it is standardized on path style.
@@ -343,8 +343,8 @@ The reason for this is that the bucket name forms the initial segment in the key
 The NCZarr storage format is almost identical to that of the the standard Zarr format.
 The data model differs as follows.
 
-1. Zarr only supports anonymous dimensions -- NCZarr supports only shared (named) dimensions.
-2. Zarr attributes are untyped -- or perhaps more correctly characterized as of type string.
+1. Zarr only supports anonymous dimensions -- NCZarr supports only shared (named) dimensions (but can read anonymous dimensions).
+2. Zarr attributes are untyped -- or perhaps more correctly characterized as of type string (in "JSON" format).
 3. Zarr does not explicitly support unlimited dimensions -- NCZarr does support them.
 
 ## Storage Medium
@@ -372,7 +372,7 @@ of NCZarr specific information.
 
 These attributes are as follows:
 
-_\_nczarr_superblock\__ -- this is in the top level group's *.zattr* object.
+_\_nczarr_superblock\__ -- this attribute key is in the top level group's *.zattr* object.
 It is in effect the "superblock" for the dataset and contains
 any netcdf specific dataset level information.
 It is also used to verify that a given key is the root of a dataset.
@@ -380,7 +380,7 @@ Currently it contains one key that is ignored and is only to ensure that
 older netcdf library versions do not crash.
 * "version" -- the NCZarr version defining the format of the dataset (deprecated).
 
-_\_nczarr_group\__ -- this key appears in every group's _.zattr_ object.
+_\_nczarr_group\__ -- this attribute key appears in every group's _.zattr_ object.
 It contains any netcdf specific group information.
 Specifically it contains the following keys:
 * "dims" -- the name and size of shared dimensions defined in this group, as well an optional flag indictating if the dimension is UNLIMITED.
@@ -388,14 +388,14 @@ Specifically it contains the following keys:
 * "groups" -- the name of sub-groups defined in this group.
 These lists allow walking the NCZarr dataset without having to use the potentially costly search operation.
 
-_\_nczarr_array\__ -- this key appears in the *.zattr* object associated
+_\_nczarr_array\__ -- this attribute key appears in the *.zattr* object associated
 with a _.zarray_ object.
 It contains netcdf specific array information.
 Specifically it contains the following keys:
 * dimensions -- the names of the shared dimensions referenced by the variable.
 * storage -- indicates if the variable is chunked vs contiguous in the netcdf sense.
 
-_\_nczarr_attr\__ -- this attribute appears in every _.zattr_ object.
+_\_nczarr_attr\__ -- this attribute key appears in every _.zattr_ object.
 Specifically it contains the following keys:
 * types -- the types of all of the other attributes in the _.zattr_ object.
 
@@ -403,7 +403,11 @@ Specifically it contains the following keys:
 
 With some constraints, it is possible for an nczarr library to read the pure Zarr format and for other zarr libraries to read the nczarr format.
 
-The former case, nczarr reading zarr is possible if the nczarr code can simulate or infer the contents of the missing _\_nczarr\_xxx_ attributes.
+The latter case should require no special decoding by the non-nczarr library
+because all nczarr specific extensions are encoded to appear as ordinary
+zarr attributes.
+
+The former case -- nczarr reading zarr -- is possible if the nczarr code can simulate or infer the contents of the missing _\_nczarr\_xxx_ attributes.
 As a rule this can be done as follows.
 1. _\_nczarr_group\__ -- The list of contained variables and sub-groups can be computed using the search API to list the keys "contained" in the key for a group.
 The search looks for occurrences of _.zgroup_, _.zattr_, _.zarray_ to infer the keys for the contained groups, attribute sets, and arrays (variables).
@@ -423,7 +427,7 @@ In order to accomodate existing implementations, certain mode tags are provided 
 
 ## XArray
 
-The Xarray [XArray Zarr Encoding Specification](http://xarray.pydata.org/en/latest/internals.html#zarr-encoding-specification) Zarr implementation uses its own mechanism for specifying shared dimensions.
+The Xarray [XArray Zarr Encoding Specification](http://xarray.pydata.org/en/latest/internals.html#zarr-encoding-specification) Zarr implementation uses its own mechanism for specifying an approximation to shared dimensions.
 It uses a special attribute named ''_ARRAY_DIMENSIONS''.
 The value of this attribute is a list of dimension names (strings).
 An example might be ````["time", "lon", "lat"]````.
@@ -436,6 +440,7 @@ If detected, then these dimension names are used to define shared dimensions.
 The following conditions will cause ''_ARRAY_DIMENSIONS'' to not be written.
 * The variable is not in the root group,
 * Any dimension referenced by the variable is not in the root group.
+* ''_ARRAY_DIMENSIONS'' assigns conflicting sizes to a dimension name.
 
 Note that this attribute is not needed for Zarr Version 3, and is ignored.
 
@@ -465,7 +470,7 @@ Here are a couple of examples using the _ncgen_ and _ncdump_ utilities.
     ```
     Note that the URL is internally translated to this
     ````
-    "https://s2.&lt;region&gt.amazonaws.com/datasetbucket/rootkey\#mode=nczarr&awsprofile=unidata"
+    "https://s2.<region>.amazonaws.com/datasetbucket/rootkey\#mode=nczarr&awsprofile=unidata"
     ````
 
 # References {#nczarr_bib}
@@ -884,4 +889,4 @@ include arbitrary JSON expressions; see Appendix D for more details.
 __Author__: Dennis Heimbigner<br>
 __Email__: dmh at ucar dot edu<br>
 __Initial Version__: 4/10/2020<br>
-__Last Revised__: 4/02/2024
+__Last Revised__: 6/07/2024
