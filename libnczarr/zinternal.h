@@ -53,7 +53,8 @@ _nczarr_superblock: {"version": "2.0.0" "format": 2}
 
 Inserted into any group level .zattrs 
 "_nczarr_group": "{
-\"dimensions\": {\"d1\": \"1\", \"d2\": \"1\",...}
+\"dimensions\": [{\"d1\": \"1\", \"d2\": \"1\",...}
+or \"dimensions\": [{name: <dimname>, size: <integer>, unlimited: 1|0},...],
 \"arrays\": [\"v1\", \"v2\", ...]
 \"groups\": [\"g1\", \"g2\", ...]
 }"
