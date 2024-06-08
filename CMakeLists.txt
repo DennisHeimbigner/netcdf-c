@@ -491,12 +491,16 @@ set(NETCDF_ENABLE_NETCDF_4 OFF CACHE BOOL "" FORCE)
 # Turn off enable_netcdf4 because it will be used
 # as a shorthand for ENABLE_HDF5|ENABLE_HDF4|ENABLE_NCZARR
 set(NETCDF_ENABLE_NETCDF4 OFF CACHE BOOL "" FORCE)
-
 option(NETCDF_ENABLE_DAP "Enable DAP2 and DAP4 Client." ON)
 option(NETCDF_ENABLE_NCZARR "Enable NCZarr Client." ON)
 option(NETCDF_ENABLE_PNETCDF "Build with parallel I/O for CDF-1, 2, and 5 files using PnetCDF." OFF)
 set(NETCDF_ENABLE_CDF5 AUTO CACHE STRING "AUTO")
 option(NETCDF_ENABLE_CDF5 "Enable CDF5 support" ON)
+option(NETCDF_ENABLE_HDF4 "Enable HDF4 Read Support" OFF)
+option(NETCDF_ENABLE_HDF4_FILE_TESTS "Enable HDF4 File Tests" ${NETCDF_ENABLE_HDF4})
+if(NETCDF_ENABLE_HDF4)
+  set(USE_HDF4 ON)
+endif()
 
 # Decide default Zarr Format for creation
 OPTION(NETCDF_ENABLE_DEFAULT_ZARR_FORMAT_V3 "Specify the default Zarr format is V3" OFF)
@@ -552,19 +556,12 @@ endif()
 
 # Option Logging, only valid for netcdf4 dispatchers.
 option(NETCDF_ENABLE_LOGGING "Enable Logging." OFF)
-if(NOT USE_NETCDF4)
-set(NETCDF_ENABLE_LOGGING OFF)
-endif()
-if(NETCDF_ENABLE_LOGGING)
-  set(LOGGING ON CACHE BOOL "") # Alias
+if(NOT NETCDF_ENABLE_NETCDF4)
+  set(NETCDF_ENABLE_LOGGING OFF)
 endif()
 
-option(NETCDF_ENABLE_SET_LOG_LEVEL_FUNC "Enable definition of nc_set_log_level()." ON)
-if(LOGGING AND NETCDF_ENABLE_SET_LOG_LEVEL_FUNC)
-  set(NETCDF_ENABLE_SET_LOG_LEVEL ON CACHE BOOL "")
-else()
-  set(NETCDF_ENABLE_SET_LOG_LEVEL OFF CACHE BOOL "")
-endif()
+set(LOGGING ${NETCDF_ENABLE_LOGGING})
+set(NETCDF_ENABLE_SET_LOG_LEVEL ${NETCDF_ENABLE_LOGGING})
 
 # Option to allow for strict null file padding.
 # See https://github.com/Unidata/netcdf-c/issues/657 for more information
@@ -1445,7 +1442,6 @@ endif(USE_HDF5)
 
 if(USE_HDF4)
   add_subdirectory(libhdf4)
-  add_subdirectory(hdf4_test)
 endif(USE_HDF4)
 
 if(NETCDF_ENABLE_DAP2)
@@ -1484,6 +1480,8 @@ if(NETCDF_ENABLE_NCZARR)
        DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
 endif()
 
+# Tests and files which depend on libnetcdf must be included
+# *after* this line.
 add_subdirectory(liblib)
 
 if(NETCDF_ENABLE_PLUGINS)
@@ -1504,6 +1502,9 @@ if(NETCDF_ENABLE_TESTS)
     add_subdirectory(nctest)
   endif()
   add_subdirectory(nc_test)
+  if(USE_HDF4)
+    add_subdirectory(hdf4_test)
+  endif()
   if(USE_HDF5)
     include_directories(h5_test)
     add_subdirectory(nc_test4)
@@ -1687,6 +1688,7 @@ is_enabled(BUILD_SHARED_LIBS enable_shared)
 
 is_enabled(NETCDF_ENABLE_V2_API HAS_NC2)
 is_enabled(NETCDF_ENABLE_HDF4 HAS_HDF4)
+is_enabled(USE_HDF4 HAS_HDF4)
 is_enabled(USE_HDF5 HAS_HDF5)
 is_enabled(USE_NETCDF4 HAS_NC4)
 is_enabled(OFF HAS_BENCHMARKS)
