@@ -86,14 +86,14 @@ _nczarr_superblock: {"version": "3.0.0", "format=2"}
 
 Inserted into any .zgroup || .zattrs (at group level)
 "_nczarr_group": "{
-\"dims\": {\"d1\": \"1\", \"d2\": \"1\",...}
-\"vars\": [\"v1\", \"v2\", ...]
+\"dimensions\": {\"d1\": \"1\", \"d2\": \"1\",...}
+\"arrays\": [\"v1\", \"v2\", ...]
 \"groups\": [\"g1\", \"g2\", ...]
 }"
 
 Inserted into any .zarray || .zattrs (at array level)
 "_nczarr_array": "{
-\"dimensions\": [\"/g1/g2/d1\", \"/d2\",...]
+\"dimension_references\": [\"/g1/g2/d1\", \"/d2\",...]
 \"storage\": \"contiguous\" | \"chunked\"
 }"
 Inserted into any .zattrs ? or should it go into the container?
