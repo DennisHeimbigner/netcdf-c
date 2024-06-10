@@ -49,7 +49,7 @@ EXTERNL int NCZ_stringconvert(nc_type typid, size_t len, void* data0, NCjson** j
 /* zsync.c */
 EXTERNL int ncz_sync_file(NC_FILE_INFO_T* file, int isclose);
 EXTERNL int ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose);
-EXTERNL int ncz_sync_atts(NC_FILE_INFO_T*, NC_OBJ* container, NCindex* attlist, int isclose);
+EXTERNL int ncz_sync_atts(NC_FILE_INFO_T*, NC_OBJ* container, NCindex* attlist, NCjson* jatts, NCjson* jtypes, int isclose);
 EXTERNL int ncz_read_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp);
 EXTERNL int ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container);
 EXTERNL int ncz_read_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp);

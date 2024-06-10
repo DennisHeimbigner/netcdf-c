@@ -39,6 +39,7 @@
 #endif
 
 #define ZMETAROOT "/.zgroup"
+#define ZMETAATTR "/.zattr"
 #define ZGROUP ".zgroup"
 #define ZATTRS ".zattrs"
 #define ZARRAY ".zarray"
@@ -49,12 +50,11 @@ For nczarr version 2.x.x, the following (key,value)
 pairs are stored in .zgroup and/or .zarray.
 
 Inserted into /.zattrs in root group
-_nczarr_superblock: {"version": "2.0.0" "format": 2}
+_nczarr_superblock: {"version": "2.0.0"}
 
 Inserted into any group level .zattrs 
 "_nczarr_group": "{
-\"dimensions\": [{\"d1\": \"1\", \"d2\": \"1\",...}
-or \"dimensions\": [{name: <dimname>, size: <integer>, unlimited: 1|0},...],
+\"dimensions\": [{name: <dimname>, size: <integer>, unlimited: 1|0},...],
 \"arrays\": [\"v1\", \"v2\", ...]
 \"groups\": [\"g1\", \"g2\", ...]
 }"
