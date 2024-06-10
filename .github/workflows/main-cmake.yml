@@ -54,6 +54,12 @@ jobs:
         - name: Dump Matrix Context
           run: echo '${{ toJSON(matrix) }}'
 
+        - name: Check Hard Drive Space
+          shell: bash -el {0}
+          run: |
+            df -h
+            pwd
+
         #- run: echo "CMAKE_PREFIX_PATH=${env.CONDA_PREFIX}/Library" >> $GITHUB_ENV
         #- run: echo "/c/Users/runneradmin/miniconda3/Library/lib:${GITHUB_PATH}" >> $GITHUB_ENV
         #- run: echo ""
@@ -89,6 +95,12 @@ jobs:
             ls $CONDA_PREFIX/Library/include/
           shell: bash -el {0}
 
+        - name: Check Hard Drive Space
+          shell: bash -el {0}
+          run: |
+            df -h
+            pwd
+
         - name: Perform out-of-directory configuration
           shell: bash -el {0}
           run: |
@@ -109,6 +121,12 @@ jobs:
           run: |
             cd build
             cat libnetcdf.settings  
+            
+        - name: Check Hard Drive Space Post Summary
+          shell: bash -el {0}
+          run: |
+            df -h
+            pwd
 
         - name: Perform out-of-directory build - libnetcdf
           shell: bash -el {0}
