@@ -23,7 +23,7 @@ static int ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose);
 
 static int download_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattsp, const NCjson** jtypesp, const NCjson** jnczgrpp, const NCjson** jnczarrayp);
 static int zconvert(NCjson* src, nc_type typeid, size_t typelen, int* countp, NCbytes* dst);
-static int computeattrinfo(const char* name, NClist* atypes, nc_type typehint, int purezarr, NCjson* values,
+static int computeattrinfo(const char* name, const NCjson* jtypes, nc_type typehint, int purezarr, NCjson* values,
 		nc_type* typeidp, size_t* typelenp, size_t* lenp, void** datap);
 static int parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist* subgrps);
 static int parse_group_content_pure(NCZ_FILE_INFO_T*  zinfo, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrps);
@@ -40,10 +40,10 @@ static int decodeints(NCjson* jshape, size64_t* shapes);
 static int computeattrdata(nc_type typehint, nc_type* typeidp, NCjson* values, size_t* typelenp, size_t* lenp, void** datap);
 static int computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int purezarr, int xarray, int ndims, NClist* dimnames, size64_t* shapes, NC_DIM_INFO_T** dims);
 static int json_convention_read(NCjson* jdict, NCjson** jtextp);
-static int jtypes2atypes(NCjson* jtypes, NClist* atypes);
 static int ncz_validate(NC_FILE_INFO_T* file);
 static int insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson* javalue, const char* atype);
-static int upload_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts, NCjson* jtypes);
+static int insert_nczarr_attr(NCjson* jatts, NCjson* jtypes);
+static int upload_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts);
 
 /**************************************************/
 /**************************************************/
@@ -187,8 +187,7 @@ ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     if((stat = nczm_concat(fullpath,ZGROUP,&key)))
 	goto done;
     /* Write to map */
-    if((stat=NCZ_uploadjson(map,key,jgroup)))
-	goto done;
+    if((stat=NCZ_uploadjson(map,key,jgroup))) goto done;
     nullfree(key); key = NULL;
 
     if(!purezarr) {
@@ -236,21 +235,27 @@ ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     NCJnew(NCJ_DICT,&jatts);
     NCJnew(NCJ_DICT,&jtypes);
     if((stat = ncz_sync_atts(file, (NC_OBJ*)grp, grp->att, jatts, jtypes, isclose))) goto done;
-    if(jnczgrp != NULL) {
+
+    if(!purezarr && jnczgrp != NULL) {
         /* Insert _nczarr_group */
         if((stat=insert_attr(jatts,jtypes,NCZ_V2_GROUP,jnczgrp,"|J1"))) goto done;
 	jnczgrp = NULL;
     }
 
-    if(jsuper != NULL) {
+    if(!purezarr && jsuper != NULL) {
         /* Insert superblock */
         if((stat=insert_attr(jatts,jtypes,NCZ_V2_SUPERBLOCK,jsuper,"|J1"))) goto done;
 	jsuper = NULL;
     }
 
+    /* As a last mod to jatts, insert the jtypes as an attribute */
+    if(!purezarr && jtypes != NULL) {
+	if((stat = insert_nczarr_attr(jatts,jtypes))) goto done;
+	jtypes = NULL;
+    }
+
     /* Write out the .zattrs */
-    if((stat = upload_attrs(file,(NC_OBJ*)grp,jatts,jtypes))) goto done;
-    jatts = NULL; jtypes = NULL;
+    if((stat = upload_attrs(file,(NC_OBJ*)grp,jatts))) goto done;
 
     /* Now synchronize all the variables */
     for(i=0; i<ncindexsize(grp->vars); i++) {
@@ -545,14 +550,20 @@ ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     NCJnew(NCJ_DICT,&jtypes);
     if((stat = ncz_sync_atts(file,(NC_OBJ*)var, var->att, jatts, jtypes, isclose))) goto done;
 
-    if(jncvar != NULL) {
+    if(!purezarr && jncvar != NULL) {
         /* Insert _nczarr_array */
-        if((stat=insert_attr(jatts,jtypes,NCZ_V2_GROUP,jncvar,"|J1"))) goto done;
+        if((stat=insert_attr(jatts,jtypes,NCZ_V2_ARRAY,jncvar,"|J1"))) goto done;
 	jncvar = NULL;
     }
 
+    /* As a last mod to jatts, optionally insert the jtypes as an attribute */
+    if(!purezarr && jtypes != NULL) {
+	if((stat = insert_nczarr_attr(jatts,jtypes))) goto done;
+	jtypes = NULL;
+    }
+
     /* Write out the .zattrs */
-    if((stat = upload_attrs(file,(NC_OBJ*)var,jatts,jtypes))) goto done;
+    if((stat = upload_attrs(file,(NC_OBJ*)var,jatts))) goto done;
 
 done:
     nclistfreeall(dimrefs);
@@ -565,7 +576,7 @@ done:
     NCJreclaim(jtmp);
     NCJreclaim(jfill);
     NCJreclaim(jatts);
-    NCJreclaim(jtypes);    
+    NCJreclaim(jtypes);
     return ZUNTRACE(THROW(stat));
 }
 
@@ -682,21 +693,21 @@ done:
 /**
  * @internal Synchronize attribute data from memory to map.
  *
+ * @param file
  * @param container Pointer to grp|var struct containing the attributes
- * @param key the name of the map entry
+ * @param attlist
+ * @param jattsp
+ * @param jtypesp
  *
  * @return ::NC_NOERR No error.
  * @author Dennis Heimbigner
  */
 int
-ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist, NCjson* jattsp, NCjson* jtypesp, int xxx)
+ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist, NCjson* jatts, NCjson* jtypes, int isclose)
 {
     int stat = NC_NOERR;
     size_t i;
     NCZ_FILE_INFO_T* zinfo = NULL;
-    NCjson* jatts = NULL;
-    NCjson* jtypes = NULL;
-    NCjson* jtype = NULL;
     NCjson* jdimrefs = NULL;
     NCjson* jdict = NULL;
     NCjson* jint = NULL;
@@ -713,6 +724,8 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist, NCjson*
     int purezarr = 0;
     int endianness = (NC_isLittleEndian()?NC_ENDIAN_LITTLE:NC_ENDIAN_BIG);
 
+    NC_UNUSED(isclose);
+    
     LOG((3, "%s", __func__));
     ZTRACE(3,"file=%s container=%s |attlist|=%u",file->controller->path,container->name,(unsigned)ncindexsize(attlist));
     
@@ -728,21 +741,11 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist, NCjson*
     purezarr = (zinfo->controls.flags & FLAG_PUREZARR)?1:0;
     if(zinfo->controls.flags & FLAG_XARRAYDIMS) isxarray = 1;
 
-    /* Create the attribute dictionary */
-    if((stat = NCJnew(NCJ_DICT,&jatts))) goto done;
-
     if(ncindexsize(attlist) > 0) {
-        /* Create the jncattr.types object */
-        if((stat = NCJnew(NCJ_DICT,&jtypes))) goto done;
         /* Walk all the attributes convert to json and collect the dtype */
         for(i=0;i<ncindexsize(attlist);i++) {
 	    NC_ATT_INFO_T* a = (NC_ATT_INFO_T*)ncindexith(attlist,i);
 	    size_t typesize = 0;
-#if 0
-	    const NC_reservedatt* ra = NC_findreserved(a->hdr.name);
-	    /* If reserved and hidden, then ignore */
-	    if(ra && (ra->flags & HIDDENATTRFLAG)) continue;
-#endif
 	    if(a->nc_typeid > NC_MAX_ATOMIC_TYPE)
 	        {stat = (THROW(NC_ENCZARR)); goto done;}
 	    if(a->nc_typeid == NC_STRING)
@@ -751,17 +754,17 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist, NCjson*
 	        {if((stat = NC4_inq_atomic_type(a->nc_typeid,NULL,&typesize))) goto done;}
 	    /* Convert to storable json */
 	    if((stat = NCZ_stringconvert(a->nc_typeid,a->len,a->data,&jdata))) goto done;
-	    if((stat = NCJinsert(jatts,a->hdr.name,jdata))) goto done;
-	    jdata = NULL;
 
 	    /* Collect the corresponding dtype */
-	    {
-	        if((stat = ncz_nctype2dtype(a->nc_typeid,endianness,purezarr,typesize,&tname))) goto done;
-  	        if((stat = NCJnewstring(NCJ_STRING,tname,&jtype))) goto done;
-	        nullfree(tname); tname = NULL;
-	        if((stat = NCJinsert(jtypes,a->hdr.name,jtype))) goto done; /* add {name: type} */
-	        jtype = NULL;
-	    }
+            if((stat = ncz_nctype2dtype(a->nc_typeid,endianness,purezarr,typesize,&tname))) goto done;
+
+	    /* Insert the attribute; consumes jdata */
+	    if((stat = insert_attr(jatts,jtypes,a->hdr.name, jdata, tname))) goto done;
+
+	    /* cleanup */
+            nullfree(tname); tname = NULL;
+	    jdata = NULL;
+
         }
     }
 
@@ -831,26 +834,12 @@ ncz_sync_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist, NCjson*
 	}
     }
 
-    if(NCJlength(jatts) > 0) {
-        if(!purezarr) {
-	    /* Insert the _NCZARR_ATTR attribute */
-            if((stat = NCJnew(NCJ_DICT,&jdict))) goto done;
-	    if(jtypes != NULL)
-                {if((stat = NCJinsert(jdict,"types",jtypes))) goto done;}
-            jtypes = NULL;
-	    if(jdict != NULL)
-                {if((stat = NCJinsert(jatts,NCZ_V2_ATTR,jdict))) goto done;}
-            jdict = NULL;
-	}
-    }
-
 done:
     nullfree(fullpath);
     nullfree(key);
     nullfree(content);
     nullfree(dimpath);
     nullfree(tname);
-    NCJreclaim(jtype);
     NCJreclaim(jdimrefs);
     NCJreclaim(jdict);
     NCJreclaim(jint);
@@ -1036,7 +1025,7 @@ done:
 Extract type and data for an attribute
 */
 static int
-computeattrinfo(const char* name, NClist* atypes, nc_type typehint, int purezarr, NCjson* values,
+computeattrinfo(const char* name, const NCjson* jtypes, nc_type typehint, int purezarr, NCjson* values,
 		nc_type* typeidp, size_t* typelenp, size_t* lenp, void** datap)
 {
     int stat = NC_NOERR;
@@ -1045,15 +1034,16 @@ computeattrinfo(const char* name, NClist* atypes, nc_type typehint, int purezarr
     void* data = NULL;
     nc_type typeid;
 
-    ZTRACE(3,"name=%s |atypes|=%u typehint=%d purezarr=%d values=|%s|",name,nclistlength(atypes),typehint,purezarr,NCJtotext(values));
+    ZTRACE(3,"name=%s typehint=%d purezarr=%d values=|%s|",name,typehint,purezarr,NCJtotext(values));
 
     /* Get type info for the given att */
     typeid = NC_NAT;
-    for(i=0;i<nclistlength(atypes);i+=2) {
-	const char* aname = nclistget(atypes,i);
-	if(strcmp(aname,name)==0) {
-	    const char* atype = nclistget(atypes,i+1);
-	    if((stat = ncz_dtype2nctype(atype,typehint,purezarr,&typeid,NULL,NULL))) goto done;
+    for(i=0;i<NCJdictlength(jtypes);i++) {
+	NCjson* akey = NCJdictith(jtypes,i);
+	if(strcmp(NCJstring(akey),name)==0) {
+	    NCjson* avalue = NULL;
+	    NCJdictget(jtypes,NCJstring(akey),&avalue);
+	    if((stat = ncz_dtype2nctype(NCJstring(avalue),typehint,purezarr,&typeid,NULL,NULL))) goto done;
 //		if((stat = ncz_nctypedecode(atype,&typeid))) goto done;
 	    break;
 	}
@@ -1277,14 +1267,16 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
     NCZMAP* map = NULL;
     NC_ATT_INFO_T* att = NULL;
     NCindex* attlist = NULL;
-    NCjson* jattrs = NULL;
-    NClist* atypes = NULL;
     nc_type typeid;
     size_t len, typelen;
     void* data = NULL;
     NC_ATT_INFO_T* fillvalueatt = NULL;
     nc_type typehint = NC_NAT;
     int purezarr;
+    NCjson* jattrs = NULL;
+    const NCjson* jtypes = NULL;
+    const NCjson* jnczgrp = NULL;
+    const NCjson* jnczarray = NULL;
 
     ZTRACE(3,"file=%s container=%s",file->controller->path,container->name);
 
@@ -1302,7 +1294,7 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
 	attlist =  var->att;
     }
 
-    switch ((stat = load_jatts(map, container, (zinfo->controls.flags & FLAG_NCZARR_V1), &jattrs, &atypes))) {
+    switch ((stat = download_jatts(map, container, &jattrs, &jtypes, &jnczgrp, &jnczarray))) {
     case NC_NOERR: break;
     case NC_EEMPTY:  /* container has no attributes */
         stat = NC_NOERR;
@@ -1360,7 +1352,7 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
 	        typehint = var->type_info->hdr.id ; /* if unknown use the var's type for _FillValue */
 	    /* Create the attribute */
 	    /* Collect the attribute's type and value  */
-	    if((stat = computeattrinfo(aname,atypes,typehint,purezarr,value,
+	    if((stat = computeattrinfo(aname,jtypes,typehint,purezarr,value,
 				   &typeid,&typelen,&len,&data)))
 		goto done;
 	    if((stat = ncz_makeattr(container,attlist,aname,typeid,len,data,&att)))
@@ -1392,7 +1384,6 @@ done:
     if(data != NULL)
         stat = NC_reclaim_data(file->controller,att->nc_typeid,data,len);
     NCJreclaim(jattrs);
-    nclistfreeall(atypes);
     nullfree(fullpath);
     nullfree(key);
     return ZUNTRACE(THROW(stat));
@@ -2470,6 +2461,7 @@ done:
 }
 #endif
 
+#if 0
 /* Convert an attribute "types list to an envv style list */
 static int
 jtypes2atypes(NCjson* jtypes, NClist* atypes)
@@ -2487,6 +2479,7 @@ jtypes2atypes(NCjson* jtypes, NClist* atypes)
 done:
     return stat;
 }
+#endif
 
 /* See if there is reason to believe the specified path is a legitimate (NC)Zarr file
  * Do a breadth first walk of the tree starting at file path.
@@ -2550,6 +2543,7 @@ done:
 
 /**
 Insert an attribute into a list of attribute, including typing
+Takes control of javalue.
 @param jatts
 @param jtypes
 @param aname
@@ -2560,23 +2554,44 @@ insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson* javalue, c
 {
     int stat = NC_NOERR;
     if(jatts != NULL) {
-        NCJinsert(jatts,aname,javalue);
 	if(jtypes != NULL) {
             NCJinsertstring(jtypes,aname,atype);
 	}
+        NCJinsert(jatts,aname,javalue);
     }
     return THROW(stat);
 }
 
 /**
-Upload a .zattrs object
-@param file
-@param container
+Insert _nczarr_attr into .zattrs
+Take control of jtypes
 @param jatts
 @param jtypes
 */
 static int
-upload_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts, NCjson* jtypes)
+insert_nczarr_attr(NCjson* jatts, NCjson* jtypes)
+{
+    NCjson* jdict = NULL;
+    if(jatts != NULL && jtypes != NULL) {
+	NCJinsertstring(jtypes,NCZ_V2_ATTR,"|J1"); /* type for _nczarr_attr */
+        NCJnew(NCJ_DICT,&jdict);
+        NCJinsert(jdict,"types",jtypes);
+        NCJinsert(jatts,NCZ_V2_ATTR,jdict);
+        jdict = NULL;
+    }
+    return NC_NOERR;
+}
+
+/**
+Upload a .zattrs object
+Optionally take control of jatts and jtypes
+@param file
+@param container
+@param jattsp
+@param jtypesp
+*/
+static int
+upload_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = NULL;
@@ -2585,19 +2600,13 @@ upload_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts, NCjson* jty
     NCZMAP* map = NULL;
     char* fullpath = NULL;
     char* key = NULL;
-    int purezarr = 0;
 
     ZTRACE(3,"file=%s grp=%s",file->controller->path,grp->hdr.name);
 
+    if(jatts == NULL || NCJdictlength(jatts)==0) goto done;    
+
     zinfo = file->format_file_info;
     map = zinfo->map;
-    purezarr = (zinfo->controls.flags & FLAG_PUREZARR)?1:0;
-
-    /* As a last mod to jatts, optionally insert the jtype as
-       an attribute */
-    if(!purezarr && jtypes != NULL) {
-	if((stat = insert_attr(jatts,jtypes,NCZ_V2_ARRAY,jtypes,"|J1"))) goto done;
-    }
 
     if(container->sort == NCVAR) {
         var = (NC_VAR_INFO_T*)container;
@@ -2618,5 +2627,7 @@ upload_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts, NCjson* jty
     nullfree(key); key = NULL;
 
 done:
+    nullfree(fullpath);
     return ZUNTRACE(THROW(stat));
 }
+

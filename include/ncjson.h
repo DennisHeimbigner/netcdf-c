@@ -138,8 +138,10 @@ OPTEXPORT const char* NCJtotext(const NCjson* json);
 #define NCJsort(x) ((x)->sort)
 #define NCJstring(x) ((x)->string)
 #define NCJlength(x) ((x)==NULL ? 0 : (x)->list.len)
+#define NCJdictlength(x) ((x)==NULL ? 0 : (x)->list.len/2)
 #define NCJcontents(x) ((x)->list.contents)
 #define NCJith(x,i) ((x)->list.contents[i])
+#define NCJdictith(x,i) ((x)->list.contents[2*i])
 
 /* Setters */
 #define NCJsetsort(x,s) (x)->sort=(s)

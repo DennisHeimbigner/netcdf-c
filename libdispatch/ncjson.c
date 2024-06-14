@@ -130,7 +130,7 @@ static int NCJclone(const NCjson* json, NCjson** clonep);
 static int NCJaddstring(NCjson* json, int sort, const char* s);
 static int NCJinsert(NCjson* object, const char* key, NCjson* jvalue);
 static int NCJinsertstring(NCjson* object, const char* key, const char* value);
-static int NCJinsertint(NCjson* object, const char* key, size64_t ivalue);
+static int NCJinsertint(NCjson* object, const char* key, long long ivalue);
 static int NCJappend(NCjson* object, NCjson* value);
 static int NCJunparse(const NCjson* json, unsigned flags, char** textp);
 #else /*!NETCDF_JSON_H*/
@@ -923,10 +923,10 @@ NCJinsertstring(NCjson* object, const char* key, const char* value)
     int stat = NCJ_OK;
     NCjson* jvalue = NULL;
     if(value == NULL)
-        NCJnewstring(NCJ_STRING,value,&jvalue);
-    else
         NCJnew(NCJ_NULL,&jvalue);
-    return NCJTHROW(NCJinsert(object,key,jvalue);
+    else
+        NCJnewstring(NCJ_STRING,value,&jvalue);
+    NCJinsert(object,key,jvalue);
 done:
     return NCJTHROW(stat);
 }
@@ -940,7 +940,7 @@ NCJinsertint(NCjson* object, const char* key, long long ivalue)
     char digits[128];
     snprintf(digits,sizeof(digits),"%lld",ivalue);
     NCJnewstring(NCJ_STRING,digits,&jvalue);
-    return NCJTHROW(NCJinsert(object,key,jvalue);
+    NCJinsert(object,key,jvalue);
 done:
     return NCJTHROW(stat);
 }
