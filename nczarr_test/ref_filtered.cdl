@@ -1,16 +1,13 @@
 netcdf filtered {
 dimensions:
-	dim0 = 4 ;
-	dim1 = 4 ;
-	dim2 = 4 ;
-	dim3 = 4 ;
+	_Anonymous_Dim_4 = 4 ;
 
 // global attributes:
 		:_Format = "netCDF-4" ;
 
 group: g {
   variables:
-  	float var(dim0, dim1, dim2, dim3) ;
+  	float var(_Anonymous_Dim_4, _Anonymous_Dim_4, _Anonymous_Dim_4, _Anonymous_Dim_4) ;
   		var:_Storage = "chunked" ;
   		var:_ChunkSizes = 4, 4, 4, 4 ;
   		var:_Filter = "307,9" ;

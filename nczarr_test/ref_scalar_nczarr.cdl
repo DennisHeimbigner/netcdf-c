@@ -1,0 +1,10 @@
+netcdf ref_scalar {
+dimensions:
+	_scalar_ = 1 ;
+variables:
+	int v(_scalar_) ;
+		v:_FillValue = -1 ;
+data:
+
+ v = 17 ;
+}
