@@ -251,9 +251,9 @@ write_grp(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_GRP_INFO
 	/* Create the "_nczarr_group" dict */
 	NCJcheck(NCJnew(NCJ_DICT,&jzgrp));
 	/* Insert the various dicts and arrays */
-	NCJcheck(NCJinsert(jzgrp,"dims",jdims));
+	NCJcheck(NCJinsert(jzgrp,"dimensions",jdims));
 	jdims = NULL; /* avoid memory problems */
-	NCJcheck(NCJinsert(jzgrp,"vars",jvars));
+	NCJcheck(NCJinsert(jzgrp,"arrays",jvars));
 	jvars = NULL; /* avoid memory problems */
 	NCJcheck(NCJinsert(jzgrp,"groups",jsubgrps));
 	jsubgrps = NULL; /* avoid memory problems */
@@ -1796,7 +1796,7 @@ parse_group_content(const NCjson* jzgroup, NClist* dimdefs, NClist* varnames, NC
     ZTRACE(3,"jcontent=|%s| |dimdefs|=%u |varnames|=%u |subgrps|=%u",NCJtotext(jcontent),(unsigned)nclistlength(dimdefs),(unsigned)nclistlength(varnames),(unsigned)nclistlength(subgrps));
 
     /* Now get nczarr specific keys */
-    NCJcheck(NCJdictget(jzgroup,"dims",&jvalue));
+    NCJcheck(NCJdictget(jzgroup,"dimensions",&jvalue));
     if(jvalue != NULL) {
         if(NCJsort(jvalue) != NCJ_DICT) {stat = (THROW(NC_ENCZARR)); goto done;}
         /* Extract the dimensions defined in this group */
@@ -1834,7 +1834,7 @@ parse_group_content(const NCjson* jzgroup, NClist* dimdefs, NClist* varnames, NC
         }
     }
 
-    NCJcheck(NCJdictget(jzgroup,"vars",&jvalue));
+    NCJcheck(NCJdictget(jzgroup,"arrays",&jvalue));
     if(jvalue != NULL) {
         /* Extract the variable names in this group */
         for(i=0;i<NCJarraylength(jvalue);i++) {
