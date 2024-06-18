@@ -8,7 +8,7 @@
 #include <stddef.h>
 
 #ifndef nulldup
- #define nulldup(x) ((x)?strdup(x):(x))
+#define nulldup(x) ((x)?strdup(x):(x))
 #endif
 
 #undef FILLONCLOSE
@@ -239,13 +239,13 @@ ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
 
     if(!purezarr && jnczgrp != NULL) {
         /* Insert _nczarr_group */
-        if((stat=insert_attr(jatts,jtypes,NCZ_V2_GROUP,jnczgrp,"|J1"))) goto done;
+        if((stat=insert_attr(jatts,jtypes,NCZ_V2_GROUP,jnczgrp,"|J0"))) goto done;
 	jnczgrp = NULL;
     }
 
     if(!purezarr && jsuper != NULL) {
         /* Insert superblock */
-        if((stat=insert_attr(jatts,jtypes,NCZ_V2_SUPERBLOCK,jsuper,"|J1"))) goto done;
+        if((stat=insert_attr(jatts,jtypes,NCZ_V2_SUPERBLOCK,jsuper,"|J0"))) goto done;
 	jsuper = NULL;
     }
 
@@ -488,6 +488,15 @@ ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
         jtmp = NULL;
     }
 
+    /* build .zarray path */
+    if((stat = nczm_concat(fullpath,ZARRAY,&key)))
+	goto done;
+
+    /* Write to map */
+    if((stat=NCZ_uploadjson(map,key,jvar)))
+	goto done;
+    nullfree(key); key = NULL;
+
     /* Capture dimref names as FQNs */
     if(var->ndims > 0) {
         if((dimrefs = nclistnew())==NULL) {stat = NC_ENOMEM; goto done;}
@@ -527,23 +536,7 @@ ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 	if((stat = NCJnewstring(NCJ_STRING,"chunked",&jtmp)))goto done;
 	if((stat = NCJinsert(jncvar,"storage",jtmp))) goto done;
 	jtmp = NULL;
-
-	if(!(zinfo->controls.flags & FLAG_PUREZARR)) {
-	    if((stat = NCJinsert(jvar,NCZ_V2_ARRAY,jncvar))) goto done;
-	    jncvar = NULL;
-	}
     }
-
-    /* build .zarray path */
-    if((stat = nczm_concat(fullpath,ZARRAY,&key)))
-	goto done;
-
-    /* Write to map */
-    if((stat=NCZ_uploadjson(map,key,jvar)))
-	goto done;
-    nullfree(key); key = NULL;
-
-    var->created = 1;
 
     /* Build .zattrs object */
     assert(var->att);
@@ -553,11 +546,11 @@ ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 
     if(!purezarr && jncvar != NULL) {
         /* Insert _nczarr_array */
-        if((stat=insert_attr(jatts,jtypes,NCZ_V2_ARRAY,jncvar,"|J1"))) goto done;
+        if((stat=insert_attr(jatts,jtypes,NCZ_V2_ARRAY,jncvar,"|J0"))) goto done;
 	jncvar = NULL;
     }
 
-    /* As a last mod to jatts, optionally insert the jtypes as an attribute */
+    /* As a last mod to jatts, optionally insert the jtypes as an attribute and add _nczarr_attr as attribute*/
     if(!purezarr && jtypes != NULL) {
 	if((stat = insert_nczarr_attr(jatts,jtypes))) goto done;
 	jtypes = NULL;
@@ -565,6 +558,8 @@ ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 
     /* Write out the .zattrs */
     if((stat = upload_attrs(file,(NC_OBJ*)var,jatts))) goto done;
+
+    var->created = 1;
 
 done:
     nclistfreeall(dimrefs);
@@ -1460,6 +1455,7 @@ define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
     NC_VAR_INFO_T* var = NULL;
     NCZ_VAR_INFO_T* zvar = NULL;
     NCjson* jvar = NULL;
+    NCjson* jatts = NULL; /* corresponding to jvar */
     NCjson* jncvar = NULL;
     NCjson* jdimrefs = NULL;
     NCjson* jvalue = NULL;
@@ -1507,14 +1503,20 @@ define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
     if((stat = NCZ_varkey(var,&varpath)))
 	goto done;
 
-    /* Construct the path to the zarray object */
+    /* Construct the path to the .zarray object */
     if((stat = nczm_concat(varpath,ZARRAY,&key)))
 	goto done;
     /* Download the zarray object */
-    if((stat=NCZ_readdict(map,key,&jvar)))
-	goto done;
+    if((stat=NCZ_readdict(map,key,&jvar))) goto done;
     nullfree(key); key = NULL;
     assert(NCJsort(jvar) == NCJ_DICT);
+
+    /* Construct the path to the .zattrs object */
+    if((stat = nczm_concat(varpath,ZATTRS,&key))) goto done;
+    /* Download object */
+    if((stat=NCZ_readdict(map,key,&jatts))) goto done;
+    nullfree(key); key = NULL;
+    assert(NCJsort(jatts) == NCJ_DICT);
 
     /* Extract the .zarray info from jvar */
 
@@ -1562,7 +1564,7 @@ define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
 	/* Extract the _NCZARR_ARRAY values */
 	/* Do this first so we know about storage esp. scalar */
 	/* Extract the NCZ_V2_ARRAY dict */
-	if((stat = NCJdictget(jvar,NCZ_V2_ARRAY,&jncvar))) goto done;
+	if((stat = NCJdictget(jatts,NCZ_V2_ARRAY,&jncvar))) goto done;
 	if(jncvar == NULL) {stat = NC_ENCZARR; goto done;}
 	assert((NCJsort(jncvar) == NCJ_DICT));
 	/* Extract scalar flag */
@@ -1786,8 +1788,8 @@ done:
     nullfree(varpath); varpath = NULL;
     nullfree(shapes); shapes = NULL;
     nullfree(key); key = NULL;
-    NCJreclaim(jvar); jvar = NULL;
-    var = NULL;
+    NCJreclaim(jvar);
+    NCJreclaim(jatts);
     return THROW(stat);
 }
 
@@ -1940,6 +1942,7 @@ done:
     nullfree(nczarr_version);
     NCJreclaim(jzgroup);
     NCJreclaim(jnczgroup);
+        NCJreclaim(jnczattr);
     return ZUNTRACE(THROW(stat));
 }
 
@@ -1955,7 +1958,7 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
 
     ZTRACE(3,"jcontent=|%s| |dimdefs|=%u |varnames|=%u |subgrps|=%u",NCJtotext(jcontent),(unsigned)nclistlength(dimdefs),(unsigned)nclistlength(varnames),(unsigned)nclistlength(subgrps));
 
-    if((stat=NCJdictget(jcontent,"dims",&jvalue))) goto done;
+    if((stat=NCJdictget(jcontent,"dimensions",&jvalue))) goto done;
     if(jvalue != NULL) {
 	if(NCJsort(jvalue) != NCJ_DICT) {stat = (THROW(NC_ENCZARR)); goto done;}
 	/* Extract the dimensions defined in this group */
@@ -1988,7 +1991,7 @@ parse_group_content(NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist*
 	}
     }
 
-    if((stat=NCJdictget(jcontent,"vars",&jvalue))) goto done;
+    if((stat=NCJdictget(jcontent,"arrays",&jvalue))) goto done;
     if(jvalue != NULL) {
 	/* Extract the variable names in this group */
 	for(i=0;i<NCJlength(jvalue);i++) {
@@ -2594,7 +2597,7 @@ insert_nczarr_attr(NCjson* jatts, NCjson* jtypes)
 {
     NCjson* jdict = NULL;
     if(jatts != NULL && jtypes != NULL) {
-	NCJinsertstring(jtypes,NCZ_V2_ATTR,"|J1"); /* type for _nczarr_attr */
+	NCJinsertstring(jtypes,NCZ_V2_ATTR,"|J0"); /* type for _nczarr_attr */
         NCJnew(NCJ_DICT,&jdict);
         NCJinsert(jdict,"types",jtypes);
         NCJinsert(jatts,NCZ_V2_ATTR,jdict);
@@ -2624,7 +2627,7 @@ upload_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts)
 
     ZTRACE(3,"file=%s grp=%s",file->controller->path,grp->hdr.name);
 
-    if(jatts == NULL || NCJdictlength(jatts)==0) goto done;    
+    if(jatts == NULL) goto done;    
 
     zinfo = file->format_file_info;
     map = zinfo->map;

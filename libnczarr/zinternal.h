@@ -39,7 +39,7 @@
 #endif
 
 #define ZMETAROOT "/.zgroup"
-#define ZMETAATTR "/.zattr"
+#define ZMETAATTR "/.zattrs"
 #define ZGROUP ".zgroup"
 #define ZATTRS ".zattrs"
 #define ZARRAY ".zarray"

@@ -592,7 +592,7 @@ There are mutiple cases to consider.
 3. The netcdf attribute **is** of type NC_CHAR and its value &ndash; taken as a single sequence of characters &ndash;
 **is** parseable as a legal JSON expression.
     * Parse to produce a JSON expression and write that expression.
-    * Use "|J1" as the dtype and store in the NCZarr metadata.
+    * Use "|J0" as the dtype and store in the NCZarr metadata.
 
 4. The netcdf attribute **is** of type NC_CHAR and its value &ndash; taken as a single sequence of characters &ndash;
 **is not** parseable as a legal JSON expression.
