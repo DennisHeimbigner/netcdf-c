@@ -45,6 +45,7 @@ static int ncz_validate(NC_FILE_INFO_T* file);
 static int insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson* javalue, const char* atype);
 static int insert_nczarr_attr(NCjson* jatts, NCjson* jtypes);
 static int upload_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts);
+static int readdict(NCZMAP* zmap, const char* key, NCjson** jsonp);
 
 /**************************************************/
 /**************************************************/
@@ -851,11 +852,12 @@ done:
 the corresponding NCjson dict.
 @param map - [in] the map object for storage
 @param container - [in] the containing object
-@param jattsp    - [out] the json for .zattrs
-@param jtypesp   - [out] the json attribute type dict
-@param jnczgrp   - [out] the json for _nczarr_group
-@param jnczarray - [out] the json for _nczarr_array
+@param jattsp    - [out] the json for .zattrs || NULL if not found
+@param jtypesp   - [out] the json attribute type dict || NULL
+@param jnczgrp   - [out] the json for _nczarr_group || NULL
+@param jnczarray - [out] the json for _nczarr_array || NULL
 @return NC_NOERR
+@return NC_EXXX
 @author Dennis Heimbigner
 */
 static int
@@ -889,11 +891,7 @@ download_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattsp, const NCjson** j
 	goto done;
 
     /* Download the .zattrs object */
-    switch ((stat=NCZ_downloadjson(map,key,&jatts))) {
-    case NC_NOERR: break;
-    case NC_EEMPTY: stat = NC_NOERR; break; /* did not exist */
-    default: goto done; /* failure */
-    }
+    if((stat=NCZ_downloadjson(map,key,&jatts))) goto done;
     nullfree(key); key = NULL;
 
     if(jatts != NULL) {
@@ -913,7 +911,7 @@ download_jatts(NCZMAP* map, NC_OBJ* container, NCjson** jattsp, const NCjson** j
 	switch (stat) {
 	case NC_NOERR: break;
 	case NC_EEMPTY: stat = NC_NOERR;
-                        jnczgrp = NULL; jnczarray = NULL; break;
+            jnczgrp = NULL; jnczarray = NULL; break;
 	default: goto done; /* failure */
 	}
 
@@ -1186,27 +1184,20 @@ define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
 	/* build ZGROUP path */
 	if((stat = nczm_concat(fullpath,ZGROUP,&key))) goto done;
         /* Read */
-        switch (stat=NCZ_downloadjson(map,key,&jgroup)) {
-	case NC_NOERR: /* Extract the NCZ_V2_GROUP dict */
-	    break;
-	case NC_EEMPTY: /* does not exist, use search */
+        if((stat=NCZ_downloadjson(map,key,&jgroup))) goto done;
+	if(jgroup == NULL) { /* does not exist, use search */
             if((stat = parse_group_content_pure(zinfo,grp,varnames,subgrps))) goto done;
 	    purezarr = 1;
-	    break;
-	default: goto done;
 	}
 	nullfree(key); key = NULL;
 	/* read corresponding ZATTR object */
 	if((stat = nczm_concat(fullpath,ZATTRS,&key))) goto done;
-        switch (stat=NCZ_downloadjson(map,key,&jattrs)) {
-	case NC_NOERR: /* Extract the NCZ_V2_GROUP attribute*/
-            if((stat = NCJdictget(jattrs,NCZ_V2_GROUP,&jnczgrp))) goto done;
-	    break;
-	case NC_EEMPTY: /* does not exist, use search */
+        if((stat=NCZ_downloadjson(map,key,&jattrs))) goto done;
+	if(jattrs == NULL)  { /* does not exist, use search */
             if((stat = parse_group_content_pure(zinfo,grp,varnames,subgrps))) goto done;
 	    purezarr = 1;
-	    break;
-	default: goto done;
+	} else { /* Extract the NCZ_V2_GROUP attribute*/
+            if((stat = NCJdictget(jattrs,NCZ_V2_GROUP,&jnczgrp))) goto done;
 	}
 	nullfree(key); key = NULL;
 	if(jnczgrp) {
@@ -1290,13 +1281,7 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
 	attlist =  var->att;
     }
 
-    switch ((stat = download_jatts(map, container, &jattrs, &jtypes, &jnczgrp, &jnczarray))) {
-    case NC_NOERR: break;
-    case NC_EEMPTY:  /* container has no attributes */
-        stat = NC_NOERR;
-	break;
-    default: goto done; /* true error */
-    }
+    if((stat = download_jatts(map, container, &jattrs, &jtypes, &jnczgrp, &jnczarray))) goto done;
 
     if(jattrs != NULL) {
 	/* Iterate over the attributes to create the in-memory attributes */
@@ -1507,18 +1492,17 @@ define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
     if((stat = nczm_concat(varpath,ZARRAY,&key)))
 	goto done;
     /* Download the zarray object */
-    if((stat=NCZ_readdict(map,key,&jvar))) goto done;
+    if((stat=readdict(map,key,&jvar))) goto done;
     nullfree(key); key = NULL;
     assert(NCJsort(jvar) == NCJ_DICT);
 
     /* Construct the path to the .zattrs object */
     if((stat = nczm_concat(varpath,ZATTRS,&key))) goto done;
     /* Download object */
-    if((stat=NCZ_readdict(map,key,&jatts))) goto done;
+    if((stat=readdict(map,key,&jatts))) goto done;
     nullfree(key); key = NULL;
-    assert(NCJsort(jatts) == NCJ_DICT);
-
-    /* Extract the .zarray info from jvar */
+    if(jatts != NULL)
+        assert(NCJsort(jatts) == NCJ_DICT);
 
     /* Verify the format */
     {
@@ -1561,6 +1545,7 @@ define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
     }
 
     if(!purezarr) {
+	if(jatts == NULL) {stat = NC_ENCZARR; goto done;}
 	/* Extract the _NCZARR_ARRAY values */
 	/* Do this first so we know about storage esp. scalar */
 	/* Extract the NCZ_V2_ARRAY dict */
@@ -1883,26 +1868,11 @@ ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
     ZTRACE(3,"file=%s",file->controller->path);
 
     /* Get Zarr Root Group, if any */
-    switch(stat = NCZ_downloadjson(zinfo->map, ZMETAROOT, &jzgroup)) {
-    case NC_NOERR:
-	break;
-    case NC_EEMPTY: /* not there */
-	stat = NC_NOERR;
-	assert(jzgroup == NULL);
-	break;
-    default: goto done;
-    }
+    if((stat = NCZ_downloadjson(zinfo->map, ZMETAROOT, &jzgroup))) goto done;
 
     /* Get corresponding .zattr, if any */
-    switch(stat = NCZ_downloadjson(zinfo->map, ZMETAATTR, &jnczattr)) {
-    case NC_NOERR:
-	break;
-    case NC_EEMPTY: /* not there */
-	stat = NC_NOERR;
-	assert(jnczattr == NULL);
-	break;
-    default: goto done;
-    }
+    if((stat = NCZ_downloadjson(zinfo->map, ZMETAATTR, &jnczattr))) goto done;
+
     /* Look for superblock */
     if(jnczattr != NULL) {
         if(jnczattr->sort != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
@@ -2053,7 +2023,7 @@ parse_var_dims_pure(NCZ_FILE_INFO_T*  zinfo, NC_GRP_INFO_T* grp, NC_VAR_INFO_T* 
     /* Construct .zarray path */
     if((stat = nczm_concat(varkey,ZARRAY,&zakey))) goto done;
     /* Download the zarray object */
-    if((stat=NCZ_readdict(zinfo->map,zakey,&jvar)))
+    if((stat=readdict(zinfo->map,zakey,&jvar)))
 	goto done;
     assert((NCJsort(jvar) == NCJ_DICT));
     nullfree(varkey); varkey = NULL;
@@ -2655,3 +2625,52 @@ done:
     return ZUNTRACE(THROW(stat));
 }
 
+#if 0
+/**
+@internal Get contents of a meta object; fail it it does not exist
+@param zmap - [in] map
+@param key - [in] key of the object
+@param jsonp - [out] return parsed json || NULL if not exists
+@return NC_NOERR
+@return NC_EXXX
+@author Dennis Heimbigner
+*/
+static int
+readarray(NCZMAP* zmap, const char* key, NCjson** jsonp)
+{
+    int stat = NC_NOERR;
+    NCjson* json = NULL;
+
+    if((stat = NCZ_downloadjson(zmap,key,&json))) goto done;
+    if(json != NULL && NCJsort(json) != NCJ_ARRAY) {stat = NC_ENCZARR; goto done;}
+    if(jsonp) {*jsonp = json; json = NULL;}
+done:
+    NCJreclaim(json);
+    return stat;
+}
+#endif
+
+/**
+@internal Get contents of a meta object; fail it it does not exist
+@param zmap - [in] map
+@param key - [in] key of the object
+@param jsonp - [out] return parsed json || NULL if non-existent
+@return NC_NOERR
+@return NC_EXXX
+@author Dennis Heimbigner
+*/
+static int
+readdict(NCZMAP* zmap, const char* key, NCjson** jsonp)
+{
+    int stat = NC_NOERR;
+    NCjson* json = NULL;
+
+    if((stat = NCZ_downloadjson(zmap,key,&json))) goto done;
+    if(json != NULL) {
+        if(NCJsort(json) != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
+    }
+    if(jsonp) {*jsonp = json; json = NULL;}
+done:
+    NCJreclaim(json);
+    return stat;
+}
