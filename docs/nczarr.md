@@ -383,8 +383,8 @@ older netcdf library versions do not crash.
 _\_nczarr_group\__ -- this attribute key appears in every group's _.zattr_ object.
 It contains any netcdf specific group information.
 Specifically it contains the following keys:
-* "dims" -- the name and size of shared dimensions defined in this group, as well an optional flag indictating if the dimension is UNLIMITED.
-* "vars" -- the name of variables defined in this group.
+* "dimensionss" -- the name and size of shared dimensions defined in this group, as well an optional flag indictating if the dimension is UNLIMITED.
+* "arrays" -- the name of variables defined in this group.
 * "groups" -- the name of sub-groups defined in this group.
 These lists allow walking the NCZarr dataset without having to use the potentially costly search operation.
 
@@ -392,7 +392,7 @@ _\_nczarr_array\__ -- this attribute key appears in the *.zattr* object associat
 with a _.zarray_ object.
 It contains netcdf specific array information.
 Specifically it contains the following keys:
-* dimensions -- the names of the shared dimensions referenced by the variable.
+* dimension_references -- the names of the shared dimensions referenced by the variable.
 * storage -- indicates if the variable is chunked vs contiguous in the netcdf sense.
 
 _\_nczarr_attr\__ -- this attribute key appears in every _.zattr_ object.
