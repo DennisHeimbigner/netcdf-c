@@ -22,9 +22,9 @@ That dispatcher allows the Zarr format independent code
 to be isolated from the Zarr format specific code.
 The table has the following groups of entries:
 1. open/create/close
-2. misc. actions -- e.g. building chunk keys and converting between the Zarr codec and an HDF5 filter.
-3. reading metadata -- use the JSON metadata of a file to a fill in the tree of an instance of NC_FILE_INFO_T.
-4. writing metadata -- use an NC_FILE_INFO_T tree to build and write the JSON metadata of a file.
+2. reading metadata -- use the JSON metadata of a file to a fill in the tree of an instance of NC_FILE_INFO_T.
+3. writing metadata -- use an NC_FILE_INFO_T tree to build and write the JSON metadata of a file.
+4. misc. actions -- e.g. building chunk keys and converting between the Zarr codec and an HDF5 filter.
 */
 
 
