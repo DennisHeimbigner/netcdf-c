@@ -239,60 +239,6 @@ NCZ_get_superblock(NC_FILE_INFO_T* file, int* superblockp)
 /**************************************************/
 /* Utilities */
 
-#if 0
-/**
-@internal Open the root group object
-@param dataset - [in] the root dataset object
-@param rootp - [out] created root group
-@return NC_NOERR
-@author Dennis Heimbigner
-*/
-static int
-ncz_open_rootgroup(NC_FILE_INFO_T* dataset)
-{
-    int stat = NC_NOERR;
-    int i;
-    NCZ_FILE_INFO_T* zfile = NULL;
-    NC_GRP_INFO_T* root = NULL;
-    void* content = NULL;
-    char* rootpath = NULL;
-    NCjson* json = NULL;
-
-    ZTRACE(3,"dataset=",dataset->hdr.name);
-
-    zfile = dataset->format_file_info;
-
-    /* Root should already be defined */
-    root = dataset->root_grp;
-
-    assert(root != NULL);
-
-    if((stat=nczm_concat(NULL,ZGROUP,&rootpath)))
-	goto done;
-    if((stat = NCZ_downloadjson(zfile->map, rootpath, &json))) goto  done;
-    if(json == NULL) goto done;
-    /* Process the json */ 
-    for(i=0;i<nclistlength(json->contents);i+=2) {
-	const NCjson* key = nclistget(json->contents,i);
-	const NCjson* value = nclistget(json->contents,i+1);
-	if(strcmp(NCJstring(key),"zarr_format")==0) {
-	    int zversion;
-	    if(sscanf(NCJstring(value),"%d",&zversion)!=1)
-		{stat = NC_ENOTNC; goto done;}		
-	    /* Verify against the dataset */
-	    if(zversion != zfile->zarr.zarr_version)
-		{stat = NC_ENOTNC; goto done;}
-	}
-    }
-
-done:
-    if(json) NCJreclaim(json);
-    nullfree(rootpath);
-    nullfree(content);
-    return ZUNTRACE(stat);
-}
-#endif
-
 
 static const char*
 controllookup(NClist* controls, const char* key)
