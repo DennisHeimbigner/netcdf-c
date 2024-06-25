@@ -255,7 +255,7 @@ NCZ_deflate_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** p
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
-    NCjson* jtmp = NULL;
+    const NCjson* jtmp = NULL;
     unsigned* params = NULL;
     struct NCJconst jc;
   
