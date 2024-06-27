@@ -101,14 +101,14 @@ NCZ_raw_codec_to_hdf5(const NCproplist* env, const char* codec, unsigned* idp, s
     ncplistget(env,"zarrformat",&zarrformat,NULL);
 
     /* parse the JSON */
-    if(NCJparse(codec,0,&jcodec)) {stat = NC_EFILTER; goto done;}
+    if(NCJparse(codec,0,&jcodec)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
     if(zarrformat == 3) {
-        if(NCJdictget(jcodec,"name",&jname)) {stat = NC_EFILTER; goto done;}
-	if(NCJdictget(jcodec,"configuration",&jdict)) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"name",&jname)<0) {stat = NC_EFILTER; goto done;}
+	if(NCJdictget(jcodec,"configuration",&jdict)<0) {stat = NC_EFILTER; goto done;}
     } else {
-        if(NCJdictget(jcodec,"id",&jname)) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"id",&jname)<0) {stat = NC_EFILTER; goto done;}
         jdict = jcodec;
     }
 
@@ -120,9 +120,9 @@ NCZ_raw_codec_to_hdf5(const NCproplist* env, const char* codec, unsigned* idp, s
     if(idp) *idp = hdf5id;
 
     /* Get nparams */
-    if(NCJdictget(jdict,"nparams",&jtmp)) {stat = NC_EFILTER; goto done;}       
+    if(NCJdictget(jdict,"nparams",&jtmp)<0) {stat = NC_EFILTER; goto done;}       
     if(jtmp == NULL || NCJsort(jtmp) != NCJ_INT) {stat = NC_EFILTER; goto done;}
-    if(NCJcvt(jtmp,NCJ_INT,&jc)) {stat = NC_EFILTER; goto done;}
+    if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
     if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
     nparams = (unsigned)jc.ival;
 
@@ -144,7 +144,7 @@ NCZ_raw_codec_to_hdf5(const NCproplist* env, const char* codec, unsigned* idp, s
 	unsigned param;
         char n[64];
 	snprintf(n,sizeof(n),"%u",i);    
-        if(NCJdictget(jdict,n,&jtmp)) {stat = NC_EFILTER; goto done;} /* get parameter "<i>" */
+        if(NCJdictget(jdict,n,&jtmp)<0) {stat = NC_EFILTER; goto done;} /* get parameter "<i>" */
         if(jtmp == NULL || NCJsort(jtmp) != NCJ_INT) {stat = NC_EFILTER; goto done;}
 	if(1 != sscanf(NCJstring(jtmp),"%u",&param)) {stat = NC_EFILTER; goto done;}
 	params[i] = param;
@@ -400,15 +400,15 @@ NCZ_deflate_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigne
     ncplistget(env,"zarrformat",&zarrformat,NULL);
 
     /* parse the JSON */
-    if(NCJparse(codec_json,0,&jcodec))
+    if(NCJparse(codec_json,0,&jcodec)<0)
         {stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
     if(zarrformat == 3) {
-        if(NCJdictget(jcodec,"name",&jtmp)){stat = NC_EFILTER; goto done;}
-        if(NCJdictget(jcodec,"configuration",&jdict)){stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"name",&jtmp)<0){stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"configuration",&jdict)<0){stat = NC_EFILTER; goto done;}
     } else {
-        if(NCJdictget(jcodec,"id",&jtmp)){stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"id",&jtmp)<0){stat = NC_EFILTER; goto done;}
 	jdict = jcodec;
     }
     if(jdict == NULL){stat = NC_EFILTER; goto done;}
@@ -418,8 +418,8 @@ NCZ_deflate_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigne
     if(strcmp(NCJstring(jtmp),NCZ_zlib_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
 
     /* Get Level */
-    if(NCJdictget(jdict,"level",&jtmp)) {stat = NC_EFILTER; goto done;}
-    if(NCJcvt(jtmp,NCJ_INT,&jc)) {stat = NC_EFILTER; goto done;}
+    if(NCJdictget(jdict,"level",&jtmp)<0) {stat = NC_EFILTER; goto done;}
+    if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
     if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
 
     if(idp) *idp = H5Z_FILTER_DEFLATE;
@@ -497,21 +497,21 @@ NCZ_szip_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
 
     ncplistget(env,"zarrformat",&zarrformat,NULL);
 
-    if(NCJparse(codec_json,0,&json))
+    if(NCJparse(codec_json,0,&json)<0)
         {stat = NC_EFILTER; goto done;}
 
     if(zarrformat == 3) {
-	if(NCJdictget(json,"configuration",&jdict)) {stat = NC_EFILTER; goto done;}
+	if(NCJdictget(json,"configuration",&jdict)<0) {stat = NC_EFILTER; goto done;}
     } else
         jdict = json;
 
-    if(NCJdictget(jdict,"mask",&jtmp) || jtmp == NULL) {stat = NC_EFILTER; goto done;}
-    if(NCJcvt(jtmp,NCJ_INT,&jc)) {stat = NC_EFILTER;  goto done;}
+    if(NCJdictget(jdict,"mask",&jtmp) < 0 || jtmp == NULL) {stat = NC_EFILTER; goto done;}
+    if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER;  goto done;}
     params[H5Z_SZIP_PARM_MASK] = (unsigned)jc.ival;
 
     jtmp = NULL;
-    if(NCJdictget(jdict,"pixels-per-block",&jtmp) || jtmp == NULL) {stat = NC_EFILTER; goto done;}
-    if(NCJcvt(jtmp,NCJ_INT,&jc)) {stat = NC_EFILTER;  goto done;}
+    if(NCJdictget(jdict,"pixels-per-block",&jtmp) < 0 || jtmp == NULL) {stat = NC_EFILTER; goto done;}
+    if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER;  goto done;}
     params[H5Z_SZIP_PARM_PPB] = (unsigned)jc.ival;
 
     if(idp) *idp = H5Z_FILTER_SZIP;

@@ -111,12 +111,12 @@ NCZ_misc_codec_to_hdf5(void* env, const char* codec_json, size_t* nparamsp, unsi
     NC_UNUSED(env);
 
     /* parse the JSON */
-    if(NCJparse(codec_json,0,&jcodec))
+    if(NCJparse(codec_json,0,&jcodec)<0)
 	{stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
     /* Verify the codec ID */
-    if(NCJdictget(jcodec,"id",&jtmp))
+    if(NCJdictget(jcodec,"id",&jtmp)<0)
 	{stat = NC_EFILTER; goto done;}
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
     if(strcmp(NCJstring(jtmp),NCZ_misc_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
@@ -136,9 +136,9 @@ NCZ_misc_codec_to_hdf5(void* env, const char* codec_json, size_t* nparamsp, unsi
 
     for(i=0;i<nparams;i++) {
 	struct NCJconst jc;
-        if(NCJdictget(jcodec,fields[i],&jtmp))
+        if(NCJdictget(jcodec,fields[i],&jtmp)<0)
 	    {stat = NC_EFILTER; goto done;}
-	if(NCJcvt(jtmp,NCJ_INT,&jc))
+	if(NCJcvt(jtmp,NCJ_INT,&jc)<0)
 	    {stat = NC_EFILTER; goto done;}
 	if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
 	params[i] = (unsigned)jc.ival;

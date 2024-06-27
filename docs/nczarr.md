@@ -36,7 +36,7 @@ The inverse is true also. A legal _Zarr_ dataset is expected to also be a legal 
 In addition, certain non-Zarr features are allowed and used.
 Specifically the XArray ''\_ARRAY\_DIMENSIONS'' attribute is one such.
 
-There are two other, secondary, assumptions:
+There are two other, secondary assumptions:
 
 1. The actual storage format in which the dataset is stored -- a zip file, for example -- can be read by the _Zarr_ implementation.
 2. The compressors (aka filters) used by the dataset can be encoded/decoded by the implementation. NCZarr uses HDF5-style filters, so ensuring access to such filters is somewhat complicated. See the [companion document on
@@ -107,7 +107,7 @@ using URLs.
 There are, however, some details that are important.
 - Protocol: this should be _https_ or _s3_,or _file_.
   The _s3_ scheme is equivalent to "https" plus setting "mode=s3".
-  Specifying "file" is mostly used for testing, but also for directory tree or zipfile format storage.
+  Specifying "file" is for directory tree or zipfile format storage, and also for testing.
 
 ## Client Parameters
 
@@ -116,11 +116,21 @@ The fragment part of a URL is used to specify information that is interpreted to
 For reading, _key=value_ pairs are provided for specifying the storage format.
 - mode=nczarr|zarr
 
+The _zarr_ mode implies restricting the format to the pure Zarr V2 or V3 format.
+The _nczarr_ mode implies using the netcdf Zarr extensions.
+
 Additional pairs are provided to specify the Zarr version.
 - mode=v2|v3
 
+Obviously, _v2_ implies using the Zarr Version 2 format; similarly for _v3_.
+
 Additional pairs are provided to specify the storage medium: Amazon S3 vs File tree vs Zip file.
 - mode=file|zip|s3
+
+The modes imply use of a specific driver:
+* The _s3_ driver stores data using Amazon S3 or some equivalent.
+* The _file_ driver stores data in a directory tree.
+* The _zip_ driver stores data in a local zip file.
 
 Note that when reading, an attempt will be made to infer the
 format and Zarr version and storage medium format by probing the
@@ -128,28 +138,14 @@ file. If inferencing fails, then it is reported.  In this case,
 the client may need to add specific mode flags to avoid
 inferencing.
 
-Typically one will specify three mode flags: one to indicate what format
-to use and one to specify the way the dataset is to be stored,
+Obviously, when creating a file, inferencing is not
+possible so the mode flags must be set specifically.
+In the most general case, one will specify three mode flags: one to indicate what format
+to use, one to specify the way the dataset is to be stored,
 and one to specifiy the Zarr format version.
 For example, a common one is "mode=zarr,file,v2"
 If not specified, the version will be the default specified when
 the netcdf-c library was built.
-
-Obviously, when creating a file, inferencing is not
-possible so the mode flags must be set specifically.
-This means that both the storage medium and the exact storage
-format must be specified.
-Using _mode=nczarr_ causes the URL to be interpreted as a
-reference to a dataset that is stored in NCZarr format.
-The _zarr_ mode tells the library to use NCZarr, but to restrict its operation to operate on pure Zarr
-the _v2_ mode specifies Version 2 and _v3_mode specifies Version 3.
-If the version is not specified, it will default to the value specified when the netcdf-c library was built.
-
-The modes _s3_, _file_, and _zip_ tell the library what storage medium
-driver to use.
-* The _s3_ driver stores data using Amazon S3 or some equivalent.
-* The _file_ driver stores data in a directory tree.
-* The _zip_ driver stores data in a local zip file.
 
 As an aside, it should be the case that zipping a _file_
 format directory tree will produce a file readable by the
@@ -194,7 +190,8 @@ An important restriction is placed on the structure of the tree,
 namely that keys are only defined for content-bearing objects.
 Further, all the leaves of the tree are these content-bearing objects.
 This means that the key for one content-bearing object should not
-be a prefix of any other key.
+be a prefix of any other key. For example and given the key "/x/y/zarr.json",
+there should not exist any other key with the same prefix, "/x/y/zarr.json/z" for example.
 
 There several other concepts of note.
 1. __Dataset__ - a dataset is the complete tree contained by the key defining
@@ -205,22 +202,22 @@ and "contains" data in the form of an arbitrary sequence of 8-bit bytes.
 
 The zmap API defined here isolates the key-value pair mapping
 code from the Zarr-based implementation of NetCDF-4.
- It wraps an internal C dispatch table manager for implementing an
+It wraps an internal C dispatch table manager for implementing an
 abstract data structure implementing the zmap key/object model.
 Of special note is the "search" function of the API.
 
 __Search__: The search function has two purposes:
 1. Support reading of pure zarr datasets (because they do not explicitly track their contents).
-2. Debugging to allow raw examination of the storage. See zdump for example.
+2. Debugging to allow raw examination of the storage. See _zdump_ for example.
 
 The search function takes a prefix path which has a key syntax (see above).
-The set of legal keys is the set of keys such that the key references a content-bearing object -- e.g. /x/y/.zarray or /.zgroup.
-Essentially this is the set of keys pointing to the leaf objects of the tree of keys constituting a dataset.
-This set potentially limits the set of keys that need to be examined during search.
-
 The search function returns a limited set of names, where the set of names are immediate suffixes of a given prefix path.
 That is, if _\<prefix\>_ is the prefix path, then search returnsnall _\<name\>_ such that _\<prefix>/\<name\>_ is itself a prefix of a "legal" key.
 This can be used to implement glob style searches such as "/x/y/*" or "/x/y/**"
+
+The term "legal keys" is the set of keys such that the key references a content-bearing object -- e.g. /x/y/.zarray or /.zgroup.
+Essentially this is the set of keys pointing to the leaf objects of the tree of keys constituting a dataset.
+This set potentially limits the set of keys that need to be examined during search.
 
 This semantics was chosen because it appears to be the minimum required to implement all other kinds of search using recursion.
 It was also chosen to limit the number of names returned from the search.
@@ -261,12 +258,11 @@ But this does not propagate outside the zmap_file implementation.
 
 ## Zmap Implementatons
 
-The primary zmap implementation is _s3_ (i.e. _mode=nczarr,s3_) and indicates that the Amazon S3 cloud storage -- or some related applicance -- is to be used.
-Another storage format uses a file system tree of directories and files (_mode=nczarr,file_).
-A third storage format uses a zip file (_mode=nczarr,zip_).
-The latter two are used mostly for debugging and testing.
-However, the _file_ and _zip_ formats are important because they are intended to match corresponding storage formats used by the Python Zarr implementation.
-Hence it should serve to provide interoperability between NCZarr and the Python Zarr, although this interoperability has had only limited testing.
+The primary zmap implementation is _s3_ (i.e. _mode=zarr,s3_) and indicates that the Amazon S3 cloud storage -- or some related applicance -- is to be used.
+Another storage format uses a file system tree of directories and files (_mode=zarr,file_).
+A third storage format uses a zip file (_mode=zarr,zip_).
+The _file_ and _zip_ formats are important because they are intended to match corresponding storage formats used by the Python Zarr implementation.
+Hence they should serve to provide interoperability between NCZarr and the Python Zarr, although this interoperability has had only limited testing.
 
 Examples of the typical URL form for _file_ and _zip_ are as follows.
 ````
@@ -343,17 +339,17 @@ The reason for this is that the bucket name forms the initial segment in the key
 The NCZarr storage format is almost identical to that of the the standard Zarr format.
 The data model differs as follows.
 
-1. Zarr only supports anonymous dimensions -- NCZarr supports only shared (named) dimensions (but can read anonymous dimensions).
-2. Zarr attributes are untyped -- or perhaps more correctly characterized as of type string (in "JSON" format).
+1. Zarr only supports anonymous dimensions -- NCZarr supports only shared (named) dimensions, but can read anonymous dimensions by assigning special names to the anonymous dimensions.
+2. Zarr attributes are untyped -- or perhaps more correctly characterized as of type string (in "JSON" format). NCZarr supports typing of attributes.
 3. Zarr does not explicitly support unlimited dimensions -- NCZarr does support them.
 
 ## Storage Medium
 
 Consider both NCZarr and Zarr, and assume S3 notions of bucket and object.
-In both systems, Groups and Variables (Array in Zarr) map to S3 objects.
+In both systems, Groups and Variables (aka Arrays in Zarr) map to S3 objects.
 Containment is modeled using the fact that the dataset's key is a prefix of the variable's key.
 So for example, if variable _v1_ is contained in top level group g1 -- _/g1 -- then the key for _v1_ is _/g1/v_.
-Additional meta-data information is stored in special objects whose name start with ".z".
+Additional meta-data information is stored in special objects whose name start with ".z" (V2) or "zarr.json" (V3).
 
 In Zarr Version 2, the following special objects exist.
 1. Information about a group is kept in a special object named _.zgroup_;
@@ -383,7 +379,7 @@ older netcdf library versions do not crash.
 _\_nczarr_group\__ -- this attribute key appears in every group's _.zattr_ object.
 It contains any netcdf specific group information.
 Specifically it contains the following keys:
-* "dimensionss" -- the name and size of shared dimensions defined in this group, as well an optional flag indictating if the dimension is UNLIMITED.
+* "dimensions" -- the name and size of shared dimensions defined in this group, as well an optional flag indictating if the dimension is UNLIMITED.
 * "arrays" -- the name of variables defined in this group.
 * "groups" -- the name of sub-groups defined in this group.
 These lists allow walking the NCZarr dataset without having to use the potentially costly search operation.
@@ -397,7 +393,7 @@ Specifically it contains the following keys:
 
 _\_nczarr_attr\__ -- this attribute key appears in every _.zattr_ object.
 Specifically it contains the following keys:
-* types -- the types of all of the other attributes in the _.zattr_ object.
+* types -- the types of all of the attributes in the _.zattr_ object.
 
 ## Translation {#nczarr_translation}
 
@@ -410,30 +406,30 @@ zarr attributes.
 The former case -- nczarr reading zarr -- is possible if the nczarr code can simulate or infer the contents of the missing _\_nczarr\_xxx_ attributes.
 As a rule this can be done as follows.
 1. _\_nczarr_group\__ -- The list of contained variables and sub-groups can be computed using the search API to list the keys "contained" in the key for a group.
-The search looks for occurrences of _.zgroup_, _.zattr_, _.zarray_ to infer the keys for the contained groups, attribute sets, and arrays (variables).
+For V2, the search looks for occurrences of _.zgroup_, _.zattr_, _.zarray_ to infer the keys for the contained groups, attribute sets, and arrays (variables).
+For V2, the search looks for occurrences of _zarr.jsson_.
 Constructing the set of "shared dimensions" is carried out
 by walking all the variables in the whole dataset and collecting
 the set of unique integer shapes for the variables.
-For each such dimension length, a top level dimension is created
+For each such dimension length, a dimension is created in the root group
 named  "_Anonymous_Dimension_<len>" where len is the integer length.
-2. _\_nczarr_array\__ -- The dimrefs are inferred by using the shape
-in _.zarray_ and creating references to the simulated shared dimension.
-netcdf specific information.
+2. _\_nczarr_array\__ -- The dimension references are inferred by using the shape
+in _.zarray_ (or _zarr.json_) and creating references to the simulated shared dimension.
 3. _\_nczarr_attr\__ -- The type of each attribute is inferred by trying to parse the first attribute value string.
 
 # Compatibility {#nczarr_compatibility}
 
 In order to accomodate existing implementations, certain mode tags are provided to tell the NCZarr code to look for information used by specific implementations.
 
-## XArray
+## The "xarray" Mode
 
-The Xarray [XArray Zarr Encoding Specification](http://xarray.pydata.org/en/latest/internals.html#zarr-encoding-specification) Zarr implementation uses its own mechanism for specifying an approximation to shared dimensions.
+The xarray [XArray Zarr Encoding Specification](http://xarray.pydata.org/en/latest/internals.html#zarr-encoding-specification) Zarr implementation uses its own mechanism for specifying an approximation to shared dimensions.
 It uses a special attribute named ''_ARRAY_DIMENSIONS''.
 The value of this attribute is a list of dimension names (strings).
 An example might be ````["time", "lon", "lat"]````.
-It is essentially equivalent to the ````_nczarr_array "dimrefs" list````, except that the latter uses fully qualified names so the referenced dimensions can be anywhere in the dataset.
+It is essentially equivalent to the ````_nczarr_array "dimension_references" list````, except that the latter uses fully qualified names so the referenced dimensions can be anywhere in the dataset.
 
-The Xarray ''_ARRAY_DIMENSIONS'' attribute is supported for both NCZarr and pure Zarr.
+The xarray ''_ARRAY_DIMENSIONS'' attribute is supported for both NCZarr and pure Zarr.
 If possible, this attribute will be read/written by default,
 but can be suppressed if the mode value "noxarray" is specified.
 If detected, then these dimension names are used to define shared dimensions.
@@ -535,6 +531,10 @@ If you have access to the Unidata bucket on Amazon, then you can
 also test S3 support with this option.
 ````
 --with-s3-testing=yes
+````
+Otherwise, read-only testing is possible by specifying
+````
+--with-s3-testing=public
 ````
 
 ### NetCDF CMake Build
@@ -639,10 +639,7 @@ and then store it as the equivalent netcdf vector.
     * If the dtype is not defined, then infer the dtype based on the first JSON value in the array,
 and then store it as the equivalent netcdf vector.
 
-3. The JSON expression is an array some of whose values are dictionaries or (sub-)arrays.
-    * Un-parse the expression to an equivalent sequence of characters, and then store it as of type NC_CHAR.
-
-3. The JSON expression is a dictionary.
+3. All other JSON-expressions.
     * Un-parse the expression to an equivalent sequence of characters, and then store it as of type NC_CHAR.
 
 ## Notes
@@ -697,7 +694,7 @@ For writing variables and NCZarr attributes, the type mapping is as follows:
 Admittedly, this encoding is a bit of a hack.
 
 So when reading data with a pure zarr implementaion
-the above types should always appear as strings,
+attributes with the above types should always appear as strings,
 and the type that signals NC_CHAR (in NCZarr)
 would be handled by Zarr as a string of length 1.
 
@@ -711,7 +708,7 @@ Specifically, the following Netcdf-4 meta-data information needs to be captured 
     3. Attribute types.
     4. Netcdf types not included in Zarr: currently "char" and "string".
     5. Zarr types not included in Netcdf: currently only "complex(32|64)"
-This extra netcdfd-4 meta-data to attributes so as to not interfere with existing implementations.
+This extra netcdfd-4 meta-data is stored as attributes with special names so as to not interfere with existing implementations.
 
 ## Supported Types
 Zarr version 3 supports the following "atomic" types:

@@ -129,7 +129,6 @@ H5Z_filter_noop(unsigned int flags, size_t cd_nelmts,
     return *buf_size;
 }
 
-#if 0
 /**************************************************/
 /* NCZarr Codec API */
 
@@ -186,9 +185,10 @@ NCZ_noop_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
-    NCjson* jdict = NULL;
-    NCjson* jtmp = NULL;
-    int i,nparams = 0;
+    const NCjson* jdict = NULL;
+    const NCjson* jtmp = NULL;
+    size_t i = 0;
+    size_t nparams = 0;
     unsigned* params = NULL;
     char field[1024];
     uintptr_t zarrformat = 0;
@@ -196,40 +196,40 @@ NCZ_noop_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
     ncplistget(env,"zarrformat",&zarrformat,NULL);
 
     /* parse the JSON */
-    if(NCJparse(codec_json,0,&jcodec))
+    if(NCJparse(codec_json,0,&jcodec)<0)
 	{stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
     /* Get and Verify the codec ID */
 
     if(zarrformat == 3) {
-        if(NCJdictget(jcodec,"name",&jtmp)) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"name",&jtmp)<0) {stat = NC_EFILTER; goto done;}
         if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
         if(strcmp(NCJstring(jtmp),NCZ_noop_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
-        if(NCJdictget(jcodec,"configuration",&jdict)) {stat = NC_EFILTER; goto done;}
-        nparams = (NCJlength(jdict) / 2); /* each param is key+value */
+        if(NCJdictget(jcodec,"configuration",&jdict)<0) {stat = NC_EFILTER; goto done;}
+        nparams = NCJdictlength(jdict); /* each param is key+value */
     } else {
-        if(NCJdictget(jcodec,"id",&jtmp)) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"id",&jtmp)<0) {stat = NC_EFILTER; goto done;}
         if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
         if(strcmp(NCJstring(jtmp),NCZ_noop_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
-        nparams = (NCJlength(jcodec) - 1) / 2; /* -1 for id each param is key+value */
+        nparams = (NCJdictlength(jcodec) - 1) ;
 	jdict = jcodec;
     }
     if((params = (unsigned*)calloc(nparams,sizeof(unsigned)))== NULL) {stat = NC_ENOMEM; goto done;}
     /* This filter has an arbitrary number of parameters named p0...pn */
     for(i=0;i<nparams;i++) {
         struct NCJconst jc;
-        snprintf(field,sizeof(field),"p%d",i);
-        if(NCJdictget(jdict,field,&jtmp)) {stat = NC_EFILTER; goto done;}
-        if(NCJcvt(jtmp,NCJ_INT,&jc)) {stat = NC_EFILTER; goto done;}
+        snprintf(field,sizeof(field),"p%zu",i);
+        if(NCJdictget(jdict,field,&jtmp)<0) {stat = NC_EFILTER; goto done;}
+        if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
         if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
         params[i] = (unsigned)jc.ival;
     }
 
     if(nparamsp) *nparamsp = nparams;
     if(paramsp) {*paramsp = params; params = NULL;}
-    if(idp) *idp = H5Z_FILTER_NOOP;
-    
+    if(idp) *idp = (unsigned)(H5Z_FILTER_NOOP + instance[0]);
+
 done:
     if(params) free(params);
     NCJreclaim(jcodec);
@@ -239,7 +239,8 @@ done:
 static int
 NCZ_noop_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const unsigned* params, char** codecp)
 {
-    int i,stat = NC_NOERR;
+    int stat = NC_NOERR;
+    size_t i;
     char json[8192];
     char value[8192];
     uintptr_t zarrformat = 0;
@@ -255,7 +256,7 @@ NCZ_noop_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
         snprintf(json,sizeof(json),"{\"id\": \"%s\"",NCZ_noop_codec.codecid);
 	/* Accept an arbitrary number of params */
 	for(i=0;i<nparams;i++) {
-            snprintf(value,sizeof(value),", \"p%d\": \"%u\"",i,params[i]);
+            snprintf(value,sizeof(value),", \"p%zu\": \"%u\"",i,params[i]);
 	    strcat(json,value);
         }
     } else {
@@ -263,7 +264,7 @@ NCZ_noop_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
 	/* Accept an arbitrary number of params */
 	for(i=0;i<nparams;i++) {
 	    if(i > 0) strcat(json,", ");
-            snprintf(value,sizeof(value),"\"p%d\": \"%u\"",i,params[i]);
+            snprintf(value,sizeof(value),"\"p%zu\": \"%u\"",i,params[i]);
 	    strcat(json,value);
         }
         strcat(json,"}");
@@ -277,4 +278,3 @@ NCZ_noop_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
 done:
     return stat;
 }
-#endif

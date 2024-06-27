@@ -98,14 +98,14 @@ NCZ_bzip2_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned*
     ncplistget(env,"zarrformat",&zarrformat,NULL);
 
     /* parse the JSON */
-    NCJcheck(NCJparse(codec_json,0,&jcodec));
+    if(NCJparse(codec_json,0,&jcodec)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
     if(zarrformat == 3) {
-        NCJcheck(NCJdictget(jcodec,"name",&jtmp));
-	NCJcheck(NCJdictget(jcodec,"configuration",&jdict));
+        if(NCJdictget(jcodec,"name",&jtmp)<0) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"configuration",&jdict)<0) {stat = NC_EFILTER; goto done;}
     } else {
-        NCJcheck(NCJdictget(jcodec,"id",&jtmp));
+        if(NCJdictget(jcodec,"id",&jtmp)<0) {stat = NC_EFILTER; goto done;}
 	jdict = jcodec;
     }
     /* Verify the codec ID */
@@ -113,8 +113,8 @@ NCZ_bzip2_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned*
     if(strcmp(NCJstring(jtmp),NCZ_bzip2_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
 
     /* Get Level */
-    NCJcheck(NCJdictget(jdict,"level",&jtmp));
-    NCJcheck(NCJcvt(jtmp,NCJ_INT,&jc));
+    if(NCJdictget(jdict,"level",&jtmp)<0) {stat = NC_EFILTER; goto done;}
+    if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
     if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
     params[0] = (unsigned)jc.ival;
     *nparamsp = 1;
@@ -192,15 +192,15 @@ NCZ_zstd_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
     ncplistget(env,"zarrformat",&zarrformat,NULL);
 
     /* parse the JSON */
-    NCJcheck(NCJparse(codec_json,0,&jcodec));
+    if(NCJparse(codec_json,0,&jcodec)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
     if(zarrformat == 3) {
-        NCJcheck(NCJdictget(jcodec,"name",&jtmp));
-	NCJcheck(NCJdictget(jcodec,"configuration",&jdict));
+        if(NCJdictget(jcodec,"name",&jtmp)<0) {stat = NC_EFILTER; goto done;}
+	if(NCJdictget(jcodec,"configuration",&jdict)<0) {stat = NC_EFILTER; goto done;}
     } else {
 	jdict = jcodec;
-        NCJcheck(NCJdictget(jdict,"id",&jtmp));
+        if(NCJdictget(jdict,"id",&jtmp)<0) {stat = NC_EFILTER; goto done;}
     }
 
     /* Verify the codec ID */
@@ -208,8 +208,8 @@ NCZ_zstd_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
     if(strcmp(NCJstring(jtmp),NCZ_zstd_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
 
     /* Get Level */
-    NCJcheck(NCJdictget(jdict,"level",&jtmp));
-    NCJcheck(NCJcvt(jtmp,NCJ_INT,&jc));
+    if(NCJdictget(jdict,"level",&jtmp)<0) {stat = NC_EFILTER; goto done;}
+    if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
     if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
     params[0] = (unsigned)jc.ival;
     *nparamsp = 1;
@@ -389,15 +389,15 @@ NCZ_blosc_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned*
     ncplistget(env,"zarrformat",&zarrformat,NULL);
 
     /* parse the JSON */
-    NCJcheck(NCJparse(codec_json,0,&jcodec));
+    if(NCJparse(codec_json,0,&jcodec)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
     if(zarrformat == 3) {
-        NCJcheck(NCJdictget(jcodec,"name",&jtmp));
-	NCJcheck(NCJdictget(jcodec,"configuration",&jdict));
+        if(NCJdictget(jcodec,"name",&jtmp)<0) {stat = NC_EFILTER; goto done;}
+	if(NCJdictget(jcodec,"configuration",&jdict)<0) {stat = NC_EFILTER; goto done;}
     } else {
 	jdict = jcodec;
-        NCJcheck(NCJdictget(jdict,"id",&jtmp));
+        if(NCJdictget(jdict,"id",&jtmp)<0) {stat = NC_EFILTER; goto done;}
     }
 
     /* Verify the codec ID */
@@ -407,35 +407,35 @@ NCZ_blosc_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned*
     if((params = (unsigned*)calloc(7,sizeof(unsigned)))==NULL) {stat = NC_ENOMEM; goto done;}
 
     /* Get compression level*/
-    NCJcheck(NCJdictget(jdict,"clevel",&jtmp));
+    if(NCJdictget(jdict,"clevel",&jtmp)<0) {stat = NC_EFILTER; goto done;}
     if(jtmp) {
-        NCJcheck(NCJcvt(jtmp,NCJ_INT,&jc));
+        if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
     } else
         jc.ival = DEFAULT_LEVEL;
     if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EFILTER; goto done;}
     params[4] = (unsigned)jc.ival;
 
     /* Get blocksize */
-    NCJcheck(NCJdictget(jdict,"blocksize",&jtmp));
+    if(NCJdictget(jdict,"blocksize",&jtmp)<0) {stat = NC_EFILTER; goto done;}
     if(jtmp) {
-        NCJcheck(NCJcvt(jtmp,NCJ_INT,&jc));
+        if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
     } else
         jc.ival = DEFAULT_BLOCKSIZE;
     if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EFILTER; goto done;}
     params[3] = (unsigned)jc.ival;
 
     /* Get shuffle */
-    NCJcheck(NCJdictget(jdict,"shuffle",&jtmp));
+    if(NCJdictget(jdict,"shuffle",&jtmp)<0) {stat = NC_EFILTER; goto done;}
     if(jtmp) {
-        NCJcheck(NCJcvt(jtmp,NCJ_INT,&jc));
+        if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
     } else
         jc.ival = BLOSC_NOSHUFFLE;
     params[5] = (unsigned)jc.ival;
 
     /* Get compname */
-    NCJcheck(NCJdictget(jdict,"cname",&jtmp));
+    if(NCJdictget(jdict,"cname",&jtmp)<0) {stat = NC_EFILTER; goto done;}
     if(jtmp) {
-        NCJcheck(NCJcvt(jtmp,NCJ_STRING,&jc));
+        if(NCJcvt(jtmp,NCJ_STRING,&jc)<0) {stat = NC_EFILTER; goto done;}
         if(jc.sval == NULL || strlen(jc.sval) == 0) {stat = NC_EFILTER; goto done;}
         if((compcode = blosc_compname_to_compcode(jc.sval)) < 0) {stat = NC_EFILTER; goto done;}
     } else
