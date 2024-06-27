@@ -150,3 +150,78 @@ NCZF_writemeta(NC_FILE_INFO_T* file)
     stat = zfile->dispatcher->writemeta(file);
     return THROW(stat);
 }
+
+/* Get one of two key values from a dict */
+int
+NCZ_dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep)
+{
+    int stat = NC_NOERR;
+    const NCjson* jvalue = NULL;
+    NCJcheck(NCJdictget(jdict,name,&jvalue)); /* try this first */
+    if(jvalue == NULL) {
+        NCJcheck(NCJdictget(jdict,alt,&jvalue)); /* try this alternative*/
+    }
+    if(jvaluep) *jvaluep = jvalue;
+done:
+    return THROW(stat);
+}
+
+/* Get _nczarr_xxx from either .zXXX or .zattrs */
+int
+NCZ_getnczarrkey(NC_OBJ* container, const char* name, const NCjson** jncxxxp)
+{
+    int stat = NC_NOERR;
+    const NCjson* jxxx = NULL;
+    NC_GRP_INFO_T* grp = NULL;
+    NC_VAR_INFO_T* var = NULL;
+    struct ZARROBJ* zobj = NULL;
+
+    /* Decode container */
+    if(container->sort == NCGRP) {
+	grp = (NC_GRP_INFO_T*)container;
+	zobj = &((NCZ_GRP_INFO_T*)grp->format_grp_info)->zgroup;
+    } else {
+	var = (NC_VAR_INFO_T*)container;
+	zobj = &((NCZ_VAR_INFO_T*)var->format_var_info)->zarray;
+    }
+
+    /* Try .zattrs first */
+    if(zobj->atts != NULL) {
+	jxxx = NULL;
+        NCJcheck(NCJdictget(zobj->atts,name,&jxxx));
+    }
+    if(name == NULL) {
+        jxxx = NULL;
+        /* Try .zxxx second */
+	if(zobj->obj != NULL) {
+            NCJcheck(NCJdictget(zobj->obj,name,&jxxx));
+	}
+	/* Mark as old style with _nczarr_xxx in obj not attributes */
+	zobj->nczv1 = 1;
+    }
+    if(jncxxxp) *jncxxxp = jxxx;
+done:
+    return THROW(stat);
+}
+
+int
+NCZ_downloadzarrobj(NC_FILE_INFO_T* file, struct ZARROBJ* zobj, const char* fullpath, const char* objname)
+{
+    int stat = NC_NOERR;
+    char* key = NULL;
+    NCZMAP* map = ((NCZ_FILE_INFO_T*)file->format_file_info)->map;
+
+    /* Download .zXXX and .zattrs */
+    nullfree(zobj->prefix);
+    zobj->prefix = strdup(fullpath);
+    NCJreclaim(zobj->obj); zobj->obj = NULL;
+    NCJreclaim(zobj->atts); zobj->obj = NULL;
+    if((stat = nczm_concat(fullpath,objname,&key))) goto done;
+    if((stat=NCZ_downloadjson(map,key,&zobj->obj))) goto done;
+    nullfree(key); key = NULL;
+    if((stat = nczm_concat(fullpath,ZATTRS,&key))) goto done;
+    if((stat=NCZ_downloadjson(map,key,&zobj->atts))) goto done;
+done:
+    nullfree(key);
+    return THROW(stat);
+}

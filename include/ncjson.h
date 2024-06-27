@@ -24,6 +24,7 @@ and do the command:
 #else
 #  define MSC_EXTRA
 #endif	/* defined(DLL_NETCDF) */
+
 #ifndef EXTERNL
 # define EXTERNL MSC_EXTRA extern
 #endif
@@ -51,7 +52,6 @@ and do the command:
 /* Dump/text/unparse flags */
 #define NCJFLAG_NONE	    0
 #define NCJFLAG_INDENTED    1
-
 
 /* Define a struct to store primitive values as unquoted
    strings. The sort will provide more info.  Do not bother with
@@ -112,7 +112,7 @@ OPTEXPORT int NCJaddstring(NCjson* json, int sort, const char* s);
 /* Append value to an array or dict object. */
 OPTEXPORT int NCJappend(NCjson* object, NCjson* value);
 
-/* Insert (string)key-(NCjson*)value pair into a dict object. key will be copied */
+/* Insert (string)key-(NCjson*)value pair into a dict object. key will be copied; jvalue will not */
 OPTEXPORT int NCJinsert(NCjson* object, const char* key, NCjson* jvalue);
 
 /* Insert key-value pair into a dict object. key and value will be copied */

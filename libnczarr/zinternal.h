@@ -250,6 +250,7 @@ typedef struct NCZ_FILE_INFO {
 #		define FLAG_SHOWFETCH   2
 #		define FLAG_LOGGING     4
 #		define FLAG_XARRAYDIMS  8
+#		define FLAG_NCZARR_KEY  16 /* _nczarr_xxx keys are stored in object and not in _nczarr_attrs */
     NCZM_IMPL mapimpl;
     struct NCZ_Formatter* dispatcher;
     struct NCZ_META_HDR* metastate; /* Hold per-format state */
@@ -271,6 +272,13 @@ typedef struct NCZ_GRP_INFO {
     NCZcommon common;
     NCjson* jatts; /* JSON encoding of the attributes; do not reclaim */
     struct NCZ_META_HDR* metastate; /* Hold per-format state */
+    /* Read .zgroup and .zattrs once */
+    struct ZARROBJ {
+	char* prefix; /* prefix of .zgroup and .zattrs */
+	NCjson* obj; /* V2->.zgroup|.zarray, V3->zarr.json */
+	const NCjson* atts; /* V2->.zattrs, V3->attributes */
+        int nczv1;   /* 1 => _nczarr_xxx are in obj and not attributes */
+    } zgroup;
 } NCZ_GRP_INFO_T;
 
 /* Struct to hold ZARR-specific info for a variable. */
@@ -288,6 +296,9 @@ typedef struct NCZ_VAR_INFO {
     const NCjson* jzarray; /* _nczarr_array: contains dimensions, attribute types, and storage type; do not reclaim */
     NCjson* jatts; /* JSON encoding of the attributes; do not reclaim */
     struct NCZ_META_HDR* metastate; /* Hold per-format state */
+    /* Read .zarray and .zattrs once */
+    struct ZARROBJ zarray;
+    struct ZARROBJ zattrs;
 } NCZ_VAR_INFO_T;
 
 /* Struct to hold ZARR-specific info for a field. */

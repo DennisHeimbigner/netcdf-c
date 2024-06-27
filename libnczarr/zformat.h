@@ -102,6 +102,11 @@ extern const NCZ_Formatter* NCZ_formatter3; /* NCZarr V3 dispatch table => Zarr 
 extern int NCZ_get_map(NC_FILE_INFO_T* file, NCURI* url, mode_t mode, size64_t constraints, void* params, NCZMAP** mapp);
 extern int NCZ_get_formatter(NC_FILE_INFO_T* file, const NCZ_Formatter** formatterp);
 
+/* Support key variants */
+extern int NCZ_dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep);
+extern int NCZ_getnczarrkey(NC_OBJ* container, const char* name, const NCjson** jncxxxp);
+extern int NCZ_downloadzarrobj(NC_FILE_INFO_T* file, struct ZARROBJ* zobj, const char* fullpath, const char* objname);
+
 #if defined(__cplusplus)
 }
 #endif
