@@ -155,6 +155,9 @@ ncz_open_dataset(NC_FILE_INFO_T* file, NClist* urlcontrols)
     /* And get the format dispatcher */
     if((stat = NCZ_get_formatter(file, (const NCZ_Formatter**)&zfile->dispatcher))) goto done;
 
+    /* Ok, try to read superblock */
+    if((stat = ncz_read_superblock(file,&nczarr_version,&zarr_format))) goto done;
+
     /* Now read in all the metadata. Some types
      * information may be difficult to resolve here, if, for example, a
      * dataset of user-defined type is encountered before the
