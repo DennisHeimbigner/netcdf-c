@@ -81,7 +81,7 @@ static int read_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* varnam
 static int read_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames);
 static int parse_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts);
 
-static int locate_nczarr_grp_info(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jgroup, NCjson* jatts,
+static int locate_nczarr_grp_info(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroup, NCjson** jatts,
 			const NCjson** jzgroupp, const NCjson** jzattsp, const NCjson** jzsuperp);
 static int locate_nczarr_array_info(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jarray, NCjson* jatts,
 			const NCjson** jzarrayp, const NCjson** jzattsp);
@@ -2337,32 +2337,25 @@ NCZF2_finalize(void)
 /* NCZarr V2 Attributed Support */
 @param file	[in]  File object
 @param grp	[in]  Group object
-@param jgroup	[in]  .zgroup contents
-@param jatts	[in]  corresponding .zattrs contents
 @param jzgroupp	[out] _nczarr_group contents
 @param jzattsp	[out] _nczarr_attrs contents
 @param jzsuperp	[out] _nczarr_superblock contents (if root group)
 @return NC_NOERR || NC_EXXX error
 */
 static int
-locate_nczarr_grp_info(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp,
-			const NCjson** jzgroupp, const NCjson** jzattsp, const NCjson** jzsuperp)
+locate_nczarr_grp_info(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson** jnczgroupp, const NCjson** jnczattsp, const NCjson** jsuperp)
 {
     int stat = NC_NOERR;
     NCZ_GRP_INFO_T* zgrp = (NCZ_GRP_INFO_T*)grp->format_group_info;
     const NCjson* jgroup = zgrp->zgroup.obj;
     const NCjson* jatts = zgrp->zgroup.atts;
-    const NCjson* jzgroup = NULL;
-    const NCjson* jzatts = NULL;
-    const NCjson* jzsuper = NULL;
+    const NCjson* jnczgroup = NULL;
+    const NCjson* jnczatts = NULL;
+    const NCjson* jsuper = NULL;
 
-    /* Look for superblock; first in .zattrs and then in .zgroup */
-    
-    if(grp->parent == NULL) { /* Root group, look for superblock */
+    if(grp->parent == NULL) { /* Root group, look for superblock; stash in grp */
 	if((stat = ncz_read_superblock(file,&nczarr_version,&zarr_format))) goto done;
-        NCJcheck(NCJdictget(jatts,NCZ_V2_ATTR,&jzatts));
-        NCJcheck(NCJdictget(jatts,NCZ_V2_GROUP,&jzgroup));
-    }
+    } else { /* 
     if(jgroup != NULL) { /* Try jgroup */
         if(jzsuper == NULL && grp->parent == NULL) { /* Root group, look for superblock */
             NCJcheck(NCJdictget(jgroup,NCZ_V2_SUPERBLOCK,&jzsuper));
