@@ -133,7 +133,7 @@ if USE_HDF5
 TESTS += run_fillonlyz.sh
 endif
 
-/* Test back compatibility of new keys format */
+# Test back compatibility of new keys format
 TESTS += run_oldkeys.sh
 
 if BUILD_BENCHMARKS

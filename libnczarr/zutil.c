@@ -899,7 +899,7 @@ NCZ_iscomplexjsontext(size_t textlen, const char* text, NCjson** jsonp)
 loopexit:
     if(!iscomplex) return 0;
     /* Final test: must be parseable */
-    if(NCJparsen(textlen,text,0,&json)<0) return 0;
+    NCJcheck(NCJparsen(textlen,text,0,&json));
     if(json == NULL) return 0;/* not JSON parseable */
     if(jsonp) {*jsonp = json; json = NULL;}
     NCJreclaim(json);
