@@ -100,14 +100,26 @@ NCZF_dtype2nctype(const NC_FILE_INFO_T* file, const char* dtype, nc_type typehin
 }
 
 int
-NCZF_nctype2dtype(const NC_FILE_INFO_T* file, nc_type nctype, size_t strlen, char** dtypep, char** daliasp)
+NCZF_nctype2dtype(const NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typelen, char** dtypep, char** daliasp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->nctype2dtype(file,nctype,strlen,dtypep,daliasp);
+    stat = zfile->dispatcher->nctype2dtype(file,nctype,endianness,typelen,dtypep,daliasp);
+    return THROW(stat);
+}
+
+int
+NCZF_reclaim_atts_json(const NC_FILE_INFO_T* file, const NCjson* jatts)
+{
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zfile = NULL;
+    
+    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    assert(zfile != NULL);
+    stat = zfile->dispatcher->buildchunkkey(jatts);
     return THROW(stat);
 }
 
@@ -170,7 +182,7 @@ NCZF_build_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsuper
 }
 
 int
-NCZF_build_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* dims, NCjson** jdimsp)
+NCZF_build_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCindex* dims, NCjson** jdimsp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -180,7 +192,7 @@ NCZF_build_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* dims
 }
 
 int
-NCZF_build_grp_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* vars, NCjson** jvarsp)
+NCZF_build_grp_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCindex* vars, NCjson** jvarsp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -190,7 +202,7 @@ NCZF_build_grp_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* vars
 }
 
 int
-NCZF_build_grp_subgroups(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* subgrps, NCjson** jsubgrpsp)
+NCZF_build_grp_subgroups(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCindex* subgrps, NCjson** jsubgrpsp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -200,12 +212,12 @@ NCZF_build_grp_subgroups(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist*
 }
 
 int
-NCZF_build_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jdims, NCjson* jvars, NCjson* jsubgrps,  NCjson** jnczgrpp)
+NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* dims, NClist* vars, NClist* subgrps)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->build_nczarr_group(file, grp, jdims, jvars, jsubgrps, jnczgrpp);
+    stat = zfile->dispatcher->build_nczarr_group(file, grp, dims, vars, subgrp);
     return THROW(stat);
 }
 
@@ -320,7 +332,7 @@ NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jdims
 }
 
 int
-NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp)
+NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson** jattsp, const NCjson** jtypesp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -350,21 +362,21 @@ NCZF_decode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jncz
 }
 
 int
-NCZF_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jgroup, const NCjson* jatts)
+NCZF_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson** jgroupp, const NCjson** jattsp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->read_grp_json(file, grp,  jgroup,  jatts);
+    stat = zfile->dispatcher->read_grp_json(file, grp,  jgroupp,  jattsp);
     return THROW(stat);
 }
 
 int
-NCZF_read_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jvar, const NCjson* jatts)
+NCZF_read_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson** jvarp, const NCjson** jattsp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->read_var_json(file, var, jvar, jatts);
+    stat = zfile->dispatcher->read_var_json(file, var, jvarp, jattsp);
     return THROW(stat);
 }
