@@ -247,7 +247,7 @@ use this information to speed up the handling of fixed size types.
 
 # 3. Inferring File Types {#intern_infer}
 
-As described in the companion document -- docs/dispatch.md --
+As described in the companion document -- docs/dispatchers.md --
 when nc\_create() or nc\_open() is called, it must figure out what
 kind of file is being created or opened.  Once it has figured out
 the file kind, the appropriate "dispatch table" can be used
