@@ -1066,40 +1066,13 @@ static int
 define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
 {
     int stat = NC_NOERR;
-    size_t j;
-    NCZ_FILE_INFO_T* zinfo = NULL;
-    int purezarr = 0;
-    int xarray = 0;
     /* per-variable info */
     NC_VAR_INFO_T* var = NULL;
     NCZ_VAR_INFO_T* zvar = NULL;
     NCjson* jvar = NULL;
     const NCjson* jatts = NULL; /* corresponding to jvar */
-    const NCjson* jncvar = NULL;
-    const NCjson* jdimrefs = NULL;
-    const NCjson* jvalue = NULL;
-    char* varpath = NULL;
-    size64_t* shapes = NULL;
-    NClist* dimnames = NULL;
-    int varsized = 0;
-    int suppress = 0; /* Abort processing of this variable */
-    nc_type vtype = NC_NAT;
-    int vtypelen = 0;
-    size_t rank = 0;
-    size_t zarr_rank = 0; /* Need to watch out for scalars */
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    const NCjson* jfilter = NULL;
-    int chainindex = 0;
-#endif
 
     ZTRACE(3,"file=%s grp=%s varname=%s",file->controller->path,grp->hdr.name,varname);
-
-    zinfo = file->format_file_info;
-
-    if(zinfo->flags & FLAG_PUREZARR) purezarr = 1;
-    if(zinfo->flags & FLAG_XARRAYDIMS) {xarray = 1;}
-
-    dimnames = nclistnew();
 
     if((stat = nc4_var_list_add2(grp, varname, &var)))
 	goto done;
@@ -1126,12 +1099,6 @@ define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
 done:
     NCZF_reclaim_atts_json(file,jatts);
     NCJreclaim(jvar);
-#if XXX
-    nclistfreeall(dimnames); dimnames = NULL;
-    nullfree(varpath); varpath = NULL;
-    nullfree(shapes); shapes = NULL;
-    nullfree(key); key = NULL;
-#endif
     return THROW(stat);
 }
 
@@ -1213,6 +1180,7 @@ int
 ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
 {
     int stat = NC_NOERR;
+
     const NCjson* jnczgroup = NULL;
     const NCjson* jnczattr = NULL;
     const NCjson* jzgroup = NULL;
@@ -1236,9 +1204,8 @@ ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
     /* Construct grp key */
     if((stat = NCZ_grpkey(root,&fullpath))) goto done;
 
-    /* Download the root group .zgroup and associated .zattrs */
-    if((stat = downloadzarrobj(file, &zroot->zgroup, fullpath, ZGROUP))) goto done;
-    jzgroup = zroot->zgroup.obj;    
+    /* Download the root group object and associated attributess */
+    if((stat = NCZF_read_grp_json(file, zroot, &jgroup, &jatts))) goto done;
 
     /* Look for superblock; first in .zattrs and then in .zgroup */
     if((stat = getnczarrkey((NC_OBJ*)root,NCZ_V2_SUPERBLOCK,&jsuper))) goto done;
