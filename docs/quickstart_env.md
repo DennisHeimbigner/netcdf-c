@@ -2,9 +2,8 @@ Appendix D.3. Environment Variables and .RC files {#nc_env_quickstart}
 ==============================
 
 The netCDF-c library provides several parameterization mechanisms to
-control its behavior "globally". The term _globally_ means that the
-behavior change is generally independent of any specific file, with
-some exceptions.
+control its behavior at run-time. The term _run-time_ means that the
+library's behavior can be changed every time the library is initialized
 
 The most commonly used parameterization mechanisms are:
 1. Environment Variables -- accessed by the getenv() function.
@@ -136,9 +135,21 @@ Note that this API does not (currently) support URL prefixed keys, so the client
 There a a number of keys used by the netcdf-c library. Most of them
 are authorization-related. The file "auth.md" describes these keys.
 
+Other keys are as follows:
+* libdap4/d4curlfunctions.c and oc2/ocinternal.c
+    - HTTP.READ.BUFFERSIZE -- set the read buffer size for DAP2/4 connection
+    - HTTP.KEEPALIVE -- turn on keep-alive for DAP2/4 connection
+* libdispatch/ds3util.c
+    - AWS.PROFILE -- alternate way to specify the default AWS profile
+    - AWS.REGION --  alternate way to specify the default AWS region
+* libnczarr/zinternal.c
+    - ZARR.DIMENSION_SEPARATOR -- alternate way to specify the Zarr dimension separator character
+* oc2/occurlfunctions.c
+    - HTTP.NETRC -- alternate way to specify the path of the .netrc file
+
 ## Point of Contact {#nc_env_poc}
 
 __Author__: Dennis Heimbigner<br>
 __Email__: dmh at ucar dot edu<br>
 __Initial Version__: 01/09/2023<br>
-__Last Revised__: 07/29/2024
+__Last Revised__: 07/30/2024
