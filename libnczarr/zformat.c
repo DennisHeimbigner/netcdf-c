@@ -123,6 +123,30 @@ NCZF_reclaim_atts_json(const NC_FILE_INFO_T* file, const NCjson* jatts)
     return THROW(stat);
 }
 
+int
+NCZF_searchvars(const NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
+{
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zfile = NULL;
+    
+    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    assert(zfile != NULL);
+    stat = zfile->dispatcher->searchvars(file,grp,varnames);
+    return THROW(stat);
+}
+
+int
+NCZF_searchsubgrps(const NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrps)
+{
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zfile = NULL;
+    
+    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    assert(zfile != NULL);
+    stat = zfile->dispatcher->searchsubgrps(file,grp,subgrps);
+    return THROW(stat);
+}
+
 /**************************************************/
 /*
 From Zarr V2 Specification:

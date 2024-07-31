@@ -906,7 +906,7 @@ done:
 }
 
 static int
-ZF2_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp, const NCjson** jattsp)
+ZF2_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp, NCjson** jattsp, int* constattsp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -915,7 +915,7 @@ done:
 }
 
 static int
-ZF2_read_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp, const NCjson** jattsp)
+ZF2_read_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp, NCjson** jattsp, int* constattsp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -963,10 +963,82 @@ done:
 }
 
 static int
-NCZF_reclaim_json_atts(const NC_FILE_INFO_T* file, const NCjson* jatts)
+ZF2_reclaim_json_atts(const NC_FILE_INFO_T* file, const NCjson* jatts)
 {
-    NCJreclaim((NCjso*)jatts);
+    NCJreclaim((NCjson*)jatts);
     return THROW(NC_NOERR);
+}
+
+static int
+ZF2_searchvars(const NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)zfile->format_file_info;
+    char* grpkey = NULL;
+    char* varkey = NULL;
+    char* zarray = NULL;
+    NClist* matches = nclistnew();
+
+    /* Compute the key for the grp */
+    if((stat = NCZ_grpkey(grp,&grpkey))) goto done;
+    /* Get the map and search group */
+    if((stat = nczmap_listall(zfile->map,grpkey,matches))) goto done;
+    for(i=0;i<nclistlength(matches);i++) {
+	const char* name = nclistget(matches,i);
+	if(name[0] == NCZM_DOT) continue; /* zarr/nczarr specific */
+	/* See if name/.zarray exists */
+	if((stat = nczm_concat(grpkey,name,&varkey))) goto done;
+	if((stat = nczm_concat(varkey,ZARRAY,&zarray))) goto done;
+	if((stat = nczmap_exists(zfile->map,zarray)) == NC_NOERR)
+	    nclistpush(varnames,strdup(name));
+	stat = NC_NOERR;
+	nullfree(varkey); varkey = NULL;
+	nullfree(zarray); zarray = NULL;
+    }
+
+done:
+    nullfree(grpkey);
+    nullfree(varkey);
+    nullfree(zarray);
+    nclistfreeall(matches);
+    return stat;
+}
+
+static int
+ZF2_searchsubgrps(NCZ_FILE_INFO_T* zfile, NC_GRP_INFO_T* grp, NClist* subgrpnames)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    char* grpkey = NULL;
+    char* subkey = NULL;
+    char* zgroup = NULL;
+    NClist* matches = nclistnew();
+
+    /* Compute the key for the grp */
+    if((stat = NCZ_grpkey(grp,&grpkey))) goto done;
+    /* Get the map and search group */
+    if((stat = nczmap_search(zfile->map,grpkey,matches))) goto done;
+    for(i=0;i<nclistlength(matches);i++) {
+	const char* name = nclistget(matches,i);
+	if(name[0] == NCZM_DOT) continue; /* zarr/nczarr specific */
+	/* See if name/.zgroup exists */
+	if((stat = nczm_concat(grpkey,name,&subkey))) goto done;
+	if((stat = nczm_concat(subkey,ZGROUP,&zgroup))) goto done;
+	if((stat = nczmap_exists(zfile->map,zgroup)) == NC_NOERR)
+	    nclistpush(subgrpnames,strdup(name));
+	stat = NC_NOERR;
+	nullfree(subkey); subkey = NULL;
+	nullfree(zgroup); zgroup = NULL;
+    }
+
+done:
+    nullfree(grpkey);
+    nullfree(subkey);
+    nullfree(zgroup);
+    nclistfreeall(matches);
+    return stat;
 }
 
 /**************************************************/

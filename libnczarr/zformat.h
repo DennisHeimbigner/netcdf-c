@@ -79,8 +79,8 @@ typedef struct NCZ_Formatter {
     int (*decode_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
 
     /* Read JSON to storage */
-    int (*read_grp_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp, const NCjson** jatts);
-    int (*read_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvar, const NCjson** jatts);
+    int (*read_grp_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp, NCjson** jatts, int* constattsp);
+    int (*read_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvar, NCjson** jatts, int* constattsp);
 
     /* Type conversion actions */
     int (*dtype2nctype)(const NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp);
@@ -92,6 +92,10 @@ typedef struct NCZ_Formatter {
 
     /* Special reclamation functions */
     int (*reclaim_atts_json)(const NC_FILE_INFO_T* file, const NCjson* jatts);
+
+    /* Search functions */
+    int (*searchvars)(const NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames);
+    int (*searchsubgrps)(const NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames);
 
 } NCZ_Formatter;
 
@@ -137,8 +141,8 @@ extern int NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const 
 extern int NCZF_decode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
 
 /* Read JSON to storage */
-extern int NCZF_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp, const NCjson** jattsp);
-extern int NCZF_read_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp, const NCjson** jattsp);
+extern int NCZF_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp, NCjson** jattsp, int* constattsp);
+extern int NCZF_read_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp, NCjson** jattsp, int* constattsp);
 
 /* Misc. */
 extern int NCZF_dtype2nctype(const NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp);
@@ -148,6 +152,10 @@ extern int NCZF_buildchunkkey(const NC_FILE_INFO_T* file, size_t rank, const siz
 
 /* Special reclamation functions; These are necessary because V2 attributes are not part of a larger object, but they are for V3. */
 extern int NCZF_reclaim_atts_json(const NC_FILE_INFO_T* file, const NCjson* jatts);
+
+/* Search functions */
+extern int NCZF_searchvars(const NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames);
+extern int NCZF_searchsubgrps(const NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames);
 
 /* Define known dispatch tables and initializers */
 /* Each handles a specific NCZarr format + Pure Zarr */
