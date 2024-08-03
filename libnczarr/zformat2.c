@@ -556,6 +556,7 @@ ZF2_decode_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* dims,
 		slen = NCJstring(jleninfo);		
 	    } else
 		{stat = NC_ENCZARR; goto done;}
+	    /* The dimdefs list is a set of triples of the form (name,len,isunlim) */
 	    nclistpush(dimdefs,strdup(norm_name));
 	    nclistpush(dimdefs,strdup(slen));
     	    nclistpush(dimdefs,strdup(sunlim));

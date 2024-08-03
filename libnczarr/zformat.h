@@ -74,8 +74,8 @@ typedef struct NCZ_Formatter {
     int (*decode_grp_vars)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* vars, NCjson** jvarsp);
     int (*decode_grp_subgroups)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* subgrps, NCjson** jsubgrpsp);
     int (*decode_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* dims, NClist* vars, NClist* subgrps);
-    int (*decode_attributes_json)(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson** jattsp, const NCjson** jtypesp);
-    int (*decode_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp);
+    int (*decode_attributes_json)(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp);
+    int (*decode_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp, NCjson** jattsp);
     int (*decode_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
 
     /* Read JSON to storage */
@@ -88,7 +88,7 @@ typedef struct NCZ_Formatter {
 
     /* Misc. Actions */
     int (*hdf2codec) (const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter); /* Codec converters */
-    int (*buildchunkkey)(size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
+    int (*build_chunkkey)(size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
 
     /* Special reclamation functions */
     int (*reclaim_atts_json)(const NC_FILE_INFO_T* file, const NCjson* jatts);
@@ -136,8 +136,8 @@ extern int NCZF_decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const 
 extern int NCZF_decode_grp_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* vars, NCjson** jvarsp);
 extern int NCZF_decode_grp_subgroups(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* subgrps, NCjson** jsubgrpsp);
 extern int NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* dims, NClist* vars, NClist* subgrps);
-extern int NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson** jattsp, const NCjson** jtypesp);
-extern int NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jvar, const NCjson* jatts);
+extern int NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp);
+extern int NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvar, NCjson** jatts);
 extern int NCZF_decode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
 
 /* Read JSON to storage */

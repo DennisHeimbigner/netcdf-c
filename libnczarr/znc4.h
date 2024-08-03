@@ -22,6 +22,7 @@ extern int ncz4_create_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const ch
 extern int ncz4_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent,
 				const char* name,
 				nc_type nctype,
+#if 0
 				int storage,
 				int scalar,
 				int endianness,
@@ -35,6 +36,7 @@ extern int ncz4_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent,
 			        NClist* filters,
 				int no_fill,
 				void* fill_value,
+#endif /*0*/
 			        NC_VAR_INFO_T** varp);
 extern int ncz4_create_dim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* name, size64_t len, int isunlimited,
 			   NC_DIM_INFO_T** dimp);
