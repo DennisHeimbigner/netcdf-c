@@ -476,7 +476,7 @@ done:
 /* Functions to import download and decode json to nc4internal structures */
 
 static int
-ZF2_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp)
+ZF2_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jgroup, NCjson* jatts, NCjson** jsuperp, NClist* dims, NClist* vars, NClist* subgrps)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -494,7 +494,7 @@ done:
 }
 
 static int
-ZF2_decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* dims, NCjson** jdimsp)
+ZF2_decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -503,7 +503,7 @@ done:
 }
 
 static int
-ZF2_decode_grp_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* vars, NCjson** jvarsp)
+ZF2_decode_grp_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname, NC_VAR_INFO_T** jvarp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -512,7 +512,7 @@ done:
 }
 
 static int
-ZF2_decode_grp_subgroups(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* subgrps, NCjson** jsubgrpsp)
+ZF2_decode_grp_subgroup(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* subgrpname, NC_GRP_INFO_T** subgrpp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -603,7 +603,7 @@ done:
 }
 
 static int
-ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jvar, const NCjson* jatts)
+ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NCjson** jvarp, NCjson** jattsp, NC_VAR_INFO_T** varp)
 {
     int stat = NC_NOERR;
     size_t j;
@@ -911,12 +911,27 @@ ZF2_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp, NC
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
+	/* Check and normalize the name. */
+	if((stat = nc4_check_name(gname, norm_name)))
+	    goto done;
+	if((stat = nc4_grp_list_add(file, grp, norm_name, &g)))
+	    goto done;
+	if(!(g->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
+	    {stat = NC_ENOMEM; goto done;}
+	((NCZ_GRP_INFO_T*)g->format_grp_info)->common.file = file;
+    }
+
+    /* Recurse to fill in subgroups */
+    for(i=0;i<ncindexsize(grp->children);i++) {
+	NC_GRP_INFO_T* g = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
+	if((stat = ncz_read_grp(file,g)))
+	    goto done;
 done:
     return THROW(stat);
 }
 
 static int
-ZF2_read_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp, NCjson** jattsp, int* constattsp)
+ZF2_read_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NCjson** jvarp, NCjson** jattsp, int* constattsp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;

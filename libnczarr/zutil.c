@@ -1189,15 +1189,16 @@ done:
     return THROW(stat);
 }
 
+#if 0
 void
 NCZ_clear_diminfo(size_t rank, NCZ_DimInfo* diminfo)
 {
     size_t i;
     for(i=0;i<rank;i++) {
 	nullfree(diminfo[i].name);
-	nullfree(diminfo[i].fqn);
     }
 }
+#endif /*0*/
 
 void
 NCZ_reclaim_diminfo_list(NClist* diminfo)
@@ -1208,7 +1209,6 @@ NCZ_reclaim_diminfo_list(NClist* diminfo)
 	    NCZ_DimInfo* di = (NCZ_DimInfo*)nclistget(diminfo,i);
 	    if(di != NULL) {
 	        nullfree(di->name);
-	        nullfree(di->fqn);
 	        free(di);
 	    }
 	}
@@ -1327,7 +1327,6 @@ NCZ_uniquedimname(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NCZ_DimInfo* dimd
     for(loopcounter=1;;loopcounter++) {
 	/* cleanup from last loop */
         dim = NULL; /* reset loop exit */
-	nullfree(dimdata->fqn); dimdata->fqn = NULL;
         /* Make unique name using loopcounter */
 	ncbytesclear(newname);
 	ncbytescat(newname,dimdata->name);

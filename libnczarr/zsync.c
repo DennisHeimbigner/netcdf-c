@@ -27,9 +27,9 @@ static int zcharify(const NCjson* src, NCbytes* buf);
 static int zconvert(const NCjson* src, nc_type typeid, size_t typelen, int* countp, NCbytes* dst);
 static int computeattrinfo(NC_FILE_INFO_T*,const char* name, const NCjson* jtypes, nc_type typehint, int purezarr, NCjson* values,nc_type* typeidp, size_t* typelenp, size_t* lenp, void** datap);
 static int computeattrdata(nc_type typehint, nc_type* typeidp, const NCjson* values, size_t* typelenp, size_t* countp, void** datap);
-static int ncz_read_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, size_t ndims, NCZ_DimInfo* diminfo);
+static int ncz_read_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* diminfo);
 static int ncz_read_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname);
-static int ncz_read_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames);
+static int ncz_read_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames);
 static int parse_group_content_pure(NC_FILE_INFO_T*, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrps);
 static int decodeints(const NCjson* jshape, size64_t* shapes);
 static int createdim(NC_FILE_INFO_T* file, const char* name, size64_t dimlen, NC_DIM_INFO_T** dimp);
@@ -119,34 +119,34 @@ ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
 
     if(!purezarr) {
         if(grp->parent == NULL) { /* Root group */
-	    if((stat=NCZF_build_superblock(file,grp,&jsuper))) goto done;
+	    if((stat=NCZF_encode_superblock(file,grp,&jsuper))) goto done;
 	}
 
 	/* Collect dimensions in this group */
 	dimlist = grp->dim;
         /* Create dimensions json */
-	if((stat=NCZF_build_grp_dims(file,grp,dimlist,&jdims))) goto done;
+	if((stat=NCZF_encode_grp_dims(file,grp,dimlist,&jdims))) goto done;
 
 	/* Collect vars in this group */
 	varlist = grp->vars;
         /* Create variables json */
-	if((stat=NCZF_build_grp_vars(file,grp,varlist,&jvars))) goto done;
+	if((stat=NCZF_encode_grp_vars(file,grp,varlist,&jvars))) goto done;
 
 	/* Collect subgroups in this group */
 	subgrplist = grp->children;
         /* Create subgroups json */
-	if((stat=NCZF_build_grp_subgroups(file,grp,subgrplist,&jsubgrp))) goto done;
+	if((stat=NCZF_encode_grp_subgroups(file,grp,subgrplist,&jsubgrp))) goto done;
 
         /* Assemble NCZARR_GROUP contents */
-	if((stat=NCZF_build_nczarr_group(file,grp,jdims,jvars,jsubgrp,&jnczgrp))) goto done;
+	if((stat=NCZF_encode_nczarr_group(file,grp,jdims,jvars,jsubgrp,&jnczgrp))) goto done;
     }
 
     /* Build the json attrs object */
     assert(grp->att);
-    if((stat = NCZF_build_attributes_json(file, (NC_OBJ*)grp, grp->att, &jatts, &jtypes))) goto done;
+    if((stat = NCZF_encode_attributes_json(file, (NC_OBJ*)grp, grp->att, &jatts, &jtypes))) goto done;
 
     /* Assemble group json */
-    if((stat = NCZF_build_group_json(file,grp,jsuper,jatts,jtypes,&jgroup))) goto done;
+    if((stat = NCZF_encode_group_json(file,grp,jsuper,jatts,jtypes,&jgroup))) goto done;
 
     /* upload group json and (depending on version) the group attributes */
     if((stat = NCZF_write_grp_json(file,grp,jgroup,jatts))) goto done;
@@ -225,7 +225,7 @@ ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 
     /* Build the NCZ_ARRAY object */
     if(!purezarr) {
-	if((stat=NCZF_build_nczarr_array(file,var,&jnczvar))) goto done;
+	if((stat=NCZF_encode_nczarr_array(file,var,&jnczvar))) goto done;
     }
 
     /* Build attribute dictionary */
@@ -246,7 +246,7 @@ ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 	jtypes = NULL;
     }
 
-    if((stat=NCZF_build_var_json(file, var, jatts, jnczvar, &jvar))) goto done;
+    if((stat=NCZF_encode_var_json(file, var, jatts, jnczvar, &jvar))) goto done;
 
     /* Write out the the var JSON and the corresponding attributes */
     if((stat = NCZF_write_var_json(file,var,jvar,jatts))) goto done;
@@ -544,11 +544,14 @@ ncz_read_file(NC_FILE_INFO_T* file)
 {
     int stat = NC_NOERR;
     NCjson* json = NULL;
+    char* nczarr_version = NULL;
+    char* zarr_format = NULL;
 
     LOG((3, "%s: file: %s", __func__, file->controller->path));
     ZTRACE(3,"file=%s",file->controller->path);
     
-    /* _nczarr should already have been read in ncz_open_dataset */
+    /* Ok, try to read superblock */
+    if((stat = ncz_read_superblock(file,&nczarr_version,&zarr_format))) goto done;
 
     /* Now load the groups starting with root */
     if((stat = ncz_read_grp(file,file->root_grp))) goto done;
@@ -584,7 +587,7 @@ ncz_read_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
     
     if(zinfo->flags & FLAG_PUREZARR) purezarr = 1;
 
-    /* Download json group and json attrs */
+    /* Download json group and json attrs and indictor if attributes need to be reclaimd */
     if((stat = NCZF_read_grp_json(file,grp,&jgroup,&jatts,&constatts))) goto done;
 
     if(purezarr) {
@@ -595,7 +598,7 @@ ncz_read_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
 	    purezarr = 1; /* treat as if purezarr */
             zinfo->flags |= FLAG_PUREZARR;
 	} else { /*!purezarr && jgroup && jatts */
-  	    /* Get and Decode the NCZ_GROUP object */
+  	    /* Decode and group object */
             if((stat = NCZF_decode_nczarr_group(file,grp,dimdefs,varnames,subgrps))) goto done;
 	}
     }
@@ -631,7 +634,7 @@ done:
  * @author Dennis Heimbigner
  */
 static int
-ncz_read_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, size_t ndims, NCZ_DimInfo* diminfo)
+ncz_read_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* diminfo)
 {
     size_t i;
     int stat = NC_NOERR;
@@ -639,7 +642,7 @@ ncz_read_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, size_t ndims, NCZ_DimInf
     ZTRACE(3,"file=%s grp=%s |diminfo|=%u",file->controller->path,grp->hdr.name,nclistlength(diminfo));
 
     /* Reify each dim in turn */
-    /* This is currently same for V2 and V3 */
+    /* This is currently the same for V2 and V3 */
     for(i = 0; i < nclistlength(diminfo); i+=3) {
 	NC_DIM_INFO_T* dim = NULL;
 	size64_t len = 0;
@@ -662,40 +665,19 @@ done:
     return ZUNTRACE(THROW(stat));
 }
 
-static int
-ncz_read_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames)
-{
-    int stat = NC_NOERR;
-    size_t i;
-
-    ZTRACE(3,"file=%s parent=%s |subgrpnames|=%u",file->controller->path,parent->hdr.name,nclistlength(subgrpnames));
-
-    /* Load each subgrp in turn */
-    for(i = 0; i < nclistlength(subgrpnames); i++) {
-	const char* subgrpname = (const char*)nclistget(subgrpnames,i);
-	NC_GRP_INFO_T* subgrp = NULL;
-	/* Create the group object */
-	if((stat = ncz4_create_grp(file,parent,subgrpname,&subgrp))) goto done;
-        if((stat = ncz_read_grp(file,subgrp))) goto done;
-    }
-
-done:
-    return ZUNTRACE(THROW(stat));
-}
-
 /**
  * @internal Materialize single var into memory;
  * Take xarray and purezarr into account.
  *
  * @param file Pointer to file info struct.
- * @param grp Pointer to grp info struct.
+ * @param paret Pointer to parent grp info struct.
  * @param varname name of variable in this group
  *
  * @return ::NC_NOERR No error.
  * @author Dennis Heimbigner
  */
 static int
-ncz_read_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
+ncz_read_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname)
 {
     int stat = NC_NOERR;
     /* per-variable info */
@@ -704,16 +686,10 @@ ncz_read_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
     NCjson* jatts = NULL; /* corresponding to jvar */
     int constatts = 0;
 
-    ZTRACE(3,"file=%s grp=%s varname=%s",file->controller->path,grp->hdr.name,varname);
+    ZTRACE(3,"file=%s parent=%s varname=%s",file->controller->path,parent->hdr.name,varname);
 
-    if((stat = ncz4_create_var(file,grp,varname,nctype,&var))) goto done;
-
-    /* Download */
-    if((stat = NCZF_read_var_json(file,var,&jvar,&jatts,&constatts))) goto done;
-    assert(jvar == NULL || NCJsort(jvar) == NCJ_DICT);
-    assert(jatts == NULL || NCJsort(jatts) == NCJ_DICT);
-
-    if((stat = NCZF_decode_var_json(file,var,jvar,jatts,&constatts))) goto done;
+    /* Download and create */
+    if((stat = NCZF_decode_var_json(file,parent,varname,&jvar,&jatts,&var))) goto done;
 
 done:
     if(!constatts) NCZF_reclaim_atts_json(file,jatts);
@@ -733,7 +709,7 @@ done:
  * @author Dennis Heimbigner
  */
 int
-ncz_read_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
+ncz_read_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* varnames)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -743,51 +719,29 @@ ncz_read_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
     /* Load each var in turn */
     for(i = 0; i < nclistlength(varnames); i++) {
 	const char* varname = (const char*)nclistget(varnames,i);
-        if((stat = ncz_read_var1(file,grp,varname))) goto done;
+        if((stat = ncz_read_var1(file,parent,varname))) goto done;
     }
 
 done:
     return ZUNTRACE(THROW(stat));
 }
 
-/**
- * @internal Materialize subgroups into memory
- *
- * @param file Pointer to file info struct.
- * @param grp Pointer to grp info struct.
- * @param subgrpnames List of names of subgroups in this group
- *
- * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner
- */
 static int
-ncz_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames)
+ncz_read_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames)
 {
-    size_t i;
     int stat = NC_NOERR;
+    size_t i;
 
-    ZTRACE(3,"file=%s grp=%s |subgrpnames|=%u",file->controller->path,grp->hdr.name,nclistlength(subgrpnames));
+    ZTRACE(3,"file=%s parent=%s |subgrpnames|=%u",file->controller->path,parent->hdr.name,nclistlength(subgrpnames));
 
-    /* Load each subgroup name in turn */
+    /* Create and load each subgrp in turn */
     for(i = 0; i < nclistlength(subgrpnames); i++) {
-	NC_GRP_INFO_T* g = NULL;
-	const char* gname = nclistget(subgrpnames,i);
-	char norm_name[NC_MAX_NAME];
-	/* Check and normalize the name. */
-	if((stat = nc4_check_name(gname, norm_name)))
-	    goto done;
-	if((stat = nc4_grp_list_add(file, grp, norm_name, &g)))
-	    goto done;
-	if(!(g->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
-	    {stat = NC_ENOMEM; goto done;}
-	((NCZ_GRP_INFO_T*)g->format_grp_info)->common.file = file;
-    }
-
-    /* Recurse to fill in subgroups */
-    for(i=0;i<ncindexsize(grp->children);i++) {
-	NC_GRP_INFO_T* g = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
-	if((stat = ncz_read_grp(file,g)))
-	    goto done;
+	const char* subgrpname = (const char*)nclistget(subgrpnames,i);
+	NC_GRP_INFO_T* subgrp = NULL;
+	/* Create the group object */
+        if((stat = NCZF_decode_grp_subgroup(file,parent,subgrpname,&subgrp))) goto done;
+	/* Fill in the group object */
+        if((stat = ncz_read_grp(file,subgrp))) goto done;
     }
 
 done:

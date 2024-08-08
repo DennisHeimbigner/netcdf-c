@@ -107,11 +107,8 @@ ncz_open_dataset(NC_FILE_INFO_T* file, NClist* urlcontrols)
     NC* nc = NULL;
     NC_GRP_INFO_T* root = NULL;
     NCURI* uri = NULL;
-    void* content = NULL;
-    NCjson* json = NULL;
     NCZ_FILE_INFO_T* zfile = NULL;
     NClist* modeargs = NULL;
-    char* nczarr_version = NULL;
 
     ZTRACE(3,"file=%s controls=%s",file->hdr.name,(controls?nczprint_envv(controls):"null"));
 
@@ -155,22 +152,12 @@ ncz_open_dataset(NC_FILE_INFO_T* file, NClist* urlcontrols)
     /* And get the format dispatcher */
     if((stat = NCZ_get_formatter(file, (const NCZ_Formatter**)&zfile->dispatcher))) goto done;
 
-    /* Ok, try to read superblock */
-    if((stat = ncz_read_superblock(file,&nczarr_version,&zarr_format))) goto done;
-
-    /* Now read in all the metadata. Some types
-     * information may be difficult to resolve here, if, for example, a
-     * dataset of user-defined type is encountered before the
-     * definition of that type. */
-    if((stat = NCZF_readmeta(file)))
-       goto done;
+    /* Load the meta-data */
+    if((stat = ncz_read_file(file))) goto done;
 
 done:
-    nullfree(nczarr_version);
     ncurifree(uri);
     nclistfreeall(modeargs);
-    if(json) NCJreclaim(json);
-    nullfree(content);
     return ZUNTRACE(stat);
 }
 

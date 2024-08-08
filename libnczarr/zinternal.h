@@ -87,7 +87,6 @@ _nczarr_superblock: {"version": "3.0.0", "format=2"}
 Inserted into any .zgroup || .zattrs (at group level)
 "_nczarr_group": "{
 \"dimensions\": {<dimname>: <integer>, <name>: <integer>,...}
-    or {\": [{name: <dimname>, size: <integer>, unlimited: 1|0},...],
 \"arrays\": [\"v1\", \"v2\", ...]
 \"groups\": [\"g1\", \"g2\", ...]
 }"
@@ -115,6 +114,7 @@ _nczarr_superblock: {
 Optionally inserted into any group zarr.json as an attribute:
 "_nczarr_group": "{
 \"dimensions\": [{name: <dimname>, size: <integer>, unlimited: 1|0},...],
+   The V2 format is also acceptable: {<dimname>: <integer>, <name>: <integer>,...}
 \"arrays\": ["<name>",...],
 \"subgroups\": ["<name>",...]
 }"
@@ -308,7 +308,7 @@ typedef struct NCZ_TYPE_INFO {
 
 /* Parsed dimension info */
 typedef struct NCZ_DimInfo {
-    char name[NC_MAX_NAME];
+    char* name;
     size64_t shape;
     int unlimited;
 } NCZ_DimInfo;
