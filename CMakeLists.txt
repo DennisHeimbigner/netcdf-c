@@ -16,10 +16,29 @@ project(netCDF
   VERSION 4.9.3
 )
 
-#Add custom CMake Module
+#####
+# Version Info:
+#
+# Release Version
+# Library Version
+# SO Version
+#
+# SO Version is computed from library version. See:
+# http://www.gnu.org/software/libtool/manual/libtool.html#Libtool-versioning
+#####
 
-set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/;${PROJECT_SOURCE_DIR}/cmake"
-  CACHE INTERNAL "Location of our custom CMake modules.")
+set(NC_VERSION_NOTE "-rc1")
+set(netCDF_VERSION ${PROJECT_VERSION}${NC_VERSION_NOTE})
+set(VERSION ${netCDF_VERSION})
+set(NC_VERSION ${netCDF_VERSION})
+set(PACKAGE_VERSION ${VERSION})
+
+# These values should match those in configure.ac
+set(netCDF_LIB_VERSION 22)
+set(netCDF_SO_VERSION 22)
+
+#Add custom CMake Module
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules" "${PROJECT_SOURCE_DIR}/cmake")
 
 set(PACKAGE "netCDF" CACHE STRING "")
 
@@ -53,26 +72,7 @@ endif()
 add_library(netcdf)
 add_library(netCDF::netcdf ALIAS netcdf)
 
-#####
-# Version Info:
-#
-# Release Version
-# Library Version
-# SO Version
-#
-# SO Version is computed from library version. See:
-# http://www.gnu.org/software/libtool/manual/libtool.html#Libtool-versioning
-#####
 
-set(NC_VERSION_NOTE "-development")
-set(netCDF_VERSION ${PROJECT_VERSION}${NC_VERSION_NOTE})
-set(VERSION ${netCDF_VERSION})
-set(NC_VERSION ${netCDF_VERSION})
-set(PACKAGE_VERSION ${VERSION})
-
-# These values should match those in configure.ac
-set(netCDF_LIB_VERSION 19)
-set(netCDF_SO_VERSION 19)
 
 # Version of the dispatch table. This must match the value in
 # configure.ac.
@@ -87,6 +87,11 @@ if(UNAME)
   getuname(cpu    -m)
   getuname(host   -n)
   set(TMP_BUILDNAME "${osname}-${osrel}-${cpu}")
+endif()
+
+find_program(GETFATTR NAMES getfattr)
+if(GETFATTR)
+  set(HAVE_GETFATTR TRUE)
 endif()
 
 # Define some Platforms
@@ -534,7 +539,7 @@ endif()
 
 # enable|disable all forms of network access
 option(NETCDF_ENABLE_REMOTE_FUNCTIONALITY "Enable|disable all forms remote data access (DAP, S3, etc)" ON)
-if(NOT NETCDF_ENABLE_REMOTE_FUNCTIONALITY)
+if(NOT NETCDF_ENABLE_REMOTE_FUNCTIONALITY AND NETCDF_ENABLE_DAP)
 message(WARNING "NETCDF_ENABLE_REMOTE_FUNCTIONALITY=NO => NETCDF_ENABLE_DAP[4]=NO")
 set(NETCDF_ENABLE_DAP OFF CACHE BOOL "NETCDF_ENABLE_REMOTE_FUNCTIONALITY=NO => NETCDF_ENABLE_DAP=NO" FORCE)
 set(NETCDF_ENABLE_DAP2 OFF CACHE BOOL "NETCDF_ENABLE_REMOTE_FUNCTIONALITY=NO => NETCDF_ENABLE_DAP2=NO" FORCE)
@@ -605,7 +610,7 @@ endif()
 
 # Option to support byte-range reading of remote datasets
 option(NETCDF_ENABLE_BYTERANGE "Enable byte-range access to remote datasets.." ${NETCDF_ENABLE_DAP})
-if(NOT NETCDF_ENABLE_REMOTE_FUNCTIONALITY)
+if(NOT NETCDF_ENABLE_REMOTE_FUNCTIONALITY AND NETCDF_ENABLE_BYTERANGE)
 message(WARNING "NETCDF_ENABLE_REMOTE_FUNCTIONALITY=NO => NETCDF_ENABLE_BYTERANGE=NO")
 set(NETCDF_ENABLE_BYTERANGE OFF CACHE BOOL "NETCDF_ENABLE_REMOTE_FUNCTIONALITY=NO => NETCDF_ENABLE_BYTERANGE=NO" FORCE)
 endif()
@@ -622,7 +627,7 @@ set(NETCDF_ENABLE_DAP_LONG_TESTS OFF CACHE BOOL "" FORCE)
 endif()
 
 # Provide a global control for remotetest.
-if ("$ENV{REMOTETESTDOWN}" STREQUAL "yes")
+if ("$ENV{REMOTETESTDOWN}" STREQUAL "yes" AND NETCDF_ENABLE_DAP_REMOTE_TESTS)
 message(WARNING "ENV(REMOTETESTDOWN) => NETCDF_ENABLE_DAP_REMOTE_TESTS == OFF")
 set(NETCDF_ENABLE_DAP_REMOTE_TESTS OFF CACHE BOOL "" FORCE)
 endif()
@@ -699,7 +704,7 @@ else() # No option specified
 endif()
 
 # Try to enable NCZarr zip support
-option(NETCDF_ENABLE_NCZARR_ZIP "Enable NCZarr ZIP support." OFF)
+option(NETCDF_ENABLE_NCZARR_ZIP "Enable NCZarr ZIP support." ${NETCDF_ENABLE_NCZARR})
 
 include(CMakeDependentOption)
 
@@ -751,13 +756,18 @@ if(NOT WIN32)
 endif()
 
 # Options for S3 Support
-option(NETCDF_ENABLE_S3 "Enable S3 support." OFF)
+#option(NETCDF_ENABLE_S3 "Enable S3 support." OFF)
+option(NETCDF_ENABLE_S3_AWS "Enable S3 support via AWS-CPP-SDK" OFF)
 option(NETCDF_ENABLE_S3_INTERNAL "Enable S3 Internal support." OFF)
-option(NETCDF_ENABLE_NCZARR_S3 "Enable NCZarr S3 support; Deprecated in favor of NETCDF_ENABLE_S3" OFF)
+
+cmake_dependent_option(NETCDF_ENABLE_S3 "Enable S3 Support" ON "NETCDF_ENABLE_S3_AWS OR NETCDF_ENABLE_S3_INTERNAL" OFF)
+
+option(NETCDF_ENABLE_NCZARR_S3 "Enable NCZarr S3 support; Deprecated in favor of NETCDF_ENABLE_S3" ${NETCDF_ENABLE_S3})
 
 if(NOT NETCDF_ENABLE_REMOTE_FUNCTIONALITY)
   set(NETCDF_ENABLE_S3 OFF CACHE BOOL "" FORCE)
   set(NETCDF_ENABLE_S3_INTERNAL OFF CACHE BOOL "" FORCE)
+  set(NETCDF_ENABLE_S3_AWS OFF CACHE BOOL "" FORCE)
   set(NETCDF_ENABLE_NCZARR_S3 OFF CACHE BOOL "" FORCE)
 endif()
 
@@ -1053,8 +1063,8 @@ if (NOT NETCDF_ENABLE_PLUGINS AND NETCDF_ENABLE_NCZARR_FILTERS)
   set(NETCDF_ENABLE_NCZARR_FILTERS OFF CACHE BOOL "Enable NCZarr Filters." FORCE)
 endif()
 
-IF (NOT NETCDF_ENABLE_NCZARR)
-  message(WARNING "NETCDF_ENABLE_NCZARR==NO => NETCDF_ENABLE_NCZARR_FILTERS==NO")
+IF (NOT NETCDF_ENABLE_NCZARR AND NETCDF_ENABLE_NCZARR_FILTERS) 
+    message(WARNING "NETCDF_ENABLE_NCZARR==NO => NETCDF_ENABLE_NCZARR_FILTERS==NO")
   set(NETCDF_ENABLE_NCZARR_FILTERS OFF CACHE BOOL "Disable NCZARR_FILTERS" FORCE)
 endif()
 
@@ -1171,6 +1181,7 @@ CHECK_INCLUDE_file("io.h"      HAVE_IO_H)
 endif(MSVC)
 CHECK_INCLUDE_file("stdlib.h"  HAVE_STDLIB_H)
 CHECK_INCLUDE_file("ctype.h"   HAVE_CTYPE_H)
+CHECK_INCLUDE_file("sys/xattr_h" HAVE_SYS_XATTR_H)
 CHECK_INCLUDE_file("stdarg.h"    HAVE_STDARG_H)
 CHECK_INCLUDE_file("strings.h"   HAVE_STRINGS_H)
 CHECK_INCLUDE_file("signal.h"    HAVE_SIGNAL_H)
@@ -1322,6 +1333,7 @@ CHECK_FUNCTION_EXISTS(_filelengthi64 HAVE_FILE_LENGTH_I64)
 CHECK_FUNCTION_EXISTS(mmap HAVE_MMAP)
 CHECK_FUNCTION_EXISTS(mremap HAVE_MREMAP)
 CHECK_FUNCTION_EXISTS(fileno HAVE_FILENO)
+CHECK_FUNCTION_EXISTS(H5Literate2 HAVE_H5LITERATE2)
 
 CHECK_FUNCTION_EXISTS(clock_gettime  HAVE_CLOCK_GETTIME)
 CHECK_SYMBOL_EXISTS("struct timespec" "time.h" HAVE_STRUCT_TIMESPEC)
@@ -1551,10 +1563,7 @@ endif()
 # STATIC_DEFINE netcdf_BUILT_AS_STATIC
 #)
 
-#####
-# Build doxygen documentation, if need be.
-#####
-add_subdirectory(docs)
+
 
 ##
 # Brute force, grab all of the dlls from the dependency directory,
@@ -1641,23 +1650,12 @@ if(NOT IS_DIRECTORY ${netCDF_BINARY_DIR}/tmp)
   file(MAKE_DIRECTORY ${netCDF_BINARY_DIR}/tmp)
 endif()
 
-configure_file("${netCDF_SOURCE_DIR}/nc-config.cmake.in"
-  "${netCDF_BINARY_DIR}/tmp/nc-config" @ONLY
-  NEWLINE_STYLE LF)
-file(COPY "${netCDF_BINARY_DIR}/tmp/nc-config"
-  DESTINATION ${netCDF_BINARY_DIR}/
-  FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-
 install(FILES ${netCDF_BINARY_DIR}/netcdf.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
   COMPONENT utilities)
 
-install(PROGRAMS ${netCDF_BINARY_DIR}/nc-config
-  DESTINATION ${CMAKE_INSTALL_BINDIR}
-  COMPONENT utilities)
-
 ###
-# End pkgconfig, nc-config file creation.
+# End pkgconfig file creation.
 ###
 
 ##
@@ -1765,6 +1763,8 @@ endif()
 # Copy the CTest customization file into binary directory, as required.
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/CTestCustom.cmake.in" "${CMAKE_CURRENT_BINARY_DIR}/CTestCustom.cmake")
 
+message(STATUS "STD_FILTERS: ${STD_FILTERS}")
+
 # Generate file from template.
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/libnetcdf.settings.in"
   "${CMAKE_CURRENT_BINARY_DIR}/libnetcdf.settings"
@@ -1797,6 +1797,20 @@ install(FILES "${netCDF_BINARY_DIR}/libnetcdf.settings"
 #####
 
 #####
+# Create 'nc-config' file.
+#####
+configure_file("${netCDF_SOURCE_DIR}/nc-config.cmake.in"
+  "${netCDF_BINARY_DIR}/tmp/nc-config" @ONLY
+  NEWLINE_STYLE LF)
+file(COPY "${netCDF_BINARY_DIR}/tmp/nc-config"
+  DESTINATION ${netCDF_BINARY_DIR}/
+  FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+install(PROGRAMS ${netCDF_BINARY_DIR}/nc-config
+  DESTINATION ${CMAKE_INSTALL_BINDIR}
+  COMPONENT utilities)
+
+#####
 # Create 'netcdf_meta.h' include file.
 #####
 configure_file(
@@ -1819,6 +1833,12 @@ set(TOPBUILDDIR "${CMAKE_CURRENT_BINARY_DIR}")
 set(abs_top_builddir "${CMAKE_CURRENT_BINARY_DIR}")
 set(abs_top_srcdir "${CMAKE_CURRENT_SOURCE_DIR}")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/test_common.in ${CMAKE_CURRENT_BINARY_DIR}/test_common.sh @ONLY NEWLINE_STYLE LF)
+
+#####
+# Build doxygen documentation, if need be.
+# This must come after setting top_builddir, etc.
+#####
+add_subdirectory(docs)
 
 ####
 # Build s3cleanup.sh and s3gc.sh

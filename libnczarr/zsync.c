@@ -1037,6 +1037,7 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
         zvar = (NCZ_VAR_INFO_T*)(var->format_var_info);
 	zobj = &zvar->zarray;
     }
+    assert(purezarr || zarrkeys || zobj->obj != NULL);
 
     if((stat = NCZF_decode_attributes_json(file,(NC_OBJ*)container,&jatts,&jtypes))) goto done;
 
@@ -1127,9 +1128,9 @@ ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
 {
     int stat = NC_NOERR;
 
-    NCjson* jzgroup = NULL;
-    NCjson* jzatts = NULL;
-    int constatts = 0; /* 1 => do not reclaim jzatts */
+    NCjson* jgroup = NULL;
+    NCjson* jatts = NULL;
+    int constatts = 0; /* 1 => do not reclaim jatts */
     const NCjson* jnczgroup = NULL;
     const NCjson* jnczattr = NULL;
     const NCjson* jsuper = NULL;
@@ -1139,7 +1140,6 @@ ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
     NCZ_FILE_INFO_T* zinfo = NULL;
     NC_GRP_INFO_T* root = NULL;
     NCZ_GRP_INFO_T* zroot = NULL;
-    char* fullpath = NULL;
 
     ZTRACE(3,"file=%s",file->controller->path);
 
@@ -1149,13 +1149,10 @@ ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
     zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;    
     zroot = (NCZ_GRP_INFO_T*)root->format_grp_info;    
 
-    /* Construct grp key */
-    if((stat = NCZ_grpkey(root,&fullpath))) goto done;
-
     /* Download the root group object and associated attributess */
-    if((stat = NCZF_read_grp_json(file, root, &jzgroup, &jzatts, &constatts))) goto done;
+    if((stat = NCZF_read_grp_json(file, root, &jgroup, &jatts, &constatts))) goto done;
 
-    /* Look for superblock; first in jzattrs and then in jzgroup */
+    /* Look for superblock; first in jattrs and then in jgroup */
     if((stat = getnczarrkey((NC_OBJ*)root,NCZ_SUPERBLOCK,&jsuper))) goto done;
 
     /* Set the format flags */
@@ -1194,10 +1191,10 @@ ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
 	nczarr_version = nulldup(NCJstring(jtmp));
     }
 
-    if(jzgroup != NULL) {
-        if(jzgroup->sort != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
+    if(jgroup != NULL) {
+        if(jgroup->sort != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
         /* In any case, extract the zarr format */
-        if((stat = NCJdictget(jzgroup,"zarr_format",&jtmp))<0) {stat = NC_EINVAL; goto done;}
+        if((stat = NCJdictget(jgroup,"zarr_format",&jtmp))<0) {stat = NC_EINVAL; goto done;}
 	if(zarr_format == NULL)
 	    zarr_format = nulldup(NCJstring(jtmp));
 	else if(strcmp(zarr_format,NCJstring(jtmp))!=0)
@@ -1207,9 +1204,8 @@ ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
     if(nczarrvp) {*nczarrvp = nczarr_version; nczarr_version = NULL;}
     if(zarrfp) {*zarrfp = zarr_format; zarr_format = NULL;}
 done:
-    NCJreclaim(jzgroup);
-    if(!constatts) NCJreclaim(jzatts);
-    nullfree(fullpath);
+    NCJreclaim(jgroup);
+    if(!constatts) NCJreclaim(jatts);
     nullfree(zarr_format);
     nullfree(nczarr_version);
     return ZUNTRACE(THROW(stat));
@@ -1725,8 +1721,8 @@ done:
 @param zmap - [in] map
 @param key - [in] key of the object
 @param jsonp - [out] return parsed json || NULL if not exists
-@return ::NC_NOERR
-@return ::NC_EXXX
+@return NC_NOERR
+@return NC_EXXX
 @author Dennis Heimbigner
 */
 static int
@@ -1761,7 +1757,7 @@ done:
 
 /* Get _nczarr_xxx from either grp|var json or atts json */
 static int
-getnczarrkey(NC_OBJ* container, const char* name, const NCjson** jncxxxp)
+getnczarrkey(NC_OBJ* container, const char* xxxname, const NCjson* jobj, const NCjson* jatts, const NCjson** jncxxxp)
 {
     int stat = NC_NOERR;
     const NCjson* jxxx = NULL;
@@ -1778,7 +1774,7 @@ getnczarrkey(NC_OBJ* container, const char* name, const NCjson** jncxxxp)
 	zobj = &((NCZ_VAR_INFO_T*)var->format_var_info)->zarray;
     }
 
-    /* Try .zattrs first */
+    /* Try jatts first */
     if(zobj->atts != NULL) {
 	jxxx = NULL;
         if((stat = NCJdictget(zobj->atts,name,&jxxx))<0) {stat = NC_EINVAL; goto done;}

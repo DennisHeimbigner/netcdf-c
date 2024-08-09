@@ -63,8 +63,6 @@ EXTERNL int NCZ_grpkey(const NC_GRP_INFO_T* grp, char** pathp);
 EXTERNL int NCZ_varkey(const NC_VAR_INFO_T* var, char** pathp);
 EXTERNL int NCZ_dimkey(const NC_DIM_INFO_T* dim, char** pathp);
 EXTERNL int ncz_splitkey(const char* path, NClist* segments);
-EXTERNL int NCZ_readdict(NCZMAP* zmap, const char* key, NCjson** jsonp);
-EXTERNL int NCZ_readarray(NCZMAP* zmap, const char* key, NCjson** jsonp);
 EXTERNL int ncz_nctypedecode(const char* snctype, nc_type* nctypep);
 
 EXTERNL int ncz2_nctype2dtype(nc_type nctype, int endianness, int purezarr, size_t len, char** dnamep);

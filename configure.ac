@@ -10,7 +10,7 @@
 AC_PREREQ([2.59])
 
 # Initialize with name, version, and support email address.
-AC_INIT([netCDF],[4.9.3-development],[support-netcdf@unidata.ucar.edu],[netcdf-c])
+AC_INIT([netCDF],[4.9.4-development],[support-netcdf@unidata.ucar.edu],[netcdf-c])
 
 ##
 # Prefer an empty CFLAGS variable instead of the default -g -O2.
@@ -21,7 +21,7 @@ AC_INIT([netCDF],[4.9.3-development],[support-netcdf@unidata.ucar.edu],[netcdf-c
 
 AC_SUBST([netCDF_VERSION_MAJOR]) netCDF_VERSION_MAJOR=4
 AC_SUBST([netCDF_VERSION_MINOR]) netCDF_VERSION_MINOR=9
-AC_SUBST([netCDF_VERSION_PATCH]) netCDF_VERSION_PATCH=3
+AC_SUBST([netCDF_VERSION_PATCH]) netCDF_VERSION_PATCH=4
 AC_SUBST([NC_VERSION_NOTE]) NC_VERSION_NOTE="-development"
 
 ##
@@ -29,7 +29,7 @@ AC_SUBST([NC_VERSION_NOTE]) NC_VERSION_NOTE="-development"
 # See http://www.gnu.org/software/libtool/manual/libtool.html#Libtool-versioning
 # for information regarding incrementing `-version-info`.
 # These values should match those in CMakeLists.txt
-AC_SUBST([netCDF_SO_VERSION]) netCDF_SO_VERSION=21:2:2
+AC_SUBST([netCDF_SO_VERSION]) netCDF_SO_VERSION=22:0:0
 
 #####
 # Set some variables used to generate a libnetcdf.settings file,
@@ -81,6 +81,14 @@ AC_MSG_RESULT([$have_no_strict_aliasing])
 AC_LANG_POP([C])
 if test $have_no_strict_aliasing = no; then
    CFLAGS=$SAVE_CFLAGS
+fi
+
+## 
+# Check to see if we have getfattr
+##
+AC_CHECK_PROGS([HAVE_GETFATTR], [getfattr])
+if test -n "$HAVE_GETFATTR"; then
+   AC_DEFINE_UNQUOTED([HAVE_GETFATTR],[1],[getfattr is available])
 fi
 ##
 # Some files need to exist in build directories
@@ -1330,7 +1338,7 @@ AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([libgen.h])
 #AC_CHECK_HEADERS([locale.h])
 AC_HEADER_STDC
-AC_CHECK_HEADERS([locale.h stdio.h stdarg.h fcntl.h malloc.h stdlib.h string.h strings.h unistd.h sys/stat.h getopt.h sys/time.h sys/types.h time.h dirent.h stdint.h ctype.h])
+AC_CHECK_HEADERS([locale.h stdio.h stdarg.h fcntl.h malloc.h stdlib.h string.h strings.h unistd.h sys/stat.h getopt.h sys/time.h sys/types.h time.h dirent.h stdint.h ctype.h sys/xattr_h])
 
 # Do sys/resource.h separately
 #AC_CHECK_HEADERS([sys/resource.h],[havesysresource=1],[havesysresource=0])
@@ -1648,13 +1656,13 @@ if test "x$enable_hdf5" = xyes; then
    # H5Pset_fapl_mpiposix and H5Pget_fapl_mpiposix have been removed since HDF5 1.8.12.
    # Use H5Pset_fapl_mpio and H5Pget_fapl_mpio, instead.
 
-   AC_CHECK_FUNCS([H5Pget_fapl_mpio H5Pset_deflate H5Z_SZIP H5Pset_all_coll_metadata_ops H5Literate])
+   AC_CHECK_FUNCS([H5Pget_fapl_mpio H5Pset_deflate H5Z_SZIP H5Pset_all_coll_metadata_ops H5Literate H5Literate2])
 
    # Check to see if HDF5 library has collective metadata APIs, (HDF5 >= 1.10.0)
    if test "x$ac_cv_func_H5Pset_all_coll_metadata_ops" = xyes; then
       AC_DEFINE([HDF5_HAS_COLL_METADATA_OPS], [1], [if true, use collective metadata ops in parallel netCDF-4])
    fi
-
+ 
    # If parallel is available in hdf5, enable it in the C code. Also add some stuff to netcdf.h.
    if test "x$ac_cv_func_H5Pget_fapl_mpio" = xyes -o "x$ac_cv_func_H5Pget_fapl_mpiposix" = xyes; then
       hdf5_parallel=yes

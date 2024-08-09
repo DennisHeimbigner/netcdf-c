@@ -96,7 +96,8 @@ Inserted into any .zarray || .zattrs (at array level)
 \"dimension_references\": [\"/g1/g2/d1\", \"/d2\",...]
 \"storage\": \"contiguous\" | \"chunked\"
 }"
-Inserted into any .zattrs ? or should it go into the container?
+
+Inserted into any .zattrs
 "_nczarr_attr": "{
 \"types\": {\"attr1\": \"<i4\", \"attr2\": \"<i1\",...}
 }
