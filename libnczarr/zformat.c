@@ -111,18 +111,6 @@ NCZF_nctype2dtype(const NC_FILE_INFO_T* file, nc_type nctype, int endianness, si
 }
 
 int
-NCZF_reclaim_atts_json(const NC_FILE_INFO_T* file, const NCjson* jatts)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = NULL;
-    
-    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    assert(zfile != NULL);
-    stat = zfile->dispatcher->reclaim_atts_json(file,jatts);
-    return THROW(stat);
-}
-
-int
 NCZF_searchvars(const NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
 {
     int stat = NC_NOERR;
@@ -265,12 +253,12 @@ NCZF_encode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* at
 }
 
 int
-NCZF_encode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jatts, NCjson* jnczvar, NCjson** jvarp)
+NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->encode_var_json(file, var, jatts, jnczvar, jvarp);
+    stat = zfile->dispatcher->decode_var_json(file, var, jsonz);
     return THROW(stat);
 }
 
@@ -400,21 +388,32 @@ NCZF_decode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jncz
 }
 
 int
-NCZF_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson** jgroupp, const NCjson** jattsp)
+NCZF_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* grpname, struct ZJSON* json, NC_GRP_INFO_T** grpp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->read_grp_json(file, grp,  jgroupp,  jattsp);
+    stat = zfile->dispatcher->read_grp_json(file, parent, grpname, json, grpp);
     return THROW(stat);
 }
 
 int
-NCZF_read_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NCjson** jvarp, NCjson** jattsp)
+NCZF_read_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, struct ZJSON* json, NC_VAR_INFO_T** varp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->read_var_json(file, parent, varname, jvarp, jattsp);
+    stat = zfile->dispatcher->read_var_json(file, parent, varname, json, varp);
     return THROW(stat);
+}
+
+/**************************************************/
+/* Misc.
+void
+NCZ_clear_zjson(struct ZJSON* zjson)
+{
+    if(zjson != NULL) {
+        NCJreclaim(zjson->jobj);
+	if(!zjson->constatt) NCJreclaim(zjson->jatts);
+    }
 }

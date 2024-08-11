@@ -11,6 +11,9 @@
 #include "netcdf_filter_build.h"
 #endif
 
+/* Forward */
+static int dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep);
+
 /**************************************************/
 /* Functions to build json from nc4internal structures and upload */
 
@@ -521,13 +524,14 @@ done:
 }
 
 static int
-ZF2_decode_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* dims, NClist* vars, NClist* subgrps)
+ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON* jsonz, NClist* dims, NClist* vars, NClist* subgrpp);
 {
     int stat = NC_NOERR;
     size_t i;
     const NCjson* jvalue = NULL;
+    NClist* dims, NClist* vars, NClist* subgrps)
 
-    ZTRACE(3,"jgroup=|%s| |dimdefs|=%u |varnames|=%u |subgrps|=%u",NCJtotext(jgroup),(unsigned)nclistlength(dimdefs),(unsigned)nclistlength(varnames),(unsigned)nclistlength(subgrps));
+    ZTRACE(3,"file=%s grp=%s",file->controller->path,grp->hdr.name);
 
     if((stat=dictgetalt(jgroup,"dimensions","dims",&jvalue))) goto done;
     if(jvalue != NULL) {
@@ -603,7 +607,7 @@ done:
 }
 
 static int
-ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NCjson** jvarp, NCjson** jattsp, NC_VAR_INFO_T** varp)
+ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz)
 {
     int stat = NC_NOERR;
     size_t j;
@@ -611,7 +615,6 @@ ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* var
     int purezarr = 0;
     int xarray = 0;
     /* per-variable info */
-    NC_VAR_INFO_T* var = NULL;
     NCZ_VAR_INFO_T* zvar = NULL;
     const NCjson* jvar = NULL;
     const NCjson* jatts = NULL; /* corresponding to jvar */
@@ -633,10 +636,14 @@ ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* var
     int chainindex = 0;
 #endif
 
+    jvar = jsonz->obj;
+    assert(jvar != NULL);
+    jatts = jsonz->atts;
+
     /* Verify the format */
     {
 	int version;
-	if((stat = NCJdictget(jvar,"zarr_format",&jvalue))<0) {stat = NC_EINVAL; goto done;}
+	NCJcheck(NCJdictget(jvar,"zarr_format",&jvalue))<0) {stat = NC_EINVAL; goto done;}
 	sscanf(NCJstring(jvalue),"%d",&version);
 	if(version != zinfo->zarr.zarr_version) {stat = (THROW(NC_ENCZARR)); goto done;}
     }
@@ -907,35 +914,67 @@ done:
 }
 
 static int
-ZF2_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp, NCjson** jattsp, int* constattsp)
+ZF2_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* gname, struct ZJSON* jsonz, NC_GRP_INFO_T** grpp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
-	/* Check and normalize the name. */
-	if((stat = nc4_check_name(gname, norm_name)))
-	    goto done;
-	if((stat = nc4_grp_list_add(file, grp, norm_name, &g)))
-	    goto done;
-	if(!(g->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
-	    {stat = NC_ENOMEM; goto done;}
-	((NCZ_GRP_INFO_T*)g->format_grp_info)->common.file = file;
-    }
+    NC_GRP_INFO_T* grp = NULL;
+    char* norm_name = NULL;
+    char* fullpath = NULL;
+    char* key = NULL;
 
-    /* Recurse to fill in subgroups */
-    for(i=0;i<ncindexsize(grp->children);i++) {
-	NC_GRP_INFO_T* g = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
-	if((stat = ncz_read_grp(file,g)))
-	    goto done;
+    if(grpp != NULL && *grpp != NULL)
+        grp = *grpp;
+    else {
+	if((stat=ncz4_create_grp(file,parent,gname,&grp)) goto done;
+	if(grpp) *grpp = grp;
+    }
+    assert(grp != NULL);
+
+    /* Download .zgroup and .zattrs */
+    if((stat = NCZ_grpkey(grp,fullpath))) goto done;
+    if((stat = nczm_concat(fullpath,Z2GROUP,&key))) goto done;
+    if((stat = NCZ_downloadjson(zinfo->map,key,&jsonz->jobj))) goto done;
+    if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
+    if((stat = NCZ_downloadjson(zinfo->map,key,&jsonz->jatts))) goto done;
+    jsonz->constatts = 0;    
+
 done:
+    nullfree(norm_name);
+    nullfree(key);
+    nullfree(fullpath);
     return THROW(stat);
 }
 
 static int
-ZF2_read_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NCjson** jvarp, NCjson** jattsp, int* constattsp)
+ZF2_read_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, struct ZJSON* jsonz, NC_VAR_INFO_T** varp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
+    NC_VAR_INFO_T* var = NULL;
+    char* norm_name = NULL;
+    char* fullpath = NULL;
+    char* key = NULL;
+
+    /* Check and normalize the name. */
+    if((stat = nc4_check_name(varname, norm_name))) goto done;
+    if((stat = nc4_var_list_add(file, parent, norm_name, &var))) goto done;
+    if(!(var->format_var_info = calloc(1, sizeof(NCZ_VAR_INFO_T)))) {stat = NC_ENOMEM; goto done;}
+    ((NCZ_VAR_INFO_T*)var->format_var_info)->common.file = file;
+    if(varp) *varp = var;
+
+    /* Download .zgroup and .zattrs */
+    if((stat = NCZ_varkey(var,fullpath))) goto done;
+    if((stat = nczm_concat(fullpath,Z2ARRAY,&key))) goto done;
+    if((stat = NCZ_downloadjson(zinfo->map,key,&jsonz->jobj))) goto done;
+    if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
+    if((stat = NCZ_downloadjson(zinfo->map,key,&jsonz->jatts))) goto done;
+    jsonz->constatts = 0;    
+
 done:
+    nullfree(norm_name);
+    nullfree(key);
+    nullfree(fullpath);
     return THROW(stat);
 }
 
@@ -1078,6 +1117,21 @@ insert_nczarr_attr(NCjson* jatts, NCjson* jtypes)
         jdict = NULL;
     }
     return NC_NOERR;
+}
+
+/* Get one of two key values from a dict */
+static int
+dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep)
+{
+    int stat = NC_NOERR;
+    const NCjson* jvalue = NULL;
+    if((stat = NCJdictget(jdict,name,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this first */
+    if(jvalue == NULL) {
+        if((stat = NCJdictget(jdict,alt,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this alternative*/
+    }
+    if(jvaluep) *jvaluep = jvalue;
+done:
+    return THROW(stat);
 }
 
 /**************************************************/

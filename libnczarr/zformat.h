@@ -41,6 +41,13 @@ The table has the following groups of entries:
 /* Opaque */
 struct NCZ_Plugin;
 
+/* Hold a collectionof json objects */
+struct ZJSON {
+    NCjson* jobj;  /* group|var json */
+    NCjson* jatts;
+    int constjatts;  /* 1 => need to reclaim jatts field */
+};
+
 /* This is the dispatch table, with a pointer to each netCDF
  * function. */
 typedef struct NCZ_Formatter {
@@ -70,17 +77,17 @@ typedef struct NCZ_Formatter {
     /* Convert JSON to NetCDF4 Internal objects */
     int (*decode_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jgroup, NCjson* jatts, NCjson** jsuperp, NClist* dims, NClist* vars, NClist* subgrps);
     int (*decode_superblock)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson* jsuper);
+    int (*decode_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON* jsonz, NClist* dims, NClist* vars, NClist* subgrpp);
     int (*decode_grp_dims)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims);
     int (*decode_grp_var)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname, NC_VAR_INFO_T** varp);
     int (*decode_grp_subgroup)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* subgrpname, NC_GRP_INFO_T** subgrp);
-    int (*decode_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* dims, NClist* vars, NClist* subgrpp);
     int (*decode_attributes_json)(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp);
-    int (*decode_var_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NCjson** jvarp, NCjson** jattsp, NC_VAR_INFO_T** varp);
+    int (*decode_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz);
     int (*decode_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
 
     /* Read JSON from storage */
-    int (*read_grp_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp, NCjson** jattsp, int* constattsp);
-    int (*read_var_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NCjson** jvar, NCjson** jatts, int* constattsp);
+    int (*read_grp_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* grpname, struct ZJSON*, NC_GRP_INFO_T**);
+    int (*read_var_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, struct ZJSON*, NC_VAR_INFO_T**);
 
     /* Type conversion actions */
     int (*dtype2nctype)(const NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp);
@@ -89,9 +96,6 @@ typedef struct NCZ_Formatter {
     /* Misc. Actions */
     int (*hdf2codec) (const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter); /* Codec converters */
     int (*build_chunkkey)(size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
-
-    /* Special reclamation functions */
-    int (*reclaim_atts_json)(const NC_FILE_INFO_T* file, const NCjson* jatts);
 
     /* Search functions */
     int (*searchvars)(const NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames);
@@ -122,7 +126,7 @@ extern int NCZF_encode_grp_subgroups(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, c
 extern int NCZF_encode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jdims, NCjson* jvars, NCjson* jsubgrps,  NCjson** jnczgrpp);
 extern int NCZF_encode_group_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jsuper, NCjson* jatts, NCjson* jtypes, NCjson** jgrpp);
 extern int NCZF_encode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist,NCjson** jattsp, NCjson** jtypesp);
-extern int NCZF_encode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jatts, NCjson* jnczvar, NCjson** jvarp);
+extern int NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz);
 extern int NCZF_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
 
 /* Write JSON to storage */
@@ -131,27 +135,24 @@ extern int NCZF_write_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const N
 
 /* Convert JSON to NetCDF4 Internal objects */
 extern int NCZF_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jgroup, NCjson* jatts, NCjson** jsuperp, NClist* dims, NClist* vars, NClist* subgrps);
+extern int NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON* jsonz, NClist* dims, NClist* vars, NClist* subgrpp);
 extern int NCZF_decode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson* jsuperp);
 extern int NCZF_decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims);
 extern int NCZF_decode_grp_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname, NC_VAR_INFO_T** jvarp);
 extern int NCZF_decode_grp_subgroup(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* subgrpname, NC_GRP_INFO_T** subgrpp);
-extern int NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* dims, NClist* vars, NClist* subgrps);
-extern int NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp);
 extern int NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NCjson** jvarp, NCjson** jattsp, NC_VAR_INFO_T** varp);
 extern int NCZF_decode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
+extern int NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp);
 
 /* Read JSON to storage */
-extern int NCZF_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp, NCjson** jattsp, int* constattsp);
-extern int NCZF_read_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* paret, const char* varname, NCjson** jvarp, NCjson** jattsp, int* constattsp);
+extern int NCZF_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* grpname, struct ZJSON*, NC_GRP_INFO_T**);
+extern int NCZF_read_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, struct ZJSON*, NC_VAR_INFO_T**);
 
 /* Misc. */
 extern int NCZF_dtype2nctype(const NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp);
 extern int NCZF_nctype2dtype(const NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typelen, char** dtypep, char** daliasp);
 extern int NCZF_hdf2codec(const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter);
 extern int NCZF_buildchunkkey(const NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
-
-/* Special reclamation functions; These are necessary because V2 attributes are not part of a larger object, but they are for V3. */
-extern int NCZF_reclaim_atts_json(const NC_FILE_INFO_T* file, const NCjson* jatts);
 
 /* Search functions */
 extern int NCZF_searchvars(const NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames);
@@ -170,6 +171,12 @@ extern const NCZ_Formatter* NCZ_formatter3; /* NCZarr V3 dispatch table => Zarr 
 /* Use inference to get map and the formatter */
 extern int NCZ_get_map(NC_FILE_INFO_T* file, NCURI* url, mode_t mode, size64_t constraints, void* params, NCZMAP** mapp);
 extern int NCZ_get_formatter(NC_FILE_INFO_T* file, const NCZ_Formatter** formatterp);
+
+/**************************************************/
+/* Misc. */
+extern void NCZ_clear_zjson(struct ZJSON* zjson);
+
+/**************************************************/
 
 #if defined(__cplusplus)
 }

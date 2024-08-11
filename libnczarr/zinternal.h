@@ -266,15 +266,17 @@ typedef struct  NCZ_ATT_INFO {
 /* Struct to hold ZARR-specific info for a group. */
 typedef struct NCZ_GRP_INFO {
     NCZcommon common;
-    NCjson* jatts; /* JSON encoding of the attributes; do not reclaim */
     struct NCZ_META_HDR* metastate; /* Hold per-format state */
-    /* Read .zgroup and .zattrs once */
+    /* Read json group and json attrs once */
+#if 0
     struct ZARROBJ {
-	char* prefix; /* prefix of .zgroup and .zattrs */
+	char* prefix; /* prefix of group and attrs */
 	NCjson* obj; /* V2->.zgroup|.zarray, V3->zarr.json */
-	const NCjson* atts; /* V2->.zattrs, V3->attributes */
-        int nczv1;   /* 1 => _nczarr_xxx are in obj and not attributes */
+	NCjson* atts; /* V2->.zattrs, V3->attributes */
+	int constatts; /* 1=>do not reclaim atts field */
+        int nczkey;   /* 1 => _nczarr_xxx are in obj as keys and not attributes */
     } zgroup;
+#endif
 } NCZ_GRP_INFO_T;
 
 /* Struct to hold ZARR-specific info for a variable. */
@@ -288,13 +290,11 @@ typedef struct NCZ_VAR_INFO {
     struct NClist* dimension_names; /* names from _ARRAY_DIMENSIONS or dimension_names key */
     char dimension_separator; /* '.' | '/' */
     size_t maxstrlen; /* max length of strings for this variable */
-    NCjson* jarray; /* Zarr.json; reclaim */
-    const NCjson* jzarray; /* _nczarr_array: contains dimensions, attribute types, and storage type; do not reclaim */
-    NCjson* jatts; /* JSON encoding of the attributes; do not reclaim */
     struct NCZ_META_HDR* metastate; /* Hold per-format state */
-    /* Read .zarray and .zattrs once */
+#if 0
+    /* Read json array and json attrs once */
     struct ZARROBJ zarray;
-    struct ZARROBJ zattrs;
+#endif
 } NCZ_VAR_INFO_T;
 
 /* Struct to hold ZARR-specific info for a field. */
