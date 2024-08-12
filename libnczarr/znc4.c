@@ -46,8 +46,28 @@ done:
 }
 
 int
-ncz4_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent,
-				const char* name,
+ncz4_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* name, NC_VAR_INFO_T** varp)
+{
+    int stat = NC_NOERR;
+    char norm_name[NC_MAX_NAME];
+    NC_VAR_INFO_T* var = NULL;
+    NCZ_VAR_INFO_T* zvar = NULL;
+
+    /* Check and normalize the name. */
+    if((stat = nc4_check_name(name, norm_name))) goto done;
+    if((stat = nc4_var_list_add2(parent, norm_name, &var))) goto done;
+    if((zvar = calloc(1, sizeof(NCZ_VAR_INFO_T)))==NULL) {stat = NC_ENOMEM; goto done;}
+    zvar->common.file = file;
+    var->format_var_info = zvar;
+    zvar = NULL;
+    var->nc4_info = file;
+    if(varp) *varp = var;
+done:
+    return THROW(stat);
+}
+
+int
+ncz4_build_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
 				nc_type nctype,
 				int storage,
 				int scalar,
@@ -61,26 +81,19 @@ ncz4_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent,
 				int* dimids,
 			        NClist* filters,
 				int no_fill,
-				void* fill_value,
-			        NC_VAR_INFO_T** varp)
+				void* fill_value)
 {
     int stat = NC_NOERR;
     char norm_name[NC_MAX_NAME];
-    NC_VAR_INFO_T* var = NULL;
     NCZ_VAR_INFO_T* zvar = NULL;
     NC_TYPE_INFO_T* typ = NULL;
     char* dimbasename = NULL;
 
     NC_UNUSED(order);
     
-    /* Check and normalize the name. */
-    if((stat = nc4_check_name(name, norm_name))) goto done;
-
     if(nctype <= NC_NAT || nctype > NC_MAX_ATOMIC_TYPE) {stat = NC_EBADTYPE; goto done;}
     /* Locate the NC_TYPE_INFO_T object */
     if((stat = ncz_gettype(file,parent,nctype,&typ))) goto done;
-
-    if((stat = nc4_var_list_add2(parent, norm_name, &var))) goto done;
 
     if((stat = NCZ_fillin_var(file, var, typ, ndims, dimids, shape, chunksizes, endianness))) goto done;
     zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
@@ -107,8 +120,6 @@ ncz4_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent,
         if((stat = NCZ_filter_setup(var))) goto done;
     }
 #endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
-
-    if(varp) {*varp = var; var = NULL;}
 
 done:
      nullfree(dimbasename);

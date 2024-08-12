@@ -19,10 +19,9 @@ extern "C" {
 extern int ncz4_create_file(NC_FILE_INFO_T** filep);
 extern int ncz4_create_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* name,
 			   NC_GRP_INFO_T** grpp);
-extern int ncz4_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent,
-				const char* name,
+extern int ncz4_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* name, NC_VAR_INFO_T** varp);
+extern int ncz4_build_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
 				nc_type nctype,
-#if 0
 				int storage,
 				int scalar,
 				int endianness,
@@ -35,9 +34,7 @@ extern int ncz4_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent,
 				int* dimids,
 			        NClist* filters,
 				int no_fill,
-				void* fill_value,
-#endif /*0*/
-			        NC_VAR_INFO_T** varp);
+				void* fill_value);
 extern int ncz4_create_dim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* name, size64_t len, int isunlimited,
 			   NC_DIM_INFO_T** dimp);
 extern int ncz4_create_attr(NC_FILE_INFO_T* file, NC_OBJ* parent, const char* name,

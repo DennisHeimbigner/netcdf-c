@@ -18,7 +18,7 @@ static int dictgetalt(const NCjson* jdict, const char* name, const char* alt, co
 /* Functions to build json from nc4internal structures and upload */
 
 static int
-ZF2_build_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp)
+ZF2_encode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -33,7 +33,7 @@ ZF2_build_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp)
 }
 
 static int
-ZF2_build_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsuperp)
+ZF2_encode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsuperp)
 {
     int stat = NC_NOERR;
     char version[64];
@@ -48,33 +48,32 @@ ZF2_build_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsuperp
     return THROW(stat);
 }
 
+/* Currently the same for V2 and V3 */
 static int
-ZF2_build_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* dims, NCjson** jdimsp)
+ZF2_encode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* dims, NCjson** jdimsp)
 {
     int stat = NC_NOERR;
     size_t i;
     NCjson* jdims = NULL;
-    NCjson* jdimsize = NULL;
     NCjson* jdimargs = NULL;
 
     ZTRACE(3,"file=%s grp=%s",file->controller->path,grp->hdr.name);
 
     NCJnew(NCJ_DICT,&jdims);
+
     for(i=0; i<ncindexsize(grp->dim); i++) {
 	NC_DIM_INFO_T* dim = (NC_DIM_INFO_T*)ncindexith(grp->dim,i);
-	char slen[128];
-
-        snprintf(slen,sizeof(slen),"%llu",(unsigned long long)dim->len);
-	NCJnewstring(NCJ_INT,slen,&jdimsize);
 
         NCJnew(NCJ_DICT,&jdimargs);
-        NCJcheck(NCJinsert(jdimargs,"size", jdimsize));
+
+        NCJcheck(NCJinsertint(jdimargs,"size", (long long)dim->len));
 	jdimsize = NULL;
         NCJcheck(NCJinsertint(jdimargs,"unlimited", 1));
 
         NCJinsert(jdims,dim->hdr.name,jdimargs);
 	jdimargs = NULL;
     }
+
     if(jdimsp) {*jdimsp = jdims; jdims = NULL;}
     NCJreclaim(jdims);
     NCJreclaim(jdimsize);
@@ -83,7 +82,7 @@ ZF2_build_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* dims,
 }
 
 static int
-ZF2_build_grp_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* vars, NCjson** jvarsp)
+ZF2_encode_grp_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* vars, NCjson** jvarsp)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -100,7 +99,7 @@ ZF2_build_grp_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* vars,
 }
 
 static int
-ZF2_build_grp_subgroups(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* subgrps, NCjson** jsubgrpsp)
+ZF2_encode_grp_subgroups(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* subgrps, NCjson** jsubgrpsp)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -120,7 +119,7 @@ ZF2_build_grp_subgroups(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* 
 Consumes jdims, jvars, and jsubgrps.
 */
 static int
-ZF2_build_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jdims, NCjson* jvars, NCjson* jsubgrps,  NCjson** jnczgrpp)
+ZF2_encode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jdims, NCjson* jvars, NCjson* jsubgrps,  NCjson** jnczgrpp)
 {
     int stat = NC_NOERR;
     NCjson* jnczgrp = NULL;
@@ -140,7 +139,7 @@ ZF2_build_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jdims, 
 }
 
 static int
-ZF2_build_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp)
+ZF2_encode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -215,7 +214,7 @@ done:
 }
 
 static int
-ZF2_build_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp)
+ZF2_encode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp)
 {
     int stat = NC_NOERR;
     NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
@@ -369,7 +368,7 @@ done:
 }
 
 static int
-ZF2_build_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp)
+ZF2_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp)
 {
     int stat = NC_NOERR;
     NClist* dimrefs = NULL;
@@ -418,7 +417,7 @@ done:
 
 
 static int
-ZF2_write_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jgroup, const NCjson* jatts)
+ZF2_upload_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jgroup, const NCjson* jatts)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -447,7 +446,7 @@ done:
 }
 
 static int
-ZF2_write_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jvar, const NCjson* jatts)
+ZF2_upload_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jvar, const NCjson* jatts)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -500,7 +499,36 @@ static int
 ZF2_decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims)
 {
     int stat = NC_NOERR;
+    size_t i;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
+
+    assert(NCJsort(jdims) == NCJ_DICT);
+    for(i=0;i<NCJdictlength(jdims);i++) {
+	size64_t len;
+	int unlim;
+	const NCjson* jkey = NCJdictkey(jdims,i);
+	const NCjson* jdim = NCJdictvalue(jdims,i);
+	struct NCJconst cvt = NCJconst_empty;
+
+	if(NCJisatomic(jdim)) {
+	    NCJcheck(NCJcvt(jdim,NCJ_INT,&cvt));	    
+	    len = (size64_t)cvt.ival;
+	    unlim = 0;
+	} else {
+	    const NCjson* jsize = NULL;
+            const NCjson* junlim = NULL;
+	    assert(NCJsort(jdim) == NCJ_DICT);
+	    NCJcheck(NCJdictget(jdim,"size",&jsize));
+	    NCJcheck(NCJdictget(jdim,"unlimited",&junlim));
+	    NCJcheck(NCJcvt(jsize,NCJ_INT,&cvt));
+	    len = (size64_t)cvt.ival;
+	    cvt = NCJconst_empty;
+	    NCJcheck(NCJcvt(junlim,NCJ_INT,&cvt));
+	    unlim = (ival == 0 ? 0 : 1);
+	}
+	if((stat = ncz4_create_dim(file,grp,NCJstring(jkey),len,unlim,NULL))) goto done;
+    }    
+
 done:
     return THROW(stat);
 }
@@ -524,12 +552,11 @@ done:
 }
 
 static int
-ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON* jsonz, NClist* dims, NClist* vars, NClist* subgrpp);
+ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const struct ZJSON* jsonz, NClist* vars, NClist* subgrpp);
 {
     int stat = NC_NOERR;
     size_t i;
     const NCjson* jvalue = NULL;
-    NClist* dims, NClist* vars, NClist* subgrps)
 
     ZTRACE(3,"file=%s grp=%s",file->controller->path,grp->hdr.name);
 
@@ -598,10 +625,91 @@ done:
 }
 
 static int
-ZF2_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp)
+ZF2_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson** jtypesp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
+    size_t i;
+    const NCjson* jtypes = NULL;
+    const NCjson* jnczatts = NULL;
+    NC_VAR_INFO_T* var = NULL;
+    NC_GRP_INFO_T* grp = NULL;
+    NCindex* atts = NULL;
+
+    if(container->sort == NCVAR) {
+        var = (NC_VAR_INFO_T*)container;
+	atts = var->att;
+    } else if(container->sort == NCGRP) {
+        grp = (NC_GRP_INFO_T*)container;
+	atts = grp->att;
+    }
+
+    /* Get _nczarr_attr */
+    NCJcheck(NCJdictget(jatts,NCZ_ATTR,&jnczatts));
+    if(jnczatts != NULL) {
+	/* Get types */
+	NCJcheck(NCJdictget(jnczatts,"types",&jtypes));
+    }
+
+    /* Iterate over the attributes to create the in-memory attributes */
+    /* Watch for special cases: _FillValue and  _ARRAY_DIMENSIONS (xarray), etc. */
+    for(i=0;i<NCJdictlength(jatts);i++) {
+	NCjson* key = NCJdictkey(jatts,i);
+        NCjson* value = NCJdictvalue(jatts,i);
+	const NC_reservedatt* ra = NULL;
+	int isfillvalue = 0;
+    	int isdfaltmaxstrlen = 0;
+       	int ismaxstrlen = 0;
+	const char* aname = NCJstring(key);
+        /* See if this is a notable attribute */
+	if(var != NULL && strcmp(aname,NC_ATT_FILLVALUE)==0) isfillvalue = 1;
+	if(grp != NULL && grp->parent == NULL && strcmp(aname,NC_NCZARR_DEFAULT_MAXSTRLEN_ATTR)==0)
+	    isdfaltmaxstrlen = 1;
+	if(var != NULL && strcmp(aname,NC_NCZARR_MAXSTRLEN_ATTR)==0)
+	    ismaxstrlen = 1;
+        /* See if this is reserved attribute */
+	ra = NC_findreserved(aname);
+	if(ra != NULL) {
+	    /* case 1: name = _NCProperties, grp=root, varid==NC_GLOBAL */
+	    if(strcmp(aname,NCPROPS)==0 && grp != NULL && file->root_grp == grp) {
+	        /* Setup provenance */
+		if(NCJsort(value) != NCJ_STRING)
+		    {stat = (THROW(NC_ENCZARR)); goto done;} /*malformed*/
+		if((stat = NCZ_read_provenance(file,aname,NCJstring(value)))) goto done;
+	    }
+	    /* case 2: name = _ARRAY_DIMENSIONS, sort==NCVAR, flags & HIDDENATTRFLAG */
+	    if(strcmp(aname,NC_XARRAY_DIMS)==0 && var != NULL && (ra->flags & HIDDENATTRFLAG)) {
+  	        /* store for later */
+		size_t i;
+		assert(NCJsort(value) == NCJ_ARRAY);
+		if((zvar->dimension_names = nclistnew())==NULL) {stat = NC_ENOMEM; goto done;}
+		for(i=0;i<NCJarraylength(value);i++) {
+		    const NCjson* k = NCJith(value,i);
+		    assert(k != NULL && NCJsort(k) == NCJ_STRING);
+		    nclistpush(zvar->dimension_names,strdup(NCJstring(k)));
+		}
+	    }
+	    /* case other: if attribute is hidden */
+	    if(ra->flags & HIDDENATTRFLAG) continue; /* ignore it */
+	}
+        typehint = NC_NAT;
+	if(isfillvalue)
+	    typehint = var->type_info->hdr.id ; /* if unknown use the var's type for _FillValue */
+	/* Create the attribute */
+	/* Collect the attribute's type and value  */
+	if((stat = computeattrinfo(file,aname,jtypes,typehint,purezarr,value, &typeid,&typelen,&len,&data))) goto done;
+	if((stat = ncz_makeattr(file,container,aname,typeid,len,data,&att))) goto done;
+	/* No longer need this copy of the data */
+   	if((stat = NC_reclaim_data_all(file->controller,att->nc_typeid,data,len))) goto done;	    	    
+	data = NULL;
+	if(isfillvalue) fillvalueatt = att;
+	if(ismaxstrlen && att->nc_typeid == NC_INT)
+	    zvar->maxstrlen = ((size_t*)att->data)[0];
+	if(isdfaltmaxstrlen && att->nc_typeid == NC_INT)
+	    zinfo->default_maxstrlen = ((size_t*)att->data)[0];
+    }
+    if(jtypesp) jtypesp = jtypes;
+
 done:
     return THROW(stat);
 }
@@ -914,22 +1022,25 @@ done:
 }
 
 static int
-ZF2_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* gname, struct ZJSON* jsonz, NC_GRP_INFO_T** grpp)
+ZF2_create_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* gname, NC_GRP_INFO_T** grpp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     NC_GRP_INFO_T* grp = NULL;
-    char* norm_name = NULL;
+
+    if((stat=ncz4_create_grp(file,parent,gname,&grp)) goto done;
+    if(grpp) *grpp = grp;
+done:
+    return THROW(stat);
+}
+
+static int
+ZF2_download_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON* jsonz)
+{
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* fullpath = NULL;
     char* key = NULL;
-
-    if(grpp != NULL && *grpp != NULL)
-        grp = *grpp;
-    else {
-	if((stat=ncz4_create_grp(file,parent,gname,&grp)) goto done;
-	if(grpp) *grpp = grp;
-    }
-    assert(grp != NULL);
 
     /* Download .zgroup and .zattrs */
     if((stat = NCZ_grpkey(grp,fullpath))) goto done;
@@ -940,28 +1051,32 @@ ZF2_read_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* gname
     jsonz->constatts = 0;    
 
 done:
-    nullfree(norm_name);
     nullfree(key);
     nullfree(fullpath);
     return THROW(stat);
 }
 
 static int
-ZF2_read_var_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, struct ZJSON* jsonz, NC_VAR_INFO_T** varp)
+ZF2_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NC_VAR_INFO_T** varp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     NC_VAR_INFO_T* var = NULL;
+
+    if((stat=ncz4_create_var(file,parent,varname,&var)) goto done;
+    if(varp) *varp = var;
+done:
+    return THROW(stat);
+}
+
+static int
+ZF2_download_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz)
+{
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* norm_name = NULL;
     char* fullpath = NULL;
     char* key = NULL;
-
-    /* Check and normalize the name. */
-    if((stat = nc4_check_name(varname, norm_name))) goto done;
-    if((stat = nc4_var_list_add(file, parent, norm_name, &var))) goto done;
-    if(!(var->format_var_info = calloc(1, sizeof(NCZ_VAR_INFO_T)))) {stat = NC_ENOMEM; goto done;}
-    ((NCZ_VAR_INFO_T*)var->format_var_info)->common.file = file;
-    if(varp) *varp = var;
 
     /* Download .zgroup and .zattrs */
     if((stat = NCZ_varkey(var,fullpath))) goto done;
@@ -1110,7 +1225,8 @@ insert_nczarr_attr(NCjson* jatts, NCjson* jtypes)
 {
     NCjson* jdict = NULL;
     if(jatts != NULL && jtypes != NULL) {
-	NCJinsertstring(jtypes,NCZ_V2_ATTR,"|J0"); /* type for _nczarr_attr */
+
+{	NCJinsertstring(jtypes,NCZ_V2_ATTR,"|J0"); /* type for _nczarr_attr */
         NCJnew(NCJ_DICT,&jdict);
         NCJinsert(jdict,"types",jtypes);
         NCJinsert(jatts,NCZ_V2_ATTR,jdict);
@@ -1147,19 +1263,19 @@ static const NCZ_Formatter NCZ_FORMATTER2_table = {
     ZF2_close,
 
     /* Convert NetCDF4 Internal object to JSON */
-    ZF2_build_group,
-    ZF2_build_superblock,
-    ZF2_build_grp_dims,
-    ZF2_build_grp_vars,
-    ZF2_build_grp_subgroups,
-    ZF2_build_nczarr_group,
-    ZF2_build_attributes_json,
-    ZF2_build_var_json,
-    ZF2_build_nczarr_array,
+    ZF2_encode_group,
+    ZF2_encode_superblock,
+    ZF2_encode_grp_dims,
+    ZF2_encode_grp_vars,
+    ZF2_encode_grp_subgroups,
+    ZF2_encode_nczarr_group,
+    ZF2_encode_attributes_json,
+    ZF2_encode_var_json,
+    ZF2_encode_nczarr_array,
 
     /* Write JSON to storage */
-    ZF2_write_grp_json,
-    ZF2_write_var_json,
+    ZF2_upload_grp_json,
+    ZF2_upload_var_json,
 
     /* Convert JSON to NetCDF4 Internal objects */
     ZF2_decode_group,
@@ -1173,8 +1289,8 @@ static const NCZ_Formatter NCZ_FORMATTER2_table = {
     ZF2_decode_nczarr_array,
 
     /* Read JSON to storage */
-    ZF2_read_grp_json,
-    ZF2_read_var_json,
+    ZF2_download_grp_json,
+    ZF2_download_var_json,
 
     /* Type conversion actions */
     ZF2_dtype2nctype,
