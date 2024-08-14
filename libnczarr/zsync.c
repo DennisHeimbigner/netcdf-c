@@ -1089,7 +1089,7 @@ ncz_read_superblock(NC_FILE_INFO_T* file, struct ZJSON* json)
 
     if(jsuper != NULL) {
 	if(jsuper->sort != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
-	if((stat = NCJdictget(jsuper,"version",&jtmp))<0) {stat = NC_EINVAL; goto done;}
+	if((stat = dictgetalt(jsuper,"nczarr_version","version",&jtmp))<0) {stat = NC_EINVAL; goto done;}
 	nczarr_version = nulldup(NCJstring(jtmp));
     }
 
@@ -1663,8 +1663,7 @@ getnczarrkey(NCZ_FILE_INFO_T* zfile, NC_OBJ* container, struct ZJSON* json, cons
 	jxxx = NULL;
         if((stat = NCJdictget(json->atts,name,&jxxx))<0) {stat = NC_EINVAL; goto done;}
     }
-    if(name == NULL) {
-        jxxx = NULL;
+    if(jxxx == NULL) {
         /* Try .zxxx second */
 	if(json->obj != NULL) {
             if((stat = NCJdictget(json->obj,name,&jxxx))<0) {stat = NC_EINVAL; goto done;}
