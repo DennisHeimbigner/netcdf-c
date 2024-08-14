@@ -13,10 +13,10 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 
 TESTS_ENVIRONMENT =
 TEST_EXTENSIONS = .sh
-SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-TESTS_ENVIRONMENT += export SETX=1;
+#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#TESTS_ENVIRONMENT += export SETX=1;
 #TESTS_ENVIRONMENT += export NCTRACING=1;
 
 AM_CPPFLAGS += -I${top_srcdir} -I${top_srcdir}/libnczarr
@@ -96,8 +96,8 @@ TESTS += run_unlim_io.sh run_nccopyz.sh
 endif
 
 if LARGE_FILE_TESTS
-	check_PROGRAMS += test_writecaching test_readcaching
-	TESTS += run_cachetest.sh
+check_PROGRAMS += test_writecaching test_readcaching
+TESTS += run_cachetest.sh
 endif
 
 endif #NETCDF_BUILD_UTILITIES
@@ -105,7 +105,7 @@ endif #NETCDF_BUILD_UTILITIES
 if NETCDF_BUILD_UTILITIES 
 
 if NETCDF_ENABLE_NCZARR_ZIP
-	TESTS += run_newformat.sh
+TESTS += run_newformat.sh
 endif
 
 if LARGE_FILE_TESTS
