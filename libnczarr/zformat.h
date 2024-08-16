@@ -82,7 +82,7 @@ typedef struct NCZ_Formatter {
     int (*decode_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const struct ZJSON* jsonz, NCjson** jdimsp, NClist* vars, NClist* subgrpp);
     int (*decode_grp_dims)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims);
     int (*decode_grp_var)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname, NC_VAR_INFO_T** varp);
-    int (*decode_attributes_json)(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp);
+    int (*decode_attributes_json)(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, NCjson** jtypesp);
     int (*decode_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz);
     int (*decode_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
 
@@ -146,7 +146,7 @@ extern int NCZF_decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const 
 extern int NCZF_decode_grp_subgroup(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* subgrpname, NC_GRP_INFO_T** subgrpp);
 extern int NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz);
 extern int NCZF_decode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
-extern int NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp);
+extern int NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, NCjson** jtypesp);
 
 /* Create a group|var object */
 extern int NCZF_create_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* gname, NC_GRP_INFO_T** grpp);
@@ -183,6 +183,9 @@ extern int NCZ_get_formatter(NC_FILE_INFO_T* file, const NCZ_Formatter** formatt
 /**************************************************/
 /* Misc. */
 extern void NCZ_clear_zjson(struct ZJSON* zjson);
+
+extern int NCZ_dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep);
+
 
 /**************************************************/
 

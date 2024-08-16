@@ -362,12 +362,12 @@ NCZF_decode_grp_subgroup(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char
 }
 
 int
-NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson** jattsp, const NCjson** jtypesp)
+NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson** jtypesp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_attributes_json(file, container, jattsp, jtypesp);
+    stat = zfile->dispatcher->decode_attributes_json(file, container, jatts, jtypesp);
     return THROW(stat);
 }
 
@@ -440,4 +440,19 @@ NCZ_clear_zjson(struct ZJSON* zjson)
         NCJreclaim(zjson->jobj);
 	if(!zjson->constatt) NCJreclaim(zjson->jatts);
     }
+}
+
+/* Get one of two key values from a dict */
+int
+NCZ_dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep)
+{
+    int stat = NC_NOERR;
+    const NCjson* jvalue = NULL;
+    if((stat = NCJdictget(jdict,name,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this first */
+    if(jvalue == NULL) {
+        if((stat = NCJdictget(jdict,alt,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this alternative*/
+    }
+    if(jvaluep) *jvaluep = jvalue;
+done:
+    return THROW(stat);
 }

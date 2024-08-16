@@ -11,9 +11,6 @@
 #include "netcdf_filter_build.h"
 #endif
 
-/* Forward */
-static int dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep);
-
 /**************************************************/
 /* Functions to build json from nc4internal structures and upload */
 
@@ -737,8 +734,8 @@ ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* json
     int suppress = 0; /* Abort processing of this variable */
     nc_type vtype = NC_NAT;
     int vtypelen = 0;
-    size_t rank = 0;
-    size_t zarr_rank = 0; /* Need to watch out for scalars */
+    size_t netcdf_rank = 0;  /* true rank => scalar => 0 */
+    size_t zarr_rank = 0; /* |shape| */
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     const NCjson* jfilter = NULL;
     int chainindex = 0;
@@ -806,11 +803,11 @@ ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* json
 	if(jvalue != NULL)
 	    var->storage = NC_CHUNKED;
 	/* Extract dimrefs list	 */
-	if((stat = dictgetalt(jncvar,"dimension_references","dimensions",&jdimrefs))) goto done;
+	if((stat = dictgetalt(jncvar,"dimension_references","dimrefs",&jdimrefs))) goto done;
 	if(jdimrefs != NULL) { /* Extract the dimref names */
 	    assert((NCJsort(jdimrefs) == NCJ_ARRAY));
 	    if(zvar->scalar) {
-		assert(NCJlength(jdimrefs) == 0);	       
+		assert(NCJlength(jdimrefs) == 1);
 	    } else {
 		rank = NCJlength(jdimrefs);
 		for(j=0;j<rank;j++) {
@@ -873,14 +870,14 @@ ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* json
 	}
 
 	if(zvar->scalar) {
-	    rank = 0;
+	    netcdf_rank = 0;
 	    zarr_rank = 1; /* Zarr does not support scalars */
 	} else 
-	    rank = (zarr_rank = NCJlength(jvalue));
+	    netcdf_rank = (zarr_rank = NCJlength(jvalue));
 
 	if(zarr_rank > 0) {
 	    /* Save the rank of the variable */
-	    if((stat = nc4_var_set_ndims(var, rank))) goto done;
+	    if((stat = nc4_var_set_ndims(var, netcdf_rank))) goto done;
 	    /* extract the shapes */
 	    if((shapes = (size64_t*)malloc(sizeof(size64_t)*(size_t)zarr_rank)) == NULL)
 		{stat = (THROW(NC_ENOMEM)); goto done;}
@@ -906,14 +903,14 @@ ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* json
 	} else {/* !zvar->scalar */
 	    if(zarr_rank == 0) {stat = NC_ENCZARR; goto done;}
 	    var->storage = NC_CHUNKED;
-	    if(var->ndims != rank)
+	    if(var->ndims != netcdf_rank)
 		{stat = (THROW(NC_ENCZARR)); goto done;}
 	    if((var->chunksizes = malloc(sizeof(size_t)*(size_t)zarr_rank)) == NULL)
 		{stat = NC_ENOMEM; goto done;}
 	    if((stat = decodeints(jvalue, chunks))) goto done;
 	    /* validate the chunk sizes */
 	    zvar->chunkproduct = 1;
-	    for(j=0;j<rank;j++) {
+	    for(j=0;j<netcdf_rank;j++) {
 		if(chunks[j] == 0)
 		    {stat = (THROW(NC_ENCZARR)); goto done;}
 		var->chunksizes[j] = (size_t)chunks[j];
@@ -976,12 +973,13 @@ ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* json
     if(varsized && nclistlength((NClist*)var->filters) > 0)
 	suppress = 1;
 #endif
+
     if(zarr_rank > 0) {
-	if((stat = computedimrefs(file, var, purezarr, xarray, rank, dimnames, shapes, var->dim)))
-	    goto done;
+	/* Convert dimrefs to specific dimensions */
+	if((stat = computedimrefs(file, var, netcdf_rank, dimnames, shapes, var->dim))) goto done;
 	if(!zvar->scalar) {
 	    /* Extract the dimids */
-	    for(j=0;j<rank;j++)
+	    for(j=0;j<netcdf_rank;j++)
 		var->dimids[j] = var->dim[j]->hdr.id;
 	}
     }
@@ -1124,7 +1122,7 @@ done:
 }
 
 static int
-ZF2_buildchunkkey(const NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp)
+ZF2_buildchunkkey(const NC_FILE_INFO_T* file, size_t netcdf_rank, const size64_t* chunkindices, char dimsep, char** keyp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -1235,19 +1233,62 @@ insert_nczarr_attr(NCjson* jatts, NCjson* jtypes)
     return NC_NOERR;
 }
 
-/* Get one of two key values from a dict */
+/* Compute the set of dim refs for this variable, taking purezarr and xarray into account */
 static int
-dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep)
+computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int netcdf_rank, NClist* dimnames, size64_t* shapes, NC_DIM_INFO_T** dims)
 {
     int stat = NC_NOERR;
-    const NCjson* jvalue = NULL;
-    if((stat = NCJdictget(jdict,name,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this first */
-    if(jvalue == NULL) {
-        if((stat = NCJdictget(jdict,alt,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this alternative*/
+    size_t i;
+    int createdims = 0; /* 1 => we need to create the dims in root if they do not already exist */
+    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)(var->format_var_info);
+    NCjson* jatts = NULL;
+    int purezarr = 0;
+    int xarray = 0;
+
+    ZTRACE(3,"file=%s var=%s purezarr=%d xarray=%d ndims=%d shape=%s",
+    	file->controller->path,var->hdr.name,purezarr,xarray,(int)ndims,nczprint_vector(ndims,shapes));
+    assert(zfile && zvar);
+
+    if(zfile->flags & FLAG_PUREZARR) purezarr = 1;
+    if(zfile->flags & FLAG_XARRAYDIMS) xarray = 1;
+
+    if(purezarr && xarray) {/* Read in the attributes to get xarray dimdef attribute; Note that it might not exist */
+	/* Note that if xarray && !purezarr, then xarray will be superceded by the nczarr dimensions key */
+        char zdimname[4096];
+        if(zvar->dimension_names != NULL) {
+	    assert(nclistlength(dimnames) == 0);
+	    if((stat = ncz_read_atts(file,(NC_OBJ*)var,jatts))) goto done;
+	}
+	if(zvar->dimension_names != NULL) {
+	    /* convert xarray to the dimnames */
+	    for(i=0;i<nclistlength(zvar->dimension_names);i++) {
+	        snprintf(zdimname,sizeof(zdimname),"/%s",(const char*)nclistget(zvar->dimension_names,i));
+	        nclistpush(dimnames,strdup(zdimname));
+	    }
+	}
+	createdims = 1; /* may need to create them */
     }
-    if(jvaluep) *jvaluep = jvalue;
+
+    /* If pure zarr and we have no dimref names, then fake it */
+    if(purezarr && nclistlength(dimnames) == 0) {
+	int i;
+	createdims = 1;
+        for(i=0;i<ndims;i++) {
+	    /* Compute the set of absolute paths to dimrefs */
+            char zdimname[4096];
+	    snprintf(zdimname,sizeof(zdimname),"/%s_%llu",NCDIMANON,shapes[i]);
+	    nclistpush(dimnames,strdup(zdimname));
+	}
+    }
+
+    /* Now, use dimnames to get the dims; create if necessary */
+    if((stat = parsedimrefs(file,dimnames,shapes,dims,createdims)))
+        goto done;
+
 done:
-    return THROW(stat);
+    NCJreclaim(jatts);
+    return ZUNTRACE(THROW(stat));
 }
 
 /**************************************************/

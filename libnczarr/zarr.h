@@ -53,7 +53,7 @@ EXTERNL int ncz_sync_file(NC_FILE_INFO_T* file, int isclose);
 EXTERNL int ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose);
 EXTERNL int ncz_sync_atts(NC_FILE_INFO_T*, NC_OBJ* container, NCindex* attlist, NCjson* jatts, NCjson* jtypes, int isclose);
 EXTERNL int ncz_read_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON* jsonz);
-EXTERNL int ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container);
+EXTERNL int ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts);
 EXTERNL int ncz_read_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames);
 EXTERNL int ncz_read_file(NC_FILE_INFO_T* file);
 EXTERNL int ncz_write_var(NC_VAR_INFO_T* var);
@@ -66,11 +66,6 @@ EXTERNL int NCZ_varkey(const NC_VAR_INFO_T* var, char** pathp);
 EXTERNL int NCZ_dimkey(const NC_DIM_INFO_T* dim, char** pathp);
 EXTERNL int ncz_splitkey(const char* path, NClist* segments);
 EXTERNL int ncz_nctypedecode(const char* snctype, nc_type* nctypep);
-
-EXTERNL int ncz2_nctype2dtype(nc_type nctype, int endianness, int purezarr, size_t len, char** dnamep);
-EXTERNL int ncz2_dtype2nctype(const char* dtype, nc_type typehint, int purezarr, nc_type* nctypep, int* endianp, size_t* typelenp);
-EXTERNL int ncz3_nctype2dtype(nc_type nctype, int purezarr, size_t strlen, char** dnamep, const char** tagp);
-EXTERNL int ncz3_dtype2nctype(const char* dtype, const char* hint, nc_type* nctypep, size_t* typelenp);
 
 EXTERNL int NCZ_inferattrtype(const NCjson* value, nc_type typehint, nc_type* typeidp);
 EXTERNL int NCZ_inferinttype(unsigned long long u64, int negative);
