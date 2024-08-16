@@ -6,9 +6,6 @@
 
 #include "zincludes.h"
 #include "zfilter.h"
-#include "znc4.h"
-
-#include <stddef.h>
 
 #ifndef nulldup
 #define nulldup(x) ((x)?strdup(x):(x))
@@ -37,9 +34,10 @@ static int locategroup(NC_FILE_INFO_T* file, size_t nsegs, NClist* segments, NC_
 static int parsedimrefs(NC_FILE_INFO_T* file, NClist* dimnames, size64_t* shape, NC_DIM_INFO_T** dims, int create);
 static int json_convention_read(const NCjson* json, NCjson** jtextp);
 static int insert_nczarr_attr(NCjson* jatts, NCjson* jtypes);
+<<<<<<< Updated upstream
 static int getnczarrkey(NC_FILE_INFO_T* file, NC_OBJ* container, struct ZJSON* json, const char* xxxname, const NCjson** jncxxxp);
 static computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int netcdf_rank, NClist* dimnames, size64_t* shapes, NC_DIM_INFO_T** dims);
-
+static int dictgetalt(const NCjson* jdict, const NCjson** jvaluep, ...);
 
 /**************************************************/
 /* Synchronize functions to make map and memory
@@ -1094,6 +1092,7 @@ done:
 /* Utilities */
 
 static int
+<<<<<<< Updated upstream
 parse_group_content_pure(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrps)
 {
     int stat = NC_NOERR;
@@ -1560,9 +1559,30 @@ done:
 }
 #endif
 
-/* Get _nczarr_xxx from either grp|var json or atts json */
+/* Get one of multiple key alternatives from a dict */
 static int
-getnczarrkey(NC_FILE_INFO_T* file, NC_OBJ* container, struct ZJSON* json, const char* xxxname, const NCjson** jncxxxp, int* nczkeyp)
+dictgetalt(const NCjson* jdict, const NCjson** jvaluep, ...)
+{
+    int stat = NC_NOERR;
+    const NCjson* jvalue = NULL;
+    va_list ap;
+
+    va_start(va_list ap, jvaluep);
+    for(;;) {
+	const char* key = va_arg(ap,const char*);
+	if(key == NULL) break;
+        NCJcheck(NCJdictget(jdict,key,&jvalue));
+	if(jvalue != NULL) break;
+    }
+    va_end(ap);
+    if(jvaluep) *jvaluep = jvalue;
+done:
+    return THROW(stat);
+}
+
+/* Get _nczarr_xxx from either .zXXX or .zattrs */
+static int
+getnczarrkey(NC_OBJ* container, const char* name, const NCjson** jncxxxp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->file_format_info;

@@ -4,8 +4,6 @@
  */
 
 #include "zincludes.h"
-#include <stdarg.h>
-#include <stddef.h>
 #include "ncpathmgr.h"
 
 /**************************************************/
