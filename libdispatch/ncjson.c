@@ -937,7 +937,7 @@ done:
 
 /* Insert key-value pair into a dict object. key will be strdup'd */
 OPTSTATIC int
-NCJinsertint(NCjson* object, const char* key, int value)
+NCJinsertint(NCjson* object, const char* key, long long value)
 {
     int stat = NCJ_OK;
     NCjson* jkey = NULL;
@@ -947,7 +947,7 @@ NCJinsertint(NCjson* object, const char* key, int value)
     if(key == NULL)
 	{stat = NCJTHROW(NCJ_ERR); goto done;}
     if((stat = NCJnewstring(NCJ_STRING,key,&jkey))==NCJ_ERR) goto done;
-    snprintf(digits,sizeof(digits),"%d",value);
+    snprintf(digits,sizeof(digits),"%lld",value);
     if((stat = NCJnewstring(NCJ_INT,digits,&jvalue))==NCJ_ERR) goto done;
     if((stat = NCJappend(object,jkey))==NCJ_ERR) goto done;
     if((stat = NCJappend(object,jvalue))==NCJ_ERR) goto done;

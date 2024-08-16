@@ -3,8 +3,11 @@
  *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
  *********************************************************************/
 
+
 #include "zincludes.h"
 #include "zfilter.h"
+#include "znc4.h"
+
 #include <stddef.h>
 
 #ifndef nulldup
@@ -20,50 +23,39 @@
 /* Forward */
 static int ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose);
 static int ncz_sync_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose);
-static int download_jatts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson** jattsp, const NCjson** jtypesp);
 static int zcharify(const NCjson* src, NCbytes* buf);
 static int zconvert(const NCjson* src, nc_type typeid, size_t typelen, int* countp, NCbytes* dst);
 static int computeattrinfo(NC_FILE_INFO_T*,const char* name, const NCjson* jtypes, nc_type typehint, int purezarr, NCjson* values,nc_type* typeidp, size_t* typelenp, size_t* lenp, void** datap);
 static int computeattrdata(nc_type typehint, nc_type* typeidp, const NCjson* values, size_t* typelenp, size_t* countp, void** datap);
-static int define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp);
-static int define_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* diminfo);
-static int define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname);
-static int define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames);
-static int define_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames);
-static int parse_group_content(NC_FILE_INFO_T*, const NCjson* jcontent, NClist* dimdefs, NClist* varnames, NClist* subgrps);
+static int ncz_read_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* diminfo);
+static int ncz_read_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname);
+static int ncz_read_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames);
 static int parse_group_content_pure(NC_FILE_INFO_T*, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrps);
-static int searchvars(NCZ_FILE_INFO_T* zfile, NC_GRP_INFO_T* grp, NClist* varnames);
-static int searchsubgrps(NCZ_FILE_INFO_T* zfile, NC_GRP_INFO_T* grp, NClist* subgrpnames);
 static int decodeints(const NCjson* jshape, size64_t* shapes);
 static int createdim(NC_FILE_INFO_T* file, const char* name, size64_t dimlen, NC_DIM_INFO_T** dimp);
 static int locategroup(NC_FILE_INFO_T* file, size_t nsegs, NClist* segments, NC_GRP_INFO_T** grpp);
 static int parsedimrefs(NC_FILE_INFO_T* file, NClist* dimnames, size64_t* shape, NC_DIM_INFO_T** dims, int create);
-static int computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int purezarr, int xarray, int ndims, NClist* dimnames, size64_t* shapes, NC_DIM_INFO_T** dims);
 static int json_convention_read(const NCjson* json, NCjson** jtextp);
-static int json_convention_write(size_t len, const void* data, NCjson** jsonp, int* isjsonp);
-static int jtypes2atypes(NCjson* jtypes, NClist* atypes);
-static int ncz_validate(NC_FILE_INFO_T* file);
 static int insert_nczarr_attr(NCjson* jatts, NCjson* jtypes);
-static int upload_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts);
-static int readarray(NCZMAP* zmap, const char* key, NCjson** jsonp);
-static int dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep);
-static int getnczarrkey(NC_OBJ* container, const char* name, const NCjson** jncxxxp);
-static int downloadzarrobj(NC_FILE_INFO_T* file, struct ZARROBJ* zobj, const char* fullpath, const char* objname);
+static int getnczarrkey(NC_FILE_INFO_T* file, NC_OBJ* container, struct ZJSON* json, const char* xxxname, const NCjson** jncxxxp);
+static computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int netcdf_rank, NClist* dimnames, size64_t* shapes, NC_DIM_INFO_T** dims);
 
-/**************************************************/
+
 /**************************************************/
 /* Synchronize functions to make map and memory
 be consistent. There are two sets of functions,
-1) _sync_ - push memory to map (optionally create target)
-2) _read_ - pull map data into memory
-These functions are generally non-recursive. It is assumed
-that the recursion occurs in the caller's code.
+1) _sync_ - push nc4internal.h structures to storage
+2) _read_ - pull storage structures and create corresponding nc4internal.h structures.
+            These functions rely on the format specific decode functions to extract
+	    and return the relevant info from the format json.
 */
+/**************************************************/
 
-/**
- * @internal Synchronize file metadata from memory to map.
+/*
+ * @internal Push nc4internal.h structures to storage
  *
  * @param file Pointer to file info struct.
+ * @param isclose 1 => we closing file as opposed to sync'ing it.
  *
  * @return ::NC_NOERR No error.
  * @author Dennis Heimbigner
@@ -127,37 +119,37 @@ ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
 
     if(!purezarr) {
         if(grp->parent == NULL) { /* Root group */
-	    if((stat=NCZF_build_superblock(file,grp,&jsuper))) goto done;
+	    if((stat=NCZF_encode_superblock(file,grp,&jsuper))) goto done;
 	}
 
 	/* Collect dimensions in this group */
 	dimlist = grp->dim;
         /* Create dimensions json */
-	if((stat=NCZF_build_grp_dims(file,grp,dimlist,&jdims))) goto done;
+	if((stat=NCZF_encode_grp_dims(file,grp,dimlist,&jdims))) goto done;
 
 	/* Collect vars in this group */
 	varlist = grp->vars;
         /* Create variables json */
-	if((stat=NCZF_build_grp_vars(file,grp,varlist,&jvars))) goto done;
+	if((stat=NCZF_encode_grp_vars(file,grp,varlist,&jvars))) goto done;
 
 	/* Collect subgroups in this group */
 	subgrplist = grp->children;
         /* Create subgroups json */
-	if((stat=NCZF_build_grp_subgroups(file,grp,subgrplist,&jsubgrp))) goto done;
+	if((stat=NCZF_encode_grp_subgroups(file,grp,subgrplist,&jsubgrp))) goto done;
 
         /* Assemble NCZARR_GROUP contents */
-	if((stat=NCZF_build_nczarr_group(file,grp,jdims,jvars,jsubgrp,&jnczgrp))) goto done;
+	if((stat=NCZF_encode_nczarr_group(file,grp,jdims,jvars,jsubgrp,&jnczgrp))) goto done;
     }
 
     /* Build the json attrs object */
     assert(grp->att);
-    if((stat = NCZF_build_attributes_json(file, (NC_OBJ*)grp, grp->att, &jatts, &jtypes))) goto done;
+    if((stat = NCZF_encode_attributes_json(file, (NC_OBJ*)grp, grp->att, &jatts, &jtypes))) goto done;
 
     /* Assemble group json */
-    if((stat = NCZF_build_group_json(file,grp,jsuper,jatts,jtypes,&jgroup))) goto done;
+    if((stat = NCZF_encode_group_json(file,grp,jsuper,jatts,jtypes,&jgroup))) goto done;
 
     /* upload group json and (depending on version) the group attributes */
-    if((stat = NCZF_write_grp_json(file,grp,jgroup,jatts))) goto done;
+    if((stat = NCZF_upload_grp_json(file,grp,jgroup,jatts))) goto done;
 
     /* Now synchronize all the variables */
     for(i=0; i<ncindexsize(grp->vars); i++) {
@@ -205,8 +197,8 @@ ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     char* dimpath = NULL;
     NClist* dimrefs = NULL;
     NCjson* jvar = NULL;
-    NCjson* jnczvar = NULL;
     NCjson* jatts = NULL;
+    NCjson* jnczvar = NULL;
     NCjson* jtypes = NULL;
     char* dtypename = NULL;
     int purezarr = 0;
@@ -233,7 +225,7 @@ ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 
     /* Build the NCZ_ARRAY object */
     if(!purezarr) {
-	if((stat=NCZF_build_nczarr_array(file,var,&jnczvar))) goto done;
+	if((stat=NCZF_encode_nczarr_array(file,var,&jnczvar))) goto done;
     }
 
     /* Build attribute dictionary */
@@ -254,10 +246,10 @@ ncz_sync_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 	jtypes = NULL;
     }
 
-    if((stat=NCZF_build_var_json(file, var, jatts, jnczvar, &jvar))) goto done;
+    if((stat=NCZF_encode_var_json(file, var, jatts, jnczvar, &jvar))) goto done;
 
     /* Write out the the var JSON and the corresponding attributes */
-    if((stat = NCZF_write_var_json(file,var,jvar,jatts))) goto done;
+    if((stat = NCZF_upload_var_json(file,var,jvar,jatts))) goto done;
 
     var->created = 1;
 
@@ -267,12 +259,10 @@ done:
     nullfree(key);
     nullfree(dtypename);
     nullfree(dimpath);
-#if XXX
     NCJreclaim(jvar);
     NCJreclaim(jnczvar);
     NCJreclaim(jatts);
     NCJreclaim(jtypes);
-#endif
     return ZUNTRACE(THROW(stat));
 }
 
@@ -530,18 +520,215 @@ done:
     nullfree(content);
     nullfree(dimpath);
     nullfree(tname);
-#if XXX
     NCJreclaim(jdimrefs);
-    NCJreclaim(jdict);
     NCJreclaim(jint);
     NCJreclaim(jdata);
-#endif
     return ZUNTRACE(THROW(stat));
 }
 
+/**************************************************/
+/*
+ * @internal pull storage structures and create corresponding nc4internal.h structures
+ */
+
+/**
+ * @internal Read file data from map to memory.
+ *
+ * @param file Pointer to file info struct.
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
+ */
+int
+ncz_read_file(NC_FILE_INFO_T* file)
+{
+    int stat = NC_NOERR;
+    NC_GRP_INFO_T* root = NULL;
+    struct ZJSON jsonz = emptyjsonz;
+
+    LOG((3, "%s: file: %s", __func__, file->controller->path));
+    ZTRACE(3,"file=%s",file->controller->path);
+    
+    /* Download the root group object and associated attributess */
+    root = file->root_grp;
+    if((stat = NCZF_download_grp_json(file, root, &jsonz))) goto done;
+
+    /* Ok, try to read superblock */
+    if((stat = ncz_read_superblock(file,&jsonz))) goto done;
+
+    /* Load metadata starting at the root group */
+    if((stat = ncz_read_grp(file,root,&jsonz))) goto done;
+
+done:
+    NCZ_clear_zjson(&jsonz);
+    return ZUNTRACE(THROW(stat));
+}
+
+/**
+ * @internal Read group data from storage
+ *
+ * @param file Pointer to file struct
+ * @param grp Pointer to grp struct
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
+ */
+int
+ncz_read_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON* jsonz)
+{
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zinfo = file->format_file_info;
+    NCjson* jdims = NULL;
+    NClist* varnames = nclistnew();
+    NClist* subgrps = nclistnew();
+    int purezarr = 0;
+
+    ZTRACE(3,"file=%s parent=%s",file->controller->path,(parent?parent->hdr.name:"NULL"));
+    
+    if(zinfo->flags & FLAG_PUREZARR) purezarr = 1;
+
+    /* Download json group and json attrs and optionally create grp */
+    if((stat = NCZF_download_grp_json(file,grp,jsonz))) goto done;
+
+    if(purezarr) {
+	if((stat = parse_group_content_pure(file,grp,varnames,subgrps))) goto done;
+    } else { /*!purezarr*/
+        if(jsonz->jobj == NULL || jsonz->jatts == NULL) { /* does not exist, use search */
+            if((stat = parse_group_content_pure(file,grp,varnames,subgrps))) goto done;
+	    purezarr = 1; /* treat as if purezarr */
+            zinfo->flags |= FLAG_PUREZARR;
+	} else { /*!purezarr && jgroup && jatts */
+  	    /* Decode and group object */
+            if((stat = NCZF_decode_nczarr_group(file,grp,jsonz,&jdims,varnames,subgrps))) goto done;
+	}
+    }
+
+    if(!purezarr) {
+	/* Define dimensions */
+	if((stat = ncz_read_dims(file,grp,jdims))) goto done;
+    }
+
+    /* Define sub-groups */
+    if((stat = ncz_read_subgrps(file,grp,subgrps))) goto done;
+
+    /* Define vars taking xarray into account */
+    if((stat = ncz_read_vars(file,grp,varnames))) goto done;
+
+done:
+    NCJreclaim(jdims);
+    nclistfreeall(varnames);
+    nclistfreeall(subgrps);
+    return ZUNTRACE(THROW(stat));
+}
+
+/**
+ * @internal Materialize dimensions into memory
+ *
+ * @param file Pointer to file info struct.
+ * @param grp Pointer to grp info struct.
+ * @param jdims json holding dim info
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
+ */
+static int
+ncz_read_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jdims)
+{
+    int stat = NC_NOERR;
+
+    ZTRACE(3,"file=%s grp=%s |diminfo|=%u",file->controller->path,grp->hdr.name,nclistlength(diminfo));
+
+    if((stat = NCZF_decode_grp_dims(file,grp,jdims))) goto done;
+
+done:
+    return ZUNTRACE(THROW(stat));
+}
+
+/**
+ * @internal Materialize single var into memory;
+ * Take xarray and purezarr into account.
+ *
+ * @param file Pointer to file info struct.
+ * @param paret Pointer to parent grp info struct.
+ * @param varname name of variable in this group
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
+ */
+static int
+ncz_read_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname)
+{
+    int stat = NC_NOERR;
+    NC_VAR_INFO_T* var = NULL;
+    struct ZJSON jsonz = emptyjsonz;
+
+    ZTRACE(3,"file=%s parent=%s varname=%s",file->controller->path,parent->hdr.name,varname);
+
+    /* Create and Download */
+    if((stat = NCZF_create_var(file,parent,varname,&var))) goto done;
+    if((stat = NCZF_download_var_json(file,var,&jsonz))) goto done;
+    if((stat=NCZF_decode_var_json(file,var,&jsonz))) goto done;
+
+done:
+    NCZ_clear_zjson(&jsonz);
+    return THROW(stat);
+}
+
+/**
+ * @internal Materialize vars into memory;
+ * Take xarray and purezarr into account.
+ *
+ * @param file Pointer to file info struct.
+ * @param grp Pointer to grp info struct.
+ * @param varnames List of names of variables in this group
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
+ */
+int
+ncz_read_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* varnames)
+{
+    int stat = NC_NOERR;
+    size_t i;
+
+    ZTRACE(3,"file=%s grp=%s |varnames|=%u",file->controller->path,grp->hdr.name,nclistlength(varnames));
+
+    /* Load each var in turn */
+    for(i = 0; i < nclistlength(varnames); i++) {
+	const char* varname = (const char*)nclistget(varnames,i);
+        if((stat = ncz_read_var1(file,parent,varname))) goto done;
+    }
+
+done:
+    return ZUNTRACE(THROW(stat));
+}
+
+static int
+ncz_read_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    struct ZJSON jsonz = emptyjsonz;
+
+    ZTRACE(3,"file=%s parent=%s |subgrpnames|=%u",file->controller->path,parent->hdr.name,nclistlength(subgrpnames));
+
+    /* Create and load each subgrp in turn */
+    for(i = 0; i < nclistlength(subgrpnames); i++) {
+	const char* subgrpname = (const char*)nclistget(subgrpnames,i);
+	NC_GRP_INFO_T* subgrp = NULL;
+	/* Create the group object */
+	if((stat = NCZF_create_grp(file,parent,subgrpname,&subgrp))) goto done;
+	/* Fill in the group object */
+        if((stat = ncz_read_grp(file,subgrp,&jsonz))) goto done;
+    }
+
+done:
+    return ZUNTRACE(THROW(stat));
+}
 
 /**************************************************/
 
+#if 0
 /**
 @internal Extract attributes from a group or var and return
 the corresponding NCjson dict.
@@ -551,8 +738,8 @@ the corresponding NCjson dict.
 @param jtypesp   - [out] the json attribute type dict || NULL
 @param jnczgrp   - [out] the json for _nczarr_group || NULL
 @param jnczarray - [out] the json for _nczarr_array || NULL
-@return NC_NOERR
-@return NC_EXXX
+@return ::NC_NOERR
+@return ::NC_EXXX
 @author Dennis Heimbigner
 */
 static int
@@ -605,6 +792,7 @@ download_jatts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson** jattsp, c
 done:
     return ZUNTRACE(THROW(stat));
 }
+#endif /*0*/
 
 /* Convert a JSON singleton or array of strings to a single string */
 static int
@@ -778,212 +966,33 @@ done:
     return ZUNTRACEX(THROW(stat),"typelen=%d count=%u",(typelenp?*typelenp:0),(countp?*countp:-1));
 }
 
-/**
- * @internal Read file data from map to memory.
- *
- * @param file Pointer to file info struct.
- *
- * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner
- */
-int
-ncz_read_file(NC_FILE_INFO_T* file)
-{
-    int stat = NC_NOERR;
-    NCjson* json = NULL;
-
-    LOG((3, "%s: file: %s", __func__, file->controller->path));
-    ZTRACE(3,"file=%s",file->controller->path);
-    
-    /* _nczarr should already have been read in ncz_open_dataset */
-
-    /* Now load the groups starting with root */
-    if((stat = define_grp(file,file->root_grp)))
-	goto done;
-
-done:
-    NCJreclaim(json);
-    return ZUNTRACE(THROW(stat));
-}
-
-/**
- * @internal Read group data from map to memory
- *
- * @param file Pointer to file struct
- * @param grp Pointer to grp struct
- *
- * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner
- */
-static int
-define_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = NULL;
-    NCjson* jgroup = NULL;
-    const NCjson* jatts = NULL;
-    NClist* dimdefs = nclistnew();
-    NClist* varnames = nclistnew();
-    NClist* subgrps = nclistnew();
-    int purezarr = 0;
-
-    ZTRACE(3,"file=%s grp=%s",file->controller->path,grp->hdr.name);
-    
-    zinfo = file->format_file_info;
-
-    if(zinfo->flags & FLAG_PUREZARR) purezarr = 1;
-
-    /* Download json group and json attrs */
-    if((stat = NCZF_read_grp_json(file,grp,&jgroup,&jatts))) goto done;
-
-    if(purezarr) {
-	if((stat = parse_group_content_pure(file,grp,varnames,subgrps))) goto done;
-    } else { /*!purezarr*/
-        if(jgroup == NULL || jatts == NULL) { /* does not exist, use search */
-            if((stat = parse_group_content_pure(file,grp,varnames,subgrps))) goto done;
-	    purezarr = 1; /* treat as if purezarr */
-            zinfo->flags |= FLAG_PUREZARR;
-	} else { /*!purezarr && jgroup && jatts */
-  	    /* Get and Decode the NCZ_GROUP object */
-            if((stat = NCZF_decode_nczarr_group(file,grp,dimdefs,varnames,subgrps))) goto done;
-	}
-    }
-
-    if(!purezarr) {
-	/* Define dimensions */
-	if((stat = define_dims(file,grp,dimdefs))) goto done;
-    }
-
-    /* Define sub-groups */
-    if((stat = define_subgrps(file,grp,subgrps))) goto done;
-
-    /* Define vars taking xarray into account */
-    if((stat = define_vars(file,grp,varnames))) goto done;
-
-done:
-    (void)NCZF_reclaim_atts_json(file,jatts);
-    NCJreclaim(jgroup);
-#if XXX
-    nclistfreeall(dimdefs);
-    nclistfreeall(varnames);
-    nclistfreeall(subgrps);
-#endif
-    return ZUNTRACE(THROW(stat));
-}
-
-
+/**************************************************/
 /**
 @internal Read attributes from a group or var and create a list
 of annotated NC_ATT_INFO_T* objects. This will process
 _NCProperties attribute specially.
 @param zfile - [in] the containing file (annotation)
 @param container - [in] the containing object
-@return NC_NOERR
+@return ::NC_NOERR
 @author Dennis Heimbigner
 */
 int
-ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
+ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts)
 {
     int stat = NC_NOERR;
-    size_t i;
     char* fullpath = NULL;
     char* key = NULL;
-    NCZ_FILE_INFO_T* zinfo = NULL;
-    NC_VAR_INFO_T* var = NULL;
-    NCZ_VAR_INFO_T* zvar = NULL;
-    NC_GRP_INFO_T* grp = NULL;
-    NCZ_GRP_INFO_T* zgrp = NULL;
+
     NC_ATT_INFO_T* att = NULL;
-    nc_type typeid;
-    size_t len, typelen;
+    size_t len;
     void* data = NULL;
     NC_ATT_INFO_T* fillvalueatt = NULL;
-    nc_type typehint = NC_NAT;
-    int purezarr,zarrkeys;
-    const NCjson* jatts = NULL;
-    const NCjson* jtypes = NULL;
-    struct ZARROBJ* zobj = NULL;
+    NCjson* jtypes = NULL;
 
     ZTRACE(3,"file=%s container=%s",file->controller->path,container->name);
 
-    zinfo = file->format_file_info;
-    if(zinfo->flags & FLAG_PUREZARR) purezarr = 1;
-    if(zinfo->flags & FLAG_NCZARR_KEY) zarrkeys = 1;
-    assert(purezarr || zarrkeys || zobj->obj != NULL);
- 
-    if(container->sort == NCGRP) {	
-	grp = ((NC_GRP_INFO_T*)container);
-        zgrp = (NCZ_GRP_INFO_T*)(grp->format_grp_info);
-	zobj = &zgrp->zgroup;
-    } else {
-	var = ((NC_VAR_INFO_T*)container);
-        zvar = (NCZ_VAR_INFO_T*)(var->format_var_info);
-	zobj = &zvar->zarray;
-    }
-
-    if((stat = NCZF_decode_attributes_json(file,(NC_OBJ*)container,&jatts,&jtypes))) goto done;
-
-    if(jatts != NULL) {
-	/* Iterate over the attributes to create the in-memory attributes */
-	/* Watch for special cases: _FillValue and  _ARRAY_DIMENSIONS (xarray), etc. */
-	for(i=0;i<NCJdictlength(jatts);i++) {
-	    NCjson* key = NCJdictkey(jatts,i);
-	    NCjson* value = NCJdictvalue(jatts,i);
-	    const NC_reservedatt* ra = NULL;
-	    int isfillvalue = 0;
-    	    int isdfaltmaxstrlen = 0;
-       	    int ismaxstrlen = 0;
-	    const char* aname = NCJstring(key);
-	    /* See if this is a notable attribute */
-	    if(var != NULL && strcmp(aname,NC_ATT_FILLVALUE)==0) isfillvalue = 1;
-	    if(grp != NULL && grp->parent == NULL && strcmp(aname,NC_NCZARR_DEFAULT_MAXSTRLEN_ATTR)==0)
-	        isdfaltmaxstrlen = 1;
-	    if(var != NULL && strcmp(aname,NC_NCZARR_MAXSTRLEN_ATTR)==0)
-	        ismaxstrlen = 1;
-
-	    /* See if this is reserved attribute */
-	    ra = NC_findreserved(aname);
-	    if(ra != NULL) {
-		/* case 1: name = _NCProperties, grp=root, varid==NC_GLOBAL */
-		if(strcmp(aname,NCPROPS)==0 && grp != NULL && file->root_grp == grp) {
-		    /* Setup provenance */
-		    if(NCJsort(value) != NCJ_STRING)
-			{stat = (THROW(NC_ENCZARR)); goto done;} /*malformed*/
-		    if((stat = NCZ_read_provenance(file,aname,NCJstring(value))))
-			goto done;
-		}
-		/* case 2: name = _ARRAY_DIMENSIONS, sort==NCVAR, flags & HIDDENATTRFLAG */
-		if(strcmp(aname,NC_XARRAY_DIMS)==0 && var != NULL && (ra->flags & HIDDENATTRFLAG)) {
-  	            /* store for later */
-		    size_t i;
-		    assert(NCJsort(value) == NCJ_ARRAY);
-		    if((zvar->dimension_names = nclistnew())==NULL) {stat = NC_ENOMEM; goto done;}
-		    for(i=0;i<NCJarraylength(value);i++) {
-			const NCjson* k = NCJith(value,i);
-			assert(k != NULL && NCJsort(k) == NCJ_STRING);
-			nclistpush(zvar->dimension_names,strdup(NCJstring(k)));
-		    }
-		}
-		/* case other: if attribute is hidden */
-		if(ra->flags & HIDDENATTRFLAG) continue; /* ignore it */
-	    }
-	    typehint = NC_NAT;
-	    if(isfillvalue)
-	        typehint = var->type_info->hdr.id ; /* if unknown use the var's type for _FillValue */
-	    /* Create the attribute */
-	    /* Collect the attribute's type and value  */
-	    if((stat = computeattrinfo(file,aname,jtypes,typehint,purezarr,value, &typeid,&typelen,&len,&data))) goto done;
-	    if((stat = ncz_makeattr(file,container,aname,typeid,len,data,&att))) goto done;
-	    /* No longer need this copy of the data */
-   	    if((stat = NC_reclaim_data_all(file->controller,att->nc_typeid,data,len))) goto done;	    	    
-	    data = NULL;
-	    if(isfillvalue)
-	        fillvalueatt = att;
-	    if(ismaxstrlen && att->nc_typeid == NC_INT)
-	        zvar->maxstrlen = ((size_t*)att->data)[0];
-	    if(isdfaltmaxstrlen && att->nc_typeid == NC_INT)
-	        zinfo->default_maxstrlen = ((size_t*)att->data)[0];
-	}
+    if(jsonz->jatts != NULL) {
+        if((stat = NCZF_decode_attributes_json(file,container,jatts,&jtypes))) goto done;
     }
     /* If we have not read a _FillValue, then go ahead and create it */
     if(fillvalueatt == NULL && container->sort == NCVAR) {
@@ -998,6 +1007,7 @@ ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container)
 	((NC_GRP_INFO_T*)container)->atts_read = 1;
 
 done:
+    NCJreclaim(jtypes);
     if(data != NULL)
         stat = NC_reclaim_data(file->controller,att->nc_typeid,data,len);
     nullfree(fullpath);
@@ -1005,225 +1015,19 @@ done:
     return ZUNTRACE(THROW(stat));
 }
 
-/**
- * @internal Materialize dimensions into memory
- *
- * @param file Pointer to file info struct.
- * @param grp Pointer to grp info struct.
- * @param diminfo List of (name,length,isunlimited) triples
- *
- * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner
- */
-static int
-define_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* diminfo)
-{
-    size_t i;
-    int stat = NC_NOERR;
-
-    ZTRACE(3,"file=%s grp=%s |diminfo|=%u",file->controller->path,grp->hdr.name,nclistlength(diminfo));
-
-    /* Reify each dim in turn */
-    for(i = 0; i < nclistlength(diminfo); i+=3) {
-	NC_DIM_INFO_T* dim = NULL;
-	size64_t len = 0;
-	long long isunlim = 0;
-	const char* name = nclistget(diminfo,i);
-	const char* slen = nclistget(diminfo,i+1);
-	const char* sisunlimited = nclistget(diminfo,i+2);
-
-	/* Create the NC_DIM_INFO_T object */
-	sscanf(slen,"%lld",&len); /* Get length */
-	if(sisunlimited != NULL)
-	    sscanf(sisunlimited,"%lld",&isunlim); /* Get unlimited flag */
-	else
-	    isunlim = 0;
-	if((stat = nc4_dim_list_add(grp, name, (size_t)len, -1, &dim)))
-	    goto done;
-	dim->unlimited = (isunlim ? 1 : 0);
-	if((dim->format_dim_info = calloc(1,sizeof(NCZ_DIM_INFO_T))) == NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	((NCZ_DIM_INFO_T*)dim->format_dim_info)->common.file = file;
-    }
-
-done:
-    return ZUNTRACE(THROW(stat));
-}
-
-
-/**
- * @internal Materialize single var into memory;
- * Take xarray and purezarr into account.
- *
- * @param file Pointer to file info struct.
- * @param grp Pointer to grp info struct.
- * @param varname name of variable in this group
- *
- * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner
- */
-static int
-define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
-{
-    int stat = NC_NOERR;
-    size_t j;
-    NCZ_FILE_INFO_T* zinfo = NULL;
-    int purezarr = 0;
-    int xarray = 0;
-    /* per-variable info */
-    NC_VAR_INFO_T* var = NULL;
-    NCZ_VAR_INFO_T* zvar = NULL;
-    NCjson* jvar = NULL;
-    const NCjson* jatts = NULL; /* corresponding to jvar */
-    const NCjson* jncvar = NULL;
-    const NCjson* jdimrefs = NULL;
-    const NCjson* jvalue = NULL;
-    char* varpath = NULL;
-    size64_t* shapes = NULL;
-    NClist* dimnames = NULL;
-    int varsized = 0;
-    int suppress = 0; /* Abort processing of this variable */
-    nc_type vtype = NC_NAT;
-    int vtypelen = 0;
-    size_t rank = 0;
-    size_t zarr_rank = 0; /* Need to watch out for scalars */
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    const NCjson* jfilter = NULL;
-    int chainindex = 0;
-#endif
-
-    ZTRACE(3,"file=%s grp=%s varname=%s",file->controller->path,grp->hdr.name,varname);
-
-    zinfo = file->format_file_info;
-
-    if(zinfo->flags & FLAG_PUREZARR) purezarr = 1;
-    if(zinfo->flags & FLAG_XARRAYDIMS) {xarray = 1;}
-
-    dimnames = nclistnew();
-
-    if((stat = nc4_var_list_add2(grp, varname, &var)))
-	goto done;
-
-    /* And its annotation */
-    if((zvar = calloc(1,sizeof(NCZ_VAR_INFO_T)))==NULL)
-	{stat = NC_ENOMEM; goto done;}
-    var->format_var_info = zvar;
-    zvar->common.file = file;
-
-    /* pretend it was created */
-    var->created = 1;
-
-    /* Indicate we do not have quantizer yet */
-    var->quantize_mode = -1;
-
-    /* Download */
-    if((stat = NCZF_read_var_json(file,var,&jvar,&jatts))) goto done;
-    assert(jvar == NULL || NCJsort(jvar) == NCJ_DICT);
-    assert(jatts == NULL || NCJsort(jatts) == NCJ_DICT);
-
-    if((stat = NCZF_decode_var_json(file,var,jvar,jatts))) goto done;
-
-done:
-    NCZF_reclaim_atts_json(file,jatts);
-    NCJreclaim(jvar);
-#if XXX
-    nclistfreeall(dimnames); dimnames = NULL;
-    nullfree(varpath); varpath = NULL;
-    nullfree(shapes); shapes = NULL;
-    nullfree(key); key = NULL;
-#endif
-    return THROW(stat);
-}
-
-/**
- * @internal Materialize vars into memory;
- * Take xarray and purezarr into account.
- *
- * @param file Pointer to file info struct.
- * @param grp Pointer to grp info struct.
- * @param varnames List of names of variables in this group
- *
- * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner
- */
-static int
-define_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames)
-{
-    int stat = NC_NOERR;
-    size_t i;
-
-    ZTRACE(3,"file=%s grp=%s |varnames|=%u",file->controller->path,grp->hdr.name,nclistlength(varnames));
-
-    /* Load each var in turn */
-    for(i = 0; i < nclistlength(varnames); i++) {
-	const char* varname = (const char*)nclistget(varnames,i);
-        if((stat = define_var1(file,grp,varname))) goto done;
-	varname = nclistget(varnames,i);
-    }
-
-done:
-    return ZUNTRACE(THROW(stat));
-}
-
-/**
- * @internal Materialize subgroups into memory
- *
- * @param file Pointer to file info struct.
- * @param grp Pointer to grp info struct.
- * @param subgrpnames List of names of subgroups in this group
- *
- * @return ::NC_NOERR No error.
- * @author Dennis Heimbigner
- */
-static int
-define_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* subgrpnames)
-{
-    size_t i;
-    int stat = NC_NOERR;
-
-    ZTRACE(3,"file=%s grp=%s |subgrpnames|=%u",file->controller->path,grp->hdr.name,nclistlength(subgrpnames));
-
-    /* Load each subgroup name in turn */
-    for(i = 0; i < nclistlength(subgrpnames); i++) {
-	NC_GRP_INFO_T* g = NULL;
-	const char* gname = nclistget(subgrpnames,i);
-	char norm_name[NC_MAX_NAME];
-	/* Check and normalize the name. */
-	if((stat = nc4_check_name(gname, norm_name)))
-	    goto done;
-	if((stat = nc4_grp_list_add(file, grp, norm_name, &g)))
-	    goto done;
-	if(!(g->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
-	    {stat = NC_ENOMEM; goto done;}
-	((NCZ_GRP_INFO_T*)g->format_grp_info)->common.file = file;
-    }
-
-    /* Recurse to fill in subgroups */
-    for(i=0;i<ncindexsize(grp->children);i++) {
-	NC_GRP_INFO_T* g = (NC_GRP_INFO_T*)ncindexith(grp->children,i);
-	if((stat = define_grp(file,g)))
-	    goto done;
-    }
-
-done:
-    return ZUNTRACE(THROW(stat));
-}
-
 int
-ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
+ncz_read_superblock(NC_FILE_INFO_T* file, struct ZJSON* jsonz)
 {
     int stat = NC_NOERR;
+
+    const NCjson* jgroup = jsonz->jobj;
     const NCjson* jnczgroup = NULL;
     const NCjson* jnczattr = NULL;
-    const NCjson* jzgroup = NULL;
     const NCjson* jsuper = NULL;
-    const NCjson* jtmp = NULL;
     char* nczarr_version = NULL;
     char* zarr_format = NULL;
     NCZ_FILE_INFO_T* zinfo = NULL;
     NC_GRP_INFO_T* root = NULL;
-    NCZ_GRP_INFO_T* zroot = NULL;
-    char* fullpath = NULL;
 
     ZTRACE(3,"file=%s",file->controller->path);
 
@@ -1231,62 +1035,56 @@ ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
     assert(root != NULL);
 
     zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;    
-    zroot = (NCZ_GRP_INFO_T*)root->format_grp_info;    
 
-    /* Construct grp key */
-    if((stat = NCZ_grpkey(root,&fullpath))) goto done;
-
-    /* Download the root group .zgroup and associated .zattrs */
-    if((stat = downloadzarrobj(file, &zroot->zgroup, fullpath, ZGROUP))) goto done;
-    jzgroup = zroot->zgroup.obj;    
-
-    /* Look for superblock; first in .zattrs and then in .zgroup */
-    if((stat = getnczarrkey((NC_OBJ*)root,NCZ_V2_SUPERBLOCK,&jsuper))) goto done;
-
-    /* Set the format flags */
+    /* Look for superblock; first in jattrs and then in jgroup */
+    if((stat = getnczarrkey(file,(NC_OBJ*)root,jsonz,NCZ_SUPERBLOCK,&jsuper))) goto done;
 
     /* Set where _nczarr_xxx are stored */
-    if(jsuper != NULL && zroot->zgroup.nczv1) {
-	zinfo->flags |= FLAG_NCZARR_KEY;
+    if(jsuper != NULL && zinfo->flags & FLAG_NCZARR_KEY) {
 	/* Also means file is read only */
 	file->no_write = 1;
     }
     
     if(jsuper == NULL) {
+#if 0
 	/* See if this is looks like a NCZarr/Zarr dataset at all
            by looking for anything here of the form ".z*" */
         if((stat = ncz_validate(file))) goto done;
-	/* ok, assume pure zarr with no groups */
+#endif
+	/* ok, assume pure zarr */
 	zinfo->flags |= FLAG_PUREZARR;	
-	if(zarr_format == NULL) zarr_format = strdup("2");
+	if(zarr_format == NULL) {
+	    assert(zinfo->zarr.zarr_format > 0);
+	    zarr_format = (char*)calloc(1,4); /* overkill */
+	    snprintf(zarr_format,4,"%d",zinfo->zarr.zarr_format);
+	}
     }
 
     /* Look for _nczarr_group */
-    if((stat = getnczarrkey((NC_OBJ*)root,NCZ_V2_GROUP,&jnczgroup))) goto done;
+    if((stat = getnczarrkey(file,(NC_OBJ*)root,jsonz,NCZ_GROUP,&jnczgroup))) goto done;
 
     /* Look for _nczarr_attr*/
-    if((stat = getnczarrkey((NC_OBJ*)root,NCZ_V2_ATTR,&jnczattr))) goto done;
+    if((stat = getnczarrkey(file,(NC_OBJ*)root,jsonz,NCZ_ATTR,&jnczattr))) goto done;
 
     if(jsuper != NULL) {
+	const NCjson* jtmp = NULL;
 	if(jsuper->sort != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
-	if((stat = NCJdictget(jsuper,"version",&jtmp))<0) {stat = NC_EINVAL; goto done;}
+	if((stat = NCZ_dictgetalt(jsuper,"nczarr_version","version",&jtmp))<0) {stat = NC_EINVAL; goto done;}
 	nczarr_version = nulldup(NCJstring(jtmp));
     }
 
-    if(jzgroup != NULL) {
-        if(jzgroup->sort != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
+    if(jgroup != NULL) {
+	const NCjson* jtmp = NULL;
+        if(jgroup->sort != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
         /* In any case, extract the zarr format */
-        if((stat = NCJdictget(jzgroup,"zarr_format",&jtmp))<0) {stat = NC_EINVAL; goto done;}
+        if((stat = NCJdictget(jgroup,"zarr_format",&jtmp))<0) {stat = NC_EINVAL; goto done;}
 	if(zarr_format == NULL)
 	    zarr_format = nulldup(NCJstring(jtmp));
 	else if(strcmp(zarr_format,NCJstring(jtmp))!=0)
 	    {stat = NC_ENCZARR; goto done;}
     }
 
-    if(nczarrvp) {*nczarrvp = nczarr_version; nczarr_version = NULL;}
-    if(zarrfp) {*zarrfp = zarr_format; zarr_format = NULL;}
 done:
-    nullfree(fullpath);
     nullfree(zarr_format);
     nullfree(nczarr_version);
     return ZUNTRACE(THROW(stat));
@@ -1299,89 +1097,18 @@ static int
 parse_group_content_pure(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrps)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
 
     ZTRACE(3,"zinfo=%s grp=%s |varnames|=%u |subgrps|=%u",zinfo->common.file->controller->path,grp->hdr.name,(unsigned)nclistlength(varnames),(unsigned)nclistlength(subgrps));
 
     nclistclear(varnames);
-    if((stat = searchvars(zinfo,grp,varnames))) goto done;
+    if((stat = NCZF_searchvars(file,grp,varnames))) goto done;
     nclistclear(subgrps);
-    if((stat = searchsubgrps(zinfo,grp,subgrps))) goto done;
+    if((stat = NCZF_searchsubgrps(file,grp,subgrps))) goto done;
 
 done:
     return ZUNTRACE(THROW(stat));
 }
 
-
-static int
-searchvars(NCZ_FILE_INFO_T* zfile, NC_GRP_INFO_T* grp, NClist* varnames)
-{
-    size_t i;
-    int stat = NC_NOERR;
-    char* grpkey = NULL;
-    char* varkey = NULL;
-    char* zarray = NULL;
-    NClist* matches = nclistnew();
-
-    /* Compute the key for the grp */
-    if((stat = NCZ_grpkey(grp,&grpkey))) goto done;
-    /* Get the map and search group */
-    if((stat = nczmap_search(zfile->map,grpkey,matches))) goto done;
-    for(i=0;i<nclistlength(matches);i++) {
-	const char* name = nclistget(matches,i);
-	if(name[0] == NCZM_DOT) continue; /* zarr/nczarr specific */
-	/* See if name/.zarray exists */
-	if((stat = nczm_concat(grpkey,name,&varkey))) goto done;
-	if((stat = nczm_concat(varkey,ZARRAY,&zarray))) goto done;
-	if((stat = nczmap_exists(zfile->map,zarray)) == NC_NOERR)
-	    nclistpush(varnames,strdup(name));
-	stat = NC_NOERR;
-	nullfree(varkey); varkey = NULL;
-	nullfree(zarray); zarray = NULL;
-    }
-
-done:
-    nullfree(grpkey);
-    nullfree(varkey);
-    nullfree(zarray);
-    nclistfreeall(matches);
-    return stat;
-}
-
-static int
-searchsubgrps(NCZ_FILE_INFO_T* zfile, NC_GRP_INFO_T* grp, NClist* subgrpnames)
-{
-    size_t i;
-    int stat = NC_NOERR;
-    char* grpkey = NULL;
-    char* subkey = NULL;
-    char* zgroup = NULL;
-    NClist* matches = nclistnew();
-
-    /* Compute the key for the grp */
-    if((stat = NCZ_grpkey(grp,&grpkey))) goto done;
-    /* Get the map and search group */
-    if((stat = nczmap_search(zfile->map,grpkey,matches))) goto done;
-    for(i=0;i<nclistlength(matches);i++) {
-	const char* name = nclistget(matches,i);
-	if(name[0] == NCZM_DOT) continue; /* zarr/nczarr specific */
-	/* See if name/.zgroup exists */
-	if((stat = nczm_concat(grpkey,name,&subkey))) goto done;
-	if((stat = nczm_concat(subkey,ZGROUP,&zgroup))) goto done;
-	if((stat = nczmap_exists(zfile->map,zgroup)) == NC_NOERR)
-	    nclistpush(subgrpnames,strdup(name));
-	stat = NC_NOERR;
-	nullfree(subkey); subkey = NULL;
-	nullfree(zgroup); zgroup = NULL;
-    }
-
-done:
-    nullfree(grpkey);
-    nullfree(subkey);
-    nullfree(zgroup);
-    nclistfreeall(matches);
-    return stat;
-}
 
 /* Convert a list of integer strings to 64 bit dimension sizes (shapes) */
 static int
@@ -1390,7 +1117,7 @@ decodeints(const NCjson* jshape, size64_t* shapes)
     int stat = NC_NOERR;
     size_t i;
 
-    for(i=0;i<NCJlength(jshape);i++) {
+    for(i=0;i<NCJarraylength(jshape);i++) {
 	struct ZCVT zcvt;
 	nc_type typeid = NC_NAT;
 	NCjson* jv = NCJith(jshape,i);
@@ -1607,59 +1334,6 @@ ncz_insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson* javalu
 }
 
 /**************************************************/
-/* Compute the set of dim refs for this variable, taking purezarr and xarray into account */
-static int
-computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int purezarr, int xarray, int ndims, NClist* dimnames, size64_t* shapes, NC_DIM_INFO_T** dims)
-{
-    int stat = NC_NOERR;
-    size_t i;
-    int createdims = 0; /* 1 => we need to create the dims in root if they do not already exist */
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)(var->format_var_info);
-    NCjson* jatts = NULL;
-
-    ZTRACE(3,"file=%s var=%s purezarr=%d xarray=%d ndims=%d shape=%s",
-    	file->controller->path,var->hdr.name,purezarr,xarray,(int)ndims,nczprint_vector(ndims,shapes));
-    assert(zfile && zvar);
-
-    if(purezarr && xarray) {/* Read in the attributes to get xarray dimdef attribute; Note that it might not exist */
-	/* Note that if xarray && !purezarr, then xarray will be superceded by the nczarr dimensions key */
-        char zdimname[4096];
-	if(zvar->xarray == NULL) {
-	    assert(nclistlength(dimnames) == 0);
-	    if((stat = ncz_read_atts(file,(NC_OBJ*)var))) goto done;
-	}
-	if(zvar->xarray != NULL) {
-	    /* convert xarray to the dimnames */
-	    for(i=0;i<nclistlength(zvar->xarray);i++) {
-	        snprintf(zdimname,sizeof(zdimname),"/%s",(const char*)nclistget(zvar->xarray,i));
-	        nclistpush(dimnames,strdup(zdimname));
-	    }
-	}
-	createdims = 1; /* may need to create them */
-    }
-
-    /* If pure zarr and we have no dimref names, then fake it */
-    if(purezarr && nclistlength(dimnames) == 0) {
-	int i;
-	createdims = 1;
-        for(i=0;i<ndims;i++) {
-	    /* Compute the set of absolute paths to dimrefs */
-            char zdimname[4096];
-	    snprintf(zdimname,sizeof(zdimname),"/%s_%llu",NCDIMANON,shapes[i]);
-	    nclistpush(dimnames,strdup(zdimname));
-	}
-    }
-
-    /* Now, use dimnames to get the dims; create if necessary */
-    if((stat = parsedimrefs(file,dimnames,shapes,dims,createdims)))
-        goto done;
-
-done:
-    NCJreclaim(jatts);
-    return ZUNTRACE(THROW(stat));
-}
-
 /**
 Implement the JSON convention:
 Stringify it as the value and make the attribute be of type "char".
@@ -1715,7 +1389,7 @@ jtypes2atypes(NCjson* jtypes, NClist* atypes)
 {
     int stat = NC_NOERR;
     size_t i;
-    for(i=0;i<NCJlength(jtypes);i+=2) {
+    for(i=0;i<NCJarraylength(jtypes);i+=2) {
 	const NCjson* key = NCJith(jtypes,i);
 	const NCjson* value = NCJith(jtypes,i+1);
 	if(NCJsort(key) != NCJ_STRING) {stat = (THROW(NC_ENCZARR)); goto done;}
@@ -1728,11 +1402,12 @@ done:
 }
 #endif
 
+#if 0
 /* See if there is reason to believe the specified path is a legitimate (NC)Zarr file
  * Do a breadth first walk of the tree starting at file path.
  * @param file to validate
- * @return NC_NOERR if it looks ok
- * @return NC_ENOTNC if it does not look ok
+ * @return ::NC_NOERR if it looks ok
+ * @return ::NC_ENOTNC if it does not look ok
  */
 static int
 ncz_validate(NC_FILE_INFO_T* file)
@@ -1787,6 +1462,7 @@ done:
     ncbytesfree(prefix);
     return ZUNTRACE(THROW(stat));
 }
+#endif
 
 /**
 Insert _nczarr_attr into .zattrs
@@ -1799,15 +1475,16 @@ insert_nczarr_attr(NCjson* jatts, NCjson* jtypes)
 {
     NCjson* jdict = NULL;
     if(jatts != NULL && jtypes != NULL) {
-	NCJinsertstring(jtypes,NCZ_V2_ATTR,"|J0"); /* type for _nczarr_attr */
+	NCJinsertstring(jtypes,NCZ_ATTR,"|J0"); /* type for _nczarr_attr */
         NCJnew(NCJ_DICT,&jdict);
         NCJinsert(jdict,"types",jtypes);
-        NCJinsert(jatts,NCZ_V2_ATTR,jdict);
+        NCJinsert(jatts,NCZ_ATTR,jdict);
         jdict = NULL;
     }
     return NC_NOERR;
 }
 
+#if 0
 /**
 Upload a .zattrs object
 Optionally take control of jatts and jtypes
@@ -1856,6 +1533,7 @@ done:
     nullfree(fullpath);
     return ZUNTRACE(THROW(stat));
 }
+#endif /*0*/
 
 #if 0
 /**
@@ -1882,59 +1560,42 @@ done:
 }
 #endif
 
-/* Get one of two key values from a dict */
+/* Get _nczarr_xxx from either grp|var json or atts json */
 static int
-dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep)
+getnczarrkey(NC_FILE_INFO_T* file, NC_OBJ* container, struct ZJSON* json, const char* xxxname, const NCjson** jncxxxp, int* nczkeyp)
 {
     int stat = NC_NOERR;
-    const NCjson* jvalue = NULL;
-    if((stat = NCJdictget(jdict,name,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this first */
-    if(jvalue == NULL) {
-        if((stat = NCJdictget(jdict,alt,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this alternative*/
-    }
-    if(jvaluep) *jvaluep = jvalue;
-done:
-    return THROW(stat);
-}
-
-/* Get _nczarr_xxx from either .zXXX or .zattrs */
-static int
-getnczarrkey(NC_OBJ* container, const char* name, const NCjson** jncxxxp)
-{
-    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->file_format_info;
     const NCjson* jxxx = NULL;
     NC_GRP_INFO_T* grp = NULL;
     NC_VAR_INFO_T* var = NULL;
-    struct ZARROBJ* zobj = NULL;
 
     /* Decode container */
     if(container->sort == NCGRP) {
 	grp = (NC_GRP_INFO_T*)container;
-	zobj = &((NCZ_GRP_INFO_T*)grp->format_grp_info)->zgroup;
     } else {
 	var = (NC_VAR_INFO_T*)container;
-	zobj = &((NCZ_VAR_INFO_T*)var->format_var_info)->zarray;
     }
 
-    /* Try .zattrs first */
-    if(zobj->atts != NULL) {
+    /* Try jatts first */
+    if(json->jatts != NULL) {
 	jxxx = NULL;
-        if((stat = NCJdictget(zobj->atts,name,&jxxx))<0) {stat = NC_EINVAL; goto done;}
+        if((stat = NCJdictget(json->atts,name,&jxxx))<0) {stat = NC_EINVAL; goto done;}
     }
-    if(name == NULL) {
-        jxxx = NULL;
+    if(jxxx == NULL) {
         /* Try .zxxx second */
-	if(zobj->obj != NULL) {
-            if((stat = NCJdictget(zobj->obj,name,&jxxx))<0) {stat = NC_EINVAL; goto done;}
+	if(json->obj != NULL) {
+            if((stat = NCJdictget(json->obj,name,&jxxx))<0) {stat = NC_EINVAL; goto done;}
 	}
-	/* Mark as old style with _nczarr_xxx in obj not attributes */
-	zobj->nczv1 = 1;
+	/* Mark as old style with _nczarr_xxx in obj as keys not attributes */
+        zfile->flags |= FLAG_NCZARR_KEY;
     }
     if(jncxxxp) *jncxxxp = jxxx;
 done:
     return THROW(stat);
 }
 
+#if 0
 static int
 downloadzarrobj(NC_FILE_INFO_T* file, struct ZARROBJ* zobj, const char* fullpath, const char* objname)
 {
@@ -1956,3 +1617,4 @@ done:
     nullfree(key);
     return THROW(stat);
 }
+#endif /*0*/

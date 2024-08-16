@@ -298,7 +298,7 @@ NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap
 	/* Create a new entry */
 	if((entry = calloc(1,sizeof(NCZCacheEntry)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	memcpy(entry->indices,indices,rank*sizeof(size64_t));
+	memcpy(entry->indices,indices,(size_t)rank*sizeof(size64_t));
         /* Create the key for this cache */
         if((stat = NCZ_buildchunkpath(cache,indices,&entry->key))) goto done;
         entry->hashkey = hkey;
@@ -571,7 +571,7 @@ put_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
         if((stat = NC_reclaim_data_all(file->controller,tid,entry->data,cache->chunkcount))) goto done;
         entry->data = NULL;
         entry->data = strchunk; strchunk = NULL;
-        entry->size = cache->chunkcount * maxstrlen;
+        entry->size = (cache->chunkcount * (size64_t)maxstrlen);
         entry->isfixedstring = 1;
     }
 

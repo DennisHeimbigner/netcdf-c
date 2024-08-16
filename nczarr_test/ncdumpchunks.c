@@ -513,6 +513,7 @@ main(int argc, char** argv)
     int vtype, storage;
     int mode;
     int c;
+    int r;
 
     memset(&format,0,sizeof(format));
 

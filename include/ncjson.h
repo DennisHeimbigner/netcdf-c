@@ -119,7 +119,7 @@ OPTEXPORT int NCJinsert(NCjson* object, const char* key, NCjson* jvalue);
 OPTEXPORT int NCJinsertstring(NCjson* object, const char* key, const char* value);
 
 /* Insert key-value pair into a dict object. key and value will be copied */
-OPTEXPORT int NCJinsertint(NCjson* object, const char* key, int n);
+OPTEXPORT int NCJinsertint(NCjson* object, const char* key, long long n);
 
 /* Unparser to convert NCjson object to text in buffer */
 OPTEXPORT int NCJunparse(const NCjson* json, unsigned flags, char** textp);

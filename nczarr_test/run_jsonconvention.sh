@@ -23,7 +23,6 @@ deletemap $zext $file
 ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_jsonconvention.cdl
 ${NCDUMP} $fileurl > tmp_jsonconvention_${zext}.cdl
 ${ZMD} -h $fileurl > tmp_jsonconvention_${zext}.txt
-# | sed -e 's/,key1=value1|key2=value2//' -e '/"_NCProperties"/ s/(378)/(354)/'
 # Clean up extraneous changes so comparisons work
 # remove '\n' from ref file before comparing
 #sed -e 's|\\n||g' < ${srcdir}/ref_jsonconvention.cdl > tmp_jsonconvention_clean.cdl

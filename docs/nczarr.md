@@ -8,13 +8,15 @@ The NetCDF NCZarr Implementation
 
 # NCZarr Introduction {#nczarr_introduction}
 
-Beginning with netCDF version 4.8.0, the Unidata NetCDF group has extended the netcdf-c library to provide access to cloud storage (e.g. Amazon S3 <a href="#ref_aws">[1]</a> ).
+Beginning with netCDF version 4.8.0, the Unidata NetCDF group has extended the netcdf-c library to support data stored using the Zarr data model and storage format [4,6]. As part of this support, netCDF adds support for accessing data stored using cloud storage (e.g. Amazon S3 <a href="#ref_aws">[1]</a> ).
 
 The goal of this project is to provide maximum interoperability between the netCDF Enhanced (netcdf-4) data model and the Zarr version 2 <a href="#ref_zarr">[4]</a> or Version 3 <a href="#ref_zarrv3">[13]</a> data model. This is embodied in the netcdf-c library so that it is possible to use the netcdf API to read and write Zarr formatted datasets.
 
-In order to better support the netcdf-4 data model, the netcdf-c library implements a limited set of extensions to the Zarr data model. 
+In order to better support the netcdf-4 data model, the netcdf-c library implements a limited set of extensions to the *Zarr* data model. 
 This extended model is referred to as *NCZarr*.
-An important goal is that those extensions not interfere with reading of those extended datasets by other Zarr specification conforming implementations. This means that one can write a dataset using the NCZarr extensions and expect that dataset to be readable by other Zarr implementations.
+Additionally, another goal is to ensure interoperability between *NCZarr*
+formatted files and standard (aka pure) *Zarr* formatted files.
+This means that (1) an *NCZarr* file can be read by any other *Zarr* library (and especially the Zarr-python library), and (2) a standard *Zarr* file can be read by netCDF. Of course, there limitations in that other *Zarr* libraries will not use the extra, *NCZarr* meta-data, and netCDF will have to "fake" meta-data not provided by a pure *Zarr* file.
 
 As a secondary -- but equally important -- goal, it must be possible to use
 the NCZarr library to read and write datasets that are pure Zarr,
@@ -34,7 +36,7 @@ NCZarr uses a data model that, by design, extends the Zarr Version 2 Specificati
 __Note Carefully__: a legal _NCZarr_ dataset is expected to also be a legal _Zarr_ dataset.
 The inverse is true also. A legal _Zarr_ dataset is expected to also be a legal _NCZarr_ dataset, where "legal" means it conforms to the Zarr version 2 or 3 specification.
 In addition, certain non-Zarr features are allowed and used.
-Specifically the XArray ''\_ARRAY\_DIMENSIONS'' attribute is one such.
+Specifically the XArray [7] ''\_ARRAY\_DIMENSIONS'' attribute is one such.
 
 There are two other, secondary assumptions:
 
@@ -45,7 +47,7 @@ filters](./md_filters.html "filters") for details.
 Briefly, the data model supported by NCZarr is netcdf-4 minus
 the user-defined types. However, a restricted form of String type
 is supported (see Appendix D).
-As with netcdf-4 chunking is supported.  Filters and compression
+As with netcdf-4, chunking is supported.  Filters and compression
 are also [supported](./md_filters.html "filters").
 
 Specifically, the model supports the following.
@@ -195,7 +197,7 @@ there should not exist any other key with the same prefix, "/x/y/zarr.json/z" fo
 
 There several other concepts of note.
 1. __Dataset__ - a dataset is the complete tree contained by the key defining
-the root of the dataset.
+the root of the dataset. The term __File__ will often be used as a synonym.
 Technically, the root of the tree is the key \<dataset\>/.zgroup, where .zgroup can be considered the _superblock_ of the dataset.
 2. __Object__ - equivalent of the S3 object; Each object has a unique key
 and "contains" data in the form of an arbitrary sequence of 8-bit bytes.
@@ -314,17 +316,18 @@ Note that this is different from zlib (aka "deflate").
 
 ## Addressing Style
 
-The notion of "addressing style" may need some expansion.
-Amazon S3 accepts two forms for specifying the endpoint for accessing the data
-(see the document "quickstart_path).
+The notion of "addressing style" may need some expansion. Amazon S3 accepts two forms for specifying the endpoint for accessing the data (see the document "quickstart_path").
 
 1. Virtual -- the virtual addressing style places the bucket in the host part of a URL.
 For example:
+
 ```
 https://<bucketname>.s2.<region>.amazonaws.com/
 ```
+
 2. Path -- the path addressing style places the bucket in at the front of the path part of a URL.
 For example:
+
 ```
 https://s3.<region>.amazonaws.com/<bucketname>/
 ```
@@ -437,6 +440,8 @@ The following conditions will cause ''_ARRAY_DIMENSIONS'' to not be written.
 * The variable is not in the root group,
 * Any dimension referenced by the variable is not in the root group.
 * ''_ARRAY_DIMENSIONS'' assigns conflicting sizes to a dimension name.
+
+Note that this attribute is not needed for Zarr Version 3, and is ignored.
 
 Note that this attribute is not needed for Zarr Version 3, and is ignored.
 
@@ -555,6 +560,7 @@ Then the following options must be specified for cmake.
 -DAWSSDK_ROOT_DIR=${AWSSDK_ROOT_DIR}
 -DAWSSDK_DIR=${AWSSDK_ROOT_DIR}/lib/cmake/AWSSDK
 ````
+
 # Appendix B. Amazon S3 Imposed Limits {#nczarr_s3limits}
 
 The Amazon S3 cloud storage imposes some significant limits that are inherited by NCZarr (and Zarr also, for that matter).
@@ -610,12 +616,12 @@ There are mutiple cases to consider.
 3. The netcdf attribute **is** of type NC_CHAR and its value &ndash; taken as a single sequence of characters &ndash;
 **is** parseable as a legal JSON expression.
     * Parse to produce a JSON expression and write that expression.
-    * Use "|U1" as the dtype and store in the NCZarr metadata.
+    * Use "|J0" as the dtype and store in the NCZarr metadata.
 
 4. The netcdf attribute **is** of type NC_CHAR and its value &ndash; taken as a single sequence of characters &ndash;
 **is not** parseable as a legal JSON expression.
     * Convert to a JSON string and write that expression
-    * Use "|U1" as the dtype and store in the NCZarr metadata.
+    * Use ">S1" as the dtype and store in the NCZarr metadata.
 
 ## Reading an attribute:
 
