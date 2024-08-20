@@ -72,11 +72,9 @@ endif()
 add_library(netcdf)
 add_library(netCDF::netcdf ALIAS netcdf)
 
-
-
 # Version of the dispatch table. This must match the value in
 # configure.ac.
-set(NC_DISPATCH_VERSION 5)
+set(NC_DISPATCH_VERSION 6)
 
 # Get system configuration, Use it to determine osname, os release, cpu. These
 # will be used when committing to CDash.

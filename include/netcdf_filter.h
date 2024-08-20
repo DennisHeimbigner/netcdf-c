@@ -97,6 +97,8 @@ EXTERNL int nc_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t*
 /* See if filter is available */
 EXTERNL int nc_inq_filter_avail(int ncid, unsigned id);
 
+
+
 /**************************************************/
 /* Functions for accessing standardized filters */
 
@@ -109,6 +111,36 @@ EXTERNL int nc_inq_var_zstandard(int ncid, int varid, int* hasfilterp, int *leve
 
 EXTERNL int nc_def_var_blosc(int ncid, int varid, unsigned subcompressor, unsigned level, unsigned blocksize, unsigned addshuffle);
 EXTERNL int nc_inq_var_blosc(int ncid, int varid, int* hasfilterp, unsigned* subcompressorp, unsigned* levelp, unsigned* blocksizep, unsigned* addshufflep);
+
+/* Filter path query/set *.
+EXTERNL int nc_filter_path_query(int id);
+herr_t 	H5PLset_loading_state (unsigned int plugin_control_mask)
+ 	Controls the loadability of dynamic plugin types. More...
+ 
+herr_t 	H5PLget_loading_state (unsigned int *plugin_control_mask)
+ 	Queries the loadability of dynamic plugin types. More...
+ 
+herr_t 	H5PLappend (const char *search_path)
+ 	Inserts a plugin path at the end of the plugin search path list. More...
+ 
+herr_t 	H5PLprepend (const char *search_path)
+ 	Inserts a plugin path at the beginning of the plugin search path list. More...
+ 
+herr_t 	H5PLreplace (const char *search_path, unsigned int index)
+ 	Replaces the path at the specified index in the plugin search path list. More...
+ 
+herr_t 	H5PLinsert (const char *search_path, unsigned int index)
+ 	Inserts a path at the specified index in the plugin search path list. More...
+ 
+herr_t 	H5PLremove (unsigned int index)
+ 	Removes a plugin path at a specified index from the plugin search path list. More...
+ 
+ssize_t 	H5PLget (unsigned int index, char *path_buf, size_t buf_size)
+ 	Queries the plugin search path list at the specified index. More...
+ 
+herr_t 	H5PLsize (unsigned int *num_paths)
+ 	Retrieves the number of stored plugin paths. More...
+ 
 
 #if defined(__cplusplus)
 }

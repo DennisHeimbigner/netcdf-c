@@ -94,6 +94,7 @@ NC_NOOP_inq_var_filter_ids(int ncid, int varid, size_t* nfilters, unsigned int* 
 int
 NC_NOOP_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparams, unsigned int* params)
 {
+    NC_UNUSED(ncid);
     return NC_ENOFILTER;
 }
 
@@ -101,7 +102,48 @@ int
 NC_NOOP_inq_filter_avail(int ncid, unsigned id)
 {
     NC_UNUSED(ncid);
+    NC_UNUSED(id);
     return NC_ENOFILTER;
+}
+
+int
+NC_NOOP_plugin_path_list(int ncid, size_t* npaths, char** pathlist);
+{
+    NC_UNUSED(ncid);
+    if(npaths) *npaths = 0;
+    return NC_NOERR;
+}
+
+int
+NC_NOOP_plugin_path_append(int ncid, const char* path)
+{
+    NC_UNUSED(ncid);
+    NC_UNUSED(path);
+    return NC_NOERR;
+}
+
+int
+NC_NOOP_plugin_path_prepend(int ncid, const char* path)
+{
+    NC_UNUSED(ncid);
+    NC_UNUSED(path);
+    return NC_NOERR;
+}
+
+int
+NC_NOOP_plugin_path_remove(int ncid, const char* path)
+{
+    NC_UNUSED(ncid);
+    NC_UNUSED(path);
+    return NC_NOERR;
+}
+
+int
+NC_NOOP_plugin_path_initialize(int ncid, const char* paths)
+{
+    NC_UNUSED(ncid);
+    NC_UNUSED(paths);
+    return NC_NOERR;
 }
 
 /**

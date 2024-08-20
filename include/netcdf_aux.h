@@ -96,6 +96,14 @@ EXTERNL int ncaux_abort_compound(void* tag);
 EXTERNL int ncaux_add_field(void* tag,  const char *name, nc_type field_type,
 			   int ndims, const int* dimsizes);
 
+/**************************************************/
+/* Path-list Parser */
+
+/* Call twice: once for npaths, second to get the parsed path list.
+   Caller must free the contents of paths argument.
+*/
+EXTERNL int ncaux_parse_pathlist(const char* pathlist, size_t* npaths, char** paths);
+
 #if defined(__cplusplus)
 }
 #endif

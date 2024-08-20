@@ -2217,7 +2217,7 @@ AX_SET_META([NC_HAS_BZ2],[$have_bz2],[yes])
 # applications like PIO can determine whether they have an appropriate
 # dispatch table to submit. If this is changed, make sure the value in
 # CMakeLists.txt also changes to match.
-AC_SUBST([NC_DISPATCH_VERSION], [5])
+AC_SUBST([NC_DISPATCH_VERSION], [6])
 AC_DEFINE_UNQUOTED([NC_DISPATCH_VERSION], [${NC_DISPATCH_VERSION}], [Dispatch table version.])
 
 #####

@@ -107,6 +107,11 @@ static const NC_Dispatch NCZ_dispatcher = {
     NCZ_def_var_quantize,
     NCZ_inq_var_quantize,
     NCZ_inq_filter_avail,
+    NCZ_plugin_path_list,
+    NCZ_plugin_path_remove,
+    NCZ_plugin_path_append,
+    NCZ_plugin_path_prepend,
+    NCZ_plugin_path_initialize,
 };
 
 const NC_Dispatch* NCZ_dispatch_table = NULL; /* moved here from ddispatch.c */
@@ -198,6 +203,47 @@ NCZ_inq_filter_avail(int ncid, unsigned id)
     return REPORT(NC_ENOFILTER,"inq_filter_avail");
 }
 
+int
+NCZ_plugin_path_list(int ncid, size_t* npathsp, char** pathlist)
+{
+    NC_UNUSED(ncid);
+    NC_UNUSED(npathsp);
+    NC_UNUSED(pathlist);
+    if(npathsp) *npathsp = 0;
+    return REPORT(NC_EPLUGIN,"plugin_path_list");
+}
+
+int
+NCZ_plugin_path_remove(int ncid, const char *dir)
+{
+    NC_UNUSED(ncid);
+    NC_UNUSED(dir);
+    return REPORT(NC_EPLUGIN,"plugin_path_remove");
+}
+
+int
+NCZ_plugin_path_append(int ncid, const char *dir)
+{
+    NC_UNUSED(ncid);
+    NC_UNUSED(dir);
+    return REPORT(NC_EPLUGIN,"plugin_path_append");
+}
+
+int
+NCZ_plugin_path_prepend(int ncid, const char *dir)
+{
+    NC_UNUSED(ncid);
+    NC_UNUSED(dir);
+    return REPORT(NC_EPLUGIN,"plugin_path_prepend");
+}
+
+int
+NCZ_plugin_path_initialize(int ncid, const char *paths)
+{
+    NC_UNUSED(ncid);
+    NC_UNUSED(dir);
+    return REPORT(NC_EPLUGIN,"plugin_path_initialize");
+}
 
 #endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
 

@@ -1468,6 +1468,12 @@ NC_NOTNC4_def_var_quantize,
 NC_NOTNC4_inq_var_quantize,
 
 NC_NOOP_inq_filter_avail,
+
+NC_NOOP_plugin_path_list,
+NC_NOOP_plugin_path_remove,
+NC_NOOP_plugin_path_append,
+NC_NOOP_plugin_path_prepend,
+NC_NOOP_plugin_path_initialize,
 };
 
 const NC_Dispatch *NCP_dispatch_table = NULL; /* moved here from ddispatch.c */
