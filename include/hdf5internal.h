@@ -185,6 +185,16 @@ int NC4_hdf5_inq_var_filter_ids(int ncid, int varid, size_t* nfiltersp, unsigned
 int NC4_hdf5_inq_var_filter_info(int ncid, int varid, unsigned int filterid, size_t* nparamsp, unsigned int *params);
 int NC4_hdf5_inq_filter_avail(int ncid, unsigned id);
 
+/* plugin Dispatch Entries */
+int NC4_hdf5_plugin_path_list(int ncid, size_t* npaths, char** pathlist);
+int NC4_hdf5_plugin_path_remove(int ncid, const char *dir);
+int NC4_hdf5_plugin_path_append(int ncid, const char *dir);
+int NC4_hdf5_plugin_path_prepend(int ncid, const char *dir);
+int NC4_hdf5_plugin_path_load(int ncid, const char *paths);
+
+int NC4_hdf5_plugin_path_initialize(void);
+int NC4_hdf5_plugin_path_finalize(void);
+
 /* Filterlist management */
 
 /* The NC_VAR_INFO_T->filters field is an NClist of this struct */
@@ -203,6 +213,9 @@ int NC4_hdf5_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, struct NC_HDF5_F
 int NC4_hdf5_addfilter(NC_VAR_INFO_T* var, unsigned int id, size_t nparams, const unsigned int* params, int flags);
 int NC4_hdf5_filter_freelist(NC_VAR_INFO_T* var);
 int NC4_hdf5_find_missing_filter(NC_VAR_INFO_T* var, unsigned int* idp);
+
+int NC4_hdf5_plugin_path_initialize(void);
+int NC4_hdf5_plugin_path_finalize(void);
 
 /* Add an attribute to the attribute list. */
 int nc4_put_att(NC_GRP_INFO_T* grp, int varid, const char *name, nc_type file_type,

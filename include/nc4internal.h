@@ -469,6 +469,7 @@ typedef struct NCglobalstate {
     struct GlobalZarr { /* Zarr specific parameters */
 	char dimension_separator;
 	int default_zarrformat;
+	NClist* pluginpaths;
     } zarr;
     struct GlobalAWS { /* AWS S3 specific parameters/defaults */
 	char* default_region;

@@ -12,8 +12,8 @@
 #ifndef NETCDF_FILTER_H
 #define NETCDF_FILTER_H 1
 
-/* API for libdispatch/dfilter.c
-*/
+/**************************************************/
+/* API for libdispatch/dfilter.c */
 
 /* Must match values in <H5Zpublic.h> */
 #ifndef H5Z_FILTER_DEFLATE
@@ -97,8 +97,6 @@ EXTERNL int nc_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t*
 /* See if filter is available */
 EXTERNL int nc_inq_filter_avail(int ncid, unsigned id);
 
-
-
 /**************************************************/
 /* Functions for accessing standardized filters */
 
@@ -112,39 +110,35 @@ EXTERNL int nc_inq_var_zstandard(int ncid, int varid, int* hasfilterp, int *leve
 EXTERNL int nc_def_var_blosc(int ncid, int varid, unsigned subcompressor, unsigned level, unsigned blocksize, unsigned addshuffle);
 EXTERNL int nc_inq_var_blosc(int ncid, int varid, int* hasfilterp, unsigned* subcompressorp, unsigned* levelp, unsigned* blocksizep, unsigned* addshufflep);
 
-/* Filter path query/set *.
+/* Filter path query/set */
 EXTERNL int nc_filter_path_query(int id);
-herr_t 	H5PLset_loading_state (unsigned int plugin_control_mask)
- 	Controls the loadability of dynamic plugin types. More...
- 
-herr_t 	H5PLget_loading_state (unsigned int *plugin_control_mask)
- 	Queries the loadability of dynamic plugin types. More...
- 
-herr_t 	H5PLappend (const char *search_path)
- 	Inserts a plugin path at the end of the plugin search path list. More...
- 
-herr_t 	H5PLprepend (const char *search_path)
- 	Inserts a plugin path at the beginning of the plugin search path list. More...
- 
-herr_t 	H5PLreplace (const char *search_path, unsigned int index)
- 	Replaces the path at the specified index in the plugin search path list. More...
- 
-herr_t 	H5PLinsert (const char *search_path, unsigned int index)
- 	Inserts a path at the specified index in the plugin search path list. More...
- 
-herr_t 	H5PLremove (unsigned int index)
- 	Removes a plugin path at a specified index from the plugin search path list. More...
- 
-ssize_t 	H5PLget (unsigned int index, char *path_buf, size_t buf_size)
- 	Queries the plugin search path list at the specified index. More...
- 
-herr_t 	H5PLsize (unsigned int *num_paths)
- 	Retrieves the number of stored plugin paths. More...
- 
 
 #if defined(__cplusplus)
 }
 #endif
 /**************************************************/
+/* API for libdispatch/dplugin.c */
 
+/* Plugin path functions */
+
+/* Return a vector of plugin dirs representing the current internal path list */
+EXTERNL int nc_plugin_path_list(int ncid, size_t* npaths, char** pathlist);
+
+/* Insert a plugin dir at the end of the current internal path list */
+EXTERNL int nc_plugin_path_append(int ncid, const char* path);
+
+/* Insert a plugin dir at the beginning of the current internal path list */
+EXTERNL int nc_plugin_path_prepend(int ncid, const char* path);
+
+/* Remove all occurrences of plugin dir from the current internal path list */
+EXTERNL int nc_plugin_path_remove(int ncid, const char* dir);
+
+/* Remove all entries in the current internal path list and then
+   replace with the set of directories specified in the paths
+*/
+EXTERNL int nc_plugin_path_load(int ncid, const char* paths);
+
+EXTERNL int nc_parse_plugin_pathlist(const char* path0, size_t* ndirsp, char** dirlistp);
+
+/**************************************************/
 #endif /* NETCDF_FILTER_H */

@@ -10,6 +10,7 @@
  */
 
 #include "zincludes.h"
+#include "zplugins.h"
 
 /* Forward */
 static int NCZ_var_par_access(int ncid, int varid, int par_access);
@@ -111,7 +112,7 @@ static const NC_Dispatch NCZ_dispatcher = {
     NCZ_plugin_path_remove,
     NCZ_plugin_path_append,
     NCZ_plugin_path_prepend,
-    NCZ_plugin_path_initialize,
+    NCZ_plugin_path_load,
 };
 
 const NC_Dispatch* NCZ_dispatch_table = NULL; /* moved here from ddispatch.c */
@@ -238,11 +239,11 @@ NCZ_plugin_path_prepend(int ncid, const char *dir)
 }
 
 int
-NCZ_plugin_path_initialize(int ncid, const char *paths)
+NCZ_plugin_path_load(int ncid, const char *paths)
 {
     NC_UNUSED(ncid);
     NC_UNUSED(dir);
-    return REPORT(NC_EPLUGIN,"plugin_path_initialize");
+    return REPORT(NC_EPLUGIN,"plugin_path_load");
 }
 
 #endif /*NETCDF_ENABLE_NCZARR_FILTERS*/

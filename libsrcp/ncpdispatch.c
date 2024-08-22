@@ -1473,7 +1473,7 @@ NC_NOOP_plugin_path_list,
 NC_NOOP_plugin_path_remove,
 NC_NOOP_plugin_path_append,
 NC_NOOP_plugin_path_prepend,
-NC_NOOP_plugin_path_initialize,
+NC_NOOP_plugin_path_load,
 };
 
 const NC_Dispatch *NCP_dispatch_table = NULL; /* moved here from ddispatch.c */

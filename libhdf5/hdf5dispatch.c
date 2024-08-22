@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "hdf5internal.h"
+#include "hdf5dispatch.h"
 
 #ifdef NETCDF_ENABLE_BYTERANGE
 #include "H5FDhttp.h"
@@ -115,7 +116,7 @@ static const NC_Dispatch HDF5_dispatcher = {
     NC4_hdf5_plugin_path_remove,
     NC4_hdf5_plugin_path_append,
     NC4_hdf5_plugin_path_prepend,
-    NC4_hdf5_plugin_path_initialize,
+    NC4_hdf5_plugin_path_load,
 };
 
 const NC_Dispatch* HDF5_dispatch_table = NULL; /* moved here from ddispatch.c */

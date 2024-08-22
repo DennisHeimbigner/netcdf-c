@@ -117,7 +117,7 @@ static const NC_Dispatch HDF4_dispatcher = {
     NC_NOOP_plugin_path_remove,
     NC_NOOP_plugin_path_append,
     NC_NOOP_plugin_path_prepend,
-    NC_NOOP_plugin_path_initialize,
+    NC_NOOP_plugin_path_load,
 };
 
 const NC_Dispatch *HDF4_dispatch_table = NULL;

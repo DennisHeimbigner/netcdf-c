@@ -456,12 +456,14 @@ NC4_hdf5_find_missing_filter(NC_VAR_INFO_T* var, unsigned int* idp)
 int
 NC4_hdf5_filter_initialize(void)
 {
+    NC4_hdf5_plugin_path_initialize();
     return NC_NOERR;
 }
 
 int
 NC4_hdf5_filter_finalize(void)
 {
+    NC4_hdf5_plugin_path_finalize();
     return NC_NOERR;
 }
 

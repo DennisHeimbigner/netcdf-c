@@ -201,10 +201,10 @@ extern "C" {
     EXTERNL int NC_NOOP_inq_filter_avail(int ncid, unsigned id);
 
     EXTERNL char* NC_NOOP_plugin_path(int ncid); /* Caller must free return value*/
-    EXTERNL int NC_NOOP_plugin_path_append)(int ncid, const char *dir);
-    EXTERNL int NC_NOOP_plugin_path_prepend)(int ncid, const char *dir);
-    EXTERNL int NC_NOOP_plugin_path_remove)(int ncid, const char *dir);
-    EXTERNL int NC_NOOP_plugin_path_initialize)(int ncid, const char *paths);
+    EXTERNL int NC_NOOP_plugin_path_append(int ncid, const char *dir);
+    EXTERNL int NC_NOOP_plugin_path_prepend(int ncid, const char *dir);
+    EXTERNL int NC_NOOP_plugin_path_remove(int ncid, const char *dir);
+    EXTERNL int NC_NOOP_plugin_path_initialize(int ncid, const char *paths);
 
     EXTERNL int NC_NOTNC4_def_grp(int, const char *, int *);
     EXTERNL int NC_NOTNC4_rename_grp(int, const char *);

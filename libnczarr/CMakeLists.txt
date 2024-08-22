@@ -19,7 +19,6 @@ zcvt.c
 zdim.c
 zdispatch.c
 zfile.c
-zfilter.c
 zgrp.c
 zinternal.c
 zmap.c
@@ -42,9 +41,13 @@ zinternal.h
 zmap.h
 zodom.h
 zprovenance.h
+zplugins.h
 zfilter.h
 zdebug.h
 )
+
+if(NETCDF_ENABLE_NCZARR_FILTERS)
+set(libnczarr_la_SOURCES ${libnczarr_la_SOURCES} zfilter.c zplugins.c)
 
 if(NETCDF_ENABLE_NCZARR_ZIP)
     set(libnczarr_SOURCES ${libnczarr_SOURCES} zmap_zip.c)

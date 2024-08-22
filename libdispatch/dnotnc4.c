@@ -107,7 +107,7 @@ NC_NOOP_inq_filter_avail(int ncid, unsigned id)
 }
 
 int
-NC_NOOP_plugin_path_list(int ncid, size_t* npaths, char** pathlist);
+NC_NOOP_plugin_path_list(int ncid, size_t* npaths, char** pathlist)
 {
     NC_UNUSED(ncid);
     if(npaths) *npaths = 0;
@@ -139,7 +139,7 @@ NC_NOOP_plugin_path_remove(int ncid, const char* path)
 }
 
 int
-NC_NOOP_plugin_path_initialize(int ncid, const char* paths)
+NC_NOOP_plugin_path_load(int ncid, const char* paths)
 {
     NC_UNUSED(ncid);
     NC_UNUSED(paths);

@@ -175,6 +175,8 @@ NC_createglobalstate(void)
             {stat = NC_ENOMEM; goto done;}
     if((nc_globalstate->rcinfo->s3profiles = nclistnew())==NULL)
             {stat = NC_ENOMEM; goto done;}
+    if((nc_globalstate->zarr.pluginpaths = nclistnew())==NULL)
+            {stat = NC_ENOMEM; goto done;}
 
     /* Get environment variables */
     if(getenv(NCRCENVIGNORE) != NULL)
@@ -216,6 +218,7 @@ NC_freeglobalstate(void)
 	    NC_rcclear(nc_globalstate->rcinfo);
 	    free(nc_globalstate->rcinfo);
 	}
+	nclistfree(nc_globalstate->zarr.pluginpaths);
 	free(nc_globalstate);
 	nc_globalstate = NULL;
     }

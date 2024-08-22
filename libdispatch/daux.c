@@ -961,39 +961,13 @@ ncaux_dump_data(int ncid, int xtype, void* memory, size_t count, char** bufp)
    Caller must free the contents of paths argument.
 */
 EXTERNL int
-ncaux_parse_pathlist(const char* pathlist0, size_t* npathsp, char** paths)
+ncaux_parse_pathlist(const char* pathlist0, size_t* npathsp, char** pathsp)
 {
     int stat = NC_NOERR;
-    size_t npaths = 0;
-    char* pathlist = NULL;
-    char* p = NULL;
-    size_t i;
 
     if(pathlist0 == NULL) goto done;
-    pathlist = strdup(pathlist0);
-
-    /* count and nul terminate the dirs in path;
-    npaths = 0;
-    for(p=pathlist;*p;p++) {
-	switch (*p) {
-	case ';': *p = '\0'; npaths++; break;
-#ifndef _WIN32
-	case ':': *p = '\0'; npaths++; break;
-#endif
-	default: break;
-	}
-	npaths++; /* to account for the last directory in path */
-    }
-
-    if(npaths > 0 && pathlist != NULL) {
-	/* Now transfer the directories */
-	for(i=0,p=pathlist;i<npaths;i++) {
-	    pathlist[i] = strdup(p);
-	    p += (strlen(p)+1); /* +1 for nul terminator */
-	}
-    }
+    if((stat=nc_parse_plugin_pathlist(pathlist0,npathsp,pathsp))) goto done;
 
 done:
-    if(npathsp) *npathsp = npaths;
     return stat;
 }
