@@ -316,9 +316,14 @@ typedef struct NCZ_DimInfo {
 
 /* Parsed Attribute info */
 struct NCZ_AttrInfo {
-    char* name;
+    const char* name;
+    const NCjson* jdata;
+    NCjson* jtypes;
     nc_type nctype;
-    NCjson* values;
+    size_t typelen;
+    nc_type typehint;
+    size_t datalen;
+    void* data;
 };
 
 
@@ -359,8 +364,6 @@ int NCZ_zclose_var1(NC_VAR_INFO_T* var);
 /* zattr.c */
 int ncz_getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist);
 int ncz_create_fillvalue(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
-int NCZ_computeattrinfo(const char* name, nc_type atype, nc_type typehint, int purezarr, const NCjson* values, nc_type* typeidp, size_t* typelenp, size_t* lenp, void** datap);
-int NCZ_computeattrdata(nc_type* typeidp, const NCjson* values, size_t* typelenp, size_t* countp, void** datap);
 int NCZ_read_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson* jatypes);
 int NCZ_attr_convert(const NCjson* src, nc_type typeid, size_t typelen, size_t* countp, NCbytes* dst);
 int ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name, nc_type typeid, size_t len, void* values, NC_ATT_INFO_T** attp);

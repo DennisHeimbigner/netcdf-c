@@ -17,7 +17,7 @@
 
 /* Forward */
 static int charify(const NCjson* src, NCbytes* buf);
-static int NCZ_json_convention_read(const NCjson* json, NCjson** jtextp);
+static int json_convention_read(const NCjson* json, NCjson** jtextp);
 
 /**
  * @internal Get the attribute list for either a varid or NC_GLOBAL
@@ -907,54 +907,44 @@ This is essentially Version 2|3 agnostic because the
 data part of an attribute is the same for both versions.
 */
 int
-NCZ_computeattrdata(nc_type* typeidp, const NCjson* values, size_t* typelenp, size_t* countp, void** datap)
+NCZ_computeattrdata(struct NCZ_AttrInfo* ainfo)
 {
     int stat = NC_NOERR;
     NCbytes* buf = ncbytesnew();
-    nc_type typeid = NC_NAT;
-    size_t typelen;
     NCjson* jtext = NULL;
-    int isjson = 0; /* 1 => json valued attribute */
-    size_t count = 0; /* no. of attribute values */
+    int isjson = 0; /* 1 => attribute value is neither scalar nor array of scalars */
+    int reclaimvalues = 0;
+    const NCjson* jdata = ainfo->jdata;
 
-    ZTRACE(3,"typehint=%d typeid=%d values=|%s|",typehint,*typeidp,NCJtotext(values));
+    ZTRACE(3,"typehint=%d typeid=%d values=|%s|",ainfo->typehint,ainfo->nctype,NCJtotext(ainfo->jdata));
 
-    typeid = *typeidp; /* initial assumption */
+    /* See if this is a simple vector (or scalar) of atomic types vs more complex json */
+    isjson = NCZ_iscomplexjson(jdata,ainfo->nctype);
 
-    if(typeid == NC_JSON)
-        typelen = 1; /* treat like char */
-    else
-        {if((stat = NC4_inq_atomic_type(typeid, NULL, &typelen))) goto done;}
-
-    /* Handle special types */
-    if(typeid == NC_JSON) {
-	/* Apply the JSON attribute convention and convert to JSON string */
-	typeid = NC_CHAR;
-	if((stat = NCZ_json_convention_read(values,&jtext))) goto done;
-        /* Convert the JSON attribute values to the actual netcdf attribute bytes */
-        if((stat = NCZ_attr_convert(jtext,typeid,typelen,&count,buf))) goto done;
-    } else if(typeid == NC_NAT) {
-        /* If we don't know, then infer the type */
-        if(typeid == NC_NAT && !isjson) {
-	    if((stat = NCZ_inferattrtype(values,NC_NAT,&typeid))) goto done;
-	}
-        /* Convert the JSON attribute values to the actual netcdf attribute bytes */
-        if((stat = NCZ_attr_convert(values,typeid,typelen,&count,buf))) goto done;
-    } else { /* numeric types + NC_CHAR + NC_STRING */
-        /* Convert the JSON attribute values to the actual netcdf attribute bytes */
-        if((stat = NCZ_attr_convert(values,typeid,typelen,&count,buf))) goto done;
+    /* Get assumed type */
+    if(ainfo->nctype == NC_NAT && !isjson) {
+        if((stat = NCZ_inferattrtype(jdata,ainfo->typehint, &ainfo->nctype))) goto done;
     }
-    assert(typeid != NC_NAT && typeid != NC_JSON); 
 
-    if(typelenp) *typelenp = typelen;
-    if(typeidp) *typeidp = typeid; /* return possibly inferred type */
-    if(countp) *countp = count;
-    if(datap) *datap = ncbytesextract(buf);
+    if(isjson) {
+	/* Apply the JSON attribute convention and convert to JSON string */
+	ainfo->nctype = NC_CHAR;
+	if((stat = json_convention_read(jdata,&jtext))) goto done;
+	jdata = jtext; jtext = NULL;
+	reclaimvalues = 1;
+    } 
+
+    if((stat = NC4_inq_atomic_type(ainfo->nctype, NULL, &ainfo->typelen))) goto done;
+
+    /* Convert the JSON attribute values to the actual netcdf attribute bytes */
+    if((stat = NCZ_attr_convert(jdata,ainfo->nctype,ainfo->typelen,&ainfo->datalen,buf))) goto done;
+    assert(ainfo->data == NULL);
+    ainfo->data = ncbytesextract(buf);
 
 done:
     ncbytesfree(buf);
-    NCJreclaim(jtext); /* we created it */
-    return ZUNTRACEX(THROW(stat),"typelen=%d count=%u",(typelenp?*typelenp:0),(countp?*countp:-1));
+    if(reclaimvalues) {NCJreclaim((NCjson*)jdata); jdata = NULL; /* we created it */}
+    return ZUNTRACEX(THROW(stat),"typelen=%d count=%u",(ainfo->nctype?ainfo->nctype:0),(ainfo->datalen?ainfo->datalen:-1));
 }
 
 /* Convert a json value to actual data values of an attribute.
@@ -1025,7 +1015,9 @@ charify(const NCjson* src, NCbytes* buf)
 {
     int stat = NC_NOERR;
     size_t i;
-    struct NCJconst jstr = NCJconst_empty;
+    struct NCJconst jstr;
+
+    memset(&jstr,0,sizeof(jstr));
 
     if(NCJsort(src) != NCJ_ARRAY) { /* singleton */
 	NCJcvt(src, NCJ_STRING, &jstr);
@@ -1046,7 +1038,7 @@ Implement the JSON convention:
 Stringify it as the value and make the attribute be of type "char".
 */
 static int
-NCZ_json_convention_read(const NCjson* json, NCjson** jtextp)
+json_convention_read(const NCjson* json, NCjson** jtextp)
 {
     int stat = NC_NOERR;
     NCjson* jtext = NULL;

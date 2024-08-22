@@ -49,6 +49,7 @@ See LICENSE.txt for license information.
 
 /* Forward */
 static int extendplist(NCproplist* plist, size_t nprops);
+static int ncplistinit(NCproplist* plist);
 
 /**
  * Create new property list
@@ -59,10 +60,8 @@ ncplistnew(void)
 {
    NCproplist* plist = NULL;
    plist = calloc(1,sizeof(NCproplist));
-   /* Assume property list will hold at lease MINPROPS properties */
-   plist->alloc = MINPROPS;
-   plist->count = 0;
-   plist->properties = (NCProperty*)calloc(MINPROPS,sizeof(NCProperty));
+   if(ncplistinit(plist) != NC_NOERR)
+       {ncplistfree(plist); plist = NULL;}
    return plist;
 }
 
@@ -205,6 +204,34 @@ done:
     return stat;
 }
 
+OPTSTATIC int
+ncplistclone(const NCproplist* src, NCproplist* clone)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    NCProperty* srcprops;
+    NCProperty* cloneprops;
+
+    if(src == NULL || clone == NULL) {stat = NC_EINVAL; goto done;}
+    if((stat=ncplistinit(clone))) goto done;
+    if((stat=extendplist(clone,src->count))) goto done;
+    srcprops = src->properties;
+    cloneprops = clone->properties;
+    for(i=0;i<src->count;i++) {
+	cloneprops[i] = srcprops[i];
+	strncpy(cloneprops[i].key,srcprops[i].key,sizeof(cloneprops[i].key));
+#if 0
+	cloneprops[i]->flags = srcprops[i]->flags;
+	cloneprops[i]->value = srcprops[i]->value;
+	cloneprops[i]->size = srcprops[i]->size;
+	cloneprops[i]->userdata = srcprops[i]->userdata;
+	cloneprops[i]->reclaim = srcprops->reclaim;
+#endif
+    }
+done:
+    return stat;
+}
+
 /* Increase size of a plist to be at lease nprops properties */
 static int
 extendplist(NCproplist* plist, size_t nprops)
@@ -221,8 +248,6 @@ extendplist(NCproplist* plist, size_t nprops)
 done:
     return stat;
 }
-
-#endif /*NETCDF_PROPLIST_H*/
 
 /**
  * Lookup key and return value and size
@@ -281,6 +306,8 @@ done:
     return stat;
 }
 
+#endif /*NETCDF_PROPLIST_H*/
+
 /**************************************************/
 /* Support Functions */
 
@@ -294,3 +321,17 @@ ncp_supresswarnings(void)
     ignore = (void*)ncplistith;
     ignore = ignore;
 }
+
+/**
+ * Initialize a new property list 
+ */
+static int
+ncplistinit(NCproplist* plist)
+{
+   /* Assume property list will hold at lease MINPROPS properties */
+   plist->alloc = MINPROPS;
+   plist->count = 0;
+   plist->properties = (NCProperty*)calloc(MINPROPS,sizeof(NCProperty));
+   return (plist->properties?NC_NOERR:NC_ENOMEM);
+}
+

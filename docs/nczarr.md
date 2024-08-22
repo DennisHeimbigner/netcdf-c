@@ -436,12 +436,10 @@ The xarray ''_ARRAY_DIMENSIONS'' attribute is supported for both NCZarr and pure
 If possible, this attribute will be read/written by default,
 but can be suppressed if the mode value "noxarray" is specified.
 If detected, then these dimension names are used to define shared dimensions.
-The following conditions will cause ''_ARRAY_DIMENSIONS'' to not be written.
+Any of the following conditions will cause ''_ARRAY_DIMENSIONS'' not to be written.
 * The variable is not in the root group,
 * Any dimension referenced by the variable is not in the root group.
 * ''_ARRAY_DIMENSIONS'' assigns conflicting sizes to a dimension name.
-
-Note that this attribute is not needed for Zarr Version 3, and is ignored.
 
 Note that this attribute is not needed for Zarr Version 3, and is ignored.
 

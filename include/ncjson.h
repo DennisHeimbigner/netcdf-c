@@ -71,7 +71,6 @@ typedef struct NCjson {
    don't use union so we can know when to reclaim sval
 */
 struct NCJconst {int bval; long long ival; double dval; char* sval;};
-#define NCJconst_empty {0,0,0.0,NULL}
 
 /**************************************************/
 /* Extended API */
@@ -164,7 +163,7 @@ OPTEXPORT void NCJdictsort(NCjson* jdict);
 
 /**************************************************/
 /* Error detection helper */
-#define NCJcheck(expr) do{if((expr) < 0) abort();}while(0)
+#define NCJcheck(expr) do{if((expr) < 0) {stat = NC_EINVAL; goto done;}}while(0)
 /**************************************************/
 
 #endif /*!NCJSON_H!*/ /* Leave the ! as a tag for sed */

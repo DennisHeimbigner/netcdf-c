@@ -97,11 +97,16 @@ extern "C" {
 OPTEXPORT NCproplist* ncplistnew(void);
 OPTEXPORT int ncplistfree(NCproplist*);
 
+/* Locate a proplist entry */
+OPTEXPORT int ncplistadd(NCproplist* plist,const char* key, uintptr_t value); /* use when reclaim not needed */
+
 /* Insert properties */
 OPTEXPORT int ncplistadd(NCproplist* plist,const char* key, uintptr_t value); /* use when reclaim not needed */
 OPTEXPORT int ncplistaddstring(NCproplist* plist, const char* key, const char* str); /* use when value is simple string (char*) */
 OPTEXPORT int ncplistaddbytes(NCproplist* plist, const char* key, void* value, uintptr_t size); /* use when value is simple ptr and reclaim is simple free function */
 OPTEXPORT int ncplistaddx(NCproplist* plist, const char* key, void* value, uintptr_t size, uintptr_t userdata, NCPreclaimfcn); /* fully extended case */
+
+OPTEXPORT int ncplistclone(const NCproplist* src, NCproplist* clone);
 
 #endif /*NETCDF_PROPLIST_H*/
 

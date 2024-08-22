@@ -103,9 +103,6 @@ zclose_group(NC_GRP_INFO_T *grp)
 
     /* Close the zarr.json. */
     zgrp = grp->format_grp_info;
-    nullfree(zgrp->zgroup.prefix);
-    NCJreclaim(zgrp->zgroup.obj);
-    NCJreclaim(zgrp->zgroup.atts);
     nullfree(zgrp);
     grp->format_grp_info = NULL; /* avoid memory errors */
 
@@ -179,13 +176,7 @@ NCZ_zclose_var1(NC_VAR_INFO_T* var)
     /* reclaim xarray */
     if(zvar->dimension_names) nclistfreeall(zvar->dimension_names);
 
-    /* Reclaim misc. fields */
-    NCJreclaim(zvar->jarray);
-    
     /* Reclaim the zvar object */
-    nullfree(zvar->zarray.prefix);
-    NCJreclaim(zvar->zarray.obj);
-    NCJreclaim(zvar->zarray.atts);
     nullfree(zvar);
     var->format_var_info = NULL; /* avoid memory errors */
     return stat;

@@ -132,4 +132,5 @@ int NCZ_filter_free(NCZ_Filter* spec);
 int NCZ_filter_hdf5_clear(NCZ_HDF5* spec);
 int NCZ_filter_codec_clear(NCZ_Codec* spec);
 
+int NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter);
 #endif /*ZFILTER_H*/

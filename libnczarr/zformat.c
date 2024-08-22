@@ -257,12 +257,12 @@ NCZF_encode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* at
 }
 
 int
-NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz)
+NCZF_encode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jatts, const NCjson* jncvar, NCjson** jvarp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_var_json(file, var, jsonz);
+    stat = zfile->dispatcher->encode_var_json(file, var, jatts, jncvar, jvarp);
     return THROW(stat);
 }
 
@@ -312,12 +312,12 @@ NCZF_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jgroup, NCjs
 }
 
 int
-NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const struct ZJson* jsonz, NCjson** jdimsp, NCjson* jvars, NCjson* jsubgrps,  NCjson** jnczgrpp)
+NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const struct ZJSON* jsonz, NClist* dims, NClist* jvars, NClist* jsubgrps)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_nczarr_group(file, grp, jsonz, jdimsp, jvars, jsubgrps,  jnczgrpp);
+    stat = zfile->dispatcher->decode_nczarr_group(file, grp, jsonz, dims, jvars, jsubgrps);
     return THROW(stat);
 }
 
@@ -332,16 +332,6 @@ NCZF_decode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson* jsuper
 }
 
 int
-NCZF_decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_grp_dims(file, grp, jdims);
-    return THROW(stat);
-}
-
-int
 NCZF_decode_grp_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname, NC_VAR_INFO_T** jvarp)
 {
     int stat = NC_NOERR;
@@ -352,17 +342,8 @@ NCZF_decode_grp_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varnam
 }
 
 int
-NCZF_decode_grp_subgroup(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* subgrpname, NC_GRP_INFO_T** subgrpp)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_grp_subgroup(file, parent, subgrpname, subgrpp);
-    return THROW(stat);
-}
 
-int
-NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson** jtypesp)
+NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, NCjson** jtypesp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -372,12 +353,12 @@ NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjso
 }
 
 int
-NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp)
+NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_var_json(file, var, jvarp);
+    stat = zfile->dispatcher->decode_var_json(file, var, jsonz);
     return THROW(stat);
 }
 
@@ -388,26 +369,6 @@ NCZF_decode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jncz
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
     stat = zfile->dispatcher->decode_nczarr_array(file, var, jnczarrayp);
-    return THROW(stat);
-}
-
-int
-NCZF_create_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* gname, NC_GRP_INFO_T** grpp)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    assert(zfile != NULL);
-    stat = zfile->dispatcher->create_grp(file, parent, grpname, grpp);
-    return THROW(stat);
-}
-
-int
-NCZF_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NC_VAR_INFO_T** varp)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    assert(zfile != NULL);
-    stat = zfile->dispatcher->create_var(file, var, varp);
     return THROW(stat);
 }
 
@@ -432,27 +393,14 @@ NCZF_download_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* j
 }
 
 /**************************************************/
-/* Misc.
+/* Misc. */
 void
 NCZ_clear_zjson(struct ZJSON* zjson)
 {
     if(zjson != NULL) {
         NCJreclaim(zjson->jobj);
-	if(!zjson->constatt) NCJreclaim(zjson->jatts);
+	if(!zjson->constjatts) NCJreclaim(zjson->jatts);
+	memset(zjson,0,sizeof(struct ZJSON));
     }
 }
 
-/* Get one of two key values from a dict */
-int
-NCZ_dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep)
-{
-    int stat = NC_NOERR;
-    const NCjson* jvalue = NULL;
-    if((stat = NCJdictget(jdict,name,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this first */
-    if(jvalue == NULL) {
-        if((stat = NCJdictget(jdict,alt,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this alternative*/
-    }
-    if(jvaluep) *jvaluep = jvalue;
-done:
-    return THROW(stat);
-}

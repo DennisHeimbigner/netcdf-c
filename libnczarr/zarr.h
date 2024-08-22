@@ -71,7 +71,7 @@ EXTERNL int NCZ_inferattrtype(const NCjson* value, nc_type typehint, nc_type* ty
 EXTERNL int NCZ_inferinttype(unsigned long long u64, int negative);
 EXTERNL int ncz_fill_value_sort(nc_type nctype, int*);
 EXTERNL int NCZ_createobject(NCZMAP* zmap, const char* key, size64_t size);
-EXTERNL int NCZ_uploadjson(NCZMAP* zmap, const char* key, NCjson* json);
+EXTERNL int NCZ_uploadjson(NCZMAP* zmap, const char* key, const NCjson* json);
 EXTERNL int NCZ_downloadjson(NCZMAP* zmap, const char* key, NCjson** jsonp);
 EXTERNL int NCZ_isLittleEndian(void);
 EXTERNL int NCZ_subobjects(NCZMAP* map, const char* prefix, const char* tag, char dimsep, NClist* objlist);
@@ -83,6 +83,7 @@ EXTERNL void NCZ_freestringvec(size_t len, char** vec);
 EXTERNL void NCZ_clearstringvec(size_t len, char** vec);
 EXTERNL void NCZ_clear_diminfo(size_t rank, NCZ_DimInfo* diminfo);
 EXTERNL void NCZ_reclaim_diminfo_list(NClist* diminfo);
+EXTERNL void NCZ_reclaim_diminfo(struct NCZ_DimInfo* diminfo);
 EXTERNL int NCZ_ischunkname(const char* name,char dimsep);
 EXTERNL char* NCZ_chunkpath(struct ChunkKey key);
 EXTERNL size_t NCZ_get_maxstrlen(NC_OBJ* obj);
@@ -97,11 +98,16 @@ EXTERNL char* NCZ_deescape(const char* s);
 EXTERNL char* NCZ_backslashescape(const char* s);
 EXTERNL int NCZ_sortstringlist(void* vec, size_t count);
 EXTERNL int NCZ_sortpairlist(void* vec, size_t count);
-EXTERNL void NCZ_freeAttrInfoVec(struct NCZ_AttrInfo* ainfo);
+EXTERNL void NCZ_clearAttrInfo(struct NCZ_AttrInfo* ainfo);
 EXTERNL void NCZ_setatts_read(NC_OBJ* container);
 EXTERNL int NCZ_decodesizet64vec(const NCjson* jshape, size64_t* shapes);
 EXTERNL int NCZ_decodesizetvec(const NCjson* jshape, size_t* shapes);
 EXTERNL int NCZ_uniquedimname(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NCZ_DimInfo* dimdata, NC_DIM_INFO_T** dimp, NCbytes* dimname);
+EXTERNL int NCZ_computeattrinfo(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* att);
+EXTERNL int NCZ_computeattrdata(struct NCZ_AttrInfo* att);
+EXTERNL int NCZ_dictgetalt(const NCjson* jdict, const NCjson** jvaluep, ...);
+EXTERNL int NCZ_dictgetalt2(const NCjson* jdict, const NCjson** jvaluep, const char* name1, const char* name2); /* common case */
+EXTERNL int NCZ_getnczarrkey(NC_FILE_INFO_T* file, struct ZJSON* jsonz, const char* name, const NCjson** jncxxxp);
 
 /* zwalk.c */
 EXTERNL int NCZ_read_chunk(int ncid, int varid, size64_t* zindices, void* chunkdata);

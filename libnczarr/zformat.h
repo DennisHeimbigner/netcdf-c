@@ -70,7 +70,7 @@ typedef struct NCZ_Formatter {
     int (*encode_group_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jsuper, NCjson* jatts, NCjson* jtypes, NCjson** jgrpp);
     int (*encode_attributes_json)(NC_FILE_INFO_T* file, NC_OBJ* container, const NCindex* attlist, NCjson** jattsp, NCjson** jtypesp);
     int (*encode_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
-    int (*encode_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jatts, NCjson* jnczarray, NCjson** jvarp);
+    int (*encode_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jatts, const NCjson* jncvar, NCjson** jvarp);
 
     /* Write JSON to storage */
     int (*upload_grp_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jgroup, const NCjson* jatts);
@@ -79,18 +79,13 @@ typedef struct NCZ_Formatter {
     /* Convert JSON to NetCDF4 Internal objects */
     int (*decode_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jgroup, NCjson* jatts, NCjson** jsuperp, NClist* dims, NClist* vars, NClist* subgrps);
     int (*decode_superblock)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson* jsuper);
-    int (*decode_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const struct ZJSON* jsonz, NCjson** jdimsp, NClist* vars, NClist* subgrpp);
-    int (*decode_grp_dims)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims);
+    int (*decode_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const struct ZJSON* jsonz, NClist* dims, NClist* vars, NClist* subgrps);
     int (*decode_grp_var)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname, NC_VAR_INFO_T** varp);
     int (*decode_attributes_json)(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, NCjson** jtypesp);
     int (*decode_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz);
     int (*decode_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
 
-    /* Create a group|var object */
-    int (*create_grp)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* gname, NC_GRP_INFO_T** grpp);
-    int (*create_var)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NC_VAR_INFO_T** varp);
-
-    /* Read JSON from storage */
+    /* Read JSON from storage to fill in group|var object */
     int (*download_grp_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON*);
     int (*download_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON*);
 
@@ -99,7 +94,7 @@ typedef struct NCZ_Formatter {
     int (*nctype2dtype)(const NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typesize, char** dtypep, char** daliasp);
 
     /* Misc. Actions */
-    int (*hdf2codec) (const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter); /* Codec converters */
+    int (*hdf2codec) (const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter); /* Code converter */
     int (*build_chunkkey)(size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
 
     /* Search functions */
@@ -132,7 +127,7 @@ extern int NCZF_encode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NC
 extern int NCZF_encode_group_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jsuper, NCjson* jatts, NCjson* jtypes, NCjson** jgrpp);
 extern int NCZF_encode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, NCindex* attlist,NCjson** jattsp, NCjson** jtypesp);
 extern int NCZF_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
-extern int NCZF_encode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jatts, NCjson* jnczvar, NCjson** jvarp);
+extern int NCZF_encode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jatts, const NCjson* jncvar, NCjson** jvarp);
 
 /* Write JSON to storage */
 extern int NCZF_upload_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jgroup, const NCjson* jatts);
@@ -140,17 +135,12 @@ extern int NCZF_upload_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const 
 
 /* Convert JSON to NetCDF4 Internal objects */
 extern int NCZF_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jgroup, NCjson* jatts, NCjson** jsuperp, NClist* dims, NClist* vars, NClist* subgrps);
-extern int NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const struct ZJSON* jsonz, NCjson** jdimsp, NClist* vars, NClist* subgrpp);
+extern int NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const struct ZJSON* jsonz, NClist* dims, NClist* vars, NClist* subgrps);
 extern int NCZF_decode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson* jsuperp);
 extern int NCZF_decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims);
-extern int NCZF_decode_grp_subgroup(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* subgrpname, NC_GRP_INFO_T** subgrpp);
 extern int NCZF_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz);
 extern int NCZF_decode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
 extern int NCZF_decode_attributes_json(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, NCjson** jtypesp);
-
-/* Create a group|var object */
-extern int NCZF_create_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* gname, NC_GRP_INFO_T** grpp);
-extern int NCZF_create_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname, NC_VAR_INFO_T** varp);
 
 /* Download JSON to storage */
 extern int NCZF_download_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON*);
@@ -183,9 +173,6 @@ extern int NCZ_get_formatter(NC_FILE_INFO_T* file, const NCZ_Formatter** formatt
 /**************************************************/
 /* Misc. */
 extern void NCZ_clear_zjson(struct ZJSON* zjson);
-
-extern int NCZ_dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep);
-
 
 /**************************************************/
 
