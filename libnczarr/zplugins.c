@@ -27,17 +27,6 @@
 #endif
 
 /**************************************************/
-/* Global state */
-
-/* All possible HDF5 filter plugins */
-/* Consider onverting to linked list or hash table or equivalent since very sparse */
-NCZ_Plugin* loaded_plugins[H5Z_FILTER_MAX+1];
-size_t loaded_plugins_max = 0; /* plugin filter id index. 0<loaded_plugins_max<=H5Z_FILTER_MAX */
-
-static NClist* codec_defaults = NULL; /* NClist<struct CodecAPI*> */
-static NClist* default_libs = NULL; /* NClist<NCPSharedLib>; sources of the defaults */
-
-/**************************************************/
 /* Forward */
 static int NCZ_load_plugin(const char* path, NCZ_Plugin** plugp);
 static int NCZ_load_plugin_dir(const char* path);
@@ -239,16 +228,17 @@ done:
 int
 NCZ_plugin_path_initialize(void)
 {
+    int stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
     char* defaultpluginpath = NULL;
     char* pluginroots = NULL;
     NClist* dirs = nclistnew();
 
-    if(gs->zarr.pluginpaths == NULL)
-	gs->zarr.pluginpaths = nclistnew();
-    default_libs = nclistnew();
-    codec_defaults = nclistnew();
-    memset(loaded_plugins,0,sizeof(loaded_plugins));
+    gs->zarr.pluginpaths = nclistnew();
+    gs->zarr.default_libs = nclistnew();
+    gs->zarr.codec_defaults = nclistnew();
+    gs->zarr.loaded_plugins = (struct NCZ_Plugin**)calloc(H5Z_FILTER_MAX+1,sizeof(struct NCZ_Plugin*));
+    if(gs->zarr.loaded_plugins == NULL) {stat = NC_ENOMEM; goto done;}
 
    /* Setup the plugin path default */
    {
@@ -261,7 +251,7 @@ NCZ_plugin_path_initialize(void)
 	    defaultpluginpath = strdup(dfalt);
 	}
 #else /*!_WIN32*/
-	defaultpluginpath = strdup(PLUGIN_DIR_UNIX)
+	defaultpluginpath = strdup(PLUGIN_DIR_UNIX);
 #endif
     }
 
@@ -273,10 +263,10 @@ NCZ_plugin_path_initialize(void)
     ZTRACEMORE(6,"pluginroots=%s",(pluginroots?pluginroots:"null"));
     {
 	size_t ndirs = 0;
-        if((ret = nc_parse_plugin_pathlist(pluginroots,&ndirs,NULL))) goto done;
+        if((stat = nc_parse_plugin_pathlist(pluginroots,&ndirs,NULL))) goto done;
 	if(ndirs > 0) {
 	    nclistsetlength(dirs,ndirs);
-            if((ret = nc_parse_plugin_pathlist(pluginroots,&ndirs,(char**)nclistcontents(dirs)))) goto done;
+            if((stat = nc_parse_plugin_pathlist(pluginroots,&ndirs,(char**)nclistcontents(dirs)))) goto done;
 	}
     }
     /* Add the default to end of the dirs list if not already there */
@@ -288,8 +278,8 @@ NCZ_plugin_path_initialize(void)
     /* Set the current plugin dirs sequence */
     if(gs->zarr.pluginpaths != NULL) nclistfreeall(gs->zarr.pluginpaths);
     gs->zarr.pluginpaths = dirs; dirs = NULL;
-
-    return NC_NOERR;
+done:
+    return stat;
 }
 
 int
@@ -304,23 +294,23 @@ NCZ_plugin_path_finalize(void)
 #ifdef DEBUGL
     fprintf(stderr,">>>  DEBUGL: finalize reclaim:\n");
 #endif
-    for(i=1;i<=loaded_plugins_max;i++) {
-	if(loaded_plugins[i]) {
-            NCZ_unload_plugin(loaded_plugins[i]);
-	    loaded_plugins[i] = NULL;
+    for(i=1;i<=gs->zarr.loaded_plugins_max;i++) {
+	if(gs->zarr.loaded_plugins[i]) {
+            NCZ_unload_plugin(gs->zarr.loaded_plugins[i]);
+	    gs->zarr.loaded_plugins[i] = NULL;
 	}
     }
     /* Reclaim the codec defaults */
-    if(nclistlength(codec_defaults) > 0) {
-        for(i=0;i<nclistlength(codec_defaults);i++) {
-	    struct CodecAPI* ca = (struct CodecAPI*)nclistget(codec_defaults,i);
+    if(nclistlength(gs->zarr.codec_defaults) > 0) {
+        for(i=0;i<nclistlength(gs->zarr.codec_defaults);i++) {
+	    struct CodecAPI* ca = (struct CodecAPI*)nclistget(gs->zarr.codec_defaults,i);
     	    nullfree(ca);
 	}
     }
     /* Reclaim the defaults library contents; Must occur as last act */
-    if(nclistlength(default_libs) > 0) {
-        for(i=0;i<nclistlength(default_libs);i++) {
-	    NCPSharedLib* l = (NCPSharedLib*)nclistget(default_libs,i);
+    if(nclistlength(gs->zarr.default_libs) > 0) {
+        for(i=0;i<nclistlength(gs->zarr.default_libs);i++) {
+	    NCPSharedLib* l = (NCPSharedLib*)nclistget(gs->zarr.default_libs,i);
 #ifdef DEBUGL
    fprintf(stderr,">>> DEBUGL: NCZ_filter_finalize: reclaim default_lib[i]=%p\n",l);
 #endif
@@ -330,8 +320,8 @@ NCZ_plugin_path_finalize(void)
 #else
     memset(loaded_plugins,0,sizeof(loaded_plugins));
 #endif
-    nclistfree(default_libs); default_libs = NULL;
-    nclistfree(codec_defaults); codec_defaults = NULL;
+    nclistfree(gs->zarr.default_libs); gs->zarr.default_libs = NULL;
+    nclistfree(gs->zarr.codec_defaults); gs->zarr.codec_defaults = NULL;
     nclistfreeall(gs->zarr.pluginpaths);
     return NC_NOERR;
 }
@@ -345,7 +335,6 @@ NCZ_load_all_plugins(void)
     int ret = NC_NOERR;
     size_t i,j;
     struct NCglobalstate* gs = NC_getglobalstate();
-    char* pluginroots = NULL;
     struct stat buf;
     NClist* dirs = nclistnew();
     char* defaultpluginpath = NULL;
@@ -374,24 +363,24 @@ NCZ_load_all_plugins(void)
     }
 #ifdef DEBUGL
     { size_t i;
-	fprintf(stderr,"codec_defaults:");
-	for(i=0;i<nclistlength(codec_defaults);i++) {
-	    struct CodecAPI* codec = (struct CodecAPI*)nclistget(codec_defaults,i);
+	fprintf(stderr,"gs->zarr.codec_defaults:");
+	for(i=0;i<nclistlength(gs->zarr.codec_defaults);i++) {
+	    struct CodecAPI* codec = (struct CodecAPI*)nclistget(gs->zarr.codec_defaults,i);
 	    fprintf(stderr," %d",codec->codec->hdf5id);	    
 	}
 	fprintf(stderr,"\n");
     }
 #endif
-    if(nclistlength(codec_defaults)) { /* Try to provide default for any HDF5 filters without matching Codec. */
+    if(nclistlength(gs->zarr.codec_defaults)) { /* Try to provide default for any HDF5 filters without matching Codec. */
         /* Search the defaults */
-	for(j=0;j<nclistlength(codec_defaults);j++) {
-            struct CodecAPI* dfalt = (struct CodecAPI*)nclistget(codec_defaults,j);
+	for(j=0;j<nclistlength(gs->zarr.codec_defaults);j++) {
+            struct CodecAPI* dfalt = (struct CodecAPI*)nclistget(gs->zarr.codec_defaults,j);
 	    if(dfalt->codec != NULL) {
 	        const NCZ_codec_t* codec = dfalt->codec;
 	        size_t hdf5id = codec->hdf5id;
 		NCZ_Plugin* p = NULL;
-		if(hdf5id <= 0 || hdf5id > loaded_plugins_max) {ret = NC_EFILTER; goto done;}
-	        p = loaded_plugins[hdf5id]; /* get candidate */
+		if(hdf5id <= 0 || hdf5id > gs->zarr.loaded_plugins_max) {ret = NC_EFILTER; goto done;}
+	        p = gs->zarr.loaded_plugins[hdf5id]; /* get candidate */
 	        if(p != NULL && p->hdf5.filter != NULL
                    && p->codec.codec == NULL) {
 #ifdef DEBUGL
@@ -409,8 +398,8 @@ NCZ_load_all_plugins(void)
     {
         size_t i;
 	NCZ_Plugin* p;
-	for(i=1;i<loaded_plugins_max;i++) {
-	    if((p = loaded_plugins[i]) != NULL) {
+	for(i=1;i<gs->zarr.loaded_plugins_max;i++) {
+	    if((p = gs->zarr.loaded_plugins[i]) != NULL) {
 		if(p->hdf5.filter == NULL || p->codec.codec == NULL) {
 		    /* mark this entry as incomplete */
 		    p->incomplete = 1;
@@ -430,8 +419,8 @@ NCZ_load_all_plugins(void)
     {
         size_t i;
 	NCZ_Plugin* p;
-	for(i=1;i<loaded_plugins_max;i++) {
-	    if((p = loaded_plugins[i]) != NULL) {
+	for(i=1;i<gs->zarr.loaded_plugins_max;i++) {
+	    if((p = gs->zarr.loaded_plugins[i]) != NULL) {
 		if(p->incomplete) continue;
 		if(p->hdf5.filter != NULL && p->codec.codec != NULL) {
 		    if(p->codec.codec && p->codec.codec->NCZ_codec_initialize)
@@ -460,6 +449,7 @@ NCZ_load_plugin_dir(const char* path)
     size_t pathlen;
     NClist* contents = nclistnew();
     char* file = NULL;
+    struct NCglobalstate* gs = NC_getglobalstate();
 
     ZTRACE(7,"path=%s",path);
 
@@ -497,9 +487,9 @@ NCZ_load_plugin_dir(const char* path)
 	}
 	if(plugin != NULL) {
 	    id = (size_t)plugin->hdf5.filter->id;
-	    if(loaded_plugins[id] == NULL) {
-	        loaded_plugins[id] = plugin;
-		if(id > loaded_plugins_max) loaded_plugins_max = id;
+	    if(gs->zarr.loaded_plugins[id] == NULL) {
+	        gs->zarr.loaded_plugins[id] = plugin;
+		if(id > gs->zarr.loaded_plugins_max) gs->zarr.loaded_plugins_max = id;
 #ifdef DEBUGL
 		fprintf(stderr,">>> DEBUGL: plugin loaded: %s\n",printplugin(plugin));
 #endif
@@ -655,6 +645,8 @@ done:
 int
 NCZ_unload_plugin(NCZ_Plugin* plugin)
 {
+    struct NCglobalstate* gs = NC_getglobalstate();
+
     ZTRACE(9,"plugin=%p",plugin);
 
     if(plugin) {
@@ -663,7 +655,7 @@ NCZ_unload_plugin(NCZ_Plugin* plugin)
 #endif
 	if(plugin->codec.codec && plugin->codec.codec->NCZ_codec_finalize)
 		plugin->codec.codec->NCZ_codec_finalize();
-        if(plugin->hdf5.filter != NULL) loaded_plugins[plugin->hdf5.filter->id] = NULL;
+        if(plugin->hdf5.filter != NULL) gs->zarr.loaded_plugins[plugin->hdf5.filter->id] = NULL;
 	if(plugin->hdf5.hdf5lib != NULL) (void)ncpsharedlibfree(plugin->hdf5.hdf5lib);
 	if(!plugin->codec.defaulted && plugin->codec.codeclib != NULL) (void)ncpsharedlibfree(plugin->codec.codeclib);
 memset(plugin,0,sizeof(NCZ_Plugin));
@@ -676,12 +668,14 @@ int
 NCZ_plugin_loaded(size_t filterid, NCZ_Plugin** pp)
 {
     int stat = NC_NOERR;
+    struct NCglobalstate* gs = NC_getglobalstate();
+
     struct NCZ_Plugin* plug = NULL;
     ZTRACE(6,"filterid=%d",filterid);
     if(filterid <= 0 || filterid >= H5Z_FILTER_MAX)
 	{stat = NC_EINVAL; goto done;}
-    if(filterid <= loaded_plugins_max) 
-        plug = loaded_plugins[filterid];
+    if(filterid <= gs->zarr.loaded_plugins_max) 
+        plug = gs->zarr.loaded_plugins[filterid];
     if(pp) *pp = plug;
 done:
     return ZUNTRACEX(stat,"plugin=%p",*pp);
@@ -693,13 +687,15 @@ NCZ_plugin_loaded_byname(const char* name, NCZ_Plugin** pp)
     int stat = NC_NOERR;
     size_t i;
     struct NCZ_Plugin* plug = NULL;
+    struct NCglobalstate* gs = NC_getglobalstate();
+
     ZTRACE(6,"pluginname=%s",name);
     if(name == NULL) {stat = NC_EINVAL; goto done;}
-    for(i=1;i<=loaded_plugins_max;i++) {
-        if (!loaded_plugins[i]) continue;
-        if(!loaded_plugins[i] || !loaded_plugins[i]->codec.codec) continue; /* no plugin or no codec */
-        if(strcmp(name, loaded_plugins[i]->codec.codec->codecid) == 0)
-	    {plug = loaded_plugins[i]; break;}
+    for(i=1;i<=gs->zarr.loaded_plugins_max;i++) {
+        if (!gs->zarr.loaded_plugins[i]) continue;
+        if(!gs->zarr.loaded_plugins[i] || !gs->zarr.loaded_plugins[i]->codec.codec) continue; /* no plugin or no codec */
+        if(strcmp(name, gs->zarr.loaded_plugins[i]->codec.codec->codecid) == 0)
+	    {plug = gs->zarr.loaded_plugins[i]; break;}
     }
     if(pp) *pp = plug;
 done:
@@ -710,11 +706,13 @@ static int
 NCZ_plugin_save(size_t filterid, NCZ_Plugin* p)
 {
     int stat = NC_NOERR;
+    struct NCglobalstate* gs = NC_getglobalstate();
+
     ZTRACE(6,"filterid=%d p=%p",filterid,p);
     if(filterid <= 0 || filterid >= H5Z_FILTER_MAX)
 	{stat = NC_EINVAL; goto done;}
-    if(filterid > loaded_plugins_max) loaded_plugins_max = filterid;
-    loaded_plugins[filterid] = p;
+    if(filterid > gs->zarr.loaded_plugins_max) gs->zarr.loaded_plugins_max = filterid;
+    gs->zarr.loaded_plugins[filterid] = p;
 done:
     return ZUNTRACE(stat);
 }
@@ -724,8 +722,9 @@ loadcodecdefaults(const char* path, const NCZ_codec_t** cp, NCPSharedLib* lib, i
 {
     int stat = NC_NOERR;
     int lib_used = 0;
+    struct NCglobalstate* gs = NC_getglobalstate();
 
-    nclistpush(default_libs,lib);
+    nclistpush(gs->zarr.default_libs,lib);
     for(;*cp;cp++) {
         struct CodecAPI* c0;
 #ifdef DEBUGL
@@ -736,7 +735,7 @@ loadcodecdefaults(const char* path, const NCZ_codec_t** cp, NCPSharedLib* lib, i
         c0->codec = *cp;
 	c0->codeclib = lib;
 	lib_used = 1; /* remember */
-	nclistpush(codec_defaults,c0); c0 = NULL;
+	nclistpush(gs->zarr.codec_defaults,c0); c0 = NULL;
     }
 done:
     if(lib_usedp) *lib_usedp = lib_used;
