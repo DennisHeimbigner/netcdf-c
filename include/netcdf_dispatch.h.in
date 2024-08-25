@@ -154,11 +154,11 @@ struct NC_Dispatch
     int (*inq_filter_avail)(int ncid, unsigned id);
 
     /* Version 6 adds plugin search path functionality */
-    int (*plugin_path_list(int ncid, size_t* npaths, char** pathlist);
+    int (*plugin_path_list)(int ncid, size_t* npaths, char** pathlist);
     int (*plugin_path_remove)(int ncid, const char *dir);
     int (*plugin_path_append)(int ncid, const char *dir);
     int (*plugin_path_prepend)(int ncid, const char *dir);
-    int (*plugin_path_initialize)(int ncid, const char *paths);
+    int (*plugin_path_load)(int ncid, const char *paths);
 };
 
 #if defined(__cplusplus)
@@ -200,11 +200,11 @@ extern "C" {
     EXTERNL int NC_NOOP_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparams, unsigned int* params);
     EXTERNL int NC_NOOP_inq_filter_avail(int ncid, unsigned id);
 
-    EXTERNL char* NC_NOOP_plugin_path(int ncid); /* Caller must free return value*/
+    EXTERNL int NC_NOOP_plugin_path_list(int ncid, size_t* npaths, char** pluginlist); /* Caller must free return value*/
     EXTERNL int NC_NOOP_plugin_path_append(int ncid, const char *dir);
     EXTERNL int NC_NOOP_plugin_path_prepend(int ncid, const char *dir);
     EXTERNL int NC_NOOP_plugin_path_remove(int ncid, const char *dir);
-    EXTERNL int NC_NOOP_plugin_path_initialize(int ncid, const char *paths);
+    EXTERNL int NC_NOOP_plugin_path_load(int ncid, const char *paths);
 
     EXTERNL int NC_NOTNC4_def_grp(int, const char *, int *);
     EXTERNL int NC_NOTNC4_rename_grp(int, const char *);

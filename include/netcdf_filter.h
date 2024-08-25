@@ -138,7 +138,4 @@ EXTERNL int nc_plugin_path_remove(int ncid, const char* dir);
 */
 EXTERNL int nc_plugin_path_load(int ncid, const char* paths);
 
-EXTERNL int nc_parse_plugin_pathlist(const char* path0, size_t* ndirsp, char** dirlistp);
-
-/**************************************************/
 #endif /* NETCDF_FILTER_H */

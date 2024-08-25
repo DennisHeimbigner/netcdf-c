@@ -18,6 +18,8 @@
 
 #undef TPLUGINS
 
+EXTERNL int nc_parse_plugin_pathlist(const char* path0, NClist* dirlist);
+
 /**************************************************/
 /**
  * @file
@@ -238,12 +240,11 @@ NC4_hdf5_plugin_path_load(int ncid, const char* paths)
 {
     int stat = NC_NOERR;
     herr_t hstat = 0;
+    NClist* newpaths = nclistnew();
     unsigned npaths = 0;
-    size_t npathsnew = 0;
-    char** newpaths = NULL;
 
     /* Parse the paths */
-    if((stat = nc_parse_plugin_pathlist(paths,&npathsnew,newpaths))) goto done;
+    if((stat = nc_parse_plugin_pathlist(paths,newpaths))) goto done;
 
     {
 	/* Clear the current path list */
@@ -257,24 +258,22 @@ NC4_hdf5_plugin_path_load(int ncid, const char* paths)
 	}
     }
 
-    if(npathsnew > 0) {
+    if(nclistlength(newpaths) > 0) {
 	size_t i;
 	/* Insert the new path list */
 #ifdef TPLUGINS
         if((hstat = H5PLsize(&npaths))<0) goto done;
 	assert(npaths == 0)
 #endif
-        for(i=0;i<npathsnew;i++) {
+        for(i=0;i<nclistlength(newpaths);i++) {
 	    /* Always append */
-	    if((hstat = H5PLappend(newpaths[i]))<0)
+	    if((hstat = H5PLappend(nclistget(newpaths,i)))<0)
 		{stat = NC_EINVAL; goto done;}
 	}
-	/* Reclaim the new paths */
-	for(i=0;i<npathsnew;i++) nullfree(newpaths[i]);
-	nullfree(newpaths);
     }
 
 done:
+    nclistfreeall(newpaths);
     if(hstat < 0 && stat != NC_NOERR) stat = NC_EHDFERR;
     return stat;
 }

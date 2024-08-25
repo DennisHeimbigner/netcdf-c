@@ -27,6 +27,10 @@
 #endif
 
 /**************************************************/
+
+EXTERNL int nc_parse_plugin_pathlist(const char* path0, NClist* dirlist);
+
+/**************************************************/
 /* Forward */
 static int NCZ_load_plugin(const char* path, NCZ_Plugin** plugp);
 static int NCZ_load_plugin_dir(const char* path);
@@ -187,41 +191,30 @@ int
 NCZ_plugin_path_load(int ncid, const char* paths)
 {
     int stat = NC_NOERR;
-    size_t npaths = 0;
-    size_t npathsnew = 0;
-    char** newpaths = NULL;
+    NClist* newpaths = nclistnew();
     struct NCglobalstate* gs = NC_getglobalstate();
+    size_t npathsnew = 0;
 
     /* Parse the paths */
-    if((stat = nc_parse_plugin_pathlist(paths,&npathsnew,newpaths))) goto done;
+    if((stat = nc_parse_plugin_pathlist(paths,newpaths))) goto done;
+    npathsnew = nclistlength(newpaths);
 
     {
 	/* Clear the current path list */
-	npaths = nclistlength(gs->zarr.pluginpaths);
-        if(npaths > 0) {
-	    char* buf = NULL;
-	    size_t i;
-	    for(i=0;i<npaths;i++) {
-		/* Always remove the first element */
-		buf = nclistremove(gs->zarr.pluginpaths,0);
-		nullfree(buf);
-	    }
-	}
+	nclistfreeall(gs->zarr.pluginpaths);
+	gs->zarr.pluginpaths = NULL;
     }
 
     if(npathsnew > 0) {
-	size_t i;
 	/* Insert the new path list */
-	assert(nclistlength(gs->zarr.pluginpaths) == 0);
-        for(i=0;i<npathsnew;i++) {
-	    /* Always append */
-	    nclistpush(gs->zarr.pluginpaths,newpaths[i]);
-	}
-        /* Reclaim the new paths */
-	nullfree(newpaths);
+	assert(gs->zarr.pluginpaths == NULL);
+	gs->zarr.pluginpaths = newpaths;
+	newpaths = NULL;
     }
 
 done:
+    if(gs->zarr.pluginpaths == NULL)
+        gs->zarr.pluginpaths = nclistnew();
     return THROW(stat);
 }
 
@@ -261,14 +254,7 @@ NCZ_plugin_path_initialize(void)
     if(pluginroots == NULL) pluginroots = defaultpluginpath;
     assert(pluginroots != NULL);
     ZTRACEMORE(6,"pluginroots=%s",(pluginroots?pluginroots:"null"));
-    {
-	size_t ndirs = 0;
-        if((stat = nc_parse_plugin_pathlist(pluginroots,&ndirs,NULL))) goto done;
-	if(ndirs > 0) {
-	    nclistsetlength(dirs,ndirs);
-            if((stat = nc_parse_plugin_pathlist(pluginroots,&ndirs,(char**)nclistcontents(dirs)))) goto done;
-	}
-    }
+    if((stat = nc_parse_plugin_pathlist(pluginroots,dirs))) goto done;
     /* Add the default to end of the dirs list if not already there */
     if(defaultpluginpath != NULL && !nclistmatch(dirs,defaultpluginpath,0)) {
         nclistpush(dirs,defaultpluginpath);
@@ -279,6 +265,8 @@ NCZ_plugin_path_initialize(void)
     if(gs->zarr.pluginpaths != NULL) nclistfreeall(gs->zarr.pluginpaths);
     gs->zarr.pluginpaths = dirs; dirs = NULL;
 done:
+    nullfree(defaultpluginpath);
+    nclistfreeall(dirs);
     return stat;
 }
 
@@ -320,9 +308,11 @@ NCZ_plugin_path_finalize(void)
 #else
     memset(loaded_plugins,0,sizeof(loaded_plugins));
 #endif
+    gs->zarr.loaded_plugins_max = 0;
+    nullfree(gs->zarr.loaded_plugins); gs->zarr.loaded_plugins = NULL;
     nclistfree(gs->zarr.default_libs); gs->zarr.default_libs = NULL;
     nclistfree(gs->zarr.codec_defaults); gs->zarr.codec_defaults = NULL;
-    nclistfreeall(gs->zarr.pluginpaths);
+    nclistfreeall(gs->zarr.pluginpaths); gs->zarr.pluginpaths = NULL;
     return NC_NOERR;
 }
 

@@ -166,15 +166,13 @@ done:
 }
 
 int
-nc_parse_plugin_pathlist(const char* path0, size_t* ndirsp, char** dirlistp)
+nc_parse_plugin_pathlist(const char* path0, NClist* list)
 {
     int i,stat = NC_NOERR;
     char* path = NULL;
     char* p;
     int count;
     size_t plen;
-    NClist* list = nclistnew();
-    size_t ndirs;
 #ifdef _WIN32
     const char* seps = ";";
 #else
@@ -182,6 +180,7 @@ nc_parse_plugin_pathlist(const char* path0, size_t* ndirsp, char** dirlistp)
 #endif    
 
     if(path0 == NULL || path0[0] == '\0') goto done;
+    if(list == NULL) {stat = NC_EINVAL; goto done;}
     plen = strlen(path0);
     if((path = malloc(plen+1+1))==NULL) {stat = NC_ENOMEM; goto done;}
     memcpy(path,path0,plen);
@@ -197,12 +196,7 @@ nc_parse_plugin_pathlist(const char* path0, size_t* ndirsp, char** dirlistp)
         p = p+len+1; /* point to next piece */
     }
 
-    ndirs = nclistlength(list);
-    if(ndirsp) *ndirsp = ndirs;
-    if(dirlistp) *dirlistp = nclistextract(list);
-
 done:
-    nclistfreeall(list);
     nullfree(path);
     return stat;
 }

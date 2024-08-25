@@ -57,6 +57,7 @@ static int computefieldinfo(struct NCAUX_CMPD* cmpd);
 static int filterspec_cvt(const char* txt, size_t* nparamsp, unsigned int* params);
 
 EXTERNL int nc_dump_data(int ncid, nc_type xtype, void* memory, size_t count, char** bufp);
+EXTERNL int nc_parse_plugin_pathlist(const char* path0, NClist* dirlist);
 
 /**************************************************/
 /*
@@ -964,10 +965,19 @@ EXTERNL int
 ncaux_parse_pathlist(const char* pathlist0, size_t* npathsp, char** pathsp)
 {
     int stat = NC_NOERR;
+    NClist* paths = nclistnew();
 
     if(pathlist0 == NULL) goto done;
-    if((stat=nc_parse_plugin_pathlist(pathlist0,npathsp,pathsp))) goto done;
-
+    if((stat=nc_parse_plugin_pathlist(pathlist0,paths))) goto done;
+    if(npathsp) *npathsp = nclistlength(paths);
+    if(pathsp && nclistlength(paths) > 0) {
+	void* contents = nclistcontents(paths);
+	if(contents != NULL)
+            memcpy(pathsp,contents,sizeof(char*)*nclistlength(paths));
+	nclistsetlength(paths,0); /* avoid multiple frees */
+    }
+    
 done:
+    nclistfreeall(paths);
     return stat;
 }
