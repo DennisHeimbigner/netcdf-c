@@ -466,10 +466,11 @@ typedef struct NCglobalstate {
     char* home; /* track $HOME */
     char* cwd; /* track getcwd */
     struct NCRCinfo* rcinfo; /* Currently only one rc file per session */
+    NClist* pluginpaths; /* Global Plugin State */
     struct GlobalZarr { /* Zarr specific parameters */
 	char dimension_separator;
 	int default_zarrformat;
-	NClist* pluginpaths;
+	NClist* pluginpaths; /* NCZarr mirror of plugin paths */
 	NClist* codec_defaults;
 	NClist* default_libs;
 	/* All possible HDF5 filter plugins */

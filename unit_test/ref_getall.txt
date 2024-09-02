@@ -1,0 +1,10 @@
+global only: 
+	all: /zero;/two;/three;/four
+	hdf5: /home/dmh/git/netcdf.fork/plugins/.libs
+	nczarr: /zero;/one;/two;/three;/four
+hdf5 only: 
+	hdf5: /zero;/one;/two;/three;/four;/usr
+	nczarr: /zero;/one;/two;/three;/four;/usr
+nczarr only: 
+	nczarr: /usr;/zero;/one;/two;/three;/four
+	hdf5: /home/dmh/git/netcdf.fork/plugins/.libs

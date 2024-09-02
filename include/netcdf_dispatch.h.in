@@ -152,13 +152,6 @@ struct NC_Dispatch
     int (*inq_var_quantize)(int ncid, int varid, int *quantize_modep, int *nsdp);
     /* Version 5 adds filter availability */
     int (*inq_filter_avail)(int ncid, unsigned id);
-
-    /* Version 6 adds plugin search path functionality */
-    int (*plugin_path_list)(int ncid, size_t* npaths, char** pathlist);
-    int (*plugin_path_remove)(int ncid, const char *dir);
-    int (*plugin_path_append)(int ncid, const char *dir);
-    int (*plugin_path_prepend)(int ncid, const char *dir);
-    int (*plugin_path_load)(int ncid, const char *paths);
 };
 
 #if defined(__cplusplus)

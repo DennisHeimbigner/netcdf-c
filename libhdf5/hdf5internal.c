@@ -78,7 +78,6 @@ nc4_hdf5_initialize(void)
         LOG((0, "Couldn't turn off HDF5 error messages!"));
     LOG((1, "HDF5 error messages have been turned off."));
     NC4_hdf5_filter_initialize();
-    NC4_hdf5_plugin_path_initialize();
     nc4_hdf5_initialized = 1;
 }
 

@@ -113,29 +113,117 @@ EXTERNL int nc_inq_var_blosc(int ncid, int varid, int* hasfilterp, unsigned* sub
 /* Filter path query/set */
 EXTERNL int nc_filter_path_query(int id);
 
-#if defined(__cplusplus)
-}
-#endif
 /**************************************************/
 /* API for libdispatch/dplugin.c */
 
 /* Plugin path functions */
 
-/* Return a vector of plugin dirs representing the current internal path list */
-EXTERNL int nc_plugin_path_list(int ncid, size_t* npaths, char** pathlist);
-
-/* Insert a plugin dir at the end of the current internal path list */
-EXTERNL int nc_plugin_path_append(int ncid, const char* path);
-
-/* Insert a plugin dir at the beginning of the current internal path list */
-EXTERNL int nc_plugin_path_prepend(int ncid, const char* path);
-
-/* Remove all occurrences of plugin dir from the current internal path list */
-EXTERNL int nc_plugin_path_remove(int ncid, const char* dir);
-
-/* Remove all entries in the current internal path list and then
-   replace with the set of directories specified in the paths
+/**
+ * This function is called as part of nc_initialize.
+ * Its purpose is to initialize the plugin paths state.
+ * @return NC_NOERR
+ * @author Dennis Heimbigner
 */
-EXTERNL int nc_plugin_path_load(int ncid, const char* paths);
+
+EXTERNL int nc_plugin_path_initialize(void);
+
+/**
+ * This function is called as part of nc_finalize()
+ * Its purpose is to clean-up plugin path state.
+ * @return NC_NOERR
+ * @author Dennis Heimbigner
+*/
+
+EXTERNL int nc_plugin_path_finalize(void);
+
+/**
+ * This function must be called to synchronize the plugin path state
+ * with the state of the various implementations: currently libhdf5 and libnczarr.
+ * @param formatx choose which dispatcher(s) to update: NC_FORMATX_NC_HDF5, NC_FORMATX_NCZARR, or 0(zero) to update all.
+ * @return NC_NOERR
+ * @author Dennis Heimbigner
+*/
+
+EXTERNL int nc_plugin_path_sync(int formatx);
+
+/**
+ * Return the current sequence of directories in the internal plugin path list.
+ * Since this function does not modify the plugin path, it can be called at any time.
+ * @param npaths return the number of paths in the path list
+ * @param pathlist return the sequence of directies in the path list
+ * @return NC_NOERR
+ * @author Dennis Heimbigner
+ *
+ * As a rule, this function needs to be called twice.
+ * The first time with npaths not NULL and pathlist set to NULL
+ *     to get the size of the path list.
+ * The second time with pathlist not NULL to get the actual sequence of paths.
+*/
+
+EXTERNL int nc_plugin_path_getall(size_t* npathsp, char** pathlist);
+
+/**
+ * Get ith directory the internal path sequence.
+ * The index starts at 0 (zero).
+ * Caller frees the returned string.
+ * @param index of path to return
+ * @entryp store copy of the index'th dir from the internal path or NULL if out of range.
+ * @return NC_NOERR||NC_ERANGE if out of range
+ * @author Dennis Heimbigner
+*/
+
+EXTERNL int nc_plugin_path_getith(size_t index, char** entryp);
+
+/**
+ * Empty the current internal path sequence
+ * and replace with the sequence of directories
+ * parsed from the paths argument.
+ * In effect, this is sort of bulk loader for the path list.
+ *
+ * The path argument has the following syntax:
+ *    paths := <empty> | dirlist
+ *    dirlist := dir | dirlist separator dir
+ *    separator := ';' | ':'
+ *    dir := <OS specific directory path>
+ * Note that the ':' separator is not legal on Windows machines.
+ * The ';' separator is legal on all machines.
+ * Using a paths argument of "" will clear the set of plugin paths.
+ * @param paths to overwrite the current internal path list
+ * @return NC_NOERR
+ * @author Dennis Heimbigner
+*/
+
+EXTERNL int nc_plugin_path_load(const char* paths);
+
+/**
+ * Append a directory to the end of the current internal path list.
+ * @param dir directory to append.
+ * @return NC_NOERR
+ * @author Dennis Heimbigner
+*/
+
+EXTERNL int nc_plugin_path_append(const char* path);
+
+/**
+ * Prepend a directory to the front of the current internal path list.
+ * @param dir directory to prepend
+ * @return NC_NOERR
+ * @author Dennis Heimbigner
+*/
+
+EXTERNL int nc_plugin_path_prepend(const char* path);
+
+/**
+ * Remove all occurrences of a directory from the internal path sequence
+ * @param dir directory to prepend
+ * @return NC_NOERR
+ * @author Dennis Heimbigner
+*/
+
+EXTERNL int nc_plugin_path_remove(const char* dir);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* NETCDF_FILTER_H */

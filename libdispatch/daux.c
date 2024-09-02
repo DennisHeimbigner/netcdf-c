@@ -30,6 +30,7 @@ See COPYRIGHT for license information.
 #include "nclog.h"
 #include "ncrc.h"
 #include "netcdf_filter.h"
+#include "ncplugins.h"
 
 struct NCAUX_FIELD {
     char* name;
@@ -957,18 +958,24 @@ ncaux_dump_data(int ncid, int xtype, void* memory, size_t count, char** bufp)
 }
 
 /**************************************************/
+/* Path List Utilities */
+
 /* Path-list Parser:
    Call twice: once for npaths, second to get the parsed path list.
    Caller must free the contents of paths argument.
+@param pathlist0 the string to parse
+@param npathsp return the number of parsed directories
+@param pathsp return the parsed directories
+@return NC_NOERR || NC_EXXX
 */
 EXTERNL int
-ncaux_parse_pathlist(const char* pathlist0, size_t* npathsp, char** pathsp)
+ncaux_plugin_path_parse(const char* pathlist0, size_t* npathsp, char** pathsp)
 {
     int stat = NC_NOERR;
     NClist* paths = nclistnew();
 
     if(pathlist0 == NULL) goto done;
-    if((stat=nc_parse_plugin_pathlist(pathlist0,paths))) goto done;
+    if((stat=NC_plugin_path_parse(pathlist0,paths))) goto done;
     if(npathsp) *npathsp = nclistlength(paths);
     if(pathsp && nclistlength(paths) > 0) {
 	void* contents = nclistcontents(paths);
@@ -980,4 +987,19 @@ ncaux_parse_pathlist(const char* pathlist0, size_t* npathsp, char** pathsp)
 done:
     nclistfreeall(paths);
     return stat;
+}
+
+/* Path-list concatenator
+   Given a vector of directories, concatenate with ';'
+@param pathlist0 the string to parse
+@param npathsp return the number of parsed directories
+@param pathsp return the parsed directories
+@return concatenated list; caller must free
+*/
+EXTERNL char*
+ncaux_plugin_path_stringify(size_t ndirs, char** const dirs)
+{
+    char* result = NULL;
+    result = nulldup(NC_plugin_path_stringify(ndirs, dirs));
+    return result;
 }

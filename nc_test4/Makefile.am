@@ -68,7 +68,7 @@ TESTS += run_grp_rename.sh tst_misc.sh
 check_PROGRAMS += tst_fillonly
 TESTS += test_fillonly.sh
 
-# H5 and nczarr Fixed string support
+# H5 Fixed string support
 check_PROGRAMS += build_fixedstring
 TESTS += tst_fixedstring.sh
 
@@ -159,7 +159,7 @@ floats*.nc floats*.cdl shorts*.nc shorts*.cdl ints*.nc ints*.cdl        \
 testfilter_reg.nc filterrepeat.txt tmp_fillonly.nc                      \
 testfilter_order.nc crfilterorder.txt rdfilterorder.txt 1               \
 tmp_*.txt tmp_*.nc tmp*.dump tmp*.cdl tmp*.txt tmp*.tmp                 \
-tmp_bzip2.c bzip2.nc noop.nc tmp_*.dmp tmp_*.cdl
+tmp_bzip2.c bzip2.nc noop.nc tmp_*.dmp tmp_*.cdl ref_fixedstring.h5
 
 DISTCLEANFILES = findplugin.sh run_par_test.sh
 

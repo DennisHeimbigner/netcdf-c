@@ -74,7 +74,7 @@ add_library(netCDF::netcdf ALIAS netcdf)
 
 # Version of the dispatch table. This must match the value in
 # configure.ac.
-set(NC_DISPATCH_VERSION 6)
+set(NC_DISPATCH_VERSION 5)
 
 # Get system configuration, Use it to determine osname, os release, cpu. These
 # will be used when committing to CDash.
@@ -866,7 +866,7 @@ if(NETCDF_ENABLE_TESTS)
   # See https://github.com/Unidata/netcdf-c/issues/2627 for more information.
   ###
   option(NETCDF_ENABLE_BENCHMARKS "Run benchmark Tests." OFF)
-
+  set(BUILD_BENCHMARKS ${NETCDF_ENABLE_BENCHMARKS} CACHE BOOL "alias for NETCDF_ENABLE_BENCHMARKS")
 
   ###
   # End known-failures.

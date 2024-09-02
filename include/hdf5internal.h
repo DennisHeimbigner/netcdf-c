@@ -185,16 +185,6 @@ int NC4_hdf5_inq_var_filter_ids(int ncid, int varid, size_t* nfiltersp, unsigned
 int NC4_hdf5_inq_var_filter_info(int ncid, int varid, unsigned int filterid, size_t* nparamsp, unsigned int *params);
 int NC4_hdf5_inq_filter_avail(int ncid, unsigned id);
 
-/* plugin Dispatch Entries */
-int NC4_hdf5_plugin_path_list(int ncid, size_t* npaths, char** pathlist);
-int NC4_hdf5_plugin_path_remove(int ncid, const char *dir);
-int NC4_hdf5_plugin_path_append(int ncid, const char *dir);
-int NC4_hdf5_plugin_path_prepend(int ncid, const char *dir);
-int NC4_hdf5_plugin_path_load(int ncid, const char *paths);
-
-int NC4_hdf5_plugin_path_initialize(void);
-int NC4_hdf5_plugin_path_finalize(void);
-
 /* Filterlist management */
 
 /* The NC_VAR_INFO_T->filters field is an NClist of this struct */

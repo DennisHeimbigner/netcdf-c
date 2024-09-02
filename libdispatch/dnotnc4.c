@@ -106,46 +106,6 @@ NC_NOOP_inq_filter_avail(int ncid, unsigned id)
     return NC_ENOFILTER;
 }
 
-int
-NC_NOOP_plugin_path_list(int ncid, size_t* npaths, char** pathlist)
-{
-    NC_UNUSED(ncid);
-    if(npaths) *npaths = 0;
-    return NC_NOERR;
-}
-
-int
-NC_NOOP_plugin_path_append(int ncid, const char* path)
-{
-    NC_UNUSED(ncid);
-    NC_UNUSED(path);
-    return NC_NOERR;
-}
-
-int
-NC_NOOP_plugin_path_prepend(int ncid, const char* path)
-{
-    NC_UNUSED(ncid);
-    NC_UNUSED(path);
-    return NC_NOERR;
-}
-
-int
-NC_NOOP_plugin_path_remove(int ncid, const char* path)
-{
-    NC_UNUSED(ncid);
-    NC_UNUSED(path);
-    return NC_NOERR;
-}
-
-int
-NC_NOOP_plugin_path_load(int ncid, const char* paths)
-{
-    NC_UNUSED(ncid);
-    NC_UNUSED(paths);
-    return NC_NOERR;
-}
-
 /**
  * @internal Not allowed for classic model.
  *

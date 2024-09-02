@@ -102,7 +102,8 @@ EXTERNL int ncaux_add_field(void* tag,  const char *name, nc_type field_type,
 /* Call twice: once for npaths, second to get the parsed path list.
    Caller must free the contents of paths argument.
 */
-EXTERNL int ncaux_parse_pathlist(const char* pathlist, size_t* npaths, char** paths);
+EXTERNL int ncaux_plugin_path_parse(const char* pathlist, size_t* npaths, char** paths);
+EXTERNL char* ncaux_plugin_path_stringify(size_t ndirs, char** const dirs);
 
 #if defined(__cplusplus)
 }

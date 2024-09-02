@@ -111,12 +111,6 @@ static const NC_Dispatch HDF5_dispatcher = {
     NC4_inq_var_quantize,
     
     NC4_hdf5_inq_filter_avail,
-
-    NC4_hdf5_plugin_path_list,
-    NC4_hdf5_plugin_path_remove,
-    NC4_hdf5_plugin_path_append,
-    NC4_hdf5_plugin_path_prepend,
-    NC4_hdf5_plugin_path_load,
 };
 
 const NC_Dispatch* HDF5_dispatch_table = NULL; /* moved here from ddispatch.c */

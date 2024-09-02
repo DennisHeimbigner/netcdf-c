@@ -112,12 +112,6 @@ static const NC_Dispatch HDF4_dispatcher = {
     NC_NOTNC4_inq_var_quantize,
 
     NC_NOOP_inq_filter_avail,
-
-    NC_NOOP_plugin_path_list,
-    NC_NOOP_plugin_path_remove,
-    NC_NOOP_plugin_path_append,
-    NC_NOOP_plugin_path_prepend,
-    NC_NOOP_plugin_path_load,
 };
 
 const NC_Dispatch *HDF4_dispatch_table = NULL;

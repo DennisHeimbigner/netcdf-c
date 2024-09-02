@@ -1024,10 +1024,4 @@ NC_NOTNC4_def_var_quantize,
 NCD4_inq_var_quantize,
 
 NCD4_inq_filter_avail,
-
-NC_NOOP_plugin_path_list,
-NC_NOOP_plugin_path_remove,
-NC_NOOP_plugin_path_append,
-NC_NOOP_plugin_path_prepend,
-NC_NOOP_plugin_path_load,
 };
