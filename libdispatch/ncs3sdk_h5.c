@@ -960,10 +960,10 @@ s3objectsinfo(NClist* contents, NClist* keys, NClist* lengths)
         struct Object* s3_object = (struct Object*)nclistget(contents,i);
         if((stat = s3objectinfo1(s3_object,&key,&length))) goto done;
 	nclistpush(keys,key); key = NULL;
-	nclistpush(lengths,(void*)length);	
+	if(lengths != NULL) nclistpush(lengths,(void*)length);	
     }
     nclistnull(keys);
-    nclistnull(lengths);
+    if(lengths) nclistnull(lengths);
 done:
     nullfree(key); /* avoid mem leak */
     return NCTHROW(stat);
