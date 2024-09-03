@@ -181,6 +181,7 @@ NC_createglobalstate(void)
     if((nc_globalstate->formatxstate.pluginapi = (NC_PluginPathDispatch**)calloc(NC_FORMATX_COUNT,sizeof(NC_PluginPathDispatch*)))==NULL)
             {stat = NC_ENOMEM; goto done;}
     memset(nc_globalstate->formatxstate.state,0,NC_FORMATX_COUNT*sizeof(void*));
+    if((stat = nc_plug_inpath_initialize())) goto done;
 
     /* Get environment variables */
     if(getenv(NCRCENVIGNORE) != NULL)
