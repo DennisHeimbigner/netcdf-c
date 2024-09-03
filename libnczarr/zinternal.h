@@ -211,6 +211,20 @@ typedef struct NCZCONTENT{
 } NCZCONTENT;
 #endif
 
+/* The type for the NC_FORMATX_NCZARR Global State Object */
+typedef struct GlobalNCZarr { /* libnczarr dispatcher specific parameters */
+    char dimension_separator;
+    int default_zarrformat;
+    NClist* pluginpaths;
+    NClist* codec_defaults;
+    NClist* default_libs;
+    /* All possible HDF5 filter plugins */
+    /* Consider onverting to linked list or hash table or
+       equivalent since very sparse */
+    struct NCZ_Plugin** loaded_plugins; //[H5Z_FILTER_MAX+1];
+    size_t loaded_plugins_max; /* plugin filter id index. 0<loaded_plugins_max<=H5Z_FILTER_MAX */
+} GlobalNCZarr;
+
 /**************************************************/
 
 extern int ncz_initialized; /**< True if initialization has happened. */

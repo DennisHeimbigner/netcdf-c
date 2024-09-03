@@ -997,9 +997,9 @@ done:
 @return concatenated list; caller must free
 */
 EXTERNL char*
-ncaux_plugin_path_stringify(size_t ndirs, char** const dirs)
+ncaux_plugin_path_tostring(size_t ndirs, char** const dirs)
 {
     char* result = NULL;
-    result = nulldup(NC_plugin_path_stringify(ndirs, dirs));
+    result = nulldup(NC_plugin_path_tostring(ndirs, dirs));
     return result;
 }

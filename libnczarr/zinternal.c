@@ -56,20 +56,19 @@ NCZ_initialize_internal(void)
     int stat = NC_NOERR;
     char* dimsep = NULL;
     NCglobalstate* ngs = NULL;
+    GlobalNCZarr* ncz = NULL;
 
     ncz_initialized = 1;
     ngs = NC_getglobalstate();
-    if(ngs != NULL) {
-        /* Defaults */
-	ngs->zarr.dimension_separator = DFALT_DIM_SEPARATOR;
-        dimsep = NC_rclookup("ZARR.DIMENSION_SEPARATOR",NULL,NULL);
-        if(dimsep != NULL) {
-            /* Verify its value */
-	    if(dimsep != NULL && strlen(dimsep) == 1 && islegaldimsep(dimsep[0]))
-		ngs->zarr.dimension_separator = dimsep[0];
-        }    
+    ncz = (GlobalNCZarr*)ngs->pluginstate.state[NC_FORMATX_NCZARR];
+    /* Defaults */
+    ncz->dimension_separator = DFALT_DIM_SEPARATOR;
+    dimsep = NC_rclookup("ZARR.DIMENSION_SEPARATOR",NULL,NULL);
+    if(dimsep != NULL) {
+        /* Verify its value */
+	if(dimsep != NULL && strlen(dimsep) == 1 && islegaldimsep(dimsep[0]))
+	    ncz->dimension_separator = dimsep[0];
     }
-
     return stat;
 }
 

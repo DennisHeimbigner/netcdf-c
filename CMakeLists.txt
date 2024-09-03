@@ -76,6 +76,10 @@ add_library(netCDF::netcdf ALIAS netcdf)
 # configure.ac.
 set(NC_DISPATCH_VERSION 5)
 
+# Version of the plugin path dispatch table. This must match the value in
+# configure.ac.
+set(NC_PLUGINPATH_DISPATCH_VERSION 1)
+
 # Get system configuration, Use it to determine osname, os release, cpu. These
 # will be used when committing to CDash.
 find_program(UNAME NAMES uname)

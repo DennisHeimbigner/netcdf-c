@@ -1533,7 +1533,7 @@ define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
     /* Capture dimension_separator (must precede chunk cache creation) */
     {
 	NCglobalstate* ngs = NC_getglobalstate();
-	assert(ngs != NULL);
+	GlobalNCZarr* ncz = (GlobalNCZarr*)ngs->pluginstate.state[NC_FORMATX_NCZARR];
 	zvar->dimension_separator = 0;
 	if((stat = NCJdictget(jvar,"dimension_separator",&jvalue))<0) {stat = NC_EINVAL; goto done;}
 	if(jvalue != NULL) {
@@ -1543,7 +1543,7 @@ define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
 	}
 	/* If value is invalid, then use global default */
 	if(!islegaldimsep(zvar->dimension_separator))
-	    zvar->dimension_separator = ngs->zarr.dimension_separator; /* use global value */
+	    zvar->dimension_separator = ncz->dimension_separator; /* use global value */
 	assert(islegaldimsep(zvar->dimension_separator)); /* we are hosed */
     }
 

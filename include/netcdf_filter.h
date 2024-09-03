@@ -137,16 +137,6 @@ EXTERNL int nc_plugin_path_initialize(void);
 EXTERNL int nc_plugin_path_finalize(void);
 
 /**
- * This function must be called to synchronize the plugin path state
- * with the state of the various implementations: currently libhdf5 and libnczarr.
- * @param formatx choose which dispatcher(s) to update: NC_FORMATX_NC_HDF5, NC_FORMATX_NCZARR, or 0(zero) to update all.
- * @return NC_NOERR
- * @author Dennis Heimbigner
-*/
-
-EXTERNL int nc_plugin_path_sync(int formatx);
-
-/**
  * Return the current sequence of directories in the internal plugin path list.
  * Since this function does not modify the plugin path, it can be called at any time.
  * @param npaths return the number of paths in the path list
@@ -160,7 +150,7 @@ EXTERNL int nc_plugin_path_sync(int formatx);
  * The second time with pathlist not NULL to get the actual sequence of paths.
 */
 
-EXTERNL int nc_plugin_path_getall(size_t* npathsp, char** pathlist);
+EXTERNL int nc_plugin_path_getall(int formatx, size_t* npathsp, char** pathlist);
 
 /**
  * Get ith directory the internal path sequence.
@@ -172,7 +162,7 @@ EXTERNL int nc_plugin_path_getall(size_t* npathsp, char** pathlist);
  * @author Dennis Heimbigner
 */
 
-EXTERNL int nc_plugin_path_getith(size_t index, char** entryp);
+EXTERNL int nc_plugin_path_getith(int formatx, size_t index, char** entryp);
 
 /**
  * Empty the current internal path sequence
@@ -193,7 +183,7 @@ EXTERNL int nc_plugin_path_getith(size_t index, char** entryp);
  * @author Dennis Heimbigner
 */
 
-EXTERNL int nc_plugin_path_load(const char* paths);
+EXTERNL int nc_plugin_path_load(int formatx, const char* paths);
 
 /**
  * Append a directory to the end of the current internal path list.
@@ -202,7 +192,7 @@ EXTERNL int nc_plugin_path_load(const char* paths);
  * @author Dennis Heimbigner
 */
 
-EXTERNL int nc_plugin_path_append(const char* path);
+EXTERNL int nc_plugin_path_append(int formatx, const char* path);
 
 /**
  * Prepend a directory to the front of the current internal path list.
@@ -211,7 +201,7 @@ EXTERNL int nc_plugin_path_append(const char* path);
  * @author Dennis Heimbigner
 */
 
-EXTERNL int nc_plugin_path_prepend(const char* path);
+EXTERNL int nc_plugin_path_prepend(int formatx, const char* path);
 
 /**
  * Remove all occurrences of a directory from the internal path sequence
@@ -220,7 +210,7 @@ EXTERNL int nc_plugin_path_prepend(const char* path);
  * @author Dennis Heimbigner
 */
 
-EXTERNL int nc_plugin_path_remove(const char* dir);
+EXTERNL int nc_plugin_path_remove(int formatx, const char* dir);
 
 #if defined(__cplusplus)
 }

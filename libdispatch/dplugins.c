@@ -44,7 +44,7 @@ static int NC_plugin_path_initialized = 0;
  * This function is called as part of nc_initialize.
  * Its purpose is to initialize the plugin paths state.
  *
- * @return NC_NOERR
+ * @return ::NC_NOERR
  *
  * @author Dennis Heimbigner
 */
@@ -57,8 +57,8 @@ nc_plugin_path_initialize(void)
     char* defaultpluginpath = NULL;
     const char* pluginroots = NULL;
     NClist* dirs = NULL;
+    int i;
 
-    if(!NC_initialized) nc_initialize();
     if(NC_plugin_path_initialized != 0) goto done;
     NC_plugin_path_initialized = 1;
 
@@ -90,16 +90,13 @@ nc_plugin_path_initialize(void)
 	defaultpluginpath = NULL;
     }
 
-    /* Set the current plugin dirs sequence */
-    assert(gs->pluginpaths == NULL);
-    gs->pluginpaths = dirs; dirs = NULL;
-
-#ifdef NETCDF_ENABLE_NCZARR
-    if((stat = NCZ_plugin_path_initialize())) goto done;    
-#endif
-#ifdef USE_HDF5
-    if((stat = NC4_hdf5_plugin_path_initialize())) goto done;
-#endif
+    /* Initialize all the plugin path dispatchers */
+    for(i=0;i<NC_FORMATX_COUNT;i++) {    
+	if(gs->formatxstate.pluginapi[i] != NULL) {
+	    if((stat = gs->formatxstate.pluginapi[i]->initialize(&gs->formatxstate.state[i], dirs))) goto done;
+	    assert(gs->formatxstate.state[i] != NULL);
+	}
+    }
 
 done:
     nullfree(defaultpluginpath);
@@ -111,7 +108,7 @@ done:
  * This function is called as part of nc_finalize()
  * Its purpose is to clean-up plugin path state.
  *
- * @return NC_NOERR
+ * @return ::NC_NOERR
  *
  * @author Dennis Heimbigner
 */
@@ -121,61 +118,18 @@ nc_plugin_path_finalize(void)
 {
     int stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
+    int i;
 
     if(NC_plugin_path_initialized == 0) goto done;
     NC_plugin_path_initialized = 0;
 
-#ifdef NETCDF_ENABLE_NCZARR
-    if((stat = NCZ_plugin_path_finalize())) goto done;    
-#endif
-#ifdef USE_HDF5
-    if((stat = NC4_hdf5_plugin_path_finalize())) goto done;
-#endif
-
-    nclistfreeall(gs->pluginpaths); gs->pluginpaths = NULL;
-done:
-    return NCTHROW(stat);
-}
-
-/**
- * This function must be called to synchronize the plugin path state
- * with the state of the various implementations: currently libhdf5 and libnczarr.
- * @param formatx choose which dispatcher(s) to update: NC_FORMATX_NC_HDF5, NC_FORMATX_NCZARR, or 0(zero) to update all.
- *
- * @return NC_NOERR
- *
- * @author Dennis Heimbigner
-*/
-
-int
-nc_plugin_path_sync(int formatx)
-{
-    int stat = NC_NOERR;
-
-    if(!NC_initialized) nc_initialize();
-
-    switch (formatx) {
-#ifdef NETCDF_ENABLE_NCZARR
-    case NC_FORMATX_NC_HDF5:
-        if((stat = NCZ_plugin_path_sync(formatx))) goto done;    
-	break;
-#endif
-#ifdef USE_HDF5
-    case NC_FORMATX_NCZARR:
-        if((stat = NC4_hdf5_plugin_path_sync(formatx))) goto done;
-	break;
-#endif
-    case 0:
-#ifdef NETCDF_ENABLE_NCZARR
-        if((stat = NCZ_plugin_path_sync(NC_FORMATX_NCZARR))) goto done;    
-#endif
-#ifdef USE_HDF5
-        if((stat = NC4_hdf5_plugin_path_sync(NC_FORMATX_NC_HDF5))) goto done;
-#endif
-	break;
-    default:
-        stat = NC_ENOTNC; goto done;    
-    }	
+    /* Finalize all the plugin path dispatchers */
+    for(i=0;i<NC_FORMATX_COUNT;i++) {    
+	if(gs->formatxstate.pluginapi[i] != NULL) {
+	    if((stat = gs->formatxstate.pluginapi[i]->finalize(&gs->formatxstate.state[i]))) goto done;
+	    gs->formatxstate.state[i] = NULL;
+	}
+    }
 done:
     return NCTHROW(stat);
 }
@@ -184,10 +138,13 @@ done:
  * Return the current sequence of directories in the internal plugin path list.
  * Since this function does not modify the plugin path, it can be called at any time.
  *
+ * @param formatx the dispatcher from which to get the info
  * @param npaths return the number of paths in the path list
  * @param pathlist return the sequence of directies in the path list
  *
- * @return NC_NOERR
+ * @return ::NC_NOERR
+ * @return ::NC_EINVAL if formatx is unknown or zero
+ * @return ::NC_EPLUGIN if the dispatcher or state for formatx is NULL
  *
  * @author Dennis Heimbigner
  *
@@ -197,12 +154,20 @@ done:
  * The second time with pathlist not NULL to get the actual sequence of paths.
 */
 EXTERNL int
-nc_plugin_path_getall(size_t* npathsp, char** pathlist)
+nc_plugin_path_getall(int formatx, size_t* npathsp, char** pathlist)
 {
+    int stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
 
+    if(formatx < 0 || formatx >= NC_FORMATX_COUNT) {stat = NC_EINVAL; goto done;}
     if(!NC_initialized) nc_initialize();
-    return NCG_plugin_path_getall(npathsp,pathlist,gs->pluginpaths);
+    /* read functions can only apply to specific formatx */
+    if(formatx == 0) {stat = NC_EINVAL; goto done;}
+    if(gs->formatxstate.pluginapi[formatx] == NULL) {stat = NC_EPLUGIN; goto done;}
+    if(gs->formatxstate.state[formatx] == NULL) {stat = NC_EPLUGIN; goto done;}
+    if((stat = gs->formatxstate.pluginapi[formatx]->getall(gs->formatxstate.state[formatx],npathsp,pathlist))) goto done;
+done:
+    return NCTHROW(stat);
 }
 
 /**
@@ -210,20 +175,30 @@ nc_plugin_path_getall(size_t* npathsp, char** pathlist)
  * The index starts at 0 (zero).
  * Caller frees the returned string.
  *
+ * @param formatx the dispatcher from which to get the info
  * @param index of path to return
  * @entryp store copy of the index'th dir from the internal path or NULL if out of range.
- * @return NC_NOERR||NC_ERANGE if out of range
+ * @return ::NC_NOERR
+ * @return ::NC_EINVAL if formatx is unknown or zero
+ * @return ::NC_EPLUGIN if the dispatcher or state for formatx is NULL
  *
-	 * @author Dennis Heimbigner
+ * @author Dennis Heimbigner
 */
 
 EXTERNL int
-nc_plugin_path_getith(size_t index, char** entryp)
+nc_plugin_path_getith(int formatx, size_t index, char** entryp)
 {
+    int stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
-
+    if(formatx < 0 || formatx >= NC_FORMATX_COUNT) {stat = NC_EINVAL; goto done;}
     if(!NC_initialized) nc_initialize();
-    return NCG_plugin_path_getith(index,entryp,gs->pluginpaths);
+    /* read functions can only apply to specific formatx */
+    if(formatx == 0) {stat = NC_EINVAL; goto done;}
+    if(gs->formatxstate.pluginapi[formatx] == NULL) {stat = NC_EPLUGIN; goto done;}
+    if(gs->formatxstate.state[formatx] == NULL) {stat = NC_EPLUGIN; goto done;}
+    if((stat = gs->formatxstate.pluginapi[formatx]->getith(gs->formatxstate.state[formatx],index,entryp))) goto done;
+done:
+    return NCTHROW(stat);
 }
 
 /**
@@ -241,186 +216,158 @@ nc_plugin_path_getith(size_t index, char** entryp)
  * The ';' separator is legal on all machines.
  * Using a paths argument of "" will clear the set of plugin paths.
  *
+ * @param formatx the dispatcher from which to get the info
  * @param paths to overwrite the current internal path list
  *
- * @return NC_NOERR
+ * @return ::NC_NOERR
+ * @return ::NC_EINVAL if formatx is unknown or zero
+ * @return ::NC_EPLUGIN if the dispatcher or state for formatx is NULL
  *
  * @author Dennis Heimbigner
 */
 
 EXTERNL int
-nc_plugin_path_load(const char* paths)
+nc_plugin_path_load(int formatx, const char* paths)
 {
+    int i,stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
 
+    if(formatx < 0 || formatx >= NC_FORMATX_COUNT) {stat = NC_EINVAL; goto done;}
     if(!NC_initialized) nc_initialize();
-    return NCG_plugin_path_load(paths,gs->pluginpaths);
+    if(formatx) {
+        if(gs->formatxstate.pluginapi[formatx] == NULL || gs->formatxstate.state[formatx] == NULL)
+	    {stat = NC_EPLUGIN; goto done;}
+	if((stat=gs->formatxstate.pluginapi[formatx]->load(gs->formatxstate.state[formatx],paths))) goto done;
+    } else {/* forall dispatchers */
+        for(i=0;i<NC_FORMATX_COUNT;i++) {
+            if(gs->formatxstate.pluginapi[i] != NULL) {
+		if(gs->formatxstate.state[i] == NULL)
+		    {stat = NC_EPLUGIN; goto done;}
+		if((stat=gs->formatxstate.pluginapi[i]->load(gs->formatxstate.state[i],paths))) goto done;
+	    }
+	}
+    }
+done:
+    return NCTHROW(stat);
 }
 
 /**
  * Append a directory to the end of the current internal path list.
  *
+ * @param formatx the dispatcher from which to get the info
  * @param dir directory to append.
  *
- * @return NC_NOERR
+ * @return ::NC_NOERR
+ * @return ::NC_EINVAL if formatx is unknown or zero
+ * @return ::NC_EPLUGIN if the dispatcher or state for formatx is NULL
  *
  * @author Dennis Heimbigner
 */
 
 EXTERNL int
-nc_plugin_path_append(const char* path)
+nc_plugin_path_append(int formatx, const char* dir)
 {
+    int i,stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
 
+    if(formatx < 0 || formatx >= NC_FORMATX_COUNT) {stat = NC_EINVAL; goto done;}
     if(!NC_initialized) nc_initialize();
-    return NCG_plugin_path_append(path,gs->pluginpaths);
+    if(formatx) {
+        if(gs->formatxstate.pluginapi[formatx] == NULL || gs->formatxstate.state[formatx] == NULL)
+	    {stat = NC_EPLUGIN; goto done;}
+	if((stat=gs->formatxstate.pluginapi[formatx]->append(gs->formatxstate.state[formatx],dir))) goto done;
+    } else {/* forall dispatchers */
+        for(i=0;i<NC_FORMATX_COUNT;i++) {
+            if(gs->formatxstate.pluginapi[i] != NULL) {
+		if(gs->formatxstate.state[i] == NULL)
+		    {stat = NC_EPLUGIN; goto done;}
+		if((stat=gs->formatxstate.pluginapi[i]->append(gs->formatxstate.state[i],dir))) goto done;
+	    }
+	}
+    }
+done:
+    return NCTHROW(stat);
 }
 
 /**
  * Prepend a directory to the front of the current internal path list.
  *
+ * @param formatx the dispatcher from which to get the info
  * @param dir directory to prepend
  *
- * @return NC_NOERR
+ * @return ::NC_NOERR
+ * @return ::NC_EINVAL if formatx is unknown or zero
+ * @return ::NC_EPLUGIN if the dispatcher or state for formatx is NULL
  *
  * @author Dennis Heimbigner
 */
 
 EXTERNL int
-nc_plugin_path_prepend(const char* path)
+nc_plugin_path_prepend(int formatx, const char* dir)
 {
+    int i,stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
 
+    if(formatx < 0 || formatx >= NC_FORMATX_COUNT) {stat = NC_EINVAL; goto done;}
     if(!NC_initialized) nc_initialize();
-    return NCG_plugin_path_prepend(path,gs->pluginpaths);
+    if(formatx) {
+        if(gs->formatxstate.pluginapi[formatx] == NULL || gs->formatxstate.state[formatx] == NULL)
+	    {stat = NC_EPLUGIN; goto done;}
+	if((stat=gs->formatxstate.pluginapi[formatx]->prepend(gs->formatxstate.state[formatx],dir))) goto done;
+    } else {/* forall dispatchers */
+        for(i=0;i<NC_FORMATX_COUNT;i++) {
+            if(gs->formatxstate.pluginapi[i] != NULL) {
+		if(gs->formatxstate.state[i] == NULL)
+		    {stat = NC_EPLUGIN; goto done;}
+		if((stat=gs->formatxstate.pluginapi[i]->prepend(gs->formatxstate.state[i],dir))) goto done;
+	    }
+	}
+    }
+done:
+    return NCTHROW(stat);
 }
 
 /**
  * Remove all occurrences of a directory from the internal path sequence
  *
- * @param dir directory to prepend
+ * @param formatx the dispatcher from which to get the info
+ * @param dir directory name to remove
  *
- * @return NC_NOERR
+ * @return ::NC_NOERR
+ * @return ::NC_EINVAL if formatx is unknown or zero
+ * @return ::NC_EPLUGIN if the dispatcher or state for formatx is NULL
  *
  * @author Dennis Heimbigner
 */
 
 EXTERNL int
-nc_plugin_path_remove(const char* dir)
+nc_plugin_path_remove(int formatx, const char* dir)
 {
+    int i,stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
 
+    if(formatx < 0 || formatx >= NC_FORMATX_COUNT) {stat = NC_EINVAL; goto done;}
     if(!NC_initialized) nc_initialize();
-    return NCG_plugin_path_remove(dir,gs->pluginpaths);
-}
-
-/**************************************************/
-/* Generic plugin path implementation */
-
-EXTERNL int
-NCG_plugin_path_getall(size_t* npathsp, char** pathlist, NClist* pluginpaths)
-{
-    int stat = NC_NOERR;
-    size_t npaths = 0;
-
-    npaths = nclistlength(pluginpaths);
-    if(npathsp) *npathsp = npaths;
-
-    if(npaths > 0 && pathlist != NULL) {
-	size_t i;
-	for(i=0;i<npaths;i++) {
-	    const char* dir = (const char*)nclistget(pluginpaths,i);
-	    pathlist[i] = strdup(dir);
-	}
-    }
-    return NCTHROW(stat);
-}
-
-EXTERNL int
-NCG_plugin_path_getith(size_t index, char** entryp, NClist* pluginpaths)
-{
-    int stat = NC_NOERR;
-    size_t npaths = 0;
-    const char* dir = NULL;
-    
-    npaths = nclistlength(pluginpaths);
-    if(entryp == NULL || npaths == 0) goto done;
-    if(index >= npaths) {stat = NC_ERANGE; goto done;} /* out of range */
-    dir = (const char*)nclistget(pluginpaths,index);
-
-done:
-    if(entryp) *entryp = nulldup(dir);
-    return NCTHROW(stat);
-}
-
-EXTERNL int
-NCG_plugin_path_load(const char* paths, NClist* pluginpaths)
-{
-    int stat = NC_NOERR;
-    NClist* newpaths = nclistnew();
-    size_t npathsnew = 0;
-
-    /* Parse the paths */
-    if((stat = NC_plugin_path_parse(paths,newpaths))) goto done;
-    npathsnew = nclistlength(newpaths);
-
-    /* Clear the current path list */
-    nclistfreeall(pluginpaths);
-    pluginpaths = NULL;
-
-    if(npathsnew > 0) {
-	/* Insert the new path list */
-	assert(pluginpaths == NULL);
-	pluginpaths = newpaths;
-	newpaths = NULL;
-    }
-
-done:
-    nclistfreeall(newpaths);    
-    if(pluginpaths == NULL)
-        pluginpaths = nclistnew();
-    return NCTHROW(stat);
-}
-
-EXTERNL int
-NCG_plugin_path_append(const char* path, NClist* pluginpaths)
-{
-    int stat = NC_NOERR;
-    nclistpush(pluginpaths,strdup(path));
-    return NCTHROW(stat);
-}
-
-EXTERNL int
-NCG_plugin_path_prepend(const char* path, NClist* pluginpaths)
-{
-    int stat = NC_NOERR;
-    nclistinsert(pluginpaths,0,strdup(path));
-    return NCTHROW(stat);
-}
-
-EXTERNL int
-NCG_plugin_path_remove(const char* dir, NClist* pluginpaths)
-{
-    int stat = NC_NOERR;
-    size_t npaths = 0;
-    size_t i;
-    npaths = nclistlength(pluginpaths);
-    if(npaths > 0 && dir != NULL) {
-	/* Walk backward to avoid more complex logic; watch out for being unsigned */
-	for(i=npaths;i-- > 0;) {
-	    char* candidate = (char*)nclistget(pluginpaths,i);
-	    if(strcmp(dir,candidate)==0) {
-		nclistremove(pluginpaths,i);
-		nullfree(candidate);
+    if(formatx) {
+        if(gs->formatxstate.pluginapi[formatx] == NULL || gs->formatxstate.state[formatx] == NULL)
+	    {stat = NC_EPLUGIN; goto done;}
+	if((stat=gs->formatxstate.pluginapi[formatx]->prepend(gs->formatxstate.state[formatx],dir))) goto done;
+    } else {/* forall dispatchers */
+        for(i=0;i<NC_FORMATX_COUNT;i++) {
+            if(gs->formatxstate.pluginapi[i] != NULL) {
+		if(gs->formatxstate.state[i] == NULL)
+		    {stat = NC_EPLUGIN; goto done;}
+		if((stat=gs->formatxstate.pluginapi[i]->prepend(gs->formatxstate.state[i],dir))) goto done;
 	    }
 	}
     }
+done:
     return NCTHROW(stat);
 }
 
+/**************************************************/
 /* Undocumented/Hidden for use for testing and debugging */
 
-/* A utility function */
 int
 NC_plugin_path_parse(const char* path0, NClist* list)
 {
@@ -457,30 +404,19 @@ done:
     return stat;
 }
 
-NCbytes* NC_pluginpaths_buf = NULL;
-
-#define buf NC_pluginpaths_buf
-
 const char*
-NC_plugin_path_stringify(size_t npaths, char** paths)
+NC_plugin_path_tostring(size_t npaths, char** paths)
 {
-    if(buf == NULL) buf = ncbytesnew();
-    ncbytesclear(buf);
+static NCbytes* NC_pluginpaths_buf = NULL;
+    if(NC_pluginpaths_buf == NULL) NC_pluginpaths_buf = ncbytesnew();
+    ncbytesclear(NC_pluginpaths_buf);
     if(npaths > 0) {
 	size_t i;
 	for(i=0;i<npaths;i++) {
-	    if(i>0) ncbytescat(buf,";");
-	    if(paths[i] != NULL) ncbytescat(buf,paths[i]);
+	    if(i>0) ncbytescat(NC_pluginpaths_buf,";");
+	    if(paths[i] != NULL) ncbytescat(NC_pluginpaths_buf,paths[i]);
 	}
     } else
-	ncbytesnull(buf);
-    return ncbytescontents(buf);
+	ncbytesnull(NC_pluginpaths_buf);
+    return ncbytescontents(NC_pluginpaths_buf);
 }
-
-const char*
-NC_plugin_path_tostring(void)
-{
-    struct NCglobalstate* gs = NC_getglobalstate();
-    return NC_plugin_path_stringify(nclistlength(gs->pluginpaths),(char**)nclistcontents(gs->pluginpaths));
-}
-#undef buf

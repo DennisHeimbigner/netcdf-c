@@ -13,6 +13,7 @@ See LICENSE.txt for license information.
 #include "ncpathmgr.h"
 #include "ncxml.h"
 #include "nc4internal.h"
+#include "ncplugins.h"
 
 /* Required for getcwd, other functions. */
 #ifdef HAVE_UNISTD_H
@@ -176,6 +177,11 @@ NC_createglobalstate(void)
     if((nc_globalstate->rcinfo->s3profiles = nclistnew())==NULL)
             {stat = NC_ENOMEM; goto done;}
 
+    /* plugin path state */
+    if((nc_globalstate->formatxstate.pluginapi = (NC_PluginPathDispatch**)calloc(NC_FORMATX_COUNT,sizeof(NC_PluginPathDispatch*)))==NULL)
+            {stat = NC_ENOMEM; goto done;}
+    memset(nc_globalstate->formatxstate.state,0,NC_FORMATX_COUNT*sizeof(void*));
+
     /* Get environment variables */
     if(getenv(NCRCENVIGNORE) != NULL)
         nc_globalstate->rcinfo->ignore = 1;
@@ -216,7 +222,14 @@ NC_freeglobalstate(void)
 	    NC_rcclear(nc_globalstate->rcinfo);
 	    free(nc_globalstate->rcinfo);
 	}
-	nclistfree(nc_globalstate->pluginpaths);
+	{
+	    size_t i;
+	    /* Verify states reclaimed */
+	    for(i=0;i<NC_FORMATX_COUNT;i++)
+		assert(nc_globalstate->formatxstate.state[i] == NULL);
+	    memset(nc_globalstate->formatxstate.state,0,NC_FORMATX_COUNT*sizeof(void*));
+	    nullfree(nc_globalstate->formatxstate.pluginapi);
+	}
 	free(nc_globalstate);
 	nc_globalstate = NULL;
     }

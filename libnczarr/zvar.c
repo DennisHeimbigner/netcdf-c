@@ -295,6 +295,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     int d;
     int retval;
     NCglobalstate* gstate = NC_getglobalstate();
+    GlobalNCZarr* gz = (GlobalNCZarr*)gstate->dispatchstate.state[NC_FORMATX_NCZARR];
 
     ZTRACE(1,"ncid=%d name=%s xtype=%d ndims=%d dimids=%s",ncid,name,xtype,ndims,nczprint_idvector(ndims,dimidsp));
     
@@ -381,7 +382,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     zvar->common.file = h5;
     zvar->scalar = (ndims == 0 ? 1 : 0);
 
-    zvar->dimension_separator = gstate->zarr.dimension_separator;
+    zvar->dimension_separator = gz->dimension_separator;
     assert(zvar->dimension_separator != 0);
 
     /* Set these state flags for the var. */

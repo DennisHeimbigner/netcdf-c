@@ -107,7 +107,10 @@ typedef enum {NC_FALSE = 0, NC_TRUE = 1} nc_bool_t;
 /* Forward declarations. */
 struct NC_GRP_INFO;
 struct NC_TYPE_INFO;
+
+/* Opaque */
 struct NCRCinfo;
+struct NC_PluginPathDispatch;
 
 /**
  * This struct provides indexed Access to Meta-data objects. See the
@@ -466,19 +469,6 @@ typedef struct NCglobalstate {
     char* home; /* track $HOME */
     char* cwd; /* track getcwd */
     struct NCRCinfo* rcinfo; /* Currently only one rc file per session */
-    NClist* pluginpaths; /* Global Plugin State */
-    struct GlobalZarr { /* Zarr specific parameters */
-	char dimension_separator;
-	int default_zarrformat;
-	NClist* pluginpaths; /* NCZarr mirror of plugin paths */
-	NClist* codec_defaults;
-	NClist* default_libs;
-	/* All possible HDF5 filter plugins */
-	/* Consider onverting to linked list or hash table or
-	   equivalent since very sparse */
-	struct NCZ_Plugin** loaded_plugins; //[H5Z_FILTER_MAX+1];
-	size_t loaded_plugins_max; /* plugin filter id index. 0<loaded_plugins_max<=H5Z_FILTER_MAX */
-    } zarr;
     struct GlobalAWS { /* AWS S3 specific parameters/defaults */
 	char* default_region;
 	char* config_file;
@@ -492,6 +482,12 @@ typedef struct NCglobalstate {
 	int alignment;
     } alignment;
     struct ChunkCache chunkcache;
+    /* Global dispatcher and states specific to each dispatcher
+       and indexed by NC_FORMATX */
+    struct FormatXGlobal {
+        void* state[NC_FORMATX_COUNT]; /* type is opaque (like e.g. file_info_format field) */
+        struct NC_PluginPathDispatch** pluginapi; /*[NC_FORMATX_COUNT];*/
+    } formatxstate;
 } NCglobalstate;
 
 extern struct NCglobalstate* NC_getglobalstate(void);
