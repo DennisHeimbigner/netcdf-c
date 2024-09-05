@@ -1,1 +1,11 @@
-/usr;/zero;/one;/two;/three;/four;/tmp
+testxpend(hdf5): 
+testxpend(hdf5): before: /zero;/one;/two;/hdf5;/three;/four
+testxpend(hdf5): after: /usr;/zero;/one;/two;/hdf5;/three;/four;/tmp
+testxpend(nczarr): 
+testxpend(nczarr): before: /zero;/one;/two;/nczarr;three;/four;/five
+testxpend(nczarr): after: /usr;/zero;/one;/two;/nczarr;three;/four;/five;/tmp
+testxpend(all): 
+testxpend(hdf5): before: /zero;/one;/two;/hdf5;/three;/four
+testxpend(hdf5): after: /usr;/zero;/one;/two;/hdf5;/three;/four;/tmp
+testxpend(nczarr): before: /zero;/one;/two;/nczarr;three;/four;/five
+testxpend(nczarr): after: /usr;/zero;/one;/two;/nczarr;three;/four;/five;/tmp

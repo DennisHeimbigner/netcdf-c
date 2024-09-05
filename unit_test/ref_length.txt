@@ -1,1 +1,7 @@
-5
+testlength(hdf5): 
+testlength(hdf5): 6
+testlength(nczarr): 
+testlength(nczarr): 7
+testlength(all): 
+testlength(hdf5): 6
+testlength(nczarr): 7

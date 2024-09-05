@@ -47,50 +47,6 @@ set_auto(void* func, void *client_data)
 #endif
 
 /**
- * @internal Provide a function to do any necessary initialization of
- * the ZARR library.
- */
-int
-NCZ_initialize_internal(void)
-{
-    int stat = NC_NOERR;
-    char* dimsep = NULL;
-    NCglobalstate* ngs = NULL;
-    GlobalNCZarr* ncz = NULL;
-
-    ncz_initialized = 1;
-    ngs = NC_getglobalstate();
-    ncz = (GlobalNCZarr*)ngs->pluginstate.state[NC_FORMATX_NCZARR];
-    /* Defaults */
-    ncz->dimension_separator = DFALT_DIM_SEPARATOR;
-    dimsep = NC_rclookup("ZARR.DIMENSION_SEPARATOR",NULL,NULL);
-    if(dimsep != NULL) {
-        /* Verify its value */
-	if(dimsep != NULL && strlen(dimsep) == 1 && islegaldimsep(dimsep[0]))
-	    ncz->dimension_separator = dimsep[0];
-    }
-    return stat;
-}
-
-/**
- * @internal Provide a function to do any necessary finalization of
- * the ZARR library.
- */
-int
-NCZ_finalize_internal(void)
-{
-    /* Reclaim global resources */
-    ncz_initialized = 0;
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    NCZ_filter_finalize();
-#endif
-#ifdef NETCDF_ENABLE_S3
-    NCZ_s3finalize();
-#endif
-    return NC_NOERR;
-}
-
-/**
  * @internal Given a varid, return the maximum length of a dimension
  * using dimid.
  *

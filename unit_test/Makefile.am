@@ -41,10 +41,12 @@ TESTS += tst_nc4internal
 TESTS += run_reclaim_tests.sh
 endif # USE_HDF5
 
-# Test for USE_NETCDF4
-if USE_NETCDF4
+# Test for HDF5 and NCZARR enabled
+if NETCDF_ENABLE_HDF5
+if NETCDF_ENABLE_NCZARR
 check_PROGRAMS += tst_pluginpaths
 TESTS += run_pluginpaths.sh
+endif
 endif
 
 if NETCDF_ENABLE_S3
@@ -58,7 +60,7 @@ endif
 
 EXTRA_DIST = CMakeLists.txt run_s3sdk.sh run_reclaim_tests.sh run_aws_config.sh run_pluginpaths.sh
 EXTRA_DIST += nctest_netcdf4_classic.nc reclaim_tests.cdl
-EXTRA_DIST += ref_getall.txt ref_getith.txt ref_length.txt ref_load.txt ref_remove.txt ref_sync.txt ref_xpend.txt
+EXTRA_DIST += ref_pluginpaths.tgz ref_*.txt
 
 CLEANFILES = reclaim_tests*.txt reclaim_tests.nc tmp_*.txt
 

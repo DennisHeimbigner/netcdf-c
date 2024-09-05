@@ -25,12 +25,6 @@
 #include "netcdf_filter.h"
 #include "netcdf_aux.h"
 
-extern int NC4_hdf5_plugin_path_sync(int formatx);
-extern int NCZ_plugin_path_sync(int formatx);
-extern const char* NC4_hdf5_plugin_path_tostring(void);
-extern const char* NCZ_plugin_path_tostring(void);
-extern const char* NC_plugin_path_tostring(void);
-
 #undef DEBUG
 
 /* Define max number of -x actions */
@@ -48,11 +42,11 @@ ACT_APPEND=2,
 ACT_PREPEND=3,
 ACT_REMOVE=4,
 ACT_LOAD=5,
-ACT_SYNC=6,
-ACT_LENGTH=7,
+ACT_LENGTH=6,
 /* Synthetic Actions */
-ACT_GETITH=8,
-ACT_CLEAR=9,
+ACT_GETITH=7,
+ACT_CLEAR=8,
+ACT_FORMATX=9,
 } Action;
 
 static struct ActionTable {
@@ -65,10 +59,10 @@ static struct ActionTable {
 {ACT_PREPEND,"prepend"},
 {ACT_REMOVE,"remove"},
 {ACT_LOAD,"load"},
-{ACT_SYNC,"sync"},
 {ACT_LENGTH,"length"},
 {ACT_GETITH,"getith"},
 {ACT_CLEAR,"clear"},
+{ACT_FORMATX,"formatx"},
 {ACT_NONE,NULL}
 };
 
@@ -76,10 +70,14 @@ static struct FormatXTable {
     const char* name;
     int formatx;
 } formatxtable[] = {
-{"default",0},
+{"all",0},
+#ifdef USE_HDF5
 {"hdf5",NC_FORMATX_NC_HDF5},
+#endif
+#ifdef NETCDF_ENABLE_NCZARR
 {"nczarr",NC_FORMATX_NCZARR},
 {"zarr",NC_FORMATX_NCZARR},
+#endif
 {NULL,0}
 };
 
@@ -87,10 +85,11 @@ static struct FormatXTable {
 struct Dumpptions {
     int debug;
     size_t nactions;
+    int formatx; /* default formatx */
     struct Execute {
 	Action action;
-	char name[NACTIONLEN+1];
-	char arg[NACTIONLEN+1];
+	char* name;
+	char* arg;
     } actions[NACTIONS];
     int xflags;
 #	define XNOZMETADATA 1	
@@ -115,7 +114,7 @@ static void
 pluginusage(void)
 {
     fprintf(stderr,"usage: tst_pluginpath [-d] -x <command>[:<arg>],<command>[:<arg>]...\n");
-    fprintf(stderr,"\twhere <command> is one of: list append prepend remove list.\n");
+    fprintf(stderr,"\twhere <command> is one of: list append prepend remove list or formatx.\n");
     fprintf(stderr,"\twhere <arg> is arbitrary string (with '\\,' to escape commas); arg can be missing or empty.\n");
     exit(1);
 }
@@ -127,7 +126,7 @@ decodeformatx(const char* name)
     for(;p->name != NULL;p++) {
 	if(strcasecmp(p->name,name)==0) return p->formatx;
     }
-    return 0;
+    return -1;
 }
 
 static Action
@@ -187,7 +186,7 @@ parseactionlist(const char* cmds0)
     if(cmdlen == 0) {fprintf(stderr,"error: -x must have non-empty argument.\n"); pluginusage();}
     if(cmdlen > NACTIONLEN) {fprintf(stderr,"error: -x argument too lone; max is %zu\n",(size_t)NACTIONLEN); pluginusage();}
     strncpy(cmds,cmds0,cmdlen);
-    /* split into command + arg strings and count */
+    /* split into command + formatx + arg strings and count */
     ncmds = 0;
     for(leave=0,p=cmds;!leave;p=q) {
 	q = xstrchr(p,',');
@@ -201,7 +200,7 @@ parseactionlist(const char* cmds0)
     }
     if(ncmds > NACTIONS) {fprintf(stderr,"error: -x must have not more than %zu commands.\n",(size_t)NACTIONS); pluginusage();}
     dumpoptions.nactions = ncmds;
-    /* Now process each command+arg pair */
+    /* Now process each command+formatx+arg triple */
     for(p=cmds,i=0;i<ncmds;i++) {
 	size_t clen,alen;
 	clen = strlen(p);
@@ -212,11 +211,11 @@ parseactionlist(const char* cmds0)
 	    q = p+clen; /* point to trailing nul */
 	else
 	    *q++ = '\0'; /* overwrite ':' and skip to start of the arg*/
-	strncpy(dumpoptions.actions[i].name,p,NACTIONLEN);
+	dumpoptions.actions[i].name = nulldup(p);
 	/* Get the argument, if any */
 	alen = strlen(q);
 	if(alen > 0) {
-	    strncpy(dumpoptions.actions[i].arg,q,NACTIONLEN);
+	    dumpoptions.actions[i].arg = strdup(q);
 	}
 	p += (clen+1); /* move to next cmd+arg pair */
     }
@@ -256,65 +255,62 @@ done:
 /**************************************************/
 
 static int
-actionappend(const char* arg)
+actionappend(const struct Execute* action)
 {
     int stat = NC_NOERR;
-    if(arg == NULL || strlen(arg)==0) {stat = NC_EINVAL; goto done;}
-    if((stat=nc_plugin_path_append(arg))) goto done;
+    if(action->arg == NULL || strlen(action->arg)==0) {stat = NC_EINVAL; goto done;}
+    if((stat=nc_plugin_path_append(dumpoptions.formatx,action->arg))) goto done;
 done:
     return NCCHECK(stat);
 }
 
 static int
-actionclear(const char* arg)
+actionclear(const struct Execute* action)
 {
     int stat = NC_NOERR;
-    if((stat=nc_plugin_path_load(NULL))) goto done;   
+    if((stat=nc_plugin_path_load(dumpoptions.formatx,NULL))) goto done;   
 done:
     return NCCHECK(stat);
 }
 
 static int
-actiongetall(const char* arg)
+actionformatx(const struct Execute* action)
 {
     int stat = NC_NOERR;
-    int format;
-    size_t alen;
-    const char* text = NULL;
+    dumpoptions.formatx = decodeformatx(action->arg);
+    if(dumpoptions.formatx < 0) {fprintf(stderr,"error: formatx: illegal argument: %s\n",action->arg); pluginusage();}
+    return NCCHECK(stat);
+}
+
+static int
+actiongetall(const struct Execute* action)
+{
+    int stat = NC_NOERR;
+    size_t ndirs;
+    char** dirs = NULL;
+    char* text = NULL;
    
-    if(arg == NULL) alen = 0; else alen = strlen(arg);
-    format = decodeformatx(alen==0?"default":arg);
-    switch (format) {
-    default:
-	fprintf(stderr,"actiongetall: Illegal argument: %s\n",arg);
-	stat = NC_EINVAL;
-	text = "";
-	break;
-    case NC_FORMATX_NC_HDF5:
-	text = NC4_hdf5_plugin_path_tostring();
-	break;
-    case NC_FORMATX_NCZARR:
-	text = NCZ_plugin_path_tostring();
-	break;	
-    case 0:
-       text = NC_plugin_path_tostring();
-       break;
-    }
+    if((stat=nc_plugin_path_getall(dumpoptions.formatx,&ndirs,NULL))) goto done;
+    if((dirs = (char**)calloc(ndirs,sizeof(char*)))==NULL) {stat = NC_ENOMEM; goto done;}
+    if((stat=nc_plugin_path_getall(dumpoptions.formatx,&ndirs,dirs))) goto done;
+    text = ncaux_plugin_path_tostring(ndirs,dirs);
     if(stat == NC_NOERR) printf("%s\n",text);   
+done:
+    nullfree(text);
+    freestringvec(ndirs,dirs);
     return NCCHECK(stat);
 }
 
 static int
-actiongetith(const char* arg)
+actiongetith(const struct Execute* action)
 {
     int stat = NC_NOERR;
     size_t ith = 0;
     char* dir = NULL;
 
-    if(arg != NULL && strlen(arg)==0) arg = NULL;
-    if(arg == NULL) {stat = NC_EINVAL; goto done;}
-    if(sscanf(arg,"%zu",&ith) != 1) {stat = NC_EINVAL; goto done;}
-    if((stat = nc_plugin_path_getith(ith,&dir))) goto done;
+    if(action->arg == NULL || strlen(action->arg)==0) {stat = NC_EINVAL; goto done;}
+    if(sscanf(action->arg,"%zu",&ith) != 1) {stat = NC_EINVAL; goto done;}
+    if((stat = nc_plugin_path_getith(dumpoptions.formatx,ith,&dir))) goto done;
     printf("%s\n",dir);
       
 done:
@@ -323,72 +319,43 @@ done:
 }
 
 static int
-actionlength(const char* arg)
+actionlength(const struct Execute* action)
 {
     int stat = NC_NOERR;
     size_t len = 0;
-    if((stat=nc_plugin_path_getall(&len,NULL))) goto done;
+    if((stat=nc_plugin_path_getall(dumpoptions.formatx,&len,NULL))) goto done;
     printf("%zu\n",len);
 done:
     return NCCHECK(stat);
 }
 
 static int
-actionload(const char* arg)
+actionload(const struct Execute* action)
 {
     int stat = NC_NOERR;
-    if(arg != NULL && strlen(arg)==0) arg = NULL;
-    if((stat=nc_plugin_path_load(arg))) goto done;   
+    if(action->arg == NULL || strlen(action->arg)==0) {stat = NC_EINVAL; goto done;}
+    if((stat=nc_plugin_path_load(dumpoptions.formatx,action->arg))) goto done;   
 done:
     return NCCHECK(stat);
 }
 
 static int
-actionprepend(const char* arg)
+actionprepend(const struct Execute* action)
 {
     int stat = NC_NOERR;
-    if(arg == NULL || strlen(arg)==0) {stat = NC_EINVAL; goto done;}
-    if((stat=nc_plugin_path_prepend(arg))) goto done;
+    if(action->arg == NULL || strlen(action->arg)==0) {stat = NC_EINVAL; goto done;}
+    if((stat=nc_plugin_path_prepend(dumpoptions.formatx,action->arg))) goto done;
 done:
     return NCCHECK(stat);
 }
 
 static int
-actionremove(const char* arg)
+actionremove(const struct Execute* action)
 {
     int stat = NC_NOERR;
-    if(arg == NULL || strlen(arg)==0) {stat = NC_EINVAL; goto done;}
-    if((stat=nc_plugin_path_remove(arg))) goto done;   
+    if(action->arg == NULL || strlen(action->arg)==0) {stat = NC_EINVAL; goto done;}
+    if((stat=nc_plugin_path_remove(dumpoptions.formatx,action->arg))) goto done;   
 done:
-    return NCCHECK(stat);
-}
-
-static int
-actionsync(const char* arg)
-{
-    int stat = NC_NOERR;
-    size_t alen;
-    int format;
-    
-    if(arg != NULL && strlen(arg)==0) arg = NULL;
-    if(arg == NULL) alen = 0; else alen = strlen(arg);
-    format = decodeformatx(alen==0?"default":arg);
-    switch (format) {
-    default:
-	fprintf(stderr,"actiongetall: Illegal argument: %s\n",arg);
-	stat = NC_EINVAL;
-	break;
-    case NC_FORMATX_NC_HDF5:
-	stat = NC4_hdf5_plugin_path_sync(format);
-	break;
-    case NC_FORMATX_NCZARR:
-	stat = NCZ_plugin_path_sync(format);
-	break;	
-    case 0:
-       stat = nc_plugin_path_sync(format);
-       break;
-    }
-
     return NCCHECK(stat);
 }
 
@@ -440,15 +407,15 @@ fprintf(stderr,">>>> [%zu] %s(%d) : %s\n",i,
 	    fprintf(stderr,"Illegal action: %s\n",dumpoptions.actions[i].name);
 	    pluginusage();
 	    break;
-	case ACT_CLEAR: if((stat=actionclear(dumpoptions.actions[i].arg))) goto done; break;
-	case ACT_APPEND: if((stat=actionappend(dumpoptions.actions[i].arg))) goto done; break;
-	case ACT_GETALL: if((stat=actiongetall(dumpoptions.actions[i].arg))) goto done; break;
-	case ACT_GETITH: if((stat=actiongetith(dumpoptions.actions[i].arg))) goto done; break;
-	case ACT_LENGTH: if((stat=actionlength(dumpoptions.actions[i].arg))) goto done; break;
-	case ACT_LOAD: if((stat=actionload(dumpoptions.actions[i].arg))) goto done; break;
-	case ACT_PREPEND: if((stat=actionprepend(dumpoptions.actions[i].arg))) goto done; break;
-	case ACT_REMOVE: if((stat=actionremove(dumpoptions.actions[i].arg))) goto done; break;
-	case ACT_SYNC: if((stat=actionsync(dumpoptions.actions[i].arg))) goto done; break;
+	case ACT_APPEND: if((stat=actionappend(&dumpoptions.actions[i]))) goto done; break;
+	case ACT_CLEAR: if((stat=actionclear(&dumpoptions.actions[i]))) goto done; break;
+	case ACT_FORMATX: if((stat=actionformatx(&dumpoptions.actions[i]))) goto done; break;
+	case ACT_GETALL: if((stat=actiongetall(&dumpoptions.actions[i]))) goto done; break;
+	case ACT_GETITH: if((stat=actiongetith(&dumpoptions.actions[i]))) goto done; break;
+	case ACT_LENGTH: if((stat=actionlength(&dumpoptions.actions[i]))) goto done; break;
+	case ACT_LOAD: if((stat=actionload(&dumpoptions.actions[i]))) goto done; break;
+	case ACT_PREPEND: if((stat=actionprepend(&dumpoptions.actions[i]))) goto done; break;
+	case ACT_REMOVE: if((stat=actionremove(&dumpoptions.actions[i]))) goto done; break;
 	}
     }
 
@@ -468,9 +435,9 @@ printpluginlist(void)
     char** pathlist = NULL;
     char* pathstr = NULL;
 
-    NCCHECK(nc_plugin_path_getall(&npaths,NULL));
+    NCCHECK(nc_plugin_path_getall(dumpoptions.formatx,&npaths,NULL));
     if((pathlist=(char**)calloc(npaths,sizeof(char*)))==NULL) abort();
-    NCCHECK(nc_plugin_path_getall(&npaths,pathlist));
+    NCCHECK(nc_plugin_path_getall(dumpoptions.formatx,&npaths,pathlist));
     if((pathstr = ncaux_pathlist_concat(npaths,pathlist))==NULL) goto done;
     printf("%s",pathstr);
 done:

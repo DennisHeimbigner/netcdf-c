@@ -294,8 +294,8 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     char norm_name[NC_MAX_NAME + 1];
     int d;
     int retval;
-    NCglobalstate* gstate = NC_getglobalstate();
-    GlobalNCZarr* gz = (GlobalNCZarr*)gstate->dispatchstate.state[NC_FORMATX_NCZARR];
+    NCglobalstate* gs = NC_getglobalstate();
+    GlobalNCZarr* gz = (GlobalNCZarr*)gs->formatxstate.state[NC_FORMATX_NCZARR];
 
     ZTRACE(1,"ncid=%d name=%s xtype=%d ndims=%d dimids=%s",ncid,name,xtype,ndims,nczprint_idvector(ndims,dimidsp));
     
@@ -458,7 +458,7 @@ var->type_info->rc++;
     zvar->chunksize = zvar->chunkproduct * var->type_info->size;
 
     /* Set cache defaults */
-    var->chunkcache = gstate->chunkcache;
+    var->chunkcache = gs->chunkcache;
 
     /* Create the cache */
     if((retval=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,zvar->dimension_separator,&zvar->cache)))

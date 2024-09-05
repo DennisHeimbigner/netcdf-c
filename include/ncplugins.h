@@ -33,6 +33,10 @@ typedef struct NC_PluginPathDispatch {
 extern "C" {
 #endif
 
+/* Known Plugin Dispatchers */
+EXTERNL const NC_PluginPathDispatch NC4_hdf5_pluginpathtable;
+EXTERNL const NC_PluginPathDispatch NCZ_pluginpathtable;
+
 EXTERNL int NC_plugin_path_parse(const char* path0, NClist* list);
 EXTERNL const char* NC_plugin_path_tostring(size_t npaths, char** paths);
 

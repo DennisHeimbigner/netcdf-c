@@ -178,10 +178,10 @@ NC_createglobalstate(void)
             {stat = NC_ENOMEM; goto done;}
 
     /* plugin path state */
-    if((nc_globalstate->formatxstate.pluginapi = (NC_PluginPathDispatch**)calloc(NC_FORMATX_COUNT,sizeof(NC_PluginPathDispatch*)))==NULL)
+    if((nc_globalstate->formatxstate.pluginapi = (const NC_PluginPathDispatch**)calloc(NC_FORMATX_COUNT,sizeof(NC_PluginPathDispatch*)))==NULL)
             {stat = NC_ENOMEM; goto done;}
     memset(nc_globalstate->formatxstate.state,0,NC_FORMATX_COUNT*sizeof(void*));
-    if((stat = nc_plug_inpath_initialize())) goto done;
+    if((stat = nc_plugin_path_initialize())) goto done;
 
     /* Get environment variables */
     if(getenv(NCRCENVIGNORE) != NULL)
@@ -225,6 +225,7 @@ NC_freeglobalstate(void)
 	}
 	{
 	    size_t i;
+	    (void)nc_plugin_path_finalize();
 	    /* Verify states reclaimed */
 	    for(i=0;i<NC_FORMATX_COUNT;i++)
 		assert(nc_globalstate->formatxstate.state[i] == NULL);

@@ -486,7 +486,7 @@ typedef struct NCglobalstate {
        and indexed by NC_FORMATX */
     struct FormatXGlobal {
         void* state[NC_FORMATX_COUNT]; /* type is opaque (like e.g. file_info_format field) */
-        struct NC_PluginPathDispatch** pluginapi; /*[NC_FORMATX_COUNT];*/
+        const struct NC_PluginPathDispatch** pluginapi; /*[NC_FORMATX_COUNT];*/
     } formatxstate;
 } NCglobalstate;
 

@@ -452,8 +452,6 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
 
     ZTRACE(1,"ncid=%d varid=%d id=%u nparams=%u params=%s",ncid,varid,id,(unsigned)nparams,nczprint_paramvector(nparams,params));
 
-    if((stat = NCZ_filter_initialize())) goto done;
-    
     if((stat = NC_check_id(ncid,&nc))) return stat;
     assert(nc);
 
@@ -559,9 +557,6 @@ NCZ_inq_var_filter_ids(int ncid, int varid, size_t* nfiltersp, unsigned int* ids
 
     assert(h5 && var && var->hdr.id == varid);
 
-    /* Make sure all the filters are defined */
-    if((stat = NCZ_filter_initialize())) goto done;
-
     flist = var->filters;
 
     nfilters = nclistlength(flist); /* including incomplets */
@@ -598,9 +593,6 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, 
 	{stat = THROW(stat); goto done;}
 
     assert(h5 && var && var->hdr.id == varid);
-
-    /* Make sure all the plugins are defined */
-    if((stat = NCZ_filter_initialize())) goto done;
 
     if((stat = NCZ_filter_lookup(var,id,&spec))) goto done;
     if(spec != NULL) {
@@ -646,7 +638,6 @@ NCZ_inq_filter_avail(int ncid, unsigned id)
 
     NC_UNUSED(ncid);
     ZTRACE(1,"ncid=%d id=%u",ncid,id);
-    if((stat = NCZ_filter_initialize())) goto done;
     /* Check the available filters list */
     if((stat = NCZ_plugin_loaded((size_t)id, &plug))) goto done;
     if(plug == NULL || plug->incomplete)
@@ -669,7 +660,6 @@ NCZ_filter_initialize(void)
     if(NCZ_filter_initialized) goto done;
 
     NCZ_filter_initialized = 1;
-    NCZ_plugin_path_initialize();
 
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     if((stat = NCZ_load_all_plugins())) goto done;
@@ -688,6 +678,7 @@ NCZ_filter_finalize(void)
 done:
     return ZUNTRACE(stat);
 }
+
 int
 NCZ_applyfilterchain(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* chain, size_t inlen, void* indata, size_t* outlenp, void** outdatap, int encode)
 {

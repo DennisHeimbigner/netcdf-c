@@ -90,7 +90,14 @@ nc_plugin_path_initialize(void)
 	defaultpluginpath = NULL;
     }
 
-    /* Initialize all the plugin path dispatchers */
+    /* Initialize all the plugin path dispatchers and state*/
+#ifdef USE_HDF5
+    gs->formatxstate.pluginapi[NC_FORMATX_NC_HDF5] = &NC4_hdf5_pluginpathtable;
+#endif
+#ifdef NETCDF_ENABLE_NCZARR
+    gs->formatxstate.pluginapi[NC_FORMATX_NCZARR] = &NCZ_pluginpathtable;
+#endif
+    /* Initialize all the plugin path dispatcher states */
     for(i=0;i<NC_FORMATX_COUNT;i++) {    
 	if(gs->formatxstate.pluginapi[i] != NULL) {
 	    if((stat = gs->formatxstate.pluginapi[i]->initialize(&gs->formatxstate.state[i], dirs))) goto done;
@@ -125,7 +132,7 @@ nc_plugin_path_finalize(void)
 
     /* Finalize all the plugin path dispatchers */
     for(i=0;i<NC_FORMATX_COUNT;i++) {    
-	if(gs->formatxstate.pluginapi[i] != NULL) {
+	if(gs->formatxstate.state[i] != NULL) {
 	    if((stat = gs->formatxstate.pluginapi[i]->finalize(&gs->formatxstate.state[i]))) goto done;
 	    gs->formatxstate.state[i] = NULL;
 	}
@@ -351,13 +358,13 @@ nc_plugin_path_remove(int formatx, const char* dir)
     if(formatx) {
         if(gs->formatxstate.pluginapi[formatx] == NULL || gs->formatxstate.state[formatx] == NULL)
 	    {stat = NC_EPLUGIN; goto done;}
-	if((stat=gs->formatxstate.pluginapi[formatx]->prepend(gs->formatxstate.state[formatx],dir))) goto done;
+	if((stat=gs->formatxstate.pluginapi[formatx]->remove(gs->formatxstate.state[formatx],dir))) goto done;
     } else {/* forall dispatchers */
         for(i=0;i<NC_FORMATX_COUNT;i++) {
             if(gs->formatxstate.pluginapi[i] != NULL) {
 		if(gs->formatxstate.state[i] == NULL)
 		    {stat = NC_EPLUGIN; goto done;}
-		if((stat=gs->formatxstate.pluginapi[i]->prepend(gs->formatxstate.state[i],dir))) goto done;
+		if((stat=gs->formatxstate.pluginapi[i]->remove(gs->formatxstate.state[i],dir))) goto done;
 	    }
 	}
     }
