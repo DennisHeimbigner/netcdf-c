@@ -141,7 +141,7 @@ EXTERNL int nc_plugin_path_finalize(void);
  * Since this function does not modify the plugin path, it can be called at any time.
  * @param formatx specify which dispatch implementatio to read: currently NC_FORMATX_NC_HDF5 or NC_FORMATX_NCZARR.
  * @param ndirsp return the number of dirs in the internal path list
- * @param dirsp return the sequence of directies in the internal path list; caller must free.
+ * @param dirs memory for storing the sequence of directies in the internal path list.
  * @return NC_NOERR
  * @author Dennis Heimbigner
  *
