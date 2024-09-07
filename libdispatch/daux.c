@@ -1046,7 +1046,7 @@ ncaux_plugin_path_tostring(size_t ndirs, char** const dirs, char sep, size_t* ca
 
     if(sep == '\0')
 #ifdef _WIN32
-        sep = ";";
+        sep = ';';
 #else
 	sep = ':';
 #endif    

@@ -166,24 +166,6 @@ done:
  * with ndirsp not NULL and dirs set to NULL to get the size of
  * the path list. The second time with dirs not NULL to get the
  * actual sequence of paths.
-
-Note also that modifying the plugin paths must be done "atomically".
-That is, in a multi-threaded environment, it is important that
-the sequence of actions involved in setting up the plugin paths
-must be done by a single processor or in some other way as to
-guarantee that two or more processors are not simultaneously
-accessing the plugin path read/write operations.
-
-As an example, assume there exists a mutex lock called PLUGINLOCK.
-Then any processor accessing the plugin paths should operate
-as follows:
-````
-lock(PLUGINLOCK);
-nc_plugin_path_read(...);
-<rebuild plugin path>
-nc_plugin_path_write(...);
-unlock(PLUGINLOCK);
-````
 */
 
 EXTERNL int
@@ -217,6 +199,24 @@ done:
  * @return ::NC_EINVAL if formatx is unknown or ndirs > 0 and dirs == NULL
  *
  * @author Dennis Heimbigner
+ * 
+ * Note that modifying the plugin paths must be done "atomically".
+ * That is, in a multi-threaded environment, it is important that
+ * the sequence of actions involved in setting up the plugin paths
+ * must be done by a single processor or in some other way as to
+ * guarantee that two or more processors are not simultaneously
+ * accessing the plugin path read/write operations.
+ * 
+ * As an example, assume there exists a mutex lock called PLUGINLOCK.
+ * Then any processor accessing the plugin paths should operate
+ * as follows:
+ * <pre>
+ * lock(PLUGINLOCK);
+ * nc_plugin_path_read(...);
+ * <rebuild plugin path>
+ * nc_plugin_path_write(...);
+ * unlock(PLUGINLOCK);
+ * </pre>
 */
 
 EXTERNL int
