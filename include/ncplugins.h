@@ -21,12 +21,8 @@ typedef struct NC_PluginPathDispatch {
     int dispatch_version;
     int (*initialize)(void** statep, const struct NClist* initialpaths);
     int (*finalize)(void** statep);
-    int (*getall)(void* state, size_t* npathsp, char** pathlist);
-    int (*getith)(void* state, size_t index, char** entryp);
-    int (*load)(void* state, const char* paths);
-    int (*append)(void* state, const char* path);
-    int (*prepend)(void* state, const char* path);
-    int (*remove)(void* state, const char* dir);
+    int (*read)(void* state, size_t* ndirsp, char** dirs);
+    int (*write)(void* state, size_t ndirs, char** const dirs);
 } NC_PluginPathDispatch;
 
 #if defined(__cplusplus)
@@ -37,8 +33,7 @@ extern "C" {
 EXTERNL const NC_PluginPathDispatch NC4_hdf5_pluginpathtable;
 EXTERNL const NC_PluginPathDispatch NCZ_pluginpathtable;
 
-EXTERNL int NC_plugin_path_parse(const char* path0, NClist* list);
-EXTERNL const char* NC_plugin_path_tostring(size_t npaths, char** paths);
+/* See the file netcdf_aux.h for plugin-related utility functions */
 
 #if defined(__cplusplus)
 }

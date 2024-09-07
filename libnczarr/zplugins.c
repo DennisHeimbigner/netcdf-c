@@ -32,12 +32,8 @@
 
 static int NCZ_plugin_path_initialize(void** statep, const NClist* initialpaths);
 static int NCZ_plugin_path_finalize(void** statep);
-static int NCZ_plugin_path_getall(void* state, size_t* npathsp, char** pathlist);
-static int NCZ_plugin_path_getith(void* state, size_t index, char** entryp);
-static int NCZ_plugin_path_load(void* state, const char* paths);
-static int NCZ_plugin_path_append(void* state, const char* path);
-static int NCZ_plugin_path_prepend(void* state, const char* path);
-static int NCZ_plugin_path_remove(void* state, const char* dir);
+static int NCZ_plugin_path_read(void* state, size_t* ndirsp, char** dirs);
+static int NCZ_plugin_path_write(void* state, size_t ndirs, char** const dirs);
 
 static int NCZ_load_plugin(const char* path, NCZ_Plugin** plugp);
 static int NCZ_unload_plugin(NCZ_Plugin* plugin);
@@ -68,12 +64,8 @@ const NC_PluginPathDispatch NCZ_pluginpathtable = {
     NC_PLUGINPATH_DISPATCH_VERSION,
     NCZ_plugin_path_initialize,
     NCZ_plugin_path_finalize,
-    NCZ_plugin_path_getall,
-    NCZ_plugin_path_getith,
-    NCZ_plugin_path_load,
-    NCZ_plugin_path_append,
-    NCZ_plugin_path_prepend,
-    NCZ_plugin_path_remove
+    NCZ_plugin_path_read,
+    NCZ_plugin_path_write,
 };
 
 /**************************************************/
@@ -180,169 +172,82 @@ done:
 /**
  * Return the current sequence of directories in the internal plugin path list.
  * Since this function does not modify the plugin path, it can be called at any time.
- * @param npaths return the number of paths in the path list
- * @param pathlist return the sequence of directies in the path list
- * @return NC_NOERR
+ *
+ * @param state the per-dispatcher state
+ * @param ndirsp return the number of paths in the path list
+ * @param dirs copy the sequence of directories in the path list into this; caller must free the copied strings
+ *
+ * @return ::NC_NOERR
+ * @return ::NC_EINVAL if formatx is unknown or zero
+ *
  * @author Dennis Heimbigner
  *
- * As a rule, this function needs to be called twice.
- * The first time with npaths not NULL and pathlist set to NULL
- *     to get the size of the path list.
- * The second time with pathlist not NULL to get the actual sequence of paths.
+ * As a rule, this function needs to be called twice.  The first time
+ * with ndirsp not NULL and dirs set to NULL to get the size of
+ * the path list. The second time with dirs not NULL to get the
+ * actual sequence of paths.
+ * Note also that it is not possible to read a subset of the plugin path.
+ * If the dirs argument is not NULL, then this code assumes it points
+ * to enough memory to hold the whole plugin path.
 */
+
 static int
-NCZ_plugin_path_getall(void* state, size_t* npathsp, char** pathlist)
+NCZ_plugin_path_read(void* state, size_t* ndirsp, char** dirs)
 {
     int stat = NC_NOERR;
     GlobalNCZarr* gz = (GlobalNCZarr*)state;
-    size_t npaths = 0;
+    size_t ndirs = 0;
 
-    npaths = nclistlength(gz->pluginpaths);
-    if(npathsp) *npathsp = npaths;
+    ndirs = nclistlength(gz->pluginpaths);
+    if(ndirsp) *ndirsp = ndirs;
 
-    if(npaths > 0 && pathlist != NULL) {
+    if(ndirs > 0 && dirs != NULL) {
 	size_t i;
-	for(i=0;i<npaths;i++) {
+	for(i=0;i<ndirs;i++) {
 	    const char* dir = (const char*)nclistget(gz->pluginpaths,i);
-	    pathlist[i] = strdup(dir);
+	    dirs[i] = strdup(dir);
 	}
     }
-    return THROW(stat);
-}
-
-/**
- * Get ith directory the internal path sequence.
- * The index starts at 0 (zero).
- * Caller frees the returned string.
- * @param index of path to return
- * @entryp store copy of the index'th dir from the internal path or NULL if out of range.
- * @return NC_NOERR||NC_ERANGE if out of range
- * @author Dennis Heimbigner
-*/
-
-static int
-NCZ_plugin_path_getith(void* state, size_t index, char** entryp)
-{
-    int stat = NC_NOERR;
-    GlobalNCZarr* gz = (GlobalNCZarr*)state;
-    size_t npaths = 0;
-    const char* dir = NULL;
-    
-    npaths = nclistlength(gz->pluginpaths);
-    if(entryp == NULL || npaths == 0) goto done;
-    if(index >= npaths) {stat = NC_ERANGE; goto done;} /* out of range */
-    dir = (const char*)nclistget(gz->pluginpaths,index);
-
-done:
-    if(entryp) *entryp = nulldup(dir);
     return THROW(stat);
 }
 
 /**
  * Empty the current internal path sequence
  * and replace with the sequence of directories
- * parsed from the paths argument.
- * In effect, this is sort of bulk loader for the path list.
+ * specified in the arguments.
+ * If ndirs == 0 the path list will be cleared
  *
- * The path argument has the following syntax:
- *    paths := <empty> | dirlist
- *    dirlist := dir | dirlist separator dir
- *    separator := ';' | ':'
- *    dir := <OS specific directory path>
- * Note that the ':' separator is not legal on Windows machines.
- * The ';' separator is legal on all machines.
- * Using a paths argument of "" will clear the set of plugin paths.
- * @param paths to overwrite the current internal path list
- * @return NC_NOERR
+ * @param state the per-dispatcher state
+ * @param ndirs number of entries in dirs arg
+ * @param dirs the actual directory paths
+ *
+ * @return ::NC_NOERR
+ * @return ::NC_EINVAL if formatx is unknown or ndirs > 0 and dirs == NULL
+ *
  * @author Dennis Heimbigner
 */
+
 static int
-NCZ_plugin_path_load(void* state, const char* paths)
+NCZ_plugin_path_write(void* state, size_t ndirs, char** const dirs)
 {
     int stat = NC_NOERR;
     GlobalNCZarr* gz = (GlobalNCZarr*)state;
-    NClist* newpaths = nclistnew();
-    size_t npathsnew = 0;
 
-    /* Parse the paths */
-    if((stat = NC_plugin_path_parse(paths,newpaths))) goto done;
-    npathsnew = nclistlength(newpaths);
+    if(ndirs > 0 && dirs == NULL) {stat = NC_EINVAL; goto done;}
 
     /* Clear the current path list */
     nclistfreeall(gz->pluginpaths);
-    gz->pluginpaths = NULL;
+    gz->pluginpaths = nclistnew();
 
-    if(npathsnew > 0) {
-	/* Insert the new path list */
-	assert(gz->pluginpaths == NULL);
-	gz->pluginpaths = newpaths;
-	newpaths = NULL;
+    if(ndirs > 0 && dirs != NULL) {
+	size_t i;
+	for(i=0;i<ndirs;i++)
+	    nclistpush(gz->pluginpaths,nulldup(dirs[i]));
     }
 
 done:
-    nclistfreeall(newpaths);    
     if(gz->pluginpaths == NULL)
         gz->pluginpaths = nclistnew();
-    return NCTHROW(stat);
-}
-
-/**
- * Append a directory to the end of the current internal path list.
- * @param dir directory to append.
- * @return NC_NOERR
- * @author Dennis Heimbigner
-*/
-
-static int
-NCZ_plugin_path_append(void* state, const char* path)
-{
-    int stat = NC_NOERR;
-    GlobalNCZarr* gz = (GlobalNCZarr*)state;
-    nclistpush(gz->pluginpaths,strdup(path));
-    return NCTHROW(stat);
-}
-
-/**
- * Prepend a directory to the front of the current internal path list.
- * @param dir directory to prepend
- * @return NC_NOERR
- * @author Dennis Heimbigner
-*/
-
-static int
-NCZ_plugin_path_prepend(void* state, const char* path)
-{
-    int stat = NC_NOERR;
-    GlobalNCZarr* gz = (GlobalNCZarr*)state;
-    nclistinsert(gz->pluginpaths,0,strdup(path));
-    return NCTHROW(stat);
-}
-
-/**
- * Remove all occurrences of a directory from the internal path sequence
- * @param dir directory to prepend
- * @return NC_NOERR
- * @author Dennis Heimbigner
-*/
-
-EXTERNL int
-NCZ_plugin_path_remove(void* state, const char* dir)
-{
-    int stat = NC_NOERR;
-    GlobalNCZarr* gz = (GlobalNCZarr*)state;
-    size_t npaths = 0;
-    size_t i;
-    npaths = nclistlength(gz->pluginpaths);
-    if(npaths > 0 && dir != NULL) {
-	/* Walk backward to avoid more complex logic; watch out for being unsigned */
-	for(i=npaths;i-- > 0;) {
-	    char* candidate = (char*)nclistget(gz->pluginpaths,i);
-	    if(strcmp(dir,candidate)==0) {
-		nclistremove(gz->pluginpaths,i);
-		nullfree(candidate);
-	    }
-	}
-    }
     return NCTHROW(stat);
 }
 

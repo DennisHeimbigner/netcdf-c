@@ -1,7 +1,0 @@
-testload(hdf5): 
-testload(hdf5): after: /zero;/one;/two;/hdf5;/three;/four
-testload(nczarr): 
-testload(nczarr): after: /zero;/one;/two;/nczarr;three;/four;/five
-testload(all): 
-testload(hdf5): after: /zero;/one;/two;/three;/four
-testload(nczarr): after: /zero;/one;/two;/three;/four

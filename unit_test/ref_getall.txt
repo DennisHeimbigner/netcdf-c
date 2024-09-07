@@ -1,9 +1,0 @@
-testgetall(hdf5): 
-/zero;/one;/two;/hdf5;/three;/four
-testgetall(nczarr): 
-/zero;/one;/two;/nczarr;three;/four;/five
-testgetall(all): 
-testgetall(hdf5): 
-/zero;/one;/two;/hdf5;/three;/four
-testgetall(nczarr): 
-/zero;/one;/two;/nczarr;three;/four;/five
