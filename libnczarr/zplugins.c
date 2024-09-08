@@ -59,7 +59,7 @@ static int pluginnamecheck(const char* name);
 
 /**************************************************/
 /* The NCZarr Plugin Path Dispatch table and functions */
-static const NC_PluginPathDispatch pluginpathtable = {
+const NC_PluginPathDispatch NCZ_pluginpathtable = {
     NC_FORMATX_NCZARR,
     NC_PLUGINPATH_DISPATCH_VERSION,
     NCZ_plugin_path_initialize,
@@ -67,8 +67,6 @@ static const NC_PluginPathDispatch pluginpathtable = {
     NCZ_plugin_path_read,
     NCZ_plugin_path_write,
 };
-
-const NC_PluginPathDispatch* NCZ_pluginpathtable = NULL;
 
 /**************************************************/
 /**
@@ -85,8 +83,6 @@ NCZ_plugin_path_initialize(void** statep, const NClist* initialpaths)
 
     assert(statep != NULL);
     if(*statep != NULL) goto done; /* already initialized */
-
-    NCZ_pluginpathtable = &pluginpathtable;
 
     if((gz = (GlobalNCZarr*)calloc(1,sizeof(GlobalNCZarr)))==NULL) {stat = NC_ENOMEM; goto done;}
 

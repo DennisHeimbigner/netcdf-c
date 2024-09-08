@@ -166,9 +166,14 @@ NC_createglobalstate(void)
     int stat = NC_NOERR;
     const char* tmp = NULL;
     
+    if(nc_globalstate != NULL && nc_globalstate->initialized != 0) goto done;
+
     if(nc_globalstate == NULL) {
-        nc_globalstate = calloc(1,sizeof(NCglobalstate));
+        if((nc_globalstate = calloc(1,sizeof(NCglobalstate)))==NULL) {stat = NC_ENOMEM; goto done;}
     }
+
+    nc_globalstate->initialized = 1;    
+
     /* Initialize struct pointers */
     if((nc_globalstate->rcinfo = calloc(1,sizeof(struct NCRCinfo)))==NULL)
             {stat = NC_ENOMEM; goto done;}
@@ -210,7 +215,8 @@ NC_getglobalstate(void)
 void
 NC_freeglobalstate(void)
 {
-    if(nc_globalstate != NULL) {
+    if(nc_globalstate != NULL && nc_globalstate->initialized != 0) {
+	nc_globalstate->initialized = 0;
         nullfree(nc_globalstate->tempdir);
         nullfree(nc_globalstate->home);
         nullfree(nc_globalstate->cwd);

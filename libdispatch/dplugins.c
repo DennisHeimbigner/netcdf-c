@@ -100,10 +100,10 @@ nc_plugin_path_initialize(void)
 
     /* Initialize all the plugin path dispatchers and state*/
 #ifdef USE_HDF5
-    gs->formatxstate.pluginapi[NC_FORMATX_NC_HDF5] = NC4_hdf5_pluginpathtable;
+    gs->formatxstate.pluginapi[NC_FORMATX_NC_HDF5] = &NC4_hdf5_pluginpathtable;
 #endif
 #ifdef NETCDF_ENABLE_NCZARR
-    gs->formatxstate.pluginapi[NC_FORMATX_NCZARR] = NCZ_pluginpathtable;
+    gs->formatxstate.pluginapi[NC_FORMATX_NCZARR] = &NCZ_pluginpathtable;
 #endif
     /* Initialize all the plugin path dispatcher states */
     for(i=0;i<NC_FORMATX_COUNT;i++) {    
