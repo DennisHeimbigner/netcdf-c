@@ -74,7 +74,7 @@ libnczarr_la_SOURCES += zplugins.c
 endif
 
 if NETCDF_ENABLE_NCZARR_FILTERS
-libnczarr_la_SOURCES += zplugins.c
+libnczarr_la_SOURCES += zfilter.c
 endif
 
 if NETCDF_ENABLE_S3
