@@ -42,7 +42,7 @@ static int NCZ_plugin_save(GlobalNCZarr* gz, size_t filterid, NCZ_Plugin* p);
 static int getentries(const char* path, NClist* contents);
 static int loadcodecdefaults(GlobalNCZarr* gz, const char* path, const NCZ_codec_t** cp, NCPSharedLib* lib, int* lib_usedp);
 
-#ifdef NAMEOPT
+#if defined NAMEOPT || defined _WIN32
 static int pluginnamecheck(const char* name);
 #endif
 
@@ -59,7 +59,7 @@ static int pluginnamecheck(const char* name);
 
 /**************************************************/
 /* The NCZarr Plugin Path Dispatch table and functions */
-const NC_PluginPathDispatch NCZ_pluginpathtable = {
+NC_PluginPathDispatch NCZ_pluginpathtable = {
     NC_FORMATX_NCZARR,
     NC_PLUGINPATH_DISPATCH_VERSION,
     NCZ_plugin_path_initialize,
@@ -669,7 +669,7 @@ done:
     return THROW(stat);
 }
 
-#ifdef NAMEOPT
+#if defined NAMEOPT || defined _WIN32
 static int
 pluginnamecheck(const char* name)
 {
