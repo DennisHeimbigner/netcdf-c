@@ -50,8 +50,12 @@ if(NETCDF_ENABLE_NCZARR_ZIP)
     set(libnczarr_SOURCES ${libnczarr_SOURCES} zmap_zip.c)
 endif()
 
+if(NETCDF_ENABLE_NCZARR)
+set(libnczarr_SOURCES ${libnczarr_SOURCES} zplugins.c)
+endif()
+
 if(NETCDF_ENABLE_NCZARR_FILTERS)
-set(libnczarr_SOURCES ${libnczarr_SOURCES} zfilter.c zplugins.c)
+set(libnczarr_SOURCES ${libnczarr_SOURCES} zfilter.c)
 endif()
 
 if(NETCDF_ENABLE_S3) 

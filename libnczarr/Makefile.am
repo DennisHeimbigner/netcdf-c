@@ -69,8 +69,12 @@ if NETCDF_ENABLE_NCZARR_ZIP
 libnczarr_la_SOURCES += zmap_zip.c 
 endif
 
+if NETCDF_ENABLE_NCZARR
+libnczarr_la_SOURCES += zplugins.c
+endif
+
 if NETCDF_ENABLE_NCZARR_FILTERS
-libnczarr_la_SOURCES += zfilter.c zplugins.c
+libnczarr_la_SOURCES += zplugins.c
 endif
 
 if NETCDF_ENABLE_S3
