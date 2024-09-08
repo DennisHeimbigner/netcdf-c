@@ -1,4 +1,4 @@
-#                                               -*- Autoconf -*-
+o#                                               -*- Autoconf -*-
 ## Process this file with autoconf to produce a configure script.
 
 # This is part of Unidata's netCDF package. Copyright 2005-2018, see
@@ -784,6 +784,10 @@ if test "x$enable_filter_zstd" = "xyes" ; then
 else
    have_zstd=no
 fi
+AC_MSG_CHECKING([whether we are going to build with zstd])
+AC_SUBST([HAS_ZSTD], [$have_zstd])
+AC_MSG_RESULT([$have_zstd])
+
 ##
 # End zstd checks
 ##
@@ -1299,7 +1303,6 @@ AC_MSG_NOTICE([checking types, headers, and functions])
 AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([libgen.h])
 #AC_CHECK_HEADERS([locale.h])
-AC_HEADER_STDC
 AC_CHECK_HEADERS([locale.h stdio.h stdarg.h fcntl.h malloc.h stdlib.h string.h strings.h unistd.h sys/stat.h getopt.h sys/time.h sys/types.h time.h dirent.h stdint.h ctype.h sys/xattr_h])
 
 # Do sys/resource.h separately
@@ -1454,7 +1457,7 @@ AC_SUBST(USEPLUGINS, [${enable_plugins}])
 
 AC_FUNC_ALLOCA
 AC_CHECK_DECLS([isnan, isinf, isfinite],,,[#include <math.h>])
-AC_STRUCT_ST_BLKSIZE
+AC_CHECK_MEMBERS([struct stat.st_blksize])
 UD_CHECK_IEEE
 AC_CHECK_TYPES([size_t, ssize_t, schar, uchar, longlong, ushort, uint, int64, uint64, size64_t, ssize64_t, _off64_t, uint64_t, ptrdiff_t])
 AC_TYPE_OFF_T
@@ -2245,7 +2248,7 @@ AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)
 AC_CONFIG_FILES(s3cleanup.sh:s3cleanup.in, [chmod ugo+x s3cleanup.sh])
 AC_CONFIG_FILES(s3gc.sh:s3gc.in, [chmod ugo+x s3gc.sh])
-for FP in plugins nc_test4 nczarr_test examples/C ; do
+for FP in plugins nc_test4 nczarr_test h5_test examples/C ; do
 AC_CONFIG_FILES(${FP}/findplugin.sh:plugins/findplugin.in, [chmod ugo+x ${FP}/findplugin.sh])
 done
 AC_CONFIG_FILES(ncdap_test/findtestserver.c:ncdap_test/findtestserver.c.in, [chmod ugo+x ncdap_test/findtestserver.c])
@@ -2254,6 +2257,7 @@ AC_CONFIG_FILES(dap4_test/findtestserver4.c:ncdap_test/findtestserver.c.in)
 AC_CONFIG_FILES(dap4_test/pingurl4.c:ncdap_test/pingurl.c)
 AC_CONFIG_FILES([h5_test/run_par_tests.sh], [chmod ugo+x h5_test/run_par_tests.sh])
 AC_CONFIG_FILES([nc_test4/run_par_test.sh], [chmod ugo+x nc_test4/run_par_test.sh])
+AC_CONFIG_FILES([nc_test4/run_par_warn_test.sh], [chmod ugo+x nc_test4/run_par_warn_test.sh])
 AC_CONFIG_FILES([nc_perf/run_par_bm_test.sh], [chmod ugo+x nc_perf/run_par_bm_test.sh])
 AC_CONFIG_FILES([nc_perf/run_gfs_test.sh], [chmod ugo+x nc_perf/run_gfs_test.sh])
 AC_CONFIG_FILES(nczarr_test/timer_utils.h:unit_test/timer_utils.h)
