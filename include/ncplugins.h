@@ -31,10 +31,10 @@ extern "C" {
 
 /* Known Plugin Dispatchers */
 #ifdef USE_HDF5
-EXTERNL struct NC_PluginPathDispatch NC4_hdf5_pluginpathtable;
+EXTERNL NC_PluginPathDispatch* NC4_hdf5_pluginpathtable;
 #endif
 #ifdef NETCDF_ENABLE_NCZARR
-EXTERNL struct NC_PluginPathDispatch NCZ_pluginpathtable;
+EXTERNL NC_PluginPathDispatch* NCZ_pluginpathtable;
 #endif
 
 /* See the file netcdf_aux.h for plugin-related utility functions */
