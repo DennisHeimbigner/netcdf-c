@@ -155,7 +155,7 @@ NCZ_plugin_path_finalize(void** statep)
 	}
     }
 #else
-    memset(loaded_plugins,0,sizeof(loaded_plugins));
+    memset(gz->loaded_plugins,0,sizeof(struct NCZ_Plugin*)*(H5Z_FILTER_MAX+1));
 #endif
     gz->loaded_plugins_max = 0;
     nullfree(gz->loaded_plugins); gz->loaded_plugins = NULL;
