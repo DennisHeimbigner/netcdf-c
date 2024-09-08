@@ -41,7 +41,7 @@ TESTS += tst_nc4internal
 TESTS += run_reclaim_tests.sh
 endif # USE_HDF5
 
-# Test for HDF5 and NCZARR enabled
+# Test for HDF5 OR NCZARR enabled
 if USE_HDF5
 if NETCDF_ENABLE_NCZARR
 check_PROGRAMS += tst_pluginpaths

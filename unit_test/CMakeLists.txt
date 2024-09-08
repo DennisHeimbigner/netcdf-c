@@ -27,10 +27,6 @@ IF(NETCDF_ENABLE_HDF5)
   ENDIF(NOT WIN32)
   build_bin_test(tst_reclaim ${XGETOPTSRC})
   add_sh_test(unit_test run_reclaim_tests)
-  if(NETCDF_ENABLE_NCZARR)
-    build_bin_test(tst_pluginpaths ${XGETOPTSRC})
-    add_sh_test(unit_test run_pluginpaths)
-  endif(NETCDF_ENABLE_NCZARR)
 ENDIF(NETCDF_ENABLE_HDF5)
 
 # Path convert test(s)
@@ -45,6 +41,12 @@ IF(NETCDF_BUILD_UTILITIES)
     build_bin_test(aws_config)
     add_sh_test(unit_test run_aws_config)
   ENDIF()
+
+  # plugin path test
+  if(NETCDF_ENABLE_NCZARR AND NETCDF_ENABLE_HDF5)
+    build_bin_test(tst_pluginpaths ${XGETOPTSRC})
+    add_sh_test(unit_test run_pluginpaths)
+  endif()
 ENDIF()
 
 # Performance tests

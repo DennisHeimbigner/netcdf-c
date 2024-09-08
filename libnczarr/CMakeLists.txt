@@ -63,7 +63,10 @@ endif()
 
 add_library(nczarr OBJECT ${libnczarr_SOURCES})
 
+target_link_libraries(nczarr PUBLIC CURL::libcurl ${CURL_LIBRARIES})
+target_include_directories(nczarr PUBLIC ${CURL_INCLUDE_DIRS})
 target_include_directories(nczarr PUBLIC ../libncpoco)
+target_compile_options(nczarr PRIVATE -DCURL_STATICLIB=1)
 
 if (USE_HDF5)
     target_link_libraries(nczarr PRIVATE HDF5::HDF5)

@@ -8,7 +8,12 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
-IMPLS="hdf5 nczarr"
+IMPLS=
+if test "x$FEATURE_HDF5" = xyes ; then IMPLS="$IMPLS hdf5"; fi
+if test "x$FEATURE_NCZARR" = xyes ; then IMPLS="$IMPLS nczarr"; fi
+# Remove leading blank
+IMPLS=`echo "$IMPLS" | cut -d' ' -f2,3`
+echo "IMPLS=|$IMPLS|"
 
 #VERBOSE=1
 
@@ -54,14 +59,16 @@ testread() {
     local formatx="$1"
     filenamefor tmp read
     dfaltfor $formatx
-    case ${formatx} in
-	all) echo "testread(${formatx}): " >> ${filename}.txt
-	     for f in $IMPLS ; do testread $f ; done
-	     ;;
-	hdf5|nczarr) echon "testread(${formatx}): " >> ${filename}.txt
-		    ${TP} -x "formatx:${formatx},write:${dfalt},read" >> ${filename}.txt ;;
-	*) ;; # ignore all other cases
-    esac
+    if test "$formatx" = all ; then
+	echo "testread(${formatx}): " >> ${filename}.txt
+	for f in $IMPLS ; do testread $f ; done
+    elif test "x$FEATURE_HDF5" && test "$formatx" = hdf5 ; then
+	echon "testread(${formatx}): " >> ${filename}.txt
+	${TP} -x "formatx:${formatx},write:${dfalt},read" >> ${filename}.txt ;
+    elif test "x$FEATURE_NCZARR" && test "$formatx" = nczarr ; then
+	echon "testread(${formatx}): " >> ${filename}.txt
+	${TP} -x "formatx:${formatx},write:${dfalt},read" >> ${filename}.txt ;
+    fi
 }                           
 
 testwrite() {
@@ -69,19 +76,20 @@ testwrite() {
     filenamefor tmp write
     dfaltfor $formatx
     modfor $formatx "$dfalt"
-    case "${formatx}" in
-	all)
-	    echo "testwrite(${formatx}): " >> ${filename}.txt
-	    for f in $IMPLS; do testwrite $f; done
-	    ;;
-        hdf5|nczarr)
-	    echon "testwrite(${formatx}): before: " >> ${filename}.txt
-		${TP} -x "formatx:${formatx},write:${dfalt},read"  >> ${filename}.txt
-	    echon "testwrite(${formatx}): after: " >> ${filename}.txt
-		${TP} -x "formatx:${formatx},write:${mod},read"  >> ${filename}.txt
-	    ;;
-	*) ;; # ignore all other cases
-    esac
+    if test "$formatx" = all ; then
+	echo "testwrite(${formatx}): " >> ${filename}.txt
+	for f in $IMPLS ; do testwrite $f ; done
+    elif test "x$FEATURE_HDF5" && test "$formatx" = hdf5 ; then
+        echon "testwrite(${formatx}): before: " >> ${filename}.txt
+	    ${TP} -x "formatx:${formatx},write:${dfalt},read"  >> ${filename}.txt
+	echon "testwrite(${formatx}): after: " >> ${filename}.txt
+	    ${TP} -x "formatx:${formatx},write:${mod},read"  >> ${filename}.txt
+    elif test "x$FEATURE_NCZARR" && test "$formatx" = nczarr ; then
+	echon "testwrite(${formatx}): before: " >> ${filename}.txt
+	    ${TP} -x "formatx:${formatx},write:${dfalt},read"  >> ${filename}.txt
+	echon "testwrite(${formatx}): after: " >> ${filename}.txt
+	    ${TP} -x "formatx:${formatx},write:${mod},read"  >> ${filename}.txt
+    fi
 }                           
 
 #########################
@@ -97,16 +105,17 @@ init() {
 # Verify output for a specific action
 verify() {
     for action in read write ; do
-        if diff -wBb ref_${action}.txt tmp_${action}.txt ; then
+        if diff -wBb ${srcdir}/ref_${action}.txt tmp_${action}.txt ; then
 	    echo "***PASS: $action"
 	else
 	    echo "***FAIL: $action"
+	    exit 1
         fi
     done
 }
 
 init
-for fx in hdf5 nczarr all ; do
+for fx in $IMPLS all ; do
     testread  $fx
     testwrite $fx
 done
