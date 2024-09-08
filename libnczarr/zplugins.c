@@ -126,7 +126,6 @@ NCZ_plugin_path_finalize(void** statep)
     if(*statep == NULL) goto done; /* already finalized */
     gz = (GlobalNCZarr*)(*statep);
 
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Reclaim all loaded filters */
 #ifdef DEBUGL
     fprintf(stderr,">>>  DEBUGL: finalize reclaim:\n");
