@@ -59,7 +59,7 @@ static int pluginnamecheck(const char* name);
 
 /**************************************************/
 /* The NCZarr Plugin Path Dispatch table and functions */
-const NC_PluginPathDispatch NCZ_pluginpathtable = {
+static const NC_PluginPathDispatch pluginpathtable = {
     NC_FORMATX_NCZARR,
     NC_PLUGINPATH_DISPATCH_VERSION,
     NCZ_plugin_path_initialize,
@@ -67,6 +67,8 @@ const NC_PluginPathDispatch NCZ_pluginpathtable = {
     NCZ_plugin_path_read,
     NCZ_plugin_path_write,
 };
+
+const NC_PluginPathDispatch* NCZ_pluginpathtable = &pluginpathtable;
 
 /**************************************************/
 /**

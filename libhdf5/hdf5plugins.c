@@ -38,7 +38,7 @@ static int NC4_hdf5_plugin_path_write(void* state, size_t ndirs, char** const di
 /**************************************************/
 /* The HDF5 Plugin Path Dispatch table and functions */
 
-const NC_PluginPathDispatch NC4_hdf5_pluginpathtable = {
+static const NC_PluginPathDispatch pluginpathtable = {
     NC_FORMATX_NC_HDF5,
     NC_PLUGINPATH_DISPATCH_VERSION,
     NC4_hdf5_plugin_path_initialize,
@@ -46,6 +46,10 @@ const NC_PluginPathDispatch NC4_hdf5_pluginpathtable = {
     NC4_hdf5_plugin_path_read,
     NC4_hdf5_plugin_path_write
 };
+
+const NC_PluginPathDispatch* NC4_hdf5_pluginpathtable = &pluginpathtable;
+
+/**************************************************/
 
 /**
  * This function is called as part of nc_initialize.
