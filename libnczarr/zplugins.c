@@ -68,7 +68,7 @@ static const NC_PluginPathDispatch pluginpathtable = {
     NCZ_plugin_path_write,
 };
 
-const NC_PluginPathDispatch* NCZ_pluginpathtable = &pluginpathtable;
+const NC_PluginPathDispatch* NCZ_pluginpathtable = NULL;
 
 /**************************************************/
 /**
@@ -85,6 +85,8 @@ NCZ_plugin_path_initialize(void** statep, const NClist* initialpaths)
 
     assert(statep != NULL);
     if(*statep != NULL) goto done; /* already initialized */
+
+    NCZ_pluginpathtable = &pluginpathtable;
 
     if((gz = (GlobalNCZarr*)calloc(1,sizeof(GlobalNCZarr)))==NULL) {stat = NC_ENOMEM; goto done;}
 

@@ -47,7 +47,7 @@ static const NC_PluginPathDispatch pluginpathtable = {
     NC4_hdf5_plugin_path_write
 };
 
-const NC_PluginPathDispatch* NC4_hdf5_pluginpathtable = &pluginpathtable;
+const NC_PluginPathDispatch* NC4_hdf5_pluginpathtable = NULL;
 
 /**************************************************/
 
@@ -67,6 +67,9 @@ NC4_hdf5_plugin_path_initialize(void** statep, const NClist* initialpaths)
     
     assert(statep != NULL);
     if(*statep != NULL) goto done; /* already initialized */
+
+    NC4_hdf5_pluginpathtable = &pluginpathtable;
+
     if((g5 = (GlobalHDF5*)calloc(1,sizeof(GlobalHDF5)))==NULL) {stat = NC_ENOMEM; goto done;}
     *statep = (void*)g5; g5 = NULL;
 done:
