@@ -156,7 +156,6 @@ NCZ_plugin_path_finalize(void** statep)
     	    if(l != NULL) (void)ncpsharedlibfree(l);
 	}
     }
-#endif
     gz->loaded_plugins_max = 0;
     nullfree(gz->loaded_plugins); gz->loaded_plugins = NULL;
 assert(gz->default_libs != NULL);
