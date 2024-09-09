@@ -464,7 +464,6 @@ extern int nc_get_alignment(int* thresholdp, int* alignmentp);
 /* Begin to collect global state info in one place (more to do) */
 
 typedef struct NCglobalstate {
-    int initialized;
     char* tempdir; /* track a usable temp dir */
     char* home; /* track $HOME */
     char* cwd; /* track getcwd */
