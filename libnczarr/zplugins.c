@@ -139,6 +139,7 @@ NCZ_plugin_path_finalize(void** statep)
     }
     /* Reclaim the codec defaults */
     if(nclistlength(gz->codec_defaults) > 0) {
+        size_t i;
         for(i=0;i<nclistlength(gz->codec_defaults);i++) {
 	    struct CodecAPI* ca = (struct CodecAPI*)nclistget(gz->codec_defaults,i);
     	    nullfree(ca);
