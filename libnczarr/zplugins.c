@@ -35,6 +35,7 @@ static int NCZ_plugin_path_finalize(void** statep);
 static int NCZ_plugin_path_read(void* state, size_t* ndirsp, char** dirs);
 static int NCZ_plugin_path_write(void* state, size_t ndirs, char** const dirs);
 
+#ifdef NETC
 static int NCZ_load_plugin(const char* path, NCZ_Plugin** plugp);
 static int NCZ_unload_plugin(NCZ_Plugin* plugin);
 static int NCZ_load_plugin_dir(GlobalNCZarr* gz, const char* path);
@@ -119,7 +120,6 @@ static int
 NCZ_plugin_path_finalize(void** statep)
 {
     int stat = NC_NOERR;
-    size_t i;
     GlobalNCZarr* gz = NULL;
 
     assert(statep != NULL);
@@ -130,11 +130,13 @@ NCZ_plugin_path_finalize(void** statep)
 #ifdef DEBUGL
     fprintf(stderr,">>>  DEBUGL: finalize reclaim:\n");
 #endif
+    { size_t i;
     for(i=1;i<=gz->loaded_plugins_max;i++) {
 	if(gz->loaded_plugins[i]) {
             NCZ_unload_plugin(gz->loaded_plugins[i]);
 	    gz->loaded_plugins[i] = NULL;
 	}
+    }
     }
     /* Reclaim the codec defaults */
     if(nclistlength(gz->codec_defaults) > 0) {
