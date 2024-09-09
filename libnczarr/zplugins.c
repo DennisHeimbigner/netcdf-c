@@ -147,6 +147,7 @@ NCZ_plugin_path_finalize(void** statep)
     }
     /* Reclaim the defaults library contents; Must occur as last act */
     if(nclistlength(gz->default_libs) > 0) {
+	size_t i;
         for(i=0;i<nclistlength(gz->default_libs);i++) {
 	    NCPSharedLib* l = (NCPSharedLib*)nclistget(gz->default_libs,i);
 #ifdef DEBUGL
