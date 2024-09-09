@@ -16,7 +16,7 @@
 #include "H5FDhttp.h"
 #endif
 
-static const NC_Dispatch HDF5_dispatcher = {
+NC_Dispatch HDF5_dispatcher = {
 
     NC_FORMATX_NC4,
     NC_DISPATCH_VERSION,
@@ -112,8 +112,21 @@ static const NC_Dispatch HDF5_dispatcher = {
     
     NC4_hdf5_inq_filter_avail,
 };
+NC_Dispatch* HDF5_dispatch_table = NC4_hdf5_dispatcher;
 
-const NC_Dispatch* HDF5_dispatch_table = NULL; /* moved here from ddispatch.c */
+/**************************************************
+/* Manage the HDF5 dispatcher state */
+
+NC_GlobalDispatchOps NC4_hdf5_dispatchtable = {
+    NC_FORMATX_NC_HDF5,
+    NC_GLOBAL_DISPATCH_VERSION,
+    NC4_hdf5_initialize,
+    NC4_hdf5_finalize,
+    NC4_hdf5_setproperties,
+    NC4_hdf5_pluginpath_read,
+    NC4_hdf5_pluginpath_write,
+};
+NC_GlobalDispatchOps* NC4_hdf5_dispatchapi = &NC4_hdf5_dispatchtable;
 
 /**
  * @internal Initialize the HDF5 dispatch layer.
@@ -122,16 +135,22 @@ const NC_Dispatch* HDF5_dispatch_table = NULL; /* moved here from ddispatch.c */
  * @author Ed Hartnett
  */
 int
-NC_HDF5_initialize(void)
+NC4_hdf5_initialize(void** statep, NCproplist* plist)
 {
-    HDF5_dispatch_table = &HDF5_dispatcher;
-    if (!nc4_hdf5_initialized)
-        nc4_hdf5_initialize();
+    NCglobalstate* gs = NULL;
+    GlobalNCZarr* gz = NULL;
+
+    if (!nc4_hdf5_initialized) goto done;
+    nc4_hdf5_initialized = 1;
+
+    nc4_hdf5_initialize();
+
+    NC4_hdf5_plugin_path_initialize(statep,plist);
 
 #ifdef NETCDF_ENABLE_BYTERANGE
     (void)H5FD_http_init();
 #endif
-    return NC4_provenance_init();
+    if((stat = NC4_provenance_init()))) goto done;
 }
 
 /**
@@ -141,11 +160,12 @@ NC_HDF5_initialize(void)
  * @author Dennis Heimbigner
  */
 int
-NC_HDF5_finalize(void)
+NC_HDF5_finalize(NCproplist* plist
 {
 #ifdef NETCDF_ENABLE_BYTERANGE
     (void)H5FD_http_finalize();
 #endif
+    NC4_hdf5_plugin_path_finalize(statep);
     (void)nc4_hdf5_finalize();
     return NC_NOERR;
 }

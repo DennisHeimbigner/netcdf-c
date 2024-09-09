@@ -15,15 +15,12 @@
 #include "ncbytes.h"
 #include "hdf5internal.h"
 #include "hdf5debug.h"
-#include "ncplugins.h"
 
 #undef TPLUGINS
 
 /**************************************************/
 /* Forward */
 
-static int NC4_hdf5_plugin_path_initialize(void** statep, const NClist* initialpaths);
-static int NC4_hdf5_plugin_path_finalize(void** statep);
 static int NC4_hdf5_plugin_path_read(void* state, size_t* ndirsp, char** dirs);
 static int NC4_hdf5_plugin_path_write(void* state, size_t ndirs, char** const dirs);
 

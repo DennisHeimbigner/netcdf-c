@@ -17,7 +17,6 @@
 #include "netcdf_filter.h"
 #include "netcdf_filter_build.h"
 #include "zfilter.h"
-#include "ncplugins.h"
 #include "zplugins.h"
 
 #if 0
@@ -29,11 +28,6 @@
 
 /**************************************************/
 /* Forward */
-
-static int NCZ_plugin_path_initialize(void** statep, const NClist* initialpaths);
-static int NCZ_plugin_path_finalize(void** statep);
-static int NCZ_plugin_path_read(void* state, size_t* ndirsp, char** dirs);
-static int NCZ_plugin_path_write(void* state, size_t ndirs, char** const dirs);
 
 static int NCZ_load_plugin(const char* path, NCZ_Plugin** plugp);
 static int NCZ_unload_plugin(NCZ_Plugin* plugin);
@@ -59,17 +53,6 @@ static int pluginnamecheck(const char* name);
 
 /**************************************************/
 /* The NCZarr Plugin Path Dispatch table and functions */
-NC_PluginPathDispatch NCZ_pluginpathdispatch = {
-    NC_FORMATX_NCZARR,
-    NC_PLUGINPATH_DISPATCH_VERSION,
-    NCZ_plugin_path_initialize,
-    NCZ_plugin_path_finalize,
-    NCZ_plugin_path_read,
-    NCZ_plugin_path_write,
-};
-
-NC_PluginPathDispatch* NCZ_pluginpathtable = &NCZ_pluginpathdispatch;
-
 /**************************************************/
 /**
  * This function is called as part of nc_initialize.
@@ -78,11 +61,12 @@ NC_PluginPathDispatch* NCZ_pluginpathtable = &NCZ_pluginpathdispatch;
  * @author Dennis Heimbigner
 */
 static int
-NCZ_plugin_path_initialize(void** statep, const NClist* initialpaths)
+NCZ_plugin_path_initialize(void** statep, NCproplist* plist)
 {
     int stat = NC_NOERR;
     GlobalNCZarr* gz = NULL;
-
+    const NClist* initialpaths = NULL;
+    
     assert(statep != NULL);
     if(*statep != NULL) goto done; /* already initialized */
 
@@ -95,11 +79,18 @@ NCZ_plugin_path_initialize(void** statep, const NClist* initialpaths)
     if(gz->loaded_plugins == NULL) {stat = NC_ENOMEM; goto done;}
 
     /* Preload with set of initial paths (typically coming from HDF5_PLUGIN_PATH) */
-    if(nclistlength(initialpaths) > 0) {
-	size_t i;
-	for(i=0;i<nclistlength(initialpaths);i++) {
-	    const char* dir = (const char*)nclistget(initialpaths,i);
-	    if(dir != NULL) nclistpush(gz->pluginpaths,strdup(dir));
+    if(plist != NULL) {
+	uintptr_t data = 0;
+	uintptr_t size = 0;
+        if((stat=ncplistget(plist,"key",&data,&size))) goto done;
+	if(data != NULL) {
+	    if(nclistlength(initialpaths) > 0) {
+		size_t i;
+		for(i=0;i<nclistlength(initialpaths);i++) {
+		    const char* dir = (const char*)nclistget(initialpaths,i);
+		    if(dir != NULL) nclistpush(gz->pluginpaths,strdup(dir));
+		}
+	    }
 	}
     }
     
@@ -116,10 +107,12 @@ done:
  * @author Dennis Heimbigner
 */
 static int
-NCZ_plugin_path_finalize(void** statep)
+NCZ_plugin_path_finalize(void** statep, NCproplist* plist)
 {
     int stat = NC_NOERR;
     GlobalNCZarr* gz = NULL;
+
+    NC_UNUSED(plist);
 
     assert(statep != NULL);
     if(*statep == NULL) goto done; /* already finalized */

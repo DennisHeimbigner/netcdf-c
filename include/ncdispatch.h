@@ -95,6 +95,42 @@ typedef struct NC_MPI_INFO {
     MPI_Info info;
 } NC_MPI_INFO;
 
+/**************************************************/
+/* Per-Dispatcher global operations and state */
+
+/* Opaque */
+struct NClist;
+struct NCproplist;
+
+/* Define the per-dispatch global operations */
+
+typedef struct NC_GlobalDispatchOps {
+    int model; /* one of the NC_FORMATX #'s */
+    int global_dispatcher_version;
+    int (*initialize)(void** state, struct NCproplist*);
+    int (*finalize)(void** state, struct NCproplist*);
+    /* Various specialized operations */
+    int (*plugin_path_read)(void* state, size_t* ndirsp, char** dirs);
+    int (*plugin_path_write)(void* state, size_t ndirs, char** const dirs);
+} NC_GlobalDispatchOps;
+
+/**************************************************/
+/* Define the common fields for NC and NC_FILE_INFO_T etc */
+
+typedef struct NCcommon {
+	int ext_ncid; /* uid << 16 */
+	int int_ncid; /* unspecified other id */
+	const struct NC_Dispatch* dispatch;
+	void* dispatchdata; /* per-protocol instance data */
+	char* path; /* as specified at open or create */
+} NCcommon;
+
+/**************************************************/
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /* Define known dispatch tables and initializers */
 
 extern int NCDISPATCH_initialize(void);
@@ -130,6 +166,7 @@ extern int NC4_finalize(void);
 extern const NC_Dispatch* HDF5_dispatch_table;
 extern int NC_HDF5_initialize(void);
 extern int NC_HDF5_finalize(void);
+extern NC_GlobalDispatchOps* NC4_hdf5_dispatchapi;
 #endif
 
 #ifdef USE_HDF4
@@ -142,6 +179,7 @@ extern int HDF4_finalize(void);
 extern const NC_Dispatch* NCZ_dispatch_table;
 extern int NCZ_initialize(void);
 extern int NCZ_finalize(void);
+extern NC_GlobalDispatchOps* NCZ_dispatchapi;
 #endif
 
 /* User-defined formats.*/
@@ -185,31 +223,6 @@ EXTERNL int NCDEFAULT_put_varm(int, int, const size_t*,
                const size_t*, const ptrdiff_t*, const ptrdiff_t*,
                const void*, nc_type);
 
-/**************************************************/
-/* Forward */
-struct NCHDR;
-
-
-/* Following functions must be handled as non-dispatch */
-#ifdef NONDISPATCH
-void (*nc_advise)(const char*cdf_routine_name,interr,const char*fmt,...);
-void (*nc_set_log_level)(int);
-const char* (*nc_inq_libvers)(void);
-const char* (*nc_strerror)(int);
-int (*nc_delete)(const char*path);
-int (*nc_delete_mp)(const char*path,intbasepe);
-int (*nc_initialize)();
-int (*nc_finalize)();
-#endif /*NONDISPATCH*/
-
-/* Define the common fields for NC and NC_FILE_INFO_T etc */
-typedef struct NCcommon {
-	int ext_ncid; /* uid << 16 */
-	int int_ncid; /* unspecified other id */
-	const struct NC_Dispatch* dispatch;
-	void* dispatchdata; /* per-protocol instance data */
-	char* path; /* as specified at open or create */
-} NCcommon;
 
 EXTERNL size_t NC_atomictypelen(nc_type xtype);
 EXTERNL char* NC_atomictypename(nc_type xtype);
@@ -253,5 +266,9 @@ NCDISPATCH_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
                );
 EXTERNL int
 NCDISPATCH_get_att(int ncid, int varid, const char* name, void* value, nc_type t);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* NC_DISPATCH_H */

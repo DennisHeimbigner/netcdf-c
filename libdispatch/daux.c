@@ -30,7 +30,6 @@ See COPYRIGHT for license information.
 #include "nclog.h"
 #include "ncrc.h"
 #include "netcdf_filter.h"
-#include "ncplugins.h"
 
 struct NCAUX_FIELD {
     char* name;

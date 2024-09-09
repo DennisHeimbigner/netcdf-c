@@ -110,7 +110,7 @@ struct NC_TYPE_INFO;
 
 /* Opaque */
 struct NCRCinfo;
-struct NC_PluginPathDispatch;
+struct NC_DispatcherGlobalOps;
 
 /**
  * This struct provides indexed Access to Meta-data objects. See the
@@ -463,6 +463,9 @@ extern int nc_get_alignment(int* thresholdp, int* alignmentp);
 /**************************************************/
 /* Begin to collect global state info in one place (more to do) */
 
+/*Opaque */
+struct NC_GlobalDispatchOps;
+
 typedef struct NCglobalstate {
     char* tempdir; /* track a usable temp dir */
     char* home; /* track $HOME */
@@ -481,12 +484,11 @@ typedef struct NCglobalstate {
 	int alignment;
     } alignment;
     struct ChunkCache chunkcache;
-    /* Global dispatcher and states specific to each dispatcher
-       and indexed by NC_FORMATX */
+    /* Global per-dispatcher state and special operations specific to each dispatcher and indexed by NC_FORMATX */
     struct FormatXGlobal {
         void* state[NC_FORMATX_COUNT]; /* type is opaque (like e.g. file_info_format field) */
-        const struct NC_PluginPathDispatch** pluginapi; /*[NC_FORMATX_COUNT];*/
-    } formatxstate;
+        const struct NC_GlobalDispatchOps* dispatchapi[NC_FORMATX_COUNT];
+   } formatxstate;
 } NCglobalstate;
 
 extern struct NCglobalstate* NC_getglobalstate(void);

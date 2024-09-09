@@ -14,10 +14,14 @@
 #include "zfilter.h"
 
 /* Forward */
+static int NCZ_initialize(void** statep);
+static int NCZ_finalize(void** statep);
+static int NCZ_setproperties(NCproplist* plist);
+
 static int NCZ_var_par_access(int ncid, int varid, int par_access);
 static int NCZ_show_metadata(int ncid);
 
-static const NC_Dispatch NCZ_dispatcher = {
+NC_Dispatch NCZ_dispatcher = {
 
     NC_FORMATX_NCZARR,
     NC_DISPATCH_VERSION,
@@ -110,8 +114,21 @@ static const NC_Dispatch NCZ_dispatcher = {
     NCZ_inq_var_quantize,
     NCZ_inq_filter_avail,
 };
+NC_Dispatch* NCZ_dispatch_table = &NCZ_dispatcher;
 
-const NC_Dispatch* NCZ_dispatch_table = NULL; /* moved here from ddispatch.c */
+/**************************************************
+/* Manage the NCZarr dispatcher state */
+
+NC_GlobalDispatchOps NCZ_dispatchtable = {
+    NC_FORMATX_NCZARR,
+    NC_GLOBAL_DISPATCH_VERSION,
+    NCZ_initialize,
+    NCZ_finalize,
+    NCZ_setproperties,
+    NCZ_pluginpath_read,
+    NCZ_pluginpath_write,
+};
+NC_GlobalDispatchOps* NCZ_dispatchapi = &NCZ_dispatchtable;
 
 /**
  * @internal Initialize the ZARR dispatch layer.
@@ -121,11 +138,10 @@ const NC_Dispatch* NCZ_dispatch_table = NULL; /* moved here from ddispatch.c */
  */
 int ncz_initialized = 0; /**< True if initialization has happened. */
 
-int
-NCZ_initialize(void)
+static int
+NCZ_initialize(void** statep)
 {
     int stat;
-    NCZ_dispatch_table = &NCZ_dispatcher;
     char* dimsep = NULL;
     NCglobalstate* gs = NULL;
     GlobalNCZarr* gz = NULL;
@@ -159,8 +175,8 @@ done:
  * @return ::NC_NOERR No error.
  * @author Dennis Heimbigner
  */
-int
-NCZ_finalize(void)
+static int
+NCZ_finalize(void** statep)
 {
     int stat = NC_NOERR;
     /* Reclaim global resources */
@@ -175,6 +191,12 @@ NCZ_finalize(void)
     return stat;
 }
 
+static int
+NCZ_setproperties(NCproplist* plist)
+{
+}
+
+/**************************************************/
 static int
 NCZ_var_par_access(int ncid, int varid, int par_access)
 {

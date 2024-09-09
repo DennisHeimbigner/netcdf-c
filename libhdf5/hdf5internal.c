@@ -21,7 +21,6 @@
 #endif
 #include "hdf5internal.h"
 #include "hdf5err.h" /* For BAIL2 */
-#include "ncplugins.h"
 
 #undef DEBUGH5
 

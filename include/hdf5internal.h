@@ -56,6 +56,7 @@
 
 /* forward */
 struct NCauth;
+struct NCproplist;
 
 /** Struct to hold HDF5-specific info for the file. */
 typedef struct NC_HDF5_FILE_INFO {
@@ -229,5 +230,8 @@ int hdf5set_format_compatibility(hid_t fapl_id);
 extern int nc4_hdf5_initialized;
 extern void nc4_hdf5_initialize(void);
 extern void nc4_hdf5_finalize(void);
+
+extern int NC4_hdf5_plugin_path_initialize(void** statep, struct NCproplist*);
+extern int NC4_hdf5_plugin_path_finalize(void** statep);
 
 #endif /* _HDF5INTERNAL_ */

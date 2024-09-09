@@ -25,7 +25,6 @@
 #include "nc4internal.h"
 #include "nclog.h"
 #include "ncbytes.h"
-#include "ncplugins.h"
 
 /*
 Unified plugin related code
@@ -50,8 +49,21 @@ static int NC_plugin_path_initialized = 0;
  * @author Dennis Heimbigner
 */
 
+/* Returns 0 => error; 1 => success */
+static int
+NC_plugin_path_reclaimdirs)(uintptr_t userdata, const char* key, void* value, uintptr_t size)
+{
+    NC_UNUSED(userdata);
+    NC_UNUSED(size);
+    if(strcmp(key,?)==0) {
+	NClist* dirs = (NClist*)value;
+	nclistfreeall(dirs);
+    }
+    return 1;
+}
+
 EXTERNL int
-nc_plugin_path_initialize(void)
+nc_plugin_path_initialize(NCproplist* plist)
 {
     int stat = NC_NOERR;
     struct NCglobalstate* gs = NULL;
@@ -98,20 +110,7 @@ nc_plugin_path_initialize(void)
 	defaultpluginpath = NULL;
     }
 
-    /* Initialize all the plugin path dispatchers and state*/
-#ifdef USE_HDF5
-    gs->formatxstate.pluginapi[NC_FORMATX_NC_HDF5] = NC4_hdf5_pluginpathtable;
-#endif
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    gs->formatxstate.pluginapi[NC_FORMATX_NCZARR] = NCZ_pluginpathtable;
-#endif
-    /* Initialize all the plugin path dispatcher states */
-    for(i=0;i<NC_FORMATX_COUNT;i++) {    
-	if(gs->formatxstate.pluginapi[i] != NULL) {
-	    if((stat = gs->formatxstate.pluginapi[i]->initialize(&gs->formatxstate.state[i], dirs))) goto done;
-	    assert(gs->formatxstate.state[i] != NULL);
-	}
-    }
+    ncplistaddx(plist,"key",(uintptr_t)dirs,sizeof(NClist*),NULL,NC_plugin_path_reclaimdirs);
 
 done:
     nullfree(defaultpluginpath);
@@ -132,19 +131,8 @@ int
 nc_plugin_path_finalize(void)
 {
     int stat = NC_NOERR;
-    struct NCglobalstate* gs = NC_getglobalstate();
-    int i;
-
     if(NC_plugin_path_initialized == 0) goto done;
     NC_plugin_path_initialized = 0;
-
-    /* Finalize all the plugin path dispatchers */
-    for(i=0;i<NC_FORMATX_COUNT;i++) {    
-	if(gs->formatxstate.state[i] != NULL) {
-	    if((stat = gs->formatxstate.pluginapi[i]->finalize(&gs->formatxstate.state[i]))) goto done;
-	    gs->formatxstate.state[i] = NULL;
-	}
-    }
 done:
     return NCTHROW(stat);
 }

@@ -13,7 +13,7 @@ See LICENSE.txt for license information.
 #include "ncpathmgr.h"
 #include "ncxml.h"
 #include "nc4internal.h"
-#include "ncplugins.h"
+#include "netcdf_proplist.h"
 
 /* Required for getcwd, other functions. */
 #ifdef HAVE_UNISTD_H
@@ -52,7 +52,8 @@ NCDISPATCH_initialize(void)
 {
     int status = NC_NOERR;
     int i;
-    NCglobalstate* globalstate = NULL;
+    NCglobalstate* gs = NULL;
+    NCproplist* plist = ncproplistnew();
 
     for(i=0;i<NC_MAX_VAR_DIMS;i++) {
         NC_coord_zero[i] = 0;
@@ -60,7 +61,24 @@ NCDISPATCH_initialize(void)
         NC_stride_one[i] = 1;
     }
 
-    globalstate = NC_getglobalstate(); /* will allocate and clear */
+    gs = NC_getglobalstate(); /* will allocate and clear */
+
+    /* Initialize all the per-dispatcher api information */
+#ifdef USE_HDF5
+    gs->formatxstate.dispatchapi[NC_FORMATX_NC_HDF5] = NC4_hdf5_dispatchapi;
+#endif
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
+    gs->formatxstate.dispatchapi[NC_FORMATX_NCZARR] = NCZ_dispatchapi;
+#endif
+
+    /* Initialize all the per-dispatcher states */
+    ncplistadd(plist,key,value);
+    for(i=0;i<NC_FORMATX_COUNT;i++) {    
+	if(gs->formatxstate.dispatchapi[i] != NULL) {
+	    if((stat = gs->formatxstate.dispatchapi[i]->initialize(&gs->formatxstate.state[i]))) goto done;
+	    assert(gs->formatxstate.state[i] != NULL);
+	}
+    }
 
     /* Capture temp dir*/
     {
@@ -74,7 +92,7 @@ NCDISPATCH_initialize(void)
 	    fprintf(stderr,"Cannot find a temp dir; using ./\n");
 	    tempdir = ".";
 	}
-	globalstate->tempdir= strdup(tempdir);
+	gs->tempdir= strdup(tempdir);
     }
 
     /* Capture $HOME */
@@ -91,7 +109,7 @@ NCDISPATCH_initialize(void)
         } else
 	    home = strdup(home); /* make it always free'able */
 	assert(home != NULL);
-        NCpathcanonical(home,&globalstate->home);
+        NCpathcanonical(home,&gs->home);
 	nullfree(home);
     }
  
@@ -104,9 +122,9 @@ NCDISPATCH_initialize(void)
 
         if(strlen(cwdbuf) == 0) {
 	    /* use tempdir */
-	    strcpy(cwdbuf, globalstate->tempdir);
+	    strcpy(cwdbuf, gs->tempdir);
 	}
-        globalstate->cwd = strdup(cwdbuf);
+        gs->cwd = strdup(cwdbuf);
     }
 
     ncloginit();
@@ -126,7 +144,8 @@ NCDISPATCH_initialize(void)
     }
 #endif
 
-    return status;
+     ncproplistfree(plist);
+     return status;
 }
 
 int
@@ -139,6 +158,15 @@ NCDISPATCH_finalize(void)
 #if defined(NETCDF_ENABLE_DAP4)
    ncxml_finalize();
 #endif
+
+    /* Finalize all the per-dispatcher states */
+    for(i=0;i<NC_FORMATX_COUNT;i++) {    
+	if(gs->formatxstate.state[i] != NULL) {
+	    if((stat = gs->formatxstate.dispat[i]->finalize(&gs->formatxstate.state[i]))) goto done;
+	    gs->formatxstate.state[i] = NULL;
+	}
+    }
+
     NC_freeglobalstate(); /* should be one of the last things done */
     return status;
 }
@@ -180,11 +208,8 @@ NC_createglobalstate(void)
     if((nc_globalstate->rcinfo->s3profiles = nclistnew())==NULL)
             {stat = NC_ENOMEM; goto done;}
 
-    /* plugin path state */
-    if((nc_globalstate->formatxstate.pluginapi = (const NC_PluginPathDispatch**)calloc(NC_FORMATX_COUNT,sizeof(NC_PluginPathDispatch*)))==NULL)
-            {stat = NC_ENOMEM; goto done;}
+    memset(nc_globalstate->formatxstate.dispatchapi,0,NC_FORMATX_COUNT*sizeof(struct GlobalDispatchAPI*));
     memset(nc_globalstate->formatxstate.state,0,NC_FORMATX_COUNT*sizeof(void*));
-    if((stat = nc_plugin_path_initialize())) goto done;
 
     /* Get environment variables */
     if(getenv(NCRCENVIGNORE) != NULL)
@@ -233,7 +258,6 @@ NC_freeglobalstate(void)
 	    for(i=0;i<NC_FORMATX_COUNT;i++)
 		assert(nc_globalstate->formatxstate.state[i] == NULL);
 	    memset(nc_globalstate->formatxstate.state,0,NC_FORMATX_COUNT*sizeof(void*));
-	    nullfree(nc_globalstate->formatxstate.pluginapi);
 	}
 	free(nc_globalstate);
 	nc_globalstate = NULL;
