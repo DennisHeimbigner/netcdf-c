@@ -35,7 +35,6 @@ static int NCZ_plugin_path_finalize(void** statep);
 static int NCZ_plugin_path_read(void* state, size_t* ndirsp, char** dirs);
 static int NCZ_plugin_path_write(void* state, size_t ndirs, char** const dirs);
 
-#ifdef NETC
 static int NCZ_load_plugin(const char* path, NCZ_Plugin** plugp);
 static int NCZ_unload_plugin(NCZ_Plugin* plugin);
 static int NCZ_load_plugin_dir(GlobalNCZarr* gz, const char* path);
@@ -155,8 +154,6 @@ NCZ_plugin_path_finalize(void** statep)
     	    if(l != NULL) (void)ncpsharedlibfree(l);
 	}
     }
-#else
-    memset(gz->loaded_plugins,0,sizeof(struct NCZ_Plugin*)*(H5Z_FILTER_MAX+1));
 #endif
     gz->loaded_plugins_max = 0;
     nullfree(gz->loaded_plugins); gz->loaded_plugins = NULL;
