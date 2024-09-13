@@ -192,8 +192,10 @@ NCZ_finalize(void** statep)
 }
 
 static int
-NCZ_setproperties(NCproplist* plist)
+NCZ_setproperties(void* state, NCproplist* plist)
 {
+    
+
 }
 
 /**************************************************/

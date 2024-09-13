@@ -53,7 +53,6 @@ NCDISPATCH_initialize(void)
     int status = NC_NOERR;
     int i;
     NCglobalstate* gs = NULL;
-    NCproplist* plist = ncproplistnew();
 
     for(i=0;i<NC_MAX_VAR_DIMS;i++) {
         NC_coord_zero[i] = 0;
@@ -72,10 +71,9 @@ NCDISPATCH_initialize(void)
 #endif
 
     /* Initialize all the per-dispatcher states */
-    ncplistadd(plist,key,value);
     for(i=0;i<NC_FORMATX_COUNT;i++) {    
 	if(gs->formatxstate.dispatchapi[i] != NULL) {
-	    if((stat = gs->formatxstate.dispatchapi[i]->initialize(&gs->formatxstate.state[i]))) goto done;
+	    if((status = gs->formatxstate.dispatchapi[i]->initialize(&gs->formatxstate.state[i],NULL))) goto done;
 	    assert(gs->formatxstate.state[i] != NULL);
 	}
     }
@@ -144,7 +142,7 @@ NCDISPATCH_initialize(void)
     }
 #endif
 
-     ncproplistfree(plist);
+done:
      return status;
 }
 
@@ -152,6 +150,9 @@ int
 NCDISPATCH_finalize(void)
 {
     int status = NC_NOERR;
+    size_t i;
+    NCglobalstate* gs = NULL;
+    
 #if defined(NETCDF_ENABLE_BYTERANGE) || defined(NETCDF_ENABLE_DAP) || defined(NETCDF_ENABLE_DAP4)
     curl_global_cleanup();
 #endif
@@ -159,14 +160,17 @@ NCDISPATCH_finalize(void)
    ncxml_finalize();
 #endif
 
+    gs = NC_getglobalstate(); /* will allocate and clear */
+
     /* Finalize all the per-dispatcher states */
     for(i=0;i<NC_FORMATX_COUNT;i++) {    
 	if(gs->formatxstate.state[i] != NULL) {
-	    if((stat = gs->formatxstate.dispat[i]->finalize(&gs->formatxstate.state[i]))) goto done;
+	    if((status = gs->formatxstate.dispatchapi[i]->finalize(&gs->formatxstate.state[i]))) goto done;
 	    gs->formatxstate.state[i] = NULL;
 	}
     }
 
+done:
     NC_freeglobalstate(); /* should be one of the last things done */
     return status;
 }

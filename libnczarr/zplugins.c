@@ -29,6 +29,10 @@
 /**************************************************/
 /* Forward */
 
+static int NCZ_plugin_path_setproperties(void* statep, consnt NCproplist* plist);
+static int NCZ_plugin_path_read(void* state, size_t* ndirsp, char** dirs);
+static int NCZ_plugin_path_write(void* state, size_t ndirs, char** const dirs);
+
 static int NCZ_load_plugin(const char* path, NCZ_Plugin** plugp);
 static int NCZ_unload_plugin(NCZ_Plugin* plugin);
 static int NCZ_load_plugin_dir(GlobalNCZarr* gz, const char* path);
@@ -61,38 +65,22 @@ static int pluginnamecheck(const char* name);
  * @author Dennis Heimbigner
 */
 static int
-NCZ_plugin_path_initialize(void** statep, NCproplist* plist)
+NCZ_plugin_path_initialize(void** statep, const NCproplist* plist)
 {
     int stat = NC_NOERR;
     GlobalNCZarr* gz = NULL;
-    const NClist* initialpaths = NULL;
     
     assert(statep != NULL);
     if(*statep != NULL) goto done; /* already initialized */
 
     if((gz = (GlobalNCZarr*)calloc(1,sizeof(GlobalNCZarr)))==NULL) {stat = NC_ENOMEM; goto done;}
 
+    if((stat = NCZ_plugin_path_setproperties(gz, plist))) goto done;
     gz->pluginpaths = nclistnew();
     gz->default_libs = nclistnew();
     gz->codec_defaults = nclistnew();
     gz->loaded_plugins = (struct NCZ_Plugin**)calloc(H5Z_FILTER_MAX+1,sizeof(struct NCZ_Plugin*));
     if(gz->loaded_plugins == NULL) {stat = NC_ENOMEM; goto done;}
-
-    /* Preload with set of initial paths (typically coming from HDF5_PLUGIN_PATH) */
-    if(plist != NULL) {
-	uintptr_t data = 0;
-	uintptr_t size = 0;
-        if((stat=ncplistget(plist,"key",&data,&size))) goto done;
-	if(data != NULL) {
-	    if(nclistlength(initialpaths) > 0) {
-		size_t i;
-		for(i=0;i<nclistlength(initialpaths);i++) {
-		    const char* dir = (const char*)nclistget(initialpaths,i);
-		    if(dir != NULL) nclistpush(gz->pluginpaths,strdup(dir));
-		}
-	    }
-	}
-    }
     
     *statep = (void*)gz; gz = NULL;
 done:
@@ -107,12 +95,10 @@ done:
  * @author Dennis Heimbigner
 */
 static int
-NCZ_plugin_path_finalize(void** statep, NCproplist* plist)
+NCZ_plugin_path_finalize(void** statep)
 {
     int stat = NC_NOERR;
     GlobalNCZarr* gz = NULL;
-
-    NC_UNUSED(plist);
 
     assert(statep != NULL);
     if(*statep == NULL) goto done; /* already finalized */
@@ -161,6 +147,29 @@ assert(gz->default_libs != NULL);
 done:
     nullfree(gz);
     return THROW(stat);
+}
+
+static int NCZ_plugin_path_setproperties(void* state, const NCproplist* plist)
+{
+    int stat = NC_NOERR;
+
+    /* Preload with set of initial paths (typically coming from HDF5_PLUGIN_PATH) */
+    if(plist != NULL) {
+	uintptr_t data = 0;
+	uintptr_t size = 0;
+        if((stat=ncplistget(plist,"plugin_path_defaults",&data,&size))) goto done;
+	if(data != NULL) {
+	    const NClist* initialpaths = (constant NClist*)data;
+	    if(nclistlength(initialpaths) > 0) {
+		size_t i;
+		for(i=0;i<nclistlength(initialpaths);i++) {
+		    const char* dir = (const char*)nclistget(initialpaths,i);
+		    if(dir != NULL) nclistpush(gz->pluginpaths,strdup(dir));
+		}
+	    }
+	}
+    }
+    return stat;
 }
 
 /**

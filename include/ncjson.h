@@ -6,34 +6,16 @@
 #ifndef NCJSON_H
 #define NCJSON_H 1
 
-/*
-WARNING:
-If you modify this file,
-then you need to got to
-the include/ directory
-and do the command:
-    make makepluginjson
-*/
-
-#if defined(DLL_NETCDF) /* define when library is a DLL */
-#  if defined(DLL_EXPORT) /* define when building the library */
-#   define MSC_EXTRA __declspec(dllexport)
-#  else
-#   define MSC_EXTRA __declspec(dllimport)
-#  endif
-#else
-#  define MSC_EXTRA
-#endif	/* defined(DLL_NETCDF) */
-#ifndef EXTERNL
-# define EXTERNL MSC_EXTRA extern
-#endif
+#include "ncexternl.h"
 
 /* Override for plugins */
+#ifndef OPTEXPORT
 #ifdef NETCDF_JSON_H
 #define OPTEXPORT static
-#else /*NETCDF_JSON_H*/
+#else /*!NETCDF_JSON_H*/
 #define OPTEXPORT MSC_EXTRA
 #endif /*NETCDF_JSON_H*/
+#endif /*OPTEXPORT*/
 
 /**************************************************/
 /* Json object sorts (note use of term sort rather than e.g. type or discriminant) */

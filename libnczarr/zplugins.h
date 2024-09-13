@@ -42,8 +42,6 @@ int NCZ_plugin_loaded_byname(const char* name, NCZ_Plugin** pp);
 
 int NCZ_plugin_path_initialize(void** statep, const NCproplist* plist);
 int NCZ_plugin_path_finalize(void** statep);
-int NCZ_plugin_path_read(void* state, size_t* ndirsp, char** dirs);
-int NCZ_plugin_path_write(void* state, size_t ndirs, char** const dirs);
 
 #endif /*ZPLUGIN_H*/
 

@@ -108,7 +108,8 @@ typedef struct NC_GlobalDispatchOps {
     int model; /* one of the NC_FORMATX #'s */
     int global_dispatcher_version;
     int (*initialize)(void** state, struct NCproplist*);
-    int (*finalize)(void** state, struct NCproplist*);
+    int (*finalize)(void** state);
+    int (*setproperties)(void* state, struct NCproplist*);
     /* Various specialized operations */
     int (*plugin_path_read)(void* state, size_t* ndirsp, char** dirs);
     int (*plugin_path_write)(void* state, size_t ndirs, char** const dirs);
@@ -164,8 +165,6 @@ extern int NC4_finalize(void);
 
 #ifdef USE_HDF5
 extern const NC_Dispatch* HDF5_dispatch_table;
-extern int NC_HDF5_initialize(void);
-extern int NC_HDF5_finalize(void);
 extern NC_GlobalDispatchOps* NC4_hdf5_dispatchapi;
 #endif
 
@@ -177,8 +176,6 @@ extern int HDF4_finalize(void);
 
 #ifdef NETCDF_ENABLE_NCZARR
 extern const NC_Dispatch* NCZ_dispatch_table;
-extern int NCZ_initialize(void);
-extern int NCZ_finalize(void);
 extern NC_GlobalDispatchOps* NCZ_dispatchapi;
 #endif
 

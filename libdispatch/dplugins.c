@@ -25,6 +25,7 @@
 #include "nc4internal.h"
 #include "nclog.h"
 #include "ncbytes.h"
+#include "netcdf_proplist.h"
 
 /*
 Unified plugin related code
@@ -49,21 +50,8 @@ static int NC_plugin_path_initialized = 0;
  * @author Dennis Heimbigner
 */
 
-/* Returns 0 => error; 1 => success */
-static int
-NC_plugin_path_reclaimdirs)(uintptr_t userdata, const char* key, void* value, uintptr_t size)
-{
-    NC_UNUSED(userdata);
-    NC_UNUSED(size);
-    if(strcmp(key,?)==0) {
-	NClist* dirs = (NClist*)value;
-	nclistfreeall(dirs);
-    }
-    return 1;
-}
-
 EXTERNL int
-nc_plugin_path_initialize(NCproplist* plist)
+nc_plugin_path_initialize(void)
 {
     int stat = NC_NOERR;
     struct NCglobalstate* gs = NULL;
@@ -110,7 +98,18 @@ nc_plugin_path_initialize(NCproplist* plist)
 	defaultpluginpath = NULL;
     }
 
-    ncplistaddx(plist,"key",(uintptr_t)dirs,sizeof(NClist*),NULL,NC_plugin_path_reclaimdirs);
+    /* Insert into all defined dispatcher states */
+    {
+	size_t i;
+	NCproplist* plist = ncplistnew();
+        ncplistadd(plist,"plugin_path_defaults",(uintptr_t)dirs,sizeof(NClist*));
+        for(i=0;i<NC_FORMATX_COUNT;i++) {    
+	    if(gs->formatxstate.dispatchapi[i] != NULL) {
+	        if((stat = gs->formatxstate.dispatchapi[i]->setproperties(gs->formatxstate.state[i],plist))) goto done;
+	    }
+	}
+	ncplistfree(plist);
+    }
 
 done:
     nullfree(defaultpluginpath);
@@ -167,8 +166,8 @@ nc_plugin_path_read(int formatx, size_t* ndirsp, char** dirs)
     /* read functions can only apply to specific formatx */
     if(formatx == 0) {stat = NC_EINVAL; goto done;}
 
-    if(gs->formatxstate.pluginapi[formatx] == NULL || gs->formatxstate.state[formatx] == NULL) {stat = NC_EINVAL; goto done;}
-    if((stat = gs->formatxstate.pluginapi[formatx]->read(gs->formatxstate.state[formatx],ndirsp,dirs))) goto done;
+    if(gs->formatxstate.dispatchapi[formatx] == NULL || gs->formatxstate.state[formatx] == NULL) {stat = NC_EINVAL; goto done;}
+    if((stat = gs->formatxstate.dispatchapi[formatx]->read(gs->formatxstate.state[formatx],ndirsp,dirs))) goto done;
 done:
     return NCTHROW(stat);
 }
