@@ -1632,6 +1632,7 @@ enable_hdf5_szip=no
 has_hdf5_ros3=no
 
 if test "x$enable_hdf5" = xyes; then
+
    AC_DEFINE([NETCDF_ENABLE_HDF5], [1], [if true, use HDF5])
    AC_DEFINE([USE_HDF5], [1], [if true, use HDF5])
    AC_DEFINE([H5_USE_16_API], [1], [use HDF5 1.6 API])
