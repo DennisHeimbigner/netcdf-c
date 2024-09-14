@@ -45,6 +45,7 @@ set(PACKAGE "netCDF" CACHE STRING "")
 include(netcdf_functions_macros)
 include(deprecated)
 
+
 # Backport of built-in `PROJECT_IS_TOP_LEVEL` from CMake 3.21
 if (NOT DEFINED NETCDF_IS_TOP_LEVEL)
   set(NETCDF_IS_TOP_LEVEL OFF)
@@ -70,6 +71,8 @@ endif()
 
 add_library(netcdf)
 add_library(netCDF::netcdf ALIAS netcdf)
+
+
 
 # Version of the dispatch table. This must match the value in
 # configure.ac.
@@ -868,6 +871,7 @@ if(NETCDF_ENABLE_TESTS)
   # See https://github.com/Unidata/netcdf-c/issues/2627 for more information.
   ###
   option(NETCDF_ENABLE_BENCHMARKS "Run benchmark Tests." OFF)
+
   set(BUILD_BENCHMARKS ${NETCDF_ENABLE_BENCHMARKS} CACHE BOOL "alias for NETCDF_ENABLE_BENCHMARKS")
 
   ###
