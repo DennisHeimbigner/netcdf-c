@@ -14,6 +14,7 @@
 #include "zincludes.h"
 #include "ncpathmgr.h"
 #include "ncpoco.h"
+#include "ncproplist.h"
 #include "netcdf_filter.h"
 #include "netcdf_filter_build.h"
 #include "zfilter.h"
@@ -29,12 +30,7 @@
 /**************************************************/
 /* Forward */
 
-static int NCZ_plugin_path_setproperties(void* statep, consnt NCproplist* plist);
-static int NCZ_plugin_path_read(void* state, size_t* ndirsp, char** dirs);
-static int NCZ_plugin_path_write(void* state, size_t ndirs, char** const dirs);
-
 static int NCZ_load_plugin(const char* path, NCZ_Plugin** plugp);
-static int NCZ_unload_plugin(NCZ_Plugin* plugin);
 static int NCZ_load_plugin_dir(GlobalNCZarr* gz, const char* path);
 static int NCZ_plugin_save(GlobalNCZarr* gz, size_t filterid, NCZ_Plugin* p);
 static int getentries(const char* path, NClist* contents);
@@ -64,27 +60,15 @@ static int pluginnamecheck(const char* name);
  * @return NC_NOERR
  * @author Dennis Heimbigner
 */
-static int
-NCZ_plugin_path_initialize(void** statep, const NCproplist* plist)
+int
+NCZ_plugin_path_initialize(void* state, NCproplist* plist)
 {
     int stat = NC_NOERR;
     GlobalNCZarr* gz = NULL;
-    
-    assert(statep != NULL);
-    if(*statep != NULL) goto done; /* already initialized */
 
-    if((gz = (GlobalNCZarr*)calloc(1,sizeof(GlobalNCZarr)))==NULL) {stat = NC_ENOMEM; goto done;}
-
-    if((stat = NCZ_plugin_path_setproperties(gz, plist))) goto done;
+    gz = (GlobalNCZarr*)state;
+    assert(gz != NULL);
     gz->pluginpaths = nclistnew();
-    gz->default_libs = nclistnew();
-    gz->codec_defaults = nclistnew();
-    gz->loaded_plugins = (struct NCZ_Plugin**)calloc(H5Z_FILTER_MAX+1,sizeof(struct NCZ_Plugin*));
-    if(gz->loaded_plugins == NULL) {stat = NC_ENOMEM; goto done;}
-    
-    *statep = (void*)gz; gz = NULL;
-done:
-    nullfree(gz);
     return THROW(stat);
 }
 
@@ -94,82 +78,13 @@ done:
  * @return NC_NOERR
  * @author Dennis Heimbigner
 */
-static int
-NCZ_plugin_path_finalize(void** statep)
+int
+NCZ_plugin_path_finalize(void* state)
 {
-    int stat = NC_NOERR;
-    GlobalNCZarr* gz = NULL;
-
-    assert(statep != NULL);
-    if(*statep == NULL) goto done; /* already finalized */
-    gz = (GlobalNCZarr*)(*statep);
-
-    /* Reclaim all loaded filters */
-#ifdef DEBUGL
-    fprintf(stderr,">>>  DEBUGL: finalize reclaim:\n");
-#endif
-    { size_t i;
-    for(i=1;i<=gz->loaded_plugins_max;i++) {
-	if(gz->loaded_plugins[i]) {
-            NCZ_unload_plugin(gz->loaded_plugins[i]);
-	    gz->loaded_plugins[i] = NULL;
-	}
-    }
-    }
-    /* Reclaim the codec defaults */
-    if(nclistlength(gz->codec_defaults) > 0) {
-        size_t i;
-        for(i=0;i<nclistlength(gz->codec_defaults);i++) {
-	    struct CodecAPI* ca = (struct CodecAPI*)nclistget(gz->codec_defaults,i);
-    	    nullfree(ca);
-	}
-    }
-    /* Reclaim the defaults library contents; Must occur as last act */
-    if(nclistlength(gz->default_libs) > 0) {
-	size_t i;
-        for(i=0;i<nclistlength(gz->default_libs);i++) {
-	    NCPSharedLib* l = (NCPSharedLib*)nclistget(gz->default_libs,i);
-#ifdef DEBUGL
-   fprintf(stderr,">>> DEBUGL: NCZ_filter_finalize: reclaim default_lib[i]=%p\n",l);
-#endif
-    	    if(l != NULL) (void)ncpsharedlibfree(l);
-	}
-    }
-    gz->loaded_plugins_max = 0;
-    nullfree(gz->loaded_plugins); gz->loaded_plugins = NULL;
-assert(gz->default_libs != NULL);
-    nclistfree(gz->default_libs); gz->default_libs = NULL;
-    nclistfree(gz->codec_defaults); gz->codec_defaults = NULL;
-    nclistfreeall(gz->pluginpaths); gz->pluginpaths = NULL;
-
-    *statep = NULL;
-
-done:
-    nullfree(gz);
-    return THROW(stat);
-}
-
-static int NCZ_plugin_path_setproperties(void* state, const NCproplist* plist)
-{
-    int stat = NC_NOERR;
-
-    /* Preload with set of initial paths (typically coming from HDF5_PLUGIN_PATH) */
-    if(plist != NULL) {
-	uintptr_t data = 0;
-	uintptr_t size = 0;
-        if((stat=ncplistget(plist,"plugin_path_defaults",&data,&size))) goto done;
-	if(data != NULL) {
-	    const NClist* initialpaths = (constant NClist*)data;
-	    if(nclistlength(initialpaths) > 0) {
-		size_t i;
-		for(i=0;i<nclistlength(initialpaths);i++) {
-		    const char* dir = (const char*)nclistget(initialpaths,i);
-		    if(dir != NULL) nclistpush(gz->pluginpaths,strdup(dir));
-		}
-	    }
-	}
-    }
-    return stat;
+    GlobalNCZarr* gz = (GlobalNCZarr*)state;
+    nclistfreeall(gz->pluginpaths);
+    gz->pluginpaths = NULL;
+    return THROW(NC_NOERR);
 }
 
 /**
@@ -194,8 +109,8 @@ static int NCZ_plugin_path_setproperties(void* state, const NCproplist* plist)
  * to enough memory to hold the whole plugin path.
 */
 
-static int
-NCZ_plugin_path_read(void* state, size_t* ndirsp, char** dirs)
+int
+NCZ_plugin_path_get(void* state, size_t* ndirsp, char** dirs)
 {
     int stat = NC_NOERR;
     GlobalNCZarr* gz = (GlobalNCZarr*)state;
@@ -230,8 +145,8 @@ NCZ_plugin_path_read(void* state, size_t* ndirsp, char** dirs)
  * @author Dennis Heimbigner
 */
 
-static int
-NCZ_plugin_path_write(void* state, size_t ndirs, char** const dirs)
+int
+NCZ_plugin_path_set(void* state, size_t ndirs, char** const dirs)
 {
     int stat = NC_NOERR;
     GlobalNCZarr* gz = (GlobalNCZarr*)state;

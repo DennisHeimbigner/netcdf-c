@@ -12,6 +12,8 @@
 
 #include "zincludes.h"
 
+struct NCproplist;
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

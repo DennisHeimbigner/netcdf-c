@@ -73,12 +73,10 @@ extern "C" {
 /* HDF5 Format filter functions */
 
 /*Define a filter for a variable */
-EXTERNL int
-nc_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const unsigned int* parms);
+EXTERNL int nc_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const unsigned int* parms);
 
 /* Learn about the first defined filter filter on a variable */
-EXTERNL int
-nc_inq_var_filter(int ncid, int varid, unsigned int* idp, size_t* nparams, unsigned int* params);
+EXTERNL int nc_inq_var_filter(int ncid, int varid, unsigned int* idp, size_t* nparams, unsigned int* params);
 
 /* Support inquiry about all the filters associated with a variable */
 /* As is usual, it is expected that this will be called twice: 
@@ -119,24 +117,6 @@ EXTERNL int nc_filter_path_query(int id);
 /* Plugin path functions */
 
 /**
- * This function is called as part of nc_initialize.
- * Its purpose is to initialize the plugin paths state.
- * @return NC_NOERR
- * @author Dennis Heimbigner
-*/
-
-EXTERNL int nc_plugin_path_initialize(void);
-
-/**
- * This function is called as part of nc_finalize()
- * Its purpose is to clean-up plugin path state.
- * @return NC_NOERR
- * @author Dennis Heimbigner
-*/
-
-EXTERNL int nc_plugin_path_finalize(void);
-
-/**
  * Return the current sequence of directories in the internal plugin path list.
  * Since this function does not modify the plugin path, it can be called at any time.
  * @param formatx specify which dispatch implementatio to read: currently NC_FORMATX_NC_HDF5 or NC_FORMATX_NCZARR.
@@ -151,7 +131,7 @@ EXTERNL int nc_plugin_path_finalize(void);
  * The second time with pathlist not NULL to get the actual sequence of paths.
 */
 
-EXTERNL int nc_plugin_path_read(int formatx, size_t* ndirsp, char** dirs);
+EXTERNL int nc_plugin_path_get(int formatx, size_t* ndirsp, char** dirs);
 
 /**
  * Empty the current internal path sequence
@@ -165,7 +145,7 @@ EXTERNL int nc_plugin_path_read(int formatx, size_t* ndirsp, char** dirs);
  * @author Dennis Heimbigner
 */
 
-EXTERNL int nc_plugin_path_write(int formatx, size_t ndirs, char** const dirs);
+EXTERNL int nc_plugin_path_set(int formatx, size_t ndirs, char** const dirs);
 
 #if defined(__cplusplus)
 }

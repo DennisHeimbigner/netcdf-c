@@ -111,8 +111,8 @@ typedef struct NC_GlobalDispatchOps {
     int (*finalize)(void** state);
     int (*setproperties)(void* state, struct NCproplist*);
     /* Various specialized operations */
-    int (*plugin_path_read)(void* state, size_t* ndirsp, char** dirs);
-    int (*plugin_path_write)(void* state, size_t ndirs, char** const dirs);
+    int (*plugin_path_get)(void* state, size_t* ndirsp, char** dirs);
+    int (*plugin_path_set)(void* state, size_t ndirs, char** const dirs);
 } NC_GlobalDispatchOps;
 
 /**************************************************/
@@ -137,25 +137,21 @@ extern "C" {
 extern int NCDISPATCH_initialize(void);
 extern int NCDISPATCH_finalize(void);
 
-extern const NC_Dispatch* NC3_dispatch_table;
-extern int NC3_initialize(void);
-extern int NC3_finalize(void);
+extern NC_Dispatch* NC3_dispatch_table;
+extern NC_GlobalDispatchOps* NC3_global_dispatch_table;
 
 #ifdef NETCDF_ENABLE_DAP
-extern const NC_Dispatch* NCD2_dispatch_table;
-extern int NCD2_initialize(void);
-extern int NCD2_finalize(void);
+extern NC_Dispatch* NCD2_dispatch_table;
+extern NC_GlobalDispatchOps* NCD2_global_dispatch_table;
 #endif
 #ifdef NETCDF_ENABLE_DAP4
-extern const NC_Dispatch* NCD4_dispatch_table;
-extern int NCD4_initialize(void);
-extern int NCD4_finalize(void);
+extern NC_Dispatch* NCD4_dispatch_table;
+extern NC_GlobalDispatchOps* NCD4_global_dispatch_table;
 #endif
 
 #ifdef USE_PNETCDF
-extern const NC_Dispatch* NCP_dispatch_table;
-extern int NCP_initialize(void);
-extern int NCP_finalize(void);
+extern NC_Dispatch* NCP_dispatch_table;
+extern NC_GlobalDispatchOps* NCP_global_dispatch_table;
 #endif
 
 #ifdef USE_NETCDF4
@@ -164,19 +160,17 @@ extern int NC4_finalize(void);
 #endif
 
 #ifdef USE_HDF5
-extern const NC_Dispatch* HDF5_dispatch_table;
-extern NC_GlobalDispatchOps* NC4_hdf5_dispatchapi;
-#endif
-
-#ifdef USE_HDF4
-extern const NC_Dispatch* HDF4_dispatch_table;
-extern int HDF4_initialize(void);
-extern int HDF4_finalize(void);
+extern NC_Dispatch* NC4_hdf5_dispatch_table;
+extern NC_GlobalDispatchOps* NC4_hdf5_global_dispatch_table;
 #endif
 
 #ifdef NETCDF_ENABLE_NCZARR
-extern const NC_Dispatch* NCZ_dispatch_table;
-extern NC_GlobalDispatchOps* NCZ_dispatchapi;
+extern NC_Dispatch* NCZ_dispatch_table;
+extern NC_GlobalDispatchOps* NCZ_global_dispatch_table;
+#endif
+
+#ifdef USE_HDF4
+extern NC_Dispatch* HDF4_dispatch_table;
 #endif
 
 /* User-defined formats.*/
@@ -261,8 +255,14 @@ NCDISPATCH_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
                int *no_fill, void *fill_valuep, int *endiannessp,
 	       unsigned int* idp, size_t* nparamsp, unsigned int* paramsp
                );
-EXTERNL int
-NCDISPATCH_get_att(int ncid, int varid, const char* name, void* value, nc_type t);
+EXTERNL int NCDISPATCH_get_att(int ncid, int varid, const char* name, void* value, nc_type t);
+
+/* Expose Selected Functions that should not be part of the netcdf API,
+   but are needed for cross-function references
+   */
+
+EXTERNL int nc_plugin_path_initialize(struct NCproplist* plist);
+EXTERNL int nc_plugin_path_finalize(void);
 
 #if defined(__cplusplus)
 }

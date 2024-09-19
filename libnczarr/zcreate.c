@@ -103,9 +103,6 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
     LOG((1, "%s: path %s cmode 0x%x ncid %d",
          __func__, path, cmode ,ncid));
 
-    /* If this is our first file, initialize */
-    if (!ncz_initialized) NCZ_initialize();
-
 #ifdef LOGGING
     /* If nc logging level has changed, see if we need to turn on
      * NCZ's error messages. */

@@ -10,18 +10,17 @@
  */
 
 #include "zincludes.h"
+#include "zdispatch.h"
+#include "ncproplist.h"
 #include "zplugins.h"
 #include "zfilter.h"
 
 /* Forward */
-static int NCZ_initialize(void** statep);
-static int NCZ_finalize(void** statep);
-static int NCZ_setproperties(NCproplist* plist);
-
 static int NCZ_var_par_access(int ncid, int varid, int par_access);
 static int NCZ_show_metadata(int ncid);
 
-NC_Dispatch NCZ_dispatcher = {
+NC_Dispatch NCZ_dispatcher =
+{
 
     NC_FORMATX_NCZARR,
     NC_DISPATCH_VERSION,
@@ -116,19 +115,19 @@ NC_Dispatch NCZ_dispatcher = {
 };
 NC_Dispatch* NCZ_dispatch_table = &NCZ_dispatcher;
 
-/**************************************************
+/**************************************************/
 /* Manage the NCZarr dispatcher state */
 
-NC_GlobalDispatchOps NCZ_dispatchtable = {
+NC_GlobalDispatchOps NCZ_global_dispatcher = {
     NC_FORMATX_NCZARR,
     NC_GLOBAL_DISPATCH_VERSION,
     NCZ_initialize,
     NCZ_finalize,
     NCZ_setproperties,
-    NCZ_pluginpath_read,
-    NCZ_pluginpath_write,
+    NCZ_plugin_path_get,
+    NCZ_plugin_path_set,
 };
-NC_GlobalDispatchOps* NCZ_dispatchapi = &NCZ_dispatchtable;
+NC_GlobalDispatchOps* NCZ_global_dispatch_table = &NCZ_global_dispatcher;
 
 /**
  * @internal Initialize the ZARR dispatch layer.
@@ -138,20 +137,22 @@ NC_GlobalDispatchOps* NCZ_dispatchapi = &NCZ_dispatchtable;
  */
 int ncz_initialized = 0; /**< True if initialization has happened. */
 
-static int
-NCZ_initialize(void** statep)
+int
+NCZ_initialize(void** statep, NCproplist* plist)
 {
     int stat;
     char* dimsep = NULL;
-    NCglobalstate* gs = NULL;
     GlobalNCZarr* gz = NULL;
 
     if (ncz_initialized) goto done;
     ncz_initialized = 1;
 
-    gs = NC_getglobalstate();
-    gz = gs->formatxstate.state[NC_FORMATX_NCZARR];
-    assert(gz != NULL);
+    if(*statep) goto done;
+    if((gz = (GlobalNCZarr*)calloc(1,sizeof(GlobalNCZarr)))==NULL) {stat = NC_ENOMEM; goto done;}
+    *statep = gz;
+
+    /* Initialize plugin paths */
+    if((stat = NCZ_plugin_path_initialize(gz,plist))) goto done;
 
     /* Defaults */
     gz->dimension_separator = DFALT_DIM_SEPARATOR;
@@ -163,8 +164,9 @@ NCZ_initialize(void** statep)
     }
     stat = NCZ_provenance_init();
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    NCZ_filter_initialize();
+    NCZ_filter_initialize(gz);
 #endif
+    gz = NULL;
 done:
     return stat;
 }
@@ -175,27 +177,51 @@ done:
  * @return ::NC_NOERR No error.
  * @author Dennis Heimbigner
  */
-static int
+int
 NCZ_finalize(void** statep)
 {
     int stat = NC_NOERR;
+    GlobalNCZarr* gz = *statep;
+
+    *statep = NULL;
     /* Reclaim global resources */
     ncz_initialized = 0;
+
+    NCZ_provenance_finalize();
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    NCZ_filter_finalize();
+    NCZ_filter_finalize(gz);
 #endif
 #ifdef NETCDF_ENABLE_S3
     NCZ_s3finalize();
 #endif
-    NCZ_provenance_finalize();
+    /* Finalize plugin paths */
+    if((stat = NCZ_plugin_path_finalize(gz))) goto done;
+    nullfree(gz);
+done:
     return stat;
 }
 
-static int
+/**
+Set various properties for the specific NC_FORMATX_XXX state.
+@param state the NC_FORMAT_XXX specific global state
+@param plist the property list containing the properties to set
+@return ::NC_NOERR || ::NC_EXXX
+*/
+int
 NCZ_setproperties(void* state, NCproplist* plist)
 {
-    
-
+    int stat = NC_NOERR;
+    uintptr_t data, size;
+    char** dirs;
+    size_t ndirs;
+    if(plist != NULL) {
+        if((stat=ncproplistget(plist,"plugin_path_defaults",&data,&size))) goto done;
+        dirs = (char**)data;
+        ndirs = (size_t)(size/sizeof(char*));
+        if((stat=NCZ_plugin_path_set(state,ndirs,dirs))) goto done;
+    }
+done:
+    return stat;
 }
 
 /**************************************************/

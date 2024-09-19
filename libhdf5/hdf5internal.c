@@ -19,6 +19,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#include "ncproplist.h"
 #include "hdf5internal.h"
 #include "hdf5err.h" /* For BAIL2 */
 
@@ -51,7 +52,7 @@ extern int nc_log_level;
 int nc4_hdf5_initialized = 0; /**< True if initialization has happened. */
 
 /**
- * @internal Provide a wrapper for H5Eset_auto.
+* @internal Provide a wrapper for H5Eset_auto.
  *
  * If preprocessor symbol DEBUGH5 is set (at the top of this file),
  * then error messages will be pronted by the h5catch() function. If
@@ -74,31 +75,13 @@ set_auto(void* func, void *client_data)
 }
 
 /**
- * @internal Provide a function to do any necessary initialization of
- * the HDF5 library.
- */
-void
-nc4_hdf5_initialize(void)
+Export set_auto */
+int
+NC_hdf5_set_auto(void* func, void* client_data)
 {
-    if (set_auto(NULL, NULL) < 0)
-        LOG((0, "Couldn't turn off HDF5 error messages!"));
-    LOG((1, "HDF5 error messages have been turned off."));
-    NC4_hdf5_filter_initialize();
-    nc4_hdf5_initialized = 1;
+    return (int)set_auto(func,client_data);
 }
 
-/**
- * @internal Provide a function to do any necessary finalization of
- * the HDF5 library.
- */
-void
-nc4_hdf5_finalize(void)
-{
-    /* Reclaim global resources */
-    NC4_provenance_finalize();
-    NC4_hdf5_filter_finalize();
-    nc4_hdf5_initialized = 0;
-}
 
 /**
  * @internal Given a varid, return the maximum length of a dimension

@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include "netcdf.h"
 #include "ncbytes.h"
+#include "ncproplist.h"
 #include "hdf5internal.h"
 #include "hdf5debug.h"
 
@@ -21,8 +22,6 @@
 /**************************************************/
 /* Forward */
 
-static int NC4_hdf5_plugin_path_read(void* state, size_t* ndirsp, char** dirs);
-static int NC4_hdf5_plugin_path_write(void* state, size_t ndirs, char** const dirs);
 
 /**************************************************/
 /**
@@ -33,65 +32,26 @@ static int NC4_hdf5_plugin_path_write(void* state, size_t ndirs, char** const di
  * @author Dennis Heimbigner
  */
 /**************************************************/
-/* The HDF5 Plugin Path Dispatch table and functions */
-
-NC_PluginPathDispatch NC4_hdf5_pluginpathdispatch = {
-    NC_FORMATX_NC_HDF5,
-    NC_PLUGINPATH_DISPATCH_VERSION,
-    NC4_hdf5_plugin_path_initialize,
-    NC4_hdf5_plugin_path_finalize,
-    NC4_hdf5_plugin_path_read,
-    NC4_hdf5_plugin_path_write
-};
-
-NC_PluginPathDispatch* NC4_hdf5_pluginpathtable = &NC4_hdf5_pluginpathdispatch;
-
-/**************************************************/
 
 /**
- * This function is called as part of nc_initialize.
- * Its purpose is to initialize the plugin paths state.
- * @return NC_NOERR
- * @author Dennis Heimbigner
+Set various properties for the specific NC_FORMATX_XXX state.
+@param state the NC_FORMAT_XXX specific global state
+@param plist the property list containing the properties to set
+@return ::NC_NOERR || ::NC_EXXX
 */
-static int
-NC4_hdf5_plugin_path_initialize(void** statep, const NClist* initialpaths)
+int
+NC4_hdf5_setproperties(void* state, NCproplist* plist)
 {
     int stat = NC_NOERR;
-    GlobalHDF5* g5 = NULL;
-
-    NC_UNUSED(initialpaths); /* Let HDF5 do its own thing */
-    
-    assert(statep != NULL);
-    if(*statep != NULL) goto done; /* already initialized */
-
-    if((g5 = (GlobalHDF5*)calloc(1,sizeof(GlobalHDF5)))==NULL) {stat = NC_ENOMEM; goto done;}
-    *statep = (void*)g5; g5 = NULL;
+    uintptr_t ndirs = 0;
+    uintptr_t data,size;
+    char** dirs = NULL;
+    if((stat=ncproplistget(plist,"plugin_path_defaults",&data,&size))) goto done;
+    dirs = (char**)data;
+    ndirs = (size_t)(size/sizeof(char*));
+    if((stat=NC4_hdf5_plugin_path_set(state,ndirs,dirs))) goto done;
 done:
-    nullfree(g5);
-    return THROW(stat);
-}
-
-/**
- * This function is called as part of nc_finalize()
- * Its purpose is to clean-up plugin path state.
- * @return NC_NOERR
- * @author Dennis Heimbigner
-*/
-static int
-NC4_hdf5_plugin_path_finalize(void** statep)
-{
-    int stat = NC_NOERR;
-    GlobalHDF5* g5 = NULL;
-
-    assert(statep != NULL);
-    if(*statep == NULL) goto done; /* already finalized */
-    g5 = (GlobalHDF5*)(*statep);
-    *statep = NULL;
-
-done:
-    nullfree(g5);
-    return THROW(stat);
+    return stat;
 }
 
 /**
@@ -113,8 +73,8 @@ done:
  * actual sequence of paths.
 */
 
-static int
-NC4_hdf5_plugin_path_read(void* state, size_t* ndirsp, char** dirs)
+int
+NC4_hdf5_plugin_path_get(void* state, size_t* ndirsp, char** dirs)
 {
     int stat = NC_NOERR;
     herr_t hstat = 0;
@@ -158,8 +118,8 @@ done:
  * @author Dennis Heimbigner
 */
 
-static int
-NC4_hdf5_plugin_path_write(void* state, size_t ndirs,  char** dirs)
+int
+NC4_hdf5_plugin_path_set(void* state, size_t ndirs,  char** dirs)
 {
     int stat = NC_NOERR;
     herr_t hstat = 0;
@@ -170,8 +130,8 @@ NC4_hdf5_plugin_path_write(void* state, size_t ndirs,  char** dirs)
     if(hndirs > 0) {
 	unsigned i;
 	for(i=0;i<hndirs;i++) {
-	    /* remove i'th element */
-	    if((hstat=H5PLremove(i))<0) goto done;
+	    /* always remove 0'th element */
+	    if((hstat=H5PLremove(0))<0) goto done;
 	}
     }
     /* Insert the new path list */

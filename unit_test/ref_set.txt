@@ -1,0 +1,9 @@
+testset(hdf5): before: /zero:/one:/two:/hdf5:/three:/four
+testset(hdf5): after: /zero:/one:/two:/hdf5:/three:/four:/modhdf5
+testset(nczarr): before: /zero:/one:/two:/nczarr:three:/four:/five
+testset(nczarr): after: /modnczarr:/zero:/one:/two:/nczarr:three:/four:/five
+testset(all): 
+testset(hdf5): before: /zero:/one:/two:/hdf5:/three:/four
+testset(hdf5): after: /zero:/one:/two:/hdf5:/three:/four:/modhdf5
+testset(nczarr): before: /zero:/one:/two:/nczarr:three:/four:/five
+testset(nczarr): after: /modnczarr:/zero:/one:/two:/nczarr:three:/four:/five

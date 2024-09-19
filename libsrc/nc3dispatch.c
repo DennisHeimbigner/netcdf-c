@@ -10,8 +10,10 @@
 #include <string.h>
 
 #include "netcdf.h"
+#include "ncdispatch.h"
 #include "nc3internal.h"
 #include "nc3dispatch.h"
+#include "ncproplist.h"
 
 #ifndef NC_CONTIGUOUS
 #define NC_CONTIGUOUS 1
@@ -78,8 +80,8 @@ static int NC3_def_var_filter(int, int, unsigned int, size_t, const unsigned int
 static int NC3_set_var_chunk_cache(int,int,size_t,size_t,float);
 static int NC3_get_var_chunk_cache(int,int,size_t*,size_t*,float*);
 
-static const NC_Dispatch NC3_dispatcher = {
-
+NC_Dispatch NC3_dispatcher =
+{
 NC_FORMATX_NC3,
 NC_DISPATCH_VERSION,
 NC3_create,
@@ -173,20 +175,7 @@ NC_NOTNC4_inq_var_quantize,
 NC_NOOP_inq_filter_avail,
 };
 
-const NC_Dispatch* NC3_dispatch_table = NULL; /*!< NC3 Dispatch table, moved here from ddispatch.c */
-
-int
-NC3_initialize(void)
-{
-    NC3_dispatch_table = &NC3_dispatcher;
-    return NC_NOERR;
-}
-
-int
-NC3_finalize(void)
-{
-    return NC_NOERR;
-}
+NC_Dispatch* NC3_dispatch_table = &NC3_dispatcher;
 
 static int
 NC3_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep, 
@@ -513,4 +502,45 @@ NC3_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const u
 {
     return NC_ENOTNC4;
 }
-    
+
+/**************************************************/
+/* Manage the netcdf-3 dispatcher state */
+
+static int NC3_initialize(void** statep, NCproplist* plist);
+static int NC3_finalize(void** statep);
+
+NC_GlobalDispatchOps NC3_global_dispatcher =
+{
+    NC_FORMATX_NC3,
+    NC_GLOBAL_DISPATCH_VERSION,
+    NC3_initialize,
+    NC3_finalize,
+    NULL,
+    NULL,
+    NULL
+};
+NC_GlobalDispatchOps* NC3_global_dispatch_table = &NC3_global_dispatcher;
+
+/**
+ * @internal Initialize the netcdf-3 dispatch layer.
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner, Ed Hartnett
+ */
+int nc3_initialized = 0; /**< True if initialization has happened. */
+
+static int
+NC3_initialize(void** statep, NCproplist* plist)
+{
+    NC_UNUSED(plist);
+    *statep = NULL;
+    return NC_NOERR;
+}
+
+static int
+NC3_finalize(void** statep)
+{
+    *statep = NULL;
+    return NC_NOERR;
+}
+

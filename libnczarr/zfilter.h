@@ -22,8 +22,8 @@
 /* Opaque */
 struct NCZ_Filter;
 
-EXTERNL int NCZ_filter_initialize(void);
-EXTERNL int NCZ_filter_finalize(void);
+EXTERNL int NCZ_filter_initialize(void* state);
+EXTERNL int NCZ_filter_finalize(void* state);
 EXTERNL int NCZ_addfilter(NC_FILE_INFO_T*, NC_VAR_INFO_T* var, unsigned int id, size_t nparams, const unsigned int* params);
 EXTERNL int NCZ_filter_setup(NC_VAR_INFO_T* var);
 EXTERNL int NCZ_filter_freelists(NC_VAR_INFO_T* var);

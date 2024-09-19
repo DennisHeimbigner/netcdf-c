@@ -14,7 +14,7 @@
 #ifdef NETCDF_PROPLIST_H
 #define OPTEXPORT static
 #else
-#define OPTEXPORT DLL_EXPORT
+#define OPTEXPORT EXTERNL
 #endif
 #endif
 
@@ -72,33 +72,33 @@ extern "C" {
 #endif
 
 /* Create, free, etc. */
-OPTEXPORT NCproplist* ncplistnew(void);
-OPTEXPORT int ncplistfree(NCproplist*);
+OPTEXPORT NCproplist* ncproplistnew(void);
+OPTEXPORT int ncproplistfree(NCproplist*);
 
 /* Locate a proplist entry */
-OPTEXPORT int ncplistadd(NCproplist* plist,const char* key, uintptr_t value); /* use when reclaim not needed */
+OPTEXPORT int ncproplistadd(NCproplist* plist,const char* key, uintptr_t value); /* use when reclaim not needed */
 
 /* Insert properties */
-OPTEXPORT int ncplistadd(NCproplist* plist,const char* key, uintptr_t value); /* use when reclaim not needed */
-OPTEXPORT int ncplistaddstring(NCproplist* plist, const char* key, const char* str); /* use when value is simple string (char*) */
-OPTEXPORT int ncplistaddbytes(NCproplist* plist, const char* key, void* value, uintptr_t size); /* use when value is simple ptr and reclaim is simple free function */
-OPTEXPORT int ncplistaddx(NCproplist* plist, const char* key, void* value, uintptr_t size, uintptr_t userdata, NCPreclaimfcn); /* fully extended case */
+OPTEXPORT int ncproplistadd(NCproplist* plist,const char* key, uintptr_t value); /* use when reclaim not needed */
+OPTEXPORT int ncproplistaddstring(NCproplist* plist, const char* key, const char* str); /* use when value is simple string (char*) */
+OPTEXPORT int ncproplistaddbytes(NCproplist* plist, const char* key, void* value, uintptr_t size); /* use when value is simple ptr and reclaim is simple free function */
+OPTEXPORT int ncproplistaddx(NCproplist* plist, const char* key, void* value, uintptr_t size, uintptr_t userdata, NCPreclaimfcn); /* fully extended case */
 
-OPTEXPORT int ncplistclone(const NCproplist* src, NCproplist* clone);
+OPTEXPORT int ncproplistclone(const NCproplist* src, NCproplist* clone);
 
 /* 
 Lookup key and return value.
 @return ::NC_NOERR if found ::NC_EINVAL otherwise; returns the data in datap if !null
 */
-OPTEXPORT int ncplistget(const NCproplist*, const char* key, uintptr_t* datap, uintptr_t* sizep);
+OPTEXPORT int ncproplistget(const NCproplist*, const char* key, uintptr_t* datap, uintptr_t* sizep);
 
 /* Iteration support */
 
 /* Return the number of properties in the property list */
-#define ncplistlen(plist) (((NCproplist)(plist))->count)
+#define ncproplistlen(plist) (((NCproplist)(plist))->count)
 
 /* get the ith key+value */
-OPTEXPORT int ncplistith(const NCproplist*, size_t i, char* const * keyp, uintptr_t const * valuep, uintptr_t* sizep);
+OPTEXPORT int ncproplistith(const NCproplist*, size_t i, char* const * keyp, uintptr_t const * valuep, uintptr_t* sizep);
 
 #if defined(_CPLUSPLUS_) || defined(__CPLUSPLUS__)
 }

@@ -4,10 +4,10 @@
  *********************************************************************/
 
 #include "dapincludes.h"
+#include "ncdispatch.h"
 #include "ncd2dispatch.h"
 #include "ncrc.h"
 #include "ncoffsets.h"
-#include "netcdf_dispatch.h"
 #include <stddef.h>
 #ifdef DEBUG2
 #include "dapdump.h"
@@ -90,8 +90,8 @@ static int NCD2_get_vars(int ncid, int varid,
 	    const size_t *start, const size_t *edges, const ptrdiff_t* stride,
             void *value, nc_type memtype);
 
-static const NC_Dispatch NCD2_dispatch_base = {
-
+NC_Dispatch NCD2_dispatch_base =
+{
 NC_FORMATX_DAP2,
 NC_DISPATCH_VERSION,
 
@@ -185,14 +185,36 @@ NC_NOTNC4_inq_var_quantize,
 
 NC_NOOP_inq_filter_avail,
 };
+NC_Dispatch* NCD2_dispatch_table = &NCD2_dispatch_base;
 
-const NC_Dispatch* NCD2_dispatch_table = NULL; /* moved here from ddispatch.c */
+/**************************************************/
+/* Manage the pnetcdf dispatcher state */
+
+NC_GlobalDispatchOps NNCD2_global_dispatcher = {
+    NC_FORMATX_DAP2
+    NC_GLOBAL_DISPATCH_VERSION,
+    NCD2_initialize,
+    NCD2_finalize,
+    NULL,
+    NULL,
+    NULL
+};
+NC_GlobalDispatchOps* NCD2_global_dispatch_table = &NCD2_global_dispatcher;
+
+/**
+ * @internal Initialize the netcdf-3 dispatch layer.
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner, Ed Hartnett
+ */
+int ncd2_initialized = 0; /**< True if initialization has happened. */
 
 int
-NCD2_initialize(void)
+NCD2_initialize(void** statep, Ncd2roplist* plist)
 {
-    NCD2_dispatch_table = &NCD2_dispatch_base;
+    NC_UNUSED(plist);
     ncd2initialized = 1;
+    *statep = NULL;
 #ifdef DEBUG
     /* force logging to go to stderr */
     ncsetlogging(1); /* turn it on */
@@ -202,8 +224,9 @@ NCD2_initialize(void)
 }
 
 int
-NCD2_finalize(void)
+NCD2_finalize(void** statep)
 {
+    *statep = NULL;
     return NC_NOERR;
 }
 
@@ -324,7 +347,7 @@ NCD2_open(const char* path, int mode, int basepe, size_t *chunksizehintp,
     rullen = strlen(path)+strlen("[compile]");;
     rullen++; /* strlcat nul */
     dapcomm->oc.rawurltext = (char*)emalloc(rullen+1);
-    strncpy(dapcomm->oc.rawurltext,"[compile]",rullen);
+    strncd2y(dapcomm->oc.rawurltext,"[compile]",rullen);
     strlcat(dapcomm->oc.rawurltext, path, rullen);
     }
 #else
@@ -1170,7 +1193,7 @@ fprintf(stderr,"conflict: %s[%lu] %s[%lu]\n",
 		baselen++; /* for strlcat nul */
 		dim->ncbasename = (char*)malloc(baselen+1);
 		if(dim->ncbasename == NULL) {nullfree(legalname); return NC_ENOMEM;}
-		strncpy(dim->ncbasename,legalname,baselen);
+		strncd2y(dim->ncbasename,legalname,baselen);
 		strlcat(dim->ncbasename,sindex,baselen);
 		nullfree(legalname);
 	    } else {/* standard case */
@@ -1306,12 +1329,12 @@ applyclientparams(NCDAPCOMMON* nccomm)
 	/* Define the client param stringlength/maxstrlen for this variable*/
 	/* create the variable path name */
 	var->maxstringlength = 0; /* => use global dfalt */
-	strncpy(tmpname,"stringlength_",sizeof(tmpname));
-	pathstr = makeocpathstring(conn,var->ocnode,".");
+	strncd2y(tmpname,"stringlength_",sizeof(tmpname));
+	pathstr = makeoncd2athstring(conn,var->ocnode,".");
 	strlcat(tmpname,pathstr,sizeof(tmpname));
 	value = paramlookup(nccomm,tmpname);
 	if(value == NULL) {
-	    strncpy(tmpname,"maxstrlen_",sizeof(tmpname));
+	    strncd2y(tmpname,"maxstrlen_",sizeof(tmpname));
 	    strlcat(tmpname,pathstr,sizeof(tmpname));
 	    value = paramlookup(nccomm,tmpname);
         }
@@ -1325,12 +1348,12 @@ applyclientparams(NCDAPCOMMON* nccomm)
 	CDFnode* var = (CDFnode*)nclistget(nccomm->cdf.ddsroot->tree->nodes,i);
 	if(var->nctype != NC_Sequence) continue;
 	var->sequencelimit = dfaltseqlim;
-	strncpy(tmpname,"nolimit_",sizeof(tmpname));
-	pathstr = makeocpathstring(conn,var->ocnode,".");
+	strncd2y(tmpname,"nolimit_",sizeof(tmpname));
+	pathstr = makeoncd2athstring(conn,var->ocnode,".");
 	strlcat(tmpname,pathstr,sizeof(tmpname));
 	if(paramlookup(nccomm,tmpname) != NULL)
 	    var->sequencelimit = 0;
-	strncpy(tmpname,"limit_",sizeof(tmpname));
+	strncd2y(tmpname,"limit_",sizeof(tmpname));
 	strlcat(tmpname,pathstr,sizeof(tmpname));
 	value = paramlookup(nccomm,tmpname);
         if(value != NULL && strlen(value) != 0) {
@@ -1491,7 +1514,7 @@ addstringdims(NCDAPCOMMON* dapcomm)
 	else {
 	    /* create a pseudo dimension for the charification of the string*/
 	    if(var->dodsspecial.dimname != NULL) {
-	        strncpy(dimname,var->dodsspecial.dimname,sizeof(dimname));
+	        strncd2y(dimname,var->dodsspecial.dimname,sizeof(dimname));
 	        dimname[sizeof(dimname)-1] = '\0';
 	    } else
 	        snprintf(dimname,sizeof(dimname),"maxStrlen%lu",

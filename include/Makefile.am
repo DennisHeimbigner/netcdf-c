@@ -53,7 +53,8 @@ netcdf_json.h: ${top_srcdir}/libdispatch/ncjson.c ${top_srcdir}/include/ncjson.h
 	cat ${srcdir}/ncjson.h | \
 	sed -e 's/NCJSON_H/NETCDF_JSON_H/' \
 	    -e '/ncjson.h/d' \
-    	    -e "/^#include[ ][ ]*\"ncexternl.h\"/d" \
+    	    -e "/ncexternl.h/r ${srcdir}/ncexternl.h" \
+    	    -e "/ncexternl.h/d" \
 	    | cat >> ${srcdir}/netcdf_json.h
 	echo '#ifdef NETCDF_JSON_H' >> netcdf_json.h
 	sed -e '/ncjson.h/d' < ${srcdir}/../libdispatch/ncjson.c >> ${srcdir}/netcdf_json.h
@@ -66,7 +67,8 @@ netcdf_proplist.h: ${top_srcdir}/libdispatch/ncproplist.c ${top_srcdir}/include/
 	cat ${srcdir}/ncproplist.h | \
 	sed -e 's/NCPROPLIST_H/NETCDF_PROPLIST_H/' \
 	    -e '/ncproplist.h/d' \
-    	    -e "/^#include[ ][ ]*\"ncexternl.h\"/d" \
+    	    -e "/ncexternl.h/r ${srcdir}/ncexternl.h" \
+       	    -e "/ncexternl.h/d" \
 	    | cat >> ${srcdir}/netcdf_proplist.h
 	echo '#ifdef NETCDF_PROPLIST_H' >> netcdf_proplist.h
 	sed -e '/ncproplist.h/d' < ${srcdir}/../libdispatch/ncproplist.c >> ${srcdir}/netcdf_proplist.h

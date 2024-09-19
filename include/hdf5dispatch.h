@@ -62,6 +62,10 @@ extern "C" {
     EXTERNL int
     HDF5_rename_dim(int ncid, int dimid, const char *name);
 
+EXTERNL int NC4_hdf5_setproperties(void* state, struct NCproplist*);
+EXTERNL int NC4_hdf5_plugin_path_get(void* state, size_t* ndirsp, char** dirs);
+EXTERNL int NC4_hdf5_plugin_path_set(void* state, size_t ndirs, char** const dirs);
+
 #if defined(__cplusplus)
 }
 #endif

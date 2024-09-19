@@ -55,40 +55,40 @@ modfor() {
 
 #####
 
-testread() {
+testget() {
     local formatx="$1"
-    filenamefor tmp read
+    filenamefor tmp get
     dfaltfor $formatx
     if test "$formatx" = all ; then
-	echo "testread(${formatx}): " >> ${filename}.txt
-	for f in $IMPLS ; do testread $f ; done
+	echo "testget(${formatx}): " >> ${filename}.txt
+	for f in $IMPLS ; do testget $f ; done
     elif test "x$FEATURE_HDF5" && test "$formatx" = hdf5 ; then
-	echon "testread(${formatx}): " >> ${filename}.txt
-	${TP} -x "formatx:${formatx},write:${dfalt},read" >> ${filename}.txt ;
+	echon "testget(${formatx}): " >> ${filename}.txt
+	${TP} -x "formatx:${formatx},set:${dfalt},get" >> ${filename}.txt ;
     elif test "x$FEATURE_NCZARR" && test "$formatx" = nczarr ; then
-	echon "testread(${formatx}): " >> ${filename}.txt
-	${TP} -x "formatx:${formatx},write:${dfalt},read" >> ${filename}.txt ;
+	echon "testget(${formatx}): " >> ${filename}.txt
+	${TP} -x "formatx:${formatx},set:${dfalt},get" >> ${filename}.txt ;
     fi
 }                           
 
-testwrite() {
+testset() {
     local formatx="$1"
-    filenamefor tmp write
+    filenamefor tmp set
     dfaltfor $formatx
     modfor $formatx "$dfalt"
     if test "$formatx" = all ; then
-	echo "testwrite(${formatx}): " >> ${filename}.txt
-	for f in $IMPLS ; do testwrite $f ; done
+	echo "testset(${formatx}): " >> ${filename}.txt
+	for f in $IMPLS ; do testset $f ; done
     elif test "x$FEATURE_HDF5" && test "$formatx" = hdf5 ; then
-        echon "testwrite(${formatx}): before: " >> ${filename}.txt
-	    ${TP} -x "formatx:${formatx},write:${dfalt},read"  >> ${filename}.txt
-	echon "testwrite(${formatx}): after: " >> ${filename}.txt
-	    ${TP} -x "formatx:${formatx},write:${mod},read"  >> ${filename}.txt
+        echon "testset(${formatx}): before: " >> ${filename}.txt
+	    ${TP} -x "formatx:${formatx},set:${dfalt},get"  >> ${filename}.txt
+	echon "testset(${formatx}): after: " >> ${filename}.txt
+	    ${TP} -x "formatx:${formatx},set:${mod},get"  >> ${filename}.txt
     elif test "x$FEATURE_NCZARR" && test "$formatx" = nczarr ; then
-	echon "testwrite(${formatx}): before: " >> ${filename}.txt
-	    ${TP} -x "formatx:${formatx},write:${dfalt},read"  >> ${filename}.txt
-	echon "testwrite(${formatx}): after: " >> ${filename}.txt
-	    ${TP} -x "formatx:${formatx},write:${mod},read"  >> ${filename}.txt
+	echon "testset(${formatx}): before: " >> ${filename}.txt
+	    ${TP} -x "formatx:${formatx},set:${dfalt},get"  >> ${filename}.txt
+	echon "testset(${formatx}): after: " >> ${filename}.txt
+	    ${TP} -x "formatx:${formatx},set:${mod},get"  >> ${filename}.txt
     fi
 }                           
 
@@ -104,7 +104,7 @@ init() {
 
 # Verify output for a specific action
 verify() {
-    for action in read write ; do
+    for action in get set ; do
         if diff -wBb ${srcdir}/ref_${action}.txt tmp_${action}.txt ; then
 	    echo "***PASS: $action"
 	else
@@ -116,8 +116,8 @@ verify() {
 
 init
 for fx in $IMPLS all ; do
-    testread  $fx
-    testwrite $fx
+    testget  $fx
+    testset $fx
 done
 verify
 cleanup

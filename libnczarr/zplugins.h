@@ -20,6 +20,7 @@
 struct H5Z_class2_t;
 struct NCZ_codec_t;
 struct NCPSharedLib;
+struct NCproplist;
 
 /* Hold the loaded filter plugin information */
 typedef struct NCZ_Plugin {
@@ -39,9 +40,16 @@ typedef struct NCZ_Plugin {
 int NCZ_load_all_plugins(void);
 int NCZ_plugin_loaded(size_t filterid, NCZ_Plugin** pp);
 int NCZ_plugin_loaded_byname(const char* name, NCZ_Plugin** pp);
+int NCZ_unload_plugin(NCZ_Plugin* plugin);
 
-int NCZ_plugin_path_initialize(void** statep, const NCproplist* plist);
-int NCZ_plugin_path_finalize(void** statep);
+int NCZ_initialize(void** statep, struct NCproplist* plist);
+int NCZ_finalize(void** statep);
+int NCZ_setproperties(void* state, struct NCproplist*);
+
+int NCZ_plugin_path_initialize(void* state, NCproplist* plist);
+int NCZ_plugin_path_finalize(void* state);
+int NCZ_plugin_path_get(void* statep,size_t*,char**);
+int NCZ_plugin_path_set(void* statep,size_t,char** const);
 
 #endif /*ZPLUGIN_H*/
 

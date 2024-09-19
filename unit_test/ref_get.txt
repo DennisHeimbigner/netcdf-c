@@ -1,0 +1,5 @@
+testget(hdf5): /zero:/one:/two:/hdf5:/three:/four
+testget(nczarr): /zero:/one:/two:/nczarr:three:/four:/five
+testget(all): 
+testget(hdf5): /zero:/one:/two:/hdf5:/three:/four
+testget(nczarr): /zero:/one:/two:/nczarr:three:/four:/five

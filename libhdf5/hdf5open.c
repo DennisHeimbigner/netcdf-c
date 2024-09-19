@@ -1029,6 +1029,8 @@ int
 NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
          void *parameters, const NC_Dispatch *dispatch, int ncid)
 {
+    NCglobalstate* gs = NC_getglobalstate();
+
     assert(path && dispatch);
 
     LOG((1, "%s: path %s mode %d params %x",
@@ -1042,8 +1044,9 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
         return NC_EINVAL;
 
     /* If this is our first file, initialize HDF5. */
-    if (!nc4_hdf5_initialized)
-        nc4_hdf5_initialize();
+    if (!nc4_hdf5_initialized && gs->formatxstate.dispatchapi[NC_FORMATX_NC_HDF5] != NULL)
+        gs->formatxstate.dispatchapi[NC_FORMATX_NC_HDF5]->initialize(
+				&gs->formatxstate.state[NC_FORMATX_NC_HDF5],NULL);
 
 #ifdef LOGGING
     /* If nc logging level has changed, see if we need to turn on

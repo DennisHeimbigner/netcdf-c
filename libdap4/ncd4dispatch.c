@@ -53,31 +53,7 @@ static int globalinit(void);
 static int ncd4_get_att_reserved(NC* ncp, int ncid, int varid, const char* name, void* value, nc_type t, const NC_reservedatt* rsvp);
 static int ncd4_inq_att_reserved(NC* ncp, int ncid, int varid, const char* name, nc_type* xtypep, size_t* lenp, const NC_reservedatt* rsvp);
 
-
 /**************************************************/
-int
-NCD4_initialize(void)
-{
-    NCD4_dispatch_table = &NCD4_dispatch_base;
-    ncd4initialized = 1;
-    ncloginit();
-#ifdef D4DEBUG
-    /* force logging to go to stderr */
-    if(nclogopen(NULL))
-        ncsetlogging(1); /* turn it on */
-#endif
-    /* Init global state */
-    globalinit();
-
-    return THROW(NC_NOERR);
-}
-
-int
-NCD4_finalize(void)
-{
-    return THROW(NC_NOERR);
-}
-
 static int
 NCD4_redef(int ncid)
 {
@@ -1025,3 +1001,48 @@ NCD4_inq_var_quantize,
 
 NCD4_inq_filter_avail,
 };
+
+/**************************************************/
+/* Manage the DAP4 dispatcher state */
+
+NC_GlobalDispatchOps NCD4_global_dispatcher = {
+    NC_FORMATX_DAP4
+    NC_GLOBAL_DISPATCH_VERSION,
+    NCD4_initialize,
+    NCD4_finalize,
+    NULL,
+    NULL,
+    NULL
+};
+NC_GlobalDispatchOps* NCD4_global_dispatch_table = &NCD4_global_dispatcher;
+
+/**
+ * @internal Initialize the netcdf-3 dispatch layer.
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner, Ed Hartnett
+ */
+int ncd4_initialized = 0; /**< True if initialization has happened. */
+
+int
+NCD4_initialize(void** statep, Ncd4roplist* plist)
+{
+    NC_UNUSED(plist);
+    *statep = NULL;
+    ncd4initialized = 1;
+    ncloginit();
+#ifdef D4DEBUG
+    /* force logging to go to stderr */
+    if(nclogopen(NULL))
+        ncsetlogging(1); /* turn it on */
+#endif
+    return NC_NOERR;
+}
+
+int
+NCD4_finalize(void** statep)
+{
+    *statep = NULL;
+    return NC_NOERR;
+}
+

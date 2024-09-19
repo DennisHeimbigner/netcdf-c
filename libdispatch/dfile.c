@@ -1891,7 +1891,7 @@ NC_create(const char *path0, int cmode, size_t initialsz,
     switch (model.impl) {
 #ifdef USE_HDF5
     case NC_FORMATX_NC4:
-        dispatcher = HDF5_dispatch_table;
+        dispatcher = NC4_hdf5_dispatch_table;
         break;
 #endif
 #ifdef USE_PNETCDF
@@ -2131,7 +2131,7 @@ NC_open(const char *path0, int omode, int basepe, size_t *chunksizehintp,
 #endif
 #ifdef USE_HDF5
         case NC_FORMATX_NC4:
-            dispatcher = HDF5_dispatch_table;
+            dispatcher = NC4_hdf5_dispatch_table;
             break;
 #endif
 #ifdef USE_HDF4

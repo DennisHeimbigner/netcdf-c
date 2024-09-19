@@ -14,7 +14,7 @@
 #include "hdf5internal.h"
 
 /** @internal These flags may not be set for create. */
-static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_64BIT_OFFSET|NC_CDF5);
+#define ILLEGAL_CREATE_FLAGS (NC_NOWRITE|NC_MMAP|NC_64BIT_OFFSET|NC_CDF5)
 
 /* From nc4mem.c */
 extern int NC4_create_image_file(NC_FILE_INFO_T* h5, size_t);
@@ -295,15 +295,17 @@ NC4_create(const char* path, int cmode, size_t initialsz, int basepe,
            const NC_Dispatch *dispatch, int ncid)
 {
     int res;
+    NCglobalstate* gs = NC_getglobalstate();
 
     assert(path);
 
     LOG((1, "%s: path %s cmode 0x%x parameters %p",
          __func__, path, cmode, parameters));
 
-    /* If this is our first file, turn off HDF5 error messages. */
-    if (!nc4_hdf5_initialized)
-        nc4_hdf5_initialize();
+    /* If this is our first file, initialize HDF5. */
+    if (!nc4_hdf5_initialized && gs->formatxstate.dispatchapi[NC_FORMATX_NC_HDF5] != NULL)
+        gs->formatxstate.dispatchapi[NC_FORMATX_NC_HDF5]->initialize(
+				&gs->formatxstate.state[NC_FORMATX_NC_HDF5],NULL);
 
 #ifdef LOGGING
     /* If nc logging level has changed, see if we need to turn on

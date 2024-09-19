@@ -167,9 +167,6 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
     if((mode & NC_DISKLESS) && (mode & NC_INMEMORY))
         {stat = NC_EINVAL; goto done;}
 
-    /* If this is our first file, initialize NCZ. */
-    if (!ncz_initialized) NCZ_initialize();
-
 #ifdef LOGGING
     /* If nc logging level has changed, see if we need to turn on
      * NCZ's error messages. */

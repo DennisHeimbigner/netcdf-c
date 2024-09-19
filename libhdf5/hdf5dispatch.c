@@ -11,13 +11,16 @@
 #include "config.h"
 #include "hdf5internal.h"
 #include "hdf5dispatch.h"
+#include "ncproplist.h"
+
+#include "hdf5.h"
 
 #ifdef NETCDF_ENABLE_BYTERANGE
 #include "H5FDhttp.h"
 #endif
 
-NC_Dispatch HDF5_dispatcher = {
-
+NC_Dispatch NC4_hdf5_dispatcher = 
+{
     NC_FORMATX_NC4,
     NC_DISPATCH_VERSION,
 
@@ -112,21 +115,22 @@ NC_Dispatch HDF5_dispatcher = {
     
     NC4_hdf5_inq_filter_avail,
 };
-NC_Dispatch* HDF5_dispatch_table = NC4_hdf5_dispatcher;
+NC_Dispatch* NC4_hdf5_dispatch_table = &NC4_hdf5_dispatcher;
 
-/**************************************************
+/**************************************************/
 /* Manage the HDF5 dispatcher state */
 
-NC_GlobalDispatchOps NC4_hdf5_dispatchtable = {
+NC_GlobalDispatchOps NC4_hdf5_global_dispatcher =
+{
     NC_FORMATX_NC_HDF5,
     NC_GLOBAL_DISPATCH_VERSION,
-    NC4_hdf5_initialize,
-    NC4_hdf5_finalize,
+    nc4_hdf5_initialize,
+    nc4_hdf5_finalize,
     NC4_hdf5_setproperties,
-    NC4_hdf5_pluginpath_read,
-    NC4_hdf5_pluginpath_write,
+    NC4_hdf5_plugin_path_get,
+    NC4_hdf5_plugin_path_set,
 };
-NC_GlobalDispatchOps* NC4_hdf5_dispatchapi = &NC4_hdf5_dispatchtable;
+NC_GlobalDispatchOps* NC4_hdf5_global_dispatch_table = &NC4_hdf5_global_dispatcher;
 
 /**
  * @internal Initialize the HDF5 dispatch layer.
@@ -135,22 +139,33 @@ NC_GlobalDispatchOps* NC4_hdf5_dispatchapi = &NC4_hdf5_dispatchtable;
  * @author Ed Hartnett
  */
 int
-NC4_hdf5_initialize(void** statep, NCproplist* plist)
+nc4_hdf5_initialize(void** statep, NCproplist* plist)
 {
-    NCglobalstate* gs = NULL;
-    GlobalNCZarr* gz = NULL;
+    int stat = NC_NOERR;
 
-    if (!nc4_hdf5_initialized) goto done;
+    if (nc4_hdf5_initialized) goto done;
     nc4_hdf5_initialized = 1;
 
-    nc4_hdf5_initialize();
+    assert(statep != NULL);
+    if(*statep != NULL) goto done; /* already initialized */
 
-    NC4_hdf5_plugin_path_initialize(statep,plist);
+    *statep = NULL;
+
+    if (NC_hdf5_set_auto(NULL, NULL) < 0)
+        LOG((0, "Couldn't turn off HDF5 error messages!"));
+    LOG((1, "HDF5 error messages have been turned off."));
+
+    NC4_hdf5_filter_initialize();
+
+    if(plist != NULL)
+        if((stat=NC4_hdf5_setproperties(*statep,plist))) goto done;
 
 #ifdef NETCDF_ENABLE_BYTERANGE
     (void)H5FD_http_init();
 #endif
-    if((stat = NC4_provenance_init()))) goto done;
+    if((stat = NC4_provenance_init())) goto done;
+done:
+    return stat;
 }
 
 /**
@@ -160,12 +175,26 @@ NC4_hdf5_initialize(void** statep, NCproplist* plist)
  * @author Dennis Heimbigner
  */
 int
-NC_HDF5_finalize(NCproplist* plist
+nc4_hdf5_finalize(void** statep)
 {
+    int stat = NC_NOERR;
+
+    if (!nc4_hdf5_initialized) goto done;
+    nc4_hdf5_initialized = 0;
+
+    assert(statep != NULL);
+    if(*statep == NULL) goto done; /* already finalized */
+
 #ifdef NETCDF_ENABLE_BYTERANGE
     (void)H5FD_http_finalize();
 #endif
-    NC4_hdf5_plugin_path_finalize(statep);
-    (void)nc4_hdf5_finalize();
-    return NC_NOERR;
+
+    /* Reclaim global resources */
+    NC4_provenance_finalize();
+    NC4_hdf5_filter_finalize();
+
+    nullfree(*statep) ; *statep = NULL;
+
+done:
+    return stat;
 }

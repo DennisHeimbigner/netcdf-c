@@ -10,6 +10,7 @@
 #include "nc.h"
 #include "ncdispatch.h"
 #include "fbits.h"
+#include "ncproplist.h"
 
 /* Must follow netcdf.h */
 #include <pnetcdf.h>
@@ -1373,7 +1374,7 @@ NCP_inq_user_type(int ncid, nc_type typeid, char *name, size_t *size,
 /**************************************************/
 /* Pnetcdf Dispatch table */
 
-static const NC_Dispatch NCP_dispatcher = {
+NC_Dispatch NCP_dispatcher = {
 
 NC_FORMATX_PNETCDF,
 NC_DISPATCH_VERSION,
@@ -1470,17 +1471,42 @@ NC_NOTNC4_inq_var_quantize,
 NC_NOOP_inq_filter_avail,
 };
 
-const NC_Dispatch *NCP_dispatch_table = NULL; /* moved here from ddispatch.c */
+NC_Dispatch *NCP_dispatch_table = &NCP_dispatcher;
+
+/**************************************************/
+/* Manage the pnetcdf dispatcher state */
+
+NC_GlobalDispatchOps NCP_global_dispatcher = {
+    NC_FORMATX_NCP
+    NC_GLOBAL_DISPATCH_VERSION,
+    NCP_initialize,
+    NCP_finalize,
+    NULL,
+    NULL,
+    NULL
+};
+NC_GlobalDispatchOps* NCP_global_dispatch_table = &NCP_global_dispatcher;
+
+/**
+ * @internal Initialize the netcdf-3 dispatch layer.
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner, Ed Hartnett
+ */
+int ncp_initialized = 0; /**< True if initialization has happened. */
 
 int
-NCP_initialize(void)
+NCP_initialize(void** statep, NCproplist* plist)
 {
-    NCP_dispatch_table = &NCP_dispatcher;
+    NC_UNUSED(plist);
+    *statep = NULL;
     return NC_NOERR;
 }
 
 int
-NCP_finalize(void)
+NCP_finalize(void** statep)
 {
+    *statep = NULL;
     return NC_NOERR;
 }
+

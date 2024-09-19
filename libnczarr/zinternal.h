@@ -233,8 +233,6 @@ extern int ncz_initialized; /**< True if initialization has happened. */
 struct NCZ_Filterspec;
 
 /* zinternal.c */
-int NCZ_initialize(void);
-int NCZ_finalize(void);
 int NCZ_ensure_fill_value(NC_VAR_INFO_T* var);
 int ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
                               int use_name, char *norm_name, NC_FILE_INFO_T** file,

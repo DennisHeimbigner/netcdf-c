@@ -13,7 +13,7 @@ See LICENSE.txt for license information.
 #include "ncpathmgr.h"
 #include "ncxml.h"
 #include "nc4internal.h"
-#include "netcdf_proplist.h"
+#include "ncproplist.h"
 
 /* Required for getcwd, other functions. */
 #ifdef HAVE_UNISTD_H
@@ -54,28 +54,12 @@ NCDISPATCH_initialize(void)
     int i;
     NCglobalstate* gs = NULL;
 
+    gs = NC_getglobalstate(); /* will allocate and clear */
+
     for(i=0;i<NC_MAX_VAR_DIMS;i++) {
         NC_coord_zero[i] = 0;
         NC_coord_one[i]  = 1;
         NC_stride_one[i] = 1;
-    }
-
-    gs = NC_getglobalstate(); /* will allocate and clear */
-
-    /* Initialize all the per-dispatcher api information */
-#ifdef USE_HDF5
-    gs->formatxstate.dispatchapi[NC_FORMATX_NC_HDF5] = NC4_hdf5_dispatchapi;
-#endif
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    gs->formatxstate.dispatchapi[NC_FORMATX_NCZARR] = NCZ_dispatchapi;
-#endif
-
-    /* Initialize all the per-dispatcher states */
-    for(i=0;i<NC_FORMATX_COUNT;i++) {    
-	if(gs->formatxstate.dispatchapi[i] != NULL) {
-	    if((status = gs->formatxstate.dispatchapi[i]->initialize(&gs->formatxstate.state[i],NULL))) goto done;
-	    assert(gs->formatxstate.state[i] != NULL);
-	}
     }
 
     /* Capture temp dir*/
@@ -133,7 +117,7 @@ NCDISPATCH_initialize(void)
     /* Compute type alignments */
     NC_compute_alignments();
 
-#if defined(NETCDF_ENABLE_BYTERANGE) || defined(NETCDF_ENABLE_DAP) || defined(NETCDF_ENABLE_DAP4)
+#if defined(NETCDF_ENABLE_BYTERANGE) || defined(NETCDF_ENABLE_DAP) || defined(NETCDF_ENABLE_DAP4) || defined(NETCDF_ENABLE_NCZARR_S3)
     /* Initialize curl if it is being used */
     {
         CURLcode cstat = curl_global_init(CURL_GLOBAL_ALL);
@@ -141,8 +125,6 @@ NCDISPATCH_initialize(void)
 	    status = NC_ECURL;
     }
 #endif
-
-done:
      return status;
 }
 
@@ -150,27 +132,13 @@ int
 NCDISPATCH_finalize(void)
 {
     int status = NC_NOERR;
-    size_t i;
-    NCglobalstate* gs = NULL;
     
-#if defined(NETCDF_ENABLE_BYTERANGE) || defined(NETCDF_ENABLE_DAP) || defined(NETCDF_ENABLE_DAP4)
+#if defined(NETCDF_ENABLE_BYTERANGE) || defined(NETCDF_ENABLE_DAP) || defined(NETCDF_ENABLE_DAP4) || defined(NETCDF_ENABLE_NCZARR_S3)
     curl_global_cleanup();
 #endif
 #if defined(NETCDF_ENABLE_DAP4)
    ncxml_finalize();
 #endif
-
-    gs = NC_getglobalstate(); /* will allocate and clear */
-
-    /* Finalize all the per-dispatcher states */
-    for(i=0;i<NC_FORMATX_COUNT;i++) {    
-	if(gs->formatxstate.state[i] != NULL) {
-	    if((status = gs->formatxstate.dispatchapi[i]->finalize(&gs->formatxstate.state[i]))) goto done;
-	    gs->formatxstate.state[i] = NULL;
-	}
-    }
-
-done:
     NC_freeglobalstate(); /* should be one of the last things done */
     return status;
 }
@@ -259,7 +227,7 @@ NC_freeglobalstate(void)
 	    size_t i;
 	    (void)nc_plugin_path_finalize();
 	    /* Verify states reclaimed */
-	    for(i=0;i<NC_FORMATX_COUNT;i++)
+	    for(i=1;i<NC_FORMATX_COUNT;i++)
 		assert(nc_globalstate->formatxstate.state[i] == NULL);
 	    memset(nc_globalstate->formatxstate.state,0,NC_FORMATX_COUNT*sizeof(void*));
 	}

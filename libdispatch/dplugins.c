@@ -25,7 +25,7 @@
 #include "nc4internal.h"
 #include "nclog.h"
 #include "ncbytes.h"
-#include "netcdf_proplist.h"
+#include "ncproplist.h"
 
 /*
 Unified plugin related code
@@ -41,30 +41,33 @@ Unified plugin related code
 
 static int NC_plugin_path_initialized = 0;
 
+/* Forward */
+static int reclaimstringvec(uintptr_t userdata, const char* key, void* value, uintptr_t size);
+
+/**************************************************/
 /**
  * This function is called as part of nc_initialize.
  * Its purpose is to initialize the plugin paths state.
  *
+ * @param plist insert any plugin-path related keys into this argument
  * @return ::NC_NOERR
  *
  * @author Dennis Heimbigner
 */
 
 EXTERNL int
-nc_plugin_path_initialize(void)
+nc_plugin_path_initialize(NCproplist* plist)
 {
     int stat = NC_NOERR;
-    struct NCglobalstate* gs = NULL;
     char* defaultpluginpath = NULL;
     const char* pluginroots = NULL;
     NClist* dirs = NULL;
     size_t ndirs;
-    int i;
+    char** contents = NULL;
 
     if(NC_plugin_path_initialized != 0) goto done;
     NC_plugin_path_initialized = 1;
 
-    gs = NC_getglobalstate();
     dirs = nclistnew();
 
    /* Setup the plugin path default */
@@ -87,10 +90,11 @@ nc_plugin_path_initialize(void)
     if(pluginroots  != NULL && strlen(pluginroots) == 0) pluginroots = NULL;
     if((stat = ncaux_plugin_path_parse(pluginroots,0,&ndirs,NULL))) goto done;
     if(ndirs > 0) {
-	char** contents;
 	nclistsetlength(dirs,ndirs); /* may modify contents memory */
 	contents = (char**)nclistcontents(dirs);
+	/* Stash parsed dirs in to dirs contents */
 	if((stat = ncaux_plugin_path_parse(pluginroots,0,&ndirs,contents))) goto done;
+	contents = NULL;
     }
     /* Add the default to end of the dirs list if not already there */
     if(defaultpluginpath != NULL && !nclistmatch(dirs,defaultpluginpath,0)) {
@@ -98,24 +102,31 @@ nc_plugin_path_initialize(void)
 	defaultpluginpath = NULL;
     }
 
-    /* Insert into all defined dispatcher states */
-    {
-	size_t i;
-	NCproplist* plist = ncplistnew();
-        ncplistadd(plist,"plugin_path_defaults",(uintptr_t)dirs,sizeof(NClist*));
-        for(i=0;i<NC_FORMATX_COUNT;i++) {    
-	    if(gs->formatxstate.dispatchapi[i] != NULL) {
-	        if((stat = gs->formatxstate.dispatchapi[i]->setproperties(gs->formatxstate.state[i],plist))) goto done;
-	    }
-	}
-	ncplistfree(plist);
-    }
+    /* Insert into initialization proplist */
+    ndirs = nclistlength(dirs); /* do before extraction */
+    contents = nclistextract(dirs);
+    ncproplistaddx(plist, "plugin_path_defaults", contents, ndirs * sizeof(char*), (uintptr_t)NULL, reclaimstringvec);
+    contents = NULL;
+    ndirs = 0;
 
 done:
     nullfree(defaultpluginpath);
     nclistfreeall(dirs);
+    ncaux_plugin_path_freestringvec(ndirs,contents);    
     return NCTHROW(stat);
 }
+
+/* Wrap ncaux_plugin_path_freestringvec to act as a proplist value reclaim fcn. */
+static int
+reclaimstringvec(uintptr_t userdata, const char* key, void* value, uintptr_t size)
+{
+    size_t ndirs = 0;
+    NC_UNUSED(userdata);
+    NC_UNUSED(key);
+    ndirs = (size_t)(size/sizeof(char*));
+    return ncaux_plugin_path_freestringvec(ndirs, (char**)value);
+}
+
 
 /**
  * This function is called as part of nc_finalize()
@@ -156,7 +167,7 @@ done:
 */
 
 EXTERNL int
-nc_plugin_path_read(int formatx, size_t* ndirsp, char** dirs)
+nc_plugin_path_get(int formatx, size_t* ndirsp, char** dirs)
 {
     int stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
@@ -166,8 +177,8 @@ nc_plugin_path_read(int formatx, size_t* ndirsp, char** dirs)
     /* read functions can only apply to specific formatx */
     if(formatx == 0) {stat = NC_EINVAL; goto done;}
 
-    if(gs->formatxstate.dispatchapi[formatx] == NULL || gs->formatxstate.state[formatx] == NULL) {stat = NC_EINVAL; goto done;}
-    if((stat = gs->formatxstate.dispatchapi[formatx]->read(gs->formatxstate.state[formatx],ndirsp,dirs))) goto done;
+    if(gs->formatxstate.dispatchapi[formatx] == NULL) {stat = NC_EINVAL; goto done;}
+    if((stat = gs->formatxstate.dispatchapi[formatx]->plugin_path_get(gs->formatxstate.state[formatx],ndirsp,dirs))) goto done;
 done:
     return NCTHROW(stat);
 }
@@ -207,7 +218,7 @@ done:
 */
 
 EXTERNL int
-nc_plugin_path_write(int formatx, size_t ndirs, char** const dirs)
+nc_plugin_path_set(int formatx, size_t ndirs, char** const dirs)
 {
     int i,stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
@@ -218,8 +229,8 @@ nc_plugin_path_write(int formatx, size_t ndirs, char** const dirs)
     /* forall dispatchers */
     for(i=1;i<NC_FORMATX_COUNT;i++) {
 	if(i == formatx || formatx == 0) {
-	    if(gs->formatxstate.pluginapi[i] == NULL || gs->formatxstate.state[i] == NULL) continue;
-	    if((stat=gs->formatxstate.pluginapi[i]->write(gs->formatxstate.state[i],ndirs,dirs))) goto done;
+	    if(gs->formatxstate.dispatchapi[i] == NULL) continue;
+	    if((stat=gs->formatxstate.dispatchapi[i]->plugin_path_set(gs->formatxstate.state[i],ndirs,dirs))) goto done;
 	}
     }
 done:

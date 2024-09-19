@@ -17,7 +17,8 @@
 
 /* This is the dispatch object that holds pointers to all the
  * functions that make up the HDF4 dispatch interface. */
-static const NC_Dispatch HDF4_dispatcher = {
+static const NC_Dispatch HDF4_dispatcher =
+{
 
     NC_FORMATX_NC_HDF4,
     NC_DISPATCH_VERSION,
@@ -114,29 +115,42 @@ static const NC_Dispatch HDF4_dispatcher = {
     NC_NOOP_inq_filter_avail,
 };
 
-const NC_Dispatch *HDF4_dispatch_table = NULL;
+NC_Dispatch *HDF4_dispatch_table = &HDF4_dispatcher;
+
+/**************************************************/
+/* Manage the HDF4 dispatcher state */
+
+NC_GlobalDispatchOps HDF4_global_dispatcher = {
+    NC_FORMATX_HDF4
+    NC_GLOBAL_DISPATCH_VERSION,
+    HDF4_initialize,
+    HDF4_finalize,
+    NULL,
+    NULL,
+    NULL
+};
+NC_GlobalDispatchOps* HDF4_global_dispatch_table = &HDF4_global_dispatcher;
 
 /**
- * @internal Initialize HDF4 dispatch layer.
+ * @internal Initialize the netcdf-3 dispatch layer.
  *
  * @return ::NC_NOERR No error.
- * @author Ed Hartnett
+ * @author Dennis Heimbigner, Ed Hartnett
  */
+int hdf4_initialized = 0; /**< True if initialization has happened. */
+
 int
-NC_HDF4_initialize(void)
+HDF4_initialize(void** statep, Hdf4roplist* plist)
 {
-    HDF4_dispatch_table = &HDF4_dispatcher;
+    NC_UNUSED(plist);
+    *statep = NULL;
     return NC_NOERR;
 }
 
-/**
- * @internal Finalize HDF4 dispatch layer.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
 int
-NC_HDF4_finalize(void)
+HDF4_finalize(void** statep)
 {
+    *statep = NULL;
     return NC_NOERR;
 }
+

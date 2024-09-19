@@ -38,8 +38,8 @@
 
 typedef enum Action {
 ACT_NONE=0,
-ACT_READ=1,
-ACT_WRITE=2,
+ACT_GET=1,
+ACT_SET=2,
 /* Synthetic Actions */
 ACT_CLEAR=3,
 ACT_FORMATX=4,
@@ -50,8 +50,8 @@ static struct ActionTable {
     const char* opname;
 } actiontable[] = {
 {ACT_NONE,"none"},
-{ACT_READ,"read"},
-{ACT_WRITE,"write"},
+{ACT_GET,"get"},
+{ACT_SET,"set"},
 {ACT_CLEAR,"clear"},
 {ACT_FORMATX,"formatx"},
 {ACT_NONE,NULL}
@@ -219,7 +219,7 @@ static int
 actionclear(const struct Execute* action)
 {
     int stat = NC_NOERR;
-    if((stat=nc_plugin_path_write(dumpoptions.formatx,0,NULL))) goto done;   
+    if((stat=nc_plugin_path_set(dumpoptions.formatx,0,NULL))) goto done;   
 done:
     return NCCHECK(stat);
 }
@@ -234,7 +234,7 @@ actionformatx(const struct Execute* action)
 }
 
 static int
-actionread(const struct Execute* action)
+actionget(const struct Execute* action)
 {
     int stat = NC_NOERR;
     size_t ndirs;
@@ -242,10 +242,10 @@ actionread(const struct Execute* action)
     char* text = NULL;
     size_t textlen;
    
-    if((stat=nc_plugin_path_read(dumpoptions.formatx,&ndirs,NULL))) goto done;
+    if((stat=nc_plugin_path_get(dumpoptions.formatx,&ndirs,NULL))) goto done;
     assert(ndirs > 0);
     if((dirs = (char**)calloc(ndirs,sizeof(char*)))==NULL) {stat = NC_ENOMEM; goto done;}
-    if((stat = nc_plugin_path_read(dumpoptions.formatx,&ndirs,dirs))) goto done;
+    if((stat = nc_plugin_path_get(dumpoptions.formatx,&ndirs,dirs))) goto done;
     if((stat = ncaux_plugin_path_tostring(ndirs,dirs,0,&textlen,NULL))) goto done;
     if((text = (char*)malloc(textlen))==NULL) {stat = NC_ENOMEM; goto done;}
     if((stat = ncaux_plugin_path_tostring(ndirs,dirs,0,&textlen,text))) goto done;
@@ -257,7 +257,7 @@ done:
 }
 
 static int
-actionwrite(const struct Execute* action)
+actionset(const struct Execute* action)
 {
     int stat = NC_NOERR;
     const char* text = action->arg;
@@ -270,7 +270,7 @@ actionwrite(const struct Execute* action)
 	if((dirs = (char**)calloc(ndirs,sizeof(char*)))==NULL) {stat = NC_ENOMEM; goto done;}
         if((stat=ncaux_plugin_path_parse(text,0,&ndirs,dirs))) goto done;
     }
-    if((stat=nc_plugin_path_write(dumpoptions.formatx,ndirs,dirs))) goto done;   
+    if((stat=nc_plugin_path_set(dumpoptions.formatx,ndirs,dirs))) goto done;   
 
 done:
     ncaux_plugin_path_freestringvec(ndirs,dirs);
@@ -318,8 +318,8 @@ fprintf(stderr,">>>> [%zu] %s(%d) : %s\n",i,
 	    break;
 	case ACT_CLEAR: if((stat=actionclear(&dumpoptions.actions[i]))) goto done; break;
 	case ACT_FORMATX: if((stat=actionformatx(&dumpoptions.actions[i]))) goto done; break;
-	case ACT_READ: if((stat=actionread(&dumpoptions.actions[i]))) goto done; break;
-	case ACT_WRITE: if((stat=actionwrite(&dumpoptions.actions[i]))) goto done; break;
+	case ACT_GET: if((stat=actionget(&dumpoptions.actions[i]))) goto done; break;
+	case ACT_SET: if((stat=actionset(&dumpoptions.actions[i]))) goto done; break;
 	}
     }
 

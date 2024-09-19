@@ -54,7 +54,7 @@
 /** This is the name of the name HDF5 dimension scale attribute. */
 #define HDF5_DIMSCALE_NAME_ATT_NAME NC_ATT_NAME
 
-/* forward */
+/* opaque */
 struct NCauth;
 struct NCproplist;
 
@@ -228,10 +228,12 @@ int hdf5set_format_compatibility(hid_t fapl_id);
 
 /* HDF5 initialization/finalization */
 extern int nc4_hdf5_initialized;
-extern void nc4_hdf5_initialize(void);
-extern void nc4_hdf5_finalize(void);
+extern int nc4_hdf5_initialize(void** statep, struct NCproplist* plist);
+extern int nc4_hdf5_finalize(void** statep);
 
 extern int NC4_hdf5_plugin_path_initialize(void** statep, struct NCproplist*);
 extern int NC4_hdf5_plugin_path_finalize(void** statep);
+
+extern int NC_hdf5_set_auto(void* func, void* client_data);
 
 #endif /* _HDF5INTERNAL_ */

@@ -45,11 +45,12 @@
 #endif
 
 #include "zincludes.h"
-#include "zfilter.h"
-#include "ncpathmgr.h"
-#include "ncpoco.h"
 #include "netcdf_filter.h"
 #include "netcdf_filter_build.h"
+#include "ncproplist.h"
+#include "ncpathmgr.h"
+#include "ncpoco.h"
+#include "zfilter.h"
 #include "zfilter.h"
 #include "zplugins.h"
 
@@ -652,15 +653,20 @@ done:
 /* Filter application functions */
 
 int
-NCZ_filter_initialize(void)
+NCZ_filter_initialize(void* state)
 {
     int stat = NC_NOERR;
+    GlobalNCZarr* gz = NULL;
+
     ZTRACE(6,"");
-
+    gz = (GlobalNCZarr*)state;
+    assert(gz != NULL);
     if(NCZ_filter_initialized) goto done;
-
     NCZ_filter_initialized = 1;
-
+    gz->default_libs = nclistnew();
+    gz->codec_defaults = nclistnew();
+    gz->loaded_plugins = (struct NCZ_Plugin**)calloc(H5Z_FILTER_MAX+1,sizeof(struct NCZ_Plugin*));
+    if(gz->loaded_plugins == NULL) {stat = NC_ENOMEM; goto done;}
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     if((stat = NCZ_load_all_plugins())) goto done;
 #endif
@@ -669,11 +675,51 @@ done:
 }
 
 int
-NCZ_filter_finalize(void)
+NCZ_filter_finalize(void* state)
 {
     int stat = NC_NOERR;
+    GlobalNCZarr* gz = (GlobalNCZarr*)state;
+
     if(!NCZ_filter_initialized) goto done;
     NCZ_filter_initialized = 0;
+
+    if(gz == NULL) goto done; /* already finalized */
+
+    /* Reclaim all loaded filters */
+    { size_t i;
+    for(i=1;i<=gz->loaded_plugins_max;i++) {
+	if(gz->loaded_plugins[i]) {
+            NCZ_unload_plugin(gz->loaded_plugins[i]);
+	    gz->loaded_plugins[i] = NULL;
+	}
+    }
+    }
+    /* Reclaim the codec defaults */
+    if(nclistlength(gz->codec_defaults) > 0) {
+        size_t i;
+        for(i=0;i<nclistlength(gz->codec_defaults);i++) {
+	    struct CodecAPI* ca = (struct CodecAPI*)nclistget(gz->codec_defaults,i);
+    	    nullfree(ca);
+	}
+    }
+    /* Reclaim the defaults library contents; Must occur as last act */
+    if(nclistlength(gz->default_libs) > 0) {
+	size_t i;
+        for(i=0;i<nclistlength(gz->default_libs);i++) {
+	    NCPSharedLib* l = (NCPSharedLib*)nclistget(gz->default_libs,i);
+#ifdef DEBUGL
+   fprintf(stderr,">>> DEBUGL: NCZ_filter_finalize: reclaim default_lib[i]=%p\n",l);
+#endif
+    	    if(l != NULL) (void)ncpsharedlibfree(l);
+	}
+    }
+    gz->loaded_plugins_max = 0;
+    nullfree(gz->loaded_plugins); gz->loaded_plugins = NULL;
+assert(gz->default_libs != NULL);
+    nclistfree(gz->default_libs); gz->default_libs = NULL;
+    nclistfree(gz->codec_defaults); gz->codec_defaults = NULL;
+    nclistfreeall(gz->pluginpaths); gz->pluginpaths = NULL;
+
 
 done:
     return ZUNTRACE(stat);
