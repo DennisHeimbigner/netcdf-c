@@ -6,15 +6,6 @@
 TODO: make utf8 safe
 */
 
-/*
-WARNING:
-If you modify this file,
-then you need to got to
-the include/ directory
-and do the command:
-    make makenetcdfjson
-*/
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -119,7 +110,7 @@ static int bytesappendquoted(NCJbuf* buf, const char* s);
 static int bytesappend(NCJbuf* buf, const char* s);
 static int bytesappendc(NCJbuf* bufp, char c);
 
-/* Hide everything for plugins */
+/* Static'ize everything for plugins */
 #ifdef NETCDF_JSON_H
 #define OPTSTATIC static
 static int NCJparsen(size_t len, const char* text, unsigned flags, NCjson** jsonp);
@@ -927,7 +918,6 @@ NCJinsertstring(NCjson* object, const char* key, const char* value)
     else
         NCJnewstring(NCJ_STRING,value,&jvalue);
     NCJinsert(object,key,jvalue);
-done:
     return NCJTHROW(stat);
 }
 
@@ -941,7 +931,6 @@ NCJinsertint(NCjson* object, const char* key, long long ivalue)
     snprintf(digits,sizeof(digits),"%lld",ivalue);
     NCJnewstring(NCJ_STRING,digits,&jvalue);
     NCJinsert(object,key,jvalue);
-done:
     return NCJTHROW(stat);
 }
 
@@ -1146,5 +1135,7 @@ netcdf_supresswarnings(void)
     ignore = (void*)NCJparse;
     ignore = (void*)NCJdump;
     ignore = (void*)NCJtotext;
+    ignore = (void*)NCJinsertstring;
+    ignore = (void*)NCJinsertint;
     ignore = ignore;
 }

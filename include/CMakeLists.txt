@@ -45,6 +45,34 @@ INSTALL(FILES ${netCDF_SOURCE_DIR}/include/netcdf_json.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     COMPONENT headers)
 
+INSTALL(FILES ${netCDF_SOURCE_DIR}/include/netcdf_proplist.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    COMPONENT headers)
+
 FILE(GLOB CUR_EXTRA_DIST RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 SET(CUR_EXTRA_DIST ${CUR_EXTRA_DIST} Makefile.am CMakeLists.txt)
 ADD_EXTRA_DIST("${CUR_EXTRA_DIST}")
+
+# Built source: netcdf_proplist.h
+file(READ ncproplist.h PLISTH0)
+STRING(REPLACE "NCPROPLIST_H" "NETCF_PROPLIST_H" PLISTH1 "${PLISTH0}")
+STRING(REPLACE "ncproplist.h" "" PLISTH2 "${PLISTH1}")
+#STRING(REGEX REPLACE "#endif[^!]*!NETCDF_PROPLIST_H!" "" PLISTH3 "${PLISTH2}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/netcdf_proplist.h "${PLISTH3}")
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/netcdf_proplist.h "#ifdef NETCDF_PROPLIST_H")
+file(READ ${CMAKE_SOURCE_DIR}/libdispatch/ncproplist.c JSONC0)
+STRING(REPLACE "ncproplist.h" "" JSONC1 "${JSONC0}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/netcdf_proplist.h "${JSONC1}")
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/netcdf_proplist.c "$#endif /*NETCDF_PROPLIST_H/*")
+
+# Built source: netcdf_json.h
+file(READ ncjson.h JSONH0)
+STRING(REPLACE "NCJSON_H" "NETCF_JSON_H" JSONH1 "${JSONH0}")
+STRING(REPLACE "ncjson.h" "" JSONH2 "${JSONH1}")
+#STRING(REGEX REPLACE "#endif[^!]*!NETCDF_JSON_H!" "" JSONH3 "${JSONH2}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/netcdf_json.h "${JSONH3}")
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/netcdf_json.h "#ifdef NETCDF_JSON_H")
+file(READ ${CMAKE_SOURCE_DIR}/libdispatch/ncjson.c JSONC0)
+STRING(REPLACE "ncjson.h" "" JSONC1 "${JSONC0}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/netcdf_json.h "${JSONC1}")
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/netcdf_json.c "$#endif /*NETCDF_JSON_H/*")

@@ -1153,7 +1153,7 @@ AC_ARG_ENABLE([benchmarks],
                               are timed. We use these tests to check netCDF performance.])])
 test "x$enable_benchmarks" = xyes || enable_benchmarks=no
 AC_MSG_RESULT($enable_benchmarks)
-if test "x$enable_HDF5" = xno -a "x$enable_benchmarks" = xyes; then
+if test "x$enable_hdf5" = xno -a "x$enable_benchmarks" = xyes; then
 AC_MSG_ERROR([Can't use benchmarks if HDF5 is disabled.])
 fi
 AM_CONDITIONAL(BUILD_BENCHMARKS, [test x$enable_benchmarks = xyes])
@@ -1632,7 +1632,7 @@ enable_hdf5_szip=no
 has_hdf5_ros3=no
 
 if test "x$enable_hdf5" = xyes; then
-
+   AC_DEFINE([NETCDF_ENABLE_HDF5], [1], [if true, use HDF5])
    AC_DEFINE([USE_HDF5], [1], [if true, use HDF5])
    AC_DEFINE([H5_USE_16_API], [1], [use HDF5 1.6 API])
 
