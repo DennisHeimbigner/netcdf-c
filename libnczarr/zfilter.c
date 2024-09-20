@@ -669,7 +669,6 @@ NCZ_filter_initialize(void)
     if(NCZ_filter_initialized) goto done;
 
     NCZ_filter_initialized = 1;
-    NCZ_plugin_path_initialize();
 
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     if((stat = NCZ_load_all_plugins())) goto done;

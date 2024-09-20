@@ -106,12 +106,9 @@ NCZ_plugin_path_finalize(void)
     	    if(l != NULL) (void)ncpsharedlibfree(l);
 	}
     }
-#else
-    memset(loaded_plugins,0,sizeof(loaded_plugins));
 #endif
     gs->zarr.loaded_plugins_max = 0;
     nullfree(gs->zarr.loaded_plugins); gs->zarr.loaded_plugins = NULL;
-assert(gs->zarr.default_libs != NULL);
     nclistfree(gs->zarr.default_libs); gs->zarr.default_libs = NULL;
     nclistfree(gs->zarr.codec_defaults); gs->zarr.codec_defaults = NULL;
     nclistfreeall(gs->zarr.pluginpaths); gs->zarr.pluginpaths = NULL;
@@ -530,7 +527,6 @@ loadcodecdefaults(const char* path, const NCZ_codec_t** cp, NCPSharedLib* lib, i
     int lib_used = 0;
     struct NCglobalstate* gs = NC_getglobalstate();
 
-assert(gs->zarr.default_libs != NULL);
     nclistpush(gs->zarr.default_libs,lib);
     for(;*cp;cp++) {
         struct CodecAPI* c0;

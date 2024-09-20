@@ -6,15 +6,17 @@
 #ifndef NCJSON_H
 #define NCJSON_H 1
 
-#include "ncexternl.h"
-
 /* Override for plugins */
 #ifndef OPTEXPORT
-#ifdef NETCDF_JSON_H
-#define OPTEXPORT static
-#else /*!NETCDF_JSON_H*/
-#define OPTEXPORT MSC_EXTRA
-#endif /*NETCDF_JSON_H*/
+#  ifdef NETCDF_JSON_H
+#    define OPTEXPORT static
+#  else /*!NETCDF_JSON_H*/
+#    ifdef _WIN32
+#      define OPTEXPORT declspec(dllexport)
+#    else
+#      define OPTEXPORT
+#    endif /*_WIN32*/
+#  endif /*NETCDF_JSON_H*/
 #endif /*OPTEXPORT*/
 
 /**************************************************/
