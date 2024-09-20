@@ -1,1 +1,0 @@
-/usr;/zero;/one;/two;/three;/four;/tmp

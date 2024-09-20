@@ -226,6 +226,8 @@ Use this in mode flags for both nc_create() and nc_open(). */
 #define NC_FORMATX_NCZARR    (10)
 #define NC_FORMATX_UNDEFINED (0)
 
+#define NC_FORMATX_COUNT (NC_FORMATX_NCZARR+1) /* range of formatx indices 0<formatx<NC_FORMATX_COUNT */
+
   /* To avoid breaking compatibility (such as in the python library),
    we need to retain the NC_FORMAT_xxx format as well. This may come
   out eventually, as the NC_FORMATX is more clear that it's an extended

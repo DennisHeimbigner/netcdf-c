@@ -1,2 +1,0 @@
-hdf5: /zero;/one;/two;/three;/four;/usr
-nczarr: /usr;/zero;/one;/two;/three;/four

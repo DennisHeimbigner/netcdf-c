@@ -58,7 +58,7 @@ endif
 
 EXTRA_DIST = CMakeLists.txt run_s3sdk.sh run_reclaim_tests.sh run_aws_config.sh run_pluginpaths.sh
 EXTRA_DIST += nctest_netcdf4_classic.nc reclaim_tests.cdl
-EXTRA_DIST += ref_getall.txt ref_getith.txt ref_length.txt ref_load.txt ref_remove.txt ref_sync.txt ref_xpend.txt
+EXTRA_DIST += ref_get.txt ref_set.txt
 
 CLEANFILES = reclaim_tests*.txt reclaim_tests.nc tmp_*.txt
 

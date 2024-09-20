@@ -17,22 +17,16 @@ extern "C" {
 
 EXTERNL int NCZ_plugin_path_initialize(void);
 EXTERNL int NCZ_plugin_path_finalize(void);
-EXTERNL int NCZ_plugin_path_sync(int formatx);
+
+EXTERNL int NCZ_plugin_path_get(size_t* ndirsp, char** dirs);
+EXTERNL int NCZ_plugin_path_set(size_t ndirs, char** const dirs);
 
 EXTERNL int NC4_hdf5_plugin_path_initialize(void);
 EXTERNL int NC4_hdf5_plugin_path_finalize(void);
-EXTERNL int NC4_hdf5_plugin_path_sync(int formatx);
 
-EXTERNL int NCG_plugin_path_getall(size_t* npathsp, char** pathlist, NClist* pluginpaths);
-EXTERNL int NCG_plugin_path_getith(size_t index, char** entryp, NClist* pluginpaths);
-EXTERNL int NCG_plugin_path_load(const char* paths, NClist* pluginpaths);
-EXTERNL int NCG_plugin_path_append(const char* path, NClist* pluginpaths);
-EXTERNL int NCG_plugin_path_prepend(const char* path, NClist* pluginpaths);
-EXTERNL int NCG_plugin_path_remove(const char* dir, NClist* pluginpaths);
+EXTERNL int NC4_hdf5_plugin_path_get(size_t* ndirsp, char** dirs);
+EXTERNL int NC4_hdf5_plugin_path_set(size_t ndirs, char** const dirs);
 
-EXTERNL int NC_plugin_path_parse(const char* path0, NClist* list);
-EXTERNL const char* NC_plugin_path_stringify(size_t npaths, char** paths);
-EXTERNL const char* NC_plugin_path_tostring(void);
 
 #if defined(__cplusplus)
 }

@@ -6,14 +6,14 @@
 #ifndef NETCDF_JSON_H
 #define NETCDF_JSON_H 1
 
-/*
-WARNING:
-If you modify this file,
-then you need to got to
-the include/ directory
-and do the command:
-    make makepluginjson
-*/
+/*********************************************************************
+ *   Copyright 2018, UCAR/Unidata
+ *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
+ *   $Header$
+ *********************************************************************/
+
+#ifndef NCEXTERNL_H
+#define NCEXTERNL_H
 
 #if defined(DLL_NETCDF) /* define when library is a DLL */
 #  if defined(DLL_EXPORT) /* define when building the library */
@@ -28,12 +28,16 @@ and do the command:
 # define EXTERNL MSC_EXTRA extern
 #endif
 
+#endif /*NCEXTERNL_H*/
+
 /* Override for plugins */
+#ifndef OPTEXPORT
 #ifdef NETCDF_JSON_H
 #define OPTEXPORT static
-#else /*NETCDF_JSON_H*/
+#else /*!NETCDF_JSON_H*/
 #define OPTEXPORT MSC_EXTRA
 #endif /*NETCDF_JSON_H*/
+#endif /*OPTEXPORT*/
 
 /**************************************************/
 /* Json object sorts (note use of term sort rather than e.g. type or discriminant) */
@@ -166,15 +170,6 @@ OPTEXPORT const char* NCJtotext(const NCjson* json);
 TODO: make utf8 safe
 */
 
-/*
-WARNING:
-If you modify this file,
-then you need to got to
-the include/ directory
-and do the command:
-    make makenetcdfjson
-*/
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -278,7 +273,7 @@ static int bytesappendquoted(NCJbuf* buf, const char* s);
 static int bytesappend(NCJbuf* buf, const char* s);
 static int bytesappendc(NCJbuf* bufp, char c);
 
-/* Hide everything for plugins */
+/* Static'ize everything for plugins */
 #ifdef NETCDF_JSON_H
 #define OPTSTATIC static
 static int NCJparsen(size_t len, const char* text, unsigned flags, NCjson** jsonp);
@@ -633,7 +628,7 @@ testint(const char* word)
     int count = 0;
     /* Try to convert to number */
     ncvt = sscanf(word,"%lld%n",&i,&count);
-    return NCJTHROW((ncvt == 1 && strlen(word)==count ? NCJ_OK : NCJ_ERR));
+    return NCJTHROW((ncvt == 1 && strlen(word)==(size_t)count ? NCJ_OK : NCJ_ERR));
 }
 
 static int
@@ -652,7 +647,7 @@ testdouble(const char* word)
     if(0==(int)strcasecmp("-infinityf",word)) return NCJTHROW(NCJ_OK);
     /* Try to convert to number */
     ncvt = sscanf(word,"%lg%n",&d,&count);
-    return NCJTHROW((ncvt == 1 && strlen(word)==count ? NCJ_OK : NCJ_ERR));
+    return NCJTHROW((ncvt == 1 && strlen(word)==(size_t)count ? NCJ_OK : NCJ_ERR));
 }
 
 static int
@@ -699,7 +694,7 @@ NCJreclaim(NCjson* json)
 static void
 NCJreclaimArray(struct NCjlist* array)
 {
-    int i;
+    size_t i;
     for(i=0;i<array->len;i++) {
 	NCJreclaim(array->contents[i]);
     }
@@ -777,7 +772,8 @@ done:
 OPTSTATIC int
 NCJdictget(const NCjson* dict, const char* key, const NCjson** valuep)
 {
-    int i,stat = NCJ_OK;
+    int stat = NCJ_OK;
+    size_t i;
 
     if(dict == NULL || dict->sort != NCJ_DICT)
         {stat = NCJTHROW(NCJ_ERR); goto done;}
@@ -1009,7 +1005,8 @@ done:
 static int
 NCJcloneArray(const NCjson* array, NCjson** clonep)
 {
-    int i, stat=NCJ_OK;
+    int stat=NCJ_OK;
+    size_t i;
     NCjson* clone = NULL;
     if((stat=NCJnew(NCJ_ARRAY,&clone))==NCJ_ERR) goto done;
     for(i=0;i<NCJlength(array);i++) {
@@ -1027,7 +1024,8 @@ done:
 static int
 NCJcloneDict(const NCjson* dict, NCjson** clonep)
 {
-    int i, stat=NCJ_OK;
+    int stat=NCJ_OK;
+    size_t i;
     NCjson* clone = NULL;
     if((stat=NCJnew(NCJ_DICT,&clone))==NCJ_ERR) goto done;
     for(i=0;i<NCJlength(dict);i++) {
@@ -1086,7 +1084,6 @@ NCJinsertstring(NCjson* object, const char* key, const char* value)
     else
         NCJnewstring(NCJ_STRING,value,&jvalue);
     NCJinsert(object,key,jvalue);
-done:
     return NCJTHROW(stat);
 }
 
@@ -1100,7 +1097,6 @@ NCJinsertint(NCjson* object, const char* key, long long ivalue)
     snprintf(digits,sizeof(digits),"%lld",ivalue);
     NCJnewstring(NCJ_STRING,digits,&jvalue);
     NCJinsert(object,key,jvalue);
-done:
     return NCJTHROW(stat);
 }
 
@@ -1141,7 +1137,7 @@ static int
 NCJunparseR(const NCjson* json, NCJbuf* buf, unsigned flags)
 {
     int stat = NCJ_OK;
-    int i;
+    size_t i;
 
     switch (NCJsort(json)) {
     case NCJ_STRING:
@@ -1305,6 +1301,8 @@ netcdf_supresswarnings(void)
     ignore = (void*)NCJparse;
     ignore = (void*)NCJdump;
     ignore = (void*)NCJtotext;
+    ignore = (void*)NCJinsertstring;
+    ignore = (void*)NCJinsertint;
     ignore = ignore;
 }
 #endif /*NETCDF_JSON_H*/

@@ -20,13 +20,6 @@
 #include "ncplugins.h"
 #include "zplugins.h"
 
-#if 0
-#define DEBUG
-#define DEBUGF
-#define DEBUGL
-#define DEBUGPL
-#endif
-
 /**************************************************/
 /* Forward */
 static int NCZ_load_plugin(const char* path, NCZ_Plugin** plugp);
@@ -93,9 +86,6 @@ NCZ_plugin_path_finalize(void)
 
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Reclaim all loaded filters */
-#ifdef DEBUGL
-    fprintf(stderr,">>>  DEBUGL: finalize reclaim:\n");
-#endif
     for(i=1;i<=gs->zarr.loaded_plugins_max;i++) {
 	if(gs->zarr.loaded_plugins[i]) {
             NCZ_unload_plugin(gs->zarr.loaded_plugins[i]);
@@ -113,9 +103,6 @@ NCZ_plugin_path_finalize(void)
     if(nclistlength(gs->zarr.default_libs) > 0) {
         for(i=0;i<nclistlength(gs->zarr.default_libs);i++) {
 	    NCPSharedLib* l = (NCPSharedLib*)nclistget(gs->zarr.default_libs,i);
-#ifdef DEBUGL
-   fprintf(stderr,">>> DEBUGL: NCZ_filter_finalize: reclaim default_lib[i]=%p\n",l);
-#endif
     	    if(l != NULL) (void)ncpsharedlibfree(l);
 	}
     }
@@ -132,42 +119,74 @@ assert(gs->zarr.default_libs != NULL);
 }
 
 /**
- * Synchronize the NCZarr plugin path state from the global plugin path state
- * defined in libdispatch/dplugins.c.
- *
- * Note that this code uses the global state directly, so it basically does nothing.
- *
+ * Return the current sequence of directories in the internal plugin path list.
+ * Since this function does not modify the plugin path, it can be called at any time.
+ * @param ndirsp return the number of dirs in the internal path list
+ * @param dirs memory for storing the sequence of directies in the internal path list.
  * @return NC_NOERR
- *
  * @author Dennis Heimbigner
  *
- * In effect, this is sort of bulk loader for the path list.
+ * As a rule, this function needs to be called twice.
+ * The first time with npaths not NULL and pathlist set to NULL
+ *     to get the size of the path list.
+ * The second time with pathlist not NULL to get the actual sequence of paths.
+ *
+ * Technically, this function is not needed at all since in an ideal world
+ * the only way that the NCZarr path set can be changed is via the NCZ_plugin_path_set()
+ * function. However, this function is useful as a way to verify that someone has not
+ * been modifying the plugin path set in some other fashion.
 */
 
 int
-NCZ_plugin_path_sync(int formatx)
+NCZ_plugin_path_get(size_t* ndirsp, char** dirs)
+{
+    int stat = NC_NOERR;
+    struct NCglobalstate* gs = NC_getglobalstate();
+    size_t ndirs;
+
+    if(gs->zarr.pluginpaths == NULL) gs->zarr.pluginpaths = nclistnew(); /* suspenders and belt */
+    ndirs = nclistlength(gs->zarr.pluginpaths);
+    if(ndirsp) *ndirsp = ndirs;
+    if(dirs != NULL && ndirs > 0) {
+	size_t i;
+	for(i=0;i<ndirs;i++) {
+	    const char* dir = (const char*)nclistget(gs->zarr.pluginpaths,i);
+	    dirs[i] = nulldup(dir);
+	}
+    }
+
+    return THROW(stat);
+}
+
+/**
+ * Empty the current internal path sequence
+ * and replace with the sequence of directories argument.
+ *
+ * Using a dirs argument of NULL or ndirs argument of 0 will clear the set of plugin dirs.
+ * @param ndirs length of the dirs argument
+ * @param dirs to overwrite the current internal dir list
+ * @return NC_NOERR
+ * @author Dennis Heimbigner
+*/
+
+int
+NCZ_plugin_path_set(size_t ndirs, char** const dirs)
 {
     int stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
 
-    assert(formatx == NC_FORMATX_NCZARR);
-
-    /* Clear the current path list */
+    /* Clear the current dir list */
     nclistfreeall(gs->zarr.pluginpaths);
-    gs->zarr.pluginpaths = NULL;
+    gs->zarr.pluginpaths = nclistnew();
 
-    gs->zarr.pluginpaths = nclistclone(gs->pluginpaths,1);
-
-    if(gs->pluginpaths == NULL) gs->pluginpaths = nclistnew();
-    if(gs->zarr.pluginpaths == NULL) gs->zarr.pluginpaths = nclistnew();
+    if(ndirs > 0) {
+	size_t i;
+        assert(gs->zarr.pluginpaths != NULL);
+	for(i=0;i<ndirs;i++) {
+	    nclistpush(gs->zarr.pluginpaths,nulldup(dirs[i]));
+	}
+    }
     return THROW(stat);
-}
-
-/* Undocumented/Hidden for use for testing and debugging */
-const char*
-NCZ_plugin_path_tostring(void)
-{
-    return NC_plugin_path_tostring();
 }
 
 /**************************************************/
@@ -185,11 +204,7 @@ NCZ_load_all_plugins(void)
 
    ZTRACE(6,"");
 
-#ifdef DEBUGL
-   fprintf(stderr,">>> DEBUGL: NCZ_load_all_plugins\n");
-#endif
-
-    for(i=0;i<nclistlength(gs->pluginpaths);i++) {
+   for(i=0;i<nclistlength(gs->pluginpaths);i++) {
 	const char* dir = (const char*)nclistget(gs->pluginpaths,i);
         /* Make sure the root is actually a directory */
         errno = 0;
@@ -205,16 +220,6 @@ NCZ_load_all_plugins(void)
         /* Try to load plugins from this directory */
         if((ret = NCZ_load_plugin_dir(dir))) goto done;
     }
-#ifdef DEBUGL
-    { size_t i;
-	fprintf(stderr,"gs->zarr.codec_defaults:");
-	for(i=0;i<nclistlength(gs->zarr.codec_defaults);i++) {
-	    struct CodecAPI* codec = (struct CodecAPI*)nclistget(gs->zarr.codec_defaults,i);
-	    fprintf(stderr," %d",codec->codec->hdf5id);	    
-	}
-	fprintf(stderr,"\n");
-    }
-#endif
     if(nclistlength(gs->zarr.codec_defaults)) { /* Try to provide default for any HDF5 filters without matching Codec. */
         /* Search the defaults */
 	for(j=0;j<nclistlength(gs->zarr.codec_defaults);j++) {
@@ -227,9 +232,6 @@ NCZ_load_all_plugins(void)
 	        p = gs->zarr.loaded_plugins[hdf5id]; /* get candidate */
 	        if(p != NULL && p->hdf5.filter != NULL
                    && p->codec.codec == NULL) {
-#ifdef DEBUGL
-	            fprintf(stderr,">>> DEBUGL: plugin defaulted: id=%u, codec=%s src=%s\n",hdf5id,codec->codecid,dfalt->codeclib->path);
-#endif
 		    p->codec.codec = codec;
 		    p->codec.codeclib = dfalt->codeclib;
 		    p->codec.defaulted = 1;
@@ -247,15 +249,7 @@ NCZ_load_all_plugins(void)
 		if(p->hdf5.filter == NULL || p->codec.codec == NULL) {
 		    /* mark this entry as incomplete */
 		    p->incomplete = 1;
-#ifdef DEBUGL
-		    fprintf(stderr,">>>  DEBUGL: Incomplete plugin: id=%u; reasons: %s %s\n",i,
-		    		(p->hdf5.filter==NULL?"hdf5":""),(p->codec.codec==NULL?"codec":""));
-#endif
 		}
-#ifdef DEBUGL
-		else
-		    fprintf(stderr,">>> DEBUGL: plugin accepted: id=%u\n",i);
-#endif
 	    }
 	}
     }
@@ -269,9 +263,6 @@ NCZ_load_all_plugins(void)
 		if(p->hdf5.filter != NULL && p->codec.codec != NULL) {
 		    if(p->codec.codec && p->codec.codec->NCZ_codec_initialize)
 			p->codec.codec->NCZ_codec_initialize();
-#ifdef DEBUGL
-		    fprintf(stderr,">>> DEBUGL: plugin initialized: id=%u\n",p->hdf5.filter->id);
-#endif
 		}
 	    }
 	}
@@ -297,9 +288,6 @@ NCZ_load_plugin_dir(const char* path)
 
     ZTRACE(7,"path=%s",path);
 
-#ifdef DEBUGL
-   fprintf(stderr,">>> DEBUGL: NCZ_load_plugin_dir: path=%s\n",path);
-#endif
 
     if(path == NULL) {stat = NC_EINVAL; goto done;}
     pathlen = strlen(path);
@@ -334,13 +322,7 @@ NCZ_load_plugin_dir(const char* path)
 	    if(gs->zarr.loaded_plugins[id] == NULL) {
 	        gs->zarr.loaded_plugins[id] = plugin;
 		if(id > gs->zarr.loaded_plugins_max) gs->zarr.loaded_plugins_max = id;
-#ifdef DEBUGL
-		fprintf(stderr,">>> DEBUGL: plugin loaded: %s\n",printplugin(plugin));
-#endif
 	    } else {
-#ifdef DEBUGL
-		fprintf(stderr,">>> DEBUGL: plugin duplicate: %s\n",printplugin(plugin));
-#endif
 	        NCZ_unload_plugin(plugin); /* its a duplicate */
 	    }
 	} else
@@ -381,9 +363,6 @@ NCZ_load_plugin(const char* path, struct NCZ_Plugin** plugp)
     if((stat = ncpsharedlibnew(&lib))) goto done;
     if((stat = ncpload(lib,path,flags))) goto done;
 
-#ifdef DEBUGL
-   fprintf(stderr,">>> DEBUGL: NCZ_load_plugin: path=%s lib=%p\n",path,lib);
-#endif
 
     /* See what we have */
     {
@@ -415,19 +394,9 @@ NCZ_load_plugin(const char* path, struct NCZ_Plugin** plugp)
         }
     }
 
-#ifdef DEBUGL
-fprintf(stderr,">>> DEBUGL: load: %s:",path);
-if(h5class) fprintf(stderr,">>>  %u",(unsigned)h5class->id);
-if(codec) fprintf(stderr,">>>  %u/%s",codec->hdf5id,codec->codecid);
-fprintf(stderr,">>> \n");
-#endif
-
     /* Handle defaults separately */
     if(cp != NULL) {
 	int used = 0;
-#ifdef DEBUGL
-        fprintf(stderr,"@@@ %s: default codec library found: %p\n",path,cp);
-#endif
         if((stat = loadcodecdefaults(path,cp,lib,&used))) goto done;
 	if(used) lib = NULL;
 	goto done;
@@ -469,10 +438,6 @@ fprintf(stderr,">>> \n");
 	plugin->codec.codeclib = lib;
 	lib = NULL;
     }
-#ifdef DEBUGL
-    if(plugin)
-       fprintf(stderr,">>> DEBUGL: load_plugin: %s\n",printplugin(plugin));
-#endif
     /* Cleanup */
     if(plugin->hdf5.hdf5lib == plugin->codec.codeclib) /* Works for NULL case also */
 	plugin->codec.codeclib = NULL;
@@ -494,9 +459,6 @@ NCZ_unload_plugin(NCZ_Plugin* plugin)
     ZTRACE(9,"plugin=%p",plugin);
 
     if(plugin) {
-#ifdef DEBUGL
-        fprintf(stderr,">>> DEBUGL: unload: %s\n",printplugin(plugin));
-#endif
 	if(plugin->codec.codec && plugin->codec.codec->NCZ_codec_finalize)
 		plugin->codec.codec->NCZ_codec_finalize();
         if(plugin->hdf5.filter != NULL) gs->zarr.loaded_plugins[plugin->hdf5.filter->id] = NULL;
@@ -572,9 +534,6 @@ assert(gs->zarr.default_libs != NULL);
     nclistpush(gs->zarr.default_libs,lib);
     for(;*cp;cp++) {
         struct CodecAPI* c0;
-#ifdef DEBUGL
-        fprintf(stderr,"@@@ %s: %s = %u\n",path,(*cp)->codecid,(*cp)->hdf5id);
-#endif
         c0 = (struct CodecAPI*)calloc(1,sizeof(struct CodecAPI));
 	if(c0 == NULL) {stat = NC_ENOMEM; goto done;}
         c0->codec = *cp;
