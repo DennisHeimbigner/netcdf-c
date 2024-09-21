@@ -27,6 +27,10 @@ IF(NETCDF_ENABLE_HDF5)
   ENDIF(NOT WIN32)
   build_bin_test(tst_reclaim ${XGETOPTSRC})
   add_sh_test(unit_test run_reclaim_tests)
+  if(NETCDF_ENABLE_NCZARR_FILTERS
+    build_bin_test(tst_pluginpaths ${XGETOPTSRC})
+    add_sh_test(unit_test run_pluginpaths.sh)
+  endif()
 ENDIF(NETCDF_ENABLE_HDF5)
 
 # Path convert test(s)

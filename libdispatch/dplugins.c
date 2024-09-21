@@ -115,7 +115,7 @@ nc_plugin_path_initialize(void)
     gs->pluginpaths = dirs; dirs = NULL;
 
     /* Sync to the actual implementations */
-#ifdef NETCDF_ENABLE_NCZARR
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     if((stat = NCZ_plugin_path_initialize())) goto done;    
 #endif
 #ifdef USE_HDF5
@@ -149,7 +149,7 @@ nc_plugin_path_finalize(void)
     NC_plugin_path_verify = 0;
 
     /* Finalize the actual implementatios */
-#ifdef NETCDF_ENABLE_NCZARR
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     if((stat = NCZ_plugin_path_finalize())) goto done;    
 #endif
 #ifdef USE_HDF5
@@ -267,7 +267,7 @@ nc_plugin_path_set(size_t ndirs, char** const dirs)
 #ifdef NETCDF_ENABLE_HDF5
     if((stat = NC4_hdf5_plugin_path_set(ndirs,dirs))) goto done;
 #endif
-#ifdef NETCDF_ENABLE_NCZARR
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     if((stat = NCZ_plugin_path_set(ndirs,dirs))) goto done;
 #endif
 

@@ -41,10 +41,11 @@ TESTS += tst_nc4internal
 TESTS += run_reclaim_tests.sh
 endif # USE_HDF5
 
-# Test for USE_NETCDF4
-if USE_NETCDF4
+if USE_HDF5
+if NETCDF_ENABLE_NCZARR_FILTERS
 check_PROGRAMS += tst_pluginpaths
 TESTS += run_pluginpaths.sh
+endif
 endif
 
 if NETCDF_ENABLE_S3
