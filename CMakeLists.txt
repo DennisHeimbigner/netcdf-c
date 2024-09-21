@@ -742,10 +742,10 @@ if(NOT WIN32)
 endif()
 
 # Options for S3 Support
-#option(NETCDF_ENABLE_S3 "Enable S3 support." OFF)
 option(NETCDF_ENABLE_S3_AWS "Enable S3 support via AWS-CPP-SDK" OFF)
 option(NETCDF_ENABLE_S3_INTERNAL "Enable S3 Internal support." OFF)
 
+#option(NETCDF_ENABLE_S3 "Enable S3 support." OFF)
 cmake_dependent_option(NETCDF_ENABLE_S3 "Enable S3 Support" ON "NETCDF_ENABLE_S3_AWS OR NETCDF_ENABLE_S3_INTERNAL" OFF)
 
 option(NETCDF_ENABLE_NCZARR_S3 "Enable NCZarr S3 support; Deprecated in favor of NETCDF_ENABLE_S3" ${NETCDF_ENABLE_S3})

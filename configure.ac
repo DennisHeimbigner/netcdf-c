@@ -1,4 +1,4 @@
-o#                                               -*- Autoconf -*-
+#                                               -*- Autoconf -*-
 ## Process this file with autoconf to produce a configure script.
 
 # This is part of Unidata's netCDF package. Copyright 2005-2018, see
@@ -923,8 +923,6 @@ else
    AC_MSG_RESULT([${have_zip}])
    enable_nczarr_zip=${have_zip} # alias
 
-
-
    AC_MSG_CHECKING([whether nczarr zip support is enabled])
    AC_MSG_RESULT([${enable_nczarr_zip}])
 
@@ -936,14 +934,9 @@ else
    AC_MSG_CHECKING([whether netcdf S3 support should be enabled])
    AC_ARG_ENABLE([s3],
                [AS_HELP_STRING([--enable-s3],
-                                 [enable netcdf S3 support])])
+                                 [enable netcdf S3 support (default off)])])
    test "x$enable_s3" = xyes || enable_s3=no
    AC_MSG_RESULT($enable_s3)
-
-   if test "x$enable_remote_functionality" = xno ; then
-   AC_MSG_WARN([--disable-remote-functionality => --disable-s3])
-   enable_s3=no
-   fi
 
    # --enable-nczarr-s3 is synonym for --enable-s3 (but...)
    AC_MSG_CHECKING([whether netcdf NCZarr S3 support should be enabled])
@@ -953,10 +946,15 @@ else
    AC_MSG_RESULT([$enable_nczarr_s3 (Deprecated) Please use --enable-s3)])
 
    # Set enable_s3 instead of enable_nczarr_s3
-   if test "x$enable_s3" = xno && test "x$enable_nczarr_s3" = xyes && test "x$enable_remote_functionality" = xyes; then
+   if test "x$enable_s3" = xno && test "x$enable_nczarr_s3" = xyes ; then
    enable_s3=yes # back compatibility
    fi
    unset enable_nczarr_s3
+
+   if test "x$enable_remote_functionality" = xno ; then
+   AC_MSG_WARN([--disable-remote-functionality => --disable-s3])
+   enable_s3=no
+   fi
 
    # Note we check for the library after checking for enable_s3
    # because for some reason this fails if we unconditionally test for sdk
