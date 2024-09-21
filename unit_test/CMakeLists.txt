@@ -29,7 +29,7 @@ IF(NETCDF_ENABLE_HDF5)
   add_sh_test(unit_test run_reclaim_tests)
   if(NETCDF_ENABLE_NCZARR_FILTERS)
     build_bin_test(tst_pluginpaths ${XGETOPTSRC})
-    add_sh_test(unit_test run_pluginpaths.sh)
+    add_sh_test(unit_test run_pluginpaths)
   endif()
 ENDIF(NETCDF_ENABLE_HDF5)
 
