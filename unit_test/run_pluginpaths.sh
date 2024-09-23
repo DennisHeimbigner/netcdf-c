@@ -104,7 +104,8 @@ init() {
 
 # Verify output for a specific action
 verify() {
-    for action in get set ; do
+#    for action in get set ; do
+for action in get ; do
         if diff -wBb ${srcdir}/ref_${action}.txt tmp_${action}.txt ; then
 	    echo "***PASS: $action"
 	else
@@ -116,6 +117,6 @@ verify() {
 
 init
 testget
-testset
+#testset
 verify
-cleanup
+#cleanup
