@@ -19,6 +19,9 @@
 #include "zfilter.h"
 #include "ncplugins.h"
 #include "zplugins.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 /**************************************************/
 /* Forward */
@@ -29,7 +32,7 @@ static int NCZ_plugin_save(size_t filterid, NCZ_Plugin* p);
 static int getentries(const char* path, NClist* contents);
 static int loadcodecdefaults(const char* path, const NCZ_codec_t** cp, NCPSharedLib* lib, int* lib_usedp);
 
-#ifdef NAMEOPT
+#if defined(NAMEOPT) || defined(_WIN32)
 static int pluginnamecheck(const char* name);
 #endif
 
@@ -542,7 +545,7 @@ done:
     return stat;
 }
 
-#ifdef NAMEOPT
+#if defined(NAMEOPT) || defined(_WIN32)
 static int
 pluginnamecheck(const char* name)
 {

@@ -69,7 +69,9 @@ file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/netcdf_json.h "#endif /*NETCDF_JSON_H*/\
 # Built source: netcdf_proplist.h
 file(READ ncproplist.h PLISTH0)
 STRING(REPLACE "NCPROPLIST_H" "NETCF_PROPLIST_H" PLISTH1 "${PLISTH0}")
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/netcdf_proplist.h "${PLISTH1}")
+STRING(REGEX REPLACE "OPTEXPORT[ ]+__declspec[(]dllexport[)]" "OPTEXPORT static" PLISTH2 "${PLISTH1}")
+STRING(REGEX REPLACE "OPTEXPORT[ ]+extern" "OPTEXPORT static" PLISTH3 "${PLISTH2}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/netcdf_proplist.h "${PLISTH3}")
 file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/netcdf_proplist.h "#ifdef NETCDF_PROPLIST_H\n")
 file(READ ${CMAKE_SOURCE_DIR}/libdispatch/ncproplist.c PLISTC0)
 STRING(REGEX REPLACE "#include[ ]+\"ncproplist.h\"" "" PLISTC1 "${PLISTC0}")

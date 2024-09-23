@@ -2,21 +2,19 @@
    See the COPYRIGHT file for more information.
 */
 
-
 #ifndef NCJSON_H
 #define NCJSON_H 1
 
-/* Override for plugins */
 #ifndef OPTEXPORT
-#  ifdef NETCDF_JSON_H
-#    define OPTEXPORT static
-#  else /*!NETCDF_JSON_H*/
-#    ifdef _WIN32
-#      define OPTEXPORT declspec(dllexport)
-#    else
-#      define OPTEXPORT
-#    endif /*_WIN32*/
-#  endif /*NETCDF_JSON_H*/
+#ifdef NETCDF_JSON_H
+#define OPTEXPORT static
+#else /*!NETCDF_JSON_H*/
+#ifdef _WIN32
+#define OPTEXPORT __declspec(dllexport)
+#else
+#define OPTEXPORT extern
+#endif
+#endif /*NETCDF_JSON_H*/
 #endif /*OPTEXPORT*/
 
 /**************************************************/
@@ -139,5 +137,6 @@ OPTEXPORT const char* NCJtotext(const NCjson* json);
 /**************************************************/
 
 #endif /*NCJSON_H*/
+
 
 

@@ -9,15 +9,11 @@
 
 /* Override for plugins */
 #ifndef OPTEXPORT
-#  ifdef NETCDF_PROPLIST_H
-#    define OPTEXPORT static
-#  else /*!NETCDF_PROPLIST_H*/
-#    ifdef _WIN32
-#      define OPTEXPORT declspec(dllexport)
-#    else
-#      define OPTEXPORT
-#    endif /*_WIN32*/
-#  endif /*NETCDF_PROPLIST_H*/
+#ifdef _WIN32
+#define OPTEXPORT __declspec(dllexport)
+#else
+#define OPTEXPORT extern
+#endif
 #endif /*OPTEXPORT*/
 
 /**************************************************/
