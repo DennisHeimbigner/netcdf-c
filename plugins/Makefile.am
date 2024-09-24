@@ -119,6 +119,23 @@ lib__nch5bzip2_la_SOURCES += ${BZIP2SRC}
 endif
 plugins_to_install += lib__nch5bzip2.la
 
+MSVCX = chkstk.asm
+lib__nch5shuffle_la_SOURCES += ${MSVCX}
+lib__nch5fletcher32_la_SOURCES += ${MSVCX}
+lib__nch5deflate_la_SOURCES += ${MSVCX}
+lib__nch5szip_la_SOURCES += ${MSVCX}
+lib__nch5blosc_la_SOURCES += ${MSVCX}
+lib__nch5zstd_la_SOURCES += ${MSVCX}
+lib__nczstdfilters_la_SOURCES += ${MSVCX}
+lib__nczhdf5filters_la_SOURCES += ${MSVCX}
+lib__nch5noop_la_SOURCES += ${MSVCX}
+lib__nch5noop1_la_SOURCES += ${MSVCX}
+lib__nch5misc_la_SOURCES += ${MSVCX}
+lib__nczmisc_la_SOURCES += ${MSVCX}
+lib__nch5unknown_la_SOURCES += ${MSVCX}
+lib__nch5bzip2_la_SOURCES += ${MSVCX}
+lib__nch5bzip2_la_SOURCES += ${MSVCX}
+
 if ENABLE_PLUGIN_DIR
 plugin_LTLIBRARIES += $(plugins_to_install)
 else

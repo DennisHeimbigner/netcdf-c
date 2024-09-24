@@ -53,10 +53,7 @@ BUILT_SOURCES = netcdf_json.h netcdf_proplist.h
 # Give the recipe for building netcdf_json.h
 netcdf_json.h: ${top_srcdir}/libdispatch/ncjson.c ${top_srcdir}/include/ncjson.h ${top_srcdir}/include/ncexternl.h
 	rm -fr ${srcdir}/netcdf_json.h
-	cat ${srcdir}/ncjson.h \
-	| sed -e 's/NCJSON_H/NETCDF_JSON_H/' \
-	|     -e 's/^#[ ]*define[ ][ ]*OPTEXPORT[ ].*$/#define OPTEXPORT static/'
-	| cat >> ${srcdir}/netcdf_json.h
+	cat ${srcdir}/ncjson.h | sed -e 's/NCJSON_H/NETCDF_JSON_H/' >> ${srcdir}/netcdf_json.h
 	echo '#ifdef NETCDF_JSON_H' >> netcdf_json.h
 	sed -e '/ncjson.h/d' < ${srcdir}/../libdispatch/ncjson.c >> ${srcdir}/netcdf_json.h
 	echo '#endif /*NETCDF_JSON_H*/' >> ${srcdir}/netcdf_json.h
@@ -65,10 +62,7 @@ netcdf_json.h: ${top_srcdir}/libdispatch/ncjson.c ${top_srcdir}/include/ncjson.h
 # Give the recipe for building netcdf_proplist.h. Basically same as for netcdf_json.h
 netcdf_proplist.h: ${top_srcdir}/libdispatch/ncproplist.c ${top_srcdir}/include/ncproplist.h ${top_srcdir}/include/ncexternl.h
 	rm -fr ${srcdir}/netcdf_proplist.h
-	cat ${srcdir}/ncproplist.h \
-	| sed -e 's/NCPROPLIST_H/NETCDF_PROPLIST_H/' \
-	|     -e 's/^#[ ]*define[ ][ ]*OPTEXPORT[ ].*$/#define OPTEXPORT static/'
-	| cat >> ${srcdir}/netcdf_proplist.h
+	cat ${srcdir}/ncproplist.h | sed -e 's/NCPROPLIST_H/NETCDF_PROPLIST_H/' >> ${srcdir}/netcdf_proplist.h
 	echo '#ifdef NETCDF_PROPLIST_H' >> netcdf_proplist.h
 	sed -e '/ncproplist.h/d' < ${srcdir}/../libdispatch/ncproplist.c >> ${srcdir}/netcdf_proplist.h
 	echo '#endif /*NETCDF_PROPLIST_H*/' >> ${srcdir}/netcdf_proplist.h

@@ -10,7 +10,7 @@ cmake_minimum_required(VERSION 3.20.0)
 
 #Project Name
 project(netCDF
-  LANGUAGES C CXX
+  LANGUAGES C CXX ASM
   HOMEPAGE_URL "https://www.unidata.ucar.edu/software/netcdf/"
   DESCRIPTION "NetCDF is a set of software libraries and machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data."
   VERSION 4.9.4
@@ -67,6 +67,10 @@ endif ()
 option(BUILD_SHARED_LIBS "Configure netCDF as a shared library." ON)
 if(BUILD_SHARED_LIBS)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
+if(MSVC)
+add_compile_options("/Gs10000000")
 endif()
 
 add_library(netcdf)

@@ -7,13 +7,16 @@
 #ifndef NCPROPLIST_H
 #define NCPROPLIST_H
 
-/* Override for plugins */
 #ifndef OPTEXPORT
+#ifdef NETCDF_PROPLIST_H
+#define OPTEXPORT static
+#else /*!NETCDF_PROPLIST_H*/
 #ifdef _WIN32
 #define OPTEXPORT __declspec(dllexport)
 #else
 #define OPTEXPORT extern
 #endif
+#endif /*NETCDF_PROPLIST_H*/
 #endif /*OPTEXPORT*/
 
 /**************************************************/

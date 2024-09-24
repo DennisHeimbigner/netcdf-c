@@ -3,7 +3,7 @@
 */
 
 #ifndef NCJSON_H
-#define NCJSON_H 1
+#define NCJSON_H
 
 #ifndef OPTEXPORT
 #ifdef NETCDF_JSON_H

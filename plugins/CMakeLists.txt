@@ -100,7 +100,7 @@ else()
 endif()
 
 if(NETCDF_ENABLE_ZSTD)
-  set(h5zstd_SOURCES H5Zzstd.c H5Zzstd.h)
+  set(h5zstd_SOURCES H5Zzstd.c H5Zzstd.h chkstk.asm)
   buildplugin(h5zstd "h5zstd" ${Zstd_LIBRARIES})
 endif()
 
@@ -117,7 +117,6 @@ else()
   set(h5bzip2_SOURCES H5Zbzip2.c)
   buildplugin(h5bzip2 "h5bzip2" ${Bzip2_LIBRARIES})
 endif()
-
 
 # Installation
 if(ENABLE_PLUGIN_INSTALL)
