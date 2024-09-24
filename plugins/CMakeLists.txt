@@ -100,7 +100,7 @@ else()
 endif()
 
 if(NETCDF_ENABLE_ZSTD)
-  set(h5zstd_SOURCES H5Zzstd.c H5Zzstd.h chkstk.asm)
+  set(h5zstd_SOURCES H5Zzstd.c H5Zzstd.h)
   buildplugin(h5zstd "h5zstd" ${Zstd_LIBRARIES})
 endif()
 
