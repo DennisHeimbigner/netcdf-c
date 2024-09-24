@@ -88,11 +88,6 @@ target_sources(netcdf
     ${CMAKE_CURRENT_SOURCE_DIR}/nc_initialize.c 
 )
 
-target_sources(netcdf
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/chkstk.asm
-)
-
 if(STATUS_PARALLEL)
   target_link_libraries(netcdf PUBLIC MPI::MPI_C)
 endif(STATUS_PARALLEL)
