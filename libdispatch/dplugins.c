@@ -42,14 +42,6 @@ Unified plugin related code
 /* Control path verification */
 #define PLUGINPATHVERIFY "NC_PLUGIN_PATH_VERIFY"
 
-/* Initializers/Finalizers for the implementations */
-#ifdef NETCDF_ENABLE_HDF5
-extern int NC4_hdf5_plugin_path_finalize(void);
-#endif
-#ifdef NETCDF_ENABLE_NCZARR
-extern int NCZ__plugin_path_finalize(void);
-#endif
-
 static int NC_plugin_path_initialized = 0;
 static int NC_plugin_path_verify = 1;
 
