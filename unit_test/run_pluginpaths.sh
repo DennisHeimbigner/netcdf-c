@@ -3,6 +3,8 @@
 # Test the programmatic API for manipulating the plugin paths.
 # This script is still full of cruft that needs to be removed
 
+export SETX=1
+
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
