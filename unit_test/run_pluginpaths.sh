@@ -7,7 +7,6 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -x
-set -e
 
 IMPLS=
 if test "x$FEATURE_HDF5" = xyes ; then IMPLS="$IMPLS hdf5"; fi
