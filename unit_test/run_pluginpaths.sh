@@ -116,6 +116,6 @@ for action in get ; do
 
 init
 testget
-#testset
+testset
 verify
-#cleanup
+cleanup
