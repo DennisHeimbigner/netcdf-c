@@ -211,7 +211,7 @@ fprintf(stderr,"$$$ ncmds=%d\n",(int)ncmds);
 	descape(dumpoptions.actions[i].name);
 	descape(dumpoptions.actions[i].arg);
 	dumpoptions.actions[i].action = decodeop(dumpoptions.actions[i].name);
-fprintf(stderr,"$$$ [%d] name=|%s| arg=|%d|\n",(int)i,dumpoptions.actions[i].name,dumpoptions.actions[i].arg);
+fprintf(stderr,"$$$ [%d] name=|%s| arg=|%s|\n",(int)i,dumpoptions.actions[i].name,dumpoptions.actions[i].arg);
     }
     return;
 }
