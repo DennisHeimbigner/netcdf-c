@@ -3,11 +3,12 @@
 # Test the programmatic API for manipulating the plugin paths.
 # This script is still full of cruft that needs to be removed
 
+export SETX=1
+set -x
+
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
-
-set -x
 
 IMPLS=
 if test "x$FEATURE_HDF5" = xyes ; then IMPLS="$IMPLS hdf5"; fi
