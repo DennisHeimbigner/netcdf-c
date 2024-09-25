@@ -198,7 +198,9 @@ fi
 fi
 
 # OS/X and windows apparently have no echo -n option, so fake it
-if test "x$FP_ISMSVC" = xyes || test "x$FP_ISOSX" = xyes ; then
+echo "@@@FP_ISMSVC=${FP_ISMSVC}"
+echo "@@@FP_ISOSX=${FP_ISOSX}"
+if test "x${FP_ISMSVC}" = xyes || test "x${FP_ISOSX}" = xyes ; then
 #echon() { echo "$@" | tr -d '\r\n' ; }
 echon() {
 echo "$@" | tr -d '\r\n'
