@@ -1369,8 +1369,8 @@ endif(NETCDF_ENABLE_MMAP)
 # Used in the `configure_file` calls below
 set(ISCMAKE "yes")
 if(MSVC)
-  set(ISMSVC YES CACHE BOOL "" FORCE)
-  set(REGEDIT YES CACHE BOOL "" FORCE)
+  set(ISMSVC yes CACHE BOOL "" FORCE)
+  set(REGEDIT yes CACHE BOOL "" FORCE)
   # Get windows major version and build number
   execute_process(COMMAND "systeminfo" OUTPUT_VARIABLE WININFO)
   if(WININFO STREQUAL "")
