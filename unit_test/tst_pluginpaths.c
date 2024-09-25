@@ -22,6 +22,10 @@
 #include "XGetopt.h"
 #endif
 
+#ifdef _WIN32
+#include "windows.h"
+#endif
+
 #include "netcdf.h"
 #include "netcdf_filter.h"
 #include "netcdf_aux.h"
@@ -305,9 +309,12 @@ main(int argc, char** argv)
     size_t i;
 
 #ifdef _WIN32
-    /* Convert \r\n -> \n output on stdout */
-    if(freopen(0, "wb", stdout)==0)
-	{fprintf(stderr,"@@@@ freopen failed\n"); fflush(stderr);}
+    /* suppress \r\n output on stdout */
+    {
+	int fd = _fileno(stdout);
+        if(_setmode(fd,_O_BINARY)==0)
+	    {fprintf(stderr,"@@@@ _setmode failed: %d\n",fd); fflush(stderr);}
+    }
 #endif
 
     /* Init options */
