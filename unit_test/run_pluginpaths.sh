@@ -125,5 +125,5 @@ testset
 echo "======="
 cat tmp_set.txt
 echo "======="
-#verify
+verify
 #cleanup
