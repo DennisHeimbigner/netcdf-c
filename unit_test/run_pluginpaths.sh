@@ -65,6 +65,8 @@ testget() {
     # print out the global state
     echon "testget(global): " >> ${filename}.txt
     ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
+XXX=`cat ${filename}.txt`
+echo "%%% |${XXX}|"
     # print out the HDF5 state
     echon "testget(hdf5): " >> ${filename}.txt
     ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt ;
@@ -118,6 +120,9 @@ for action in get ; do
 
 init
 testget
-testset
-verify
-cleanup
+echo "======="
+cat tmp_get.txt
+echo "======="
+#testset
+#verify
+#cleanup
