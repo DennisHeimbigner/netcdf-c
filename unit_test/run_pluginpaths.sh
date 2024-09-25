@@ -9,7 +9,6 @@ set -x
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
-
 IMPLS=
 if test "x$FEATURE_HDF5" = xyes ; then IMPLS="$IMPLS hdf5"; fi
 if test "x$FEATURE_NCZARR" = xyes ; then IMPLS="$IMPLS nczarr"; fi
@@ -63,41 +62,46 @@ modfor() {
 # It is difficult to test for outside interference, so not attempted.
 testget() {
     filenamefor tmp get
+    # Accumulate the output to avoid use of echo
+    TMPGET=
     # print out the global state
-    echon "testget(global): " >> ${filename}.txt
-XX=`cat tmp_get.txt`; echo "@@@ 1 |${XX}|"
-    ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
-XX=`cat tmp_get.txt`; echo "@@@ 2 |${XX}|"
+    TMPGET="testget(global): "
+    TMP=`${TP} -x "set:${DFALT},get:global"`
+    TMPGET="${TMPGET}${TMP}"
     # print out the HDF5 state
-    echon "testget(hdf5): " >> ${filename}.txt
-XX=`cat tmp_get.txt`; echo "@@@ 3 |${XX}|"
-    ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt ;
-XX=`cat tmp_get.txt`; echo "@@@ 4 |${XX}|"
+    TMPGET="${TMPGET}testget(hdf5): "
+    TMP=`${TP} -x "set:${DFALT},get:hdf5"`
     # print out the NCZarr state
-    echon "testget(nczarr): " >> ${filename}.txt
-XX=`cat tmp_get.txt`; echo "@@@ 5 |${XX}|"
-    ${TP} -x "set:${DFALT},get:nczarr" >> ${filename}.txt ;
-XX=`cat tmp_get.txt`; echo "@@@ 6 |${XX}|"
-}                           
+    TMPGET="${TMPGET}testget(nczarr): "
+    TMP=`${TP} -x "set:${DFALT},get:nczarr"`
+    TMPGET="${TMPGET}${TMP}"
+    echo "$TMPGET" | tr -d '\r' | cat >> ${filename}.txt
+}
 
 # Set the global state to some value and verify that it was sync'd to hdf5 and nczarr
 testset() {
     filenamefor tmp set
     # print out the global state, modify it and print again
-    echon "testset(global): before: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
-    echon "testset(global): after: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},set:${DFALTSET},get:global" >> ${filename}.txt ;
+    TMPSET=
+    TMPSET="testset(global): before: "
+    TMP=`${TP} -x "set:${DFALT},get:global"`
+    TMPSET="${TMPSET}testset(global): after: "
+    TMP=`${TP} -x "set:${DFALT},set:${DFALTSET},get:global"`
+    TMPSET="${TMPSET}${TMP}"
     # print out the HDF5 state
-    echon "testset(hdf5): before: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt ;
-    echon "testset(hdf5): after: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},set:${DFALTSET},get:hdf5" >> ${filename}.txt ;
+    TMPSET="${TMPSET}testset(hdf5): before: "
+    TMP=`${TP} -x "set:${DFALT},get:hdf5"`
+    TMPSET="${TMPSET}${TMP}"
+    TMPSET="${TMPSET}testset(hdf5): after: "
+    TMP=`${TP} -x "set:${DFALT},set:${DFALTSET},get:hdf5"`
+    TMPSET="${TMPSET}${TMP}"
     # print out the NCZarr state
-    echon "testset(nczarr): before: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:nczarr" >> ${filename}.txt ;
-    echon "testset(nczarr): after: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},set:${DFALTSET},get:nczarr" >> ${filename}.txt ;
+    TMPSET="${TMPSET}testset(nczarr): before: "
+    TMP=`${TP} -x "set:${DFALT},get:nczarr"`
+    TMPSET="${TMPSET}testset(nczarr): after: "
+    TMP=`${TP} -x "set:${DFALT},set:${DFALTSET},get:nczarr"`
+    TMPSET="${TMPSET}${TMP}"
+    echo "$TMPGET" | tr -d '\r' | cat >> ${filename}.txt
 }                           
 
 #########################
@@ -125,6 +129,6 @@ for action in get ; do
 
 init
 testget
-#testset
+testset
 verify
-#cleanup
+cleanup
