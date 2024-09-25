@@ -213,7 +213,7 @@ echon() {
 echo -n "$@"
 }
 fi
-type -f echon
+declare -f echon
 # Test for filter availability
 avail() {
 if test yes = `${execdir}/../ncdump/ncfilteravail $1` ; then return 0 ; else echo "filter $1 not available" ; return 1; fi
