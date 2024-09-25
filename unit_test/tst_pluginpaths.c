@@ -307,7 +307,7 @@ main(int argc, char** argv)
 #ifdef _WIN32
     /* Convert \r\n -> \n output on stdout */
     if(freopen(0, "wb", stdout)==0)
-	abort();
+	{fprintf(stderr,"@@@@ freopen failed\n"); fflush(stderr);}
 #endif
 
     /* Init options */
