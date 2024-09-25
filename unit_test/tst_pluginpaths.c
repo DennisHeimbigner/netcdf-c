@@ -172,8 +172,10 @@ parseactionlist(const char* cmds0)
     strncpy(cmds,cmds0,cmdlen);
     /* split into command + formatx + arg strings and count */
     ncmds = 0;
+fprintf(stderr,"$$$ cmds=|%s|\n",cmds
     for(leave=0,p=cmds;!leave;p=q) {
 	q = xstrchr(p,',');
+fprintf(stderr,"$$$ p=|%s| q=|%s|\n",p,q);
 	if(q == NULL) {
 	    q = cmds+cmdlen; /* point to trailing nul */
 	    leave = 1;
@@ -182,6 +184,7 @@ parseactionlist(const char* cmds0)
 	}	
 	ncmds++;
     }
+fprintf(stderr,"$$$ ncmds=%d\n",(int)ncmds);
     if(ncmds > NACTIONS) {fprintf(stderr,"error: -x must have not more than %zu commands.\n",(size_t)NACTIONS); pluginusage();}
     dumpoptions.nactions = ncmds;
     /* Now process each command+formatx+arg triple */
