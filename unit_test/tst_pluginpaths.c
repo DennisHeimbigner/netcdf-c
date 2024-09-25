@@ -172,7 +172,7 @@ parseactionlist(const char* cmds0)
     strncpy(cmds,cmds0,cmdlen);
     /* split into command + formatx + arg strings and count */
     ncmds = 0;
-fprintf(stderr,"$$$ cmds=|%s|\n",cmds
+fprintf(stderr,"$$$ cmds=|%s|\n",cmds);
     for(leave=0,p=cmds;!leave;p=q) {
 	q = xstrchr(p,',');
 fprintf(stderr,"$$$ p=|%s| q=|%s|\n",p,q);
