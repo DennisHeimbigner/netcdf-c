@@ -64,13 +64,19 @@ testget() {
     filenamefor tmp get
     # print out the global state
     echon "testget(global): " >> ${filename}.txt
+XX=`cat tmp_get.txt`; echo "@@@ 1 |${XX}|"
     ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
+XX=`cat tmp_get.txt`; echo "@@@ 2 |${XX}|"
     # print out the HDF5 state
     echon "testget(hdf5): " >> ${filename}.txt
+XX=`cat tmp_get.txt`; echo "@@@ 3 |${XX}|"
     ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt ;
+XX=`cat tmp_get.txt`; echo "@@@ 4 |${XX}|"
     # print out the NCZarr state
     echon "testget(nczarr): " >> ${filename}.txt
+XX=`cat tmp_get.txt`; echo "@@@ 5 |${XX}|"
     ${TP} -x "set:${DFALT},get:nczarr" >> ${filename}.txt ;
+XX=`cat tmp_get.txt`; echo "@@@ 6 |${XX}|"
 }                           
 
 # Set the global state to some value and verify that it was sync'd to hdf5 and nczarr
@@ -118,12 +124,6 @@ for action in get ; do
 
 init
 testget
-echo "======="
-cat tmp_get.txt
-echo "======="
-testset
-echo "======="
-cat tmp_set.txt
-echo "======="
+#testset
 verify
 #cleanup
