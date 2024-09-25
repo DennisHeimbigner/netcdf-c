@@ -202,13 +202,18 @@ echo "@@@FP_ISMSVC=${FP_ISMSVC}"
 echo "@@@FP_ISOSX=${FP_ISOSX}"
 if test "x${FP_ISMSVC}" = xyes || test "x${FP_ISOSX}" = xyes ; then
 #echon() { echo "$@" | tr -d '\r\n' ; }
+echo "@@@case true"
 echon() {
 echo "$@" | tr -d '\r\n'
 }
 else
-alias echon='echo -n'
+echo "@@@case false"
+#alias echon='echo -n'
+echon() {
+echo -n "$@"
+}
 fi
-
+type -f echon
 # Test for filter availability
 avail() {
 if test yes = `${execdir}/../ncdump/ncfilteravail $1` ; then return 0 ; else echo "filter $1 not available" ; return 1; fi
