@@ -304,6 +304,12 @@ main(int argc, char** argv)
     int c;
     size_t i;
 
+#ifdef _WIN32
+    /* Convert \r\n -> \n output on stdout */
+    if(freopen(0, "wb", stdout)==0)
+	abort();
+#endif
+
     /* Init options */
     memset((void*)&dumpoptions,0,sizeof(dumpoptions));
 

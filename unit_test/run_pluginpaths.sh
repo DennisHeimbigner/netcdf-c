@@ -3,10 +3,9 @@
 # Test the programmatic API for manipulating the plugin paths.
 # This script is still full of cruft that needs to be removed
 
-export SETX=1
-
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
+
 
 set -x
 
@@ -32,7 +31,6 @@ cd $ISOPATH
 fi
 
 TP="${execdir}/tst_pluginpaths"
-NOCR="tr -d '\r'"
 
 filenamefor() {
   # tmp|ref_action
@@ -64,34 +62,34 @@ modfor() {
 testget() {
     filenamefor tmp get
     # print out the global state
-    echon "testget(global): " | ${NOCR} >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:global" | ${NOCR} >> ${filename}.txt ;
+    echon "testget(global): " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
     # print out the HDF5 state
-    echon "testget(hdf5): " | ${NOCR} >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:hdf5" | ${NOCR} >> ${filename}.txt ;
+    echon "testget(hdf5): " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt ;
     # print out the NCZarr state
-    echon "testget(nczarr): " | ${NOCR} >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:nczarr" | ${NOCR} >> ${filename}.txt ;
+    echon "testget(nczarr): " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:nczarr" >> ${filename}.txt ;
 }                           
 
 # Set the global state to some value and verify that it was sync'd to hdf5 and nczarr
 testset() {
     filenamefor tmp set
     # print out the global state, modify it and print again
-    echon "testset(global): before: " | ${NOCR} >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:global" | ${NOCR} >> ${filename}.txt ;
-    echon "testset(global): after: " | ${NOCR} >> ${filename}.txt
-    ${TP} -x "set:${DFALT},set:${DFALTSET},get:global" | ${NOCR} >> ${filename}.txt ;
+    echon "testset(global): before: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
+    echon "testset(global): after: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},set:${DFALTSET},get:global" >> ${filename}.txt ;
     # print out the HDF5 state
-    echon "testset(hdf5): before: " | ${NOCR} >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:hdf5" | ${NOCR} >> ${filename}.txt ;
-    echon "testset(hdf5): after: " | ${NOCR} >> ${filename}.txt
-    ${TP} -x "set:${DFALT},set:${DFALTSET},get:hdf5" | ${NOCR} >> ${filename}.txt ;
+    echon "testset(hdf5): before: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt ;
+    echon "testset(hdf5): after: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},set:${DFALTSET},get:hdf5" >> ${filename}.txt ;
     # print out the NCZarr state
-    echon "testset(nczarr): before: " | ${NOCR} >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:nczarr" | ${NOCR} >> ${filename}.txt ;
-    echon "testset(nczarr): after: " | ${NOCR} >> ${filename}.txt
-    ${TP} -x "set:${DFALT},set:${DFALTSET},get:nczarr" | ${NOCR} >> ${filename}.txt ;
+    echon "testset(nczarr): before: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:nczarr" >> ${filename}.txt ;
+    echon "testset(nczarr): after: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},set:${DFALTSET},get:nczarr" >> ${filename}.txt ;
 }                           
 
 #########################
