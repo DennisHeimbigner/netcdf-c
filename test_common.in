@@ -197,8 +197,15 @@ export HOME
 fi
 fi
 
-# OS/X apparently has no echo -n option, so fake it
-echon() { echo "$@" | tr -d '\r\n' ; }
+# OS/X and windows apparently have no echo -n option, so fake it
+if test "x$FP_ISMSVC" = xyes || test "x$FP_ISOSX" = xyes ; then
+#echon() { echo "$@" | tr -d '\r\n' ; }
+echon() {
+echo "$@" | tr -d '\r\n'
+}
+else
+alias echon='echo -n'
+fi
 
 # Test for filter availability
 avail() {
