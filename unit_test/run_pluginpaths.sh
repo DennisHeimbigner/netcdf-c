@@ -117,7 +117,10 @@ for action in get ; do
 }
 
 init
-#testget
+testget
+echo "======="
+cat tmp_get.txt
+echo "======="
 testset
 echo "======="
 cat tmp_set.txt
