@@ -18,10 +18,11 @@ echo "IMPLS=|$IMPLS|"
 
 #VERBOSE=1
 
-DFALT="/zero;/one;/two;/three;/four"
-DFALTSET="/zero;/one;/mod;/two;/three;/four"
-DFALTHDF5="/zero;/one;/two;/hdf5;/three;/four"
-DFALTNCZARR="/zero;/one;/two;/nczarr;three;/four;/five"
+# Watch out because bash will convert '/' to '\\' on windows
+DFALT="\/zero;\/one;\/two;\/three;\/four"
+DFALTSET="\/zero;\/one;\/mod;\/two;\/three;\/four"
+DFALTHDF5="\/zero;\/one;\/two;\/hdf5;\/three;\/four"
+DFALTNCZARR="\/zero;\/one;\/two;\/nczarr;three;\/four;\/five"
 
 if test "x$TESTNCZARR" = x1 ; then
 . "$srcdir/test_nczarr.sh"
@@ -49,8 +50,8 @@ modfor() {
     local formatx="$1"
     local dfalt="$2"
     case "$formatx" in
-	hdf5) mod="${dfalt};/modhdf5" ;;
-	nczarr) mod="/modnczarr;${dfalt}" ;;
+	hdf5) mod="${dfalt};\/modhdf5" ;;
+	nczarr) mod="\/modnczarr;${dfalt}" ;;
 	all) mode="${dfalt}" ;;
     esac
 }
