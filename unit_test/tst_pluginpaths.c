@@ -22,14 +22,11 @@
 #include "XGetopt.h"
 #endif
 
-#ifdef _WIN32
-#include "windows.h"
-#endif
-
 #include "netcdf.h"
 #include "netcdf_filter.h"
 #include "netcdf_aux.h"
 #include "ncplugins.h"
+#include "ncpathmgr.h"
 
 #undef DEBUG
 
@@ -308,14 +305,9 @@ main(int argc, char** argv)
     int c;
     size_t i;
 
-#ifdef _WIN32
-    /* suppress \r\n output on stdout */
-    {
-	int fd = _fileno(stdout);
-        if(_setmode(fd,_O_BINARY)==0)
-	    {fprintf(stderr,"@@@@ _setmode failed: %d\n",fd); fflush(stderr);}
+    if((stat = NCstdbinary())) {
+	fprintf(stderr,"@@@@ NCstdbinary failed\n"); fflush(stderr);
     }
-#endif
 
     /* Init options */
     memset((void*)&dumpoptions,0,sizeof(dumpoptions));
