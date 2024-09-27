@@ -31,7 +31,7 @@
 #undef DEBUG
 
 /* Always use ';' as path separator */
-#define SEP ;
+#define SEP ';'
 
 /* Define max number of -x actions */
 #define NACTIONS 64
