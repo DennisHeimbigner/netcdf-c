@@ -18,10 +18,12 @@ echo "IMPLS=|$IMPLS|"
 
 #VERBOSE=1
 
-DFALT="/zero;/one;/two;/three;/four"
-DFALTSET="/zero;/one;/mod;/two;/three;/four"
-DFALTHDF5="/zero;/one;/two;/hdf5;/three;/four"
-DFALTNCZARR="/zero;/one;/two;/nczarr;three;/four;/five"
+# Bash under windows/mingw has bad habit of translating '/' to '\\'
+# for command line arguments
+DFALT="\/zero;\/one;\/two;\/three;\/four"
+DFALTSET="\/zero;\/one;\/mod;\/two;\/three;\/four"
+DFALTHDF5="\/zero;\/one;\/two;\/hdf5;\/three;\/four"
+DFALTNCZARR="\/zero;\/one;\/two;\/nczarr;three;\/four;\/five"
 
 if test "x$TESTNCZARR" = x1 ; then
 . "$srcdir/test_nczarr.sh"
@@ -49,8 +51,8 @@ modfor() {
     local formatx="$1"
     local dfalt="$2"
     case "$formatx" in
-	hdf5) mod="${dfalt};/modhdf5" ;;
-	nczarr) mod="/modnczarr;${dfalt}" ;;
+	hdf5) mod="${dfalt};\/modhdf5" ;;
+	nczarr) mod="\/modnczarr;${dfalt}" ;;
 	all) mode="${dfalt}" ;;
     esac
 }
@@ -63,9 +65,6 @@ testget() {
     filenamefor tmp get
     # print out the global state
     echon "testget(global): " >> ${filename}.txt
-echo "@@@"
-cat ${filename}.txt
-echo "@@@"
     ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
     # print out the HDF5 state
     echon "testget(hdf5): " >> ${filename}.txt
