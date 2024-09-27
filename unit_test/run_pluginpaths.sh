@@ -3,11 +3,11 @@
 # Test the programmatic API for manipulating the plugin paths.
 # This script is still full of cruft that needs to be removed
 
-export SETX=1
-set -x
-
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
+
+set -x
+set -e
 
 IMPLS=
 if test "x$FEATURE_HDF5" = xyes ; then IMPLS="$IMPLS hdf5"; fi
@@ -18,11 +18,10 @@ echo "IMPLS=|$IMPLS|"
 
 #VERBOSE=1
 
-# Watch out because bash will convert '/' to '\\' on windows
-DFALT="\/zero;\/one;\/two;\/three;\/four"
-DFALTSET="\/zero;\/one;\/mod;\/two;\/three;\/four"
-DFALTHDF5="\/zero;\/one;\/two;\/hdf5;\/three;\/four"
-DFALTNCZARR="\/zero;\/one;\/two;\/nczarr;three;\/four;\/five"
+DFALT="/zero;/one;/two;/three;/four"
+DFALTSET="/zero;/one;/mod;/two;/three;/four"
+DFALTHDF5="/zero;/one;/two;/hdf5;/three;/four"
+DFALTNCZARR="/zero;/one;/two;/nczarr;three;/four;/five"
 
 if test "x$TESTNCZARR" = x1 ; then
 . "$srcdir/test_nczarr.sh"
@@ -50,8 +49,8 @@ modfor() {
     local formatx="$1"
     local dfalt="$2"
     case "$formatx" in
-	hdf5) mod="${dfalt};\/modhdf5" ;;
-	nczarr) mod="\/modnczarr;${dfalt}" ;;
+	hdf5) mod="${dfalt};/modhdf5" ;;
+	nczarr) mod="/modnczarr;${dfalt}" ;;
 	all) mode="${dfalt}" ;;
     esac
 }
@@ -62,46 +61,35 @@ modfor() {
 # It is difficult to test for outside interference, so not attempted.
 testget() {
     filenamefor tmp get
-    # Accumulate the output to avoid use of echo
-    TMPGET=
     # print out the global state
-    TMPGET="testget(global): "
-    TMP=`${TP} -x "set:${DFALT},get:global"`
-    TMPGET="${TMPGET}${TMP}"
+    echon "testget(global): " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
     # print out the HDF5 state
-    TMPGET="${TMPGET}testget(hdf5): "
-    TMP=`${TP} -x "set:${DFALT},get:hdf5"`
+    echon "testget(hdf5): " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt ;
     # print out the NCZarr state
-    TMPGET="${TMPGET}testget(nczarr): "
-    TMP=`${TP} -x "set:${DFALT},get:nczarr"`
-    TMPGET="${TMPGET}${TMP}"
-    echo "$TMPGET" | tr -d '\r' | cat >> ${filename}.txt
-}
+    echon "testget(nczarr): " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:nczarr" >> ${filename}.txt ;
+}                           
 
 # Set the global state to some value and verify that it was sync'd to hdf5 and nczarr
 testset() {
     filenamefor tmp set
     # print out the global state, modify it and print again
-    TMPSET=
-    TMPSET="testset(global): before: "
-    TMP=`${TP} -x "set:${DFALT},get:global"`
-    TMPSET="${TMPSET}testset(global): after: "
-    TMP=`${TP} -x "set:${DFALT},set:${DFALTSET},get:global"`
-    TMPSET="${TMPSET}${TMP}"
+    echon "testset(global): before: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
+    echon "testset(global): after: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},set:${DFALTSET},get:global" >> ${filename}.txt ;
     # print out the HDF5 state
-    TMPSET="${TMPSET}testset(hdf5): before: "
-    TMP=`${TP} -x "set:${DFALT},get:hdf5"`
-    TMPSET="${TMPSET}${TMP}"
-    TMPSET="${TMPSET}testset(hdf5): after: "
-    TMP=`${TP} -x "set:${DFALT},set:${DFALTSET},get:hdf5"`
-    TMPSET="${TMPSET}${TMP}"
+    echon "testset(hdf5): before: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt ;
+    echon "testset(hdf5): after: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},set:${DFALTSET},get:hdf5" >> ${filename}.txt ;
     # print out the NCZarr state
-    TMPSET="${TMPSET}testset(nczarr): before: "
-    TMP=`${TP} -x "set:${DFALT},get:nczarr"`
-    TMPSET="${TMPSET}testset(nczarr): after: "
-    TMP=`${TP} -x "set:${DFALT},set:${DFALTSET},get:nczarr"`
-    TMPSET="${TMPSET}${TMP}"
-    echo "$TMPGET" | tr -d '\r' | cat >> ${filename}.txt
+    echon "testset(nczarr): before: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},get:nczarr" >> ${filename}.txt ;
+    echon "testset(nczarr): after: " >> ${filename}.txt
+    ${TP} -x "set:${DFALT},set:${DFALTSET},get:nczarr" >> ${filename}.txt ;
 }                           
 
 #########################
@@ -116,8 +104,7 @@ init() {
 
 # Verify output for a specific action
 verify() {
-#    for action in get set ; do
-for action in get ; do
+    for action in get set ; do
         if diff -wBb ${srcdir}/ref_${action}.txt tmp_${action}.txt ; then
 	    echo "***PASS: $action"
 	else
