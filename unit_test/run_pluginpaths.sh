@@ -20,7 +20,6 @@ echo "IMPLS=|$IMPLS|"
 
 # Bash under windows/mingw has bad habit of translating '/' to '\\'
 # for command line arguments
-#export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL="*" 
 
 DFALT="/zero;/one;/two;/three;/four"
@@ -67,8 +66,9 @@ modfor() {
 testget() {
     filenamefor tmp get
     # print out the global state
-    echon "testget(global): " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
+    printf "testset(global): %s" `${TP} -x "set:${DFALT},get:global"` >> ${filename}.txt
+#    echon "testget(global): " >> ${filename}.txt
+#    ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
     # print out the HDF5 state
     echon "testget(hdf5): " >> ${filename}.txt
     ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt ;
@@ -82,19 +82,19 @@ testset() {
     filenamefor tmp set
     # print out the global state, modify it and print again
     echon "testset(global): before: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
+    ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt
     echon "testset(global): after: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},set:${DFALTSET},get:global" >> ${filename}.txt ;
+    ${TP} -x "set:${DFALT},set:${DFALTSET},get:global" >> ${filename}.txt
     # print out the HDF5 state
     echon "testset(hdf5): before: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt ;
+    ${TP} -x "set:${DFALT},get:hdf5" >> ${filename}.txt
     echon "testset(hdf5): after: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},set:${DFALTSET},get:hdf5" >> ${filename}.txt ;
+    ${TP} -x "set:${DFALT},set:${DFALTSET},get:hdf5" >> ${filename}.txt
     # print out the NCZarr state
     echon "testset(nczarr): before: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},get:nczarr" >> ${filename}.txt ;
+    ${TP} -x "set:${DFALT},get:nczarr" >> ${filename}.txt
     echon "testset(nczarr): after: " >> ${filename}.txt
-    ${TP} -x "set:${DFALT},set:${DFALTSET},get:nczarr" >> ${filename}.txt ;
+    ${TP} -x "set:${DFALT},set:${DFALTSET},get:nczarr" >> ${filename}.txt
 }                           
 
 #########################
