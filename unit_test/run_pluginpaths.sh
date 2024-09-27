@@ -63,6 +63,9 @@ testget() {
     filenamefor tmp get
     # print out the global state
     echon "testget(global): " >> ${filename}.txt
+echo "@@@"
+cat ${filename}.txt
+echo "@@@"
     ${TP} -x "set:${DFALT},get:global" >> ${filename}.txt ;
     # print out the HDF5 state
     echon "testget(hdf5): " >> ${filename}.txt

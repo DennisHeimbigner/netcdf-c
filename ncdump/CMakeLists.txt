@@ -65,7 +65,7 @@ target_link_libraries(nccopy netcdf ${ALL_TLL_LIBS})
 target_link_libraries(ncvalidator netcdf ${ALL_TLL_LIBS})
 target_link_libraries(ncpathcvt netcdf ${ALL_TLL_LIBS})
 target_link_libraries(ncfilteravail netcdf ${ALL_TLL_LIBS})
-#target_link_libraries(echon netcdf ${ALL_TLL_LIBS})
+target_link_libraries(echon netcdf ${ALL_TLL_LIBS})
 
 if(NETCDF_ENABLE_DAP)
   target_link_libraries(ocprint netcdf ${ALL_TLL_LIBS})

@@ -198,7 +198,7 @@ fi
 
 # OS/X and windows apparently have no echo -n option, so fake it
 echon() {
-    ${abs_top_builddir}/ncdump/echon -n $@
+    ${execdir}/../ncdump/echon -n $@
 }
 
 # Test for filter availability
