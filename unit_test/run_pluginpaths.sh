@@ -66,7 +66,7 @@ modfor() {
 testget() {
     filenamefor tmp get
     # print out the global state
-    printf "testset(global): %s\n" `${TP} -x "set:${DFALT},get:global"` >> ${filename}.txt
+    printf "testget(global): %s\n" `${TP} -x "set:${DFALT},get:global"` >> ${filename}.txt
     # print out the HDF5 state
     printf "testget(hdf5): %s\n" `${TP} -x "set:${DFALT},get:hdf5"` >> ${filename}.txt ;
     # print out the NCZarr state
