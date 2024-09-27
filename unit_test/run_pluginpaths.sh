@@ -20,7 +20,8 @@ echo "IMPLS=|$IMPLS|"
 
 # Bash under windows/mingw has bad habit of translating '/' to '\\'
 # for command line arguments
-export MSYS_NO_PATHCONV=1
+#export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*" 
 
 DFALT="/zero;/one;/two;/three;/four"
 DFALTSET="/zero;/one;/mod;/two;/three;/four"
