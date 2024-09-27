@@ -30,6 +30,9 @@
 
 #undef DEBUG
 
+/* Always use ';' as path separator */
+#define SEP ;
+
 /* Define max number of -x actions */
 #define NACTIONS 64
 /* Define max length of -x action string */
@@ -244,9 +247,9 @@ getfrom(int formatx, char** textp)
 	break;
     default: abort();
     }
-    if((stat = ncaux_plugin_path_tostring(ndirs,dirs,0,&textlen,NULL))) goto done;
+    if((stat = ncaux_plugin_path_tostring(ndirs,dirs,SEP,&textlen,NULL))) goto done;
     if((text = (char*)malloc(textlen))==NULL) {stat = NC_ENOMEM; goto done;}
-    if((stat = ncaux_plugin_path_tostring(ndirs,dirs,0,&textlen,text))) goto done;
+    if((stat = ncaux_plugin_path_tostring(ndirs,dirs,SEP,&textlen,text))) goto done;
     *textp = text; text = NULL;
 done:
     nullfree(text);
