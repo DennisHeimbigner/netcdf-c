@@ -117,6 +117,29 @@ NCZ_plugin_path_finalize(void)
 }
 
 /**
+ * Return the length of the current sequence of directories
+ * in the internal global plugin path list.
+ * @param ndirsp length is returned here
+ * @return NC_NOERR | NC_EXXX
+ *
+ * @author Dennis Heimbigner
+ */
+int
+NCZ_plugin_path_ndirs(size_t* ndirsp)
+{
+    int stat = NC_NOERR;
+    size_t ndirs = 0;
+    struct NCglobalstate* gs = NC_getglobalstate();
+
+    if(gs->zarr.pluginpaths == NULL) gs->zarr.pluginpaths = nclistnew(); /* suspenders and belt */
+
+    ndirs = nclistlength(gs->zarr.pluginpaths);
+    if(ndirsp) *ndirsp = ndirs;
+done:
+    return THROW(stat);
+}
+
+/**
  * Return the current sequence of directories in the internal global
  * plugin path list. Since this function does not modify the plugin path,
  * it can be called at any time.

@@ -21,12 +21,14 @@ extern "C" {
 EXTERNL int NCZ_plugin_path_initialize(void);
 EXTERNL int NCZ_plugin_path_finalize(void);
 
+EXTERNL int NCZ_plugin_path_ndirs(size_t* ndirsp);
 EXTERNL int NCZ_plugin_path_get(struct NCPluginList* dirs);
 EXTERNL int NCZ_plugin_path_set(struct NCPluginList* dirs);
 
 EXTERNL int NC4_hdf5_plugin_path_initialize(void);
 EXTERNL int NC4_hdf5_plugin_path_finalize(void);
 
+EXTERNL int NC4_hdf5_plugin_path_ndirs(size_t* ndirsp);
 EXTERNL int NC4_hdf5_plugin_path_get(struct NCPluginList* dirs);
 EXTERNL int NC4_hdf5_plugin_path_set(struct NCPluginList* dirs);
 

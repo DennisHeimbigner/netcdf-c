@@ -40,13 +40,15 @@
 extern int NCstdbinary(void);
 
 static const char* USAGE =
-"ncpluginpath [-f global|hdf5|nczarr]"
+"ncpluginpath [-f global|hdf5|nczarr][-h][-n]"
 "Options\n"
 "  -f which plugin path to print.\n"
 "     global - print the global plugin path\n"
 "     hdf5 - print the hdf5 plugin path\n"
 "     nczarr - print the nczarr plugin path\n"
-" If -f is not specified, then it defaults to 'global'\n"
+"     If -f is not specified, then it defaults to 'global'\n"
+"  -h print the usage message\n"
+"  -n print the length of the current internal plugin path list\n"
 "\n"
 ;
 
@@ -125,15 +127,19 @@ main(int argc, char** argv)
     int c;
     int formatx = NC_FORMATX_UNDEFINED;
     char* text = NULL;
+    int ndirsflag = 0;
 
     NCstdbinary(); /* avoid \r\n on windows */
 
     nc_initialize();
 
-    while ((c = getopt(argc, argv, "f:")) != EOF) {
+    while ((c = getopt(argc, argv, "f:hn")) != EOF) {
 	switch(c) {
 	case 'f':
 	    formatx = getformatx(optarg);
+	    break;
+	case 'n':
+	    ndirsflag = 1;
 	    break;
 	case '?':
 	   usage("unknown option");
@@ -141,7 +147,15 @@ main(int argc, char** argv)
 	}
     }
 
-    if((stat = getfrom(formatx,&text))) goto done;
+    if(ndirsflag) {
+	size_t ndirs = 0;
+	char sndirs[64];
+	if((stat = nc_plugin_path_ndirs(&ndirs))) goto done;
+	snprintf(sndirs,sizeof(sndirs),"%zu",ndirs);
+	text = strdup(sndirs);
+    } else {
+        if((stat = getfrom(formatx,&text))) goto done;
+    }
     printf("%s",text); /* suppress trailing eol */
 done:
     nullfree(text);

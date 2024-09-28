@@ -30,6 +30,30 @@
 /**************************************************/
 
 /**
+ * Return the length of the current sequence of directories
+ * in the internal global plugin path list.
+ * @param ndirsp length is returned here
+ * @return NC_NOERR | NC_EXXX
+ *
+ * @author Dennis Heimbigner
+ */
+int
+NC4_hdf5_plugin_path_ndirs(size_t* ndirsp)
+{
+    int stat = NC_NOERR;
+    size_t ndirs = 0;
+    unsigned undirs = 0;  
+    herr_t hstat = 0;
+
+    /* Get the length of the HDF5 plugin path set */
+    if((hstat = H5PLsize(&undirs))<0) goto done;
+    ndirs = (size_t)undirs;
+    if(ndirsp) *ndirsp = ndirs;
+done:
+    return THROW(stat);
+}
+
+/**
  * Return the current sequence of directories in the internal global
  * plugin path list. Since this function does not modify the plugin path,
  * it can be called at any time.

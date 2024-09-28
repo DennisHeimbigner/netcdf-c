@@ -2128,52 +2128,61 @@ fi
 
 AC_SUBST(STD_FILTERS,[$std_filters])
 
+# Internally, the variable HDF5_PLUGIN_PATH
+# is always used as a surrogate for the default
+# plugin path. If it was not defined by the user,
+# then set it internally.
+if test "x${HDF5_PLUGIN_PATH}" = x ; then
+  if test "x$ISMSVC" = xyes || test "x$ISMINGW" = xyes; then
+    HDF5_PLUGIN_PATH="${ALLUSERSPROFILE}\\hdfd5\\lib\\plugin"
+  else
+    HDF5_PLUGIN_PATH="/usr/local/hdf5/lib/plugin"
+fi
+
 # The --with-plugin-dir gives the user control of the plugin
-# directory. If set to 'yes' (the default), then first directory in
-# the HDF5_PLUGIN_PATH, or /usr/local/hdf5/lib/plugin (the default
-# HDF5 plugin dir) will be used. If another directory is provided, it
-# will be used. If 'no', then plugins will not be installed.
+# directory. If set to 'yes' (the default), then the last directory in
+# HDF5_PLUGIN_PATH is used (see above).
+# If a specific directory is provided, it will be used.
+# If 'no', then plugins will not be installed.
+
 AC_MSG_CHECKING([whether and where we should install plugins])
 AC_ARG_WITH([plugin-dir], [AS_HELP_STRING([--with-plugin-dir=<absolute directory>|yes|no|--without-plugin-dir],
               [Install selected standard filters in specified or default directory])],
 	      [],[with_plugin_dir=no])
+AC_MSG_RESULT([$with_plugin_dir])
+# Using selected filter options forces installation
 if test "x$have_zstd" = xyes; then
    if test "x$enable_plugins" = xyes && test "x$with_plugin_dir" = xno; then
+      AC_MSG_WARN([--enable_filter-zstd => --with-plugin-dir.])
       with_plugin_dir=yes
    fi
 fi
-AC_MSG_RESULT([$with_plugin_dir])
 if test "x$with_plugin_dir" = xno ; then # option missing|disabled
     with_plugin_dir=no
     with_plugin_dir_setting="N.A."
     enable_plugin_dir=no
-elif test "x$with_plugin_dir" = xyes ; then # --with-plugin-dir, no argument
-    # Default to last dir (lowest search priority) in HDF5_PLUGIN_PATH
-    PLUGIN_PATH="$HDF5_PLUGIN_PATH"
-    if test "x${PLUGIN_PATH}" = x ; then
-        if test "x$ISMSVC" = xyes || test "x$ISMINGW" = xyes; then
-	    PLUGIN_PATH="${ALLUSERSPROFILE}\\hdfd5\\lib\\plugin"
-	else
-	    PLUGIN_PATH="/usr/local/hdf5/lib/plugin"
-	fi
+elif test "x$with_plugin_dir" != x ; then
+    if test "x$with_plugin_dir" != xyes && test "x$with_plugin_dir" != xno ; then
+      # Presume true directory
+      HDF5_PLUGIN_PATH="${with_plugin_dir}"
     fi
-    # Use the lowest priority dir in the path
-    if test "x$ISMSVC" = xyes || test "x$ISMINGW" = xyes; then
-      PLUGIN_DIR=`echo "$PLUGIN_PATH" | tr ';' ' '`
-    else
-      PLUGIN_DIR=`echo "$PLUGIN_PATH" | tr ':' ' '`
-    fi
-    for pp in ${PLUGIN_DIR} ; do last="$pp"; done
-    PLUGIN_DIR="$last"
-    with_plugin_dir_setting="$PLUGIN_DIR"
-    # canonical form is all forward slashes
-    with_plugin_dir=`echo "$PLUGIN_DIR" | tr '\\\\' '/'`
-    enable_plugin_dir=yes
-    AC_MSG_NOTICE([Defaulting to --with-plugin-dir=$with_plugin_dir])
-else # --with-plugin-dir=<dir|path>
-    with_plugin_dir_setting="$with_plugin_dir"
-    enable_plugin_dir=yes
 fi
+
+# Use the last dir (lowest search priority) in HDF5_PLUGIN_PATH
+PLUGIN_PATH="$HDF5_PLUGIN_PATH"
+if test "x$ISMSVC" = xyes || test "x$ISMINGW" = xyes; then
+  PLUGIN_DIR=`echo "$PLUGIN_PATH" | tr ';' ' '`
+else
+  PLUGIN_DIR=`echo "$PLUGIN_PATH" | tr ':;' '  '`
+fi
+for pp in ${PLUGIN_DIR} ; do last="$pp"; done
+  PLUGIN_DIR="$last"
+  with_plugin_dir_setting="$PLUGIN_DIR"
+  # canonical form is all forward slashes
+  with_plugin_dir=`echo "$PLUGIN_DIR" | tr '\\\\' '/'`
+  enable_plugin_dir=yes
+  AC_MSG_NOTICE([Final --with-plugin-dir=$with_plugin_dir])
+done
 AM_CONDITIONAL([ENABLE_PLUGIN_DIR], [test "x$enable_plugin_dir" = xyes])
 AC_SUBST([PLUGIN_INSTALL_DIR], [$with_plugin_dir])
 # Better value for libnetcdf.settings

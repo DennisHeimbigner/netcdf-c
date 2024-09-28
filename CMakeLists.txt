@@ -653,8 +653,28 @@ if(NOT ENABLE_PLUGIN_INSTALL)
     unset(NETCDF_PLUGIN_INSTALL_DIR CACHE)
 endif()
 
-if(ENABLE_PLUGIN_INSTALL)
-    if(NOT DEFINED NETCDF_PLUGIN_INSTALL_DIR)
+# Internally, the variable HDF5_PLUGIN_PATH
+# is always used as a surrogate for the default
+# plugin path. If it was not defined by the user,
+# then set it internally.
+if(NOT DEFINED HDF5_PLUGIN_PATH OR ${HDF5_PLUGIN_PATH} STREQUAL "")
+  if(ISMSVC OR ISMINGW)
+    string(REPLACE "\\" "/" AUP "$ENV{"ALLUSERSPROFILE"}")
+    HDF5_PLUGIN_PATH="${AUP}/hdfd5/lib/plugin"
+  else()
+    HDF5_PLUGIN_PATH="/usr/local/hdf5/lib/plugin"
+  endif()
+endif()
+
+# The --with-plugin-dir gives the user control of the plugin
+# directory. If set to 'yes' (the default), then the last directory in
+# HDF5_PLUGIN_PATH is used (see above).
+# If a specific directory is provided, it will be used.
+# If 'no', then plugins will not be installed.
+
+if(NETCDF_ENABLE_PLUGIN_INSTALL)
+    if(DEFINED NETCDF_PLUGIN_INSTALL_DIR)
+      set(NETCDF_PLUGIN_INSTALL_DIR "${HDF5_PLUGIN_PATH}")
       # Default to HDF5_PLUGIN_PATH or its default directories
       if(DEFINED ENV{HDF5_PLUGIN_PATH})
         set(NETCDF_PLUGIN_INSTALL_DIR "$ENV{HDF5_PLUGIN_PATH}")
@@ -671,15 +691,7 @@ endif()
 
 if(ENABLE_PLUGIN_INSTALL)
   # Use the lowest priority dir in the path
-  if(NOT ISMSVC AND NOT ISMINGW)
-    string(REPLACE ":" ";" PATH_LIST ${NETCDF_PLUGIN_INSTALL_DIR})
-  else()
-    set(PATH_LIST ${NETCDF_PLUGIN_INSTALL_DIR})
-  endif()
-
-  # Get last element
-  list(GET PATH_LIST -1 NETCDF_PLUGIN_INSTALL_DIR)
-  set(PLUGIN_INSTALL_DIR_SETTING "${NETCDF_PLUGIN_INSTALL_DIR}")
+  getlastdir("${HDF5_PLUGIN_PATH}" "NETCDF_PLUGIN_INSTALL_DIR")
   message(STATUS "Final value of-DPLUGIN_INSTALL_DIR=${NETCDF_PLUGIN_INSTALL_DIR}")
 else() # No option specified
     unset(NETCDF_PLUGIN_INSTALL_DIR)

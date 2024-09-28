@@ -132,6 +132,16 @@ extern "C" {
 #endif
 
 /**
+ * Return the length of the current sequence of directories
+ * in the internal global plugin path list.
+ * @param ndirsp length is returned here
+ * @return NC_NOERR | NC_EXXX
+ *
+ * @author Dennis Heimbigner
+*/
+EXTERNL int nc_plugin_path_ndirs(size_t* ndirsp);
+
+/**
  * Return the current sequence of directories in the internal global
  * plugin path list. Since this function does not modify the plugin path,
  * it can be called at any time.
@@ -143,7 +153,7 @@ extern "C" {
  * vector will be allocated. If not NULL, then the specified space will
  * be overwritten with the vector.
  *
- * Author: Dennis Heimbigner
+ * @author: Dennis Heimbigner
 */
 EXTERNL int nc_plugin_path_get(NCPluginList* dirs);
 
@@ -155,6 +165,7 @@ EXTERNL int nc_plugin_path_get(NCPluginList* dirs);
  * @param dirs pointer to an NCPluginList object containing
  *        the number and vector of directory paths
  * @return NC_NOERR | NC_EXXX
+ *
  * @author Dennis Heimbigner
 */
 EXTERNL int nc_plugin_path_set(NCPluginList* dirs);
