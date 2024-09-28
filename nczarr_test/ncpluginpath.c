@@ -98,12 +98,16 @@ getfrom(int formatx, char** textp)
     case 0: /* Global */
         if((stat=nc_plugin_path_get(&dirs))) goto done;
 	break;
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     case NC_FORMATX_NCZARR:
         if((stat=NCZ_plugin_path_get(&dirs))) goto done;
 	break;
+#endif
+#ifdef USE_HDF5
     case NC_FORMATX_NC_HDF5:
 	if((stat=NC4_hdf5_plugin_path_get(&dirs))) goto done;
 	break;
+#endif
     default: abort();
     }
     if((stat = ncaux_plugin_path_tostring(&dirs,';',&text))) goto done;
