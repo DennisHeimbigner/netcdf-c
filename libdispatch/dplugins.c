@@ -212,7 +212,7 @@ nc_plugin_path_get(NCPluginList* dirs)
 	    }
 	}
 #endif /*NETCDF_ENABLE_HDF5*/
-#ifdef NETCDF_ENABLE_HDF5
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
 	{
 	    size_t i;
 	    NCPluginList lz = {0,NULL};
@@ -223,7 +223,7 @@ nc_plugin_path_get(NCPluginList* dirs)
 		nullfree(lz.dirs[i]);
 	    }
         }
-#endif /*NETCDF_ENABLE_HDF5*/
+#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
     }
 done:
     return NCTHROW(stat);
