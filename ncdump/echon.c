@@ -25,6 +25,8 @@
 #include "XGetopt.h"
 #endif
 
+extern int NCstdbinary(void);
+
 int
 main(int argc, char** argv)
 {

@@ -37,6 +37,8 @@
 #include "netcdf_aux.h"
 #include "ncplugins.h"
 
+extern int NCstdbinary(void);
+
 static const char* USAGE =
 "ncpluginpath [-f global|hdf5|nczarr]"
 "Options\n"
