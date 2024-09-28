@@ -139,7 +139,7 @@ IF(NETCDF_ENABLE_TESTS)
 
   set(ncpluginpath_FILES ncpluginpath.c ${XGETOPTSRC})
   add_executable(ncpluginpath ${ncpluginpath_FILES})
-  target_link_libraries(ncvalidator netcdf ${ALL_TLL_LIBS})
+  target_link_libraries(ncpluginpath netcdf ${ALL_TLL_LIBS})
 
   IF(NETCDF_ENABLE_S3 AND NOT WITH_S3_TESTING STREQUAL "NO")
   # Helper programs for testing
