@@ -184,7 +184,11 @@ jobs:
 
       - name: Print Summary
         shell: bash -l {0}
-        run: cat libnetcdf.settings
+        run: |
+          cat libnetcdf.settings
+          echo "@@@@@"
+          cat config.h
+          echo "@@@@@"
 
       - name: Build Library and Utilities
         shell: bash -l {0}

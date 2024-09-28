@@ -44,8 +44,6 @@ static int pluginnamecheck(const char* name);
  *
  * @author Dennis Heimbigner
  */
-#ifdef TPLUGINS
-#endif /*TPLUGINS*/
 
 /**
  * This function is called as part of nc_plugin_path_initialize.
