@@ -113,39 +113,51 @@ EXTERNL int nc_inq_var_blosc(int ncid, int varid, int* hasfilterp, unsigned* sub
 /* Filter path query/set */
 EXTERNL int nc_filter_path_query(int id);
 
+#if defined(__cplusplus)
+}
+#endif
+
 /**************************************************/
 /* API for libdispatch/dplugin.c */
 
+/* Combine the vector of directory path plus it's length in a single struct. */
+typedef struct NCPluginList {
+    size_t ndirs; /* |dirs| */
+    char** dirs;
+} NCPluginList;
+
 /* Externally visible plugin path functions */
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /**
- * Return the current sequence of directories in the internal plugin path list.
- * Since this function does not modify the plugin path, it can be called at any time.
- * @param ndirsp return the number of dirs in the internal path list
- * @param dirs memory for storing the sequence of directies in the internal path list.
- * @return NC_NOERR
+ * Return the current sequence of directories in the internal global
+ * plugin path list. Since this function does not modify the plugin path,
+ * it can be called at any time.
+ * @param dirs pointer to an NCPluginList object
+ * @return NC_NOERR | NC_EXXX
  * @author Dennis Heimbigner
  *
- * As a rule, this function needs to be called twice.
- * The first time with npaths not NULL and pathlist set to NULL
- *     to get the size of the path list.
- * The second time with pathlist not NULL to get the actual sequence of paths.
+ * WARNING: if dirs->dirs is NULL, then space for the directory
+ * vector will be allocated. If not NULL, then the specified space will
+ * be overwritten with the vector.
+ *
+ * Author: Dennis Heimbigner
 */
-
-EXTERNL int nc_plugin_path_get(size_t* ndirsp, char** dirs);
+EXTERNL int nc_plugin_path_get(NCPluginList* dirs);
 
 /**
  * Empty the current internal path sequence
  * and replace with the sequence of directories argument.
  *
  * Using a paths argument of NULL or npaths argument of 0 will clear the set of plugin paths.
- * @param ndirs length of the dirs argument
- * @param dirs to overwrite the current internal path list
- * @return NC_NOERR
+ * @param dirs pointer to an NCPluginList object containing
+ *        the number and vector of directory paths
+ * @return NC_NOERR | NC_EXXX
  * @author Dennis Heimbigner
 */
-
-EXTERNL int nc_plugin_path_set(size_t ndirs, char** const dirs);
+EXTERNL int nc_plugin_path_set(NCPluginList* dirs);
 
 #if defined(__cplusplus)
 }

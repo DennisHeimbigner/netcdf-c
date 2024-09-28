@@ -130,12 +130,16 @@ IF(NETCDF_ENABLE_TESTS)
   ENDIF()
 
   # Helper programs for testing
-  BUILD_BIN_TEST(zhex)
+  build_bin_test(zhex)
   build_bin_test_with_util_lib(zisjson ut_util)
   TARGET_INCLUDE_DIRECTORIES(zisjson PUBLIC ../libnczarr)
   build_bin_test_with_util_lib(zs3parse ut_util)
   TARGET_INCLUDE_DIRECTORIES(zs3parse PUBLIC ../libnczarr)
   build_bin_test_with_util_lib(zmapio ut_util)
+
+  set(ncpluginpath_FILES ncpluginpath.c ${XGETOPTSRC})
+  add_executable(ncpluginpath ${ncpluginpath_FILES})
+  target_link_libraries(ncvalidator netcdf ${ALL_TLL_LIBS})
 
   IF(NETCDF_ENABLE_S3 AND NOT WITH_S3_TESTING STREQUAL "NO")
   # Helper programs for testing

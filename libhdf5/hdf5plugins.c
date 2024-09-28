@@ -30,27 +30,21 @@
 /**************************************************/
 
 /**
- * Return the current sequence of directories in the internal plugin path list
- * maintained by the HDF5 library. Since this function does not modify the plugin path,
+ * Return the current sequence of directories in the internal global
+ * plugin path list. Since this function does not modify the plugin path,
  * it can be called at any time.
- * @param ndirsp return the number of dirs in the internal path list
- * @param dirs memory for storing the sequence of directies in the internal path list.
- * @return NC_NOERR
+ * @param dirs pointer to an NCPluginList object
+ * @return NC_NOERR | NC_EXXX
  * @author Dennis Heimbigner
  *
- * As a rule, this function needs to be called twice.
- * The first time with npaths not NULL and pathlist set to NULL
- *     to get the size of the path list.
- * The second time with pathlist not NULL to get the actual sequence of paths.
+ * WARNING: if dirs->dirs is NULL, then space for the directory
+ * vector will be allocated. If not NULL, then the specified space will
+ * be overwritten with the vector.
  *
- * Technically, this function is not needed at all since in an ideal world
- * the only way that the HDF5 path set can be changed is via the NC4_hdf5_plugin_path_set()
- * function. However, this function is useful as a way to verify that someone has not
- * been modifying the plugin path set directly through the HDF5 API.
+ * @author: Dennis Heimbigner
 */
-
 int
-NC4_hdf5_plugin_path_get(size_t* ndirsp, char** dirs)
+NC4_hdf5_plugin_path_get(NCPluginList* dirs)
 {
     int stat = NC_NOERR;
     unsigned i;
@@ -59,20 +53,24 @@ NC4_hdf5_plugin_path_get(size_t* ndirsp, char** dirs)
     ssize_t dirlen;
     char* dirbuf = NULL;
 
+    if(dirs == NULL) {stat = NC_EINVAL; goto done;}
+
     /* Get the length of the HDF5 plugin path set */
     if((hstat = H5PLsize(&undirs))<0) goto done;
-    if(ndirsp) *ndirsp = (size_t)undirs;
+    dirs->ndirs = (size_t)undirs;
 
     /* Copy out the paths from the HDF5 library */
     /* Watch out for nul term handling WRT dir string length */
-    if(dirs != NULL) {
-	for(i=0;i<undirs;i++) {
-	    if((dirlen = H5PLget(i, NULL, 0))<0) {stat = NC_EHDFERR; goto done;}
-	    nullfree(dirbuf); dirbuf = NULL; /* suspenders and belt */
-	    if((dirbuf = (char*)malloc((size_t)dirlen+1))==NULL) {stat = NC_ENOMEM; goto done;} /* dirlen does not include nul term */
-	    if((dirlen = H5PLget(i, dirbuf, ((size_t)dirlen)+1))<0) {stat = NC_EHDFERR; goto done;}
-	    dirs[i] = dirbuf; dirbuf = NULL;	    
-	}
+    if(dirs->dirs == NULL) {
+	if((dirs->dirs=(char**)calloc(dirs->ndirs,sizeof(char*)))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+    }
+    for(i=0;i<undirs;i++) {
+	if((dirlen = H5PLget(i, NULL, 0))<0) {stat = NC_EHDFERR; goto done;}
+	nullfree(dirbuf); dirbuf = NULL; /* suspenders and belt */
+	if((dirbuf = (char*)malloc((size_t)dirlen+1))==NULL) {stat = NC_ENOMEM; goto done;} /* dirlen does not include nul term */
+	if((dirlen = H5PLget(i, dirbuf, ((size_t)dirlen)+1))<0) {stat = NC_EHDFERR; goto done;}
+	dirs->dirs[i] = dirbuf; dirbuf = NULL;	    
     }
     
 done:
@@ -83,16 +81,15 @@ done:
 /**
  * Empty the current internal path sequence
  * and replace with the sequence of directories argument.
+ * Using a dirs->ndirs argument of 0 will clear the set of plugin dirs.
  *
- * Using a dirs argument of NULL or ndirs argument of 0 will clear the set of plugin dirs.
- * @param ndirs length of the dirs argument
  * @param dirs to overwrite the current internal dir list
- * @return NC_NOERR
+ * @return NC_NOERR | NC_EXXX
+ *
  * @author Dennis Heimbigner
 */
-
 int
-NC4_hdf5_plugin_path_set(size_t ndirs, char** const dirs)
+NC4_hdf5_plugin_path_set(NCPluginList* dirs)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -100,7 +97,8 @@ NC4_hdf5_plugin_path_set(size_t ndirs, char** const dirs)
     unsigned undirs = 0;  
 
     /* validate */
-    if(ndirs > 0 && dirs == NULL) {stat = NC_EINVAL; goto done;}
+    if(dirs == NULL || (dirs->ndirs > 0 && dirs->dirs == NULL))
+	{stat = NC_EINVAL; goto done;}
 
     /* Clear the current path list */
     if((hstat = H5PLsize(&undirs))<0) goto done;
@@ -112,9 +110,10 @@ NC4_hdf5_plugin_path_set(size_t ndirs, char** const dirs)
     }
 
     /* Insert the new path list */
-    for(i=0;i<ndirs;i++) {
+    for(i=0;i<dirs->ndirs;i++) {
 	/* Always append */
-	if((hstat = H5PLappend(dirs[i]))<0) {stat = NC_EINVAL; goto done;}
+	if((hstat = H5PLappend(dirs->dirs[i]))<0)
+	    {stat = NC_EINVAL; goto done;}
     }
 
 done:

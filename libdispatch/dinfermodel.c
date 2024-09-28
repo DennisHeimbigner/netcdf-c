@@ -1642,7 +1642,6 @@ isdaoscontainer(const char* path)
 #else
 		(void)getxattr(path, p, xvalue, (size_t)xlen);
 #endif
-fprintf(stderr,"@@@ %s=|%s|\n",p,xvalue);
 		/* Look for '.daos' in the value */
 		if(strstr(xvalue,".daos") != NULL) {rc = 1; break;} /* success */
 	    }

@@ -1,3 +1,7 @@
+/*
+ * Copyright 2018, University Corporation for Atmospheric Research
+ * See netcdf/COPYRIGHT file for copying and redistribution conditions.
+ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -33,9 +37,7 @@ main(int argc, char** argv)
     char* q = NULL;
     char c;
 
-#ifdef _WIN32
-    _setmode(_fileno(stdout),_O_BINARY);
-#endif
+    NCstdbinary(); /* avoid \r\n for windows */
 
     opterr = 1;
     while ((c = getopt(argc, argv,"enEN")) != EOF) {

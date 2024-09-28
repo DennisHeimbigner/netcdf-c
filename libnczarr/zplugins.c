@@ -119,73 +119,75 @@ NCZ_plugin_path_finalize(void)
 }
 
 /**
- * Return the current sequence of directories in the internal plugin path list.
- * Since this function does not modify the plugin path, it can be called at any time.
- * @param ndirsp return the number of dirs in the internal path list
- * @param dirs memory for storing the sequence of directies in the internal path list.
- * @return NC_NOERR
+ * Return the current sequence of directories in the internal global
+ * plugin path list. Since this function does not modify the plugin path,
+ * it can be called at any time.
+ * @param dirs pointer to an NCPluginList object
+ * @return NC_NOERR | NC_EXXX
  * @author Dennis Heimbigner
  *
- * As a rule, this function needs to be called twice.
- * The first time with npaths not NULL and pathlist set to NULL
- *     to get the size of the path list.
- * The second time with pathlist not NULL to get the actual sequence of paths.
+ * WARNING: if dirs->dirs is NULL, then space for the directory
+ * vector will be allocated. If not NULL, then the specified space will
+ * be overwritten with the vector.
  *
- * Technically, this function is not needed at all since in an ideal world
- * the only way that the NCZarr path set can be changed is via the NCZ_plugin_path_set()
- * function. However, this function is useful as a way to verify that someone has not
- * been modifying the plugin path set in some other fashion.
+ * @author: Dennis Heimbigner
 */
-
 int
-NCZ_plugin_path_get(size_t* ndirsp, char** dirs)
+NCZ_plugin_path_get(NCPluginList* dirs)
 {
     int stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
-    size_t ndirs;
+
+    if(dirs == NULL) {stat = NC_EINVAL; goto done;}
 
     if(gs->zarr.pluginpaths == NULL) gs->zarr.pluginpaths = nclistnew(); /* suspenders and belt */
-    ndirs = nclistlength(gs->zarr.pluginpaths);
-    if(ndirsp) *ndirsp = ndirs;
-    if(dirs != NULL && ndirs > 0) {
+
+    dirs->ndirs = nclistlength(gs->zarr.pluginpaths);
+    if(dirs->dirs == NULL && dirs->ndirs > 0) {
+	if((dirs->dirs = (char**)calloc(dirs->ndirs,sizeof(char*)))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+    }
+    if(dirs->ndirs > 0) {
 	size_t i;
-	for(i=0;i<ndirs;i++) {
+	for(i=0;i<dirs->ndirs;i++) {
 	    const char* dir = (const char*)nclistget(gs->zarr.pluginpaths,i);
-	    dirs[i] = nulldup(dir);
+	    dirs->dirs[i] = nulldup(dir);
 	}
     }
-
+done:
     return THROW(stat);
 }
 
 /**
  * Empty the current internal path sequence
  * and replace with the sequence of directories argument.
+ * Using a dirs->ndirs argument of 0 will clear the set of plugin dirs.
  *
- * Using a dirs argument of NULL or ndirs argument of 0 will clear the set of plugin dirs.
- * @param ndirs length of the dirs argument
  * @param dirs to overwrite the current internal dir list
- * @return NC_NOERR
+ * @return NC_NOERR | NC_EXXX
+ *
  * @author Dennis Heimbigner
 */
-
 int
-NCZ_plugin_path_set(size_t ndirs, char** const dirs)
+NCZ_plugin_path_set(NCPluginList* dirs)
 {
     int stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
+
+    if(dirs == NULL) {stat = NC_EINVAL; goto done;}
+    if(dirs->ndirs > 0 && dirs->dirs == NULL) {stat = NC_EINVAL; goto done;}
 
     /* Clear the current dir list */
     nclistfreeall(gs->zarr.pluginpaths);
     gs->zarr.pluginpaths = nclistnew();
 
-    if(ndirs > 0) {
+    if(dirs->ndirs > 0) {
 	size_t i;
-        assert(gs->zarr.pluginpaths != NULL);
-	for(i=0;i<ndirs;i++) {
-	    nclistpush(gs->zarr.pluginpaths,nulldup(dirs[i]));
+	for(i=0;i<dirs->ndirs;i++) {
+	    nclistpush(gs->zarr.pluginpaths,nulldup(dirs->dirs[i]));
 	}
     }
+done:
     return THROW(stat);
 }
 

@@ -223,37 +223,28 @@ static int
 getfrom(int formatx, char** textp)
 {
     int stat = NC_NOERR;
-    size_t ndirs;
-    char** dirs = NULL;
+    NCPluginList dirs = {0,NULL};
     char* text = NULL;
-    size_t textlen;
    
     /* Get a plugin path */
     switch (formatx) {
     case 0: /* Global */
-        if((stat=nc_plugin_path_get(&ndirs,NULL))) goto done;
-	if((dirs = (char**)calloc(ndirs,sizeof(char*)))==NULL) {stat = NC_ENOMEM; goto done;}
-	if((stat = nc_plugin_path_get(&ndirs,dirs))) goto done;
+        if((stat=nc_plugin_path_get(&dirs))) goto done;
 	break;
     case NC_FORMATX_NCZARR:
-        if((stat=NCZ_plugin_path_get(&ndirs,NULL))) goto done;
-	if((dirs = (char**)calloc(ndirs,sizeof(char*)))==NULL) {stat = NC_ENOMEM; goto done;}
-	if((stat = NCZ_plugin_path_get(&ndirs,dirs))) goto done;
+        if((stat=NCZ_plugin_path_get(&dirs))) goto done;
 	break;
     case NC_FORMATX_NC_HDF5:
-	if((stat=NC4_hdf5_plugin_path_get(&ndirs,NULL))) goto done;
-	if((dirs = (char**)calloc(ndirs,sizeof(char*)))==NULL) {stat = NC_ENOMEM; goto done;}
-	if((stat = NC4_hdf5_plugin_path_get(&ndirs,dirs))) goto done;
+	if((stat=NC4_hdf5_plugin_path_get(&dirs))) goto done;
 	break;
     default: abort();
     }
-    if((stat = ncaux_plugin_path_tostring(ndirs,dirs,SEP,&textlen,NULL))) goto done;
-    if((text = (char*)malloc(textlen))==NULL) {stat = NC_ENOMEM; goto done;}
-    if((stat = ncaux_plugin_path_tostring(ndirs,dirs,SEP,&textlen,text))) goto done;
-    *textp = text; text = NULL;
+    if((stat = ncaux_plugin_path_tostring(&dirs,SEP,&text))) goto done;
+    if(textp) {*textp = text; text = NULL;}
+
 done:
     nullfree(text);
-    ncaux_plugin_path_freestringvec(ndirs,dirs);
+    ncaux_plugin_path_clear(&dirs);
     return NCCHECK(stat);
 }
 
@@ -263,7 +254,8 @@ static int
 actionclear(const struct Execute* action)
 {
     int stat = NC_NOERR;
-    if((stat=nc_plugin_path_set(0,NULL))) goto done;   
+    NCPluginList dirs = {0,NULL};
+    if((stat=nc_plugin_path_set(&dirs))) goto done;   
 done:
     return NCCHECK(stat);
 }
@@ -289,19 +281,14 @@ actionset(const struct Execute* action)
 {
     int stat = NC_NOERR;
     const char* text = action->arg;
-    size_t ndirs;
-    char** dirs = NULL;
+    NCPluginList dirs = {0,NULL};
 
     if(text == NULL) text = "";
-    if((stat=ncaux_plugin_path_parse(text,0,&ndirs,NULL))) goto done;
-    if(ndirs > 0) {
-	if((dirs = (char**)calloc(ndirs,sizeof(char*)))==NULL) {stat = NC_ENOMEM; goto done;}
-        if((stat=ncaux_plugin_path_parse(text,0,&ndirs,dirs))) goto done;
-    }
-    if((stat=nc_plugin_path_set(ndirs,dirs))) goto done;   
+    if((stat=ncaux_plugin_path_parse(text,0,&dirs))) goto done;
+    if((stat=nc_plugin_path_set(&dirs))) goto done;   
 
 done:
-    ncaux_plugin_path_freestringvec(ndirs,dirs);
+    ncaux_plugin_path_clear(&dirs);
     return NCCHECK(stat);
 }
 

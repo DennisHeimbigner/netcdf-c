@@ -11,6 +11,9 @@ For internal use only.
 #ifndef NCPLUGINS_H
 #define NCPLUGINS_H
 
+/* Opaque */
+struct NCPluginList;
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -18,15 +21,14 @@ extern "C" {
 EXTERNL int NCZ_plugin_path_initialize(void);
 EXTERNL int NCZ_plugin_path_finalize(void);
 
-EXTERNL int NCZ_plugin_path_get(size_t* ndirsp, char** dirs);
-EXTERNL int NCZ_plugin_path_set(size_t ndirs, char** const dirs);
+EXTERNL int NCZ_plugin_path_get(struct NCPluginList* dirs);
+EXTERNL int NCZ_plugin_path_set(struct NCPluginList* dirs);
 
 EXTERNL int NC4_hdf5_plugin_path_initialize(void);
 EXTERNL int NC4_hdf5_plugin_path_finalize(void);
 
-EXTERNL int NC4_hdf5_plugin_path_get(size_t* ndirsp, char** dirs);
-EXTERNL int NC4_hdf5_plugin_path_set(size_t ndirs, char** const dirs);
-
+EXTERNL int NC4_hdf5_plugin_path_get(struct NCPluginList* dirs);
+EXTERNL int NC4_hdf5_plugin_path_set(struct NCPluginList* dirs);
 
 #if defined(__cplusplus)
 }

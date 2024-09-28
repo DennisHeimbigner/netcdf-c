@@ -729,7 +729,7 @@ NCstdbinary(void)
     if(_setmode(fd,_O_BINARY)<0) return NC_EINVAL;
     fd = _fileno(stdout);
     if(_setmode(fd,_O_BINARY)<0) return NC_EINVAL;
-    fd = _fileno(stdout);
+    fd = _fileno(stderr);
     if(_setmode(fd,_O_BINARY)<0) return NC_EINVAL;
     return NC_NOERR;        
 }

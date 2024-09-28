@@ -961,13 +961,17 @@ ncaux_dump_data(int ncid, int xtype, void* memory, size_t count, char** bufp)
 
 /* Path-list Parser:
 @param pathlist0 the string to parse
-@param ndirsp return the number of parsed directories
-@param dirs return the parsed directories; caller must free
+@param dirs return the parsed directories -- see note below.
 @param sep the separator parsing: one of ';' | ':' | '\0', where zero means use platform default.
 @return NC_NOERR || NC_EXXX
+
+Note: If dirs->dirs is not NULL, then this function
+will allocate the space for the vector of directory path.
+The user is then responsible for free'ing that vector
+(or call ncaux_plugin_path_reclaim).
 */
 EXTERNL int
-ncaux_plugin_path_parse(const char* pathlist0, char sep, size_t* ndirsp, char** dirs)
+ncaux_plugin_path_parse(const char* pathlist0, char sep, NCPluginList* dirs)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -975,11 +979,11 @@ ncaux_plugin_path_parse(const char* pathlist0, char sep, size_t* ndirsp, char** 
     char* p;
     size_t count;
     size_t plen;
-    NClist* vec = nclistnew();
     char seps[3] = "\0\0\0"; /* will contain all allowable separators */
 
-    if(pathlist0 == NULL || pathlist0[0] == '\0') {if(ndirsp) *ndirsp = 0; goto done;}
+    if(dirs == NULL) {stat = NC_EINVAL; goto done;}
 
+    if(pathlist0 == NULL || pathlist0[0] == '\0') {dirs->ndirs = 0; goto done;}
 
     /* If a separator is specified, use it, otherwise search for ';' or ':' */
     seps[0] = sep;
@@ -1000,23 +1004,22 @@ ncaux_plugin_path_parse(const char* pathlist0, char sep, size_t* ndirsp, char** 
     }
     count++; /* count last piece */
 
+    /* Save and allocate */
+    dirs->ndirs = count;
+    if(dirs->dirs == NULL) {
+	if((dirs->dirs = (char**)calloc(count,sizeof(char*)))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+    }
+
     /* capture the parsed pieces */
     for(p=path,i=0;i<count;i++) {
 	size_t len = strlen(p);
-	if(len > 0) 
-	    nclistpush(vec, p); /* use the contents of path */
+	dirs->dirs[i] = strdup(p);
         p = p+len+1; /* point to next piece */
     }
 
-    if(dirs) {
-	for(i=0;i<nclistlength(vec);i++)
-	    dirs[i] = nulldup(nclistget(vec,i));
-    }
-    if(ndirsp) *ndirsp = nclistlength(vec); /* always return true count */
-
 done:
     nullfree(path);
-    nclistfree(vec);
     return stat;
 }
 
@@ -1025,23 +1028,21 @@ Path-list concatenator where given a vector of directories,
 concatenate all dirs with specified separator.
 If the separator is 0, then use the default platform separator.
 
-@param ndirs the number of directories
-@param dirsp the directory vector to concatenate
+@param dirs the counted directory vector to concatenate
 @param sep one of ';', ':', or '\0'
-@param catlen length of the cat arg including a nul terminator
-@param cat user provided space for holding the concatenation; nul termination guaranteed if catlen > 0.
+@param catp return the concatenation; WARNING: caller frees.
 @return ::NC_NOERR
 @return ::NC_EINVAL for illegal arguments
-
-Note that this function is called twice: first time to get the expected size of
-the concatenated string and second to get the contents of the concatenation.
 */
 EXTERNL int
-ncaux_plugin_path_tostring(size_t ndirs, char** const dirs, char sep, size_t* catlen, char* cat)
+ncaux_plugin_path_tostring(const NCPluginList* dirs, char sep, char** catp)
 {
     int stat = NC_NOERR;
     NCbytes* buf = ncbytesnew();
     size_t i;
+
+    if(dirs == NULL) {stat = NC_EINVAL; goto done;}
+    if(dirs->ndirs > 0 && dirs->dirs == NULL) {stat = NC_EINVAL; goto done;}
 
     if(sep == '\0')
 #ifdef _WIN32
@@ -1049,40 +1050,115 @@ ncaux_plugin_path_tostring(size_t ndirs, char** const dirs, char sep, size_t* ca
 #else
 	sep = ':';
 #endif    
-    if(cat != NULL) *cat = '\0'; /* Make sure it is nul terminated */
-    if(ndirs > 0) {
-	for(i=0;i<ndirs;i++) {
+    if(dirs->ndirs > 0) {
+	for(i=0;i<dirs->ndirs;i++) {
 	    if(i>0) ncbytesappend(buf,sep);
-	    if(dirs[i] != NULL) ncbytescat(buf,dirs[i]);
+	    if(dirs->dirs[i] != NULL) ncbytescat(buf,dirs->dirs[i]);
 	}
     }
     ncbytesnull(buf);
-    if(cat)
-	memcpy(cat,ncbytescontents(buf),ncbyteslength(buf)+1); /* include nul termiator */
-    if(catlen) *catlen = ncbyteslength(buf)+1; /* overwrite with the true cat length */
+    if(catp) *catp = ncbytesextract(buf);
+done:
     ncbytesfree(buf);
     return stat;
 }
 
 /*
-Reclaim a char** object possibly produced by ncaux_plugin_parse function.
-
-@param veclen the number of entries in vec
-@param vec    a char** vectore
+Clear an NCPluginList object possibly produced by ncaux_plugin_parse function.
+@param dirs the object to clear
 @return ::NC_NOERR
 @return ::NC_EINVAL for illegal arguments
 */
 EXTERNL int
-ncaux_plugin_path_freestringvec(size_t veclen, char** vec)
+ncaux_plugin_path_clear(NCPluginList* dirs)
 {
     int stat = NC_NOERR;
     size_t i;
-    if(vec == NULL) goto done;
-    for(i=0;i<veclen;i++) {
-	if(vec[i] != NULL) free(vec[i]);
-	vec[i] = NULL;
+    if(dirs == NULL || dirs->ndirs == 0 || dirs->dirs == NULL) goto done;
+    for(i=0;i<dirs->ndirs;i++) {
+	if(dirs->dirs[i] != NULL) free(dirs->dirs[i]);
+	dirs->dirs[i] = NULL;
     }
-    free(vec);
+    free(dirs->dirs);
+    dirs->dirs = NULL;
+    dirs->ndirs = 0;
+done:
+    return stat;
+}
+
+/*
+Reclaim an NCPluginList object.
+@param dir the object to reclaim
+@return ::NC_NOERR
+@return ::NC_EINVAL for illegal arguments
+*/
+EXTERNL int
+ncaux_plugin_path_reclaim(NCPluginList* dirs)
+{
+    int stat = NC_NOERR;
+    if((stat = ncaux_plugin_path_clear(dirs))) goto done;
+    nullfree(dirs);
+done:
+    return stat;
+}
+
+/*
+Modify a plugin path set to append a new directory to the end.
+@param dirs a pointer to an  NCPluginPath object giving the number and vector of directories to which 'dir' argument is appended.
+@return ::NC_NOERR
+@return ::NC_EINVAL for illegal arguments
+
+WARNING: dirs->dirs may be reallocated.
+
+Author: Dennis Heimbigner
+*/
+
+EXTERNL int
+ncaux_plugin_path_append(NCPluginList* dirs, const char* dir)
+{
+    int stat = NC_NOERR;
+    char** newdirs = NULL;
+    char** olddirs = NULL;
+    if(dirs == NULL || dir == NULL) {stat = NC_EINVAL; goto done;}
+    olddirs = dirs->dirs; dirs->dirs = NULL;
+    if((newdirs = (char**)calloc(dirs->ndirs+1,sizeof(char*)))==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if(dirs->ndirs > 0)
+	memcpy(newdirs,olddirs,sizeof(char*)*dirs->ndirs);
+    nullfree(olddirs);
+    dirs->dirs = newdirs; newdirs = NULL;
+    dirs->dirs[dirs->ndirs] = nulldup(dir);
+    dirs->ndirs++;
+done:
+    return stat;
+}
+
+/*
+Modify a plugin path set to prepend a new directory to the front.
+@param dirs a pointer to an  NCPluginList object giving the number and vector of directories to which 'dir' argument is appended.
+@return ::NC_NOERR
+@return ::NC_EINVAL for illegal arguments
+
+WARNING: dirs->dirs may be reallocated.
+
+Author: Dennis Heimbigner
+*/
+EXTERNL int
+ncaux_plugin_path_prepend(struct NCPluginList* dirs, const char* dir)
+{
+    int stat = NC_NOERR;
+    char** newdirs = NULL;
+    char** olddirs = NULL;
+    if(dirs == NULL || dir == NULL) {stat = NC_EINVAL; goto done;}
+    olddirs = dirs->dirs; dirs->dirs = NULL;
+    if((newdirs = (char**)calloc(dirs->ndirs+1,sizeof(char*)))==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if(dirs->ndirs > 0)
+	memcpy(&newdirs[1],olddirs,sizeof(char*)*dirs->ndirs);
+    nullfree(olddirs);
+    dirs->dirs = newdirs; newdirs = NULL;
+    dirs->dirs[0] = nulldup(dir);
+    dirs->ndirs++;
 done:
     return stat;
 }

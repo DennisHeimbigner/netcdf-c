@@ -42,6 +42,9 @@ Unified plugin related code
 /* Control path verification */
 #define PLUGINPATHVERIFY "NC_PLUGIN_PATH_VERIFY"
 
+/*Forward*/
+static int builddefault(NCPluginList* dirs);
+
 static int NC_plugin_path_initialized = 0;
 static int NC_plugin_path_verify = 1;
 
@@ -59,10 +62,8 @@ nc_plugin_path_initialize(void)
 {
     int stat = NC_NOERR;
     struct NCglobalstate* gs = NULL;
-    char* defaultpluginpath = NULL;
-    const char* pluginroots = NULL;
-    NClist* dirs = NULL;
-    size_t ndirs;
+    NCPluginList dirs = {0,NULL};
+    int hdf5found = 0; /* 1 => we got a legit plugin path set from HDF5 */
 
     if(!NC_initialized) nc_initialize();
     if(NC_plugin_path_initialized != 0) goto done;
@@ -71,42 +72,31 @@ nc_plugin_path_initialize(void)
     if(getenv(PLUGINPATHVERIFY) != NULL) NC_plugin_path_verify = 1;
 
     gs = NC_getglobalstate();
-    dirs = nclistnew();
 
-   /* Setup the plugin path default */
-   {
-#ifdef _WIN32
-	const char* win32_root;
-	char dfalt[4096];
-	win32_root = getenv(WIN32_ROOT_ENV);
-	if(win32_root != NULL && strlen(win32_root) > 0) {
-	    snprintf(dfalt,sizeof(dfalt),PLUGIN_DIR_WIN,win32_root);
-	    defaultpluginpath = strdup(dfalt);
-	}
-#else /*!_WIN32*/
-	defaultpluginpath = strdup(PLUGIN_DIR_UNIX);
-#endif
-    }
+   /**
+    * At startup, we have several potential plugin paths sources:
+    * 1. initial state of the HDF5 path
+    * 2. initial state of the NCZarr path
+    * 3. /usr/local/hdf5/plugin | %ALLUSERSPROFILE%/hdf5/lib/plugin
+    * 4. HDF5_PLUGIN_PATH
+    * 
+    * On startup, we will have the following:
+    * a. HDF5 (via libhdf5) will combine (3) with (4)
+    *    to produce some initial plugin path.
+    * b. If HDF5 is enabled, then the initial global plugin path
+    *    will be the output of (a).
+    * c. If HDF5 is not enabled, then the initial global plugin path
+    *    will be the following initial path:
+    *    - For Windows: ${HDF5_PLUGIN_PATH};%ALLUSERSPROFILE%/hdf5/lib/plugin;
+    *    - For *nix: ${HDF5_PLUGIN_PATH}:/usr/local/hdf5/plugin
+    * d. NCZarr will always be the same as the initial value of the
+    *    global plugin path.
+    *
+    * Of course, if HDF5 is not enabled and NCZarr is not enabled, then
+    * the initial global plugin path is empty.
+    */
 
-    /* Find the plugin directory root(s) */
-    pluginroots = getenv(PLUGIN_ENV); /* Usually HDF5_PLUGIN_PATH */
-    if(pluginroots  != NULL && strlen(pluginroots) == 0) pluginroots = NULL;
-    if((stat = ncaux_plugin_path_parse(pluginroots,'\0',&ndirs,NULL))) goto done;
-    if(ndirs > 0) {
-        nclistsetlength(dirs,ndirs);
-        if((stat = ncaux_plugin_path_parse(pluginroots,'\0',&ndirs,(char**)nclistcontents(dirs)))) goto done;
-    }
-    /* Add the default to end of the dirs list if not already there */
-    if(defaultpluginpath != NULL && !nclistmatch(dirs,defaultpluginpath,0)) {
-        nclistpush(dirs,defaultpluginpath);
-	defaultpluginpath = NULL;
-    }
-
-    /* Set the current plugin dirs sequence */
-    assert(gs->pluginpaths == NULL);
-    gs->pluginpaths = dirs; dirs = NULL;
-
-    /* Sync to the actual implementations */
+    /* Initialize the implementations */
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     if((stat = NCZ_plugin_path_initialize())) goto done;    
 #endif
@@ -114,9 +104,30 @@ nc_plugin_path_initialize(void)
     if((stat = NC4_hdf5_plugin_path_initialize())) goto done;
 #endif
 
+#ifdef USE_HDF5
+    /* Case (a,b): Get the initial HDF5 plugin path set */
+    if((stat = NC4_hdf5_plugin_path_get(&dirs))) goto done;
+    if(dirs.ndirs > 0) hdf5found = 1;
+#endif /*USE_HDF5*/
+
+    if(!hdf5found) { /* Case: (c) HDF5 not enabled or otherwise empty */
+        if((stat = builddefault(&dirs))) goto done; /* Construct a default */
+    }
+
+    /* Sync to the actual implementations */
+#ifdef USE_HDF5
+    if(!hdf5found)
+	{if((stat = NC4_hdf5_plugin_path_set(&dirs))) goto done;}
+#endif
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
+    if((stat = NCZ_plugin_path_set(&dirs))) goto done;
+#endif
+    /* Set the global plugin dirs sequence */
+    assert(gs->pluginpaths == NULL);
+    gs->pluginpaths = nclistnew();
+    nclistsetlength(gs->pluginpaths,dirs.ndirs);
+    memcpy(((char**)gs->pluginpaths->content),dirs.dirs,dirs.ndirs*sizeof(char*));
 done:
-    nullfree(defaultpluginpath);
-    nclistfreeall(dirs);
     return NCTHROW(stat);
 }
 
@@ -154,115 +165,152 @@ done:
 }
 
 /**
- * Return the current sequence of directories in the internal plugin path list.
- * Since this function does not modify the plugin path, it can be called at any time.
- * @param ndirsp return the number of dirs in the internal path list
- * @param dirs memory for storing the sequence of directies in the internal path list.
- * @return NC_NOERR
+ * Return the current sequence of directories in the internal global
+ * plugin path list. Since this function does not modify the plugin path,
+ * it can be called at any time.
+ * @param dirs pointer to an NCPluginList object
+ * @return NC_NOERR | NC_EXXX
  * @author Dennis Heimbigner
  *
- * As a rule, this function needs to be called twice.
- * The first time with npaths not NULL and pathlist set to NULL
- *     to get the size of the path list.
- * The second time with pathlist not NULL to get the actual sequence of paths.
+ * WARNING: if dirs->dirs is NULL, then space for the directory
+ * vector will be allocated. If not NULL, then the specified space will
+ * be overwritten with the vector.
+ *
+ * @author: Dennis Heimbigner
 */
 
 int
-nc_plugin_path_get(size_t* ndirsp, char** dirs)
+nc_plugin_path_get(NCPluginList* dirs)
 {
     int stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
-    size_t ndirs;
+    size_t i;
 
     if(gs->pluginpaths == NULL) gs->pluginpaths = nclistnew(); /* suspenders and belt */
-    ndirs = nclistlength(gs->pluginpaths);
-    if(ndirsp) *ndirsp = ndirs;
-    if(dirs != NULL && ndirs > 0) {
-	size_t i;
-	for(i=0;i<ndirs;i++) {
-	    const char* dir = (const char*)nclistget(gs->pluginpaths,i);
-	    dirs[i] = nulldup(dir);
-	}
+    if(dirs == NULL) goto done;
+    dirs->ndirs = nclistlength(gs->pluginpaths);
+    if(dirs->dirs == NULL) {
+	if((dirs->dirs = (char**)calloc(dirs->ndirs,sizeof(char*)))==NULL)
+	    {stat = NC_ENOMEM; goto done;}
+    }
+    for(i=0;i<dirs->ndirs;i++) {
+	const char* dir = nclistget(gs->pluginpaths,i);
+	dirs->dirs[i] = nulldup(dir);
     }
 
     /* Verify that the implementation plugin paths are consistent */
     if(NC_plugin_path_verify) {
 #ifdef NETCDF_ENABLE_HDF5
 	{
-	    size_t i,impl_ndirs;
-	    char** impl_dirs = NULL;
-	    NC4_hdf5_plugin_path_get(&impl_ndirs,NULL);
-	    assert(impl_ndirs == ndirs);
-	    if(dirs != NULL) {
-		impl_dirs = (char**)calloc(ndirs,sizeof(char*)); /* Assume verify will succeed */
-	        NC4_hdf5_plugin_path_get(&impl_ndirs,impl_dirs);
-	        for(i=0;i<ndirs;i++) {
-		    assert(strcmp(dirs[i],impl_dirs[i])==0);
-		    nullfree(impl_dirs[i]);
-		}
+	    size_t i;
+	    NCPluginList l5 = {0,NULL};
+	    if((stat=NC4_hdf5_plugin_path_get(&l5))) goto done;
+	    assert(l5.ndirs == nclistlength(gs->pluginpaths));
+	    for(i=0;i<l5.ndirs;i++) {
+		assert(strcmp(dirs->dirs[i],l5.dirs[i])==0);
+		nullfree(l5.dirs[i]);
 	    }
-	    nullfree(impl_dirs);
 	}
 #endif /*NETCDF_ENABLE_HDF5*/
 #ifdef NETCDF_ENABLE_HDF5
 	{
-	    size_t i,impl_ndirs;
-	    char** impl_dirs = NULL;
-	    NC4_hdf5_plugin_path_get(&impl_ndirs,NULL);
-	    assert(impl_ndirs == ndirs);
-	    if(dirs != NULL) {
-		impl_dirs = (char**)calloc(ndirs,sizeof(char*)); /* Assume verify will succeed */
-		NC4_hdf5_plugin_path_get(&impl_ndirs,impl_dirs);
-		for(i=0;i<ndirs;i++) {
-		    assert(strcmp(dirs[i],impl_dirs[i])==0);
-		    nullfree(impl_dirs[i]);
-		}
+	    size_t i;
+	    NCPluginList lz = {0,NULL};
+	    if((stat=NCZ_plugin_path_get(&lz))) goto done;
+	    assert(lz.ndirs == nclistlength(gs->pluginpaths));
+	    for(i=0;i<lz.ndirs;i++) {
+		assert(strcmp(dirs->dirs[i],lz.dirs[i])==0);
+		nullfree(lz.dirs[i]);
 	    }
-	    nullfree(impl_dirs);
         }
 #endif /*NETCDF_ENABLE_HDF5*/
     }
-
+done:
     return NCTHROW(stat);
 }
 
 /**
  * Empty the current internal path sequence
  * and replace with the sequence of directories argument.
+ * Using a dirs->ndirs argument of 0 will clear the set of plugin dirs.
  *
- * Using a dirs argument of NULL or ndirs argument of 0 will clear the set of plugin dirs.
- * @param ndirs length of the dirs argument
  * @param dirs to overwrite the current internal dir list
- * @return NC_NOERR
+ * @return NC_NOERR | NC_EXXX
+ *
  * @author Dennis Heimbigner
 */
-
 int
-nc_plugin_path_set(size_t ndirs, char** const dirs)
+nc_plugin_path_set(NCPluginList* dirs)
 {
     int stat = NC_NOERR;
     struct NCglobalstate* gs = NC_getglobalstate();
+
+    if(dirs == NULL) {stat = NC_EINVAL; goto done;}
 
     /* Clear the current dir list */
     nclistfreeall(gs->pluginpaths);
     gs->pluginpaths = nclistnew();
 
-    if(ndirs > 0) {
+    if(dirs->ndirs > 0) {
 	size_t i;
         assert(gs->pluginpaths != NULL);
-	for(i=0;i<ndirs;i++) {
-	    nclistpush(gs->pluginpaths,nulldup(dirs[i]));
+	for(i=0;i<dirs->ndirs;i++) {
+	    nclistpush(gs->pluginpaths,nulldup(dirs->dirs[i]));
 	}
     }
 
     /* Sync the global plugin path set to the individual implementations */
 #ifdef NETCDF_ENABLE_HDF5
-    if((stat = NC4_hdf5_plugin_path_set(ndirs,dirs))) goto done;
+    if((stat = NC4_hdf5_plugin_path_set(dirs))) goto done;
 #endif
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    if((stat = NCZ_plugin_path_set(ndirs,dirs))) goto done;
+    if((stat = NCZ_plugin_path_set(dirs))) goto done;
 #endif
 
 done:
     return NCTHROW(stat);
+}
+
+/* Setup the plugin path default */
+static int
+builddefault(NCPluginList* dirs)
+{
+    int stat = NC_NOERR;
+    char* hdf5defaultpluginpath = NULL;
+    const char* pluginroots = NULL;
+    size_t i;
+#ifdef _WIN32
+    const char* win32_root;
+    char dfalt[4096];
+#endif
+
+    /* Find the plugin directory root(s) */
+    pluginroots = getenv(PLUGIN_ENV); /* Usually HDF5_PLUGIN_PATH */
+    if(pluginroots != NULL) {
+	if((stat = ncaux_plugin_path_parse(pluginroots,'\0',dirs))) goto done;
+    }
+#ifdef _WIN32
+    win32_root = getenv(WIN32_ROOT_ENV);
+    if(win32_root != NULL && strlen(win32_root) > 0) {
+	snprintf(dfalt,sizeof(dfalt),PLUGIN_DIR_WIN,win32_root);
+	hdf5defaultpluginpath = strdup(dfalt);
+    }
+#else /*!_WIN32*/
+    hdf5defaultpluginpath = strdup(PLUGIN_DIR_UNIX);
+#endif
+    /* Add the default to the end of the dirs list if not already there */
+    if(hdf5defaultpluginpath != NULL) {
+	int found = 0;
+	for(i=0;i<dirs->ndirs;i++) {
+	    if(strcmp(dirs->dirs[i],hdf5defaultpluginpath)==0)
+		{found=1; break;}
+	}	
+	if(!found) {
+	    if((stat=ncaux_plugin_path_append(dirs,hdf5defaultpluginpath)))
+		goto done;
+	}
+    }
+done:
+    nullfree(hdf5defaultpluginpath);
+    return stat;
 }

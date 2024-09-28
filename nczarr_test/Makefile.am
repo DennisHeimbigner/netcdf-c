@@ -181,6 +181,8 @@ noinst_PROGRAMS += zmapio
 zmapio_SOURCES = zmapio.c
 noinst_PROGRAMS += zs3parse
 zs3parse_SOURCES = zs3parse.c
+noinst_PROGRAMS += ncpluginpath
+ncpluginpath_SOURCES = ncpluginpath.c
 
 if NETCDF_ENABLE_S3
 noinst_PROGRAMS += s3util 
