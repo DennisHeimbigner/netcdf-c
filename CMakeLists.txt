@@ -657,7 +657,7 @@ endif()
 # is always used as a surrogate for the default
 # plugin path. If it was not defined by the user,
 # then set it internally.
-if(NOT DEFINED HDF5_PLUGIN_PATH OR ${HDF5_PLUGIN_PATH} STREQUAL "")
+if((NOT DEFINED HDF5_PLUGIN_PATH) OR ("${HDF5_PLUGIN_PATH}" STREQUAL ""))
   if(ISMSVC OR ISMINGW)
     string(REPLACE "\\" "/" AUP "$ENV{"ALLUSERSPROFILE"}")
     set(HDF5_PLUGIN_PATH "${AUP}/hdfd5/lib/plugin")
