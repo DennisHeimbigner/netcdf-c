@@ -1207,7 +1207,7 @@ A user may encounter an incompatibility if any of the following appears in user 
 
 For additional information, see [Appendix B](#filters_appendixb).
 
-## Point of Contact {#filters_poc}
+## History {#filters_history}
 
 *Author*: Dennis Heimbigner<br>
 *Email*: dennis.heimbigner@gmail.com<br>

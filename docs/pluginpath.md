@@ -49,7 +49,7 @@ to set the global plugin path to control plugin discovery.
 Since the global path and the HDF5 and NCZarr paths are kept in
 sync, this means that both HDF5 and NCZarr will look in the same
 directories in order to locate specified plugins.
-[Appendix A](#pluginpath_appendixa) defines the current API for
+[Appendix E.1](#pluginpath_appendixe1) defines the current API for
 managing the global plugin path.
 
 Note that it is best practice for a client program to use the API
@@ -70,9 +70,70 @@ initial plugin path is either:
 
 This initial global plugin path will be propagated to HDF5 and NCZarr.
 
-### A Note About HDF5\_PLUGIN\_PATH
+## Installing Plugins at Build-Time
 
-## Appendix A. Programmatic Plugin Pathh API{#pluginpath_appendixa}
+At build-time, the target location directory into which libraries implementing plugins are installed is specified using a special *./configure* option
+````
+--with-plugin-dir=<directorypath>
+or
+--with-plugin-dir
+````
+or its corresponding *cmake* option.
+````
+-DNETCDF_PLUGIN_INSTALL_DIR=<directorypath>
+or
+-DNETCDF_PLUGIN_INSTALL_DIR=YES
+````
+If this option is specified but with no specific directory,
+then it defaults to one of three values:
+1. If *HDF5\_PLUGIN\_PATH* defined, then use the last directory in that path,
+2. else use `/usr/local/hdf5/lib/plugin` for linux/unix operating systems (including Cygwin) else use
+3. `%ALLUSERSPROFILE%\\hdf5\\lib\\plugin` for Windows and MinGW.
+
+If the option is specified with an absolute directory path, then all plugin libraries will be installed in that directory only.
+
+If the option is not specified at all, or one of the following options is used,
+then no attempt will be made to install plugins.
+````
+--without-plugin-dir
+or (cmake)
+-DNETCDF_PLUGIN_INSTALL_DIR=NO
+````
+
+## Multi-Threaded Access to the Plugin Path.
+Specifically, note that modifying the plugin path must be done "atomically".
+That is, in a multi-threaded environment, it is important that the sequence of actions involved in setting up the plugin path must be done by a single processor or in some other way as to guarantee that two or more processors are not simultaneously accessing the plugin path get/set operations.
+
+As an example, assume there exists a mutex lock called PLUGINLOCK.
+Then any processor accessing the plugin paths should operate as follows:
+````
+lock(PLUGINLOCK);
+nc_plugin_path_get(...);
+<rebuild plugin path>
+nc_plugin_path_set(...);
+unlock(PLUGINLOCK);
+````
+
+## Internal Architecture
+
+It is assumed here that there only needs to be a single set of
+plugin path directories that is shared by all filter code and is
+independent of any file descriptor; it is global in other words.
+This means, for example, that the path list for NCZarr and for
+HDF5 will always be the same.
+
+However, and internally, processing the set of plugin paths
+depends on the particular NC_FORMATX value (NC_FORMATX_NC_HDF5
+and NC_FORMATX_NCZARR, currently).  So the *nc_plugin_path_set*
+function, will take the paths it is given and propagate them to
+each of the NC_FORMATX dispatchers to store in a way that is
+appropriate to the given dispatcher.
+
+There is a complication with respect to the *nc_plugin_path_get* function.
+It is possible for users to bypass the netcdf API and modify the HDF5 plugin paths directly. This can result in an inconsistent plugin path between the value
+used by HDF5 and the global value used by netcdf-c. Since there is no obvious fix for this, we warn the user of this possibility and otherwise ignore it.
+
+## Appendix E.1. Programmatic Plugin Path API{#pluginpath_appendixe1}
 
 The API makes use of a counted vector of strings representing the sequence of directories in the path. The relevant type definition is as follows.
 ````
@@ -117,70 +178,7 @@ also optionally uses the last directory in the path as the
 installation directory. This is used both for the HDF5 filter
 wrappers but also the NCZarr codec wrappers.
 
-## Installing Plugins at Build-Time
-
-At build-time, the target location directory into which libraries implementing plugins are installed is specified using a special *./configure* option
-````
---with-plugin-dir=<directorypath>
-or
---with-plugin-dir
-````
-or its corresponding *cmake* option.
-````
--DNETCDF_PLUGIN_INSTALL_DIR=<directorypath>
-or
--DNETCDF_PLUGIN_INSTALL_DIR=YES
-````
-If this option is specified but with no specific directory,
-then it defaults to one of three values:
-1. If *HDF5\_PLUGIN\_PATH* defined, then use the last directory in that path,
-2. else use `/usr/local/hdf5/lib/plugin` for linux/unix operating systems (including Cygwin) else use
-3. `%ALLUSERSPROFILE%\\hdf5\\lib\\plugin` for Windows and MinGW.
-
-If the option is specified with an absolute directory path, then all plugin libraries will be installed in that directory only.
-
-If the option is not specified at all, or one of the following options is used,
-then no attempt will be made to install plugins.
-````
---without-plugin-dir
-or (cmake)
--DNETCDF_PLUGIN_INSTALL_DIR=NO
-````
-
-### Multi-Threaded Access to the Plugin Path.
-Specifically, note that modifying the plugin path must be done "atomically".
-That is, in a multi-threaded environment, it is important that the sequence of actions involved in setting up the plugin path must be done by a single processor or in some other way as to guarantee that two or more processors are not simultaneously accessing the plugin path get/set operations.
-
-As an example, assume there exists a mutex lock called PLUGINLOCK.
-Then any processor accessing the plugin paths should operate as follows:
-````
-lock(PLUGINLOCK);
-nc_plugin_path_get(...);
-<rebuild plugin path>
-nc_plugin_path_set(...);
-unlock(PLUGINLOCK);
-````
-
-## Internal Architecture
-
-It is assumed here that there only needs to be a single set of
-plugin path directories that is shared by all filter code and is
-independent of any file descriptor; it is global in other words.
-This means, for example, that the path list for NCZarr and for
-HDF5 will always be the same.
-
-However, and internally, processing the set of plugin paths
-depends on the particular NC_FORMATX value (NC_FORMATX_NC_HDF5
-and NC_FORMATX_NCZARR, currently).  So the *nc_plugin_path_set*
-function, will take the paths it is given and propagate them to
-each of the NC_FORMATX dispatchers to store in a way that is
-appropriate to the given dispatcher.
-
-There is a complication with respect to the *nc_plugin_path_get* function.
-It is possible for users to bypass the netcdf API and modify the HDF5 plugin paths directly. This can result in an inconsistent plugin path between the value
-used by HDF5 and the global value used by netcdf-c. Since there is no obvious fix for this, we warn the user of this possibility and otherwise ignore it.
-
-## Point of Contact {#pluginpath_poc}
+## History {#pluginpath_history}
 
 *Author*: Dennis Heimbigner<br>
 *Email*: dennis.heimbigner@gmail.com<br>

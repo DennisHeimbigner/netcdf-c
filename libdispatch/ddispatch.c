@@ -154,7 +154,7 @@ static int NC_createglobalstate(void);
 /** \defgroup global_state Global state functions. */
 /** \{
 
-\ingroup global state
+\ingroup global_state
 */
 
 /* NCglobal state management */
