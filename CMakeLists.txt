@@ -660,10 +660,11 @@ endif()
 if(NOT DEFINED HDF5_PLUGIN_PATH OR ${HDF5_PLUGIN_PATH} STREQUAL "")
   if(ISMSVC OR ISMINGW)
     string(REPLACE "\\" "/" AUP "$ENV{"ALLUSERSPROFILE"}")
-    HDF5_PLUGIN_PATH="${AUP}/hdfd5/lib/plugin"
+    set(HDF5_PLUGIN_PATH "${AUP}/hdfd5/lib/plugin")
   else()
-    HDF5_PLUGIN_PATH="/usr/local/hdf5/lib/plugin"
+    set(HDF5_PLUGIN_PATH "/usr/local/hdf5/lib/plugin")
   endif()
+  set(ENV{HDF5_PLUGIN_PATH} "${HDF5_PLUGIN_PATH}")
 endif()
 
 # The --with-plugin-dir gives the user control of the plugin
