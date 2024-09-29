@@ -2137,6 +2137,7 @@ if test "x${HDF5_PLUGIN_PATH}" = x ; then
     HDF5_PLUGIN_PATH="${ALLUSERSPROFILE}\\hdfd5\\lib\\plugin"
   else
     HDF5_PLUGIN_PATH="/usr/local/hdf5/lib/plugin"
+  fi
 fi
 
 # The --with-plugin-dir gives the user control of the plugin
@@ -2175,14 +2176,14 @@ if test "x$ISMSVC" = xyes || test "x$ISMINGW" = xyes; then
 else
   PLUGIN_DIR=`echo "$PLUGIN_PATH" | tr ':;' '  '`
 fi
+last=
 for pp in ${PLUGIN_DIR} ; do last="$pp"; done
-  PLUGIN_DIR="$last"
-  with_plugin_dir_setting="$PLUGIN_DIR"
-  # canonical form is all forward slashes
-  with_plugin_dir=`echo "$PLUGIN_DIR" | tr '\\\\' '/'`
-  enable_plugin_dir=yes
-  AC_MSG_NOTICE([Final --with-plugin-dir=$with_plugin_dir])
-done
+PLUGIN_DIR="$last"
+with_plugin_dir_setting="$PLUGIN_DIR"
+# canonical form is all forward slashes
+with_plugin_dir=`echo "$PLUGIN_DIR" | tr '\\\\' '/'`
+enable_plugin_dir=yes
+AC_MSG_NOTICE([Final --with-plugin-dir=$with_plugin_dir])
 AM_CONDITIONAL([ENABLE_PLUGIN_DIR], [test "x$enable_plugin_dir" = xyes])
 AC_SUBST([PLUGIN_INSTALL_DIR], [$with_plugin_dir])
 # Better value for libnetcdf.settings
