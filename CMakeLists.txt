@@ -54,7 +54,6 @@ if (NOT DEFINED NETCDF_IS_TOP_LEVEL)
   endif ()
 endif ()
 
-
 ################################
 # The target
 ################################
@@ -361,12 +360,12 @@ endif()
 set(DEFAULT_CHUNK_SIZE 16777216 CACHE STRING "Default Chunk Cache Size.")
 set(DEFAULT_CHUNK_CACHE_SIZE 16777216U CACHE STRING "Default Chunk Cache Size.")
 set(DEFAULT_CHUNKS_IN_CACHE 1000 CACHE STRING "Default number of chunks in cache.")
-set(DEFAULT_CHUNK_CACHE_PREEMPTION 0.75 CACHE STRING "Default file chunk cache preemption policy (a number between 0 and 1, inclusive.")
-
+set(DEFAULT_CHUNK_CACHE_PREEMPTION 0.75 CACHE STRING "Default file chunk cache preemption policy (a number between 0 and 1, inclusive).")
+)
 # HDF5 default cache size values
 set(CHUNK_CACHE_SIZE ${DEFAULT_CHUNK_CACHE_SIZE} CACHE STRING "Default HDF5 Chunk Cache Size.")
 set(CHUNK_CACHE_NELEMS ${DEFAULT_CHUNKS_IN_CACHE} CACHE STRING "Default maximum number of elements in cache.")
-set(CHUNK_CACHE_PREEMPTION ${DEFAULT_CHUNK_CACHE_PREEMPTION} CACHE STRING "Default file chunk cache preemption policy for HDf5 files(a number between 0 and 1, inclusive.")
+set(CHUNK_CACHE_PREEMPTION ${DEFAULT_CHUNK_CACHE_PREEMPTION} CACHE STRING "Default file chunk cache preemption policy for HDf5 files(a number between 0 and 1, inclusive.)")
 
 set(NETCDF_LIB_NAME "" CACHE STRING "Default name of the netcdf library.")
 set(TEMP_LARGE "." CACHE STRING "Where to put large temp files if large file tests are run.")
@@ -375,7 +374,7 @@ set(NCPROPERTIES_EXTRA "" CACHE STRING "Specify extra pairs for _NCProperties.")
 if(NOT NETCDF_LIB_NAME STREQUAL "")
   set(MOD_NETCDF_NAME ON)
 endif()
-
+)
 # Set the appropriate compiler/architecture for universal OSX binaries.
 if(${CMAKE_SYSTEM_NAME} EQUAL "Darwin")
   set(CMAKE_OSX_ARCHITECTURES i386;x86_64)
@@ -1565,8 +1564,6 @@ endif()
 # EXPORT_FILE_NAME netcdf_Export.h
 # STATIC_DEFINE netcdf_BUILT_AS_STATIC
 #)
-
-
 
 ##
 # Brute force, grab all of the dlls from the dependency directory,
