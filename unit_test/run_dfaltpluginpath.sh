@@ -7,6 +7,10 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -x
 
+pwd
+ls -lrtd
+
+
 #CMD="valgrind --leak-check=full"
 
 TESTHPP="/tmp;${HOME}"
