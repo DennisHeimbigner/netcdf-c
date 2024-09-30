@@ -8,7 +8,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 set -x
 
 pwd
-ls -lrtd
+find ${execdir}
 
 
 #CMD="valgrind --leak-check=full"
