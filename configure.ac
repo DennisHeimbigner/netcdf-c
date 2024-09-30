@@ -2177,27 +2177,10 @@ if test "x$with_plugin_dir" = xno ; then # option missing|disabled
     with_plugin_dir=no
     with_plugin_dir_setting="N.A."
     enable_plugin_dir=no
-<<<<<<< HEAD
 elif test "x$with_plugin_dir" != x ; then
     if test "x$with_plugin_dir" != xyes && test "x$with_plugin_dir" != xno ; then
       # Presume true directory
       HDF5_PLUGIN_PATH="${with_plugin_dir}"
-=======
-elif test "x$with_plugin_dir" = xyes ; then # --with-plugin-dir, no argument
-    # Default to last dir (lowest search priority) in HDF5_PLUGIN_PATH
-    PLUGIN_PATH="$HDF5_PLUGIN_PATH"
-    if test "x${PLUGIN_PATH}" = x ; then
-        if test "x$ISMSVC" = xyes || test "x$ISMINGW" = xyes; then
-	    PLUGIN_PATH="${ALLUSERSPROFILE}\\hdfd5\\lib\\plugin"
-	else
-      if test "x${prefix}" = xNONE ; then
-   	    PLUGIN_PATH="/usr/local/hdf5/lib/plugin"
-      else 
-         PLUGIN_PATH="${prefix}/hdf5/lib/plugin"
-      fi
-
-   fi
->>>>>>> Unidata/main
     fi
 fi
 

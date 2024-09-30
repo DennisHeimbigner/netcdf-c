@@ -8,6 +8,10 @@
 # This is the cmake build file for unit_test/ directory.
 # @author Ward Fisher
 
+IF(USE_X_GETOPT)
+  SET(XGETOPTSRC "${CMAKE_CURRENT_SOURCE_DIR}/../libdispatch/XGetopt.c")
+ENDIF()
+
 # Currently (August 21, 2019): Some tests will not work with
 # Visual Studio. The unit tests are for internal netCDF functions,
 # so we don't want to make them external, which would be required to
@@ -15,10 +19,6 @@
 
 SET(UNIT_TESTS test_ncuri)
 add_bin_test(unit_test test_ncuri)
-
-IF(USE_X_GETOPT)
-  SET(XGETOPTSRC "${CMAKE_CURRENT_SOURCE_DIR}/../libdispatch/XGetopt.c")
-ENDIF()
 
 IF(NETCDF_ENABLE_HDF5)
   IF(NOT WIN32)
@@ -30,6 +30,7 @@ IF(NETCDF_ENABLE_HDF5)
   if(NETCDF_ENABLE_NCZARR_FILTERS)
     build_bin_test(tst_pluginpaths ${XGETOPTSRC})
     add_sh_test(unit_test run_pluginpaths)
+    add_sh_test(unit_test run_dfaltpluginpath)
   endif()
 ENDIF(NETCDF_ENABLE_HDF5)
 
@@ -52,6 +53,10 @@ if(BUILD_BENCHMARKS)
 add_bin_test(unit_test tst_exhash timer_utils.c)
 add_bin_test(unit_test tst_xcache timer_utils.c)
 endif()
+
+set(ncpluginpath_FILES ncpluginpath.c ${XGETOPTSRC})
+add_executable(ncpluginpath ${ncpluginpath_FILES})
+target_link_libraries(ncpluginpath netcdf ${ALL_TLL_LIBS})
 
 FILE(GLOB COPY_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.sh)
 FILE(COPY ${COPY_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/ FILE_PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE)

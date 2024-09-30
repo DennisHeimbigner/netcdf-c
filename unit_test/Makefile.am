@@ -22,9 +22,12 @@ LDADD = ${top_builddir}/liblib/libnetcdf.la
 
 check_PROGRAMS =
 TESTS =
+noinst_PROGRAMS =
+
+noinst_PROGRAMS += ncpluginpath
+ncpluginpath_SOURCES = ncpluginpath.c
 
 check_PROGRAMS += tst_nclist test_ncuri test_pathcvt
-
 TESTS += tst_nclist test_ncuri test_pathcvt
 
 # Performance tests
@@ -44,7 +47,7 @@ endif # USE_HDF5
 if USE_HDF5
 if NETCDF_ENABLE_NCZARR_FILTERS
 check_PROGRAMS += tst_pluginpaths
-TESTS += run_pluginpaths.sh
+TESTS += run_pluginpaths.sh run_dfaltpluginpath.sh
 endif
 endif
 
@@ -57,7 +60,7 @@ check_PROGRAMS += aws_config
 TESTS += run_aws_config.sh
 endif
 
-EXTRA_DIST = CMakeLists.txt run_s3sdk.sh run_reclaim_tests.sh run_aws_config.sh run_pluginpaths.sh
+EXTRA_DIST = CMakeLists.txt run_s3sdk.sh run_reclaim_tests.sh run_aws_config.sh run_pluginpaths.sh run_dfaltpluginpath.sh
 EXTRA_DIST += nctest_netcdf4_classic.nc reclaim_tests.cdl
 EXTRA_DIST += ref_get.txt ref_set.txt
 
