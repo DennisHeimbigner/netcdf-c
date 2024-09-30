@@ -374,7 +374,7 @@ set(NCPROPERTIES_EXTRA "" CACHE STRING "Specify extra pairs for _NCProperties.")
 if(NOT NETCDF_LIB_NAME STREQUAL "")
   set(MOD_NETCDF_NAME ON)
 endif()
-)
+
 # Set the appropriate compiler/architecture for universal OSX binaries.
 if(${CMAKE_SYSTEM_NAME} EQUAL "Darwin")
   set(CMAKE_OSX_ARCHITECTURES i386;x86_64)
