@@ -7,20 +7,19 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -x
 
-pwd
-find ${execdir}
-
-
 #CMD="valgrind --leak-check=full"
 
-TESTHPP="/tmp;${HOME}"
+TESTHPP=`${execdir}/../ncdump/ncpathcvt -C "/tmp;${HOME}"`
+DFALTWIN=`${execdir}/../ncdump/ncpathcvt -C "C:\\ProgramData\hdf5\\lib\\plugin"`
+DFALTNIX=`${execdir}/../ncdump/ncpathcvt -C "/usr/local/hdf5/lib/plugin"`
 
 FAIL=
 
 # Test with no HDF5_PLUGIN_PATH
 unset HDF5_PLUGIN_PATH
 NOHPP1=`${execdir}/ncpluginpath -f global`
-if test "x$NOHPP1" = "x/usr/local/hdf5/lib/plugin" || test "x$NOHPP1" = "xC:ProgramData/hdf5/lib/plugin" ; then
+NOHPP1=`${execdir}/../ncdump/ncpathcvt -C "$NOHPP1"`
+if test "x$NOHPP1" = "x$DFALTNIX" || test "x$NOHPP1" = "x$DFALTWIN" ; then
 echo "***PASS: default plugin path = |$NOHPP1|"
 else
 FAIL=1
@@ -31,6 +30,7 @@ fi
 unset HDF5_PLUGIN_PATH
 export HDF5_PLUGIN_PATH="$TESTHPP"
 HPP1=`${execdir}/ncpluginpath -f global`
+HPP1=`${execdir}/../ncdump/ncpathcvt -C "$HPP1"`
 if test "x$HPP1" = "x$TESTHPP" ; then
 echo "***PASS: default plugin path: |$HPP1| HDF5_PLUGIN_PATH=|$HDF5_PLUGIN_PATH|"
 else
