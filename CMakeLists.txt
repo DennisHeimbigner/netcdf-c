@@ -658,7 +658,7 @@ endif()
 # then set it internally.
 if((NOT DEFINED HDF5_PLUGIN_PATH) OR ("${HDF5_PLUGIN_PATH}" STREQUAL ""))
   if(ISMSVC OR ISMINGW)
-    string(REPLACE "\\" "/" AUP "$ENV{"ALLUSERSPROFILE"})
+    string(REPLACE "\\" "/" AUP "$ENV{"ALLUSERSPROFILE"}")
     set(HDF5_PLUGIN_PATH "${AUP}/hdfd5/lib/plugin")
   else()
     set(HDF5_PLUGIN_PATH "/usr/local/hdf5/lib/plugin")
