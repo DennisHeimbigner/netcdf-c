@@ -4,7 +4,7 @@ dimensions:
 	_Anonymous_Dim_8 = 8 ;
 	_Anonymous_Dim_10 = 10 ;
 variables:
-	int lat(lat) ;
+	int lat(_Anonymous_Dim_8) ;
 		lat:_FillValue = -1 ;
 		string lat:lat_attr = "latitude" ;
 data:

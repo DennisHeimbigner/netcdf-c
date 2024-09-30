@@ -239,7 +239,6 @@ NCZ_get_superblock(NC_FILE_INFO_T* file, int* superblockp)
 /**************************************************/
 /* Utilities */
 
-
 static const char*
 controllookup(NClist* controls, const char* key)
 {

@@ -164,6 +164,9 @@ OPTEXPORT void NCJdictsort(NCjson* jdict);
 
 /**************************************************/
 /* Error detection helper */
+
+
+
 #define NCJcheck(expr) do{if((expr) < 0) abort();}while(0)
 /**************************************************/
 

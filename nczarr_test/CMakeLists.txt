@@ -175,7 +175,7 @@ IF(NETCDF_ENABLE_TESTS)
     if(LARGE_FILE_TESTS)
       BUILD_BIN_TEST(test_readcaching)
       BUILD_BIN_TEST(test_writecaching)
-      BUILD_BIN_TEST(test_chunkcases ${TSTCOMMONSRC})
+      build_bin_test_with_util_lib(test_chunkcases test_utils)
       add_sh_test(nczarr_test run_cachetest)
       add_sh_test(nczarr_test run_chunkcases)
     ENDIF()
@@ -229,7 +229,7 @@ IF(NETCDF_ENABLE_TESTS)
   if(NETCDF_ENABLE_NCZARR_ZIP)
       add_sh_test(nczarr_test run_newformat)
       # Test various corrupted files
-      ADD_SH_TEST(nczarr_test run_corrupt.sh)
+      ADD_SH_TEST(nczarr_test run_corrupt)
   endif()
 
   IF(FALSE) # Obsolete tests

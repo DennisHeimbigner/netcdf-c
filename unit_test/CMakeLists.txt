@@ -14,6 +14,7 @@
 # run on Windows.
 
 SET(UNIT_TESTS test_ncuri)
+add_bin_test(unit_test test_ncuri)
 
 IF(USE_X_GETOPT)
   SET(XGETOPTSRC "${CMAKE_CURRENT_SOURCE_DIR}/../libdispatch/XGetopt.c")
@@ -36,6 +37,9 @@ IF(NETCDF_BUILD_UTILITIES)
   # SDK Test
     build_bin_test(test_s3sdk ${XGETOPTSRC})
     add_sh_test(unit_test run_s3sdk)
+  #AWS Configuration test
+    build_bin_test(aws_config)
+    add_sh_test(unit_test run_aws_config)
   ENDIF()
 ENDIF()
 
