@@ -24,6 +24,7 @@ Shared Library:		@enable_shared@
 Static Library:		@enable_static@
 Extra libraries:	@LIBS@
 XML Parser:             @XMLPARSER@
+Legacy Macros:          @HAS_LEGACY_MACROS@
 
 # Features
 --------
@@ -52,6 +53,9 @@ Diskless Support:	@HAS_DISKLESS@
 MMap Support:		@HAS_MMAP@
 ERANGE Fill Support:	@HAS_ERANGE_FILL@
 Relaxed Boundary Check:	@RELAX_COORD_BOUND@
+
+Plugins Enabled:        @HAS_PLUGINS@
+Plugin Install Dir:     @NETCDF_PLUGIN_INSTALL_DIR@
 
 Quantization:		@HAS_QUANTIZE@
 Logging:     		@HAS_LOGGING@

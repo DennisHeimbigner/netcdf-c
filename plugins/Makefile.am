@@ -16,7 +16,7 @@ DISTCLEANFILES =
 # Create an alternate directory if not installing.
 ALTPLUGINDIR = ${abs_top_builddir}/plugins/plugindir
 
-RPATH = -rpath $(abs_builddir)/.libs
+RPATH = -rpath $(abs_top_builddir)/.libs
 
 # This is where the plugins are to be installed
 if NETCDF_ENABLE_PLUGIN_DIR
