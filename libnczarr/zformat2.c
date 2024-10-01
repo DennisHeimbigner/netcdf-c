@@ -498,10 +498,10 @@ insert_nczarr_attr(NCjson* jatts, NCjson* jtypes)
 /**************************************************/
 /* NCZarr V2 Format Dispatch table */
 
-NCZ_Formatter v2formatter = {
-    int nczarr_format;
-    int zarr_format;
-    int dispatch_version; /* Version of the dispatch table */
+static const NCZ_Formatter NCZ_FORMATTER2_table = {
+    NCZARRFORMAT2,
+    ZARRFORMAT2,
+    NCZ_FORMATTER_VERSION,
 
     ZF2_create,
     ZF2_open,
@@ -521,5 +521,7 @@ NCZ_Formatter v2formatter = {
     ZF2_write_grp_json,
     ZF2_write_var_json,
 };
+
+const NCZ_Formatter* NCZ_formatter2 = &NCZ_formatter2_table;
 
 
