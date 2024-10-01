@@ -47,25 +47,25 @@ typedef struct NCZ_Formatter {
     int nczarr_format;
     int zarr_format;
     int dispatch_version; /* Version of the dispatch table */
+
     int (*create)    (NC_FILE_INFO_T* file, NCURI* uri, NCZMAP* map);
     int (*open)      (NC_FILE_INFO_T* file, NCURI* uri, NCZMAP* map);
     int (*close)     (NC_FILE_INFO_T* file);
 
-    /* Create meta-data elements */
+    /* Convert JSON to netcdf-4 object (e.g. NC_VAR_INFO_T*) */
+    int (*build_attributes_json)(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp);
     int (*build_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp);
-    int (*build_grp)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp);
+    int (*build_grp_dims)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* dims, NCjson** jdimsp);
+    int (*build_grp_subgroups)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* subgrps, NCjson** jsubgrpsp);
+    int (*build_grp_vars)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* vars, NCjson** jvarsp);
+    int (*build_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
+    int (*build_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jdims, NCjson* jvars, NCjson* jsubgrps,  NCjson** jnczgrpp);
+    int (*build_superblock)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsuperp);
+    int (*build_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp);
 
+    int (*write_grp_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jgroup, const NCjson* jatts);
+    int (*write_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jvar, const NCjson* jatts);
 
-
-
-    /* Parse meta-data elements */
-    int (*readmeta)  (NC_FILE_INFO_T* file);
-
-    /* Codec converters */
-    int (*hdf2codec) (const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter);
-
-    /* Misc. */
-    int (*buildchunkkey)(size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
 } NCZ_Formatter;
 
 #if defined(__cplusplus)
@@ -111,3 +111,5 @@ extern int NCZ_get_formatter(NC_FILE_INFO_T* file, const NCZ_Formatter** formatt
 #endif
 
 #endif /* ZFORMAT_H */
+
+

@@ -494,3 +494,32 @@ insert_nczarr_attr(NCjson* jatts, NCjson* jtypes)
     return NC_NOERR;
 }
 
+
+/**************************************************/
+/* NCZarr V2 Format Dispatch table */
+
+NCZ_Formatter v2formatter = {
+    int nczarr_format;
+    int zarr_format;
+    int dispatch_version; /* Version of the dispatch table */
+
+    ZF2_create,
+    ZF2_open,
+    ZF2_close,
+
+    /* Convert JSON to netcdf-4 object (e.g. NC_VAR_INFO_T*) */
+    ZF2_build_attributes_json,
+    ZF2_build_group,
+    ZF2_build_grp_dims,
+    ZF2_build_grp_subgroups,
+    ZF2_build_grp_vars,
+    ZF2_build_nczarr_array,
+    ZF2_build_nczarr_group,
+    ZF2_build_superblock,
+    ZF2_build_var_json,
+
+    ZF2_write_grp_json,
+    ZF2_write_var_json,
+};
+
+
