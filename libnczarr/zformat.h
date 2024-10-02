@@ -93,8 +93,11 @@ typedef struct NCZ_Formatter {
     int (*dtype2nctype)(const NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp);
     int (*nctype2dtype)(const NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typesize, char** dtypep, char** daliasp);
 
-    /* Misc. Actions */
+    /* Filter Operations */
     int (*hdf2codec) (const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter); /* Code converter */
+    int (*codec2hdf) (const NC_FILE_INFO_T* file, NCZ_Filter* filter); /* Code converter */
+
+    /* Misc. Actions */
     int (*build_chunkkey)(size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
 
     /* Search functions */
@@ -150,6 +153,7 @@ extern int NCZF_download_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, stru
 extern int NCZF_dtype2nctype(const NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp);
 extern int NCZF_nctype2dtype(const NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typelen, char** dtypep, char** daliasp);
 extern int NCZF_hdf2codec(const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter);
+extern int NCZF_codec2hdf(const NC_FILE_INFO_T* file, NCZ_Filter* filter);
 extern int NCZF_buildchunkkey(const NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
 
 /* Search functions */

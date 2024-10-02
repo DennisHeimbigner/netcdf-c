@@ -91,6 +91,18 @@ NCZF_hdf2codec(const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter*
 }
 
 int
+NCZF_codec2hdf(const NC_FILE_INFO_T* file, NCZ_Filter* filter)
+{
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zfile = NULL;
+
+    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    assert(zfile != NULL);
+    stat = zfile->dispatcher->codec2hdf(file,filter);
+    return THROW(stat);
+}
+
+int
 NCZF_dtype2nctype(const NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp)
 {
     int stat = NC_NOERR;
