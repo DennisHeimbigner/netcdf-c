@@ -53,18 +53,24 @@ typedef struct NCZ_Formatter {
     int (*close)     (NC_FILE_INFO_T* file);
 
     /* Convert JSON to netcdf-4 object (e.g. NC_VAR_INFO_T*) */
-    int (*build_attributes_json)(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp);
     int (*build_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp);
+    int (*build_superblock)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsuperp);
+    int (*build_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jdims, NCjson* jvars, NCjson* jsubgrps,  NCjson** jnczgrpp);
     int (*build_grp_dims)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* dims, NCjson** jdimsp);
     int (*build_grp_subgroups)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* subgrps, NCjson** jsubgrpsp);
     int (*build_grp_vars)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NClist* vars, NCjson** jvarsp);
-    int (*build_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
-    int (*build_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jdims, NCjson* jvars, NCjson* jsubgrps,  NCjson** jnczgrpp);
-    int (*build_superblock)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsuperp);
     int (*build_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jvarp);
+    int (*build_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jnczarrayp);
+    int (*build_attributes_json)(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jattsp, NCjson** jtypesp);
+
+    int (*group_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jsuper, NCjson** jgroupp);
 
     int (*write_grp_json)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jgroup, const NCjson* jatts);
     int (*write_var_json)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jvar, const NCjson* jatts);
+
+    /* Reclamation */
+
+    /* Misc. Support Functions */
 
 } NCZ_Formatter;
 
