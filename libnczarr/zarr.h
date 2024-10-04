@@ -15,7 +15,7 @@
 /* Opaque */
 struct ChunkKey;
 struct S3credentials;
-struct ZJSON;
+struct ZOBJ;
 
 /* Intermediate results */
 struct ZCVT {
@@ -49,16 +49,6 @@ EXTERNL int NCZ_stringconvert1(nc_type typid, char* src, NCjson* jvalue);
 EXTERNL int NCZ_stringconvert(nc_type typid, size_t len, void* data0, NCjson** jdatap);
 
 /* zsync.c */
-EXTERNL int ncz_sync_file(NC_FILE_INFO_T* file, int isclose);
-EXTERNL int ncz_sync_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose);
-EXTERNL int ncz_sync_atts(NC_FILE_INFO_T*, NC_OBJ* container, NCindex* attlist, NCjson* jatts, NCjson* jtypes, int isclose);
-EXTERNL int ncz_read_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON* jsonz);
-EXTERNL int ncz_read_atts(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts);
-EXTERNL int ncz_read_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames);
-EXTERNL int ncz_read_file(NC_FILE_INFO_T* file);
-EXTERNL int ncz_write_var(NC_VAR_INFO_T* var);
-EXTERNL int ncz_read_superblock(NC_FILE_INFO_T* file, struct ZJSON*);
-EXTERNL int ncz_insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson* javalue, const char* atype);
 
 /* zutil.c */
 EXTERNL int NCZ_grpkey(const NC_GRP_INFO_T* grp, char** pathp);
@@ -107,7 +97,7 @@ EXTERNL int NCZ_computeattrinfo(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* att);
 EXTERNL int NCZ_computeattrdata(struct NCZ_AttrInfo* att);
 EXTERNL int NCZ_dictgetalt(const NCjson* jdict, const NCjson** jvaluep, ...);
 EXTERNL int NCZ_dictgetalt2(const NCjson* jdict, const NCjson** jvaluep, const char* name1, const char* name2); /* common case */
-EXTERNL int NCZ_getnczarrkey(NC_FILE_INFO_T* file, struct ZJSON* jsonz, const char* name, const NCjson** jncxxxp);
+EXTERNL int NCZ_getnczarrkey(NC_FILE_INFO_T* file, struct ZOBJ* jsonz, const char* name, const NCjson** jncxxxp);
 
 /* zwalk.c */
 EXTERNL int NCZ_read_chunk(int ncid, int varid, size64_t* zindices, void* chunkdata);

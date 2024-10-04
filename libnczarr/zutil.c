@@ -107,7 +107,7 @@ So, for example:
 */
 
 /* map nc_type -> NCJ_SORT */
-static int zjsonsort[N_NCZARR_TYPES] = {
+static int zobjsort[N_NCZARR_TYPES] = {
 NCJ_UNDEF, /*NC_NAT*/
 NCJ_INT, /*NC_BYTE*/
 NCJ_STRING, /*NC_CHAR*/
@@ -378,7 +378,7 @@ int
 ncz_fill_value_sort(nc_type nctype, int* sortp)
 {
     if(nctype <= 0 || nctype > N_NCZARR_TYPES) return NC_EINVAL;
-    if(sortp) *sortp = zjsonsort[nctype];
+    if(sortp) *sortp = zobjsort[nctype];
     return NC_NOERR;	        
 }
 
@@ -1308,21 +1308,21 @@ NCZ_dictgetalt2(const NCjson* jdict, const NCjson** jvaluep, const char* name1, 
 
 /* Get _nczarr_xxx from either .zXXX or .zattrs */
 int
-NCZ_getnczarrkey(NC_FILE_INFO_T* file, struct ZJSON* jsonz, const char* name, const NCjson** jncxxxp)
+NCZ_getnczarrkey(NC_FILE_INFO_T* file, struct ZOBJ* zobj, const char* name, const NCjson** jncxxxp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     const NCjson* jxxx = NULL;
 
     /* Try jatts first */
-    if(jsonz->jatts != NULL) {
+    if(zobj->jatts != NULL) {
 	jxxx = NULL;
-        NCJcheck(NCJdictget(jsonz->jatts,name,&jxxx));
+        NCJcheck(NCJdictget(zobj->jatts,name,&jxxx));
     }
     if(jxxx == NULL) {
         /* Try .zxxx second */
-	if(jsonz->jobj != NULL) {
-            NCJcheck(NCJdictget(jsonz->jobj,name,&jxxx));
+	if(zobj->jobj != NULL) {
+            NCJcheck(NCJdictget(zobj->jobj,name,&jxxx));
 	}
 	/* Mark as old style with _nczarr_xxx in obj as keys not attributes */
         zfile->flags |= FLAG_NCZARR_KEY;
