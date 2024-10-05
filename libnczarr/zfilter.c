@@ -850,7 +850,7 @@ done:
 */
 
 int
-NCZ_filter_jsonize(const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp)
+NCZ_filter_jsonize(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp)
 {
     int stat = NC_NOERR;
     NCjson* jfilter = NULL;
@@ -1459,7 +1459,7 @@ pluginnamecheck(const char* name)
 /* _Codecs attribute */
 
 int
-NCZ_codec_attr(const NC_VAR_INFO_T* var, size_t* lenp, void* data)
+NCZ_codec_attr(NC_VAR_INFO_T* var, size_t* lenp, void* data)
 {
     size_t i;
     int stat = NC_NOERR;
@@ -1623,25 +1623,56 @@ paramnczclone(const NCZ_Params* src, NCZ_Params* dst)
     return paramclone(src->nparams,src->params,&dst->params);
 }
 
-/* Build filter from parsed Zarr metadata */
+/* Encode filter to parsed Zarr metadata */
 int
-NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter)
+NCZ_filters_encode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* jfilters)
 {
     int stat = NC_NOERR;
     size_t i;
+    NClist* filters = NULL;
     NCZ_Filter* filter = NULL;
-    const NCjson* jvalue = NULL;
-    NCZ_Plugin* plugin = NULL;
-    NCZ_Codec codec;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
+    NCjson* jfilter = NULL;
 
-    ZTRACE(6,"file=%s var=%s jfilter=%s",file->hdr.name,var->hdr.name,NCJtrace(jfilter));
+    filters = (NClist*)var->filters;
+    if(filters != NULL) {
+	for(i=0;i<nclistlength(filters);i++) {
+	    filter = (NCZ_Filter*)nclistget(filters,i);
+	    if((stat = NCZF_encode_filter(file,var,filter,&jfilter))) goto done;
+	    nclistpush(jfilters,jfilter); jfilter = NULL;
+	}
+    }
+    
+done:
+#if 0
+    ncz_hdf5_clear(&hdf5);
+    ncz_codec_clear(&codec);
+#endif /*0*/
+    NCZ_reclaim_json(jfilter);
+    return ZUNTRACE(stat);
+}
 
-    memset(&codec,0,sizeof(codec));
+/* Decode Zarr filter metadata to  filters and attach to var*/
+int
+NCZ_filters_decode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* jfilters)
+{
+    int stat = NC_NOERR;
+    size_t i,j;
+    NCZ_Filter* filter = NULL;
+    NClist* filters = NULL;
 
     if(var->filters == NULL) var->filters = nclistnew();
+    filters = (NClist*)var->filters;
 
+    for(i=0;i<nclistlength(jfilters);i++) {
+        const NCjson* jfilter = (NCjson*)nclistget(jfilters,i);
+        /* Will always have a filter; possibly unknown */ 
+	if((filter = calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}		
+        /* Decode the JSON filter */
+        if((stat=NCZF_decode_filter(file,var,jfilter,filter))) goto done;
+	nclistpush(filters,filter);
+    }
+#if 0
+    memset(&codec,0,sizeof(codec));
     /* Get the id of this codec filter */
     if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jvalue) != NCJ_STRING) {
@@ -1652,31 +1683,117 @@ NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* j
     if((codec.id = strdup(NCJstring(jvalue)))==NULL)
         {stat = NC_ENOMEM; goto done;}
     if(NCJunparse(jfilter,0,&codec.codec)<0) {stat = NC_EFILTER; goto done;}
+#endif
 
-    /* Find the plugin for this filter */
+    /* Find the plugin for each filter */
     for(i=0;i<=plugins.loaded_plugins_max;i++) {
         if (!plugins.loaded_plugins[i]) continue;
-        if(!plugins.loaded_plugins[i] || !plugins.loaded_plugins[i]->codec.codec) continue; /* no plugin or no codec */
-        if(strcmp(NCJstring(jvalue), plugins.loaded_plugins[i]->codec.codec->codecid) == 0)
-	    {plugin = plugins.loaded_plugins[i]; break;}
+	if(!plugins.loaded_plugins[i] || !plugins.loaded_plugins[i]->codec.codec) continue; /* no plugin or no codec */
+	/* See if this plugin matches any filter */
+	for(j=0;j<nclistlength(filters);j++) {
+	    filter = (NCZ_Filter*)nclistget(filters,i);
+            if(strcmp(filter->codec.id, plugins.loaded_plugins[i]->codec.codec->codecid) == 0)
+	        {filter->plugin = plugins.loaded_plugins[i];}
+	}
+	filter = NULL;
     }
-
-    /* Will always have a filter; possibly unknown */ 
-    if((filter = calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}		
-
-    if(plugin != NULL) {
-	if((stat = NCZF_codec2hdf(file,filter))) goto done;
+#if 0
+	if((stat = NCZF_codec2hdf(file,var,filter))) goto done;
 	filter->flags |= FLAG_VISIBLE;
-	filter->hdf5 = hdf5; hdf5 = hdf5_empty;
 	filter->codec = codec; codec = codec_empty;
 	filter->flags |= FLAG_CODEC;
-        filter->plugin = plugin; plugin = NULL;
     } else {
         /* Create a fake filter so we do not forget about this codec */
 	filter->hdf5 = hdf5_empty;
 	filter->codec = codec; codec = codec_empty;
 	filter->flags |= (FLAG_INCOMPLETE|FLAG_CODEC);
     }
+#endif
+    
+done:
+#if 0
+    ncz_hdf5_clear(&hdf5);
+    ncz_codec_clear(&codec);
+#endif /*0*/
+    NCZ_filter_free(filter);
+    return ZUNTRACE(stat);
+}
+
+#if 0
+/* Encode filter to parsed Zarr metadata */
+int
+NCZ_filter_encode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** jfilterp)
+{
+    int stat = NC_NOERR;
+    size_t i;
+
+    ZTRACE(6,"file=%s var=%s filter=%s",file->hdr.name,var->hdr.name,filter->codec.id);
+    if((stat = NCZF_encode_filter(file,var,filter,jfilterp))) goto done;
+    
+done:
+    return ZUNTRACE(stat);
+}
+#endif /*0*/
+
+#if 0
+/* Create filter from parsed Zarr metadata */
+int
+NCZ_filter_decode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    NCZ_Filter* filter = NULL;
+    const NCjson* jvalue = NULL;
+    NCZ_Plugin* plugin = NULL;
+    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
+
+    ZTRACE(6,"file=%s var=%s jfilter=%s",file->hdr.name,var->hdr.name,NCJtrace(jfilter));
+
+    memset(&codec,0,sizeof(codec));
+
+    if(var->filters == NULL) var->filters = nclistnew();
+
+    /* Will always have a filter; possibly unknown */ 
+    if((filter = calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}		
+
+    /* Decode the JSON filter */
+    if((stat=NCZF_decode_filter(file,var,jfilter,filter))) goto done;
+
+#if 0
+    /* Get the id of this codec filter */
+    if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
+    if(NCJsort(jvalue) != NCJ_STRING) {
+	stat = THROW(NC_ENOFILTER); goto done;
+    }
+
+    /* Build the codec */
+    if((codec.id = strdup(NCJstring(jvalue)))==NULL)
+        {stat = NC_ENOMEM; goto done;}
+    if(NCJunparse(jfilter,0,&codec.codec)<0) {stat = NC_EFILTER; goto done;}
+#endif
+
+    /* Find the plugin for this filter */
+    for(i=0;i<=plugins.loaded_plugins_max;i++) {
+        if (!plugins.loaded_plugins[i]) continue;
+        if(!plugins.loaded_plugins[i] || !plugins.loaded_plugins[i]->codec.codec) continue; /* no plugin or no codec */
+        if(strcmp(filter->codec.id, plugins.loaded_plugins[i]->codec.codec->codecid) == 0)
+	    {plugin = plugins.loaded_plugins[i]; break;}
+    }
+
+    filter->plugin = plugin; plugin = NULL;
+#if 0
+	if((stat = NCZF_codec2hdf(file,var,filter))) goto done;
+	filter->flags |= FLAG_VISIBLE;
+	filter->codec = codec; codec = codec_empty;
+	filter->flags |= FLAG_CODEC;
+    } else {
+        /* Create a fake filter so we do not forget about this codec */
+	filter->hdf5 = hdf5_empty;
+	filter->codec = codec; codec = codec_empty;
+	filter->flags |= (FLAG_INCOMPLETE|FLAG_CODEC);
+    }
+#endif
 
     if(filter != NULL) {
         NClist* filterlist = (NClist*)var->filters;
@@ -1685,8 +1802,11 @@ NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* j
     }
     
 done:
+#if 0
     ncz_hdf5_clear(&hdf5);
     ncz_codec_clear(&codec);
+#endif /*0*/
     NCZ_filter_free(filter);
     return ZUNTRACE(stat);
 }
+#endif /*0*/

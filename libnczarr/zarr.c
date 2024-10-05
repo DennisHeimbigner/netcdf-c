@@ -153,7 +153,7 @@ ncz_open_dataset(NC_FILE_INFO_T* file, NClist* urlcontrols)
     if((stat = NCZ_get_formatter(file, (const NCZ_Formatter**)&zfile->dispatcher))) goto done;
 
     /* Load the meta-data */
-    if((stat = ncz_read_file(file))) goto done;
+    if((stat = ncz_decode_file(file))) goto done;
 
 done:
     ncurifree(uri);

@@ -125,12 +125,14 @@ int NCZ_filter_freelists(NC_VAR_INFO_T* var);
 int NCZ_filter_freelist1(NClist* filters);
 int NCZ_codec_freelist(NCZ_VAR_INFO_T* zvar);
 int NCZ_applyfilterchain(NC_FILE_INFO_T*, NC_VAR_INFO_T*, NClist* chain, size_t insize, void* indata, size_t* outlen, void** outdata, int encode);
-int NCZ_codec_attr(const NC_VAR_INFO_T* var, size_t* lenp, void* data);
+int NCZ_codec_attr(NC_VAR_INFO_T* var, size_t* lenp, void* data);
 int NCZ_fillin_filter(NC_FILE_INFO_T* file, NCZ_Filter* filter, NCZ_HDF5* hdf5, NCZ_Codec* codec);
-int NCZ_filter_jsonize(const NC_FILE_INFO_T* file, const NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp);
+int NCZ_filter_jsonize(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp);
 int NCZ_filter_free(NCZ_Filter* spec);
 int NCZ_filter_hdf5_clear(NCZ_HDF5* spec);
 int NCZ_filter_codec_clear(NCZ_Codec* spec);
 
-int NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter);
+int NCZ_filters_encode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* jfilters);
+int NCZ_filters_decode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* jfilters);
+
 #endif /*ZFILTER_H*/

@@ -389,7 +389,7 @@ ncz_sync_netcdf4_file(NC_FILE_INFO_T* file, int isclose)
 
         /* Write out meta-data if we are closing as opposed to enddef() */
         if(isclose) 
-            {if((stat = NCZF_writemeta(file))) goto done;}
+            {if((stat = ncz_encode_file(file,1))) goto done;}
     }
 done:
     return ZUNTRACE(stat);

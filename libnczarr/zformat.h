@@ -67,9 +67,9 @@ int (*download_grp)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
 int (*download_var)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj);
 
 int (*decode_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj, NCjson** jzgrpp, NCjson** jzsuperp);
-int (*decode_superblock)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NCjson* jsuper);
+int (*decode_superblock)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NCjson* jsuper, int* zarrformat, int* nczarrformat);
 int (*decode_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jnczgrp, NClist* vars, NClist* subgrps);
-int (*decode_var)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCjson** jncvarp);
+int (*decode_var)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCjson** jnczvarp, NClist* jfilters);
 int (*decode_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const struct ZOBJ* zobj);
 int (*decode_attributes)(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jnczvar, const NCjson* jatts, NCjson** jtypesp);
 
@@ -82,13 +82,17 @@ int (*encode_nczarr_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** ja
 int (*encode_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jsuper, const NCjson* jzgroup, NCjson** jatts, NCjson** jgroupp);
 
 int (*encode_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jtypes, NCjson** jzvarp);
-int (*encode_var)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jzvar, NCjson** jatts, NCjson** jvarp);
+int (*encode_var)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jzvar, NCjson** jatts, NClist* jfilters, NCjson** jvarp);
 
 int (*encode_attributes)(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jnczvar, NCjson** jattsp, NCjson** jtypesp);
 
 /*Type Conversion*/
 int (*dtype2nctype)(NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp);
 int (*nctype2dtype)(NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typesize, char** dtypep, char** dattrp);
+
+/*Filter Processing*/
+int (*encode_filter)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** jfilterp);
+int (*decode_filter)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter, NCZ_Filter* filter);
 
 /*Filter Conversion*/
 int (*hdf2codec) (NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter);
@@ -122,9 +126,9 @@ extern int NCZF_download_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZO
 extern int NCZF_download_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj);
 
 extern int NCZF_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* jgroup, NCjson** jzgrpp, NCjson** jzsuperp);
-extern int NCZF_decode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NCjson* jsuper);
+extern int NCZF_decode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NCjson* jsuper, int* zarrformat, int* nczarrformat);
 extern int NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jnczgrp, NClist* vars, NClist* subgrps);
-extern int NCZF_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* jvar, NCjson** jnczvarp);
+extern int NCZF_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* jvar, NCjson** jnczvarp, NClist* jfilters);
 extern int NCZF_decode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const struct ZOBJ* zobj);
 extern int NCZF_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jncvar, const NCjson* jatts, NCjson** jtypesp);
 
@@ -136,12 +140,16 @@ extern int NCZF_encode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCj
 extern int NCZF_encode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jatts, NCjson* jtypes, NCjson** jzgroupp);
 extern int NCZF_encode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jsuper, const NCjson* jzgroup, NCjson** jatts, NCjson** jgroupp);
 extern int NCZF_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jtypes, NCjson** jzvarp);
-extern int NCZF_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jzvar, NCjson** jatts, NCjson** jvarp);
+extern int NCZF_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jzvar, NCjson** jatts, NClist* jfilters, NCjson** jvarp);
 extern int NCZF_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jnczvar, NCjson** jattsp, NCjson** jtypesp);
 
 /*Type Conversion*/
 extern int NCZF_dtype2nctype(NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp);
 extern int NCZF_nctype2dtype(NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typesize, char** dtypep, char** dattrp);
+
+/*Filter Processing*/
+extern int NCZF_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** jfilterp);
+extern int NCZF_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter, NCZ_Filter* filter);
 
 /*Filter Conversion*/
 extern int NCZF_hdf2codec(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter);

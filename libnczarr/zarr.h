@@ -49,6 +49,8 @@ EXTERNL int NCZ_stringconvert1(nc_type typid, char* src, NCjson* jvalue);
 EXTERNL int NCZ_stringconvert(nc_type typid, size_t len, void* data0, NCjson** jdatap);
 
 /* zsync.c */
+EXTERNL int ncz_encode_file(NC_FILE_INFO_T* file, int isclose);
+EXTERNL int ncz_decode_file(NC_FILE_INFO_T* file);
 
 /* zutil.c */
 EXTERNL int NCZ_grpkey(const NC_GRP_INFO_T* grp, char** pathp);
