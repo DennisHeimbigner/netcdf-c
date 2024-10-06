@@ -506,7 +506,7 @@ ZF2_decode_grp_var(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname
 }
 
 static int
-ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const struct ZOBJ* jsonz, NClist* dimdefs, NClist* vars, NClist* subgrps)
+ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const struct ZJSON* jsonz, NClist* dimdefs, NClist* vars, NClist* subgrps)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -660,7 +660,7 @@ done:
 }
 
 static int
-ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* jsonz)
+ZF2_decode_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz)
 {
     int stat = NC_NOERR;
     size_t j;
@@ -968,7 +968,7 @@ done:
 }
 
 static int
-ZF2_download_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* jsonz)
+ZF2_download_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZJSON* jsonz)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -990,7 +990,7 @@ done:
 }
 
 static int
-ZF2_download_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* jsonz)
+ZF2_download_var_json(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZJSON* jsonz)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
