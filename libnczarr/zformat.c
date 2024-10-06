@@ -274,30 +274,6 @@ NCZF_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jncvar, 
     return THROW(stat);
 }
 
-/*Type Conversion*/
-int
-NCZF_dtype2nctype(NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = NULL;
-
-    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    assert(zfile != NULL);
-    stat = zfile->dispatcher->dtype2nctype(file,dtype,typehint,nctypep,endianp,typelenp);
-    return THROW(stat);
-}
-
-int
-NCZF_nctype2dtype(NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typesize, char** dtypep, char** dattrp)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = NULL;
-
-    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    assert(zfile != NULL);
-    stat = zfile->dispatcher->nctype2dtype(file,nctype,endianness,typesize,dtypep,dattrp);
-    return THROW(stat);
-}
 
 /*Filter Processing*/
 int

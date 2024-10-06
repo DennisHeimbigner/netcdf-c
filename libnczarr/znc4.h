@@ -35,8 +35,7 @@ extern int ncz4_build_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
 			        NClist* filters,
 				int no_fill,
 				void* fill_value);
-extern int ncz4_create_dim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* name, size64_t len, int isunlimited,
-			   NC_DIM_INFO_T** dimp);
+extern int ncz4_create_dim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const struct DimInfo* dimdef);
 extern int ncz4_create_attr(NC_FILE_INFO_T* file, NC_OBJ* parent, const char* name,
 		 nc_type nctype, size_t len, void* data,
 		 NC_ATT_INFO_T** attp);

@@ -1151,10 +1151,7 @@ NCZ_clear_diminfo(size_t rank, NCZ_DimInfo* diminfo)
 void
 NCZ_reclaim_diminfo(struct NCZ_DimInfo* di)
 {
-    if(di != NULL) {
-	nullfree(di->name);
-	free(di);
-    }
+    nullfree(di);
 }
 
 void

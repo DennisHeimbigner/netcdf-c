@@ -30,8 +30,12 @@
 #define NCZARRFORMAT2 2
 #define NCZARRFORMAT3 3
 
+/* Map the Zarr Format version to a string */
+#define ZARR_FORMAT_VERSION_TEMPLATE "%d"
+
 /* Map the NCZarr Format version to a string */
 #define NCZARR_FORMAT_VERSION_TEMPLATE "%d.0.0"
+
 
 /* The name of the env var for changing default zarr format */
 #define NCZARRDEFAULTFORMAT "NCZARRFORMAT"
@@ -309,7 +313,7 @@ typedef struct NCZ_TYPE_INFO {
 
 /* Parsed dimension info */
 typedef struct NCZ_DimInfo {
-    char* name;
+    char norm_name[NC_MAX_NAME+1];
     size64_t shape;
     int unlimited;
 } NCZ_DimInfo;
