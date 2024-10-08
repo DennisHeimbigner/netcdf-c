@@ -86,8 +86,8 @@ int (*encode_var)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jzvar,
 int (*encode_attributes)(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jnczvar, NCjson** jattsp, NCjson** jtypesp);
 
 /*Filter Processing*/
-int (*encode_filter)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** jfilterp);
-int (*decode_filter)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter, NCZ_Filter* filter);
+int (*encode_filter)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp);
+int (*decode_filter)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter);
 
 /*Filter Conversion*/
 int (*hdf2codec) (NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter);
@@ -138,8 +138,8 @@ extern int NCZF_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjso
 extern int NCZF_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jnczvar, NCjson** jattsp, NCjson** jtypesp);
 
 /*Filter Processing*/
-extern int NCZF_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** jfilterp);
-extern int NCZF_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter, NCZ_Filter* filter);
+extern int NCZF_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp);
+extern int NCZF_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter);
 
 /*Filter Conversion*/
 extern int NCZF_hdf2codec(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter);

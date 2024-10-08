@@ -117,7 +117,6 @@ typedef struct NCZ_Filter {
 int NCZ_filter_initialize(void);
 int NCZ_filter_finalize(void);
 
-int NCZ_codec_plugin_lookup(const char* codecid, NCZ_Plugin** pluginp);
 int NCZ_insert_filter(NC_FILE_INFO_T* file, NClist* list, NCZ_HDF5* hdf5, NCZ_Codec* codec, NCZ_Filter* fi, int exists);
 int NCZ_filter_verify(NCZ_Filter* filter, int varsized);
 int NCZ_filter_setup(NC_VAR_INFO_T* var);
@@ -134,5 +133,8 @@ int NCZ_filter_codec_clear(NCZ_Codec* spec);
 
 int NCZ_filters_encode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* jfilters);
 int NCZ_filters_decode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* jfilters);
+
+int NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, NCZ_Filter** specp);
+int NCZ_plugin_lookup(const char* codecid, NCZ_Plugin** pluginp);
 
 #endif /*ZFILTER_H*/

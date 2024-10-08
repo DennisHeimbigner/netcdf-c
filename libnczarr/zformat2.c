@@ -87,8 +87,8 @@ static int ZF2_encode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjs
 static int ZF2_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jzvarp);
 static int ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jzvar, NCjson** jatts, NClist* jfilters, NCjson** jvarp);
 static int ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jnczvar, NCjson** jattsp, NCjson** jtypesp);
-static int ZF2_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** jfilterp);
-static int ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter, NCZ_Filter* filter);
+static int ZF2_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp);
+static int ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter);
 static int ZF2_hdf2codec(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter);
 static int ZF2_codec2hdf(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter);
 static int ZF2_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrpnames);
@@ -1081,18 +1081,42 @@ done:
 }
 
 /*Filter Processing*/
-int
-ZF2_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** jfilterp)
+static int
+ZF2_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp)
 {
     int stat = NC_NOERR;
-    /* encode up the filter
-    if((stat = NCZ_filter_jsonize(file,var,compressor,&jcompressor))) goto done;
+    NCjson* jfilter = NULL;
+    
+    /* assumptions */
+    assert(filter->flags & FLAG_WORKING);
+
+    /* Convert the HDF5 id + parameters to the codec form */
+
+    /* We need to ensure the the current visible parameters are defined and had the opportunity to come
+       from the working parameters */
+    assert((filter->flags & (FLAG_VISIBLE | FLAG_WORKING)) == (FLAG_VISIBLE | FLAG_WORKING));
+
+    /* Convert the visible parameters back to codec */
+    /* Clear any previous codec */
+    nullfree(filter->codec.id); filter->codec.id = NULL;
+    nullfree(filter->codec.codec); filter->codec.codec = NULL;
+    filter->codec.id = strdup(filter->plugin->codec.codec->codecid);
+    if(filter->plugin->codec.codec->NCZ_hdf5_to_codec) {
+	if((stat = filter->plugin->codec.codec->NCZ_hdf5_to_codec(NCplistzarrv2,filter->hdf5.id,filter->hdf5.visible.nparams,filter->hdf5.visible.params,&filter->codec.codec))) goto done;
+    } else
+        {stat = NC_EFILTER; goto done;}
+
+    /* Parse the codec as the return */
+    if(NCJparse(filter->codec.codec,0,&jfilter) < 0) {stat = NC_EFILTER; goto done;}
+    if(jfilterp) {*jfilterp = jfilter; jfilter = NULL;}
+
 done:
+    NCJreclaim(jfilter);
     return THROW(stat);
 }
 
-int
-ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter, NCZ_Filter* filter)
+static int
+ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -1101,43 +1125,51 @@ ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilte
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
     NCZ_Codec codec = NCZ_codec_empty;
-    NCZ_HDF5 codec = NCZ_hdf5_empty;
+    NCZ_HDF5 hdf5 = NCZ_hdf5_empty;
 
-    /* Will always have a filter; possibly unknown */ 
-    if((filter = calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}		
+    if(var->filters == NULL) var->filters = nclistnew();
 
     /* Get the id of this codec filter */
     if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jvalue) != NCJ_STRING) {stat = THROW(NC_ENOFILTER); goto done;}
-    if((codec.id = strdup(NCJstring(jvalue)))==NULL) {stat = NC_ENOMEM; goto done;}
+
     /* Save the codec */
+    if((codec.id = strdup(NCJstring(jvalue)))==NULL) {stat = NC_ENOMEM; goto done;}
     if(NCJunparse(jfilter,0,&codec.codec)<0) {stat = NC_EFILTER; goto done;}
 
     /* Find the plugin for this filter */
-    if((stat = NCZ_codec_lookup(codec.id,&plugin))) goto done;
+    if((stat = NCZ_plugin_lookup(codec.id,&plugin))) goto done;
     assert(filter->plugin == NULL);
     filter->plugin = plugin; plugin = NULL; /* Might be NULL */
 
-#if 0
-	if((stat = NCZF_codec2hdf(file,var,filter))) goto done;
+    /* Will always have a filter; possibly unknown */ 
+    if((filter = calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}		
+
+    if(plugin != NULL) {
+	/* Save the hdf5 id */
+	hdf5.id = plugin->codec.codec->hdf5id;
+	/* Convert the codec to hdf5 form visible parameters */
+        if(plugin->codec.codec->NCZ_codec_to_hdf5) {
+            if((stat = plugin->codec.codec->NCZ_codec_to_hdf5(NCproplistv2,codec.codec,&hdf5.visible.nparams,&hdf5.visible.params)))
+	        goto done;
+	}
 	filter->flags |= FLAG_VISIBLE;
-	filter->codec = codec; codec = codec_empty;
+	filter->hdf5 = hdf5; hdf5 = NCZ_hdf5_empty;
+	filter->codec = codec; codec = NCZ_codec_empty;
 	filter->flags |= FLAG_CODEC;
+        filter->plugin = plugin; plugin = NULL;
     } else {
         /* Create a fake filter so we do not forget about this codec */
-	filter->hdf5 = hdf5_empty;
-	filter->codec = codec; codec = codec_empty;
+	filter->hdf5 = NCZ_hdf5_empty;
+	filter->codec = codec; codec = NCZ_codec_empty;
 	filter->flags |= (FLAG_INCOMPLETE|FLAG_CODEC);
     }
-#endif
 
-    
 done:
 #if 0
     ncz_hdf5_clear(&hdf5);
     ncz_codec_clear(&codec);
 #endif /*0*/
-    NCZ_filter_free(filter);
     return THROW(stat);
 }
 

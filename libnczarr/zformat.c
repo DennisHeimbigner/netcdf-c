@@ -265,7 +265,7 @@ NCZF_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jncvar, 
 
 /*Filter Processing*/
 int
-NCZF_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** jfilterp)
+NCZF_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
@@ -277,7 +277,7 @@ NCZF_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCZ_Filter* f
 }
 
 int
-NCZF_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter, NCZ_Filter* filter)
+NCZF_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;

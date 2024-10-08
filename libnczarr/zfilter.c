@@ -182,7 +182,6 @@ static int NCZ_load_plugin(const char* path, NCZ_Plugin** plugp);
 static int NCZ_unload_plugin(NCZ_Plugin* plugin);
 static int NCZ_plugin_loaded(unsigned filterid, NCZ_Plugin** pp);
 static int NCZ_plugin_save(unsigned filterid, NCZ_Plugin* p);
-static int NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, NCZ_Filter** specp);
 static int NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t nparams, const unsigned int* params);
 
 static int getentries(const char* path, NClist* contents);
@@ -275,34 +274,6 @@ done:
 /**************************************************/
 
 int
-NCZ_codec_plugin_lookup(const char* codecid, NCZ_Plugin** pluginp)
-{
-    int stat = NC_NOERR;
-    size_t i;
-    NCZ_Plugin* plugin = NULL;
-    char digits[64];
-    const char* trueid = NULL;
-    
-    /* Find the plugin for this codecid */
-    for(i=1;i<=plugins.loaded_plugins_max;i++) {
-	NCZ_Plugin* p = plugins.loaded_plugins[i];
-        if(p == NULL) continue;
-        if(p == NULL|| p->codec.codec == NULL) continue; /* no plugin or no codec */
-	if(p->codec.ishdf5raw) {
-	    /* get true id */
-	    snprintf(digits,sizeof(digits),"%d",p->hdf5.filter->id);
-	    trueid = digits;
-	} else {
-	    trueid = p->codec.codec->codecid;
-	}
-	if(strcmp(codecid, trueid) == 0)
-	    {plugin = p; break;}
-    }
-    if(pluginp) *pluginp = plugin;
-    return stat;
-}
-
-int
 NCZ_filter_remove(NC_VAR_INFO_T* var, unsigned int id)
 {
     int stat = NC_NOERR;
@@ -325,7 +296,7 @@ done:
     return ZUNTRACE(stat);
 }
 
-static int
+int
 NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, NCZ_Filter** specp)
 {
     size_t i;
@@ -349,6 +320,58 @@ NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, NCZ_Filter** specp)
     }
     return ZUNTRACEX(NC_NOERR,"spec=%d",IEXISTS(specp,hdf5.id));
 }
+
+int
+NCZ_plugin_lookup(const char* codecid, NCZ_Plugin** pluginp)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    NCZ_Plugin* plugin = NULL;
+    char digits[64];
+    const char* trueid = NULL;
+    
+    if(pluginp == NULL) return NC_NOERR;
+
+    /* Find the plugin for this codecid */
+    for(i=1;i<=plugins.loaded_plugins_max;i++) {
+	NCZ_Plugin* p = plugins.loaded_plugins[i];
+        if(p == NULL) continue;
+        if(p == NULL|| p->codec.codec == NULL) continue; /* no plugin or no codec */
+	if(p->codec.ishdf5raw) {
+	    /* get true id */
+	    snprintf(digits,sizeof(digits),"%d",p->hdf5.filter->id);
+	    trueid = digits;
+	} else {
+	    trueid = p->codec.codec->codecid;
+	}
+	if(strcmp(codecid, trueid) == 0)
+	    {plugin = p; break;}
+    }
+    if(pluginp) *pluginp = plugin;
+    return stat;
+}
+
+#if 0
+static int
+NCZ_codec_lookup(NClist* codecs, const char* id, NCZ_Codec** codecp)
+{
+    int i;
+    
+    ZTRACE(6,"|codecs|=%u id=%u", (unsigned)nclistlength(codecs), id);
+    if(codecp) *codecp = NULL;
+
+    if(codecs == NULL) return NC_NOERR;
+    for(i=0;i<nclistlength(codecs);i++) {
+	NCZ_Codec* spec = nclistget(codecs,i);
+	assert(spec != NULL);
+	if(strcmp(spec->id,id)==0) {
+	    if(codecp) *codecp = spec;
+	    break;
+	}
+    }
+    return ZUNTRACEX(NC_NOERR,"codec=%s",SEXISTS(codecp,id));
+}
+#endif
 
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
 int
