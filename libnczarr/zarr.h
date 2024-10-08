@@ -49,6 +49,7 @@ EXTERNL int NCZ_stringconvert1(nc_type typid, char* src, NCjson* jvalue);
 EXTERNL int NCZ_stringconvert(nc_type typid, size_t len, void* data0, NCjson** jdatap);
 
 /* zsync.c */
+EXTERNL int ncz_insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson* javalue, const char* atype);
 EXTERNL int ncz_encode_file(NC_FILE_INFO_T* file, int isclose);
 EXTERNL int ncz_decode_file(NC_FILE_INFO_T* file);
 
@@ -92,8 +93,8 @@ EXTERNL int NCZ_sortstringlist(void* vec, size_t count);
 EXTERNL int NCZ_sortpairlist(void* vec, size_t count);
 EXTERNL void NCZ_clearAttrInfo(struct NCZ_AttrInfo* ainfo);
 EXTERNL void NCZ_setatts_read(NC_OBJ* container);
-EXTERNL int NCZ_decodesizet64vec(const NCjson* jshape, size64_t* shapes);
-EXTERNL int NCZ_decodesizetvec(const NCjson* jshape, size_t* shapes);
+EXTERNL int NCZ_decodesizet64vec(const NCjson* jshape, size_t* rankp, size64_t* shapes);
+EXTERNL int NCZ_decodesizetvec(const NCjson* jshape, size_t* rankp, size_t* shapes);
 EXTERNL int NCZ_uniquedimname(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NCZ_DimInfo* dimdata, NC_DIM_INFO_T** dimp, NCbytes* dimname);
 EXTERNL int NCZ_computeattrinfo(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* att);
 EXTERNL int NCZ_computeattrdata(struct NCZ_AttrInfo* att);

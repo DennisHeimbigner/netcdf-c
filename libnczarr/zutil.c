@@ -199,35 +199,6 @@ done:
 }
 
 /**
-@internal Get key for a dimension
-@param dim - [in] dim
-@param pathp - [out] full path
-@return NC_NOERR
-@author Dennis Heimbigner
-*/
-int
-NCZ_dimkey(const NC_DIM_INFO_T* dim, char** pathp)
-{
-    int stat = NC_NOERR;
-    char* grppath = NULL;
-    char* dimpath = NULL;
-
-    /* Start by creating the full path for the parent group */
-    if((stat = NCZ_grpkey(dim->container,&grppath)))
-	goto done;
-    /* Create the suffix path using the dim name */
-    if((stat = nczm_concat(grppath,dim->hdr.name,&dimpath)))
-	goto done;
-    /* return path */
-    if(pathp) {*pathp = dimpath; dimpath = NULL;}
-
-done:
-    nullfree(grppath);
-    nullfree(dimpath);
-    return stat;
-}
-
-/**
 @internal Split a key into pieces along '/' character; elide any leading '/'
 @param  key - [in]
 @param segments - [out] split path
@@ -919,6 +890,7 @@ NCZ_makeFQN(NC_GRP_INFO_T* parent, const char* objname, NCbytes* fqn)
     NC_GRP_INFO_T* grp = NULL;
     char* escaped = NULL;
 
+    ncbytesclear(fqn);
     /* Add in the object name */
     if((escaped = NCZ_backslashescape(objname))==NULL) goto done;
     nclistpush(segments,escaped);
@@ -1083,11 +1055,12 @@ NCZ_setatts_read(NC_OBJ* container)
 
 /* Convert a list of integer strings to size64_t integers */
 int
-NCZ_decodesizet64vec(const NCjson* jshape, size64_t* shapes)
+NCZ_decodesizet64vec(const NCjson* jshape, size_t* rankp, size64_t* shapes)
 {
     int stat = NC_NOERR;
     size_t i;
     
+    if(rankp) *rankp = NCJarraylength(jshape);
     for(i=0;i<NCJarraylength(jshape);i++) {
 	struct ZCVT zcvt;
 	nc_type typeid = NC_NAT;
@@ -1111,11 +1084,12 @@ done:
 
 /* Convert a list of integer strings to size_t integer */
 int
-NCZ_decodesizetvec(const NCjson* jshape, size_t* shapes)
+NCZ_decodesizetvec(const NCjson* jshape, size_t* rankp, size_t* shapes)
 {
     int stat = NC_NOERR;
     size_t i;
 
+    if(rankp) *rankp = NCJarraylength(jshape);
     for(i=0;i<NCJarraylength(jshape);i++) {
 	struct ZCVT zcvt;
 	nc_type typeid = NC_NAT;
@@ -1186,7 +1160,7 @@ NCZ_uniquedimname(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NCZ_DimInfo* dimd
 
     if(*dimp) *dimp = NULL;
     
-    ncbytescat(dimname,dimdata->name); /* Use this name as candidate */
+    ncbytescat(dimname,dimdata->norm_name); /* Use this name as candidate */
 
     /* See if there is an accessible consistent dimension with same name */
     if((stat = locateconsistentdim(file,parent,dimdata,!TESTUNLIM,&dim,&grp))) goto done;
@@ -1201,11 +1175,11 @@ NCZ_uniquedimname(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NCZ_DimInfo* dimd
         dim = NULL; /* reset loop exit */
         /* Make unique name using loopcounter */
 	ncbytesclear(newname);
-	ncbytescat(newname,dimdata->name);
+	ncbytescat(newname,dimdata->norm_name);
 	snprintf(digits,sizeof(digits),"_%zu",loopcounter);
 	ncbytescat(newname,digits);
 	/* See if there is an accessible dimension with same name and in this parent group */
-	dim = (NC_DIM_INFO_T*)ncindexlookup(parent->dim,dimdata->name);
+	dim = (NC_DIM_INFO_T*)ncindexlookup(parent->dim,dimdata->norm_name);
 	if(dim != NULL && isconsistentdim(dim,dimdata,!TESTUNLIM)) {
 	    /* Return this name */
 	    ncbytesclear(dimname);
@@ -1222,6 +1196,7 @@ done:
     return THROW(stat);
 }
 
+#if 0
 /*
 Extract type and data for an attribute
 */
@@ -1253,7 +1228,7 @@ NCZ_computeattrinfo(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* ainfo)
 done:
     return ZUNTRACEX(THROW(stat),"typeid=%d typelen=%d len=%u",ainfo->nctype,ainfo->typelen,ainfo->len);
 }
-
+#endif /*0*/
 
 /* Get one of multiple key alternatives from a dict */
 static int
@@ -1476,7 +1451,7 @@ locateconsistentdim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCZ_DimInfo* dimda
     if(dimp) *dimp = NULL;        
 
     for(g=grp;g != NULL;g=g->parent,dim=NULL) {
-        if((stat = locatedimbyname(file,g,dimdata->name,&dim,&g))) goto done;
+        if((stat = locatedimbyname(file,g,dimdata->norm_name,&dim,&g))) goto done;
         if(dim == NULL) break; /* no name match */
 	/* See if consistent */
 	if(isconsistentdim(dim,dimdata,!TESTUNLIM)) break; /* use this dim */

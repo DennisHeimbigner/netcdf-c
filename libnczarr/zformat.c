@@ -107,7 +107,7 @@ NCZF_download_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
 }
 
 int
-NCZF_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* jgroup, NCjson** jzgrpp, NCjson** jzsuperp)
+NCZF_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* jgroup, const NCjson** jzgrpp, const NCjson** jzsuperp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
@@ -142,62 +142,50 @@ NCZF_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson*
 }
 
 int
-NCZF_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCjson** jnczvarp, NClist* jfilters)
+NCZF_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NClist* jfilters, size64_t** shapesp, size64_t** chunksp, NClist* dimrefs)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_var(file,var,zobj,jnczvarp,jfilters);
+    stat = zfile->dispatcher->decode_var(file,var,zobj,jfilters,shapesp,chunksp,dimrefs);
     return THROW(stat);
 }
 
 int
-NCZF_decode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const struct ZOBJ* zobj)
+NCZF_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jncvar, const NCjson* jatts)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_nczarr_array(file,var,zobj);
+    stat = zfile->dispatcher->decode_attributes(file,container,jncvar,jatts);
     return THROW(stat);
 }
 
 int
-NCZF_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jncvar, const NCjson* jatts, NCjson** jtypesp)
+NCZF_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_attributes(file,container,jncvar,jatts,jtypesp);
+    stat = zfile->dispatcher->upload_grp(file,grp,zobj);
     return THROW(stat);
 }
 
 int
-NCZF_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson* jvar, NCjson** jatts)
+NCZF_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->upload_grp(file,grp,jvar,jatts);
-    return THROW(stat);
-}
-
-int
-NCZF_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jvar, NCjson** jatts)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = NULL;
-
-    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    assert(zfile != NULL);
-    stat = zfile->dispatcher->upload_var(file,var,jvar,jatts);
+    stat = zfile->dispatcher->upload_var(file,var,zobj);
     return THROW(stat);
 }
 
@@ -215,14 +203,14 @@ NCZF_encode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsupe
 }
 
 int
-NCZF_encode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jatts, NCjson* jtypes, NCjson** jzgroupp)
+NCZF_encode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jzgroupp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->encode_nczarr_group(file,grp,jatts,jtypes,jzgroupp);
+    stat = zfile->dispatcher->encode_nczarr_group(file,grp,jzgroupp);
     return THROW(stat);
 }
 
@@ -239,14 +227,14 @@ NCZF_encode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jsuper
 }
 
 int
-NCZF_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jtypes, NCjson** jzvarp)
+NCZF_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jzvarp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->encode_nczarr_array(file,var,jtypes,jzvarp);
+    stat = zfile->dispatcher->encode_nczarr_array(file,var,jzvarp);
     return THROW(stat);
 }
 

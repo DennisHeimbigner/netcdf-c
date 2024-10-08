@@ -1710,6 +1710,9 @@ NCZ_filters_decode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* jfilt
     }
 #endif
     
+    /* Finalize the filters */
+    if((stat = NCZ_filter_setup(var))) goto done;
+
 done:
 #if 0
     ncz_hdf5_clear(&hdf5);

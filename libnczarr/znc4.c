@@ -125,14 +125,13 @@ done:
 }
 
 int
-ncz4_create_dim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* name, size64_t len, int isunlimited,
-			   NC_DIM_INFO_T** dimp)
+ncz4_create_dim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const struct NCZ_DimInfo* dimdef, NC_DIM_INFO_T** dimp)
 {
     int stat = NC_NOERR;
     NC_DIM_INFO_T* dim = NULL;
     NCZ_DIM_INFO_T* zdim = NULL;
-    if((stat = nc4_dim_list_add(parent, name, (size_t)len, -1, &dim))) goto done;
-    dim->unlimited = (isunlimited ? 1 : 0);
+    if((stat = nc4_dim_list_add(parent, dimdef->norm_name, (size_t)dimdef->shape, -1, &dim))) goto done;
+    dim->unlimited = (dimdef->unlimited ? 1 : 0);
     if((zdim = calloc(1,sizeof(NCZ_DIM_INFO_T))) == NULL) {stat = NC_ENOMEM; goto done;}
     zdim->common.file = file;
     dim->format_dim_info = zdim;

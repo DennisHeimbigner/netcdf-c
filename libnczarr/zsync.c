@@ -92,6 +92,7 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     NCjson* jsuper = NULL;
     NCjson* jatts = NULL;
     NCjson* jtypes = NULL;
+    struct ZOBJ zobj;
 
     LOG((3, "%s: dims: %s", __func__, key));
     ZTRACE(3,"file=%s grp=%s isclose=%d",file->controller->path,grp->hdr.name,isclose);
@@ -105,7 +106,7 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
 	    if((stat=NCZF_encode_superblock(file,grp,&jsuper))) goto done;
 	}
         /* encode _nczarr_group */
-	if((stat=NCZF_encode_nczarr_group(file,grp,&jatts,jtypes,&jnczgrp))) goto done;
+	if((stat=NCZF_encode_nczarr_group(file,grp,&jnczgrp))) goto done;
     }
 
     /* Assemble JSON'ized attributes */
@@ -116,9 +117,9 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     if((stat=NCZF_encode_group(file,grp,jsuper,jnczgrp,&jatts,&jgroup))) goto done;
 
     /* upload group json and (depending on version) the group attributes */
-    if((stat = NCZF_upload_grp(file,grp,jgroup,&jatts))) goto done;
-    NCZ_reclaim_json(jatts);
-    NCZ_reclaim_json(jgroup);
+    zobj.jobj = jgroup;
+    zobj.jatts = jatts;
+    if((stat = NCZF_upload_grp(file,grp,&zobj))) goto done;
 
     /* encode and upload the vars in this group and sync the data */
     for(i=0;i<ncindexsize(grp->vars);i++) {
@@ -170,6 +171,7 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     int purezarr = 0;
     NCZ_VAR_INFO_T* zvar = var->format_var_info;
     NClist* jfilters = nclistnew();
+    struct ZOBJ zobj;
 
     ZTRACE(3,"file=%s var=%s isclose=%d",file->controller->path,var->hdr.name,isclose);
 
@@ -197,7 +199,7 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     */     
     /* Build the _nczarr_array object */
     if(!purezarr) {
-        if((stat=NCZF_encode_nczarr_array(file,var,jtypes,&jnczvar))) goto done;
+        if((stat=NCZF_encode_nczarr_array(file,var,&jnczvar))) goto done;
     }
     if((stat=NCZF_encode_attributes(file,(NC_OBJ*)var,jnczvar,&jatts,&jtypes))) goto done;
 
@@ -223,7 +225,9 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     if((stat=NCZF_encode_var(file,var,jnczvar,&jatts,jfilters,&jvar))) goto done;
 
     /* Write out the the var JSON and the corresponding attributes and chunks */
-    if((stat = NCZF_upload_var(file,var,jvar,&jatts))) goto done;
+    zobj.jobj = jvar;
+    zobj.jatts = jatts;
+    if((stat = NCZF_upload_var(file,var,&zobj))) goto done;
 
     var->created = 1;
 
@@ -461,7 +465,7 @@ ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj0)
     TESTPUREZARR;
 
     /* Decode the group metadata */
-    if((stat = NCZF_decode_group(file,grp,&zobj,(NCjson**)&jnczgrp,(NCjson**)&jsuper))) goto done;
+    if((stat = NCZF_decode_group(file,grp,&zobj,&jnczgrp,&jsuper))) goto done;
     if(zobj.jobj == NULL) {stat = NC_ENOTZARR; goto done;}
 	
     if(purezarr) {
@@ -545,13 +549,70 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
     struct ZOBJ zobj = emptyzobj;
     const NCjson* jnczvar = NULL;
     NClist* jfilters = nclistnew();
+    NClist* dimrefs = nclistnew();
+    NClist* dimdecls = nclistnew();
+    size64_t* shapes = NULL;
+    size64_t* chunks = NULL;
+    size_t i;
+    NCbytes* fqn = ncbytesnew();
+    NCZ_VAR_INFO_T* zvar = NULL;
 
     ZTRACE(3,"file=%s parent=%s varname=%s",file->controller->path,parent->hdr.name,varname);
 
     /* Create and Download */
     if((stat = ncz4_create_var(file,parent,varname,&var))) goto done;
+    zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
     if((stat = NCZF_download_var(file,var,&zobj))) goto done;
-    if((stat=NCZF_decode_var(file,var,&zobj,(NCjson**)&jnczvar,jfilters))) goto done;
+    if((stat=NCZF_decode_var(file,var,&zobj,jfilters,&shapes,&chunks,dimrefs))) goto done;
+
+    /* Convert dimrefs to corresponding dimdecls */
+    for(i=0;i<nclistlength(dimrefs);i++) {
+	NC_OBJ* obj = NULL;
+	const char* dimref = (const char*)nclistget(dimrefs,i);
+	if(dimref == NULL || strlen(dimref) == 0) {stat = NC_ENOTZARR; goto done;}
+	if(dimref[0] == '/') { /* Absolute path */
+	    if((stat = NCZ_locateFQN(file->root_grp, dimref, NCDIM, &obj, NULL))) goto done;
+	    if(obj == NULL || obj->sort != NCDIM) {stat = NC_ENOTZARR; goto done;}
+	    nclistpush(dimdecls,obj);
+	} else { /* relative to root group */
+	    if((stat = NCZ_makeFQN(file->root_grp,dimref,fqn))) goto done;
+	    if((stat = NCZ_locateFQN(file->root_grp, ncbytescontents(fqn), NCDIM, &obj, NULL))) goto done;
+	    if(obj == NULL || obj->sort != NCDIM) {
+		struct NCZ_DimInfo di;
+		memcpy(di.norm_name,dimref,sizeof(di.norm_name));
+		di.shape = shapes[i];
+		di.unlimited = 0;
+		/* create the dimension in the root group */
+		if((stat = ncz4_create_dim(file,file->root_grp,&di,(NC_DIM_INFO_T**)&obj))) goto done;
+	    }
+	    nclistpush(dimdecls,obj);
+	}
+    }
+
+    /* Process chunks and shapes */
+    assert(var->chunksizes == NULL);
+    if(var->ndims == 0) { /* Scalar */
+	var->dimids = NULL;
+	var->dim = NULL;
+	var->chunksizes = NULL;
+	zvar->chunkproduct = 1;
+	zvar->chunksize = var->type_info->size;
+    } else {
+	var->dimids = (int*)malloc(sizeof(int)*var->ndims);
+	var->dim = (NC_DIM_INFO_T**)malloc(sizeof(NC_DIM_INFO_T*)*var->ndims);
+	zvar->chunkproduct = 1;
+	for(i=0;i<nclistlength(dimdecls);i++) {
+	    NC_DIM_INFO_T* dim = (NC_DIM_INFO_T*)nclistget(dimdecls,i);
+	    var->dim[i] = dim;
+	    var->dimids[i] = dim->hdr.id;
+	    var->chunksizes[i] = (size_t)chunks[i];
+	    zvar->chunkproduct *= shapes[i];
+	}
+        zvar->chunksize = zvar->chunkproduct * var->type_info->size;
+	/* Create the cache */
+	if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,zvar->dimension_separator,&zvar->cache)))
+		goto done;
+    }
 
     /* Process attributes */
     if((stat=ncz_decode_atts(file,(NC_OBJ*)var,zobj.jatts,jnczvar))) goto done;
@@ -614,12 +675,11 @@ ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, co
 {
     int stat = NC_NOERR;
     NC_ATT_INFO_T* fillvalueatt = NULL;
-    NCjson* jtypes = NULL;
 
     ZTRACE(3,"file=%s container=%s",file->controller->path,container->name);
 
     if(jatts != NULL) {
-        if((stat = NCZF_decode_attributes(file,container,jnczvar,jatts,&jtypes))) goto done;
+        if((stat = NCZF_decode_attributes(file,container,jnczvar,jatts))) goto done;
     }
     /* If we have not read a _FillValue, then go ahead and create it */
     if(fillvalueatt == NULL && container->sort == NCVAR) {
@@ -634,9 +694,6 @@ ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, co
 	((NC_GRP_INFO_T*)container)->atts_read = 1;
 
 done:
-#if 0
-    NCJreclaim(jtypes);
-#endif
     return ZUNTRACE(THROW(stat));
 }
 
@@ -748,7 +805,7 @@ Takes control of javalue.
 @param aname
 @param javalue
 */
-static int
+int
 ncz_insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson* javalue, const char* atype)
 {
     int stat = NC_NOERR;

@@ -504,7 +504,7 @@ NCZ_stringconvert(nc_type typeid, size_t len, void* data0, NCjson** jdatap)
 	for(i=0;i<len;i++) {
 	    NCJnew(jtype,&jvalue);
 	    if((stat = NCZ_stringconvert1(typeid, src, jvalue))) goto done;
-	    NCJappend(jdata,jvalue);
+	    NCJadd(jdata,jvalue);
 	    jvalue = NULL;
 	    src += typelen;
 	}
