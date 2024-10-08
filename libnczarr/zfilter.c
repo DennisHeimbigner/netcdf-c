@@ -1693,12 +1693,10 @@ NCZ_filters_decode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* jfilt
 	if((stat = NCZF_codec2hdf(file,var,filter))) goto done;
 	filter->flags |= FLAG_VISIBLE;
 	filter->codec = codec; codec = codec_empty;
-	filter->flags |= FLAG_CODEC;
     } else {
         /* Create a fake filter so we do not forget about this codec */
 	filter->hdf5 = hdf5_empty;
 	filter->codec = codec; codec = codec_empty;
-	filter->flags |= (FLAG_INCOMPLETE|FLAG_CODEC);
     }
 #endif
     
@@ -1781,12 +1779,10 @@ NCZ_filter_decode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilte
 	if((stat = NCZF_codec2hdf(file,var,filter))) goto done;
 	filter->flags |= FLAG_VISIBLE;
 	filter->codec = codec; codec = codec_empty;
-	filter->flags |= FLAG_CODEC;
     } else {
         /* Create a fake filter so we do not forget about this codec */
 	filter->hdf5 = hdf5_empty;
 	filter->codec = codec; codec = codec_empty;
-	filter->flags |= (FLAG_INCOMPLETE|FLAG_CODEC);
     }
 #endif
 

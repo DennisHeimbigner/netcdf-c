@@ -27,7 +27,9 @@ NCZF_initialize(void)
 {
     int stat = NC_NOERR;
     if((stat=NCZF2_initialize())) goto done;
+#ifdef ENABLE_V3
     if((stat=NCZF3_initialize())) goto done;
+#endif
 done:
     return THROW(stat);
 }
@@ -37,7 +39,9 @@ NCZF_finalize(void)
 {
     int stat = NC_NOERR;
     if((stat=NCZF2_finalize())) goto done;
+#ifdef ENABLE_V3
     if((stat=NCZF3_finalize())) goto done;
+#endif
 done:
     return THROW(stat);
 }
@@ -83,7 +87,7 @@ NCZF_close(NC_FILE_INFO_T* file)
 
 /*Read JSON Metadata*/
 int
-NCZF_download_grp_json(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
+NCZF_download_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;

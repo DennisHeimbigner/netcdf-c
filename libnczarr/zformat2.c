@@ -1119,11 +1119,8 @@ static int
 ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter)
 {
     int stat = NC_NOERR;
-    size_t i;
     const NCjson* jvalue = NULL;
     NCZ_Plugin* plugin = NULL;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
     NCZ_Codec codec = NCZ_codec_empty;
     NCZ_HDF5 hdf5 = NCZ_hdf5_empty;
 
@@ -1150,19 +1147,17 @@ ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ
 	hdf5.id = plugin->codec.codec->hdf5id;
 	/* Convert the codec to hdf5 form visible parameters */
         if(plugin->codec.codec->NCZ_codec_to_hdf5) {
-            if((stat = plugin->codec.codec->NCZ_codec_to_hdf5(NCproplistv2,codec.codec,&hdf5.visible.nparams,&hdf5.visible.params)))
+            if((stat = plugin->codec.codec->NCZ_codec_to_hdf5(NCplistzarrv2,codec.codec,&hdf5.id,&hdf5.visible.nparams,&hdf5.visible.params)))
 	        goto done;
 	}
 	filter->flags |= FLAG_VISIBLE;
 	filter->hdf5 = hdf5; hdf5 = NCZ_hdf5_empty;
 	filter->codec = codec; codec = NCZ_codec_empty;
-	filter->flags |= FLAG_CODEC;
         filter->plugin = plugin; plugin = NULL;
     } else {
         /* Create a fake filter so we do not forget about this codec */
 	filter->hdf5 = NCZ_hdf5_empty;
 	filter->codec = codec; codec = NCZ_codec_empty;
-	filter->flags |= (FLAG_INCOMPLETE|FLAG_CODEC);
     }
 
 done:

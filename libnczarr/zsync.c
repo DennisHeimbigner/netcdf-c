@@ -360,7 +360,6 @@ done:
  * @internal pull storage structures and create corresponding nc4internal.h structures
  */
 
-#if 0
 /**
 
  * @param file Pointer to file info struct.
@@ -409,7 +408,6 @@ done:
 #endif
     return ZUNTRACE(THROW(stat));
 }
-#endif /*0*/
 
 static int
 ncz_decode_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames)
@@ -796,7 +794,6 @@ done:
 }
 #endif /*0*/
 
-#if 0
 /**
 Insert an attribute into a list of attribute, including typing
 Takes control of javalue.
@@ -817,7 +814,6 @@ ncz_insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson* javalu
     }
     return THROW(stat);
 }
-#endif /*0*/
 
 /**************************************************/
 #if 0

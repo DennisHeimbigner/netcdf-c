@@ -72,6 +72,10 @@ zfilter.h \
 znc4.h \
 zdebug.h
 
+if ENABLE_V3
+libnczarr_la_SOURCES += zformat3.c
+endif
+
 if NETCDF_ENABLE_NCZARR_ZIP
 libnczarr_la_SOURCES += zmap_zip.c 
 endif
