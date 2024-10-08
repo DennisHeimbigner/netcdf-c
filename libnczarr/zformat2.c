@@ -1095,6 +1095,49 @@ int
 ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter, NCZ_Filter* filter)
 {
     int stat = NC_NOERR;
+    size_t i;
+    const NCjson* jvalue = NULL;
+    NCZ_Plugin* plugin = NULL;
+    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
+    NCZ_Codec codec = NCZ_codec_empty;
+    NCZ_HDF5 codec = NCZ_hdf5_empty;
+
+    /* Will always have a filter; possibly unknown */ 
+    if((filter = calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}		
+
+    /* Get the id of this codec filter */
+    if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
+    if(NCJsort(jvalue) != NCJ_STRING) {stat = THROW(NC_ENOFILTER); goto done;}
+    if((codec.id = strdup(NCJstring(jvalue)))==NULL) {stat = NC_ENOMEM; goto done;}
+    /* Save the codec */
+    if(NCJunparse(jfilter,0,&codec.codec)<0) {stat = NC_EFILTER; goto done;}
+
+    /* Find the plugin for this filter */
+    if((stat = NCZ_codec_lookup(codec.id,&plugin))) goto done;
+    assert(filter->plugin == NULL);
+    filter->plugin = plugin; plugin = NULL; /* Might be NULL */
+
+#if 0
+	if((stat = NCZF_codec2hdf(file,var,filter))) goto done;
+	filter->flags |= FLAG_VISIBLE;
+	filter->codec = codec; codec = codec_empty;
+	filter->flags |= FLAG_CODEC;
+    } else {
+        /* Create a fake filter so we do not forget about this codec */
+	filter->hdf5 = hdf5_empty;
+	filter->codec = codec; codec = codec_empty;
+	filter->flags |= (FLAG_INCOMPLETE|FLAG_CODEC);
+    }
+#endif
+
+    
+done:
+#if 0
+    ncz_hdf5_clear(&hdf5);
+    ncz_codec_clear(&codec);
+#endif /*0*/
+    NCZ_filter_free(filter);
     return THROW(stat);
 }
 

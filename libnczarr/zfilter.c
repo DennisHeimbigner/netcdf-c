@@ -844,37 +844,6 @@ done:
 }
 
 /**************************************************/
-/* JSON Parse/unparse of filter codecs */
-/* Note that we do not care the about the resulting format, so it works for V2 and V3
-   by using NCZF_hdf2codec
-*/
-
-int
-NCZ_filter_jsonize(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp)
-{
-    int stat = NC_NOERR;
-    NCjson* jfilter = NULL;
-
-    ZTRACE(6,"var=%s filter=%s",var->hdr.name,(filter != NULL && filter->codec.id != NULL?filter->codec.id:"null"));
-
-    /* We need to ensure the the current visible parameters are defined and had the opportunity to come
-       from the working parameters */
-    assert((filter->flags & (FLAG_VISIBLE | FLAG_WORKING)) == (FLAG_VISIBLE | FLAG_WORKING));
-
-    /* Convert the visible parameters back to codec */
-    if((stat = NCZF_hdf2codec(file,var,filter))) goto done;
-
-    /* Parse the codec as the return */
-    if(NCJparse(filter->codec.codec,0,&jfilter) < 0) {stat = NC_EFILTER; goto done;}
-    if(jfilterp) {*jfilterp = jfilter; jfilter = NULL;}
-
-done:
-    NCJreclaim(jfilter);
-    return ZUNTRACEX(stat,"codec=%s",NULLIFY(filter->codec.codec));
-}
-
-
-/**************************************************/
 /* Filter loading */
 
 /*
