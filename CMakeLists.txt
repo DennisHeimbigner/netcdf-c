@@ -634,6 +634,8 @@ option(NETCDF_PLUGIN_INSTALL "Enable plugin installation" NO)
 # -- %ALLUSERSPROFILE%/hdf5/lib/plugins If on a windows or Mingw platform
 if(ISMSVC OR ISMINGW)
     set(PLATFORMDEFAULT "$ENV{ALLUSERSPROFILE}\\hdf5\\lib\\plugin")
+    # Fix back slashes
+    string(REPLACE "\\\\" "/" PLATFORMDEFAULT "${PLATFORMDEFAULT}")
     set(PLATFORMSEP ";")
 else()
     set(PLATFORMDEFAULT "/usr/local/hdf5/lib/plugin")
