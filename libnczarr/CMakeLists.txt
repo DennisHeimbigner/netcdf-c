@@ -46,6 +46,7 @@ zinternal.h
 zmap.h
 zodom.h
 zprovenance.h
+zplugins.h
 zfilter.h
 znc4.h
 zdebug.h
@@ -53,6 +54,10 @@ zdebug.h
 
 if(NETCDF_ENABLE_NCZARR_ZIP)
     SET(libnczarr_SOURCES ${libnczarr_SOURCES} zmap_zip.c)
+endif()
+
+if(NETCDF_ENABLE_NCZARR_FILTERS)
+set(libnczarr_SOURCES ${libnczarr_SOURCES} zfilter.c zplugins.c)
 endif()
 
 if(NETCDF_ENABLE_S3) 

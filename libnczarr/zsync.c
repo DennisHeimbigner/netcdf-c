@@ -388,7 +388,7 @@ ncz_decode_file(NC_FILE_INFO_T* file)
     if((stat = NCZF_download_grp(file, root, &zobj))) goto done;
 
     /* Decode the root group */
-    if((stat = NCZF_decode_group(file,root,&zobj,(NCjson**)&jnczgrp,(NCjson**)&jsuper))) goto done;
+    if((stat = NCZF_decode_group(file,root,&zobj,(NCjson* const*)&jnczgrp,(NCjson* const*)&jsuper))) goto done;
 
     /* Ok, process superblock */
     if((stat = NCZF_decode_superblock(file,root,jsuper,&zarr_format,&nczarr_format))) goto done;

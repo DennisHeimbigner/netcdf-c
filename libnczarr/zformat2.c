@@ -7,6 +7,7 @@
  */
 
 #include "zincludes.h"
+#include "zplugins.h"
 #include "znc4.h"
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
 #include "netcdf_filter_build.h"
@@ -1107,7 +1108,7 @@ ZF2_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, 
         {stat = NC_EFILTER; goto done;}
 
     /* Parse the codec as the return */
-    if(NCJparse(filter->codec.codec,0,&jfilter) < 0) {stat = NC_EFILTER; goto done;}
+    NCJcheck(NCJparse(filter->codec.codec,0,&jfilter));
     if(jfilterp) {*jfilterp = jfilter; jfilter = NULL;}
 
 done:
@@ -1127,12 +1128,12 @@ ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ
     if(var->filters == NULL) var->filters = nclistnew();
 
     /* Get the id of this codec filter */
-    if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
+    NCJcheck(NCJdictget(jfilter,"id",&jvalue));
     if(NCJsort(jvalue) != NCJ_STRING) {stat = THROW(NC_ENOFILTER); goto done;}
 
     /* Save the codec */
     if((codec.id = strdup(NCJstring(jvalue)))==NULL) {stat = NC_ENOMEM; goto done;}
-    if(NCJunparse(jfilter,0,&codec.codec)<0) {stat = NC_EFILTER; goto done;}
+    NCJcheck(NCJunparse(jfilter,0,&codec.codec));
 
     /* Find the plugin for this filter */
     if((stat = NCZ_plugin_lookup(codec.id,&plugin))) goto done;

@@ -3,41 +3,21 @@
  *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
  *   $Header$
  *********************************************************************/
+
 #ifndef NCPROPLIST_H
 #define NCPROPLIST_H
 
-#if HAVE_CONFIG_H
-#include "config.h"
-#endif
-#include <stdint.h>
-#include "ncexternl.h"
-
-/*
-WARNING:
-If you modify this file,
-then you need to got to
-the include/ directory
-and do the command:
-    make makepluginjson
-*/
-
-/* Inside libnetcdf and for plugins, export the json symbols */
-#ifndef DLLEXPORT
-#ifdef _WIN32
-#define DLLEXPORT __declspec(dllexport)
-#else
-#define DLLEXPORT
-#endif
-#endif
-
-/* Override for plugins */
 #ifndef OPTEXPORT
 #ifdef NETCDF_PROPLIST_H
 #define OPTEXPORT static
+#else /*!NETCDF_PROPLIST_H*/
+#ifdef _WIN32
+#define OPTEXPORT __declspec(dllexport)
 #else
-#define OPTEXPORT DLLEXPORT
+#define OPTEXPORT extern
 #endif
-#endif
+#endif /*NETCDF_PROPLIST_H*/
+#endif /*OPTEXPORT*/
 
 /**************************************************/
 /*
@@ -85,47 +65,44 @@ typedef struct NCproplist {
   NCProperty* properties;
 } NCproplist;
 
-#if defined(_CPLUSPLUS_) || defined(__CPLUSPLUS__)
+/**************************************************/
+/* Extended API */
+
+#if defined(_cplusplus_) || defined(__cplusplus__)
 extern "C" {
 #endif
 
-#ifndef NETCDF_PROPLIST_H
-
-/* Suppress create/modify function for plugin use */
-
 /* Create, free, etc. */
-OPTEXPORT NCproplist* ncplistnew(void);
-OPTEXPORT int ncplistfree(NCproplist*);
+OPTEXPORT NCproplist* ncproplistnew(void);
+OPTEXPORT int ncproplistfree(NCproplist*);
 
 /* Locate a proplist entry */
-OPTEXPORT int ncplistadd(NCproplist* plist,const char* key, uintptr_t value); /* use when reclaim not needed */
+OPTEXPORT int ncproplistadd(NCproplist* plist,const char* key, uintptr_t value); /* use when reclaim not needed */
 
 /* Insert properties */
-OPTEXPORT int ncplistadd(NCproplist* plist,const char* key, uintptr_t value); /* use when reclaim not needed */
-OPTEXPORT int ncplistaddstring(NCproplist* plist, const char* key, const char* str); /* use when value is simple string (char*) */
-OPTEXPORT int ncplistaddbytes(NCproplist* plist, const char* key, void* value, uintptr_t size); /* use when value is simple ptr and reclaim is simple free function */
-OPTEXPORT int ncplistaddx(NCproplist* plist, const char* key, void* value, uintptr_t size, uintptr_t userdata, NCPreclaimfcn); /* fully extended case */
+OPTEXPORT int ncproplistadd(NCproplist* plist,const char* key, uintptr_t value); /* use when reclaim not needed */
+OPTEXPORT int ncproplistaddstring(NCproplist* plist, const char* key, const char* str); /* use when value is simple string (char*) */
+OPTEXPORT int ncproplistaddbytes(NCproplist* plist, const char* key, void* value, uintptr_t size); /* use when value is simple ptr and reclaim is simple free function */
+OPTEXPORT int ncproplistaddx(NCproplist* plist, const char* key, void* value, uintptr_t size, uintptr_t userdata, NCPreclaimfcn); /* fully extended case */
 
-OPTEXPORT int ncplistclone(const NCproplist* src, NCproplist* clone);
-
-#endif /*NETCDF_PROPLIST_H*/
+OPTEXPORT int ncproplistclone(const NCproplist* src, NCproplist* clone);
 
 /* 
 Lookup key and return value.
-Return 1 if found, 0 otherwise; returns the data in datap if !null
+@return ::NC_NOERR if found ::NC_EINVAL otherwise; returns the data in datap if !null
 */
-OPTEXPORT int ncplistget(const NCproplist*, const char* key, uintptr_t* datap, uintptr_t* sizep);
+OPTEXPORT int ncproplistget(const NCproplist*, const char* key, uintptr_t* datap, uintptr_t* sizep);
 
 /* Iteration support */
 
 /* Return the number of properties in the property list */
-#define ncplistlen(plist) (((NCproplist)(plist))->count)
+#define ncproplistlen(plist) (((NCproplist)(plist))->count)
 
 /* get the ith key+value */
-OPTEXPORT int ncplistith(const NCproplist*, size_t i, char* const * keyp, uintptr_t const * valuep, uintptr_t* sizep);
+OPTEXPORT int ncproplistith(const NCproplist*, size_t i, char* const * keyp, uintptr_t const * valuep, uintptr_t* sizep);
 
 #if defined(_CPLUSPLUS_) || defined(__CPLUSPLUS__)
 }
 #endif
 
-#endif /*!NCPROPLIST_H!*/ /* Leave the ! as a tag for sed */
+#endif /*NCPROPLIST_H*/

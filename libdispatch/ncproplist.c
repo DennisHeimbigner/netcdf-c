@@ -1,7 +1,8 @@
-/*
-Copyright (c) 1998-2018 University Corporation for Atmospheric Research/Unidata
-See LICENSE.txt for license information.
-*/
+/*********************************************************************
+ *   Copyright 2018, UCAR/Unidata
+ *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
+ *   $Header$
+ *********************************************************************/
 
 #include "config.h"
 #include <stdio.h>
@@ -11,6 +12,7 @@ See LICENSE.txt for license information.
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
+
 #include "ncdispatch.h"
 #include "nccrc.h"
 #include "ncproplist.h"
@@ -43,25 +45,38 @@ See LICENSE.txt for license information.
 
 /**************************************************/
 
-#ifndef NETCDF_PROPLIST_H
-
-/* The non-read-only functions are elided in the unified header */
-
 /* Forward */
+static int ncproplistinit(NCproplist* plist);
 static int extendplist(NCproplist* plist, size_t nprops);
-static int ncplistinit(NCproplist* plist);
+
+/* Static'ize everything for plugins */
+#ifdef NETCDF_PROPLIST_H
+#define OPTSTATIC static
+static NCproplist* ncproplistnew(void);
+static int ncproplistfree(NCproplist* plist);
+static int ncproplistadd(NCproplist* plist, const char* key, uintptr_t value);
+static int ncproplistaddbytes(NCproplist* plist, const char* key, void* value, uintptr_t size);
+static int ncproplistaddstring(NCproplist* plist, const char* key, const char* str);
+static int ncproplistaddx(NCproplist* plist, const char* key, void* value, uintptr_t size, uintptr_t userdata, NCPreclaimfcn fcn);
+static int ncproplistclone(const NCproplist* src, NCproplist* clone);
+static int ncproplistget(const NCproplist* plist, const char* key, uintptr_t* valuep, uintptr_t* sizep);
+static int ncproplistith(const NCproplist* plist, size_t i, char* const * keyp, uintptr_t const * valuep, uintptr_t* sizep);
+#else /*!NETCDF_PROPLIST_H*/
+#define OPTSTATIC
+#endif /*NETCDF_PROPLIST_H*/
+
 
 /**
  * Create new property list
  * @return pointer to the created property list.
  */
 OPTSTATIC NCproplist*
-ncplistnew(void)
+ncproplistnew(void)
 {
    NCproplist* plist = NULL;
    plist = calloc(1,sizeof(NCproplist));
-   if(ncplistinit(plist) != NC_NOERR)
-       {ncplistfree(plist); plist = NULL;}
+   if(ncproplistinit(plist) != NC_NOERR)
+       {ncproplistfree(plist); plist = NULL;}
    return plist;
 }
 
@@ -71,7 +86,7 @@ ncplistnew(void)
  * @return NC_NOERR if succeed, NC_EXXX otherwise.
  */
 OPTSTATIC int
-ncplistfree(NCproplist* plist)
+ncproplistfree(NCproplist* plist)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -106,7 +121,7 @@ done:
  * @return NC_NOERR if succeed, NC_EXXX otherwise.
  */
 OPTSTATIC int
-ncplistadd(NCproplist* plist, const char* key, uintptr_t value)
+ncproplistadd(NCproplist* plist, const char* key, uintptr_t value)
 {
     int stat = NC_NOERR;
     NCProperty* prop = NULL;
@@ -135,7 +150,7 @@ done:
  * @return NC_NOERR if succeed, NC_EXXX otherwise.
  */
 OPTSTATIC int
-ncplistaddbytes(NCproplist* plist, const char* key, void* value, uintptr_t size)
+ncproplistaddbytes(NCproplist* plist, const char* key, void* value, uintptr_t size)
 {
     int stat = NC_NOERR;
     NCProperty* prop = NULL;
@@ -164,11 +179,11 @@ done:
  * @return NC_NOERR if succeed, NC_EXXX otherwise.
  */
 OPTSTATIC int
-ncplistaddstring(NCproplist* plist, const char* key, const char* str)
+ncproplistaddstring(NCproplist* plist, const char* key, const char* str)
 {
     uintptr_t size = 0;
     if(str) size = (uintptr_t)strlen(str);
-    return ncplistaddbytes(plist,key,(void*)str,size);
+    return ncproplistaddbytes(plist,key,(void*)str,size);
 }
 
 /**
@@ -182,7 +197,7 @@ ncplistaddstring(NCproplist* plist, const char* key, const char* str)
  * @return NC_NOERR if succeed, NC_EXXX otherwise.
  */
 OPTSTATIC int
-ncplistaddx(NCproplist* plist, const char* key, void* value, uintptr_t size, uintptr_t userdata, NCPreclaimfcn fcn)
+ncproplistaddx(NCproplist* plist, const char* key, void* value, uintptr_t size, uintptr_t userdata, NCPreclaimfcn fcn)
 {
     int stat = NC_NOERR;
     NCProperty* prop = NULL;
@@ -205,7 +220,7 @@ done:
 }
 
 OPTSTATIC int
-ncplistclone(const NCproplist* src, NCproplist* clone)
+ncproplistclone(const NCproplist* src, NCproplist* clone)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -213,7 +228,7 @@ ncplistclone(const NCproplist* src, NCproplist* clone)
     NCProperty* cloneprops;
 
     if(src == NULL || clone == NULL) {stat = NC_EINVAL; goto done;}
-    if((stat=ncplistinit(clone))) goto done;
+    if((stat=ncproplistinit(clone))) goto done;
     if((stat=extendplist(clone,src->count))) goto done;
     srcprops = src->properties;
     cloneprops = clone->properties;
@@ -258,7 +273,7 @@ done:
  * @return NC_NOERR if key found, NC_ENOOBJECT if key not found; NC_EXXX otherwise
  */
 OPTSTATIC int
-ncplistget(const NCproplist* plist, const char* key, uintptr_t* valuep, uintptr_t* sizep)
+ncproplistget(const NCproplist* plist, const char* key, uintptr_t* valuep, uintptr_t* sizep)
 {
     int stat = NC_ENOOBJECT; /* assume not found til proven otherwise */
     size_t i;
@@ -292,7 +307,7 @@ done:
  * @return NC_NOERR if success, NC_EINVAL otherwise
  */
 OPTSTATIC int
-ncplistith(const NCproplist* plist, size_t i, char* const * keyp, uintptr_t const * valuep, uintptr_t* sizep)
+ncproplistith(const NCproplist* plist, size_t i, char* const * keyp, uintptr_t const * valuep, uintptr_t* sizep)
 {
     int stat = NC_NOERR;
     NCProperty* prop = NULL;    
@@ -306,27 +321,14 @@ done:
     return stat;
 }
 
-#endif /*NETCDF_PROPLIST_H*/
-
 /**************************************************/
 /* Support Functions */
-
-/* Hack to avoid static unused warning */
-static void
-ncp_supresswarnings(void)
-{
-    void* ignore;
-    ignore = (void*)ncp_supresswarnings;
-    ignore = (void*)ncplistget;
-    ignore = (void*)ncplistith;
-    ignore = ignore;
-}
 
 /**
  * Initialize a new property list 
  */
 static int
-ncplistinit(NCproplist* plist)
+ncproplistinit(NCproplist* plist)
 {
    /* Assume property list will hold at lease MINPROPS properties */
    plist->alloc = MINPROPS;
@@ -335,3 +337,21 @@ ncplistinit(NCproplist* plist)
    return (plist->properties?NC_NOERR:NC_ENOMEM);
 }
 
+/* Suppress unused statics warning */
+static void
+ncproplist_unused(void)
+{
+    void* unused = ncproplist_unused;
+    unused = ncproplistnew;
+    unused = ncproplistfree;
+    unused = ncproplistadd;
+    unused = ncproplistaddbytes;
+    unused = ncproplistaddstring;
+    unused = ncproplistaddx;
+    unused = ncproplistclone;
+    unused = ncproplistget;
+    unused = ncproplistith;
+    unused = ncproplistinit;
+    unused = (void*)ncproplistith;
+    unused = unused;
+}

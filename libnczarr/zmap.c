@@ -301,8 +301,8 @@ nczm_divide_at(const char* key, int nsegs, char** prefixp, char** suffixp)
     int i;
     ptrdiff_t delta;
     const char* p;
-    int abssegs = (nsegs >= 0 ?nsegs: -nsegs);
-    int presegs = 0;
+    size_t abssegs = (size_t)(nsegs >= 0 ?nsegs: -nsegs);
+    size_t presegs = 0;
  
     /* Special case */
     if(key == NULL || strlen(key) == 0) goto done;

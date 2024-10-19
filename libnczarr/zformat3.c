@@ -489,12 +489,12 @@ write_var_meta(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_VAR
     jtmp = NULL;
 
     /* build "dimension_names" key */
-    if(NCJnew(NCJ_ARRAY,&jdimnames)) {stat = NC_ENOTZARR; goto done;}
+    NCJcheck(NCJnew(NCJ_ARRAY,&jdimnames));
      for(i=0;i<var->ndims;i++) {
 	NC_DIM_INFO_T* dim = var->dim[i];
-	if(NCJaddstring(jdimnames,NCJ_STRING, dim->hdr.name)) {stat = NC_ENOTZARR; goto done;}
+	NCcheck(NCJaddstring(jdimnames,NCJ_STRING, dim->hdr.name));
     }
-    if(NCJinsert(jvar,"dimension_names",jdimnames)) {stat = NC_ENOTZARR; goto done;}
+    NCJcheck(NCJinsert(jvar,"dimension_names",jdimnames));
     jdimnames = NULL;
 
     /* Capture dimref names as FQNs; simultaneously collect the simple dim names */
@@ -559,8 +559,8 @@ write_var_meta(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, NC_VAR
 	    endianness = (NC_isLittleEndian()?NC_ENDIAN_LITTLE:NC_ENDIAN_BIG);
 	if(endianness == NC_ENDIAN_LITTLE) bytescodec = NCZ_Bytes_Little_Json;
 	else {assert(endianness == NC_ENDIAN_BIG); bytescodec = NCZ_Bytes_Big_Json;}
-	if(NCJclone(bytescodec,&jtmp) || jtmp == NULL) {stat = NC_ENOTZARR; goto done;}
-	if(NCJappend(jcodecs,jtmp)) goto done;
+	if(NCJcheck(NCJclone(bytescodec,&jtmp)==NCJERR || jtmp == NULL) {stat = NC_ENOTZARR; goto done;}
+	NCJcheck(NCJappend(jcodecs,jtmp));
 	jtmp = NULL;
     }
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
@@ -2205,7 +2205,7 @@ json2filter(NC_FILE_INFO_T* file, const NCjson* jfilter, NCZ_Filter** zfilterp, 
     memset(&hdf5,0,sizeof(NCZ_HDF5));
 
     /* Get the id of this codec filter */
-    if(NCJdictget(jfilter,"name",&jvalue)<0) {stat = NC_EFILTER; goto done;}
+    NCJcheck(NCJdictget(jfilter,"name",&jvalue));
     if(!NCJisatomic(jvalue)) {stat = THROW(NC_ENOFILTER); goto done;}
     codec.id = strdup(NCJstring(jvalue));
     /* Save the codec for this filter */
@@ -2374,9 +2374,9 @@ NCZF3_initialize(void)
 {
     int stat = NC_NOERR;
     NCjson* json = NULL;
-    if(NCJparse(NCZ_Bytes_Little_Text,0,&json) < 0) {stat = NC_EINTERNAL; goto done;}
+    NCJcheck(NCJparse(NCZ_Bytes_Little_Text,0,&json));
     NCZ_Bytes_Little_Json = json;
-    if(NCJparse(NCZ_Bytes_Big_Text,0,&json) < 0) {stat = NC_EINTERNAL; goto done;}
+    NCJcheck(NCJparse(NCZ_Bytes_Big_Text,0,&json));
     NCZ_Bytes_Big_Json = json;
 done:
     return THROW(stat);

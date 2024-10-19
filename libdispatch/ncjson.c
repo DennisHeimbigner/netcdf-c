@@ -6,15 +6,6 @@
 TODO: make utf8 safe
 */
 
-/*
-WARNING:
-If you modify this file,
-then you need to got to
-the include/ directory
-and do the command:
-    make makenetcdfjson
-*/
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -120,7 +111,7 @@ static int bytesappendquoted(NCJbuf* buf, const char* s);
 static int bytesappend(NCJbuf* buf, const char* s);
 static int bytesappendc(NCJbuf* bufp, char c);
 
-/* Hide everything for plugins */
+/* Static'ize everything for plugins */
 #ifdef NETCDF_JSON_H
 #define OPTSTATIC static
 #else /*!NETCDF_JSON_H*/
@@ -493,8 +484,8 @@ testdouble(const char* word)
     pos = bsearch(word, NANINF, NNANINF, sizeof(char*), nancmp);
     if(pos != NULL) return 1;
     /* Try to convert to number */
-    ncvt = sscanf(word,"%lg%n",&d,&count); 
-    return (ncvt == 1 && strlen(word)==((size_t)count) ? 1 : 0);
+    ncvt = sscanf(word,"%lg%n",&d,&count);
+    return NCJTHROW((ncvt == 1 && strlen(word)==(size_t)count ? NCJ_OK : NCJ_ERR));
 }
 
 static int
@@ -923,15 +914,12 @@ OPTSTATIC int
 NCJinsertstring(NCjson* object, const char* key, const char* value)
 {
     int stat = NCJ_OK;
-    NCjson* jkey = NULL;
     NCjson* jvalue = NULL;
-    if(key == NULL || value == NULL)
-	{stat = NCJTHROW(NCJ_ERR); goto done;}
-    if((stat = NCJnewstring(NCJ_STRING,key,&jkey))==NCJ_ERR) goto done;
-    if((stat = NCJnewstring(NCJ_STRING,value,&jvalue))==NCJ_ERR) goto done;
-    if((stat = NCJadd(object,jkey))==NCJ_ERR) goto done;
-    if((stat = NCJadd(object,jvalue))==NCJ_ERR) goto done;
-done:
+    if(value == NULL)
+        NCJnew(NCJ_NULL,&jvalue);
+    else
+        NCJnewstring(NCJ_STRING,value,&jvalue);
+    NCJinsert(object,key,jvalue);
     return NCJTHROW(stat);
 }
 
@@ -940,18 +928,11 @@ OPTSTATIC int
 NCJinsertint(NCjson* object, const char* key, long long value)
 {
     int stat = NCJ_OK;
-    NCjson* jkey = NULL;
     NCjson* jvalue = NULL;
-    char digits[64];
- 
-    if(key == NULL)
-	{stat = NCJTHROW(NCJ_ERR); goto done;}
-    if((stat = NCJnewstring(NCJ_STRING,key,&jkey))==NCJ_ERR) goto done;
+    char digits[128];
     snprintf(digits,sizeof(digits),"%lld",value);
-    if((stat = NCJnewstring(NCJ_INT,digits,&jvalue))==NCJ_ERR) goto done;
-    if((stat = NCJadd(object,jkey))==NCJ_ERR) goto done;
-    if((stat = NCJadd(object,jvalue))==NCJ_ERR) goto done;
-done:
+    NCJnewstring(NCJ_STRING,digits,&jvalue);
+    NCJinsert(object,key,jvalue);
     return NCJTHROW(stat);
 }
 
@@ -1179,5 +1160,8 @@ netcdf_supresswarnings(void)
     ignore = (void*)NCJclone;
     ignore = (void*)NCJdump;
     ignore = (void*)NCJdictsort;
+    ignore = (void*)NCJtotext;
+    ignore = (void*)NCJinsertstring;
+    ignore = (void*)NCJinsertint;
     ignore = ignore;
 }

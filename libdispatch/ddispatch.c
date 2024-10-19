@@ -183,7 +183,7 @@ NCDISPATCH_finalize(void)
 /** \defgroup global_state Global state functions. */
 /** \{
 
-\ingroup global state
+\ingroup global_state
 */
 
 /* NCglobal state management */
@@ -245,6 +245,7 @@ NC_freeglobalstate(void)
 	    NC_rcclear(nc_globalstate->rcinfo);
 	    free(nc_globalstate->rcinfo);
 	}
+	nclistfree(nc_globalstate->pluginpaths);
 	free(nc_globalstate);
 	nc_globalstate = NULL;
     }

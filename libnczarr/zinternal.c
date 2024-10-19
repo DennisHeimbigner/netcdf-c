@@ -79,10 +79,10 @@ NCZ_initialize_internal(void)
         }    
     }
     /* Build some common proplists */
-    NCplistzarrv2 = ncplistnew();
-    ncplistadd((NCproplist*)NCplistzarrv2,"zarrformat",(uintptr_t)2);
-    NCplistzarrv3 = ncplistnew();
-    ncplistadd((NCproplist*)NCplistzarrv3,"zarrformat",(uintptr_t)3);
+    NCplistzarrv2 = ncproplistnew();
+    ncproplistadd((NCproplist*)NCplistzarrv2,"zarrformat",(uintptr_t)2);
+    NCplistzarrv3 = ncproplistnew();
+    ncproplistadd((NCproplist*)NCplistzarrv3,"zarrformat",(uintptr_t)3);
 
     return stat;
 }
@@ -104,8 +104,8 @@ NCZ_finalize_internal(void)
 #endif
 
     /* Cleanup common proplists */
-    ncplistfree((NCproplist*)NCplistzarrv2); NCplistzarrv2 = NULL;
-    ncplistfree((NCproplist*)NCplistzarrv3); NCplistzarrv3 = NULL;
+    ncproplistfree((NCproplist*)NCplistzarrv2); NCplistzarrv2 = NULL;
+    ncproplistfree((NCproplist*)NCplistzarrv3); NCplistzarrv3 = NULL;
 
     return NC_NOERR;
 }

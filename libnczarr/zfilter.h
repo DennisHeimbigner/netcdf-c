@@ -19,17 +19,6 @@
 /*Mnemonic*/
 #define ENCODING 1
 
-/* Define some constants to signal empty filter pieces */
-#define HDF5_EMPTY_ID 0
-#define CODEC_EMPTY_ID NULL
-#define PLUGIN_EMPTY_ID 0
-
-/* list of environment variables to check for plugin roots */
-#define PLUGIN_ENV "HDF5_PLUGIN_PATH"
-#define PLUGIN_DIR_UNIX "/usr/local/hdf5/plugin"
-#define PLUGIN_DIR_WIN "%s/hdf5/lib/plugin"
-#define WIN32_ROOT_ENV "ALLUSERSPROFILE"
-
 /* The NC_VAR_INFO_T->filters field is an NClist of this struct.
 Each filter can have two parts: HDF5 and Codec.
 The NC_VAR_INFO_T.filters list only holds entries where both the HDF5 info
@@ -66,21 +55,28 @@ If it the first codec, then it is parsed to find out the endianness of the array
 struct H5Z_class2_t;
 struct NCZ_codec_t;
 struct NCPSharedLib;
+struct NCZ_Plugin;
 	
 /* Hold the loaded filter plugin information */
-typedef struct NCZ_Plugin {
-    int incomplete;
-    struct HDF5API {
-        const struct H5Z_class2_t* filter;
-        struct NCPSharedLib* hdf5lib; /* source of the filter */
-    } hdf5;
-    struct CodecAPI {
-	int defaulted; /* codeclib was a defaulting library */
-	int ishdf5raw; /* The codec is the hdf5raw codec */
-	const struct NCZ_codec_t* codec;
-	struct NCPSharedLib* codeclib; /* of the codec; null if same as hdf5 */
-    } codec;
-} NCZ_Plugin;
+
+/* The NC_VAR_INFO_T->filters field is an NClist of this struct */
+/*
+Each filter can have two parts: HDF5 and Codec.
+The NC_VAR_INFO_T.filters list only holds entries where both the HDF5 info
+and the codec info are defined.
+The NCZ_VAR_INFO_T.codecs list holds the codec info when reading a Zarr file.
+Note that it is not possible to have an entry on the filters list that does not
+have both HDF5 and codec. This is because nc_def_var_filter will fail if the codec
+part is not available. If a codec is read from a file and there is no available
+corresponding HDF5 implementation, then that codec will not appear in the filters list.
+It is possible that some subset of the codecs do have a corresponding HDF5, but we
+enforce the rule that no entries go into the filters list unless all are defined.
+It is still desirable for a user to be able to see what filters and codecs are defined
+for a variable. This is accommodated by providing two special attributes:
+1, "_Filters" attribute shows the HDF5 filters defined on the variable, if any.
+2, "_Codecs" attribute shows the codecs defined on the variable; for zarr, this list
+   should always be defined.
+*/
 
 typedef struct NCZ_Params {
     size_t nparams;
@@ -112,6 +108,8 @@ typedef struct NCZ_Filter {
     int flags;             	/**< Flags describing state of this filter. */
 #	define FLAG_VISIBLE	  1 /* If set, then visible parameters are defined */
 #	define FLAG_WORKING	  2 /* If set, then WORKING parameters are defined */
+#	define FLAG_INCOMPLETE	  3 /* If set, then filter is incomplete */
+#	define FLAG_SUPPRESS	  4 /* If set, then filter is suppressed */
 } NCZ_Filter;
 
 int NCZ_filter_initialize(void);
@@ -135,6 +133,6 @@ int NCZ_filters_encode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* jfilter
 int NCZ_filters_decode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* jfilters);
 
 int NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, NCZ_Filter** specp);
-int NCZ_plugin_lookup(const char* codecid, NCZ_Plugin** pluginp);
+int NCZ_plugin_lookup(const char* codecid, struct NCZ_Plugin** pluginp);
 
 #endif /*ZFILTER_H*/

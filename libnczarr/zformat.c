@@ -111,7 +111,7 @@ NCZF_download_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
 }
 
 int
-NCZF_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* jgroup, const NCjson** jzgrpp, const NCjson** jzsuperp)
+NCZF_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* jgroup, NCjson* const* jzgrpp, NCjson* const* jzsuperp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;

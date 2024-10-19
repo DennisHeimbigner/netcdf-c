@@ -68,7 +68,8 @@ TESTS += run_grp_rename.sh tst_misc.sh
 check_PROGRAMS += tst_fillonly
 TESTS += test_fillonly.sh
 
-# H5 and nczarr Fixed string support
+# H5 Fixed string support
+check_PROGRAMS += build_fixedstring
 TESTS += tst_fixedstring.sh
 
 # Szip Tests (requires ncdump)
@@ -141,7 +142,7 @@ ref_filter_repeat.txt ref_fillonly.cdl test_fillonly.sh			\
 ref_filter_order_create.txt ref_filter_order_read.txt ref_any.cdl	\
 tst_specific_filters.sh tst_unknown.sh tst_virtual_datasets.c		\
 noop1.cdl unknown.cdl tst_broken_files.c ref_bloscx.cdl			\
-tst_bloscfail.sh tst_fixedstring.sh ref_fixedstring.h5			\
+tst_bloscfail.sh tst_fixedstring.sh					\
 ref_fixedstring.cdl tst_filterinstall.sh tst_filter_vlen.sh		\
 tst_filter_misc.sh run_zstd_test.sh run_par_warn_test.sh.in		\
 ref_tmp_tst_warn_out.txt
@@ -157,7 +158,7 @@ floats*.nc floats*.cdl shorts*.nc shorts*.cdl ints*.nc ints*.cdl        \
 testfilter_reg.nc filterrepeat.txt tmp_fillonly.nc                      \
 testfilter_order.nc crfilterorder.txt rdfilterorder.txt 1               \
 tmp_*.txt tmp_*.nc tmp*.dump tmp*.cdl tmp*.txt tmp*.tmp                 \
-tmp_bzip2.c bzip2.nc noop.nc tmp_*.dmp tmp_*.cdl
+tmp_bzip2.c bzip2.nc noop.nc tmp_*.dmp tmp_*.cdl ref_fixedstring.h5
 
 DISTCLEANFILES = findplugin.sh run_par_test.sh run_par_warn_test.sh	
 
