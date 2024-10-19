@@ -48,7 +48,6 @@
 #include "zfilter.h"
 #include "ncpathmgr.h"
 #include "ncpoco.h"
-#include "netcdf_aux.h"
 #include "netcdf_filter.h"
 #include "netcdf_filter_build.h"
 #include "zfilter.h"
@@ -65,24 +64,71 @@
 
 #define NULLIFY(x) ((x)?(x):"NULL")
 
-#define H5Z_FILTER_RAW 0
-#define H5Z_CODEC_RAW "hdf5raw"
+/* The NC_VAR_INFO_T->filters field is an NClist of this struct */
+/*
+Each filter can have two parts: HDF5 and Codec.
+The NC_VAR_INFO_T.filters list only holds entries where both the HDF5 info
+and the codec info are defined.
+The NCZ_VAR_INFO_T.codecs list holds the codec info when reading a Zarr file.
+Note that it is not possible to have an entry on the filters list that does not
+have both HDF5 and codec. This is because nc_def_var_filter will fail if the codec
+part is not available. If a codec is read from a file and there is no available
+corresponding HDF5 implementation, then that codec will not appear in the filters list.
+It is possible that some subset of the codecs do have a corresponding HDF5, but we
+enforce the rule that no entries go into the filters list unless all are defined.
+It is still desirable for a user to be able to see what filters and codecs are defined
+for a variable. This is accommodated by providing two special attributes:
+1, "_Filters" attribute shows the HDF5 filters defined on the variable, if any.
+2, "_Codecs" attribute shows the codecs defined on the variable; for zarr, this list
+   should always be defined.
+*/
 
-NCZ_Codec NCZ_codec_empty = {NULL, NULL, 0};
-NCZ_HDF5 NCZ_hdf5_empty = {0, {0,NULL}, {0, NULL}};
+/* Codec Info */
+typedef struct NCZ_Codec {
+    char* id;              /**< The NumCodecs ID */
+    char* codec;           /**< The Codec from the file; NULL if creating */
+} NCZ_Codec;
+
+static NCZ_Codec codec_empty = {NULL, NULL};
 
 static void
 ncz_codec_clear(NCZ_Codec* codec) {
     nullfree(codec->id); nullfree(codec->codec);
-    *codec = NCZ_codec_empty;
+    *codec = codec_empty;
 }
+
+typedef struct NCZ_Params {size_t nparams; unsigned* params;} NCZ_Params;
+
+/* HDF5 Info */
+typedef struct NCZ_HDF5 {
+    unsigned id;           /**< HDF5 id corresponding to filterid. */
+    NCZ_Params visible;
+    NCZ_Params working;
+} NCZ_HDF5;
+
+static NCZ_HDF5 hdf5_empty = {0, {0,NULL}, {0,NULL}};
 
 static void
 ncz_hdf5_clear(NCZ_HDF5* h) {
     nullfree(h->visible.params);
     nullfree(h->working.params);
-    *h = NCZ_hdf5_empty;
+    *h = hdf5_empty;
 }
+
+typedef struct NCZ_Filter {
+    int flags;             	/**< Flags describing state of this filter. */
+#	define FLAG_VISIBLE	1 /* If set, then visible parameters are defined */
+#	define FLAG_WORKING	2 /* If set, then WORKING parameters are defined */
+#	define FLAG_CODEC	4 /* If set, then visbile parameters come from an existing codec string */
+#	define FLAG_HDF5	8 /* If set, => visible parameters came from nc_def_var_filter */
+#	define FLAG_NEWVISIBLE	16 /* If set, => visible parameters  were modified */
+#	define FLAG_INCOMPLETE	32 /* If set, => filter has no complete matching plugin */
+#	define FLAG_SUPPRESS	64 /* If set, => filter should not be used (probably because variable is not fixed size */
+    NCZ_HDF5 hdf5;
+    NCZ_Codec codec;
+    struct NCZ_Plugin* plugin;  /**< Implementation of this filter. */
+    int chainindex; /* Position in original chain */
+} NCZ_Filter;
 
 #define FILTERINCOMPLETE(f) ((f)->flags & FLAG_INCOMPLETE?1:0)
 
@@ -128,9 +174,15 @@ printfilter(const NCZ_Filter* f)
 
 
 /* Forward */
+static int NCZ_filter_free(NCZ_Filter* spec);
+static int NCZ_filter_hdf5_clear(NCZ_HDF5* spec);
+static int NCZ_filter_codec_clear(NCZ_Codec* spec);
+static int NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, struct NCZ_Filter** specp);
+
 static int ensure_working(const NC_VAR_INFO_T* var, NCZ_Filter* filter);
-static int paramnczclone(const NCZ_Params* src, NCZ_Params* dst);
-static int paramclone(size_t nparams, const unsigned* src, unsigned** dstp);
+
+static int paramnczclone(NCZ_Params* dst, const NCZ_Params* src);
+static int paramclone(size_t nparams, unsigned** dstp, const unsigned* src);
 
 /**************************************************/
 /**
@@ -148,34 +200,36 @@ static int paramclone(size_t nparams, const unsigned* src, unsigned** dstp);
 int
 NCZ_filter_freelists(NC_VAR_INFO_T* var)
 {
+    size_t i;
     int stat=NC_NOERR;
+    NClist* filters = NULL;
+    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
 
     ZTRACE(6,"var=%s",var->hdr.name);
-    NCZ_filter_freelist1((NClist*)var->filters);
-    var->filters = NULL;
-    return ZUNTRACE(stat);
-}
-
-int
-NCZ_filter_freelist1(NClist* filters)
-{
-    int stat=NC_NOERR;
-    size_t i;
-    NCZ_Filter* spec = NULL;
-    
-    ZTRACE(6,"|filters|=%zu",nclistlength(filters));
+    filters = (NClist*)var->filters;
     if(filters == NULL) goto done;
     /* Free the filter list elements */
     for(i=0;i<nclistlength(filters);i++) {
-	spec = nclistget(filters,i);
+	struct NCZ_Filter* spec = nclistget(filters,i);
 	if((stat = NCZ_filter_free(spec))) goto done;
     }
     nclistfree(filters);
+    var->filters = NULL;
+    /* Free the incomplete filters */
+    filters = (NClist*)zvar->incompletefilters;
+    if(filters == NULL) goto done;
+    /* Free the filter list elements */
+    for(i=0;i<nclistlength(filters);i++) {
+	struct NCZ_Filter* spec = nclistget(filters,i);
+	if((stat = NCZ_filter_free(spec))) goto done;
+    }
+    nclistfree(filters);
+    zvar->incompletefilters = NULL;
 done:
     return ZUNTRACE(stat);
 }
 
-int
+static int
 NCZ_filter_free(NCZ_Filter* spec)
 {
     if(spec == NULL) return NC_NOERR;
@@ -185,24 +239,24 @@ NCZ_filter_free(NCZ_Filter* spec)
     return NC_NOERR;
 }
 
-int
+static int
 NCZ_filter_hdf5_clear(NCZ_HDF5* spec)
 {
     ZTRACE(6,"spec=%d",spec->id);
     if(spec == NULL) goto done;
-    nullfree(spec->visible.params); spec->visible.params = NULL;
-    nullfree(spec->working.params); spec->working.params = NULL;
+    nullfree(spec->visible.params);
+    nullfree(spec->working.params);
 done:
     return ZUNTRACE(NC_NOERR);
 }
 
-int
+static int
 NCZ_filter_codec_clear(NCZ_Codec* spec)
 {
     ZTRACE(6,"spec=%d",(spec?spec->id:"null"));
     if(spec == NULL) goto done;
-    nullfree(spec->id); spec->id = NULL;
-    nullfree(spec->codec); spec->codec = NULL;
+    nullfree(spec->id);
+    nullfree(spec->codec);
 done:
     return ZUNTRACE(NC_NOERR);
 }
@@ -214,6 +268,7 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
     int stat = NC_NOERR;
     struct NCZ_Filter* fi = NULL;
     NCZ_Plugin* plugin = NULL;
+    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
 
     ZTRACE(6,"file=%s var=%s id=%u nparams=%u params=%p",file->hdr.name,var->hdr.name,id,nparams,params);
     
@@ -221,6 +276,7 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
 	{stat = NC_EINVAL; goto done;}
     
     if(var->filters == NULL) var->filters = (void*)nclistnew();
+    if(zvar->incompletefilters == NULL) zvar->incompletefilters = (void*)nclistnew();
 
     /* Before anything else, find the matching plugin */
     if((stat = NCZ_plugin_loaded((size_t)id,&plugin))) goto done;
@@ -241,8 +297,9 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
         fi->plugin = plugin;
 	if(plugin->incomplete) {
 	    fi->flags |= (FLAG_INCOMPLETE);
-	}
-	nclistpush((NClist*)var->filters, fi);
+	    nclistpush((NClist*)zvar->incompletefilters, fi);
+	} else
+	    nclistpush((NClist*)var->filters, fi);
     }
 
     /* If this variable is not fixed size, mark filter as suppressed */
@@ -256,12 +313,12 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t 
         nullfree(fi->hdf5.visible.params);
 	nullfree(fi->hdf5.working.params);
         /* Fill in the hdf5 */
-        fi->hdf5 = NCZ_hdf5_empty; /* struct copy */
+        fi->hdf5 = hdf5_empty; /* struct copy */
 	fi->hdf5.id = id;
         /* Capture the visible parameters */
         fi->hdf5.visible.nparams = nparams;
         if(nparams > 0) {
-	    if((stat = paramclone(nparams,params,&fi->hdf5.visible.params))) goto done;
+	    if((stat = paramclone(nparams,&fi->hdf5.visible.params,params))) goto done;
 	}
 	fi->hdf5.working.nparams = 0;
 	fi->hdf5.working.params = NULL;
@@ -289,7 +346,7 @@ NCZ_filter_remove(NC_VAR_INFO_T* var, unsigned int id)
 	    /* Remove from variable */
     	    nclistremove(flist,k);
 	    /* Reclaim */
-	    NCZ_filter_free(f); f = NULL;
+	    NCZ_filter_free(f);
 	    goto done;
 	}
     }
@@ -298,8 +355,8 @@ done:
     return ZUNTRACE(stat);
 }
 
-int
-NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, NCZ_Filter** specp)
+static int
+NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, struct NCZ_Filter** specp)
 {
     size_t i;
     NClist* flist = (NClist*)var->filters;
@@ -315,42 +372,12 @@ NCZ_filter_lookup(NC_VAR_INFO_T* var, unsigned int id, NCZ_Filter** specp)
     for(i=0;i<nclistlength(flist);i++) {
 	NCZ_Filter* spec = nclistget(flist,i);
 	assert(spec != NULL);
-	if((spec->hdf5.id == id) && !spec->incomplete) {
+	if(spec->hdf5.id == id && !FILTERINCOMPLETE(spec)) {
 	    if(specp) *specp = spec;
 	    break;
 	}
     }
     return ZUNTRACEX(NC_NOERR,"spec=%d",IEXISTS(specp,hdf5.id));
-}
-
-int
-NCZ_plugin_lookup(const char* codecid, NCZ_Plugin** pluginp)
-{
-    int stat = NC_NOERR;
-    size_t i;
-    NCZ_Plugin* plugin = NULL;
-    char digits[64];
-    const char* trueid = NULL;
-    
-    if(pluginp == NULL) return NC_NOERR;
-
-    /* Find the plugin for this codecid */
-    for(i=1;i<=plugins.loaded_plugins_max;i++) {
-	NCZ_Plugin* p = plugins.loaded_plugins[i];
-        if(p == NULL) continue;
-        if(p == NULL|| p->codec.codec == NULL) continue; /* no plugin or no codec */
-	if(p->codec.ishdf5raw) {
-	    /* get true id */
-	    snprintf(digits,sizeof(digits),"%d",p->hdf5.filter->id);
-	    trueid = digits;
-	} else {
-	    trueid = p->codec.codec->codecid;
-	}
-	if(strcmp(codecid, trueid) == 0)
-	    {plugin = p; break;}
-    }
-    if(pluginp) *pluginp = plugin;
-    return stat;
 }
 
 #if 0
@@ -372,6 +399,39 @@ NCZ_codec_lookup(NClist* codecs, const char* id, NCZ_Codec** codecp)
 	}
     }
     return ZUNTRACEX(NC_NOERR,"codec=%s",SEXISTS(codecp,id));
+}
+
+/**
+ * @internal Remove a filter from filter list for a variable
+ *
+ * @param ncid File ID.
+ * @param varid Variable ID.
+ * @param id filter id to remove
+ *
+ * @returns ::NC_NOERR No error.
+ * @returns ::NC_EBADID Bad ncid.
+ * @returns ::NC_ENOTVAR Invalid variable ID.
+ * @returns ::NC_ENOTNC4 Attempting netcdf-4 operation on file that is
+ * not netCDF-4/NCZARR.
+ * @returns ::NC_ELATEDEF Too late to change settings for this variable.
+ * @returns ::NC_ENOTINDEFINE Not in define mode.
+ * @returns ::NC_EINVAL Invalid input
+ * @author Dennis Heimbigner
+ */
+int
+nc_var_filter_remove(int ncid, int varid, unsigned int filterid)
+{
+    NC_VAR_INFO_T *var = NULL;
+    int stat;
+
+    /* Get pointer to the var. */
+    if ((stat = ncz_find_grp_file_var(ncid, varid, NULL, NULL, &var)))
+        return stat;
+    assert(var);
+
+    stat = NC4_nczarr_filter_remove(var,filterid);
+
+    return stat;
 }
 #endif
 
@@ -398,7 +458,7 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
     assert(nc);
 
     /* Find info for this file and group and var, and set pointer to each. */
-    if ((stat = nc4_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
+    if ((stat = ncz_find_grp_file_var(ncid, varid, &h5, &grp, &var)))
 	{stat = THROW(stat); goto done;}
 
     assert(h5 && var && var->hdr.id == varid);
@@ -477,96 +537,6 @@ done:
     return ZUNTRACE(stat);
 }
 
-/* From NCZ_def_var_filter */
-static int
-NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned int id, size_t nparams, const unsigned int* params)
-{
-    int stat = NC_NOERR;
-    int exists = 0;
-    NCZ_Filter* fi = NULL;
-    NCZ_HDF5 hdf5 = NCZ_hdf5_empty;
-
-    ZTRACE(6,"file=%s var=%s id=%u nparams=%u params=%p",file->hdr.name,var->hdr.name,id,nparams,params);
-    
-    if(nparams > 0 && params == NULL) {stat = NC_EINVAL; goto done;}
-
-    /* Warning if filter already exists, fi will be changed to be that filter and old fi will be reclaimed */
-    /* If it already exists, then overwrite the parameters */
-    if((stat=NCZ_filter_lookup(var,id,&fi))) goto done;
-    if(fi != NULL) {
-	exists = 1;
-    } else {
-        if((fi = calloc(1,sizeof(NCZ_Filter))) == NULL) {stat = NC_ENOMEM; goto done;}
-    }
-
-    hdf5.id = id;
-    hdf5.visible.nparams = nparams;
-    hdf5.visible.params = (unsigned*)params;
-    if((stat = NCZ_insert_filter(file,(NClist*)var->filters,&hdf5,NULL,fi,exists))) goto done;
-
-done:
-    return ZUNTRACE(stat);
-}
-
-/* Use this instead of NCZ_addfilter when filter has already been constructed */
-int
-NCZ_insert_filter(NC_FILE_INFO_T* file, NClist* filterlist, NCZ_HDF5* hdf5, NCZ_Codec* codec, NCZ_Filter* fi, int exists)
-{
-    int stat = NC_NOERR;
-    NCZ_Plugin* plugin = NULL;
-
-    ZTRACE(6,"file=%s",file->hdr.name);
-    
-    assert(filterlist != NULL);
-    assert(fi != NULL);
-    assert(hdf5 != NULL);
-
-    /* cleanup */
-    if((stat=NCZ_filter_hdf5_clear(&fi->hdf5))) goto done;
-    if((stat=NCZ_filter_codec_clear(&fi->codec))) goto done;
-
-    /* Find the matching plugin, if any */
-    if((stat = NCZ_plugin_loaded(hdf5->id,&plugin))) goto done;
-    fi->plugin = plugin;
-    if(fi->plugin == NULL || plugin->incomplete) fi->incomplete = 1;
-
-    if((stat = NCZ_fillin_filter(file,fi,hdf5,(codec!=NULL?codec:NULL)))) goto done;
-    
-    /* Add to filters list  */
-    if(!exists)
-	nclistpush(filterlist, fi);
-
-done:
-    return ZUNTRACE(stat);
-}
-
-int
-NCZ_fillin_filter(NC_FILE_INFO_T* file,
-				NCZ_Filter* filter,
-				NCZ_HDF5* hdf5,
-				NCZ_Codec* codec)
-{
-    int stat = NC_NOERR;
-
-    /* (over)write the HDF5 parameters */
-    NCZ_filter_hdf5_clear(&filter->hdf5);
-    NCZ_filter_codec_clear(&filter->codec);
-    /* Fill in the hdf5 and codec*/
-    filter->hdf5 = *hdf5; /* get non-pointer fields */
-    /* Avoid taking control of params */
-    if((stat = paramclone(hdf5->visible.nparams,hdf5->visible.params,&filter->hdf5.visible.params))) goto done;
-    assert(hdf5->working.nparams == 0 && hdf5->working.params == NULL);
-    if(codec != NULL) {
-        filter->codec = *codec; /* get non-pointer fields */
-        /* Avoid taking control of fields */    
-        filter->codec.id = nulldup(codec->id);
-        filter->codec.codec = nulldup(codec->codec);
-    } else
-        filter->codec = NCZ_codec_empty;
-done:
-    return ZUNTRACE(stat);
-}
-
 int
 NCZ_inq_var_filter_ids(int ncid, int varid, size_t* nfiltersp, unsigned int* ids)
 {
@@ -584,7 +554,7 @@ NCZ_inq_var_filter_ids(int ncid, int varid, size_t* nfiltersp, unsigned int* ids
     assert(nc);
 
     /* Find info for this file and group and var, and set pointer to each. */
-    if ((stat = nc4_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
+    if ((stat = ncz_find_grp_file_var(ncid, varid, &h5, &grp, &var)))
 	{stat = THROW(stat); goto done;}
 
     assert(h5 && var && var->hdr.id == varid);
@@ -594,13 +564,12 @@ NCZ_inq_var_filter_ids(int ncid, int varid, size_t* nfiltersp, unsigned int* ids
 
     flist = var->filters;
 
-    nfilters = nclistlength(flist); /* including incomplete filters */
+    nfilters = nclistlength(flist); /* including incomplets */
     if(nfilters > 0 && ids != NULL) {
 	size_t k;
 	for(k=0;k<nfilters;k++) {
-	    NCZ_Filter* f = (NCZ_Filter*)nclistget(flist,k);
-	    if(f->hdf5.id == 0) continue; /* No way to show filter without hdf5 id */
-            ids[k] = (unsigned int)(f->hdf5.id);
+	    struct NCZ_Filter* f = (struct NCZ_Filter*)nclistget(flist,k);
+            ids[k] = f->hdf5.id;
 	}
     }
     if(nfiltersp) *nfiltersp = nfilters;
@@ -617,7 +586,7 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, 
     NC_FILE_INFO_T* h5 = NULL;
     NC_GRP_INFO_T* grp = NULL;
     NC_VAR_INFO_T* var = NULL;
-    NCZ_Filter* spec = NULL;
+    struct NCZ_Filter* spec = NULL;
 
     ZTRACE(1,"ncid=%d varid=%d id=%u",ncid,varid,id);
     
@@ -625,7 +594,7 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, 
     assert(nc);
 
     /* Find info for this file and group and var, and set pointer to each. */
-    if ((stat = nc4_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
+    if ((stat = ncz_find_grp_file_var(ncid, varid, &h5, &grp, &var)))
 	{stat = THROW(stat); goto done;}
 
     assert(h5 && var && var->hdr.id == varid);
@@ -635,6 +604,21 @@ NCZ_inq_var_filter_info(int ncid, int varid, unsigned int id, size_t* nparamsp, 
 
     if((stat = NCZ_filter_lookup(var,id,&spec))) goto done;
     if(spec != NULL) {
+#if 0
+	if(spec->flags & FLAG_WORKING) {/* working params are available */
+	    if(spec->plugin->codec.codec->NCZ_visible_parameters) {
+		stat = spec->plugin->codec.codec->NCZ_visible_parameters(ncid,varid,
+								spec->hdf5.working.nparams,spec->hdf5.working.params,
+								&spec->hdf5.visible.nparams,&spec->hdf5.visible.params);
+#ifdef DEBUGF
+	    fprintf(stderr,">>>  DEBUGF: NCZ_visible_parameters: ncid=%d varid=%d working=%s visible=%s\n",ncid,varid,
+			printnczparams(spec->hdf5.visible),printnczparams(spec->hdf5.working));
+#endif
+	        if(stat) goto done;
+	    }
+	    spec->flags |= FLAG_VISIBLE;
+	}
+#endif
 	/* return the current visible parameters */
         if(nparamsp) *nparamsp = spec->hdf5.visible.nparams;
         if(params && spec->hdf5.visible.nparams > 0)
@@ -680,7 +664,6 @@ int
 NCZ_filter_initialize(void)
 {
     int stat = NC_NOERR;
-
     ZTRACE(6,"");
 
     if(NCZ_filter_initialized) goto done;
@@ -704,9 +687,8 @@ NCZ_filter_finalize(void)
 done:
     return ZUNTRACE(stat);
 }
-
 int
-NCZ_applyfilterchain(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* chain, size_t inlen, void* indata, size_t* outlenp, void** outdatap, int encode)
+NCZ_applyfilterchain(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* chain, size_t inlen, void* indata, size_t* outlenp, void** outdatap, int encode)
 {
     size_t i;
     int stat = NC_NOERR;
@@ -716,17 +698,17 @@ NCZ_applyfilterchain(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* chain, si
 
     /* Make sure all the filters are loaded && setup */
     for(i=0;i<nclistlength(chain);i++) {
-	NCZ_Filter* f = (NCZ_Filter*)nclistget(chain,i);
+	struct NCZ_Filter* f = (struct NCZ_Filter*)nclistget(chain,i);
 	assert(f != NULL);
-	if(f->incomplete || f->suppress) continue; /* ignore bad filters and vlen variable filters */
+	if(FILTERINCOMPLETE(f)) {stat = THROW(NC_ENOFILTER); goto done;}
 	assert(f->hdf5.id > 0 && f->plugin != NULL);
 	if(!(f->flags & FLAG_WORKING)) {/* working not yet available */
-	    if((stat = ensure_working(file, var,f))) goto done;
+	    if((stat = ensure_working(var,f))) goto done;
 	}
     }
 
     {
-	NCZ_Filter* f = NULL;
+	struct NCZ_Filter* f = NULL;
 	const H5Z_class2_t* ff = NULL;
 	size_t current_alloc = inlen;
 	void* current_buf = indata;
@@ -741,8 +723,8 @@ fprintf(stderr,">>> current: alloc=%u used=%u buf=%p\n",(unsigned)current_alloc,
         /* Apply in proper order */
         if(encode) {
             for(i=0;i<nclistlength(chain);i++) {
-	        f = (NCZ_Filter*)nclistget(chain,i);	
-		if(f->incomplete || f->suppress) continue; /* this filter should not be applied */		
+	        f = (struct NCZ_Filter*)nclistget(chain,i);	
+		if(f->flags & FLAG_SUPPRESS) continue; /* this filter should not be applied */		
 	        ff = f->plugin->hdf5.filter;
 	        /* code can be simplified */
 	        next_alloc = current_alloc;
@@ -761,8 +743,8 @@ fprintf(stderr,">>> next: alloc=%u used=%u buf=%p\n",(unsigned)next_alloc,(unsig
 	} else {
 	    /* Apply in reverse order */
             for(size_t k=nclistlength(chain); k-->0;) {
-                f = (struct NCZ_Filter*)nclistget(chain, k);
-		if(f->suppress) continue; /* this filter should not be applied */
+              f = (struct NCZ_Filter*)nclistget(chain, k);
+		if(f->flags & FLAG_SUPPRESS) continue; /* this filter should not be applied */
 	        ff = f->plugin->hdf5.filter;
 	        /* code can be simplified */
 	        next_alloc = current_alloc;
@@ -845,13 +827,14 @@ NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* j
     NCZ_Filter* filter = NULL;
     const NCjson* jvalue = NULL;
     NCZ_Plugin* plugin = NULL;
-    NCZ_Codec codec = NCZ_codec_empty;
-    NCZ_HDF5 hdf5 = NCZ_hdf5_empty;
+    NCZ_Codec codec = codec_empty;
+    NCZ_HDF5 hdf5 = hdf5_empty;
     NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
 
     ZTRACE(6,"file=%s var=%s jfilter=%s",file->hdr.name,var->hdr.name,NCJtrace(jfilter));
 
     if(var->filters == NULL) var->filters = nclistnew();
+    if(zvar->incompletefilters == NULL) zvar->incompletefilters = nclistnew();
 
     /* Get the id of this codec filter */
     if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
@@ -882,14 +865,14 @@ NCZ_filter_build(const NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* j
 	    if(stat) goto done;
 	}
 	filter->flags |= FLAG_VISIBLE;
-	filter->hdf5 = hdf5; hdf5 = NCZ_hdf5_empty;
-	filter->codec = codec; codec = NCZ_codec_empty;
+	filter->hdf5 = hdf5; hdf5 = hdf5_empty;
+	filter->codec = codec; codec = codec_empty;
 	filter->flags |= FLAG_CODEC;
         filter->plugin = plugin; plugin = NULL;
     } else {
         /* Create a fake filter so we do not forget about this codec */
-	filter->hdf5 = NCZ_hdf5_empty;
-	filter->codec = codec; codec = NCZ_codec_empty;
+	filter->hdf5 = hdf5_empty;
+	filter->codec = codec; codec = codec_empty;
 	filter->flags |= (FLAG_INCOMPLETE|FLAG_CODEC);
     }
 
@@ -906,32 +889,51 @@ done:
     return ZUNTRACE(stat);
 }
 
->>>>>>> minpluginx.dmh
 /**************************************************/
 /* _Codecs attribute */
 
 int
-NCZ_codec_attr(NC_VAR_INFO_T* var, size_t* lenp, void* data)
+NCZ_codec_attr(const NC_VAR_INFO_T* var, size_t* lenp, void* data)
 {
     size_t i;
     int stat = NC_NOERR;
     size_t len;
     char* contents = NULL;
     NCbytes* buf = NULL;
+    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
     NClist* filters = (NClist*)var->filters;
+    NClist* incfilters = (NClist*)zvar->incompletefilters;
+    NCZ_Filter** chain = NULL;
     size_t nfilters;
     
     ZTRACE(6,"var=%s",var->hdr.name);
 
-    nfilters = nclistlength(filters);
+    nfilters = nclistlength(filters) + nclistlength(incfilters);
 
     if(nfilters == 0)
         {stat = NC_ENOTATT; goto done;}
 
+    /* Collect all filters in chain order */
+    chain = (NCZ_Filter**)calloc(sizeof(NCZ_Filter*),nfilters);
+    if(chain == NULL) {stat = NC_ENOMEM; goto done;}
+
+    /* Sort the complete and incomplete filters in order in the chain */
+    for(i=0;i<nclistlength(filters);i++) {
+       	NCZ_Filter* f = nclistget(filters,i);
+	assert(chain[f->chainindex] == NULL);
+	chain[f->chainindex] = f;
+    }
+    for(i=0;i<nclistlength(incfilters);i++) {
+       	NCZ_Filter* f = nclistget(incfilters,i);
+	assert(chain[f->chainindex] == NULL);
+	chain[f->chainindex] = f;
+    }
+
+    /* Now construct the attribute */
     buf = ncbytesnew(); ncbytessetalloc(buf,1024);
     ncbytescat(buf,"[");
     for(i=0;i<nfilters;i++) {
-       	NCZ_Filter* spec = (NCZ_Filter*)nclistget(filters,i);
+       	NCZ_Filter* spec = chain[i];
         if(i > 0) ncbytescat(buf,",");
 	ncbytescat(buf,spec->codec.codec);
     }
@@ -942,17 +944,16 @@ NCZ_codec_attr(NC_VAR_INFO_T* var, size_t* lenp, void* data)
     if(lenp) *lenp = len;
     if(data) strncpy((char*)data,contents,len+1);
 done:
+    nullfree(chain);
     ncbytesfree(buf);
     return ZUNTRACEX(stat,"len=%u data=%p",(unsigned)len,data);
 }
 
 static int
-ensure_working(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter)
+ensure_working(const NC_VAR_INFO_T* var, NCZ_Filter* filter)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-
-    if(filter->incomplete) {stat = THROW(NC_ENOFILTER); goto done;}
+    if(FILTERINCOMPLETE(filter)) {stat = THROW(NC_ENOFILTER); goto done;}
     if(!(filter->flags & FLAG_WORKING)) {
 	const size_t oldnparams = filter->hdf5.visible.nparams;
 	const unsigned* oldparams = filter->hdf5.visible.params;
@@ -965,25 +966,23 @@ ensure_working(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter)
 	    	printparams(filter->hdf5.working.nparams,filter->hdf5.working.params));
 #endif
         if(filter->plugin && filter->plugin->codec.codec->NCZ_modify_parameters) {
-	    NCproplist* props = ncproplistnew();
-	    if((stat=ncproplistclone(zfile->zarr.zarr_format==2?NCplistzarrv2:NCplistzarrv3,props))) goto done;
-    	    ncproplistadd(props,"fileid",(size_t)ncidfor(var));
-    	    ncproplistadd(props,"varid",(uintptr_t)var->hdr.id);
-	    stat = filter->plugin->codec.codec->NCZ_modify_parameters(props,&filter->hdf5.id,
+	    stat = filter->plugin->codec.codec->NCZ_modify_parameters(ncidfor(var),var->hdr.id,
 				&filter->hdf5.visible.nparams, &filter->hdf5.visible.params,
 				&filter->hdf5.working.nparams, &filter->hdf5.working.params);
-	    ncproplistfree(props);
 #ifdef DEBUGF
 	    fprintf(stderr,">>> DEBUGF: NCZ_modify_parameters: stat=%d ncid=%d varid=%d filter=%s\n",stat, (int)ncidfor(var),(int)var->hdr.id,
 			printfilter(filter));
 #endif
 	    if(stat) goto done;
+  	    /* See if the visible parameters were changed */
+	    if(oldnparams != filter->hdf5.visible.nparams || oldparams != filter->hdf5.visible.params)
+	        filter->flags |= FLAG_NEWVISIBLE;
 	} else {
 	    /* assume visible are unchanged */
 	    assert(oldnparams == filter->hdf5.visible.nparams && oldparams == filter->hdf5.visible.params); /* unchanged */
 	    /* Just copy the visible parameters */
 	    nullfree(filter->hdf5.working.params);
-	    if((stat = paramnczclone(&filter->hdf5.visible,&filter->hdf5.working))) goto done;
+	    if((stat = paramnczclone(&filter->hdf5.working,&filter->hdf5.visible))) goto done;
 	}
 #ifdef DEBUGF
         fprintf(stderr,">>> DEBUGF: NCZ_modify_parameters: after: visible=%s working=%s\n",
@@ -999,6 +998,55 @@ done:
     return THROW(stat);
 }
 
+#if 0
+static int
+rebuild_visible(const NC_VAR_INFO_T* var, NCZ_Filter* filter)
+{
+    int stat = NC_NOERR;
+    int nvisible0;
+    unsigned* visible0 = NULL;
+
+    assert(filter->flags & FLAG_WORKING);
+    /* If the visible parameters are previously defined, save them */
+    if(filter->flags & FLAG_VISIBLE) {
+        nvisible0 = filter->hdf5.visible.nparams;
+	visible0 = filter->hdf5.visible.params;
+        filter->hdf5.visible.nparams = 0;
+	filter->hdf5.visible.params = NULL; /* temporary */
+    }
+    /* Cases to consider:
+       1. visible already defined && NCZ_visible_parameters defined => apply 
+       2. visible not defined && NCZ_visible_parameters defined defined => apply
+       3. visible already defined && NCZ_visible_parameters not defined => keep originals
+       4. visible not defined && NCZ_visible_parameters not defined => use working parameters
+    */
+
+    /* Cases 1 and 2 */
+    /* Convert the working parameters to visibleparameters, overwriting any existing visibles */
+    if(filter->plugin->codec.codec->NCZ_visible_parameters) {
+        stat = filter->plugin->codec.codec->NCZ_visible_parameters(ncidfor(var),var->hdr.id,
+				filter->hdf5.working.nparams, filter->hdf5.working.params,
+				&filter->hdf5.visible.nparams, &filter->hdf5.visible.params);
+	        if(stat) goto done;
+    } else if(filter->flags & FLAG_CODEC) {/* Case 3 */
+        filter->hdf5.visible.nparams = nvisible0;
+	filter->hdf5.visible.params = visible0; visible0 = NULL;
+    } else {/* Case 4 */
+	/* Use the working parameters as the visible parameters */
+        filter->hdf5.visible.nparams = filter->hdf5.working.nparams;
+	if(filter->hdf5.working.nparams > 0) {
+	    if((stat = paramnczclone(&filter->hdf5.visible,&filter->hdf5.working))) goto done;
+	}
+    }
+    filter->flags |= FLAG_VISIBLE;
+#ifdef DEBUGF
+    fprintf(stderr,">>> DEBUGF: rebuild_visible_parameters: ncid=%lu varid=%u filter=%s\n", ncidfor(var), (unsigned)var->hdr.id,printfilter(filter));
+#endif
+done:
+    nullfree(visible0);  
+    return THROW(stat);
+}
+#endif
 
 /* Called by NCZ_enddef to ensure that the working parameters are defined */
 int
@@ -1007,7 +1055,6 @@ NCZ_filter_setup(NC_VAR_INFO_T* var)
     size_t i;
     int stat = NC_NOERR;
     NClist* filters = NULL;
-    NC_FILE_INFO_T* file = var->container->nc4_info;
 
     ZTRACE(6,"var=%s",var->hdr.name);
 
@@ -1015,11 +1062,13 @@ NCZ_filter_setup(NC_VAR_INFO_T* var)
     for(i=0;i<nclistlength(filters);i++) {    
 	NCZ_Filter* filter = (NCZ_Filter*)nclistget(filters,i);
         assert(filter != NULL);
+        if(FILTERINCOMPLETE(filter)) continue; /* ignore these */
+	assert(filter->plugin != NULL);
+        assert((filter->flags & FLAG_VISIBLE)); /* Assume visible params are defined */
  	/* verify */
-        if((stat=NCZ_filter_verify(filter,var->type_info->varsized))) goto done;
-        if(filter->incomplete) continue; /* ignore these */
+	assert(filter->hdf5.id > 0 && (filter->hdf5.visible.nparams == 0 || filter->hdf5.visible.params != NULL));
 	/* Initialize the working parameters */
-	if((stat = ensure_working(file,var,filter))) goto done;
+	if((stat = ensure_working(var,filter))) goto done;
 #ifdef DEBUGF
 	fprintf(stderr,">>> DEBUGF: NCZ_filter_setup: ncid=%d varid=%d filter=%s\n", (int)ncidfor(var),(int)var->hdr.id,
 			printfilter(filter));
@@ -1030,31 +1079,12 @@ done:
     return ZUNTRACE(stat);
 }
 
-/*
-Check for filter incompleteness and suppression, etc/
-*/
-int
-NCZ_filter_verify(NCZ_Filter* filter, int varsized)
-{
-    /* If this variable is not fixed size, mark filter as suppressed */
-    if(varsized) {
-	filter->suppress = 1;
-	nclog(NCLOGWARN,"Filters cannot be applied to variable length data types; filter will be ignored");
-    }
-    if(filter->plugin == NULL) filter->incomplete = 1;
-    else if(filter->plugin->incomplete) filter->incomplete = 1;
-    if(!filter->incomplete)
-        assert(filter->hdf5.id > 0 && (filter->hdf5.visible.nparams == 0 || filter->hdf5.visible.params != NULL));
-    assert(filter->flags == 0);
-    if(filter->hdf5.visible.nparams == 0 || filter->hdf5.visible.params != NULL) filter->flags |= FLAG_VISIBLE;
-    return NC_NOERR;
-}
 
 /**************************************************/
 
 /* Clone an hdf5 parameter set */
 static int
-paramclone(size_t nparams, const unsigned* src, unsigned** dstp)
+paramclone(size_t nparams, unsigned** dstp, const unsigned* src)
 {
     unsigned* dst = NULL;
     if(nparams > 0) {
@@ -1068,196 +1098,9 @@ paramclone(size_t nparams, const unsigned* src, unsigned** dstp)
 }
 
 static int
-paramnczclone(const NCZ_Params* src, NCZ_Params* dst)
+paramnczclone(NCZ_Params* dst, const NCZ_Params* src)
 {
     assert(src != NULL && dst != NULL && dst->params == NULL);
     *dst = *src;
-    return paramclone(src->nparams,src->params,&dst->params);
+    return paramclone(src->nparams,&dst->params,src->params);
 }
-
-/* Encode filter to parsed Zarr metadata */
-int
-NCZ_filters_encode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* jfilters)
-{
-    int stat = NC_NOERR;
-    size_t i;
-    NClist* filters = NULL;
-    NCZ_Filter* filter = NULL;
-    NCjson* jfilter = NULL;
-
-    filters = (NClist*)var->filters;
-    if(filters != NULL) {
-	for(i=0;i<nclistlength(filters);i++) {
-	    filter = (NCZ_Filter*)nclistget(filters,i);
-	    if((stat = NCZF_encode_filter(file,var,filter,&jfilter))) goto done;
-	    nclistpush(jfilters,jfilter); jfilter = NULL;
-	}
-    }
-    
-done:
-#if 0
-    ncz_hdf5_clear(&hdf5);
-    ncz_codec_clear(&codec);
-#endif /*0*/
-    NCZ_reclaim_json(jfilter);
-    return ZUNTRACE(stat);
-}
-
-/* Decode Zarr filter metadata to  filters and attach to var*/
-int
-NCZ_filters_decode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* jfilters)
-{
-    int stat = NC_NOERR;
-    size_t i,j;
-    NCZ_Filter* filter = NULL;
-    NClist* filters = NULL;
-
-    if(var->filters == NULL) var->filters = nclistnew();
-    filters = (NClist*)var->filters;
-
-    for(i=0;i<nclistlength(jfilters);i++) {
-        const NCjson* jfilter = (NCjson*)nclistget(jfilters,i);
-        /* Will always have a filter; possibly unknown */ 
-	if((filter = calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}		
-        /* Decode the JSON filter */
-        if((stat=NCZF_decode_filter(file,var,jfilter,filter))) goto done;
-	nclistpush(filters,filter);
-    }
-#if 0
-    memset(&codec,0,sizeof(codec));
-    /* Get the id of this codec filter */
-    if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
-    if(NCJsort(jvalue) != NCJ_STRING) {
-	stat = THROW(NC_ENOFILTER); goto done;
-    }
-
-    /* Build the codec */
-    if((codec.id = strdup(NCJstring(jvalue)))==NULL)
-        {stat = NC_ENOMEM; goto done;}
-    if(NCJunparse(jfilter,0,&codec.codec)<0) {stat = NC_EFILTER; goto done;}
-#endif
-
-    /* Find the plugin for each filter */
-    for(i=0;i<=plugins.loaded_plugins_max;i++) {
-        if (!plugins.loaded_plugins[i]) continue;
-	if(!plugins.loaded_plugins[i] || !plugins.loaded_plugins[i]->codec.codec) continue; /* no plugin or no codec */
-	/* See if this plugin matches any filter */
-	for(j=0;j<nclistlength(filters);j++) {
-	    filter = (NCZ_Filter*)nclistget(filters,i);
-            if(strcmp(filter->codec.id, plugins.loaded_plugins[i]->codec.codec->codecid) == 0)
-	        {filter->plugin = plugins.loaded_plugins[i];}
-	}
-	filter = NULL;
-    }
-#if 0
-	if((stat = NCZF_codec2hdf(file,var,filter))) goto done;
-	filter->flags |= FLAG_VISIBLE;
-	filter->codec = codec; codec = NCZ_codec_empty;
-    } else {
-        /* Create a fake filter so we do not forget about this codec */
-	filter->hdf5 = hdf5_empty;
-	filter->codec = codec; codec = NCZ_codec_empty;
-    }
-#endif
-    
-    /* Finalize the filters */
-    if((stat = NCZ_filter_setup(var))) goto done;
-
-done:
-#if 0
-    ncz_hdf5_clear(&hdf5);
-    ncz_codec_clear(&codec);
-#endif /*0*/
-    NCZ_filter_free(filter);
-    return ZUNTRACE(stat);
-}
-
-#if 0
-/* Encode filter to parsed Zarr metadata */
-int
-NCZ_filter_encode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCZ_Filter* filter, NCjson** jfilterp)
-{
-    int stat = NC_NOERR;
-    size_t i;
-
-    ZTRACE(6,"file=%s var=%s filter=%s",file->hdr.name,var->hdr.name,filter->codec.id);
-    if((stat = NCZF_encode_filter(file,var,filter,jfilterp))) goto done;
-    
-done:
-    return ZUNTRACE(stat);
-}
-#endif /*0*/
-
-#if 0
-/* Create filter from parsed Zarr metadata */
-int
-NCZ_filter_decode(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NCjson* jfilter)
-{
-    int stat = NC_NOERR;
-    size_t i;
-    NCZ_Filter* filter = NULL;
-    const NCjson* jvalue = NULL;
-    NCZ_Plugin* plugin = NULL;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
-
-    ZTRACE(6,"file=%s var=%s jfilter=%s",file->hdr.name,var->hdr.name,NCJtrace(jfilter));
-
-    memset(&codec,0,sizeof(codec));
-
-    if(var->filters == NULL) var->filters = nclistnew();
-
-    /* Will always have a filter; possibly unknown */ 
-    if((filter = calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}		
-
-    /* Decode the JSON filter */
-    if((stat=NCZF_decode_filter(file,var,jfilter,filter))) goto done;
-
-#if 0
-    /* Get the id of this codec filter */
-    if(NCJdictget(jfilter,"id",&jvalue)<0) {stat = NC_EFILTER; goto done;}
-    if(NCJsort(jvalue) != NCJ_STRING) {
-	stat = THROW(NC_ENOFILTER); goto done;
-    }
-
-    /* Build the codec */
-    if((codec.id = strdup(NCJstring(jvalue)))==NULL)
-        {stat = NC_ENOMEM; goto done;}
-    if(NCJunparse(jfilter,0,&codec.codec)<0) {stat = NC_EFILTER; goto done;}
-#endif
-
-    /* Find the plugin for this filter */
-    for(i=0;i<=plugins.loaded_plugins_max;i++) {
-        if (!plugins.loaded_plugins[i]) continue;
-        if(!plugins.loaded_plugins[i] || !plugins.loaded_plugins[i]->codec.codec) continue; /* no plugin or no codec */
-        if(strcmp(filter->codec.id, plugins.loaded_plugins[i]->codec.codec->codecid) == 0)
-	    {plugin = plugins.loaded_plugins[i]; break;}
-    }
-
-    filter->plugin = plugin; plugin = NULL;
-#if 0
-	if((stat = NCZF_codec2hdf(file,var,filter))) goto done;
-	filter->flags |= FLAG_VISIBLE;
-	filter->codec = codec; codec = NCZ_codec_empty;
-    } else {
-        /* Create a fake filter so we do not forget about this codec */
-	filter->hdf5 = hdf5_empty;
-	filter->codec = codec; codec = NCZ_codec_empty;
-    }
-#endif
-
-    if(filter != NULL) {
-        NClist* filterlist = (NClist*)var->filters;
-        nclistpush(filterlist,filter);
-        filter = NULL;
-    }
-    
-done:
-#if 0
-    ncz_hdf5_clear(&hdf5);
-    ncz_codec_clear(&codec);
-#endif /*0*/
-    NCZ_filter_free(filter);
-    return ZUNTRACE(stat);
-}
-#endif /*0*/
