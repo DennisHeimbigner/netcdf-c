@@ -6,6 +6,15 @@
 TODO: make utf8 safe
 */
 
+/*
+WARNING:
+If you modify this file,
+then you need to got to
+the include/ directory
+and do the command:
+    make makenetcdfjson
+*/
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -111,7 +120,7 @@ static int bytesappendquoted(NCJbuf* buf, const char* s);
 static int bytesappend(NCJbuf* buf, const char* s);
 static int bytesappendc(NCJbuf* bufp, char c);
 
-/* Static'ize everything for plugins */
+/* Hide everything for plugins */
 #ifdef NETCDF_JSON_H
 #define OPTSTATIC static
 #else /*!NETCDF_JSON_H*/
@@ -484,8 +493,8 @@ testdouble(const char* word)
     pos = bsearch(word, NANINF, NNANINF, sizeof(char*), nancmp);
     if(pos != NULL) return 1;
     /* Try to convert to number */
-    ncvt = sscanf(word,"%lg%n",&d,&count);
-    return NCJTHROW((ncvt == 1 && strlen(word)==(size_t)count ? NCJ_OK : NCJ_ERR));
+    ncvt = sscanf(word,"%lg%n",&d,&count); 
+    return (ncvt == 1 && strlen(word)==((size_t)count) ? 1 : 0);
 }
 
 static int
@@ -607,7 +616,7 @@ done:
 }
 
 OPTSTATIC int
-NCJdictget(const NCjson* dict, const char* key, const NCjson* * valuep)
+NCJdictget(const NCjson* dict, const char* key, NCjson** valuep)
 {
     int stat = NCJ_OK;
     size_t i;
@@ -850,7 +859,7 @@ NCJcloneArray(const NCjson* array, NCjson** clonep)
 	NCjson* elem = NCJith(array,i);
 	NCjson* elemclone = NULL;
 	if((stat=NCJclone(elem,&elemclone))==NCJ_ERR) goto done;
-	NCJadd(clone,elemclone);
+	NCJappend(clone,elemclone);
     }
 done:
     if(stat == NCJ_OK && clonep) {*clonep = clone; clone = NULL;}
@@ -869,7 +878,7 @@ NCJcloneDict(const NCjson* dict, NCjson** clonep)
 	NCjson* elem = NCJith(dict,i);
 	NCjson* elemclone = NULL;
 	if((stat=NCJclone(elem,&elemclone))==NCJ_ERR) goto done;
-	NCJadd(clone,elemclone);
+	NCJappend(clone,elemclone);
     }
 done:
     if(stat == NCJ_OK && clonep) {*clonep = clone; clone = NULL;}
@@ -886,7 +895,7 @@ NCJaddstring(NCjson* json, int sort, const char* s)
     if(NCJsort(json) != NCJ_DICT && NCJsort(json) != NCJ_ARRAY)
         {stat = NCJTHROW(NCJ_ERR); goto done;}
     if((stat = NCJnewstring(sort, s, &jtmp))==NCJ_ERR) goto done;
-    if((stat = NCJadd(json,jtmp))==NCJ_ERR) goto done;
+    if((stat = NCJappend(json,jtmp))==NCJ_ERR) goto done;
     jtmp = NULL;
     
 done:
@@ -903,8 +912,8 @@ NCJinsert(NCjson* object, const char* key, NCjson* jvalue)
     if(object == NULL || object->sort != NCJ_DICT || key == NULL || jvalue == NULL)
 	{stat = NCJTHROW(NCJ_ERR); goto done;}
     if((stat = NCJnewstring(NCJ_STRING,key,&jkey))==NCJ_ERR) goto done;
-    if((stat = NCJadd(object,jkey))==NCJ_ERR) goto done;
-    if((stat = NCJadd(object,jvalue))==NCJ_ERR) goto done;
+    if((stat = NCJappend(object,jkey))==NCJ_ERR) goto done;
+    if((stat = NCJappend(object,jvalue))==NCJ_ERR) goto done;
 done:
     return NCJTHROW(stat);
 }
@@ -914,12 +923,15 @@ OPTSTATIC int
 NCJinsertstring(NCjson* object, const char* key, const char* value)
 {
     int stat = NCJ_OK;
+    NCjson* jkey = NULL;
     NCjson* jvalue = NULL;
-    if(value == NULL)
-        NCJnew(NCJ_NULL,&jvalue);
-    else
-        NCJnewstring(NCJ_STRING,value,&jvalue);
-    NCJinsert(object,key,jvalue);
+    if(key == NULL || value == NULL)
+	{stat = NCJTHROW(NCJ_ERR); goto done;}
+    if((stat = NCJnewstring(NCJ_STRING,key,&jkey))==NCJ_ERR) goto done;
+    if((stat = NCJnewstring(NCJ_STRING,value,&jvalue))==NCJ_ERR) goto done;
+    if((stat = NCJappend(object,jkey))==NCJ_ERR) goto done;
+    if((stat = NCJappend(object,jvalue))==NCJ_ERR) goto done;
+done:
     return NCJTHROW(stat);
 }
 
@@ -928,17 +940,24 @@ OPTSTATIC int
 NCJinsertint(NCjson* object, const char* key, long long value)
 {
     int stat = NCJ_OK;
+    NCjson* jkey = NULL;
     NCjson* jvalue = NULL;
-    char digits[128];
+    char digits[64];
+ 
+    if(key == NULL)
+	{stat = NCJTHROW(NCJ_ERR); goto done;}
+    if((stat = NCJnewstring(NCJ_STRING,key,&jkey))==NCJ_ERR) goto done;
     snprintf(digits,sizeof(digits),"%lld",value);
-    NCJnewstring(NCJ_STRING,digits,&jvalue);
-    NCJinsert(object,key,jvalue);
+    if((stat = NCJnewstring(NCJ_INT,digits,&jvalue))==NCJ_ERR) goto done;
+    if((stat = NCJappend(object,jkey))==NCJ_ERR) goto done;
+    if((stat = NCJappend(object,jvalue))==NCJ_ERR) goto done;
+done:
     return NCJTHROW(stat);
 }
 
 /* Append value to an array or dict object. */
 OPTSTATIC int
-NCJadd(NCjson* object, NCjson* value)
+NCJappend(NCjson* object, NCjson* value)
 {
     if(object == NULL || value == NULL)
 	return NCJTHROW(NCJ_ERR);
@@ -1152,7 +1171,7 @@ netcdf_supresswarnings(void)
     ignore = (void*)NCJdictget;
     ignore = (void*)NCJcvt;
     ignore = (void*)NCJaddstring;
-    ignore = (void*)NCJadd;
+    ignore = (void*)NCJappend;
     ignore = (void*)NCJinsert;
     ignore = (void*)NCJinsertstring;
     ignore = (void*)NCJinsertint;
@@ -1160,8 +1179,5 @@ netcdf_supresswarnings(void)
     ignore = (void*)NCJclone;
     ignore = (void*)NCJdump;
     ignore = (void*)NCJdictsort;
-    ignore = (void*)NCJtotext;
-    ignore = (void*)NCJinsertstring;
-    ignore = (void*)NCJinsertint;
     ignore = ignore;
 }

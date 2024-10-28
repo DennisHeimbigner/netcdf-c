@@ -1239,7 +1239,7 @@ dictgetaltn(const NCjson* jdict, const NCjson** jvaluep, size_t nkeys, const cha
     const char** pkey;
     for(pkey=keys;*pkey;pkey++) {
 	if(*pkey == NULL) break;
-        NCJcheck(NCJdictget(jdict,*pkey,&jvalue));
+        NCJcheck(NCJdictget(jdict,*pkey,(NCjson**)&jvalue));
 	if(jvalue != NULL) break;
     }
     if(jvaluep) *jvaluep = jvalue;
@@ -1289,12 +1289,12 @@ NCZ_getnczarrkey(NC_FILE_INFO_T* file, struct ZOBJ* zobj, const char* name, cons
     /* Try jatts first */
     if(zobj->jatts != NULL) {
 	jxxx = NULL;
-        NCJcheck(NCJdictget(zobj->jatts,name,&jxxx));
+        NCJcheck(NCJdictget(zobj->jatts,name,(NCjson**)&jxxx));
     }
     if(jxxx == NULL) {
         /* Try .zxxx second */
 	if(zobj->jobj != NULL) {
-            NCJcheck(NCJdictget(zobj->jobj,name,&jxxx));
+            NCJcheck(NCJdictget(zobj->jobj,name,(NCjson**)&jxxx));
 	}
 	/* Mark as old style with _nczarr_xxx in obj as keys not attributes */
         zfile->flags |= FLAG_NCZARR_KEY;

@@ -102,10 +102,9 @@ Inserted into any .zarray || .zattrs (at array level)
 }"
 
 Inserted into any .zattrs
-"_nczarr_attr": "{
+"_nczarr_attrs": "{
 \"types\": {\"attr1\": \"<i4\", \"attr2\": \"<i1\",...}
 }
-Note: _nczarr_attr type include non-standard use of a zarr type "|U1" => NC_CHAR.
 */
 
 /* V3 Reserved Attributes */

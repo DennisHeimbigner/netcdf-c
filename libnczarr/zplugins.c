@@ -135,7 +135,6 @@ NCZ_plugin_path_ndirs(size_t* ndirsp)
 
     ndirs = nclistlength(gs->zarr.pluginpaths);
     if(ndirsp) *ndirsp = ndirs;
-done:
     return THROW(stat);
 }
 
@@ -276,19 +275,21 @@ NCZ_load_all_plugins(void)
 	    }
 	}
     }
-    /* Iniitalize all remaining plugins */
+    /* Initalize all remaining plugins */
     {
         size_t i;
 	NCZ_Plugin* p;
+	NCproplist* props = ncproplistnew();
 	for(i=1;i<gs->zarr.loaded_plugins_max;i++) {
 	    if((p = gs->zarr.loaded_plugins[i]) != NULL) {
 		if(p->incomplete) continue;
 		if(p->hdf5.filter != NULL && p->codec.codec != NULL) {
 		    if(p->codec.codec && p->codec.codec->NCZ_codec_initialize)
-			p->codec.codec->NCZ_codec_initialize();
+			p->codec.codec->NCZ_codec_initialize(props);
 		}
 	    }
 	}
+	ncproplistfree(props);
     }
     
 done:
@@ -482,13 +483,15 @@ NCZ_unload_plugin(NCZ_Plugin* plugin)
     ZTRACE(9,"plugin=%p",plugin);
 
     if(plugin) {
+	NCproplist* props = ncproplistnew();
 	if(plugin->codec.codec && plugin->codec.codec->NCZ_codec_finalize)
-		plugin->codec.codec->NCZ_codec_finalize();
+		plugin->codec.codec->NCZ_codec_finalize(props);
         if(plugin->hdf5.filter != NULL) gs->zarr.loaded_plugins[plugin->hdf5.filter->id] = NULL;
 	if(plugin->hdf5.hdf5lib != NULL) (void)ncpsharedlibfree(plugin->hdf5.hdf5lib);
 	if(!plugin->codec.defaulted && plugin->codec.codeclib != NULL) (void)ncpsharedlibfree(plugin->codec.codeclib);
 memset(plugin,0,sizeof(NCZ_Plugin));
 	free(plugin);
+	ncproplistfree(props);
     }
     return ZUNTRACE(NC_NOERR);
 }

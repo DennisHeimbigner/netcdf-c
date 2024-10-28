@@ -105,4 +105,4 @@ OPTEXPORT int ncproplistith(const NCproplist*, size_t i, char* const * keyp, uin
 }
 #endif
 
-#endif /*NCPROPLIST_H*/
+#endif /*!NCPROPLIST_H*/ /* WARNING: Do not remove the !; used in building netcdf_json.h  */

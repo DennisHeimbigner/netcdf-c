@@ -49,7 +49,7 @@ EXTERNL int NCZ_stringconvert1(nc_type typid, char* src, NCjson* jvalue);
 EXTERNL int NCZ_stringconvert(nc_type typid, size_t len, void* data0, NCjson** jdatap);
 
 /* zsync.c */
-EXTERNL int ncz_insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson* javalue, const char* atype);
+EXTERNL int ncz_insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson** javaluep, const char* atype);
 EXTERNL int ncz_encode_file(NC_FILE_INFO_T* file, int isclose);
 EXTERNL int ncz_decode_file(NC_FILE_INFO_T* file);
 

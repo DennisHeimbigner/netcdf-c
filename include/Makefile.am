@@ -48,21 +48,24 @@ BUILT_SOURCES = netcdf_json.h netcdf_proplist.h
 # marked with a macro (OPTSTATIC) that marks the entry point as
 # static inside netcdf_json.h.	This is an ugly hack to avoid
 # having to reference libnetcdf in the nczarr code wrappers.
-# Note also that we incorporate the core of ncexternl.h into the netcdf_json.h file.
 
 # Give the recipe for building netcdf_json.h
-netcdf_json.h: ${top_srcdir}/libdispatch/ncjson.c ${top_srcdir}/include/ncjson.h ${top_srcdir}/include/ncexternl.h
+netcdf_json.h: ${top_srcdir}/libdispatch/ncjson.c ${top_srcdir}/include/ncjson.h
 	rm -fr ${srcdir}/netcdf_json.h
-	cat ${srcdir}/ncjson.h | sed -e 's/NCJSON_H/NETCDF_JSON_H/' >> ${srcdir}/netcdf_json.h
-	echo '#ifdef NETCDF_JSON_H' >> netcdf_json.h
-	sed -e '/ncjson.h/d' < ${srcdir}/../libdispatch/ncjson.c >> ${srcdir}/netcdf_json.h
+	cat ${srcdir}/ncjson.h \
+	    | sed -e '/!NCJSON_H/d' \
+    	    | sed -e 's/NCJSON_H/NETCDF_JSON_H/' \
+	    >> ${srcdir}/netcdf_json.h
+	cat ${srcdir}/../libdispatch/ncjson.c | sed -e '/ncjson.h/d' >> ${srcdir}/netcdf_json.h
 	echo '#endif /*NETCDF_JSON_H*/' >> ${srcdir}/netcdf_json.h
 
 # netcdf_proplist is analogous to netcdf_json but, of course, using libdispatch/ncproplist.c and include/ncproplist.h
 # Give the recipe for building netcdf_proplist.h. Basically same as for netcdf_json.h
-netcdf_proplist.h: ${top_srcdir}/libdispatch/ncproplist.c ${top_srcdir}/include/ncproplist.h ${top_srcdir}/include/ncexternl.h
+netcdf_proplist.h: ${top_srcdir}/libdispatch/ncproplist.c ${top_srcdir}/include/ncproplist.h
 	rm -fr ${srcdir}/netcdf_proplist.h
-	cat ${srcdir}/ncproplist.h | sed -e 's/NCPROPLIST_H/NETCDF_PROPLIST_H/' >> ${srcdir}/netcdf_proplist.h
-	echo '#ifdef NETCDF_PROPLIST_H' >> netcdf_proplist.h
-	sed -e '/ncproplist.h/d' < ${srcdir}/../libdispatch/ncproplist.c >> ${srcdir}/netcdf_proplist.h
+	cat ${srcdir}/ncproplist.h \
+	    | sed -e '/!NCPROPLIST_H/d' \
+    	    | sed -e 's/NCPROPLIST_H/NETCDF_PROPLIST_H/' \
+	    >> ${srcdir}/netcdf_proplist.h
+	cat ${srcdir}/../libdispatch/ncproplist.c | sed -e '/ncproplist.h/d' >> ${srcdir}/netcdf_proplist.h
 	echo '#endif /*NETCDF_PROPLIST_H*/' >> ${srcdir}/netcdf_proplist.h

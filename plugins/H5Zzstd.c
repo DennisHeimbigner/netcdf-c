@@ -1,12 +1,3 @@
-#include "config.h"
-#include <sys/types.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <stdio.h>
-
-#include "netcdf_filter_build.h"
-
 /* WARNING:
 Starting with HDF5 version 1.10.x, the plugin code MUST be
 careful when using the standard *malloc()*, *realloc()*, and
@@ -33,7 +24,7 @@ will generate an error.
 #include <errno.h>
 
 #include "netcdf_filter_build.h"
-#include <netcdf_json.h>
+#include "netcdf_json.h"
 
 #include "H5Zzstd.h"
 

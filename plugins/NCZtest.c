@@ -116,7 +116,7 @@ NCZ_misc_codec_to_hdf5(void* env, const char* codec_json, size_t* nparamsp, unsi
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
     /* Verify the codec ID */
-    if(NCJdictget(jcodec,"id",&jtmp)<0)
+    if(NCJdictget(jcodec,"id",(NCjson**)&jtmp)<0)
 	{stat = NC_EFILTER; goto done;}
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
     if(strcmp(NCJstring(jtmp),NCZ_misc_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
@@ -136,7 +136,7 @@ NCZ_misc_codec_to_hdf5(void* env, const char* codec_json, size_t* nparamsp, unsi
 
     for(i=0;i<nparams;i++) {
 	struct NCJconst jc;
-        if(NCJdictget(jcodec,fields[i],&jtmp)<0)
+        if(NCJdictget(jcodec,fields[i],(NCjson**)&jtmp)<0)
 	    {stat = NC_EFILTER; goto done;}
 	if(NCJcvt(jtmp,NCJ_INT,&jc)<0)
 	    {stat = NC_EFILTER; goto done;}

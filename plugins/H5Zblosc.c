@@ -110,7 +110,7 @@ param[6] -- compressor to use
 #include <assert.h>
 
 #include "netcdf_filter_build.h"
-#include <netcdf_json.h>
+#include "netcdf_json.h"
 
 #include "H5Zblosc.h"
 

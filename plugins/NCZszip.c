@@ -63,7 +63,7 @@ NCZ_szip_codec_to_hdf5(const NCproplist* env, const char* codec_json, size_t* np
     if((params = (unsigned*)calloc(nparams,sizeof(unsigned)))== NULL)
         {stat = NC_ENOMEM; goto done;}
 
-    ncplistget(env,"zarrformat",&zarrformat,NULL);
+    ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     if(NCJparse(codec_json,0,&json)<0) {stat = NC_EFILTER; goto done;}
 
@@ -72,12 +72,12 @@ NCZ_szip_codec_to_hdf5(const NCproplist* env, const char* codec_json, size_t* np
     } else
         jdict = json;
 
-    if(NCJdictget(jdict,"mask",&jtmp) < 0 || jtmp == NULL) {stat = NC_EFILTER; goto done;}
+    if(NCJdictget(jdict,"mask",(NCjson**)&jtmp) < 0 || jtmp == NULL) {stat = NC_EFILTER; goto done;}
     if(NCJcvt(jtmp,NCJ_INT,&jc) < 0) {stat = NC_EFILTER;  goto done;}
     params[H5Z_SZIP_PARM_MASK] = (unsigned)jc.ival;
 
     jtmp = NULL;
-    if(NCJdictget(jdict,"pixels-per-block",&jtmp) < 0 || jtmp == NULL) {stat = NC_EFILTER; goto done;}
+    if(NCJdictget(jdict,"pixels-per-block",(NCjson**)&jtmp) < 0 || jtmp == NULL) {stat = NC_EFILTER; goto done;}
     if(NCJcvt(jtmp,NCJ_INT,&jc) < 0) {stat = NC_EFILTER;  goto done;}
     params[H5Z_SZIP_PARM_PPB] = (unsigned)jc.ival;
 
@@ -97,7 +97,7 @@ NCZ_szip_hdf5_to_codec(const NCproplist* env, size_t nparams, const unsigned* pa
     char json[2048];
     uintptr_t zarrformat = 0;
 
-    ncplistget(env,"zarrformat",&zarrformat,NULL);
+    ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     if(zarrformat == 2) {
         snprintf(json,sizeof(json),"{\"id\": \"%s\", \"mask\": %u, \"pixels-per-block\": %u}",
@@ -143,9 +143,9 @@ NCZ_szip_modify_parameters(const NCZproplist* env, size_t* vnparamsp, unsigned**
 
     vparams = *vparamsp;
 
-    ncplistget(env,"zarrformat",&zarrformat,NULL);
-    ncplistget(env,"fileid",&ncid,NULL);
-    ncplistget(env,"varid",&varid,NULL);
+    ncproplistget(env,"zarrformat",&zarrformat,NULL);
+    ncproplistget(env,"fileid",&ncid,NULL);
+    ncproplistget(env,"varid",&varid,NULL);
 
     /* Get variable info */
     if((ret_value = nc_inq_var(ncid,varid,vname,&vtype,&ndims,dimids,NULL))) goto done;

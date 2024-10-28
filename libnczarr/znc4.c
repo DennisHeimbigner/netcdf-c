@@ -115,7 +115,7 @@ ncz4_build_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
 	    nclistpush(varfilters,fi);
 	}
         /* At this point, we can finalize the filters */
-        if((stat = NCZ_filter_setup(var))) goto done;
+        if((stat = NCZ_filter_setup(file,var))) goto done;
     }
 #endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
 
@@ -150,19 +150,21 @@ ncz4_create_attr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name,
     return ncz_makeattr(file,container,name,typeid,len,values,attp);
 }
 
+#if 0
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
 int
 ncz4_create_filter(NC_FILE_INFO_T* file,
 				NCZ_HDF5* hdf5,
 				NCZ_Codec* codec,
-				NClist* filterlist,
 				NCZ_Filter** filterp)
 {
     int stat = NC_NOERR;
     NCZ_Filter* filter = NULL;
 
     if((filter=(NCZ_Filter*)calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}
-    if((stat = NCZ_insert_filter(file,filterlist,hdf5,codec,filter,0/*!exists*/))) goto done;
+??????
+
+    if((stat = NCZ_addfilter(file,fvar,&filter))) goto done;
 
     if(filterp) {*filterp = filter; filter = NULL;}
 
@@ -171,3 +173,4 @@ done:
     return THROW(stat);
 }
 #endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
+#endif /*0*/

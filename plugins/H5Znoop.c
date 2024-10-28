@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 
-#include "netcdf_json.h"
 #include "netcdf_filter_build.h"
+#include "netcdf_json.h"
 
 #ifndef NOOP_INSTANCE
 #define NOOP_INSTANCE 0
@@ -194,7 +194,7 @@ NCZ_noop_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
     char field[1024];
     uintptr_t zarrformat = 0;
     
-    ncplistget(env,"zarrformat",&zarrformat,NULL);
+    ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     /* parse the JSON */
     if(NCJparse(codec_json,0,&jcodec)<0)
@@ -204,13 +204,13 @@ NCZ_noop_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
     /* Get and Verify the codec ID */
 
     if(zarrformat == 3) {
-        if(NCJdictget(jcodec,"name",&jtmp)<0) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"name",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
         if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
         if(strcmp(NCJstring(jtmp),NCZ_noop_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
-        if(NCJdictget(jcodec,"configuration",&jdict)<0) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"configuration",(NCjson**)(NCjson**)&jdict)<0) {stat = NC_EFILTER; goto done;}
         nparams = NCJdictlength(jdict); /* each param is key+value */
     } else {
-        if(NCJdictget(jcodec,"id",&jtmp)<0) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
         if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
         if(strcmp(NCJstring(jtmp),NCZ_noop_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
         nparams = (NCJdictlength(jcodec) - 1) ;
@@ -221,7 +221,7 @@ NCZ_noop_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
     for(i=0;i<nparams;i++) {
         struct NCJconst jc;
         snprintf(field,sizeof(field),"p%zu",i);
-        if(NCJdictget(jdict,field,&jtmp)<0) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jdict,field,(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
         if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
         if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
         params[i] = (unsigned)jc.ival;
@@ -251,7 +251,7 @@ NCZ_noop_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
     if(nparams != 0 && params == NULL)
         {stat = NC_EINVAL; goto done;}
 
-    ncplistget(env,"zarrformat",&zarrformat,NULL);
+    ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     if(zarrformat == 2) {
         snprintf(json,sizeof(json),"{\"id\": \"%s\"",NCZ_noop_codec.codecid);

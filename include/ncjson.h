@@ -2,8 +2,9 @@
    See the COPYRIGHT file for more information.
 */
 
+
 #ifndef NCJSON_H
-#define NCJSON_H
+#define NCJSON_H 1
 
 #ifndef OPTEXPORT
 #ifdef NETCDF_JSON_H
@@ -81,7 +82,7 @@ OPTEXPORT int NCJnewstring(int sort, const char* value, NCjson** jsonp);
 OPTEXPORT int NCJnewstringn(int sort, size_t len, const char* value, NCjson** jsonp);
 
 /* Get dict key value by name */
-OPTEXPORT int NCJdictget(const NCjson* dict, const char* key, const NCjson* * valuep);
+OPTEXPORT int NCJdictget(const NCjson* dict, const char* key, NCjson** valuep);
 
 /* Convert one json sort to  value of another type; don't use union so we can know when to reclaim sval */
 OPTEXPORT int NCJcvt(const NCjson* value, int outsort, struct NCJconst* output);
@@ -90,7 +91,7 @@ OPTEXPORT int NCJcvt(const NCjson* value, int outsort, struct NCJconst* output);
 OPTEXPORT int NCJaddstring(NCjson* json, int sort, const char* s);
 
 /* Append value to an array or dict object. */
-OPTEXPORT int NCJadd(NCjson* object, NCjson* value);
+OPTEXPORT int NCJappend(NCjson* object, NCjson* value);
 
 /* Insert (string)key-(NCjson*)value pair into a dict object. key will be copied; jvalue will not */
 OPTEXPORT int NCJinsert(NCjson* object, const char* key, NCjson* jvalue);
@@ -147,4 +148,4 @@ OPTEXPORT void NCJdictsort(NCjson* jdict);
 #define NCJcheck(expr) do{if((expr) < 0) {stat = NC_EINVAL; goto done;}}while(0)
 /**************************************************/
 
-#endif /*NCJSON_H*/
+#endif /*!NCJSON_H*/ /* Leave the ! as a tag for sed */

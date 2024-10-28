@@ -141,7 +141,7 @@ NCZ_unknown_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, co
     if(nparams != 0 || params != NULL)
         {stat = NC_EINVAL; goto done;}
   
-    ncplistget(env,"zarrformat",&zarrformat,NULL);
+    ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     if(zarrformat == 3) {
         snprintf(json,sizeof(json),"{\"name\": \"%s\"}",NCZ_unknown_codec.codecid);

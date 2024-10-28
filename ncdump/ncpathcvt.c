@@ -267,10 +267,8 @@ main(int argc, char** argv)
        usage("more than one path specified");
 
     if(argv[0] == NULL) {
-        len = 0;
 	inpath = strdup("");
     } else {
-        len = strlen(argv[0]);
         inpath = strdup(argv[0]);
     }
     if(inpath == NULL) usage("Out of memory");

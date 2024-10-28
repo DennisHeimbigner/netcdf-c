@@ -110,7 +110,7 @@ NCZ_misc_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
     int isv3 = 0;
     uintptr_t zarrformat = 0;
 
-    ncplistget(env,"zarrformat",&zarrformat,NULL);
+    ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     if(zarrformat == 3) isv3 = 1;
 
@@ -122,15 +122,15 @@ NCZ_misc_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
     /* Verify the codec ID */
 
     if(zarrformat == 3) {
-        if(NCJdictget(jcodec,"name",&jtmp) < 0) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"name",(NCjson**)&jtmp) < 0) {stat = NC_EFILTER; goto done;}
     } else {
-        if(NCJdictget(jcodec,"id",&jtmp) < 0) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jcodec,"id",(NCjson**)&jtmp) < 0) {stat = NC_EFILTER; goto done;}
     }
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
     if(strcmp(NCJstring(jtmp),NCZ_misc_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
   
     if(zarrformat == 3) {
-	if(NCJdictget(jcodec,"configuration",&jparams) < 0) {stat = NC_EFILTER; goto done;}
+	if(NCJdictget(jcodec,"configuration",(NCjson**)&jparams) < 0) {stat = NC_EFILTER; goto done;}
     } else { /* V2 */
         jparams = jcodec;
     }
@@ -152,7 +152,7 @@ NCZ_misc_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
 
     for(i=0;i<npairs;i++) {
 	struct NCJconst jc;
-        if(NCJdictget(jparams,fields[i],&jtmp) < 0) {stat = NC_EFILTER; goto done;}
+        if(NCJdictget(jparams,fields[i],(NCjson**)&jtmp) < 0) {stat = NC_EFILTER; goto done;}
 	if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
 	if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
 	params[i] = (unsigned)jc.ival;
@@ -186,7 +186,7 @@ NCZ_misc_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
 	goto done;
     }
 
-    ncplistget(env,"zarrformat",&zarrformat,NULL);
+    ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     jlen = sizeof(json);
     if(zarrformat == 2) {

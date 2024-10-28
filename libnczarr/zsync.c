@@ -3,7 +3,6 @@
  *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
  *********************************************************************/
 
-
 #include "zincludes.h"
 #include "zfilter.h"
 #include "znc4.h"
@@ -22,12 +21,14 @@
 static int ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose);
 static int ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose);
 static int ncz_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose);
+static int ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj);
 static int ncz_flush_var(NC_VAR_INFO_T* var);
 static int ncz_decode_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames);
 static int ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj0);
 static int ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname);
 static int ncz_decode_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* varnames);
 static int ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson* jnczarr);
+static int ncz_decode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* filters);
 static int get_group_content_pure(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrps);
 
 /**************************************************/
@@ -64,9 +65,6 @@ ncz_encode_file(NC_FILE_INFO_T* file, int isclose)
         goto done;
 
 done:
-#if 0
-    NCJreclaim(json);
-#endif
     return ZUNTRACE(stat);
 }
 
@@ -86,7 +84,6 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     size_t i;
     NCZ_FILE_INFO_T* zinfo = NULL;
     int purezarr = 0;
-    char* key = NULL;
     NCjson* jgroup = NULL;
     NCjson* jnczgrp = NULL;
     NCjson* jsuper = NULL;
@@ -94,7 +91,6 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     NCjson* jtypes = NULL;
     struct ZOBJ zobj;
 
-    LOG((3, "%s: dims: %s", __func__, key));
     ZTRACE(3,"file=%s grp=%s isclose=%d",file->controller->path,grp->hdr.name,isclose);
 
     zinfo = file->format_file_info;
@@ -110,15 +106,15 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     }
 
     /* Assemble JSON'ized attributes */
-    if((stat = NCZF_encode_attributes(file,(NC_OBJ*)grp,jnczgrp,&jatts,&jtypes))) goto done;
+    if((stat = NCZF_encode_attributes(file,(NC_OBJ*)grp,&jnczgrp,&jatts))) goto done;
 
     /* Assemble group JSON object */
     /* Watch out &jatts is passed so that it can be NULL'd if consumed */
-    if((stat=NCZF_encode_group(file,grp,jsuper,jnczgrp,&jatts,&jgroup))) goto done;
+    if((stat=NCZF_encode_group(file,grp,&jatts,&jgroup))) goto done;
 
     /* upload group json and (depending on version) the group attributes */
-    zobj.jobj = jgroup;
-    zobj.jatts = jatts;
+    zobj.jobj = jgroup; jgroup = NULL;
+    zobj.jatts = jatts; jatts = NULL;
     if((stat = NCZF_upload_grp(file,grp,&zobj))) goto done;
 
     /* encode and upload the vars in this group and sync the data */
@@ -134,18 +130,12 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     }
     
 done:
-#if 0
+    NCZ_clear_zobj(&zobj);    
     NCJreclaim(jsuper);
     NCJreclaim(jgroup);
-    NCJreclaim(jdims);
-    NCJreclaim(jvars);
-    NCJreclaim(jsubgrp);
     NCJreclaim(jnczgrp);
     NCJreclaim(jtypes);
     NCJreclaim(jatts);
-    nullfree(fullpath);
-    nullfree(key);
-#endif
     return ZUNTRACE(THROW(stat));
 }
 
@@ -167,10 +157,9 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     NCjson* jvar = NULL;
     NCjson* jatts = NULL;
     NCjson* jnczvar = NULL;
-    NCjson* jtypes = NULL;
     int purezarr = 0;
     NCZ_VAR_INFO_T* zvar = var->format_var_info;
-    NClist* jfilters = nclistnew();
+    NClist* filtersj = nclistnew();
     struct ZOBJ zobj;
 
     ZTRACE(3,"file=%s var=%s isclose=%d",file->controller->path,var->hdr.name,isclose);
@@ -189,7 +178,7 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     if((stat = NCZ_ensure_fill_chunk(zvar->cache))) goto done;
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Build the filter working parameters for any filters */
-    if((stat = NCZ_filter_setup(var))) goto done;
+    if((stat = NCZ_filter_setup(file,var))) goto done;
 #endif
 
     /* There is a sort of cycle between _nczarr_array and the attributes in that
@@ -201,48 +190,27 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     if(!purezarr) {
         if((stat=NCZF_encode_nczarr_array(file,var,&jnczvar))) goto done;
     }
-    if((stat=NCZF_encode_attributes(file,(NC_OBJ*)var,jnczvar,&jatts,&jtypes))) goto done;
-
-#if 0
-    if(!purezarr && jnczvar != NULL) {
-        /* Insert _nczarr_array */
-        if((stat=ncz_insert_attr(jatts,jtypes,NCZ_ARRAY,jnczvar,"|J0"))) goto done;
-	jnczvar = NULL;
-    }
-
-    /* As a last mod to jatts, optionally insert the jtypes as an attribute and create and add _nczarr_attr */
-    if(!purezarr && jtypes != NULL) {
-	if((stat = insert_nczarr_attr(jatts,jtypes))) goto done;
-	jtypes = NULL;
-    }
-#endif
+    if((stat=NCZF_encode_attributes(file,(NC_OBJ*)var,&jnczvar,&jatts))) goto done;
 
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Encode the filters */
+    if((stat=ncz_encode_filters(file,var,filtersj))) goto done;
 #endif
 
     /* encode the var JSON including (optionally) the attributes */
-    if((stat=NCZF_encode_var(file,var,jnczvar,&jatts,jfilters,&jvar))) goto done;
-
+    if((stat=NCZF_encode_var(file,var,&jatts,filtersj,&jvar))) goto done;
     /* Write out the the var JSON and the corresponding attributes and chunks */
-    zobj.jobj = jvar;
-    zobj.jatts = jatts;
+    zobj.jobj = jvar; jvar = NULL;
+    zobj.jatts = jatts; jatts = NULL;
     if((stat = NCZF_upload_var(file,var,&zobj))) goto done;
-
     var->created = 1;
 
 done:
-#if 0
-    nclistfreeall(dimrefs);
-    nullfree(fullpath);
-    nullfree(key);
-    nullfree(dtypename);
-    nullfree(dimpath);
+    NCZ_clear_zobj(&zobj);
     NCJreclaim(jvar);
     NCJreclaim(jnczvar);
     NCJreclaim(jatts);
-    NCJreclaim(jtypes);
-#endif
+    NCZ_reclaim_json_list(filtersj);
     return ZUNTRACE(THROW(stat));
 }
 
@@ -271,10 +239,27 @@ ncz_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     if((stat = ncz_flush_var(var))) goto done;
 
 done:
-#if 0
-#endif
     return ZUNTRACE(THROW(stat));
 }
+
+static int
+ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    NClist* filters = (NClist*)var->filters;
+    NCjson* jfilter = NULL;
+
+    for(i=0;i<nclistlength(filters);i++) {
+	NCZ_Filter* filter = (NCZ_Filter*)nclistget(filters,i);
+        if((stat=NCZF_encode_filter(file,var,filter,&jfilter))) goto done;
+	nclistpush(filtersj,jfilter); jfilter = NULL;	
+    }
+
+done:
+    return THROW(stat);
+}
+
 
 /*
 Flush all modified chunks to disk. Create any that are missing
@@ -350,8 +335,6 @@ next:
 #endif /*FILLONCLOSE*/
 
 done:
-#if 0
-#endif
     return ZUNTRACE(THROW(stat));
 }
 
@@ -371,14 +354,12 @@ int
 ncz_decode_file(NC_FILE_INFO_T* file)
 {
     int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zinfo = file->format_file_info;
     NC_GRP_INFO_T* root = NULL;
-    struct ZOBJ zobj = emptyzobj;
+    struct ZOBJ zobj = NCZ_emptyzobj();
     const NCjson* jsuper = NULL;
-    const NCjson* jnczgrp = NULL;
     NClist* varnames = nclistnew();
     NClist* subgroupnames = nclistnew();
-    int zarr_format = 0;
-    int nczarr_format = 0;
 
     LOG((3, "%s: file: %s", __func__, file->controller->path));
     ZTRACE(3,"file=%s",file->controller->path);
@@ -387,25 +368,26 @@ ncz_decode_file(NC_FILE_INFO_T* file)
     root = file->root_grp;
     if((stat = NCZF_download_grp(file, root, &zobj))) goto done;
 
-    /* Decode the root group */
-    if((stat = NCZF_decode_group(file,root,&zobj,(NCjson* const*)&jnczgrp,(NCjson* const*)&jsuper))) goto done;
+    /* Decode the group metadata to get superblock */
+    if((stat = NCZF_decode_group(file,root,&zobj,NULL,(NCjson**)&jsuper))) goto done;
 
-    /* Ok, process superblock */
-    if((stat = NCZF_decode_superblock(file,root,jsuper,&zarr_format,&nczarr_format))) goto done;
-
-    /* Decode the _nczarr_group; also creates the dimension decls */
-    if((stat = NCZF_decode_nczarr_group(file,root,jnczgrp,varnames,subgroupnames))) goto done;
-
-    /* Fill in the root object */
+    if(jsuper != NULL) {
+        /* Ok, process superblock */
+        if((stat = NCZF_decode_superblock(file,root,jsuper,NULL,NULL))) goto done;
+    } else {
+	zinfo->flags |= FLAG_PUREZARR;	
+    }	
+    
+    /* Fill in the root object ignoring any superblock */
     if((stat = ncz_decode_grp(file,root,&zobj))) goto done;
 
     /* Create and fill the subgroups for this group */
     if((stat = ncz_decode_subgrps(file,root,subgroupnames))) goto done;
 
 done:
-#if 0
     NCZ_clear_zobj(&zobj);
-#endif
+    nclistfreeall(varnames);
+    nclistfreeall(subgroupnames);
     return ZUNTRACE(THROW(stat));
 }
 
@@ -414,7 +396,7 @@ ncz_decode_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpna
 {
     int stat = NC_NOERR;
     size_t i;
-    struct ZOBJ zobj = emptyzobj;
+    struct ZOBJ zobj = NCZ_emptyzobj();
 
     ZTRACE(3,"file=%s parent=%s |subgrpnames|=%u",file->controller->path,parent->hdr.name,nclistlength(subgrpnames));
 
@@ -431,8 +413,6 @@ ncz_decode_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpna
     }
 
 done:
-#if 0
-#endif
     return ZUNTRACE(THROW(stat));
 }
 
@@ -447,24 +427,22 @@ done:
  * @author Dennis Heimbigner
  */
 static int
-ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj0)
+ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
-    struct ZOBJ zobj = emptyzobj;
     NCZ_FILE_INFO_T* zinfo = file->format_file_info;
     NClist* varnames = nclistnew();
     NClist* subgrps = nclistnew();
     int purezarr = 0;
     const NCjson* jnczgrp = NULL;
-    const NCjson* jsuper = NULL;
 
     ZTRACE(3,"file=%s parent=%s",file->controller->path,(parent?parent->hdr.name:"NULL"));
 
     TESTPUREZARR;
 
     /* Decode the group metadata */
-    if((stat = NCZF_decode_group(file,grp,&zobj,&jnczgrp,&jsuper))) goto done;
-    if(zobj.jobj == NULL) {stat = NC_ENOTZARR; goto done;}
+    if((stat = NCZF_decode_group(file,grp,zobj,(NCjson**)&jnczgrp,NULL))) goto done;
+    if(zobj->jobj == NULL) {stat = NC_ENOTZARR; goto done;}
 	
     if(purezarr) {
 	if((stat = get_group_content_pure(file,grp,varnames,subgrps))) goto done;
@@ -474,7 +452,7 @@ ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj0)
     }
 
     /* Process attributes */
-    if((stat=ncz_decode_atts(file,(NC_OBJ*)grp,zobj.jatts,jnczgrp))) goto done;
+    if((stat=ncz_decode_atts(file,(NC_OBJ*)grp,zobj->jatts,jnczgrp))) goto done;
 
     if(nclistlength(subgrps) > 0) {
 	/* Define sub-groups */
@@ -487,13 +465,8 @@ ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj0)
     }
     
 done:
-#if 0
-    NCZ_reclaim_diminfo_list(dims);
     nclistfreeall(varnames);
     nclistfreeall(subgrps);
-    if(zobj ==  &zobj0)
-        NCZ_clear_zobj(&zobj0);
-#endif
     return ZUNTRACE(THROW(stat));
 }
 
@@ -522,8 +495,6 @@ ncz_decode_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* diminfo)
     }
 
 done:
-#if 0
-#endif
     return ZUNTRACE(THROW(stat));
 }
 #endif /*0*/
@@ -544,9 +515,9 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
 {
     int stat = NC_NOERR;
     NC_VAR_INFO_T* var = NULL;
-    struct ZOBJ zobj = emptyzobj;
+    struct ZOBJ zobj = NCZ_emptyzobj();
     const NCjson* jnczvar = NULL;
-    NClist* jfilters = nclistnew();
+    NClist* filters = nclistnew();
     NClist* dimrefs = nclistnew();
     NClist* dimdecls = nclistnew();
     size64_t* shapes = NULL;
@@ -561,7 +532,7 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
     if((stat = ncz4_create_var(file,parent,varname,&var))) goto done;
     zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
     if((stat = NCZF_download_var(file,var,&zobj))) goto done;
-    if((stat=NCZF_decode_var(file,var,&zobj,jfilters,&shapes,&chunks,dimrefs))) goto done;
+    if((stat=NCZF_decode_var(file,var,&zobj,filters,&shapes,&chunks,dimrefs))) goto done;
 
     /* Convert dimrefs to corresponding dimdecls */
     for(i=0;i<nclistlength(dimrefs);i++) {
@@ -616,12 +587,10 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
     if((stat=ncz_decode_atts(file,(NC_OBJ*)var,zobj.jatts,jnczvar))) goto done;
 
     /* Process filters */
-    if((stat = NCZ_filters_decode(file,var,jfilters))) goto done;
+    if((stat = ncz_decode_filters(file,var,filters))) goto done;
 
 done:
-#if 0
     NCZ_clear_zobj(&zobj);
-#endif
     return THROW(stat);
 }
 
@@ -651,12 +620,8 @@ ncz_decode_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* varnames)
     }
 
 done:
-#if 0
-#endif
     return ZUNTRACE(THROW(stat));
 }
-
-/**************************************************/
 
 /**************************************************/
 /**
@@ -696,6 +661,38 @@ done:
 }
 
 /**************************************************/
+/**
+@internal Read filter codecs from avar and apply them
+to a variable.
+@param file - [in] the containing file
+@param var - [in] the containing var
+@return ::NC_NOERR || NC_EXXX
+@author Dennis Heimbigner
+*/
+static int
+ncz_decode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* filters)
+{
+    int stat = NC_NOERR;
+    NCZ_Filter* filter = NULL;
+
+    ZTRACE(3,"file=%s var=%s",file->controller->path,var->hdr.name);
+
+    if(nclistlength(filters) > 0) {
+	size_t i;
+	for(i=0;i<nclistlength(filters);i++) {
+	    NCjson* jfilter = (NCjson*)nclistget(filters,i);
+	    assert(jfilter != NULL);
+	    if((filter = (NCZ_Filter*)calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}
+	    if((stat = NCZF_decode_filter(file,var,jfilter,filter))) goto done;
+	    if((stat=NCZ_addfilter(file,var,&filter))) goto done; /* addfilter will take control of filter object */
+	}
+    }
+done:
+    NCZ_filter_free(filter);
+    return ZUNTRACE(THROW(stat));
+}
+
+/**************************************************/
 /* Utilities */
 
 /**
@@ -713,8 +710,6 @@ get_group_content_pure(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varname
     if((stat = NCZF_searchobjects(file,grp,varnames,subgrps))) goto done;
 
 done:
-#if 0
-#endif
     return ZUNTRACE(THROW(stat));
 }
 
@@ -796,21 +791,23 @@ done:
 
 /**
 Insert an attribute into a list of attribute, including typing
-Takes control of javalue.
+Takes control of javalue but not atype
 @param jatts
 @param jtypes
 @param aname
-@param javalue
+@param javaluep
+@parame atypep
 */
 int
-ncz_insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson* javalue, const char* atype)
+ncz_insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson** javaluep, const char* atype)
 {
     int stat = NC_NOERR;
     if(jatts != NULL) {
-	if(jtypes != NULL) {
-            NCJinsertstring(jtypes,aname,atype);
-	}
-        NCJinsert(jatts,aname,javalue);
+        if(jtypes != NULL) {
+	    NCJinsertstring(jtypes,aname,atype);
+        }
+        NCJinsert(jatts,aname,*javaluep);
+	*javaluep = NULL;
     }
     return THROW(stat);
 }
@@ -832,8 +829,6 @@ jtypes2atypes(NCjson* jtypes, NClist* atypes)
 	nclistpush(atypes,strdup(NCJstring(value)));
     }
 done:
-#if 0
-#endif
     return stat;
 }
 #endif
@@ -890,14 +885,12 @@ ncz_validate(NC_FILE_INFO_T* file)
 	 }
     } while(nclistlength(queue) > 0);
 done:
-#if 0
     if(!validate) stat = NC_ENOTNC;
     nullfree(path);
     nullfree(segment);
     nclistfreeall(queue);
     nclistfreeall(nextlevel);
     ncbytesfree(prefix);
-#endif
     return ZUNTRACE(THROW(stat));
 }
 #endif
@@ -970,9 +963,8 @@ upload_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson* jatts)
     nullfree(key); key = NULL;
 
 done:
-#if 0
+    nullfree(key);
     nullfree(fullpath);
-#endif
     return ZUNTRACE(THROW(stat));
 }
 #endif /*0*/
@@ -997,9 +989,7 @@ readarray(NCZMAP* zmap, const char* key, NCjson** jsonp)
     if(json != NULL && NCJsort(json) != NCJ_ARRAY) {stat = NC_ENCZARR; goto done;}
     if(jsonp) {*jsonp = json; json = NULL;}
 done:
-#if 0
     NCJreclaim(json);
-#endif
     return stat;
 }
 #endif
@@ -1023,9 +1013,7 @@ downloadzarrobj(NC_FILE_INFO_T* file, struct ZARROBJ* zobj, const char* fullpath
     if((stat = nczm_concat(fullpath,ZATTRS,&key))) goto done;
     if((stat=NCZ_downloadjson(map,key,&zobj->atts))) goto done;
 done:
-#if 0
     nullfree(key);
-#endif
     return THROW(stat);
 }
 #endif /*0*/

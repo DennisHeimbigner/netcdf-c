@@ -33,7 +33,7 @@ will generate an error.
 #include <errno.h>
 
 #include "netcdf_filter_build.h"
-#include <netcdf_json.h>
+#include "netcdf_json.h"
 
 #include "h5bzip2.h"
 
