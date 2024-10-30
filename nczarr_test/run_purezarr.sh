@@ -22,6 +22,7 @@ echo "*** Test: pure zarr write then read; format=$zext"
 fileargs tmp_purezarr "mode=zarr,noxarray,$zext"
 deletemap $zext $file
 ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_purezarr_base.cdl
+${ZMD} -h -t int $fileurl
 ${NCDUMP} $fileurl > tmp_purezarr_${zext}.cdl
 diff -b ${srcdir}/ref_purezarr.cdl tmp_purezarr_${zext}.cdl
 

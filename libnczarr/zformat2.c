@@ -664,6 +664,111 @@ int
 ZF2_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jncvar, const NCjson* jatts)
 {
     int stat = NC_NOERR;
+    size_t i;
+    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
+    NC_VAR_INFO_T* var = NULL;
+    NCZ_VAR_INFO_T* zvar = NULL;
+    NC_GRP_INFO_T* grp = NULL;
+    NCZ_GRP_INFO_T* zgrp = NULL;
+    NC_ATT_INFO_T* att = NULL;
+    NCindex* attlist = NULL;
+    nc_type typeid;
+    size_t len, typelen;
+    void* data = NULL;
+    NC_ATT_INFO_T* fillvalueatt = NULL;
+    nc_type typehint = NC_NAT;
+    int purezarr,zarrkeys;
+    const NCjson* jattrs = NULL;
+    const NCjson* jtypes = NULL;
+    struct ZARROBJ* zobj = NULL;
+
+    zinfo = file->format_file_info;
+    TESTPUREZARR;
+ 
+    if(container->sort == NCGRP) {	
+	grp = ((NC_GRP_INFO_T*)container);
+	attlist =  grp->att;
+        zgrp = (NCZ_GRP_INFO_T*)(grp->format_grp_info);
+    } else {
+	var = ((NC_VAR_INFO_T*)container);
+	attlist =  var->att;
+        zvar = (NCZ_VAR_INFO_T*)(var->format_var_info);
+    }
+
+    if(jatts != NULL && NCJsort(jatts)==NCJ_DICT) {    
+	for(i=0;i<NCJdictlength(jatts);i++) {
+	    const NCjson* jkey = NCJdictkey(jatts,i);
+    	    const NCjson* jvalue = NCJdictvalue(jatts,i);
+	    const NC_reservedatt* ra = NULL;
+	    int isfillvalue = 0;
+    	    int isdfaltmaxstrlen = 0;
+       	    int ismaxstrlen = 0;
+	    const char* aname = NCJstring(jkey);
+	    
+	    /* See if this is a notable attribute */
+	    if(var != NULL && strcmp(aname,NC_ATT_FILLVALUE)==0) isfillvalue = 1;
+	    if(grp != NULL && grp->parent == NULL && strcmp(aname,NC_NCZARR_DEFAULT_MAXSTRLEN_ATTR)==0)
+	        isdfaltmaxstrlen = 1;
+	    if(var != NULL && strcmp(aname,NC_NCZARR_MAXSTRLEN_ATTR)==0)
+	        ismaxstrlen = 1;
+
+	    /* See if this is reserved attribute */
+	    ra = NC_findreserved(aname);
+	    if(ra != NULL) {
+		/* case 1: name = _NCProperties, grp=root, varid==NC_GLOBAL */
+		if(strcmp(aname,NCPROPS)==0 && grp != NULL && file->root_grp == grp) {
+		    /* Setup provenance */
+		    if(NCJsort(jvalue) != NCJ_STRING)
+			{stat = (THROW(NC_ENCZARR)); goto done;} /*malformed*/
+		    if((stat = NCZ_read_provenance(file,aname,NCJstring(jvalue))))
+			goto done;
+		}
+#if 0
+		/* case 2: name = _ARRAY_DIMENSIONS, sort==NCVAR, flags & HIDDENATTRFLAG */
+		if(strcmp(aname,NC_XARRAY_DIMS)==0 && var != NULL && (ra->flags & HIDDENATTRFLAG)) {
+  	            /* store for later */
+		    size_t i;
+		    assert(NCJsort(value) == NCJ_ARRAY);
+		    if((zvar->xarray = nclistnew())==NULL)
+		        {stat = NC_ENOMEM; goto done;}
+		    for(i=0;i<NCJlength(value);i++) {
+			const NCjson* k = NCJith(value,i);
+			assert(k != NULL && NCJsort(k) == NCJ_STRING);
+			nclistpush(zvar->xarray,strdup(NCJstring(k)));
+		    }
+		}
+#endif
+		/* case other: if attribute is hidden */
+		if(ra->flags & HIDDENATTRFLAG) continue; /* ignore it */
+	    }
+	    typehint = NC_NAT;
+	    if(isfillvalue)
+	        typehint = var->type_info->hdr.id ; /* if unknown use the var's type for _FillValue */
+	    /* Create the attribute */
+	    /* Collect the attribute's type and value  */
+	    if((stat = computeattrinfo(aname,jtypes,typehint,purezarr,jvalue,
+				   &typeid,&typelen,&len,&data)))
+		goto done;
+	    if((stat = ncz_makeattr(container,attlist,aname,typeid,len,data,&att)))
+		goto done;
+	    /* No longer need this copy of the data */
+   	    if((stat = NC_reclaim_data_all(file->controller,att->nc_typeid,data,len))) goto done;	    	    
+	    data = NULL;
+	    if(isfillvalue)
+	        fillvalueatt = att;
+	    if(ismaxstrlen && att->nc_typeid == NC_INT)
+	        zvar->maxstrlen = ((int*)att->data)[0];
+	    if(isdfaltmaxstrlen && att->nc_typeid == NC_INT)
+	        zinfo->default_maxstrlen = ((int*)att->data)[0];
+	}
+    }
+    /* If we have not read a _FillValue, then go ahead and create it */
+    if(fillvalueatt == NULL && container->sort == NCVAR) {
+	if((stat = ncz_create_fillvalue((NC_VAR_INFO_T*)container)))
+	    goto done;
+    }
+
+done:
     return THROW(stat);
 }
 
@@ -715,11 +820,13 @@ ZF2_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
     if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jobj))) goto done;
     nullfree(key); key = NULL;
 
-    /* build ZATTRS path */
-    if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
-    /* Write to map */
-    if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jatts))) goto done;
-    nullfree(key); key = NULL;
+    if(zobj->jatts) {
+	/* build ZATTRS path */
+	if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
+	/* Write to map */
+	if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jatts))) goto done;
+	nullfree(key); key = NULL;
+    }
 
 done:
     nullfree(fullpath);

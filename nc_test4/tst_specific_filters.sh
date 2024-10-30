@@ -17,38 +17,13 @@ THISDIR=`pwd`
 cd $ISOPATH
 fi
 
-zarrfilt() {
-XCODEC="[{"
-if test "x$TESTNCZARR" = x1 && test "x$NCZARRFORMAT" = x3 ; then
-  XCODEC="${XCODEC}\"name\": \"$1\", \"configuration\": {"
+if test"x$FP_ISMINGW" == xyes || test"x$FP_ISMSYS" == xyes || test"x$FP_ISMSVC" == xyes ; then
+BLOSCARGS="32001,0,0,4,256,5,1,1"
 else
-  XCODEC="${XCODEC}\"id\": \"$1\","
+BLOSCARGS="32001,0,0,0,256,5,1,1"
 fi
-shift
-blank=
-while test 0 -lt $#; do
-    key=`echon "$1" | cut -d: -f1`
-    val=`echon "$1" | cut -d: -f2`
-    XCODEC="${XCODEC}${blank}\"$key\": $val"
-    shift
-    blank=", "
-done
-if test "x$TESTNCZARR" = x1 && test "x$NCZARRFORMAT" = x3 ; then
-XCODEC="${XCODEC}}}]"
-else
-XCODEC="${XCODEC}}]"
-fi
-}
-
-if test "x$TESTNCZARR" = x1 ; then
-  BLOSCARGS="32001,0,0,0,256,5,1,1"
-  zarrfilt blosc clevel:5 blocksize:256 cname:\"lz4\" shuffle:1  
-  BLOSCCODEC="$XCODEC"
-else
-  BLOSCARGS="32001,0,0,4,256,5,1,1"
-  zarrfilt blosc clevel:5 blocksize:256 cname:\"lz4\" shuffle:1  
-  BLOSCCODEC="$XCODEC"
-fi
+BLOSCARGSALT="32001,0,0,4,256,5,1,1"
+BLOSCCODEC='[{\"id\": \"blosc\",\"clevel\": 5,\"blocksize\": 256,\"cname\": \"lz4\",\"shuffle\": 1}]'
 
 # Load the findplugins function
 . ${builddir}/findplugin.sh
@@ -183,6 +158,12 @@ testblosc() {
   zext=$1
   if ! avail blosc; then return 0; fi
   runfilter $zext blosc $BLOSCARGS "$BLOSCCODEC"
+  # Need to ignore the first three parameters by setting them to 0
+if test 1 = 0 ; then
+  sed -e "s|${BLOSCARGSALT}|${BLOSCARGS}|" < tmp_filter_blosc.dump > tmp.dump
+  rm -f tmp_filter_blosc.dump
+  mv -f tmp.dump tmp_filter_blosc.dump
+fi
   diff -b -w "tmp_filt_blosc.cdl" "tmp_filt_blosc.dump"
 }
 
