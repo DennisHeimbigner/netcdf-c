@@ -10,7 +10,7 @@
 struct DCEparsestate;
 typedef struct DCEparsestate DCEparsestate;
 
-#include "dcetab.h"
+#include "dce.tab.h"
 
 #ifdef _WIN32
 
