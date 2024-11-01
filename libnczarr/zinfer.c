@@ -148,8 +148,8 @@ infer_open_format(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, int
 	if(jrootgrp != NULL) NCJdictget(jrootgrp,NCZ_SUPERBLOCK,(NCjson**)&jsuperg);
 	if(jrootatts != NULL) NCJdictget(jrootatts,NCZ_SUPERBLOCK,(NCjson**)&jsupera);
 	if(jsuperg == NULL && jsupera == NULL) nczarrformat = NCZARRFORMAT0; else nczarrformat = NCZARRFORMAT2;
-	NCJreclaim(jrootgrp); jrootgrp = NULL;
-	NCJreclaim(jrootatts); jrootatts = NULL;
+	NCZ_reclaim_json(jrootgrp); jrootgrp = NULL;
+	NCZ_reclaim_json(jrootatts); jrootatts = NULL;
     }
 
     if(zarrformat == ZARRFORMAT3 && nczarrformat == 0) {
@@ -171,7 +171,7 @@ infer_open_format(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, int
 	            nczarrformat = NCZARRFORMAT3;
 	    }
 	}
-	NCJreclaim(jrootgrp); jrootgrp = NULL;
+	NCZ_reclaim_json(jrootgrp); jrootgrp = NULL;
     }
 
     if(zarrformat == 0) {stat = NC_ENOTZARR; goto done;}
@@ -184,7 +184,7 @@ done:
         if(zarrformatp) *zarrformatp = 0;
 	if(nczarrformatp) *nczarrformatp = NCZARRFORMAT0;
     }
-    NCJreclaim(jrootgrp);
+    NCZ_reclaim_json(jrootgrp);
     return THROW(stat);
 }
 

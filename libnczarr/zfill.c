@@ -6,7 +6,6 @@
 #include "zincludes.h"
 #include "zfill.h"
 
-
 /**************************************************/
 /* Forward */
 
@@ -61,7 +60,13 @@ NCZ_set_fill_att(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_ATT_INFO_T* att, i
 	stat = NCZ_fillvalue_disable(file,var);
     } else {
         if(att == NULL) {
-            if((stat = ncz_makeattr(file,(NC_OBJ*)var,NC_FillValue,var->type_info->hdr.id,0,NULL,&att))) goto done;
+	    struct NCZ_AttrInfo ainfo;
+	    memset(&ainfo,0,sizeof(ainfo));
+	    ainfo.name = NC_FillValue;
+	    ainfo.nctype = var->type_info->hdr.id;
+	    ainfo.datalen = 0;
+	    ainfo.data = NULL;
+            if((stat = ncz_makeattr(file,(NC_OBJ*)var,&ainfo,&att))) goto done;
 	}
         assert(att != NULL && strcmp(att->hdr.name,NC_FillValue)==0); /* Verify */
         if((stat = NCZ_copy_value_to_att(file,att,1,fillvalue))) goto done;
@@ -83,7 +88,13 @@ NCZ_copy_var_to_fillatt(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_ATT_INFO_T*
 	/* disable fill value */
         stat = NCZ_fillvalue_disable(file,var);
     } else if(att == NULL) {
-        stat = ncz_makeattr(file,(NC_OBJ*)var,NC_FillValue,var->type_info->hdr.id,1,var->fill_value,NULL);
+	struct NCZ_AttrInfo ainfo;
+	memset(&ainfo,0,sizeof(ainfo));
+	ainfo.name = NC_FillValue;
+	ainfo.nctype = var->type_info->hdr.id;
+	ainfo.datalen = 1;
+	ainfo.data = var->fill_value;
+        stat = ncz_makeattr(file,(NC_OBJ*)var,&ainfo,NULL);
     } else { /* presumably already exists */
 	assert(strcmp(NC_FillValue,att->hdr.name)==0);
 	stat = NCZ_copy_value_to_att(file,att,1,var->fill_value);

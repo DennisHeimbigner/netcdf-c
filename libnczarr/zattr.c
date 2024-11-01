@@ -428,6 +428,8 @@ ncz_put_att(int ncid, int containerid, const char *name, nc_type file_type,
     const NC_reservedatt* ra = NULL;
     NC_ATT_INFO_T* att = NULL;
     NCindex* attlist = NULL;
+    struct NCZ_AttrInfo ainfo;
+
     if(containerid == NC_GLOBAL) {
         if((stat= nc4_find_grp_h5(ncid, &grp, &file))) goto done;
 	obj = (NC_OBJ*)grp;
@@ -529,7 +531,12 @@ ncz_put_att(int ncid, int containerid, const char *name, nc_type file_type,
         }
     }
 
-    if((stat = ncz_makeattr(file,obj,name,file_type,len,copy,&att))) goto done;
+    memset(&ainfo,0,sizeof(ainfo));
+    ainfo.name = name;
+    ainfo.nctype = file_type;
+    ainfo.datalen = len;
+    ainfo.data = copy;
+    if((stat = ncz_makeattr(file,obj,&ainfo,&att))) goto done;
 
     if(isfillvalue) {
 	if((stat = NCZ_copy_fillatt_to_var(file,att,var))) goto done;
@@ -848,13 +855,12 @@ Create an attribute; This is the core of ncz_put_att above.
 Caller must free values.
 */
 int
-ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name, nc_type typeid, size_t len, void* values, NC_ATT_INFO_T** attp)
+ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, struct NCZ_AttrInfo* ainfo, NC_ATT_INFO_T** attp)
 {
     int stat = NC_NOERR;
     NC_ATT_INFO_T* att = NULL;
     NCZ_ATT_INFO_T* zatt = NULL;
     int new_att = 0;
-    size_t typesize = 0;
     NCindex* attlist = NULL;
     
     if(container->sort == NCGRP)
@@ -863,14 +869,14 @@ ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name, nc_type 
         attlist = ((NC_VAR_INFO_T*)container)->att;
     assert(attlist != NULL);
 
-    if ((stat = nc4_get_typelen_mem(file, typeid, &typesize))) goto done;
+    if ((stat = nc4_get_typelen_mem(file, ainfo->nctype, &ainfo->typelen))) goto done;
 
     /* See if there is already an attribute with this name. */
-    att = (NC_ATT_INFO_T*)ncindexlookup(attlist,name);
+    att = (NC_ATT_INFO_T*)ncindexlookup(attlist,ainfo->name);
     new_att = (att == NULL?1:0);
     
     if(new_att) {
-        if((stat=nc4_att_list_add(attlist,name,&att))) goto done;
+    if((stat=nc4_att_list_add(attlist,ainfo->name,&att))) goto done;
         if((zatt = calloc(1,sizeof(NCZ_ATT_INFO_T))) == NULL) {stat = NC_ENOMEM; goto done;}
         zatt->common.file = file;
         att->container = container;
@@ -882,9 +888,9 @@ ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name, nc_type 
     }
 
     /* Fill in the attribute's type and value  */
-    att->nc_typeid = typeid;
-    att->len = len;
-    if((stat = NC_copy_data_all(file->controller,typeid,values,len,&att->data))) goto done;
+    att->nc_typeid = ainfo->nctype;
+    att->len = ainfo->datalen;
+    if((stat = NC_copy_data_all(file->controller,ainfo->nctype,ainfo->data,ainfo->datalen,&att->data))) goto done;
     att->dirty = NC_TRUE;
     if(attp) {*attp = att; att = NULL;}
 
@@ -904,10 +910,10 @@ done:
 /*
 Extract data for an attribute
 This is essentially Version 2|3 agnostic because the
-data part of an attribute is the same for both versions.
+data part of an attribute is (currently) the same for both versions.
 */
 int
-NCZ_computeattrdata(struct NCZ_AttrInfo* ainfo)
+NCZ_computeattrdata(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* ainfo)
 {
     int stat = NC_NOERR;
     NCbytes* buf = ncbytesnew();
@@ -923,7 +929,7 @@ NCZ_computeattrdata(struct NCZ_AttrInfo* ainfo)
 
     /* Get assumed type */
     if(ainfo->nctype == NC_NAT && !isjson) {
-        if((stat = NCZ_inferattrtype(jdata,ainfo->typehint, &ainfo->nctype))) goto done;
+        if((stat = NCZ_inferattrtype(jdata,NC_NAT, &ainfo->nctype))) goto done;
     }
 
     if(isjson) {

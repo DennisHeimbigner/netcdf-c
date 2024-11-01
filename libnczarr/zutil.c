@@ -248,7 +248,7 @@ ret:
     if(jsonp) {*jsonp = json; json = NULL;}
 
 done:
-    NCJreclaim(json);
+    NCZ_reclaim_json(json);
     nullfree(content);
     return stat;
 }
@@ -309,7 +309,7 @@ NCZ_readdict(NCZMAP* zmap, const char* key, NCjson** jsonp)
     }
     if(jsonp) {*jsonp = json; json = NULL;}
 done:
-    NCJreclaim(json);
+    NCZ_reclaim_json(json);
     return stat;
 }
 
@@ -332,7 +332,7 @@ NCZ_readarray(NCZMAP* zmap, const char* key, NCjson** jsonp)
     if(NCJsort(json) != NCJ_ARRAY) {stat = NC_ENCZARR; goto done;}
     if(jsonp) {*jsonp = json; json = NULL;}
 done:
-    NCJreclaim(json);
+    NCZ_reclaim_json(json);
     return stat;
 }
 
@@ -876,7 +876,7 @@ loopexit:
     if(json == NULL) stat = 0;
     else {stat = 1; if(jsonp) {*jsonp = json; json = NULL;}}
 done:
-    NCJreclaim(json);
+    NCZ_reclaim_json(json);
     return stat;
 }
 
@@ -1038,7 +1038,6 @@ void
 NCZ_clearAttrInfo(struct NCZ_AttrInfo* ainfo)
 {
     if(ainfo == NULL) return;
-    NCJreclaim(ainfo->jtypes);
     nullfree(ainfo->data);
     memset(ainfo,0,sizeof(struct NCZ_AttrInfo));
     free(ainfo);
@@ -1195,40 +1194,6 @@ done:
     ncbytesfree(newname);
     return THROW(stat);
 }
-
-#if 0
-/*
-Extract type and data for an attribute
-*/
-int
-NCZ_computeattrinfo(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* ainfo)
-{
-    int stat = NC_NOERR;
-    size_t i;
-
-    ZTRACE(3,"name=%s typehint=%d values=|%s|",att->name,att->typehint,NCJtotext(att->jdata));
-
-    assert(ainfo->jtypes != NULL);
-
-    /* Get type info for the given att */
-    ainfo->nctype = NC_NAT;
-    for(i=0;i<NCJdictlength(ainfo->jtypes);i++) {
-	NCjson* akey = NCJdictkey(ainfo->jtypes,i);
-	if(strcmp(NCJstring(akey),ainfo->name)==0) {
-	    const NCjson* avalue = NCJdictvalue(ainfo->jtypes,i);
-	    if((stat = NCZF_dtype2nctype(file,NCJstring(avalue),ainfo->typehint,&ainfo->nctype,NULL,NULL))) goto done;
-	    break;
-	}
-    }
-    if(ainfo->nctype > NC_MAX_ATOMIC_TYPE) {stat = NC_EINTERNAL; goto done;}
-    /* Use the hint if given one */
-    if(ainfo->nctype == NC_NAT) ainfo->nctype = ainfo->typehint;
-    if((stat = NCZ_computeattrdata(ainfo))) goto done;
-
-done:
-    return ZUNTRACEX(THROW(stat),"typeid=%d typelen=%d len=%u",ainfo->nctype,ainfo->typelen,ainfo->len);
-}
-#endif /*0*/
 
 /* Get one of multiple key alternatives from a dict */
 static int
@@ -1484,7 +1449,7 @@ json_convention_write(size_t len, const void* data, NCjson** jsonp, int* isjsonp
     *jsonp = jexpr; jexpr = NULL;
     if(isjsonp) *isjsonp = isjson;
 done:
-    NCJreclaim(jexpr);
+    NCZ_reclaim_json(jexpr);
     return stat;
 }
 #endif

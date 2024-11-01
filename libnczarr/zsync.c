@@ -131,11 +131,11 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     
 done:
     NCZ_clear_zobj(&zobj);    
-    NCJreclaim(jsuper);
-    NCJreclaim(jgroup);
-    NCJreclaim(jnczgrp);
-    NCJreclaim(jtypes);
-    NCJreclaim(jatts);
+    NCZ_reclaim_json(jsuper);
+    NCZ_reclaim_json(jgroup);
+    NCZ_reclaim_json(jnczgrp);
+    NCZ_reclaim_json(jtypes);
+    NCZ_reclaim_json(jatts);
     return ZUNTRACE(THROW(stat));
 }
 
@@ -207,9 +207,9 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 
 done:
     NCZ_clear_zobj(&zobj);
-    NCJreclaim(jvar);
-    NCJreclaim(jnczvar);
-    NCJreclaim(jatts);
+    NCZ_reclaim_json(jvar);
+    NCZ_reclaim_json(jnczvar);
+    NCZ_reclaim_json(jatts);
     NCZ_reclaim_json_list(filtersj);
     return ZUNTRACE(THROW(stat));
 }
@@ -989,7 +989,7 @@ readarray(NCZMAP* zmap, const char* key, NCjson** jsonp)
     if(json != NULL && NCJsort(json) != NCJ_ARRAY) {stat = NC_ENCZARR; goto done;}
     if(jsonp) {*jsonp = json; json = NULL;}
 done:
-    NCJreclaim(json);
+    NCZ_reclaim_json(json);
     return stat;
 }
 #endif
@@ -1005,8 +1005,8 @@ downloadzarrobj(NC_FILE_INFO_T* file, struct ZARROBJ* zobj, const char* fullpath
     /* Download .zXXX and .zattrs */
     nullfree(zobj->prefix);
     zobj->prefix = strdup(fullpath);
-    NCJreclaim(zobj->obj); zobj->obj = NULL;
-    NCJreclaim(zobj->atts); zobj->obj = NULL;
+    NCZ_reclaim_json(zobj->obj); zobj->obj = NULL;
+    NCZ_reclaim_json(zobj->atts); zobj->obj = NULL;
     if((stat = nczm_concat(fullpath,objname,&key))) goto done;
     if((stat=NCZ_downloadjson(map,key,&zobj->obj))) goto done;
     nullfree(key); key = NULL;

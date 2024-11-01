@@ -384,8 +384,8 @@ void
 NCZ_clear_zobj(struct ZOBJ* zobj)
 {
     if(zobj != NULL) {
-        NCJreclaim(zobj->jobj);
-	if(!zobj->constjatts) NCJreclaim(zobj->jatts);
+        NCZ_reclaim_json(zobj->jobj);
+	if(!zobj->constjatts) NCZ_reclaim_json(zobj->jatts);
 	memset(zobj,0,sizeof(struct ZOBJ));
     }
 }
@@ -408,7 +408,7 @@ NCZ_reclaim_json_list(NClist* listj)
 {
     size_t i;
     for(i=0;i<nclistlength(listj);i++)
-        NCJreclaim((NCjson*)nclistget(listj,i));
+        NCZ_reclaim_json((NCjson*)nclistget(listj,i));
     nclistfree(listj);
 }
 

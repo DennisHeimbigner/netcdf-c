@@ -140,6 +140,7 @@ done:
     return THROW(stat);
 }
 
+#if 0
 /* This is an abbreviated form of ncz_put_att */
 int
 ncz4_create_attr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name,
@@ -148,7 +149,9 @@ ncz4_create_attr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name,
 {
     /* Defer to zattr.c */
     return ncz_makeattr(file,container,name,typeid,len,values,attp);
+???    return ncz_makeattr(file,container,name,typeid,len,values,attp);
 }
+#endif /*0*/
 
 #if 0
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
