@@ -11,7 +11,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 set -e
 
 if test "x$TESTNCZARR" = x1 ; then
-. ${builddir}/test_nczarr.sh
+. "$srcdir/test_nczarr.sh"
 s3isolate "testdir_specific_filters"
 THISDIR=`pwd`
 cd $ISOPATH
@@ -128,16 +128,16 @@ testshuffle() {
 testdeflate() {
   zext=$1
   if ! avail deflate; then return 0; fi
-  zarrfilt zlib level:9
-  runfilter $zext deflate '1,9' "$XCODEC"
+  runfilter $zext deflate '1,9' '[{\"id\": \"zlib\",\"level\": \"9\"}]'
+  # need to replace _DeflateLevel
+#  sed -e 's/_DeflateLevel = 9/_Filter = "1,9"/' < tmp_filt_deflate.dump > tmp_filt_deflatex.dump
   diff -b -w "tmp_filt_deflate.cdl" "tmp_filt_deflate.dump"
 }
 
 testbzip2() {
   zext=$1
   if ! avail bzip2; then return 0; fi
-  zarrfilt bz2 level:9
-  runfilter $zext bzip2 '307,9' "$XCODEC"
+  runfilter $zext bzip2 '307,9' '[{\"id\": \"bz2\",\"level\": \"9\"}]'
   diff -b -w "tmp_filt_bzip2.cdl" "tmp_filt_bzip2.dump"
 }
 
@@ -145,8 +145,7 @@ testszip() {
   zext=$1
   if ! avail szip; then return 0; fi
 #  H5_SZIP_NN_OPTION_MASK=32;  H5_SZIP_MAX_PIXELS_PER_BLOCK_IN=32
-  zarrfilt szip mask:32 pixels-per-block:32
-  runfilter $zext szip '4,32,32' "$XCODEC"
+  runfilter $zext szip '4,32,32' '[{\"id\": \"szip\",\"mask\": 32,\"pixels-per-block\": 32}]'
   diff -b -w "tmp_filt_szip.cdl" "tmp_filt_szip.dump"
 }
 
@@ -164,8 +163,7 @@ testblosc() {
 testzstd() {
   zext=$1
   if ! avail zstd; then return 0; fi
-  zarrfilt zstd level:1
-  runfilter $zext zstd '32015,1' "$XCODEC"
+  runfilter $zext zstd '32015,1' '[{\"id\": \"zstd\",\"level\": \"1\"}]'
   diff -b -w "tmp_filt_zstd.cdl" "tmp_filt_zstd.dump"
 }
 

@@ -1040,7 +1040,6 @@ NCZ_clearAttrInfo(struct NCZ_AttrInfo* ainfo)
     if(ainfo == NULL) return;
     nullfree(ainfo->data);
     memset(ainfo,0,sizeof(struct NCZ_AttrInfo));
-    free(ainfo);
 }
 
 void

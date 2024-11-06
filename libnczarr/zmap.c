@@ -259,7 +259,9 @@ nczm_concat(const char* prefix, const char* suffix, char** pathp)
     if(strlen(suffix) > 0 && suffix[0] != NCZM_SEP[0])
 	ncbytescat(buf,NCZM_SEP);
     ncbytescat(buf,suffix);
+assert(buf->content != NULL);
     if(pathp) *pathp = ncbytesextract(buf);
+assert(buf->content == NULL);
     ncbytesfree(buf);
     return NC_NOERR;
 }

@@ -79,7 +79,7 @@ static int ZF2_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOB
 static int ZF2_decode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NCjson* jsuper, int* zarrformat, int* nczarrformat);
 static int ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jnczgrp, NClist* vars, NClist* subgrps);
 static int ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NClist* jfilters, size64_t** shapep, size64_t** chunksp, NClist* dimrefs);
-static int ZF2_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jncvar, const NCjson* jatts);
+static int ZF2_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts);
 static int ZF2_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj);
 static int ZF2_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj);
 static int ZF2_encode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsuperp);
@@ -365,7 +365,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     int purezarr = 0;
     /* per-variable info */
-    NCZ_VAR_INFO_T* zvar = NULL;
+    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
     const NCjson* jvar = NULL;
     const NCjson* jatts = NULL;
     const NCjson* jncvar = NULL;
@@ -662,7 +662,7 @@ done:
 }
 
 int
-ZF2_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jncvar, const NCjson* jatts)
+ZF2_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -672,14 +672,21 @@ ZF2_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jnc
     NC_GRP_INFO_T* grp = NULL;
     NC_ATT_INFO_T* att = NULL;
     NC_ATT_INFO_T* fillvalueatt = NULL;
-    const NCjson* jtypes = NULL;
     struct NCZ_AttrInfo ainfo;
+    const NCjson* jtypes = NULL;
+    const NCjson* jnczattr = NULL;
 
     if(container->sort == NCGRP) {	
 	grp = ((NC_GRP_INFO_T*)container);
     } else {
 	var = ((NC_VAR_INFO_T*)container);
         zvar = (NCZ_VAR_INFO_T*)(var->format_var_info);
+    }
+
+    /* See if we have jtypes */
+    NCJcheck(NCJdictget(jatts,NCZ_ATTR,(NCjson**)&jnczattr));
+    if(jnczattr != NULL) {
+        NCJcheck(NCJdictget(jnczattr,"types",(NCjson**)&jtypes));
     }
 
     if(jatts != NULL && NCJsort(jatts)==NCJ_DICT) {    
@@ -969,6 +976,9 @@ ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jattsp, NClist
 	    shape[i] = dim->len;
 	}
     }
+
+    /* zarr_format key */
+    NCJcheck(NCJinsertint(jvar,"zarr_format",ZARRFORMAT2));
 
     /* shape key */
     /* Integer list defining the length of each dimension of the array.*/
@@ -1286,7 +1296,7 @@ ZF2_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NC
     /* Compute the key for the grp */
     if((stat = NCZ_grpkey(grp,&grpkey))) goto done;
     /* Get the map and search group */
-    if((stat = nczmap_listall(zfile->map,grpkey,matches))) goto done;
+    if((stat = nczmap_list(zfile->map,grpkey,matches))) goto done;
     for(i=0;i<nclistlength(matches);i++) {
 	const char* name = nclistget(matches,i);
 	if(name[0] == NCZM_DOT) continue; /* zarr/nczarr specific */
@@ -1552,8 +1562,6 @@ computeattrinfo(NC_FILE_INFO_T* file, const char* aname, const NCjson* jtypes, c
     ZTRACE(3,"name=%s typehint=%d values=|%s|",att->name,att->typehint,NCJtotext(att->jdata));
 
     assert(aname != NULL);
-    assert(jtypes != NULL);
-
     memset(ainfo,0,sizeof(struct NCZ_AttrInfo));
 
     TESTPUREZARR;
@@ -1563,11 +1571,11 @@ computeattrinfo(NC_FILE_INFO_T* file, const char* aname, const NCjson* jtypes, c
     ainfo->jdata = jainfo;
 
     /* Infer the attribute data's type */
-    if(purezarr) {
+    if(purezarr || jtypes == NULL) {
 	ainfo->nctype = NC_NAT;
 	if((stat = NCZ_inferattrtype(ainfo->jdata,ainfo->nctype,&ainfo->nctype))) goto done;
     } else {
-        /* Search the jatypes for the type of this attribute */
+        /* Search the jtypes for the type of this attribute */
         ainfo->nctype = NC_NAT;
         NCJcheck(NCJdictget(jtypes,aname,(NCjson**)&jatype));
         if(jatype == NULL) {stat = NC_ENCZARR; goto done;}

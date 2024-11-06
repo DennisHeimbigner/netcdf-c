@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "ncbytes.h"
+#include "nclog.h"
 
 #ifndef TRUE
 #define TRUE 1
@@ -19,6 +20,10 @@
 
 #define NCBYTESDEBUG 1
 
+#ifdef NCBYTESDEBUG
+#include <assert.h>
+#endif
+
 static int
 ncbytesfail(void)
 {
@@ -26,7 +31,7 @@ ncbytesfail(void)
     fprintf(stderr,"NCbytes failure\n");
     fflush(stderr);
 #ifdef NCBYTESDEBUG
-    abort();
+    assert(!("NCbytes failure"));
 #endif
     return FALSE;
 }
@@ -48,17 +53,24 @@ ncbytessetalloc(NCbytes* bb, unsigned long sz)
 {
   char* newcontent;
   if(bb == NULL) return ncbytesfail();
-  if(sz == 0) {sz = (bb->alloc?2*bb->alloc:DEFAULTALLOC);}
-  if(bb->alloc >= sz) return TRUE;
   if(bb->nonextendible) return ncbytesfail();
+//  if(sz == 0) {sz = (bb->alloc?2*bb->alloc:DEFAULTALLOC);} /* Default the size */
+  if(sz == 0) return ncbytesfail();
+  /* We always guarantee that bb->content is not NULL */
+  if(bb->alloc >= sz) {
+    assert(bb->content != NULL);
+    return TRUE;
+  }
+if(sz==11)
+ncbreakpoint(0);
   newcontent=(char*)calloc(sz,sizeof(char));
   if(newcontent == NULL) ncbytesfail();
-  if(bb->alloc > 0 && bb->length > 0 && bb->content != NULL) {
+  if(bb->length > 0 && bb->content != NULL) {
     memcpy((void*)newcontent,(void*)bb->content,sizeof(char)*bb->length);
   }
-  if(bb->content != NULL) free(bb->content);
-  bb->content=newcontent;
-  bb->alloc=sz;
+  if(bb->content != NULL) {free(bb->content); bb->content = NULL;}
+  bb->content = newcontent; newcontent = NULL;
+  bb->alloc = sz;
   return TRUE;
 }
 
@@ -66,7 +78,9 @@ EXTERNL void
 ncbytesfree(NCbytes* bb)
 {
   if(bb == NULL) return;
-  if(!bb->nonextendible && bb->content != NULL) free(bb->content);
+  if(!bb->nonextendible && bb->content != NULL) {
+      free(bb->content); bb->content = NULL;
+  }
   free(bb);
 }
 
@@ -102,7 +116,7 @@ int
 ncbytesset(NCbytes* bb, unsigned long index, char elem)
 {
   if(bb == NULL) return ncbytesfail();
-  if(index >= bb->length) return ncbytesfail();
+  if(index >= bb->alloc) return ncbytesfail();
   bb->content[index] = elem;
   return TRUE;
 }
@@ -118,16 +132,14 @@ ncbytesappend(NCbytes* bb, char elem)
   return TRUE;
 }
 
-/* This assumes s is a null terminated string*/
+/* This assumes s is a null terminated string; but nul not part of the length*/
 int
 ncbytescat(NCbytes* bb, const char* s)
 {
   if(bb == NULL) return ncbytesfail();
   if(s == NULL) return 1;
-  ncbytesappendn(bb,(void*)s,strlen(s)+1); /* include trailing null*/
-  /* back up over the trailing null*/
-  if(bb->length == 0) return ncbytesfail();
-  bb->length--;
+  ncbytesappendn(bb,(void*)s,strlen(s));
+  ncbytesnull(bb); /* include trailing null*/
   return 1;
 }
 
@@ -179,7 +191,7 @@ ncbytessetcontents(NCbytes* bb, void* contents, unsigned long alloc)
 {
     if(bb == NULL) return ncbytesfail();
     ncbytesclear(bb);
-    if(!bb->nonextendible && bb->content != NULL) free(bb->content);
+    if(!bb->nonextendible && bb->content != NULL) {free(bb->content); bb->content = NULL;}
     bb->content = (char*)contents;
     bb->length = alloc;
     bb->alloc = alloc;
@@ -191,8 +203,8 @@ ncbytessetcontents(NCbytes* bb, void* contents, unsigned long alloc)
 int
 ncbytesnull(NCbytes* bb)
 {
-    ncbytesappend(bb,'\0');
-    bb->length--;
+    ncbytessetalloc(bb,bb->length+1); /* Force allocation of space and make room for nul term  */
+    bb->content[bb->length] = '\0'; /* Leave length unchanged */
     return 1;
 }
 

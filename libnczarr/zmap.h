@@ -59,72 +59,38 @@ for implementing an abstract data structure
 implementing the key/object model.
 
 List:
-The list function has two purposes:
-   a. Support reading of pure zarr datasets (because they do not explicitly
-      track their contents).
-   b. Debugging to allow raw examination of the storage. See zdump
-      for example.
+The list function takes a prefix path which has a key syntax (see
+above).  The set of legal keys is the set of keys such that the key
+references a content-bearing object -- e.g. /x/y/.zarray or
+/.zgroup. Essentially this is the set of keys pointing to the leaf
+objects of the tree of keys constituting a dataset. This set
+potentially limits the set of keys that need to be examined during
+search.
 
-The list function takes a prefix path which has a key syntax (see above).
-The set of legal keys is the set of keys such that the key references
-a content-bearing object -- e.g. /x/y/.zarray or /.zgroup. Essentially
-this is the set of keys pointing to the leaf objects of the tree of keys
-constituting a dataset. This set potentially limits the set of keys that need to be
-examined during search.
+The list function has two primary purposes:
+  1. Support reading of pure zarr datasets (because they do not explicitly track their contents).
+  2. Debugging to allow raw examination of the storage. See zdump for example.
 
-Ideally the search function would return 
-the set of names that are immediate suffixes of a
-given prefix path. That is, if <prefix> is the prefix path,
-then search returns all <name> such that  <prefix>/<name> is itself a prefix of a "legal" key.
-This could be used to implement glob style searches such as "/x/y/ *" or "/x/y/ **"
+Secondarily, the list function can operate in one of two modes:
+"shallow" or "deep". The produce the following different results.
+  * _shallow_ -- the list function returns the set of names that are immediate "children" (i.e.suffixes) of a given prefix path. That is, if \<prefix\> is the prefix path, then list returns all \<name\> such that \<prefix\>/\<name\> is itself a prefix of a "legal" key.  This functionality could be used to implement glob style searches such as "/x/y/\*" or "/x/y/\*\*"
+  * _deep_ -- the list function returns the set of all legal keys.
 
-This semantics was chosen because it appears to be the minimum required to implement
-all other kinds of search using recursion. So for example
-1. Avoid returning keys that are not a prefix of some legal key.
-2. Avoid returning all the legal keys in the dataset because that set may be very large;
-   although the implementation may still have to examine all legal keys to get the desired subset.
-3. Allow for use of partial read mechanisms such as iterators, if available.
-   This can support processing a limited set of keys for each iteration. This is a
-   straighforward tradeoff of space over time.
+The shallow case provided because it appears to be the minimum
+required to implement all other kinds of search using recursion. So
+for example:
+  1. Avoid returning keys that are not a prefix of some legal key.
+  2. Optionally avoid returning all the legal keys in the dataset because that set may be very large; although the implementation may still have to examine all legal keys to get the desired subset.
+  3. Allow for the use of partial read mechanisms such as iterators, if available.  This can support processing a limited set of keys for each iteration. This is a straighforward tradeoff of space over time.
 
-This is doable in S3 search using common prefixes with a delimiter of '/', although
-the implementation is a bit tricky. For the file system zmap implementation, the legal search keys can be obtained
-one level at a time, which directly implements the search semantics. For the zip file implementation,
-this semantics is not possible, so the whole tree must be obtained and searched.
+The deep case is useful in two cases:
+  1. The underlying zmap implementation only supports the equivalent of "deep". Providing "shallow" when deep is all you have, requires caching of the deep listing and simulating the shallow case over that deep listing.
+  2. Deep is useful when it is known that searching will eventually touch all the legal prefix keys, so it might as well be memo'ized into memory for speed.
 
-List:
-The list function is an extension of the has one purpose
-   a. Support reading of pure zarr datasets (because they do not explicitly
-      track their contents).
-   b. Debugging to allow raw examination of the storage. See zdump
-      for example.
-
-The search function takes a prefix path which has a key syntax (see above).
-The set of legal keys is the set of keys such that the key references
-a content-bearing object -- e.g. /x/y/.zarray or /.zgroup. Essentially
-this is the set of keys pointing to the leaf objects of the tree of keys
-constituting a dataset. This set potentially limits the set of keys that need to be
-examined during search.
-
-Ideally the search function would return 
-the set of names that are immediate suffixes of a
-given prefix path. That is, if <prefix> is the prefix path,
-then search returns all <name> such that  <prefix>/<name> is itself a prefix of a "legal" key.
-This could be used to implement glob style searches such as "/x/y/ *" or "/x/y/ **"
-
-This semantics was chosen because it appears to be the minimum required to implement
-all other kinds of search using recursion. So for example
-1. Avoid returning keys that are not a prefix of some legal key.
-2. Avoid returning all the legal keys in the dataset because that set may be very large;
-   although the implementation may still have to examine all legal keys to get the desired subset.
-3. Allow for use of partial read mechanisms such as iterators, if available.
-   This can support processing a limited set of keys for each iteration. This is a
-   straighforward tradeoff of space over time.
-
-This is doable in S3 search using common prefixes with a delimiter of '/', although
-the implementation is a bit tricky. For the file system zmap implementation, the legal search keys can be obtained
-one level at a time, which directly implements the search semantics. For the zip file implementation,
-this semantics is not possible, so the whole tree must be obtained and searched.
+The current zmap implementations internally provide some combination of deep and shallow and simulate the other.
+  * File Map -- implements the shallow case and simulates the deep case.
+  * ZIP Map -- implements the deep case and simulates the shallow case.
+  * S3 Map -- implements both the shallow and deep cases.
 
 Issues:
 1. S3 limits key lengths to 1024 bytes. Some deeply nested netcdf files
@@ -248,8 +214,8 @@ struct NCZMAP_API {
 	int (*read)(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
 	int (*write)(NCZMAP* map, const char* key, size64_t count, const void* content);
     /* List Operations */
-        int (*list)(NCZMAP* map, const char* prefix, struct NClist* matches);
-        int (*listall)(NCZMAP* map, const char* prefix, struct NClist* matches);
+        int (*list)(NCZMAP* map, const char* prefix, struct NClist* matches);    /* shallow listing */
+        int (*listall)(NCZMAP* map, const char* prefix, struct NClist* matches); /* deep listing */
 };
 
 /* Define the Dataset level API */

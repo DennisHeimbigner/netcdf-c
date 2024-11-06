@@ -162,14 +162,14 @@ NCZF_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCl
 }
 
 int
-NCZF_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jncvar, const NCjson* jatts)
+NCZF_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_attributes(file,container,jncvar,jatts);
+    stat = zfile->dispatcher->decode_attributes(file,container,jatts);
     return THROW(stat);
 }
 

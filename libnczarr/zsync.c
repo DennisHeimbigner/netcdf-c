@@ -590,6 +590,10 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
     if((stat = ncz_decode_filters(file,var,filters))) goto done;
 
 done:
+    nclistfreeall(dimrefs);
+    nclistfree(dimdecls);
+    nclistfree(filters);
+    ncbytesfree(fqn);
     NCZ_clear_zobj(&zobj);
     return THROW(stat);
 }
@@ -630,11 +634,13 @@ of annotated NC_ATT_INFO_T* objects. This will process
 _NCProperties attribute specially.
 @param file - [in] the containing file
 @param container - [in] the containing object (group|var)
+@param jatts - [in] the set of attributes from the container
+@param jnczobj - _nczarr_array | _nczarr_group json
 @return ::NC_NOERR
 @author Dennis Heimbigner
 */
 static int
-ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson* jnczvar)
+ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson* jnczobj)
 {
     int stat = NC_NOERR;
     NC_ATT_INFO_T* fillvalueatt = NULL;
@@ -642,7 +648,7 @@ ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, co
     ZTRACE(3,"file=%s container=%s",file->controller->path,container->name);
 
     if(jatts != NULL) {
-        if((stat = NCZF_decode_attributes(file,container,jnczvar,jatts))) goto done;
+        if((stat = NCZF_decode_attributes(file,container,jatts))) goto done;
     }
     /* If we have not read a _FillValue, then go ahead and create it */
     if(fillvalueatt == NULL && container->sort == NCVAR) {

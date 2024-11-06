@@ -214,7 +214,7 @@ __Search__: The search function has two purposes:
 
 The search function takes a prefix path which has a key syntax (see above).
 The search function returns a limited set of names, where the set of names are immediate suffixes of a given prefix path.
-That is, if _\<prefix\>_ is the prefix path, then search returnsnall _\<name\>_ such that _\<prefix>/\<name\>_ is itself a prefix of a "legal" key.
+That is, if _\<prefix\>_ is the prefix path, then search returns all _\<name\>_ such that _\<prefix>/\<name\>_ is itself a prefix of a "legal" key.
 This can be used to implement glob style searches such as "/x/y/*" or "/x/y/**"
 
 The term "legal keys" is the set of keys such that the key references a content-bearing object -- e.g. /x/y/.zarray or /.zgroup.
