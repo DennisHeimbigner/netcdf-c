@@ -1340,6 +1340,22 @@ int
 ZF2_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp)
 {
     int stat = NC_NOERR;
+    NCbytes* key = ncbytesnew();
+    size_t r;
+
+    if(keyp) *keyp = NULL;
+    assert(islegaldimsep(dimsep));
+    
+    for(r=0;r<rank;r++) {
+	char sindex[64];
+        if(r > 0) ncbytesappend(key,dimsep);
+	/* Print as decimal with no leading zeros */
+	snprintf(sindex,sizeof(sindex),"%lu",(unsigned long)chunkindices[r]);	
+	ncbytescat(key,sindex);
+    }
+    ncbytesnull(key);
+    if(keyp) *keyp = ncbytesextract(key);
+    ncbytesfree(key);
     return THROW(stat);
 }
 
@@ -1347,6 +1363,7 @@ int
 ZF2_decode_chunkkey(NC_FILE_INFO_T* file, char* dimsep, char* chunkname, size_t* rankp, size64_t** chunkindicesp)
 {
     int stat = NC_NOERR;
+
     return THROW(stat);
 }
 
