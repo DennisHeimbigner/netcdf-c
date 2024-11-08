@@ -172,6 +172,7 @@ NCZ_plugin_path_get(NCPluginList* dirs)
 	for(i=0;i<dirs->ndirs;i++) {
 	    const char* dir = (const char*)nclistget(gs->zarr.pluginpaths,i);
 	    dirs->dirs[i] = nulldup(dir);
+if(dirs->dirs[0] < (void*)1000) abort();
 	}
     }
 done:
@@ -205,6 +206,7 @@ NCZ_plugin_path_set(NCPluginList* dirs)
 	size_t i;
 	for(i=0;i<dirs->ndirs;i++) {
 	    nclistpush(gs->zarr.pluginpaths,nulldup(dirs->dirs[i]));
+if(gs->zarr.pluginpaths->content[0] < (void*)1000) abort();
 	}
     }
 done:

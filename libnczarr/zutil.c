@@ -905,10 +905,15 @@ NCZ_makeFQN(NC_GRP_INFO_T* parent, const char* objname, NCbytes* fqn)
     }
     
     /* Create the the fqn */
-    for(i=0;i<nclistlength(segments);i++) {
+    for(i=nclistlength(segments);(i--)>0;) { /* walk backwards */
 	const char* s = (const char*)nclistget(segments,i);
+#if 0
+	ncbytesinsert(fqn,0,1,"/");
         ncbytesinsert(fqn,0,strlen(s),s);
-        ncbytesinsert(fqn,0,1,"/");
+#else
+	ncbytescat(fqn,"/");
+	ncbytescat(fqn,s);
+#endif
     }
 done:
     nclistfreeall(segments);

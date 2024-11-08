@@ -61,8 +61,6 @@ ncbytessetalloc(NCbytes* bb, unsigned long sz)
     assert(bb->content != NULL);
     return TRUE;
   }
-if(sz==11)
-ncbreakpoint(0);
   newcontent=(char*)calloc(sz,sizeof(char));
   if(newcontent == NULL) ncbytesfail();
   if(bb->length > 0 && bb->content != NULL) {

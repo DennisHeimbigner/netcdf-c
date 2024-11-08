@@ -43,6 +43,7 @@ for t in tst_nans ; do
    rm -f tmp_${t}.dmp
    fileargs $t
    ${NCGEN} -4 -lb -o ${fileurl} ${cdl}/${ref}.cdl
+${ZMD} -h -t int ${fileurl}
    ${NCDUMP} ${headflag} ${specflag} -n ${ref} ${fileurl} > tmp_${t}.dmp
    # compare against expected
    diff -b -w ${expected}/${ref}.dmp ./tmp_${t}.dmp

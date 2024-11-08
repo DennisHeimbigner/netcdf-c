@@ -460,17 +460,31 @@ extern int nc_get_alignment(int* thresholdp, int* alignmentp);
 /**************************************************/
 /* Begin to collect global state info in one place (more to do) */
 
+#ifdef WATCH
+extern NClist* pluginpaths;
+extern NClist* zpluginpaths;
+#define PLUGINPATHS pluginpaths
+#define ZPLUGINPATHS zpluginpaths
+#else
+#define PLUGINPATHS gs->pluginpaths
+#define ZPLUGINPATHS gs->zarr.pluginpaths
+#endif
+
 typedef struct NCglobalstate {
     int initialized;
     char* tempdir; /* track a usable temp dir */
     char* home; /* track $HOME */
     char* cwd; /* track getcwd */
     struct NCRCinfo* rcinfo; /* Currently only one rc file per session */
+#ifndef WATCH
     NClist* pluginpaths; /* Global Plugin State */
+#endif
     struct GlobalZarr { /* Zarr specific parameters */
 	char dimension_separator;
 	int default_zarrformat;
+#ifndef WATCH
 	NClist* pluginpaths; /* NCZarr mirror of plugin paths */
+#endif
 	NClist* codec_defaults;
 	NClist* default_libs;
 	/* All possible HDF5 filter plugins */

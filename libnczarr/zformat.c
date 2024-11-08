@@ -259,14 +259,14 @@ NCZF_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jattsp, NClis
 }
 
 int
-NCZF_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp, NCjson** jattsp)
+NCZF_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp, NCjson** jsuperp, NCjson** jattsp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->encode_attributes(file,container,jnczconp,jattsp);
+    stat = zfile->dispatcher->encode_attributes(file,container,jnczconp,jsuperp,jattsp);
     return THROW(stat);
 }
 
@@ -366,7 +366,7 @@ NCZF_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkind
 }
 
 int
-NCZF_decode_chunkkey(NC_FILE_INFO_T* file, char* dimsep, char* chunkname, size_t* rankp, size64_t** chunkindicesp)
+NCZF_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkname, size_t* rankp, size64_t** chunkindicesp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;

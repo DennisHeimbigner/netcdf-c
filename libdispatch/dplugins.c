@@ -108,6 +108,7 @@ nc_plugin_path_initialize(void)
 	assert(dst != NULL);
 	for(i=0;i<dirs.ndirs;i++)
 	    dst[i] = strdup(dirs.dirs[i]);
+if(dst[0] < (char*)1000) abort();
     }
 done:
     ncaux_plugin_path_clear(&dirs);
@@ -282,6 +283,7 @@ nc_plugin_path_set(NCPluginList* dirs)
         assert(gs->pluginpaths != NULL);
 	for(i=0;i<dirs->ndirs;i++) {
 	    nclistpush(gs->pluginpaths,nulldup(dirs->dirs[i]));
+if(gs->pluginpaths->content[0] < (char*)1000) abort();
 	}
     }
 

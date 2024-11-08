@@ -87,17 +87,17 @@ static int ZF2_encode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCj
 static int ZF2_encode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jattsp, NCjson** jgroupp);
 static int ZF2_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jzvarp);
 static int ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jattsp, NClist* filtersj, NCjson** jvarp);
-static int ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp, NCjson** jattsp);
+static int ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp, NCjson** jsuperp, NCjson** jattsp);
 static int ZF2_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp);
 static int ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter);
 static int ZF2_hdf2codec(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter);
 static int ZF2_codec2hdf(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter);
 static int ZF2_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrpnames);
 static int ZF2_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
-static int ZF2_decode_chunkkey(NC_FILE_INFO_T* file, char* dimsep, char* chunkname, size_t* rankp, size64_t** chunkindicesp);
+static int ZF2_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkname, size_t* rankp, size64_t** chunkindicesp);
 
 static int decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims, NClist* dimdefs);
-static int dtype2nctype(NC_FILE_INFO_T* file, const char* dtype, nc_type typehint, nc_type* nctypep, int* endianp, size_t* typelenp);
+static int dtype2nctype(NC_FILE_INFO_T* file, const char* dtype, int isattr, nc_type* nctypep, int* endianp, size_t* typelenp);
 static int nctype2dtype(NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typesize, char** dtypep, char** dattrtypep);
 static int computeattrinfo(NC_FILE_INFO_T* file, const char* aname, const NCjson* jtypes, const NCjson* jainfo, struct NCZ_AttrInfo* ainfo);
 
@@ -249,8 +249,10 @@ ZF2_download_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
     if((stat = NCZ_varkey(var,&fullpath))) goto done;
     if((stat = nczm_concat(fullpath,Z2ARRAY,&key))) goto done;
     if((stat = NCZ_downloadjson(zinfo->map,key,&zobj->jobj))) goto done;
+    nullfree(key);
     if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
     if((stat = NCZ_downloadjson(zinfo->map,key,&zobj->jatts))) goto done;
+    nullfree(key); key = NULL;
     zobj->constjatts = 0;    
 
 done:
@@ -264,9 +266,13 @@ ZF2_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj, NC
 {
     int stat = NC_NOERR;
     /* Extract _nczarr_group from zobj->attr */
-    NCJcheck(NCJdictget(zobj->jatts,NCZ_GROUP,(NCjson**)jzgrpp));
+    if(jzgrpp != NULL) {
+        NCJcheck(NCJdictget(zobj->jatts,NCZ_GROUP,(NCjson**)jzgrpp));
+    }
     /* Extract _nczarr_superblock from zobj->attr */
-    NCJcheck(NCJdictget(zobj->jatts,NCZ_SUPERBLOCK,(NCjson**)jzgrpp));
+    if(jzsuperp != NULL) {
+	NCJcheck(NCJdictget(zobj->jatts,NCZ_SUPERBLOCK,(NCjson**)jzsuperp));
+    }
 done:
     return THROW(stat);
 }
@@ -926,6 +932,7 @@ ZF2_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jncza
     for(i=0;i<nclistlength(dimrefs);i++) {
 	char* fqn = (char*)nclistremove(dimrefs,0);
 	NCJaddstring(jdimrefs,NCJ_STRING,fqn);
+	nullfree(fqn); fqn = NULL;
     }
     /* Insert dimension_references  */
     NCJcheck(NCJinsert(jnczarray,"dimension_references",jdimrefs)); jdimrefs = NULL;
@@ -942,6 +949,7 @@ ZF2_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jncza
     if(jnczarrayp) {*jnczarrayp = jnczarray; jnczarray = NULL;}
 done:
     nclistfreeall(dimrefs);
+    ncbytesfree(dimfqn);
     NCJreclaim(jnczarray);
     NCJreclaim(jdimrefs);
     return THROW(stat);
@@ -1092,7 +1100,7 @@ done:
 }
 
 int
-ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp, NCjson** jattsp)
+ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp, NCjson** jsuperp, NCjson** jattsp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -1115,11 +1123,11 @@ ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp
     if(container->sort == NCVAR) {
         var = (NC_VAR_INFO_T*)container;
 	atts = var->att;
-	nczname = NCZ_GROUP;
+	nczname = NCZ_ARRAY;
     } else if(container->sort == NCGRP) {
         grp = (NC_GRP_INFO_T*)container;
 	atts = grp->att;
-	nczname = NCZ_ARRAY;
+	nczname = NCZ_GROUP;
     }
     
     if(ncindexsize(atts) > 0) {
@@ -1157,14 +1165,23 @@ ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp
     if(!purezarr) {
         if(jtypes == NULL) NCJnew(NCJ_DICT,&jtypes);
         if(jatts == NULL) NCJnew(NCJ_DICT,&jatts);
+        /* Insert _nczarr_group|_nczarr_var + type */
+	if(jnczconp != NULL && *jnczconp != NULL) {
+	    if((stat = ncz_insert_attr(jatts,jtypes,nczname,jnczconp,"|J0"))) goto done;
+	    *jnczconp = NULL;
+	}
+	/* Insert _nczarr_super (if root group) + type */
+	if(jsuperp != NULL && *jsuperp != NULL) {
+	    if((stat=ncz_insert_attr(jatts,jtypes,NCZ_SUPERBLOCK,jsuperp,"|J0"))) goto done;
+	    *jsuperp = NULL;
+	}
+	
         /* Build _nczarr_attrs */
 	NCJnew(NCJ_DICT,&jnczatt);
 	NCJcheck(NCJinsert(jnczatt,"types",jtypes));
 	/* WARNING, jtypes may undergo further changes */
         /* Insert _nczarr_attrs + type */	
-	if((stat=ncz_insert_attr(jatts,jtypes,NCZ_ATTR,&jnczatt,"|J1"))) goto done;
-        /* Insert _nczarr_group|_nczarr_var + type */
-	if((stat = ncz_insert_attr(jatts,jtypes,nczname,jnczconp,"|J1"))) goto done;
+	if((stat=ncz_insert_attr(jatts,jtypes,NCZ_ATTR,&jnczatt,"|J0"))) goto done;
 	jtypes = NULL;
 	assert(*jnczconp == NULL && jnczatt == NULL && jtypes == NULL);
     }
@@ -1360,10 +1377,43 @@ ZF2_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindi
 }
 
 int
-ZF2_decode_chunkkey(NC_FILE_INFO_T* file, char* dimsep, char* chunkname, size_t* rankp, size64_t** chunkindicesp)
+ZF2_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkname, size_t* rankp, size64_t** chunkindicesp)
 {
     int stat = NC_NOERR;
+    char* oldp;
+    char* newp;
+    size64_t* chunkindices = NULL;
+    char sep;
+    size_t rank,r;
+    char* chunkkey = strdup(chunkname);
 
+    assert(strlen(dimsep)==1);
+    sep = dimsep[0];
+    assert(islegaldimsep(sep));
+
+    rank = 0;
+    /* Pass 1 to get rank and separate the indices*/
+    oldp = chunkkey;
+    for(;;) {
+	newp = strchr(oldp,sep); /* look for next sep or eos */
+	rank++;
+	if(newp == NULL) break;
+	*newp = '\0';
+	oldp = newp+1;
+    }
+    /* Create index vector */
+    if((chunkindices = (size64_t*)malloc(rank*sizeof(size64_t)))==NULL) {stat = NC_ENOMEM; goto done;}
+    /* Pass 2 to get indices */
+    oldp = chunkkey;
+    for(r=0;r<rank;r++) {
+	sscanf(oldp,"%llu",&chunkindices[r]);
+	oldp += (strlen(oldp)+1);
+    }
+    if(rankp) *rankp = rank;
+    if(chunkindicesp) {*chunkindicesp = chunkindices; chunkindices = NULL;}
+done:
+    nullfree(chunkkey);
+    nullfree(chunkindices);
     return THROW(stat);
 }
 
@@ -1596,8 +1646,8 @@ computeattrinfo(NC_FILE_INFO_T* file, const char* aname, const NCjson* jtypes, c
         ainfo->nctype = NC_NAT;
         NCJcheck(NCJdictget(jtypes,aname,(NCjson**)&jatype));
         if(jatype == NULL) {stat = NC_ENCZARR; goto done;}
-        if((stat=dtype2nctype(file,NCJstring(jatype),NC_NAT,&ainfo->nctype,&ainfo->endianness,&ainfo->typelen))) goto done;
-        if(ainfo->nctype > NC_MAX_ATOMIC_TYPE) {stat = NC_EINTERNAL; goto done;}
+        if((stat=dtype2nctype(file,NCJstring(jatype),ISATTR,&ainfo->nctype,&ainfo->endianness,&ainfo->typelen))) goto done;
+        if(ainfo->nctype >= N_NCZARR_TYPES) {stat = NC_EINTERNAL; goto done;}
     }
     if((stat = NCZ_computeattrdata(file,ainfo))) goto done;
 

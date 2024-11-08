@@ -82,7 +82,7 @@ int (*encode_group)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jatts, NC
 int (*encode_nczarr_array)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jzvarp);
 int (*encode_var)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jattsp, NClist* filtersj, NCjson** jvarp);
 
-int (*encode_attributes)(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp, NCjson** jattsp);
+int (*encode_attributes)(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp, NCjson** jsuperp, NCjson** jattsp);
 
 /*Filter Processing*/
 int (*encode_filter)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp);
@@ -97,7 +97,7 @@ int (*searchobjects)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames,
 
 /*Chunkkeys*/
 int (*encode_chunkkey)(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
-int (*decode_chunkkey)(NC_FILE_INFO_T* file, char* dimsep, char* chunkname, size_t* rankp, size64_t** chunkindicesp);
+int (*decode_chunkkey)(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkname, size_t* rankp, size64_t** chunkindicesp);
 } NCZ_Formatter;
 
 #if defined(__cplusplus)
@@ -134,7 +134,7 @@ extern int NCZF_encode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NC
 extern int NCZF_encode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jatts, NCjson** jgroupp);
 extern int NCZF_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jzvarp);
 extern int NCZF_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jattsp, NClist* filtersj, NCjson** jvarp);
-extern int NCZF_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczvar, NCjson** jattsp);
+extern int NCZF_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczvar, NCjson** jsuperp, NCjson** jattsp);
 
 /*Filter Processing*/
 extern int NCZF_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp);
@@ -149,7 +149,7 @@ extern int NCZF_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* 
 
 /*Chunkkeys*/
 extern int NCZF_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
-extern int NCZF_decode_chunkkey(NC_FILE_INFO_T* file, char* dimsep, char* chunkname, size_t* rankp, size64_t** chunkindicesp);
+extern int NCZF_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkname, size_t* rankp, size64_t** chunkindicesp);
 
 /* Define known dispatch tables and initializers */
 /* Each handles a specific NCZarr format + Pure Zarr */

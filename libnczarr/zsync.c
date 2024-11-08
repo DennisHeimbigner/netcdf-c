@@ -84,17 +84,14 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     size_t i;
     NCZ_FILE_INFO_T* zinfo = NULL;
     int purezarr = 0;
-    NCjson* jgroup = NULL;
     NCjson* jnczgrp = NULL;
     NCjson* jsuper = NULL;
-    NCjson* jatts = NULL;
     NCjson* jtypes = NULL;
-    struct ZOBJ zobj;
+    struct ZOBJ zobj = NCZ_emptyzobj();
 
     ZTRACE(3,"file=%s grp=%s isclose=%d",file->controller->path,grp->hdr.name,isclose);
 
     zinfo = file->format_file_info;
-
     TESTPUREZARR;
 
     if(!purezarr) {
@@ -106,15 +103,14 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     }
 
     /* Assemble JSON'ized attributes */
-    if((stat = NCZF_encode_attributes(file,(NC_OBJ*)grp,&jnczgrp,&jatts))) goto done;
+    /* Optionally uses _nczarr_group &/or _nczarr_superblock */
+    if((stat = NCZF_encode_attributes(file,(NC_OBJ*)grp,&jnczgrp,&jsuper,&zobj.jatts))) goto done;
 
     /* Assemble group JSON object */
     /* Watch out &jatts is passed so that it can be NULL'd if consumed */
-    if((stat=NCZF_encode_group(file,grp,&jatts,&jgroup))) goto done;
+    if((stat=NCZF_encode_group(file,grp,&zobj.jatts,&zobj.jobj))) goto done;
 
     /* upload group json and (depending on version) the group attributes */
-    zobj.jobj = jgroup; jgroup = NULL;
-    zobj.jatts = jatts; jatts = NULL;
     if((stat = NCZF_upload_grp(file,grp,&zobj))) goto done;
 
     /* encode and upload the vars in this group and sync the data */
@@ -131,11 +127,9 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     
 done:
     NCZ_clear_zobj(&zobj);    
-    NCZ_reclaim_json(jsuper);
-    NCZ_reclaim_json(jgroup);
     NCZ_reclaim_json(jnczgrp);
     NCZ_reclaim_json(jtypes);
-    NCZ_reclaim_json(jatts);
+    NCZ_reclaim_json(jsuper);
     return ZUNTRACE(THROW(stat));
 }
 
@@ -154,18 +148,15 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = NULL;
-    NCjson* jvar = NULL;
-    NCjson* jatts = NULL;
     NCjson* jnczvar = NULL;
     int purezarr = 0;
     NCZ_VAR_INFO_T* zvar = var->format_var_info;
     NClist* filtersj = nclistnew();
-    struct ZOBJ zobj;
+    struct ZOBJ zobj = NCZ_emptyzobj();
 
     ZTRACE(3,"file=%s var=%s isclose=%d",file->controller->path,var->hdr.name,isclose);
 
     zinfo = file->format_file_info;
-
     TESTPUREZARR;
 
     /* Make sure that everything is established */
@@ -190,7 +181,7 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     if(!purezarr) {
         if((stat=NCZF_encode_nczarr_array(file,var,&jnczvar))) goto done;
     }
-    if((stat=NCZF_encode_attributes(file,(NC_OBJ*)var,&jnczvar,&jatts))) goto done;
+    if((stat=NCZF_encode_attributes(file,(NC_OBJ*)var,&jnczvar,NULL,&zobj.jatts))) goto done;
 
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Encode the filters */
@@ -198,18 +189,14 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
 #endif
 
     /* encode the var JSON including (optionally) the attributes */
-    if((stat=NCZF_encode_var(file,var,&jatts,filtersj,&jvar))) goto done;
+    if((stat=NCZF_encode_var(file,var,&zobj.jatts,filtersj,&zobj.jobj))) goto done;
     /* Write out the the var JSON and the corresponding attributes and chunks */
-    zobj.jobj = jvar; jvar = NULL;
-    zobj.jatts = jatts; jatts = NULL;
     if((stat = NCZF_upload_var(file,var,&zobj))) goto done;
     var->created = 1;
 
 done:
     NCZ_clear_zobj(&zobj);
-    NCZ_reclaim_json(jvar);
     NCZ_reclaim_json(jnczvar);
-    NCZ_reclaim_json(jatts);
     NCZ_reclaim_json_list(filtersj);
     return ZUNTRACE(THROW(stat));
 }
@@ -356,10 +343,10 @@ ncz_decode_file(NC_FILE_INFO_T* file)
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = file->format_file_info;
     NC_GRP_INFO_T* root = NULL;
-    struct ZOBJ zobj = NCZ_emptyzobj();
     const NCjson* jsuper = NULL;
     NClist* varnames = nclistnew();
     NClist* subgroupnames = nclistnew();
+    struct ZOBJ zobj = NCZ_emptyzobj();
 
     LOG((3, "%s: file: %s", __func__, file->controller->path));
     ZTRACE(3,"file=%s",file->controller->path);
