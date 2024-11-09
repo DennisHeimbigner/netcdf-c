@@ -485,13 +485,14 @@ typedef struct NCglobalstate {
 #ifndef WATCH
 	NClist* pluginpaths; /* NCZarr mirror of plugin paths */
 #endif
-	NClist* codec_defaults;
-	NClist* default_libs;
-	/* All possible HDF5 filter plugins */
-	/* Consider onverting to linked list or hash table or
+	NClist* codec_defaults; /* NClist<struct CodecAPI*> */
+	NClist* default_libs; /* NClist<NCPSharedLib**> */
+	/* All possible HDF5 filter plugins (except hdf5raw */
+	/* Consider converting to linked list or hash table or
 	   equivalent since very sparse */
 	struct NCZ_Plugin** loaded_plugins; //[H5Z_FILTER_MAX+1];
 	size_t loaded_plugins_max; /* plugin filter id index. 0<loaded_plugins_max<=H5Z_FILTER_MAX */
+	struct CodecAPI* hdf5raw; /* Used when an HDF5 filter has no corresponding codec */
     } zarr;
     struct GlobalAWS { /* AWS S3 specific parameters/defaults */
 	char* default_region;

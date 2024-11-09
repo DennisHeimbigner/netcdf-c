@@ -71,8 +71,8 @@ static int NCZ_szip_modify_parameters(const NCproplist*, unsigned* idp, size_t* 
 static NCZ_codec_t NCZ_hdf5_raw_codec = {
   NCZ_CODEC_CLASS_VER,	/* Struct version number */
   NCZ_CODEC_HDF5,	/* Struct sort */
-  "hdf5raw",	        /* Standard name/id of the codec */
-  0,			/* HDF5 alias for raw */
+  H5Z_CODEC_RAW,        /* Standard name/id of the codec */
+  H5Z_FILTER_RAW,	/* HDF5 alias for raw */
   NULL,			/*NCZ_raw_codec_initialize*/
   NULL,			/*NCZ_raw_codec_finalize*/
   NCZ_raw_codec_to_hdf5,

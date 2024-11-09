@@ -1121,15 +1121,15 @@ This is for internal use only.
 It is recognized that it will be a while (if ever) until
 HDF5 filters also specify the necessary codec information.
 In order to provide some support for filters that do not have
-corresponding codec support, a "hdf5raw" codec manager is provided.
+corresponding codec support, a "_hdf5raw_" codec manager is provided.
 
 This hdf5raw codec manager encodes the parameters of the HDF5 filter
 into one of these two codec forms:
 
 * Zarr Version 2
-    ````{"id": "hdf5raw", "hdf5id": "&lt;hdf5-id&gt;, "nparams": &lt;uint&gt;, "0": &lt;uint&gt;...,"&lt;N&gt;": &lt;uint&gt;}````
+    ````{"id": "_hdf5raw_", "hdf5id": "&lt;hdf5-id&gt;, "nparams": &lt;uint&gt;, "0": &lt;uint&gt;...,"&lt;N&gt;": &lt;uint&gt;}````
 * Zarr Version 3
-    ````{"name": "hdf5raw, "configuration": {"hdf5id": &lt;uint&gt;, "nparams": &lt;uint&gt;, "0": &lt;uint&gt;...,"&lt;N&gt;": &lt;uint&gt;}}````
+    ````{"name": "_hdf5raw_", "configuration": {"hdf5id": &lt;uint&gt;, "nparams": &lt;uint&gt;, "0": &lt;uint&gt;...,"&lt;N&gt;": &lt;uint&gt;}}````
 
 There are couple things to note about hdf5raw:
 1. this cannot be used if a modify_parameters function is required.

@@ -172,7 +172,6 @@ NCZ_plugin_path_get(NCPluginList* dirs)
 	for(i=0;i<dirs->ndirs;i++) {
 	    const char* dir = (const char*)nclistget(gs->zarr.pluginpaths,i);
 	    dirs->dirs[i] = nulldup(dir);
-if(dirs->dirs[0] < (void*)1000) abort();
 	}
     }
 done:
@@ -206,7 +205,6 @@ NCZ_plugin_path_set(NCPluginList* dirs)
 	size_t i;
 	for(i=0;i<dirs->ndirs;i++) {
 	    nclistpush(gs->zarr.pluginpaths,nulldup(dirs->dirs[i]));
-if(gs->zarr.pluginpaths->content[0] < (void*)1000) abort();
 	}
     }
 done:
@@ -244,20 +242,28 @@ NCZ_load_all_plugins(void)
         /* Try to load plugins from this directory */
         if((ret = NCZ_load_plugin_dir(dir))) goto done;
     }
-    if(nclistlength(gs->zarr.codec_defaults)) { /* Try to provide default for any HDF5 filters without matching Codec. */
-        /* Search the defaults */
-	for(j=0;j<nclistlength(gs->zarr.codec_defaults);j++) {
-            struct CodecAPI* dfalt = (struct CodecAPI*)nclistget(gs->zarr.codec_defaults,j);
-	    if(dfalt->codec != NULL) {
-	        const NCZ_codec_t* codec = dfalt->codec;
-	        size_t hdf5id = codec->hdf5id;
-		NCZ_Plugin* p = NULL;
-		if(hdf5id <= 0 || hdf5id > gs->zarr.loaded_plugins_max) {ret = NC_EFILTER; goto done;}
-	        p = gs->zarr.loaded_plugins[hdf5id]; /* get candidate */
-	        if(p != NULL && p->hdf5.filter != NULL
-                   && p->codec.codec == NULL) {
-		    p->codec.codec = codec;
-		    p->codec.codeclib = dfalt->codeclib;
+
+    /* Try to provide default for any HDF5 filters without matching Codec. */
+    if(nclistlength(gs->zarr.codec_defaults)) {
+        /* Search the loaded_plugins */
+        for(i=1;i<=gs->zarr.loaded_plugins_max;i++) {
+	    int matched = 0;
+	    NCZ_Plugin* p = (NCZ_Plugin*)gs->zarr.loaded_plugins[i];
+	    /* Check if plugin has codec */
+	    if(p != NULL && p->hdf5.filter != NULL && p->codec.codec == NULL) {
+		/* Find for a default for this */
+		matched = 0;
+		for(j=0;!matched && j<nclistlength(gs->zarr.codec_defaults);j++) {
+	            struct CodecAPI* dfalt = (struct CodecAPI*)nclistget(gs->zarr.codec_defaults,j);
+		    if(dfalt->codec->hdf5id == (unsigned)p->hdf5.filter->id && !dfalt->ishdf5raw) {
+			p->codec = *dfalt;
+			p->codec.defaulted = 1;
+			matched = 1;
+		    }
+		}
+		/* Last chance: use hdfraw */
+		if(gs->zarr.hdf5raw != NULL) {
+		    p->codec = *gs->zarr.hdf5raw;
 		    p->codec.defaulted = 1;
 		}
 	    }
@@ -402,30 +408,29 @@ NCZ_load_plugin(const char* path, struct NCZ_Plugin** plugp)
 
 	/* We can have cpd  or we can have (gpt && gpi && npi) but not both sets */
 	if(cpd != NULL) {
+	    /* Get vector of default codecs */
 	    cp = (const NCZ_codec_t**)cpd();
-        } else {/* cpd => !gpt && !gpi && !npi */
-            if(gpt != NULL && gpi != NULL) { /* get HDF5 info */
-                h5type = gpt();
-                h5class = gpi();        
-                /* Verify */
-                if(h5type != H5PL_TYPE_FILTER) {stat = NC_EPLUGIN; goto done;}
-                if(h5class->version != H5Z_CLASS_T_VERS) {stat = NC_EFILTER; goto done;}
-            }
-            if(npi != NULL) {/* get Codec info */
-		codec = npi();
-                /* Verify */
-                if(codec->version != NCZ_CODEC_CLASS_VER) {stat = NC_EPLUGIN; goto done;}
-                if(codec->sort != NCZ_CODEC_HDF5) {stat = NC_EPLUGIN; goto done;}
+	    if(cp != NULL) {
+		int used = 0;
+	        if((stat = loadcodecdefaults(path,cp,lib,&used))) goto done;
+		if(used) lib = NULL;
 	    }
+   	    goto done;
         }
-    }
-
-    /* Handle defaults separately */
-    if(cp != NULL) {
-	int used = 0;
-        if((stat = loadcodecdefaults(path,cp,lib,&used))) goto done;
-	if(used) lib = NULL;
-	goto done;
+	/* else !cpd => (gpt && gpi && npi) */
+        if(gpt != NULL && gpi != NULL) { /* get HDF5 info */
+	    h5type = gpt();
+            h5class = gpi();        
+            /* Verify */
+            if(h5type != H5PL_TYPE_FILTER) {stat = NC_EPLUGIN; goto done;}
+            if(h5class->version != H5Z_CLASS_T_VERS) {stat = NC_EFILTER; goto done;}
+        }
+        if(npi != NULL) {/* get Codec info */
+	    codec = npi();
+            /* Verify */
+            if(codec->version != NCZ_CODEC_CLASS_VER) {stat = NC_EPLUGIN; goto done;}
+            if(codec->sort != NCZ_CODEC_HDF5) {stat = NC_EPLUGIN; goto done;}
+        }
     }
 
     if(h5class != NULL && codec != NULL) {
@@ -560,13 +565,30 @@ loadcodecdefaults(const char* path, const NCZ_codec_t** cp, NCPSharedLib* lib, i
 
     nclistpush(gs->zarr.default_libs,lib);
     for(;*cp;cp++) {
+	size_t i;
         struct CodecAPI* c0;
         c0 = (struct CodecAPI*)calloc(1,sizeof(struct CodecAPI));
 	if(c0 == NULL) {stat = NC_ENOMEM; goto done;}
         c0->codec = *cp;
 	c0->codeclib = lib;
 	lib_used = 1; /* remember */
+	/* Replace duplicates */
+	for(i=0;i<nclistlength(gs->zarr.codec_defaults);i++) {
+	    struct CodecAPI* cold = (struct CodecAPI*)nclistget(gs->zarr.codec_defaults,i);
+	    if(cold != NULL && strcmp(c0->codec->codecid,cold->codec->codecid)==0) {
+	        cold = (struct CodecAPI*)nclistremove(gs->zarr.codec_defaults,i);
+		nullfree(cold);
+		break;
+	    }
+	}
 	nclistpush(gs->zarr.codec_defaults,c0); c0 = NULL;
+	/* Was this the hdf5raw codec? */
+	for(i=0;i<nclistlength(gs->zarr.codec_defaults);i++) {
+	    struct CodecAPI* codec = (struct CodecAPI*)nclistget(gs->zarr.codec_defaults,i);
+	    if(codec->codec->hdf5id == H5Z_FILTER_RAW && strcasecmp(codec->codec->codecid,H5Z_CODEC_RAW)==0) {
+	        gs->zarr.hdf5raw = codec; /* Overwrite any previous */
+	    }
+	}
     }
 done:
     if(lib_usedp) *lib_usedp = lib_used;

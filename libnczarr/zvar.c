@@ -373,7 +373,7 @@ NCZ_fillin_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_TYPE_INFO_T* type,
     NC_DIM_INFO_T* dim = NULL;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     NCZ_VAR_INFO_T* zvar = NULL;
-    NCglobalstate* gstate = NC_getglobalstate();
+    NCglobalstate* gs = NC_getglobalstate();
 
     /* Add storage for NCZ-specific var info. */
     if (!(zvar = calloc(1, sizeof(NCZ_VAR_INFO_T)))) {stat = NC_ENOMEM; goto done;}
@@ -382,7 +382,7 @@ NCZ_fillin_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_TYPE_INFO_T* type,
     zvar->scalar = (ndims == 0 ? 1 : 0);
     zmaxstrlen(&zvar->maxstrlen,zfile->default_maxstrlen);
 
-    zvar->dimension_separator = gstate->zarr.dimension_separator;
+    zvar->dimension_separator = gs->zarr.dimension_separator;
     assert(zvar->dimension_separator != 0);
 
     /* Set these state flags for the var. */
@@ -462,7 +462,7 @@ var->type_info->rc++;
     zvar->chunksize = zvar->chunkproduct * var->type_info->size;
 
     /* Set cache defaults */
-    var->chunkcache = gstate->chunkcache;
+    var->chunkcache = gs->chunkcache;
 
     /* Create the cache */
     if((stat=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,zvar->dimension_separator,&zvar->cache)))
