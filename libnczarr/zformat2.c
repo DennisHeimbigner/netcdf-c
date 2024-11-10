@@ -77,9 +77,10 @@ static int ZF2_download_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOB
 static int ZF2_download_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj);
 static int ZF2_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* jgroup, NCjson** jzgrpp, NCjson** jzsuperp);
 static int ZF2_decode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NCjson* jsuper, int* zarrformat, int* nczarrformat);
-static int ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jnczgrp, NClist* vars, NClist* subgrps);
+static int ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jnczgrp, NClist* vars, NClist* subgrps, NClist* dimdefs);
 static int ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NClist* jfilters, size64_t** shapep, size64_t** chunksp, NClist* dimrefs);
 static int ZF2_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts);
+static int decode_var_dimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, size_t rank, const size64_t* shapes, const NCjson* xarray, const NCjson* jdimrefs, NClist* dimrefs);
 static int ZF2_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj);
 static int ZF2_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj);
 static int ZF2_encode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsuperp);
@@ -310,12 +311,11 @@ done:
 }
 
 int
-ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jnczgrp, NClist* vars, NClist* subgrps)
+ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jnczgrp, NClist* vars, NClist* subgrps, NClist* dimdefs)
 {
     int stat = NC_NOERR;
     size_t i;
     const NCjson* jvalue = NULL;
-    NClist* dimdefs = nclistnew(); /* NClist<struct NCZ_DimInfo> */
 
     ZTRACE(3,"file=%s grp=%s",file->controller->path,grp->hdr.name);
 
@@ -352,14 +352,7 @@ ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* 
 	}
     }
 
-    /* Declare the dimensions in this group */
-    for(i=0;i<nclistlength(dimdefs);i++) {
-	struct NCZ_DimInfo* di = (struct NCZ_DimInfo*)nclistget(dimdefs,i);
-	if((stat = ncz4_create_dim(file,grp,di,NULL))) goto done;
-    }
-
 done:
-    NCZ_reclaim_diminfo_list(dimdefs);
     return ZUNTRACE(THROW(stat));
 }
 
@@ -367,7 +360,6 @@ int
 ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NClist* jfilters, size64_t** shapesp, size64_t** chunksp, NClist* dimrefs)
 {
     int stat = NC_NOERR;
-    size_t j;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     int purezarr = 0;
     /* per-variable info */
@@ -377,6 +369,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
     const NCjson* jncvar = NULL;
     const NCjson* jdimrefs = NULL;
     const NCjson* jvalue = NULL;
+    const NCjson* jxarray = NULL;
     int varsized = 0;
     int suppress = 0; /* Abort processing of this variable */
     nc_type vtype = NC_NAT;
@@ -477,38 +470,19 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 	    assert((NCJsort(jdimrefs) == NCJ_ARRAY));
 	    if(zvar->scalar) {
 		assert(NCJarraylength(jdimrefs) == 1);
-	    } else {
-		for(j=0;j<zarr_rank;j++) {
-		    const NCjson* dimpath = NCJith(jdimrefs,j);
-		    assert(NCJsort(dimpath) == NCJ_STRING);
-		    nclistpush(dimrefs,strdup(NCJstring(dimpath)));
-		}
 	    }
-	    jdimrefs = NULL; /* avoid double free */
-	    if(nclistlength(dimrefs) != zarr_rank) {stat = NC_ENOTZARR; goto done;}
 	}
     }
-    if(nclistlength(dimrefs) == 0) { /* Try XARRAY Attribute */
-	NCJcheck(NCJdictget(jvar,NC_XARRAY_DIMS,(NCjson**)&jvalue));
-	if(jvalue != NULL) {
+    if(jdimrefs == NULL) { /* Try XARRAY Attribute */
+	NCJcheck(NCJdictget(jvar,NC_XARRAY_DIMS,(NCjson**)&jxarray));
+	if(jxarray != NULL) {
 	    zvar->scalar = 0; /* Xarray does not support scalars */
-	    assert((NCJsort(jdimrefs) == NCJ_ARRAY));
+	    assert((NCJsort(jxarray) == NCJ_ARRAY));
 	    if(NCJarraylength(jvalue) != zarr_rank) {stat = NC_ENOTZARR; goto done;}
-	    for(j=0;j<zarr_rank;j++) {
-		const NCjson* dimpath = NCJith(jvalue,j);
-		assert(NCJsort(dimpath) == NCJ_STRING);
-		nclistpush(dimrefs,strdup(NCJstring(dimpath)));
-	    }
-	}
-	if(nclistlength(dimrefs) != zarr_rank) {stat = NC_ENOTZARR; goto done;}
-    }
-    if(nclistlength(dimrefs) == 0) { /* Finally, simulate it from the shape of the variable */
-	char anonname[NC_MAX_NAME];
-	for(j=0;j<zarr_rank;j++) {
-	    snprintf(anonname,sizeof(anonname),"/%s_%lld",NCDIMANON,shapes[j]);
-	    nclistpush(dimrefs,strdup(anonname));
 	}
     }
+    if((stat = decode_var_dimrefs(file,var,zarr_rank,shapes,jxarray,jdimrefs,dimrefs))) goto done;
+    if(nclistlength(dimrefs) != zarr_rank) {stat = NC_ENOTZARR; goto done;}
 
     /* Capture dimension_separator (must precede chunk cache creation) */
     {
@@ -713,7 +687,6 @@ ZF2_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jat
 	        isdfaltmaxstrlen = 1;
 	    if(var != NULL && strcmp(aname,NC_NCZARR_MAXSTRLEN_ATTR)==0)
 	        ismaxstrlen = 1;
-
 	    /* See if this is reserved attribute */
 	    ra = NC_findreserved(aname);
 	    if(ra != NULL) {
@@ -742,6 +715,10 @@ ZF2_decode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jat
 		/* case other: if attribute is hidden */
 		if(ra->flags & HIDDENATTRFLAG) continue; /* ignore it */
 	    }
+
+if(aname && strncmp(aname,NCZ_PREFIX,strlen(NCZ_PREFIX))==0)
+{int x = 0;}
+
 	    if(isfillvalue)
 	        ainfo.nctype = var->type_info->hdr.id ; /* if unknown use the var's type for _FillValue */
 	    /* Create the attribute */
@@ -1429,15 +1406,14 @@ decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims, N
 
     assert(NCJsort(jdims) == NCJ_DICT);
     for(i=0;i<NCJdictlength(jdims);i++) {
-	const NCjson* jname= NCJdictkey(jdims,i);
+	const NCjson* jname = NCJdictkey(jdims,i);
 	const NCjson* jdim = NCJdictvalue(jdims,i);
 	struct NCJconst cvt;
 
 	memset(&cvt,0,sizeof(cvt));
 	if((dimdef = (struct NCZ_DimInfo*)calloc(1,sizeof(struct NCZ_DimInfo)))==NULL) goto done;
 
-	/* Verify name legality */
-	if((stat = nc4_check_name(NCJstring(jname), dimdef->norm_name))) {stat = NC_EBADNAME; goto done;}
+	strncpy(dimdef->norm_name,NCJstring(jname),sizeof(dimdef->norm_name));
 
 	if(NCJisatomic(jdim)) { /* old-style length only dimension spec */
 	    NCJcheck(NCJcvt(jdim,NCJ_INT,&cvt));	    
@@ -1460,6 +1436,35 @@ decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims, N
 
 done:
     NCZ_reclaim_diminfo(dimdef);
+    return THROW(stat);
+}
+
+static int
+decode_var_dimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, size_t rank, const size64_t* shapes, const NCjson* jxarray, const NCjson* jdimrefs, NClist* dimrefs)
+{
+    int stat = NC_NOERR;
+    size_t j;
+
+    assert(dimrefs != NULL);
+    if(jdimrefs != NULL) { /* Use the NCZarr dimension fqns */
+	for(j=0;j<rank;j++) {
+	    const NCjson* jfqn = NCJith(jdimrefs,j);
+	    assert(NCJsort(jfqn) == NCJ_STRING);
+	    nclistpush(dimrefs,strdup(NCJstring(jfqn)));
+	}
+    } else if(jxarray != NULL) { /* use xarray names */
+	for(j=0;j<rank;j++) {
+	    const NCjson* jxname = NCJith(jxarray,j);
+	    assert(NCJsort(jxname) == NCJ_STRING);
+	    nclistpush(dimrefs,strdup(NCJstring(jxname)));
+	}
+    } else { /* Finally, simulate it from the shape of the variable */
+	char anonname[NC_MAX_NAME];
+	for(j=0;j<rank;j++) {
+	    snprintf(anonname,sizeof(anonname),"/%s_%lld",NCDIMANON,shapes[j]);
+	    nclistpush(dimrefs,strdup(anonname));
+	}
+    }
     return THROW(stat);
 }
 

@@ -317,6 +317,12 @@ typedef struct NCZ_DimInfo {
     int unlimited;
 } NCZ_DimInfo;
 
+/* Dimension declaration info */
+typedef struct NCZ_DimDecl {
+    char* fqn;
+    size64_t shape;
+} NCZ_DimDecl;
+
 /* Parsed Attribute info */
 struct NCZ_AttrInfo {
     const char* name;

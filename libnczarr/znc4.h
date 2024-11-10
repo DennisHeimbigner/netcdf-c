@@ -35,7 +35,7 @@ extern int ncz4_build_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
 			        NClist* filters,
 				int no_fill,
 				void* fill_value);
-extern int ncz4_create_dim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const struct NCZ_DimInfo* dimdef,NC_DIM_INFO_T** dimp);
+extern int ncz4_create_dim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const struct NCZ_DimInfo* dimdef, NC_DIM_INFO_T** dimp);
 extern int ncz4_create_filter(NC_FILE_INFO_T* file,
 				NCZ_HDF5* hdf5,
 				NCZ_Codec* codec,

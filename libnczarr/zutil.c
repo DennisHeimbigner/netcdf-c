@@ -1144,6 +1144,28 @@ NCZ_reclaim_diminfo_list(NClist* diminfo)
     }
 }
 
+void
+NCZ_reclaim_dimdecl(struct NCZ_DimDecl* dd)
+{
+    if(dd != NULL) {
+	nullfree(dd->fqn);
+	nullfree(dd);
+    }
+}
+
+void
+NCZ_reclaim_dimdecl_list(NClist* dimdecls)
+{
+    if(dimdecls != NULL) {
+        size_t i;
+	for(i=0;i<nclistlength(dimdecls);i++) {
+	    NCZ_DimDecl* di = (NCZ_DimDecl*)nclistget(dimdecls,i);
+	    NCZ_reclaim_dimdecl(di);
+	}
+	nclistfree(dimdecls);
+    }
+}
+
 /** Locate/create a dimension that is either consistent or unique.
 @param file dataset
 @param parent default grp for creating group

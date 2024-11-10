@@ -30,6 +30,8 @@ static int ncz_decode_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* 
 static int ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson* jnczarr);
 static int ncz_decode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* filters);
 static int get_group_content_pure(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrps);
+static int reifydimrefs(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NC_VAR_INFO_T* var, size64_t* shapes, NClist* dimrefs, NClist* dimdecls);
+static int definedim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* basename, size64_t shape, NC_DIM_INFO_T** dimp);
 
 /**************************************************/
 /* Synchronize functions to make map and memory
@@ -417,9 +419,11 @@ static int
 ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
+    size_t i;
     NCZ_FILE_INFO_T* zinfo = file->format_file_info;
     NClist* varnames = nclistnew();
     NClist* subgrps = nclistnew();
+    NClist* dimdefs = nclistnew();
     int purezarr = 0;
     const NCjson* jnczgrp = NULL;
 
@@ -434,8 +438,14 @@ ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
     if(purezarr) {
 	if((stat = get_group_content_pure(file,grp,varnames,subgrps))) goto done;
     } else { /*!purezarr*/
-        /* Decode the _nczarr_group; also creates the dimension decls */
-        if((stat = NCZF_decode_nczarr_group(file,grp,jnczgrp,varnames,subgrps))) goto done;
+        /* Decode the _nczarr_group */
+        if((stat = NCZF_decode_nczarr_group(file,grp,jnczgrp,varnames,subgrps,dimdefs))) goto done;
+    }
+
+    /* Declare the dimensions in this group */
+    for(i=0;i<nclistlength(dimdefs);i++) {
+	struct NCZ_DimInfo* di = (struct NCZ_DimInfo*)nclistget(dimdefs,i);
+	if((stat = ncz4_create_dim(file,grp,di,NULL))) goto done;
     }
 
     /* Process attributes */
@@ -452,6 +462,7 @@ ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
     }
     
 done:
+    NCZ_reclaim_diminfo_list(dimdefs);
     nclistfreeall(varnames);
     nclistfreeall(subgrps);
     return ZUNTRACE(THROW(stat));
@@ -505,11 +516,11 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
     struct ZOBJ zobj = NCZ_emptyzobj();
     const NCjson* jnczvar = NULL;
     NClist* filters = nclistnew();
-    NClist* dimrefs = nclistnew();
-    NClist* dimdecls = nclistnew();
+    NClist* dimrefs = nclistnew(); /* NClist<char*> */
+    NClist* dimdecls = nclistnew(); /* NClist<struct NCZ_DimInfo> */
     size64_t* shapes = NULL;
     size64_t* chunks = NULL;
-    size_t i;
+    size_t i, rank;
     NCbytes* fqn = ncbytesnew();
     NCZ_VAR_INFO_T* zvar = NULL;
 
@@ -520,44 +531,27 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
     zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
     if((stat = NCZF_download_var(file,var,&zobj))) goto done;
     if((stat=NCZF_decode_var(file,var,&zobj,filters,&shapes,&chunks,dimrefs))) goto done;
+    rank = var->ndims;
+    assert(nclistlength(dimrefs)==rank);
+    assert(var->dim != NULL);
+    assert(var->dimids != NULL);
 
     /* Convert dimrefs to corresponding dimdecls */
-    for(i=0;i<nclistlength(dimrefs);i++) {
-	NC_OBJ* obj = NULL;
-	const char* dimref = (const char*)nclistget(dimrefs,i);
-	if(dimref == NULL || strlen(dimref) == 0) {stat = NC_ENOTZARR; goto done;}
-	if(dimref[0] == '/') { /* Absolute path */
-	    if((stat = NCZ_locateFQN(file->root_grp, dimref, NCDIM, &obj, NULL))) goto done;
-	    if(obj == NULL || obj->sort != NCDIM) {stat = NC_ENOTZARR; goto done;}
-	    nclistpush(dimdecls,obj);
-	} else { /* relative to root group */
-	    if((stat = NCZ_makeFQN(file->root_grp,dimref,fqn))) goto done;
-	    if((stat = NCZ_locateFQN(file->root_grp, ncbytescontents(fqn), NCDIM, &obj, NULL))) goto done;
-	    if(obj == NULL || obj->sort != NCDIM) {
-		struct NCZ_DimInfo di;
-		memcpy(di.norm_name,dimref,sizeof(di.norm_name));
-		di.shape = shapes[i];
-		di.unlimited = 0;
-		/* create the dimension in the root group */
-		if((stat = ncz4_create_dim(file,file->root_grp,&di,(NC_DIM_INFO_T**)&obj))) goto done;
-	    }
-	    nclistpush(dimdecls,obj);
-	}
-    }
+    if((stat = reifydimrefs(file,parent,var,shapes,dimrefs,dimdecls))) goto done;
 
     /* Process chunks and shapes */
     assert(var->chunksizes == NULL);
-    if(var->ndims == 0) { /* Scalar */
+    if(rank == 0) { /* Scalar */
 	var->dimids = NULL;
 	var->dim = NULL;
 	var->chunksizes = NULL;
 	zvar->chunkproduct = 1;
 	zvar->chunksize = var->type_info->size;
     } else {
-	var->dimids = (int*)malloc(sizeof(int)*var->ndims);
-	var->dim = (NC_DIM_INFO_T**)malloc(sizeof(NC_DIM_INFO_T*)*var->ndims);
+	if((var->chunksizes = (size_t*)malloc(rank * sizeof(size_t)))==NULL) {stat = NC_ENOMEM; goto done;}
 	zvar->chunkproduct = 1;
-	for(i=0;i<nclistlength(dimdecls);i++) {
+	assert(nclistlength(dimdecls) == rank);
+	for(i=0;i<rank;i++) {
 	    NC_DIM_INFO_T* dim = (NC_DIM_INFO_T*)nclistget(dimdecls,i);
 	    var->dim[i] = dim;
 	    var->dimids[i] = dim->hdr.id;
@@ -577,6 +571,8 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
     if((stat = ncz_decode_filters(file,var,filters))) goto done;
 
 done:
+    nullfree(shapes);
+    nullfree(chunks);
     nclistfreeall(dimrefs);
     nclistfree(dimdecls);
     nclistfree(filters);
@@ -1010,3 +1006,60 @@ done:
     return THROW(stat);
 }
 #endif /*0*/
+
+/* Convert dimrefs to dimesion declarations  (possibly creating them) */
+static int
+reifydimrefs(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NC_VAR_INFO_T* var, size64_t* shapes, NClist* dimrefs, NClist* dimdecls)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    size_t rank = var->ndims;    
+    NCbytes* fqn = NULL;
+    char* basename = NULL;
+
+    for(i=0;i<rank;i++) {
+	NC_OBJ* obj = NULL;
+	const char* dimref = (const char*)nclistget(dimrefs,i);
+	if(dimref == NULL || strlen(dimref) == 0) {stat = NC_ENOTZARR; goto done;}
+	if(dimref[0] == '/') { /* => FQN */
+	    switch (stat = NCZ_locateFQN(file->root_grp, dimref, NCDIM, &obj, &basename)) {
+	    case NC_NOERR: break; /* Dimension exists */
+	    case NC_ENOOBJECT: /* Need to create dimension */
+		if((stat = definedim(file,(NC_GRP_INFO_T*)obj,basename,shapes[i],(NC_DIM_INFO_T**)&obj))) goto done;
+		break;
+	    default: goto done; /* some kind of real error */
+	    }
+	    nclistpush(dimdecls,obj);
+	} else { /* relative to parent group */
+	    if((stat = NCZ_makeFQN(parent,dimref,fqn))) goto done;
+	    if((stat = NCZ_locateFQN(file->root_grp, ncbytescontents(fqn), NCDIM, &obj, NULL))) goto done;
+	    switch (stat = NCZ_locateFQN(file->root_grp, dimref, NCDIM, &obj, &basename)) {
+	    case NC_NOERR: break; /* Dimension exists */
+	    case NC_ENOOBJECT: /* Need to create dimension */
+		if((stat = definedim(file,(NC_GRP_INFO_T*)obj,basename,shapes[i],(NC_DIM_INFO_T**)&obj))) goto done;
+		break;
+	    default: goto done; /* some kind of real error */
+	    }
+	    nclistpush(dimdecls,obj);
+	}
+    }
+done:
+    nullfree(basename);
+    ncbytesfree(fqn);
+    return THROW(stat);
+}
+
+static int
+definedim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* basename, size64_t shape, NC_DIM_INFO_T** dimp)
+{
+    int stat = NC_NOERR;
+    struct NCZ_DimInfo dimdef;
+    assert(parent->hdr.sort == NCGRP);
+    strncpy(dimdef.norm_name,basename,sizeof(dimdef.norm_name));
+    /* Use shape as the size */
+    dimdef.shape = (size_t)shape;
+    dimdef.unlimited = 0;
+    if((stat = ncz4_create_dim(file,parent,&dimdef,dimp))) goto done;
+done:
+    return THROW(stat);
+}
