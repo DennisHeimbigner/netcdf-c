@@ -169,12 +169,13 @@ Optionally Inserted into any group zarr.json or array zarr.json is the extra att
 */
 
 /* Common constants for both V2 and V3 */
-#define NCZ_PREFIX "_nczarr"
-#define NCZ_SUPERBLOCK "_nczarr_superblock"
 /* Must match values in include/nc4internal.h */
-#define NCZ_GROUP   "_nczarr_group"
-#define NCZ_ARRAY   "_nczarr_array"
-#define NCZ_ATTR    "_nczarr_attrs"
+#define NCZ_PREFIX "_nczarr"
+#define NCZ_SUPERBLOCK NC_NCZARR_SUPERBLOCK
+#define NCZ_GROUP    NC_NCZARR_GROUP
+#define NCZ_ARRAY    NC_NCZARR_ARRAY
+#define NCZ_ATTRS    NC_NCZARR_ATTRS
+#define NCZ_ATTR_OLD NC_NCZARR_ATTR
 
 #define NCZARRCONTROL "nczarr"
 #define PUREZARRCONTROL "zarr"

@@ -433,8 +433,7 @@ ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
 
     /* Decode the group metadata */
     if((stat = NCZF_decode_group(file,grp,zobj,(NCjson**)&jnczgrp,NULL))) goto done;
-    if(zobj->jobj == NULL) {stat = NC_ENOTZARR; goto done;}
-	
+    if(!purezarr && zobj->jobj == NULL) {stat = NC_ENOTZARR; goto done;}
     if(purezarr) {
 	if((stat = get_group_content_pure(file,grp,varnames,subgrps))) goto done;
     } else { /*!purezarr*/
@@ -674,6 +673,7 @@ ncz_decode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* filte
 	    if((filter = (NCZ_Filter*)calloc(1,sizeof(NCZ_Filter)))==NULL) {stat = NC_ENOMEM; goto done;}
 	    if((stat = NCZF_decode_filter(file,var,jfilter,filter))) goto done;
 	    if((stat=NCZ_addfilter(file,var,&filter))) goto done; /* addfilter will take control of filter object */
+	    NCZ_filter_free(filter); filter = NULL;
 	}
     }
 done:
@@ -886,17 +886,17 @@ done:
 
 #if 0
 /**
-Insert _nczarr_attr into .zattrs
+Insert _nczarr_attrs into .zattrs
 Take control of jtypes
 @param jatts
 @param jtypes
 */
 static int
-insert_nczarr_attr(NCjson* jatts, NCjson* jtypes)
+insert_nczarr_attrs(NCjson* jatts, NCjson* jtypes)
 {
     NCjson* jdict = NULL;
     if(jatts != NULL && jtypes != NULL) {
-	NCJinsertstring(jtypes,NCZ_ATTR,"|J0"); /* type for _nczarr_attr */
+	NCJinsertstring(jtypes,NCZ_ATTRS,"|J0"); /* type for _nczarr_attrs */
         NCJnew(NCJ_DICT,&jdict);
         NCJinsert(jdict,"types",jtypes);
         NCJinsert(jatts,NCZ_ATTR,jdict);
@@ -1017,9 +1017,12 @@ reifydimrefs(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NC_VAR_INFO_T* var, si
     NCbytes* fqn = NULL;
     char* basename = NULL;
 
+    fqn = ncbytesnew();
     for(i=0;i<rank;i++) {
 	NC_OBJ* obj = NULL;
 	const char* dimref = (const char*)nclistget(dimrefs,i);
+	nullfree(basename); basename = NULL;
+	ncbytesclear(fqn);
 	if(dimref == NULL || strlen(dimref) == 0) {stat = NC_ENOTZARR; goto done;}
 	if(dimref[0] == '/') { /* => FQN */
 	    switch (stat = NCZ_locateFQN(file->root_grp, dimref, NCDIM, &obj, &basename)) {
@@ -1032,8 +1035,7 @@ reifydimrefs(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NC_VAR_INFO_T* var, si
 	    nclistpush(dimdecls,obj);
 	} else { /* relative to parent group */
 	    if((stat = NCZ_makeFQN(parent,dimref,fqn))) goto done;
-	    if((stat = NCZ_locateFQN(file->root_grp, ncbytescontents(fqn), NCDIM, &obj, NULL))) goto done;
-	    switch (stat = NCZ_locateFQN(file->root_grp, dimref, NCDIM, &obj, &basename)) {
+	    switch (stat = NCZ_locateFQN(file->root_grp, ncbytescontents(fqn), NCDIM, &obj, &basename)) {
 	    case NC_NOERR: break; /* Dimension exists */
 	    case NC_ENOOBJECT: /* Need to create dimension */
 		if((stat = definedim(file,(NC_GRP_INFO_T*)obj,basename,shapes[i],(NC_DIM_INFO_T**)&obj))) goto done;

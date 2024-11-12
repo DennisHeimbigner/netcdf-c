@@ -65,9 +65,6 @@
 
 #define NULLIFY(x) ((x)?(x):"NULL")
 
-#define H5Z_FILTER_RAW 0
-#define H5Z_CODEC_RAW "hdf5raw"
-
 NCZ_Codec
 NCZ_codec_empty(void)
 {
@@ -394,20 +391,21 @@ NCZ_addfilter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter** fip)
     /* Warning if filter already exists, fi will be changed to be that filter and old fi will be reclaimed */
     /* If it already exists, then overwrite the parameters */
     if(exists) {
-	/* Overwrite old filter and reclaim the new filter*/
+	/* Overwrite old filter and let caller reclaim  *fip */
 	if((stat = NCZ_overwrite_filter(file,fi,oldfi))) goto done;
-	NCZ_filter_free(fi); {fi = NULL; *fip = NULL;}
     } else { /*!exists*/
 	NCZ_Plugin* plugin = NULL;
         /* Find the matching plugin, if any */
         if((stat = NCZ_plugin_loaded(fi->hdf5.id,&plugin))) goto done;
-	assert(fi->plugin == NULL);
+	assert(fi->plugin == NULL || fi->plugin == plugin);
         fi->plugin = plugin;
         if(fi->plugin == NULL || plugin->incomplete) fi->incomplete = 1;
         /* Add to filters list  */
 	if(var->filters == NULL) var->filters = nclistnew();
 	nclistpush((NClist*)var->filters, fi);
+	fi = NULL;
    }
+   if(fip) *fip = fi; /* assert control */
 
 done:
     return ZUNTRACE(stat);

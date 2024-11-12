@@ -450,6 +450,7 @@ NCZ_ensure_fill_chunk(NCZChunkCache* cache)
     nc_type typeid = var->type_info->hdr.id;
     size_t typesize = var->type_info->size;
 
+assert(cache->fillchunk == NULL || (((uintptr_t)100) > (uintptr_t)cache->fillchunk));
     if(cache->fillchunk) goto done;
 
     if((cache->fillchunk = malloc(cache->chunksize))==NULL)
@@ -465,22 +466,23 @@ NCZ_ensure_fill_chunk(NCZChunkCache* cache)
 	char** dst = (char**)(cache->fillchunk);
         for(i=0;i<cache->chunkcount;i++) dst[i] = strdup(src);
     } else
+assert(cache->fillchunk == NULL || (((uintptr_t)100) > (uintptr_t)cache->fillchunk));
     switch (typesize) {
-    case 1: {
+    case 1: { /*byte|char*/
         unsigned char c = *((unsigned char*)var->fill_value);
         memset(cache->fillchunk,c,cache->chunksize);
         } break;
-    case 2: {
+    case 2: { /*short*/
         unsigned short fv = *((unsigned short*)var->fill_value);
         unsigned short* p2 = (unsigned short*)cache->fillchunk;
         for(i=0;i<cache->chunksize;i+=typesize) *p2++ = fv;
         } break;
-    case 4: {
+    case 4: { /*int|float*/
         unsigned int fv = *((unsigned int*)var->fill_value);
         unsigned int* p4 = (unsigned int*)cache->fillchunk;
-        for(i=0;i<cache->chunksize;i+=typesize) *p4++ = fv;
+	for(i=0;i<cache->chunksize;i+=typesize) *p4++ = fv;
         } break;
-    case 8: {
+    case 8: { /*long|double*/
         unsigned long long fv = *((unsigned long long*)var->fill_value);
         unsigned long long* p8 = (unsigned long long*)cache->fillchunk;
         for(i=0;i<cache->chunksize;i+=typesize) *p8++ = fv;

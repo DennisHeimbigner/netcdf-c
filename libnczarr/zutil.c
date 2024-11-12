@@ -1228,7 +1228,9 @@ dictgetaltn(const NCjson* jdict, const NCjson** jvaluep, size_t nkeys, const cha
     int stat = NC_NOERR;
     const NCjson* jvalue = NULL;
     const char** pkey;
-    for(pkey=keys;*pkey;pkey++) {
+    size_t i;
+
+    for(i=0,pkey=keys;i<nkeys;i++,pkey++) {
 	if(*pkey == NULL) break;
         NCJcheck(NCJdictget(jdict,*pkey,(NCjson**)&jvalue));
 	if(jvalue != NULL) break;

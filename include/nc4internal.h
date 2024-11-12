@@ -535,6 +535,7 @@ extern void NC_initialize_reserved(void);
 #define NC_NCZARR_SUPERBLOCK "_nczarr_superblock"
 #define NC_NCZARR_GROUP "_nczarr_group"
 #define NC_NCZARR_ARRAY "_nczarr_array"
-#define NC_NCZARR_ATTR "_nczarr_attrs"
+#define NC_NCZARR_ATTRS "_nczarr_attrs"
+#define NC_NCZARR_ATTR "_nczarr_attr"
 
 #endif /* _NC4INTERNAL_ */

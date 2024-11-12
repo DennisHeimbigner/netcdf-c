@@ -20,6 +20,16 @@ cd $ISOPATH
 UH="${NCZARR_S3_TEST_HOST}"
 UB="${NCZARR_S3_TEST_BUCKET}"
 
+# Load the findplugins function
+. ${builddir}/findplugin.sh
+echo "findplugin.sh loaded"
+
+# One of the tests depends on having blosc installed
+# Assume all test filters are in same plugin dir
+findplugin h5blosc
+
+if ! avail bzip2; then return 0; fi
+
 testcasefile() {
   echo "	to Running File Testcase:	$1	$2	$3"
   zext=file
@@ -92,6 +102,8 @@ fi
 if ! test -f ${ISOPATH}/ref_quotes.zip ; then
   cp -f ${srcdir}/ref_quotes_orig.zip ${ISOPATH}/ref_quotes.zip
 fi
+
+if ! avail blosc; then exit; fi
 
 testallcases file
 if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testallcases zip; fi

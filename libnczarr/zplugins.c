@@ -262,7 +262,7 @@ NCZ_load_all_plugins(void)
 		    }
 		}
 		/* Last chance: use hdfraw */
-		if(gs->zarr.hdf5raw != NULL) {
+		if(!matched && gs->zarr.hdf5raw != NULL) {
 		    p->codec = *gs->zarr.hdf5raw;
 		    p->codec.defaulted = 1;
 		}

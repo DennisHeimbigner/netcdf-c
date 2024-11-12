@@ -1217,8 +1217,8 @@ read_grp_contents(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
     }
 
     if(!purezarr) {
-	/* Extract the _nczarr_attr values */
-	NCJcheck(NCJdictget(jatts,NCZ_V3_ATTR,&jncatt));
+	/* Extract the _nczarr_attrs|_nczarr_attr values */
+	if((stat = NCZ_dictgetalt2(jatts,&jncatt,NCZ_ATTRS,NCZ_ATTR_OLD))) goto done;
 	if(jncatt == NULL) {stat = NC_ENCZARR; goto done;}
 	assert((NCJsort(jncatt) == NCJ_DICT));
 	/* Extract attr type list */
