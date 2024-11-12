@@ -863,6 +863,15 @@ AC_MSG_RESULT([$have_zstd])
 # End zstd checks
 ##
 
+   # See if we have libzfp
+   AC_CHECK_LIB([zfp],[zfp_stream_open],[have_zfp=yes],[have_zfp=no])
+   if test "x$have_zfp" = "xyes" ; then
+      AC_SEARCH_LIBS([ZFP_compress],[zfp libzfp.a], [], [])
+      AC_DEFINE([HAVE_ZFP], [1], [if true, zfp library is available])
+   fi
+   AC_MSG_CHECKING([whether libzfp library is available])
+   AC_MSG_RESULT([${have_zfp}])
+
 ##
 # Begin bz2 checks
 ##
