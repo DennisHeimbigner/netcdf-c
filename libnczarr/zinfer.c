@@ -118,32 +118,15 @@ infer_open_format(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, int
     const NCjson* jsupera = NULL;
     struct TagParam param;
 
-    /* Probe the map for tell-tale objects and dict keys */
+    stat = NCZMD_set_metadata_handler(zfile, (const NCZ_Metadata **)&(zfile->metadata_handler));
 
-    if(zarrformat == 0) {
-        /* We need to search subtree for a V2 or V3 tag */
-	param.zarrformat = 0; param.nczarrformat = 0;
-        switch(stat = nczmap_walk(map,"/",tagsearch, &param)) {
-        case NC_NOERR:
-	    /* No tag was found, so its not a zarr file */
-	    stat = NC_ENOTZARR;
- 	    goto done;
-        case NC_EOBJECT: /* Arbitrary error signaling found and format is in param */
-	    stat = NC_NOERR;
-	    switch(param.zarrformat) {
-	    case ZARRFORMAT2: case ZARRFORMAT3: zarrformat = param.zarrformat; break;
-	    default: stat = NC_ENOTZARR; goto done;
-	    }
-	    break;
-        default: stat = NC_ENOTZARR; goto done;
-	}
-    }
+    stat = NCZMD_get_metadata_format(zfile, &zarrformat);
 
     if(zarrformat == ZARRFORMAT2 && nczarrformat == 0) {
 	NCjson* jrootatts = NULL;
         /* Download /.zattrs  and /.zgroup */
-        if((stat = NCZ_downloadjson(zfile->map, Z2ATTSROOT, &jrootgrp))) goto done;
-        if((stat = NCZ_downloadjson(zfile->map, Z2METAROOT, &jrootatts))) goto done;
+        if((stat = NCZMD_fetch_json_attrs(zfile, NULL, NULL, &jrootgrp))) goto done;
+        if((stat = NCZMD_fetch_json_group(zfile, NULL,NULL, &jrootatts))) goto done;
         /* Look for superblock */
 	if(jrootgrp != NULL) NCJdictget(jrootgrp,NCZ_V2_SUPERBLOCK,&jsuperg);
 	if(jrootatts != NULL) NCJdictget(jrootatts,NCZ_V2_SUPERBLOCK,&jsupera);
@@ -155,7 +138,7 @@ infer_open_format(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, int
     if(zarrformat == ZARRFORMAT3 && nczarrformat == 0) {
 	const NCjson* jrootatts = NULL;
         /* Look for "/zarr.json" */
-        if((stat = NCZ_downloadjson(zfile->map, Z3METAROOT, &jrootgrp))) goto done;
+        if((stat = NCZMD_fetch_json_group(zfile, NULL,NULL, &jrootgrp))) goto done;
 	if(jrootgrp == NULL || NCJsort(jrootgrp) != NCJ_DICT) {
 	    nczarrformat = NCZARRFORMAT0;
 	} else {

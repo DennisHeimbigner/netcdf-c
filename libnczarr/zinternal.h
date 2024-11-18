@@ -67,6 +67,7 @@
 #define Z3METAROOT "/zarr.json"
 #define Z3OBJECT "zarr.json"
 #define Z3GROUP Z3OBJECT
+#define Z3ATTRS Z3OBJECT
 #define Z3ARRAY Z3OBJECT
 
 /* Bytes codec name */
@@ -252,6 +253,7 @@ typedef struct NCZ_FILE_INFO {
 #		define FLAG_XARRAYDIMS  8
     NCZM_IMPL mapimpl;
     struct NCZ_Formatter* dispatcher;
+    struct NCZ_Metadata * metadata_handler;
     struct NCZ_META_HDR* metastate; /* Hold per-format state */
 } NCZ_FILE_INFO_T;
 

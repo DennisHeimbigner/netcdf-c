@@ -861,7 +861,8 @@ ZF3_readmeta(NC_FILE_INFO_T* file)
     assert(zroot);
 
     /* Read the root group's metadata */
-    if((stat = NCZ_downloadjson(zfile->map, Z3METAROOT, &jrootgrp))) goto done;
+    //if((stat = NCZ_downloadjson(zfile->map, Z3METAROOT, &jrootgrp))) goto done;
+    if((stat = NCZMD_fetch_json_group(zfile, NULL, NULL, &jrootgrp))) goto done;
     if(jrootgrp == NULL) {/* not there */
 	zfile->flags |= FLAG_PUREZARR;
 	stat = NC_NOERR; /* reset */
@@ -1184,13 +1185,14 @@ read_grp_contents(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
 
     /* build Z3GROUP path */
     /* Construct grp path */
-    if((stat = NCZ_grpkey(grp,&grppath))) goto done;
-    /* and the grp's zarr.json */
-    if((stat = nczm_concat(grppath,Z3GROUP,&key))) goto done;
+    // if((stat = NCZ_grpkey(grp,&grppath))) goto done;
+    // /* and the grp's zarr.json */
+    // if((stat = nczm_concat(grppath,Z3GROUP,&key))) goto done;
 
     /* Read zarr.json */
-    stat=NCZ_downloadjson(map,key,&jgroup);
-    nullfree(key); key = NULL;
+    //stat=NCZ_downloadjson(map,key,&jgroup);
+    stat=NCZMD_fetch_json_group(zfile,grp,key,&jgroup);
+    // nullfree(key); key = NULL;
     if(stat) goto done;
     
     /* Verify that group zarr.json exists */
@@ -1898,15 +1900,9 @@ static int
 subobjects_pure(NCZ_FILE_INFO_T* zfile, NC_GRP_INFO_T* grp, NClist* varnames, NClist* grpnames)
 {
     int stat = NC_NOERR;
-    char* grpkey = NULL;
-
-    /* Compute the key for the grp */
-    if((stat = NCZ_grpkey(grp,&grpkey))) goto done;
-    /* Get the map and search group */
-    if((stat = getnextlevel(zfile,grp,varnames,grpnames))) goto done;
-
-done:
-    nullfree(grpkey);
+    // Get names of variables and groups present in grp (from consolidated view or list storage)
+    stat = NCZMD_list_variables(zfile, grp, varnames);
+    stat = NCZMD_list_groups(zfile,grp,grpnames);
     return stat;
 }
 

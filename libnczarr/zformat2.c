@@ -1046,17 +1046,19 @@ read_grp_contents(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
     purezarr = (zfile->flags & FLAG_PUREZARR);
 
     /* Read .zgroup (might be NULL) */
-    if((stat = NCZ_grpkey(grp,&grppath))) goto done;
-    if((stat = nczm_concat(grppath,Z2GROUP,&key))) goto done;
-    stat=NCZ_downloadjson(zfile->map,key,&jgroup);
-    nullfree(key); key = NULL;
-    if(stat) goto done;
+    NCZMD_fetch_json_group(zfile, grp, NULL, &jgroup);
+    // if((stat = NCZ_grpkey(grp,&grppath))) goto done;
+    // if((stat = nczm_concat(grppath,Z2GROUP,&key))) goto done;
+    // stat=NCZ_downloadjson(zfile->map,key,&jgroup);
+    // nullfree(key); key = NULL;
+    // if(stat) goto done;
 
-    /* Read .zattrs (might be NULL) */
-    if((stat = nczm_concat(grppath,Z2ATTRS,&key))) goto done;
-    stat=NCZ_downloadjson(zfile->map,key,&jatts);
-    nullfree(key); key = NULL;
-    if(stat) goto done;
+    /* Read /.zattrs (might be NULL) */
+    NCZMD_fetch_json_attrs(zfile, grp, NULL, &jatts);
+    // if((stat = nczm_concat(grppath,Z2ATTRS,&key))) goto done;
+    // stat=NCZ_downloadjson(zfile->map,key,&jatts);
+    // nullfree(key); key = NULL;
+    // if(stat) goto done;
 
     /* Extract jatts and _nczarr_XXX values */
     if((stat = locate_nczarr_grp_info(file, grp, jgroup, jatts, &jzgroup, &jzatts, &jzsuper, &ncv21))) goto done;
@@ -1224,20 +1226,13 @@ read_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
     
     purezarr = (zfile->flags & FLAG_PUREZARR)?1:0;
 
-    /* Construct var path */
-    if((stat = NCZ_grpkey(grp,&grppath))) goto done;
-    if((stat = nczm_concat(grppath,varname,&varpath))) goto done;
-    /* Construct the path to the zarray object */
-    if((stat = nczm_concat(varpath,Z2ARRAY,&key))) goto done;
-    /* Download the .zarray object */
-    if((stat=NCZ_readdict(zfile->map,key,&jvar))) goto done;
-    nullfree(key); key = NULL;
+    /* Download the <varname>/.zarray object */
+    if((stat=NCZMD_fetch_json_array(zfile,grp,varname,&jvar))) goto done;
     if(jvar == NULL) {stat = NC_ENOTZARR; goto done;}
     /* Download the .zattrs object */
-    /* Construct the path to .zattrs object */
-    if((stat = nczm_concat(varpath,Z2ATTRS,&key))) goto done;
-    if((stat=NCZ_readdict(zfile->map,key,&jatts))) goto done;
-    nullfree(key); key = NULL;
+    
+    /* Construct the path to <varname>/.zattrs object */
+    if((stat=NCZMD_fetch_json_attrs(zfile,grp,varname,&jatts))) goto done;
     
     /* locate the _nczarr_XXX values */
     if((stat = locate_nczarr_array_info(file,grp,jvar,jatts,&jzarray,&jzatts,&nczv21))) goto done;
@@ -1873,9 +1868,10 @@ parse_group_content_pure(NC_FILE_INFO_T*  file, NC_GRP_INFO_T* grp, NClist* varn
     ZTRACE(3,"zfile=%s grp=%s |varnames|=%u |subgrps|=%u",zfile->common.file->controller->path,grp->hdr.name,(unsigned)nclistlength(varnames),(unsigned)nclistlength(subgrps));
 
     nclistclear(varnames);
-    if((stat = searchvars(zfile,grp,varnames))) goto done;
+    if((stat = NCZMD_list_variables(zfile,grp,varnames))) goto done;
     nclistclear(subgrps);
-    if((stat = searchsubgrps(zfile,grp,subgrps))) goto done;
+    if((stat = NCZMD_list_groups(zfile,grp,subgrps))) goto done;
+    //if((stat = searchsubgrps(zfile,grp,subgrps))) goto done;
 
 done:
     return ZUNTRACE(THROW(stat));

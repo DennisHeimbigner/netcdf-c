@@ -27,6 +27,9 @@ zgrp.c
 zinternal.c
 zmap.c
 zmap_file.c
+zmetadata3.c
+zmetadata2.c
+zmetadata.c
 zodom.c
 zopen.c
 zprov.c
@@ -44,6 +47,7 @@ zdispatch.h
 zincludes.h
 zinternal.h
 zmap.h
+zmetadata.h
 zodom.h
 zprovenance.h
 zfilter.h
