@@ -377,6 +377,19 @@ NCZF_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunk
     return THROW(stat);
 }
 
+/* _ARRAY_DIMENSIONS (xarray) encode/decode */
+int
+NCZF_encode_xarray(NC_FILE_INFO_T* file, size_t rank, NC_DIM_INFO_T** dims, char** xarraydims, size_t* zarr_rank)
+{
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zfile = NULL;
+
+    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    assert(zfile != NULL);
+    stat = zfile->dispatcher->encode_xarray(file,rank,dims,xarraydims,zarr_rank);
+    return THROW(stat);
+}
+
 /**************************************************/
 /* Misc. */
 

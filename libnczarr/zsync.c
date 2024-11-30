@@ -22,6 +22,7 @@ static int ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
 static int ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose);
 static int ncz_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose);
 static int ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj);
+static int ncz_create_special_var_attributes(NC_FILE_INFO_T* file,NC_VAR_INFO_T* var);
 static int ncz_flush_var(NC_VAR_INFO_T* var);
 static int ncz_decode_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames);
 static int ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj0);
@@ -183,7 +184,16 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     if(!purezarr) {
         if((stat=NCZF_encode_nczarr_array(file,var,&jnczvar))) goto done;
     }
+
+
+    /* Add special per-var attributes:
+     * 1. xarray attribute
+     * 2. quantize attribute
+     */
+    if((stat = ncz_create_special_var_attributes(file,var))) goto done;
+
     if((stat=NCZF_encode_attributes(file,(NC_OBJ*)var,&jnczvar,NULL,&zobj.jatts))) goto done;
+
 
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Encode the filters */
@@ -249,6 +259,53 @@ done:
     return THROW(stat);
 }
 
+/* Add special per-var attributes:
+ * 1. xarray attribute
+ * 2. quantization
+ */
+static int
+ncz_create_special_var_attributes(NC_FILE_INFO_T* file,NC_VAR_INFO_T* var)
+{
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
+    NC_GRP_INFO_T* parent = var->container;
+    struct NCZ_AttrInfo ainfo = NCZ_emptyAttrInfo();
+    NC_ATT_INFO_T* special = NULL;
+    char* xarraydims = NULL;
+    int isnew = 0;
+
+    if(parent->parent != NULL) goto done; /* Only do this for root group */
+    
+    /* See if _Quantize_XXX is already defined */
+    if(var != NULL && var->quantize_mode > 0) {
+	const char* qname = NC_findquantizeattname(var->quantize_mode);
+	if(qname == NULL) {stat = NC_ENOTATT; goto done;}
+	if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,qname,DA_QUANTIZE,FIXATT))) goto done;
+    }
+
+    /* See if _ARRAY_ATTRIBUTES is already defined */
+    if(zinfo->flags & FLAG_XARRAYDIMS) { /* test if we should generate xarray dimensions */
+	special = NULL;
+	isnew = 0;
+	/* get/create the xarray attribute as type NC_CHAR */
+	if((stat = NCZ_getattr(file,(NC_OBJ*)var,NC_XARRAY_DIMS,NC_CHAR,&special,&isnew))) goto done;
+	if(isnew) {
+	    size_t zarr_rank;
+	    if((stat = NCZF_encode_xarray(file,var->ndims,var->dim,&xarraydims,&zarr_rank))) goto done;
+	    /* Add as attribute to var */
+	    ainfo.name = NC_XARRAY_DIMS;
+	    ainfo.nctype = NC_CHAR;
+	    ainfo.datalen = strlen(xarraydims);
+	    ainfo.data = xarraydims; xarraydims = NULL;
+	    if((stat = ncz_makeattr(file,(NC_OBJ*)var,&ainfo,NULL))) goto done;
+	}
+    }
+
+done:
+    NCZ_clearAttrInfo(file,&ainfo);
+    nullfree(xarraydims);
+    return THROW(stat);
+}
 
 /*
 Flush all modified chunks to disk. Create any that are missing
@@ -402,6 +459,7 @@ ncz_decode_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpna
     }
 
 done:
+    NCZ_clear_zobj(&zobj);
     return ZUNTRACE(THROW(stat));
 }
 
@@ -531,21 +589,24 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
     if((stat = NCZF_download_var(file,var,&zobj))) goto done;
     if((stat=NCZF_decode_var(file,var,&zobj,filters,&shapes,&chunks,dimrefs))) goto done;
     rank = var->ndims;
-    assert(nclistlength(dimrefs)==rank);
-    assert(var->dim != NULL);
-    assert(var->dimids != NULL);
+    assert(zvar->scalar || nclistlength(dimrefs)==rank);
+    assert(rank == 0 || var->dim != NULL);
+    assert(rank == 0 || var->dimids != NULL);
 
-    /* Convert dimrefs to corresponding dimdecls */
-    if((stat = reifydimrefs(file,parent,var,shapes,dimrefs,dimdecls))) goto done;
-
+    if(rank > 0) {
+	/* Convert dimrefs to corresponding dimdecls */
+	if((stat = reifydimrefs(file,parent,var,shapes,dimrefs,dimdecls))) goto done;
+    }
+    
     /* Process chunks and shapes */
     assert(var->chunksizes == NULL);
     if(rank == 0) { /* Scalar */
+	/* Scalars still need a chunk and cache */
 	var->dimids = NULL;
 	var->dim = NULL;
-	var->chunksizes = NULL;
+	if((var->chunksizes = (size_t*)malloc(sizeof(size_t)))==NULL) {stat = NC_ENOMEM; goto done;}
+	var->chunksizes[0] = 1;
 	zvar->chunkproduct = 1;
-	zvar->chunksize = var->type_info->size;
     } else {
 	if((var->chunksizes = (size_t*)malloc(rank * sizeof(size_t)))==NULL) {stat = NC_ENOMEM; goto done;}
 	zvar->chunkproduct = 1;
@@ -557,11 +618,12 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
 	    var->chunksizes[i] = (size_t)chunks[i];
 	    zvar->chunkproduct *= shapes[i];
 	}
-        zvar->chunksize = zvar->chunkproduct * var->type_info->size;
-	/* Create the cache */
-	if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,zvar->dimension_separator,&zvar->cache)))
-		goto done;
     }
+    zvar->chunksize = zvar->chunkproduct * var->type_info->size;
+
+    /* Create the cache */
+    if((stat = NCZ_create_chunk_cache(var,var->type_info->size*zvar->chunkproduct,zvar->dimension_separator,&zvar->cache)))
+	goto done;
 
     /* Process attributes */
     if((stat=ncz_decode_atts(file,(NC_OBJ*)var,zobj.jatts,jnczvar))) goto done;
@@ -602,7 +664,7 @@ ncz_decode_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* varnames)
     /* Load each var in turn */
     for(i = 0; i < nclistlength(varnames); i++) {
 	const char* varname = (const char*)nclistget(varnames,i);
-        if((stat = ncz_decode_var1(file,parent,varname))) goto done;
+	if((stat = ncz_decode_var1(file,parent,varname))) goto done;
     }
 
 done:
@@ -625,17 +687,57 @@ static int
 ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson* jnczobj)
 {
     int stat = NC_NOERR;
-    NC_ATT_INFO_T* fillvalueatt = NULL;
+    NC_VAR_INFO_T* var = NULL;
+    NC_ATT_INFO_T* special = NULL;
+    struct NCZ_AttrInfo ainfo = NCZ_emptyAttrInfo();
 
     ZTRACE(3,"file=%s container=%s",file->controller->path,container->name);
 
     if(jatts != NULL) {
         if((stat = NCZF_decode_attributes(file,container,jatts))) goto done;
     }
-    /* If we have not read a _FillValue, then go ahead and create it */
-    if(fillvalueatt == NULL && container->sort == NCVAR) {
-	if((stat = ncz_create_fillvalue(file,(NC_VAR_INFO_T*)container)))
-	    goto done;
+
+    /* Look for special per-var attributes */
+    if(container->sort == NCVAR)
+	var = (NC_VAR_INFO_T*)container;
+
+    /* _FillValue */
+    if(var != NULL && !var->no_fill) {
+	special = NULL;
+	stat = nc4_find_grp_att(var->container,var->hdr.id,NC_FillValue,0,&special);
+	/* If we have not read a _FillValue attribute, then go ahead and create it */
+	if(stat == NC_ENOTATT) {
+	    stat = NC_NOERR; /*reset*/
+	    NCZ_clearAttrInfo(file,&ainfo);
+	    ainfo.name = NC_FillValue;
+	    ainfo.nctype = var->type_info->hdr.id;
+	    if((stat = NC4_inq_atomic_type(ainfo.nctype, NULL, &ainfo.typelen))) goto done;
+	    ainfo.datalen = 1;
+    	    ainfo.data = var->fill_value;
+	    if((stat = ncz_makeattr(file,(NC_OBJ*)var,&ainfo,&special))) goto done;
+	} else if(stat != NC_NOERR) goto done;
+    }
+
+    /* _Quantize_XXX */
+    if(var != NULL) {
+	NC_ATT_INFO_T* qatt;
+	int mode;
+	/* Look for quantization attributes */
+	for(qatt=NULL,mode=1;mode<=NC_QUANTIZE_MAX;mode++,qatt=NULL) {
+	    const char* attmodename = NC_findquantizeattname(mode); /* get matching att name */
+	    /* See if this att is defined */
+	    stat = nc4_find_grp_att(var->container,var->hdr.id,attmodename,0,&qatt);
+	    if(stat == NC_NOERR) {assert(qatt != NULL); break;}
+	    if(stat != NC_ENOTATT) goto done; /* true error */
+	    /* else keep looking */
+	}
+	stat = NC_NOERR; /* reset */
+	if(qatt != NULL) {
+	     if(qatt->len != 1 || qatt->data == NULL) {stat = NC_ENCZARR; goto done;}
+	     /* extract the mode and NSD/NSB */
+	     var->quantize_mode = mode;
+	     var->nsd = ((int*)qatt->data)[0];
+	}
     }
 
     /* Remember that we have read the atts for this var or group. */
@@ -645,7 +747,8 @@ ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, co
 	((NC_GRP_INFO_T*)container)->atts_read = 1;
 
 done:
-    return ZUNTRACE(THROW(stat));
+   NCZ_clearAttrInfo(file,&ainfo);
+   return ZUNTRACE(THROW(stat));
 }
 
 /**************************************************/
@@ -805,7 +908,7 @@ ncz_insert_attr(NCjson* jatts, NCjson* jtypes, const char* aname, NCjson** javal
 #if 0
 /* Convert an attribute "types list to an envv style list */
 static int
-jtypes2atypes(NCjson* jtypes, NClist* atypes)
+jtypesatypes(NCjson* jtypes, NClist* atypes)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -896,7 +999,7 @@ insert_nczarr_attrs(NCjson* jatts, NCjson* jtypes)
 {
     NCjson* jdict = NULL;
     if(jatts != NULL && jtypes != NULL) {
-	NCJinsertstring(jtypes,NCZ_ATTRS,"|J0"); /* type for _nczarr_attrs */
+	NCJinsertstring(jtypes,NCZ_ATTRS,NC_JSON_DTYPE); /* type for _nczarr_attrs */
         NCJnew(NCJ_DICT,&jdict);
         NCJinsert(jdict,"types",jtypes);
         NCJinsert(jatts,NCZ_ATTR,jdict);
@@ -1007,7 +1110,7 @@ done:
 }
 #endif /*0*/
 
-/* Convert dimrefs to dimesion declarations  (possibly creating them) */
+/* Convert dimrefs to dimension declarations  (possibly creating them) */
 static int
 reifydimrefs(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NC_VAR_INFO_T* var, size64_t* shapes, NClist* dimrefs, NClist* dimdecls)
 {

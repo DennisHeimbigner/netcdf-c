@@ -176,7 +176,7 @@ NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, char dimsep, NCZC
     if((cache = calloc(1,sizeof(NCZChunkCache))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
     cache->var = var;
-    cache->ndims = var->ndims + (size_t)zvar->scalar;
+    cache->ndims = var->ndims;
     cache->fillchunk = NULL;
     cache->chunksize = chunksize;
     cache->dimension_separator = dimsep;
@@ -450,23 +450,26 @@ NCZ_ensure_fill_chunk(NCZChunkCache* cache)
     nc_type typeid = var->type_info->hdr.id;
     size_t typesize = var->type_info->size;
 
-assert(cache->fillchunk == NULL || (((uintptr_t)100) > (uintptr_t)cache->fillchunk));
-    if(cache->fillchunk) goto done;
+    /* If the fill_value is changed, then relaim the fill chunk */
+    if((stat = NCZ_ensure_fill_value(var))) goto done;
 
+    if(cache->fillchunk) goto done; /* Still there => value did not change */
+
+    /* Allocate new fill chunk */
     if((cache->fillchunk = malloc(cache->chunksize))==NULL)
         {stat = NC_ENOMEM; goto done;}
+
     if(var->no_fill) {
         /* use zeros */
 	memset(cache->fillchunk,0,cache->chunksize);
 	goto done;
     }
-    if((stat = NCZ_ensure_fill_value(var))) goto done;
+
     if(typeid == NC_STRING) {
         char* src = *((char**)(var->fill_value));
 	char** dst = (char**)(cache->fillchunk);
         for(i=0;i<cache->chunkcount;i++) dst[i] = strdup(src);
     } else
-assert(cache->fillchunk == NULL || (((uintptr_t)100) > (uintptr_t)cache->fillchunk));
     switch (typesize) {
     case 1: { /*byte|char*/
         unsigned char c = *((unsigned char*)var->fill_value);

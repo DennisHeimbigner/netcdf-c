@@ -17,7 +17,7 @@ struct ChunkKey;
 struct S3credentials;
 struct ZOBJ;
 
-/* Intermediate results */
+/* Intermediate JSON results */
 struct ZCVT {
     signed long long int64v;
     unsigned long long uint64v;
@@ -30,7 +30,7 @@ struct ZCVT {
 /* zarr.c */
 EXTERNL int ncz_create_dataset(NC_FILE_INFO_T*, NC_GRP_INFO_T*, NClist* controls);
 EXTERNL int ncz_open_dataset(NC_FILE_INFO_T*, NClist* controls);
-EXTERNL int ncz_del_attr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* name);
+
 
 /* HDF5 Mimics */
 EXTERNL int NCZ_isnetcdf4(struct NC_FILE_INFO*);
@@ -60,8 +60,7 @@ EXTERNL int NCZ_dimkey(const NC_DIM_INFO_T* dim, char** pathp);
 EXTERNL int ncz_splitkey(const char* path, NClist* segments);
 EXTERNL int ncz_nctypedecode(const char* snctype, nc_type* nctypep);
 
-EXTERNL int NCZ_inferattrtype(const NCjson* value, nc_type typehint, nc_type* typeidp);
-EXTERNL int NCZ_inferinttype(unsigned long long u64, int negative);
+EXTERNL int NCZ_inferattrtype(const char* aname, nc_type typehint, const NCjson* value, nc_type* typeidp);
 EXTERNL int ncz_fill_value_sort(nc_type nctype, int*);
 EXTERNL int NCZ_createobject(NCZMAP* zmap, const char* key, size64_t size);
 EXTERNL int NCZ_uploadjson(NCZMAP* zmap, const char* key, const NCjson* json);
@@ -84,15 +83,16 @@ EXTERNL size_t NCZ_get_maxstrlen(NC_OBJ* obj);
 EXTERNL int NCZ_fixed2char(const void* fixed, char** charp, size_t count, size_t maxstrlen);
 EXTERNL int NCZ_char2fixed(const char** charp, void* fixed, size_t count, size_t maxstrlen);
 EXTERNL int NCZ_copy_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const void* memory, size_t count, int reading, void* copy);
-EXTERNL int NCZ_iscomplexjson(const NCjson* value, nc_type typehint);
-EXTERNL int NCZ_iscomplexjsontext(size_t textlen, const char* text, NCjson** jsonp);
+EXTERNL int NCZ_iscomplexjson(const char* aname, const NCjson* value);
+EXTERNL int NCZ_iscomplexjsonstring(const char* aname, size_t textlen, const char* text, NCjson** jsonp);
 EXTERNL int NCZ_makeFQN(NC_GRP_INFO_T* parent, const char* objname, NCbytes* fqn);
 EXTERNL int NCZ_locateFQN(NC_GRP_INFO_T* parent, const char* fqn, NC_SORT sort, NC_OBJ** objectp, char** basenamep);
 EXTERNL char* NCZ_deescape(const char* s);
 EXTERNL char* NCZ_backslashescape(const char* s);
 EXTERNL int NCZ_sortstringlist(void* vec, size_t count);
 EXTERNL int NCZ_sortpairlist(void* vec, size_t count);
-EXTERNL void NCZ_clearAttrInfo(struct NCZ_AttrInfo* ainfo);
+EXTERNL struct NCZ_AttrInfo NCZ_emptyAttrInfo(void);
+EXTERNL void NCZ_clearAttrInfo(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* ainfo);
 EXTERNL void NCZ_setatts_read(NC_OBJ* container);
 EXTERNL int NCZ_decodesizet64vec(const NCjson* jshape, size_t* rankp, size64_t* shapes);
 EXTERNL int NCZ_decodesizetvec(const NCjson* jshape, size_t* rankp, size_t* shapes);

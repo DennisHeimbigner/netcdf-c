@@ -595,7 +595,8 @@ zfile_listallR(ZFMAP* map, NCbytes* key, int depth, NClist* matches)
 	ncbytescat(key,"/");
 	ncbytescat(key,segment);
 	if((retval = NCstat(ncbytescontents(key),&statbuf))) goto done;
-	if(!S_ISDIR(statbuf.st_mode)) nclistpush(matches,nulldup(ncbytescontents(key)));
+	if(!S_ISDIR(statbuf.st_mode))
+	    nclistpush(matches,nulldup(ncbytescontents(key)));
 	if((retval = zfile_listallR(map,key,depth+1,matches))) goto done;
 	/* reset */
 	ncbytessetlength(key,keylen);

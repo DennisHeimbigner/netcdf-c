@@ -22,7 +22,6 @@ add_bin_test(unit_test test_ncuri)
 
 IF(NETCDF_ENABLE_HDF5)
   IF(NOT WIN32)
-    add_bin_test(unit_test tst_nclist)
     add_bin_test(unit_test tst_nc4internal)
   ENDIF(NOT WIN32)
   build_bin_test(tst_reclaim ${XGETOPTSRC})

@@ -78,37 +78,58 @@
 
 /* V2 Reserved Attributes */
 /*
-For nczarr version 2.x.x, the following (key,value)
-pairs are stored in .zgroup and/or .zarray.
-
-For nczarr version 3.0.0, the following (key,value)
-pairs are stored in .zattrs as if they were standard attributes.
+For nczarr versions 2.x.x, the following (key,value)
+pairs are stored as if they were standard attributes.
 The cost is that lazy attribute reading is no longer possible.
 
-Inserted into /.zgroup || /.zattrs
+Inserted into /.zattrs in the root group
 _nczarr_superblock: {"version": "3.0.0", "format=2"}
 
-Inserted into any .zgroup || .zattrs (at group level)
+Inserted into any .zattrs (at group level)
 "_nczarr_group": "{
 \"dimensions\": {<dimname>: <integer>, <name>: <integer>,...}
 \"arrays\": [\"v1\", \"v2\", ...]
 \"groups\": [\"g1\", \"g2\", ...]
 }"
 
-Inserted into any .zarray || .zattrs (at array level)
+Optionally insert into any .zattrs (at root group level)
+\"_nczarr_default_maxstrlen\": <integer>
+This is needed only when writing a dataset. When reading, it should be redundant
+vis-a-vis the actual length (e.g. "|S6") of the dtype of a string variable.
+
+Inserted into any .zattrs (at array level)
 "_nczarr_array": "{
-\"dimension_references\": [\"/g1/g2/d1\", \"/d2\",...]
-\"storage\": \"contiguous\" | \"chunked\"
+\"dimension_references\": [\"/g1/g2/d1\", \"/d2\",...],
+\"storage\": \"contiguous\" | \"chunked\",
+\"scalar\": 0 | 1
 }"
+Note that the storage key is probably irrelevant currently because
+all data is stored in Zarr in the equivalent of "chunked".
+Note also that if scalar is "1", then storage will still be chunked,
+and the array will have shape of "[1]" and optionally, a dimension name
+of "_scalar_". For external pure zarr datasets, there will not be enough
+information to signal scalar, so such an array will be treated as a one
+element chunk.
+
+If an array type is a string, the optionally insert into any .zattrs (at array level)
+\"_nczarr_maxstrlen\": <integer>
+This is needed only when writing a dataset. When reading, it should be redundant
+vis-a-vis the length (e.g. "|S6") of the dtype of the variable.
 
 Inserted into any .zattrs
 "_nczarr_attrs": "{
 \"types\": {\"attr1\": \"<i4\", \"attr2\": \"<i1\",...}
 }
+
 */
 
 /* V3 Reserved Attributes */
 /*
+
+For nczarr version 3.x.x, the following (key,value)
+pairs are stored as if they were standard attributes.
+The cost is that lazy attribute reading is no longer possible.
+
 Inserted into root group zarr.json as an extra attribute.
 _nczarr_superblock: {
     "version": 3.0.0,    
@@ -171,11 +192,15 @@ Optionally Inserted into any group zarr.json or array zarr.json is the extra att
 /* Common constants for both V2 and V3 */
 /* Must match values in include/nc4internal.h */
 #define NCZ_PREFIX "_nczarr"
-#define NCZ_SUPERBLOCK NC_NCZARR_SUPERBLOCK
-#define NCZ_GROUP    NC_NCZARR_GROUP
-#define NCZ_ARRAY    NC_NCZARR_ARRAY
-#define NCZ_ATTRS    NC_NCZARR_ATTRS
-#define NCZ_ATTR_OLD NC_NCZARR_ATTR
+#define NCZ_ATTR_OLD_ATTR NC_NCZARR_ATTR_ATTR
+#if 0
+#define NCZ_SUPERBLOCK NC_NCZARR_SUPERBLOCK_ATTR
+#define NCZ_GROUP    NC_NCZARR_GROUP_ATTR
+#define NCZ_ARRAY    NC_NCZARR_ARRAY_ATTR
+#define NCZ_ATTRS    NC_NCZARR_ATTRS_ATTR
+#define NCZ_MAXSTRLEN_ATTR NC_NCZARR_MAXSTRLEN_ATTR
+#define NCZ_DFALT_MAXSTRLEN_ATTR NC_NCZARR_DFALT_MAXSTRLEN_ATTR
+#endif
 
 #define NCZARRCONTROL "nczarr"
 #define PUREZARRCONTROL "zarr"
@@ -183,13 +208,8 @@ Optionally Inserted into any group zarr.json or array zarr.json is the extra att
 #define NOXARRAYCONTROL "noxarray"
 #define XARRAYSCALAR "_scalar_"
 #define DIMSCALAR "/_scalar_"
-#define NCZARR_MAXSTRLEN_ATTR "_nczarr_maxstrlen"
-#define NCZARR_DEFAULT_MAXSTRLEN_ATTR "_nczarr_default_maxstrlen"
 #define FORMAT2CONTROL "v2"
 #define FORMAT3CONTROL "v3"
-
-#define NC_NCZARR_MAXSTRLEN_ATTR "_nczarr_maxstrlen"
-#define NC_NCZARR_DEFAULT_MAXSTRLEN_ATTR "_nczarr_default_maxstrlen"
 
 #define LEGAL_DIM_SEPARATORS "./"
 #define DFALT_DIM_SEPARATOR_V2 '.'
@@ -200,13 +220,24 @@ Optionally Inserted into any group zarr.json or array zarr.json is the extra att
 /* Extend the type system */
 #define NC_JSON (NC_STRING+1)
 #define N_NCZARR_TYPES (NC_JSON+1)
+#define NC_JSON_DTYPE "|J0"
 
 /* Default max string length for fixed length strings */
-#define NCZ_MAXSTR_DEFAULT 128
+#define NCZ_MAXSTR_DFALT 128
 
 /* Mnemonics */
 #define ZCLOSE	 1 /* this is closeorabort as opposed to enddef */
 #define ZREADING 1 /* this is reading data rather than writing */
+#define FIXATT 0
+#define FIXOBJ 1
+
+//#define FORVAR 1
+//#define FORGRP 2
+
+/* Track the possible cases where a field in some NC_XXX_INFO_T*
+   must be sync'd with corresponding Attribute
+*/
+typedef enum DualAtt {DA_NOT, DA_FILLVALUE, DA_MAXSTRLEN, DA_DFALTSTRLEN, DA_QUANTIZE} DualAtt;
 
 /* Useful macro */
 #define ncidforx(file,grpid) ((file)->controller->ext_ncid | (grpid))
@@ -335,6 +366,7 @@ struct NCZ_AttrInfo {
     void* data;
 };
 
+EXTERNL struct NCZ_AttrInfo NC_emptyAttrInfo();
 
 /**************************************************/
 
@@ -372,11 +404,14 @@ int NCZ_zclose_var1(NC_VAR_INFO_T* var);
 
 /* zattr.c */
 int ncz_getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist);
-int ncz_create_fillvalue(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
 int NCZ_read_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson* jatypes);
 int NCZ_attr_convert(const NCjson* src, nc_type typeid, size_t typelen, size_t* countp, NCbytes* dst);
 int ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, struct NCZ_AttrInfo* ainfo, NC_ATT_INFO_T** attp);
 int NCZ_attr_delete(NC_FILE_INFO_T* file, NCindex* attlist, const char* name);
+int NCZ_getattr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, nc_type nctype, NC_ATT_INFO_T** attp, int* isnewp);;
+int NCZ_reclaim_att_data(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att);
+int NCZ_set_att_data(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, size_t len, const void* data);
+int NCZ_sync_dual_att(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, DualAtt which, int direction);
 
 /* zvar.c */
 int ncz_gettype(NC_FILE_INFO_T*, NC_GRP_INFO_T*, int xtype, NC_TYPE_INFO_T** typep);
@@ -384,14 +419,13 @@ int ncz_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 int NCZ_ensure_quantizer(int ncid, NC_VAR_INFO_T* var);
 int NCZ_write_var_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
 int NCZ_fillin_var(NC_FILE_INFO_T* h5, NC_VAR_INFO_T* var, NC_TYPE_INFO_T* type, size_t ndims, const int* dimids, size64_t* shape, size64_t* chunksizes, int endianness);
-
-/* zvar.c */
 int NCZ_reclaim_dim(NC_DIM_INFO_T* dim);
+void zsetmaxstrlen(size_t maxstrlen, NC_VAR_INFO_T* var);
+void zsetdfaltstrlen(size_t maxstrlen, NC_FILE_INFO_T* file);
 
 /* Undefined */
 /* Find var, doing lazy var metadata read if needed. */
-int ncz_find_file_grp_var(int ncid, int varid, NC_FILE_INFO_T** file,
-                             NC_GRP_INFO_T** grp, NC_VAR_INFO_T** var);
+int ncz_find_file_grp_var(int ncid, int varid, NC_FILE_INFO_T** file, NC_GRP_INFO_T** grp, NC_VAR_INFO_T** var);
 
 #endif /* ZINTERNAL_H */
 

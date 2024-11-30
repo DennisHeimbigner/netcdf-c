@@ -65,6 +65,7 @@ done:
     return THROW(stat);
 }
 
+#if 0
 int
 ncz4_build_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
 				nc_type nctype,
@@ -80,7 +81,7 @@ ncz4_build_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
 				int* dimids,
 			        NClist* filters,
 				int no_fill,
-				void* fill_value)
+				const void* fillvalue)
 {
     int stat = NC_NOERR;
     NCZ_VAR_INFO_T* zvar = NULL;
@@ -98,10 +99,10 @@ ncz4_build_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
     
     /* Overrides */
     zvar->dimension_separator = (char)dimsep;
-    zmaxstrlen(&zvar->maxstrlen,maxstrlen);
+    zsetmaxstrlen(maxstrlen,var);
 
     /* Set fill value */
-    if((stat=NCZ_set_fill_value(file,var,no_fill,fill_value))) goto done;
+    if((stat=NCZ_set_fill_value(file,var,no_fill,fillvalue))) goto done;
 
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Set the filter list */
@@ -123,6 +124,7 @@ done:
      nullfree(dimbasename);
      return THROW(stat);
 }
+#endif
 
 int
 ncz4_create_dim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const struct NCZ_DimInfo* dimdef, NC_DIM_INFO_T** dimp)

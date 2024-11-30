@@ -688,6 +688,3 @@ NCZ_codec_info_defaults(void)
 {
     return (void*)&NCZ_default_codecs;
 }
-
-
-

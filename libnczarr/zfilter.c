@@ -310,7 +310,6 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
                    const unsigned int* params)
 {
     int stat = NC_NOERR;
-    NC *nc;
     NC_FILE_INFO_T* h5 = NULL;
     NC_GRP_INFO_T* grp = NULL;
     NC_VAR_INFO_T* var = NULL;
@@ -320,16 +319,13 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
 
     if((stat = NCZ_filter_initialize())) goto done;
     
-    if((stat = NC_check_id(ncid,&nc))) return stat;
-    assert(nc);
-
-    if (h5->parallel) {stat = THROW(NC_EINVAL); goto done;}
-
     /* Find info for this file and group and var, and set pointer to each. */
     if ((stat = nc4_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
 	{stat = THROW(stat); goto done;}
 
     assert(h5 && var && var->hdr.id == varid);
+
+    if (h5->parallel) {stat = THROW(NC_EINVAL); goto done;}
 
     /* If the NCZARR dataset has already been created, then it is too
      * late to set all the extra stuff. */
@@ -355,6 +351,7 @@ NCZ_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
     spec->hdf5.id = id;
     spec->hdf5.visible.nparams = nparams;
     if((stat = paramclone(&spec->hdf5.visible.params,params,nparams))) goto done;
+    spec->flags |= FLAG_VISIBLE;
     if((stat = NCZ_addfilter(h5,var,&spec))) goto done; /* addfilter will control spec memory */
 
 done:
@@ -573,9 +570,9 @@ checkfilterconflicts(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned id, size
 	size_t d;
 	for (d = 0; d < var->ndims; d++) {
 	    if (var->dim[d]->len) num_elem *= var->dim[d]->len;
-	    /* Pixels per block must be <= number of elements. */
-	    if (params[1] > num_elem) {stat = THROW(NC_EINVAL); goto done;}
 	}
+	/* Pixels per block must be <= number of elements. */
+	if (params[1] > num_elem) {stat = THROW(NC_EINVAL); goto done;}
     }
 done:
     return THROW(stat);
@@ -706,7 +703,8 @@ ensure_working(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-
+    NCproplist* props = NULL;
+	    
     if(FILTERINCOMPLETE(filter)) {stat = THROW(NC_ENOFILTER); goto done;}
     if(!(filter->flags & FLAG_WORKING)) {
 	const size_t oldnparams = filter->hdf5.visible.nparams;
@@ -720,14 +718,13 @@ ensure_working(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter)
 		printparams(filter->hdf5.working.nparams,filter->hdf5.working.params));
 #endif
 	if(filter->plugin && filter->plugin->codec.codec->NCZ_modify_parameters) {
-	    NCproplist* props = ncproplistnew();
+	    props = ncproplistnew();
 	    if((stat=ncproplistclone(zfile->zarr.zarr_format==2?NCplistzarrv2:NCplistzarrv3,props))) goto done;
 	    ncproplistadd(props,"fileid",(size_t)ncidfor(var));
 	    ncproplistadd(props,"varid",(uintptr_t)var->hdr.id);
 	    stat = filter->plugin->codec.codec->NCZ_modify_parameters(props,&filter->hdf5.id,
 				&filter->hdf5.visible.nparams, &filter->hdf5.visible.params,
 				&filter->hdf5.working.nparams, &filter->hdf5.working.params);
-	    ncproplistfree(props);
 #ifdef DEBUGF
 	    fprintf(stderr,">>> DEBUGF: NCZ_modify_parameters: stat=%d ncid=%d varid=%d filter=%s\n",stat, (int)ncidfor(var),(int)var->hdr.id,
 			printfilter(filter));
@@ -754,6 +751,7 @@ ensure_working(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter)
     fprintf(stderr,">>> DEBUGF: ensure_working_parameters: ncid=%lu varid=%u filter=%s\n", ncidfor(var), (unsigned)var->hdr.id,printfilter(filter));
 #endif
 done:
+    ncproplistfree(props);
     return THROW(stat);
 }
 

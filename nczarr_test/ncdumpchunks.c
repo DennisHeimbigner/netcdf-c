@@ -586,7 +586,7 @@ main(int argc, char** argv)
     if(format.rank == 0) usage(NC_EDIMSIZE);
     if((stat=nc_inq_var_chunking(ncid,varid,&storage,format.chunklens))) usage(stat);
     if(storage != NC_CHUNKED) usage(NC_EBADCHUNK);
-    if((stat=nc_get_att(ncid,varid,"_FillValue",&format.fillvalue))) usage(stat);
+    if((stat=nc_get_att(ncid,varid,NC_FillValue,&format.fillvalue))) usage(stat);
 
     for(i=0;i<format.rank;i++) {
 	 if((stat=nc_inq_dimlen(ncid,dimids[i],&format.dimlens[i]))) usage(stat);

@@ -342,14 +342,18 @@ there. */
 #define NC_SZIP_NN 32 /**< SZIP NN option mask. */
 #define NC_SZIP_EC 4  /**< SZIP EC option mask. */
 
+/* If this is extended, then you need to modify nc4internal.c */
 #define NC_NOQUANTIZE 0 /**< No quantization in use. */    
 #define NC_QUANTIZE_BITGROOM 1 /**< Use BitGroom quantization. */
 #define NC_QUANTIZE_GRANULARBR 2 /**< Use Granular BitRound quantization. */
 #define NC_QUANTIZE_BITROUND 3 /**< Use BitRound quantization. */
+#define NC_QUANTIZE_MAX NC_QUANTIZE_BITROUND
 
 /**@{*/
 /** When quantization is used for a variable, an attribute of the
- * appropriate name is added. */
+ * appropriate name is added.
+ * If this set is extended, then propogate to NC_quantize_atts in nc4internal.c
+ */
 #define NC_QUANTIZE_BITGROOM_ATT_NAME "_QuantizeBitGroomNumberOfSignificantDigits"
 #define NC_QUANTIZE_GRANULARBR_ATT_NAME "_QuantizeGranularBitRoundNumberOfSignificantDigits"
 #define NC_QUANTIZE_BITROUND_ATT_NAME "_QuantizeBitRoundNumberOfSignificantBits"

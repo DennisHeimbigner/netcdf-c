@@ -313,7 +313,11 @@ NCZ_ensure_fill_value(NC_VAR_INFO_T *var)
 
     /* If the user has set a fill_value for this var, use, otherwise find the default fill value. */
     if(var->fill_value == NULL) {
-        if((stat = NCZ_set_fill_value(var->container->nc4_info,var,var->no_fill,var->fill_value))) goto done;
+	NC_FILE_INFO_T* file = var->container->nc4_info;
+	nc_type vartid = var->type_info->hdr.id;
+	if((stat = NCZ_set_fill_value(file,var,var->no_fill,NCZ_getdfaltfillvalue(vartid)))) goto done;
+	/* synchronize to attribute */
+	if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
     }
     assert(var->fill_value != NULL);
 
@@ -429,4 +433,21 @@ void
 zmaxstrlen(size_t* p, size_t strlen)
 {
     *p = strlen;
+}
+
+
+void
+zsetmaxstrlen(size_t maxstrlen, NC_VAR_INFO_T* var)
+{
+    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
+    zvar->maxstrlen = maxstrlen;
+    if(zvar->maxstrlen == 0) zvar->maxstrlen = NCZ_get_maxstrlen((NC_OBJ*)var);
+}
+
+void
+zsetdfaltstrlen(size_t dfaltstrlen, NC_FILE_INFO_T* file)
+{
+    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    zfile->default_maxstrlen = dfaltstrlen;
+    if(zfile->default_maxstrlen == 0) zfile->default_maxstrlen = NCZ_MAXSTR_DFALT;
 }

@@ -55,7 +55,7 @@ ncbytessetalloc(NCbytes* bb, unsigned long sz)
   if(bb == NULL) return ncbytesfail();
   if(bb->nonextendible) return ncbytesfail();
 //  if(sz == 0) {sz = (bb->alloc?2*bb->alloc:DEFAULTALLOC);} /* Default the size */
-  if(sz == 0) return ncbytesfail();
+  if(sz == 0) return TRUE;
   /* We always guarantee that bb->content is not NULL */
   if(bb->alloc >= sz) {
     assert(bb->content != NULL);
@@ -145,8 +145,8 @@ int
 ncbytesappendn(NCbytes* bb, const void* elem, unsigned long n)
 {
   if(bb == NULL || elem == NULL) return ncbytesfail();
-  if(n == 0) {n = strlen((char*)elem);}
   ncbytessetalloc(bb,bb->length+n);
+  if(n == 0) return TRUE;
   memcpy((void*)&bb->content[bb->length],(void*)elem,n);
   bb->length += n;
   return TRUE;

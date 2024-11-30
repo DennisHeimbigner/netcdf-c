@@ -443,8 +443,7 @@ NCZ_set_fill(int ncid, int fillmode, int *old_modep)
     ZTRACE(0,"NCZ_set_fill(ncid,fillmode,old)");
 
     /* Get pointer to file info. */
-    if ((stat = nc4_find_grp_h5(ncid, NULL, &h5)))
-        goto done;
+    if ((stat = nc4_find_grp_h5(ncid, NULL, &h5))) goto done;
     assert(h5);
 
     /* Trying to set fill on a read-only file? You sicken me! */

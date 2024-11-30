@@ -12,17 +12,16 @@ THISDIR=`pwd`
 cd $ISOPATH
 
 # This shell script tests support for:
-# 1. pure zarr (noxarray) read/write
+# 1. pure zarr -- without xarray -- read/write
 # 2. xarray read/write
 
 testcase() {
 zext=$1
 
-echo "*** Test: pure zarr write then read; format=$zext"
+echo "*** Test: pure zarr write then read; format=$zext; without xarray" 
 fileargs tmp_purezarr "mode=zarr,noxarray,$zext"
 deletemap $zext $file
 ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_purezarr_base.cdl
-${ZMD} -h -t int $fileurl
 ${NCDUMP} $fileurl > tmp_purezarr_${zext}.cdl
 diff -b ${srcdir}/ref_purezarr.cdl tmp_purezarr_${zext}.cdl
 
@@ -33,7 +32,7 @@ ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_purezarr_base.cdl
 ${NCDUMP} $fileurl > tmp_xarray_${zext}.cdl
 diff -b ${srcdir}/ref_xarray.cdl tmp_xarray_${zext}.cdl
 
-echo "*** Test: pure zarr reading nczarr; format=$zext"
+echo "*** Test: pure zarr reading nczarr; format=$zext; without xarray"
 fileargs tmp_nczarr "mode=nczarr,noxarray,$zext"
 deletemap $zext $file
 ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_whole.cdl

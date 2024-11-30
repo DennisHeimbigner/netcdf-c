@@ -121,6 +121,10 @@ lib__nch5bzip2_la_SOURCES += ${BZIP2SRC}
 endif
 plugins_to_install += lib__nch5bzip2.la
 
+lib__nch5stringn_la_SOURCES = H5Zstringn.c
+EXTRA_DIST += H5Zstringn.c
+plugins_to_install += lib__nch5stringn.la
+
 if ENABLE_PLUGIN_DIR
 plugin_LTLIBRARIES += $(plugins_to_install)
 else

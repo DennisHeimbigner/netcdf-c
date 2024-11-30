@@ -118,6 +118,9 @@ else()
   buildplugin(h5bzip2 "h5bzip2" ${Bzip2_LIBRARIES})
 endif()
 
+set(h5stringn_SOURCES H5Zstringn.c)
+buildplugin(h5stringn "h5stringn")
+
 # Installation
 if(NETCDF_ENABLE_PLUGIN_INSTALL)
 
@@ -146,6 +149,7 @@ if(NETCDF_ENABLE_NCZARR)
   if(Szip_FOUND)
     installplugin(h5szip)
   endif()
+  installplugin(h5stringn)
 endif()
 
 endif(NETCDF_ENABLE_PLUGIN_INSTALL)

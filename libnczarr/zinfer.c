@@ -145,8 +145,8 @@ infer_open_format(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, int
         if((stat = NCZ_downloadjson(zfile->map, Z2ATTSROOT, &jrootgrp))) goto done;
         if((stat = NCZ_downloadjson(zfile->map, Z2METAROOT, &jrootatts))) goto done;
         /* Look for superblock */
-	if(jrootgrp != NULL) NCJdictget(jrootgrp,NCZ_SUPERBLOCK,(NCjson**)&jsuperg);
-	if(jrootatts != NULL) NCJdictget(jrootatts,NCZ_SUPERBLOCK,(NCjson**)&jsupera);
+	if(jrootgrp != NULL) NCJdictget(jrootgrp,NC_NCZARR_SUPERBLOCK_ATTR,(NCjson**)&jsuperg);
+	if(jrootatts != NULL) NCJdictget(jrootatts,NC_NCZARR_SUPERBLOCK_ATTR,(NCjson**)&jsupera);
 	if(jsuperg == NULL && jsupera == NULL) nczarrformat = NCZARRFORMAT0; else nczarrformat = NCZARRFORMAT2;
 	NCZ_reclaim_json(jrootgrp); jrootgrp = NULL;
 	NCZ_reclaim_json(jrootatts); jrootatts = NULL;
@@ -164,7 +164,7 @@ infer_open_format(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, int
 		nczarrformat = NCZARRFORMAT0;
 	    } else {
                 /* Look for the _nczarr_superblock tag */
-                NCJdictget(jrootatts,NCZ_SUPERBLOCK,(NCjson**)&jsupera);
+                NCJdictget(jrootatts,NC_NCZARR_SUPERBLOCK_ATTR,(NCjson**)&jsupera);
    	        if(jsupera == NULL)
 	            nczarrformat = NCZARRFORMAT0;  /* Pure zarr V3 file */
 	        else

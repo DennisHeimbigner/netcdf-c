@@ -73,15 +73,12 @@ JSON value
 #ifndef ZFILL_H
 #define ZFILL_H
 
+EXTERNL int NCZ_fillvalue_disable(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
+EXTERNL void* NCZ_getdfaltfillvalue(nc_type nctype);
+EXTERNL int NCZ_isdfaltfillvalue(nc_type nctype, void* value);
+
 EXTERNL int NCZ_set_fill_value(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int no_fill, const void* fillvalue);
 EXTERNL int NCZ_set_fill_att(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_ATT_INFO_T* att, int no_fill, const void* fillvalue);
-EXTERNL int NCZ_copy_var_to_fillatt(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_ATT_INFO_T* att);
-EXTERNL int NCZ_copy_fillatt_to_var(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, NC_VAR_INFO_T* var);
-EXTERNL int NCZ_fillvalue_disable(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
-EXTERNL int NCZ_copy_value_to_att(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, size_t len, const void* src);
-EXTERNL int NCZ_copy_value_to_var_fillvalue(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const void* src);
-EXTERNL int NCZ_reclaim_att_data(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att);
-EXTERNL int NCZ_reclaim_var_fillvalue(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
 
 #endif /*ZFILL_H*/
 

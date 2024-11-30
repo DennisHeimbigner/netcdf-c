@@ -380,7 +380,7 @@ NCZ_fillin_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_TYPE_INFO_T* type,
     var->format_var_info = zvar;
     zvar->common.file = file;
     zvar->scalar = (ndims == 0 ? 1 : 0);
-    zmaxstrlen(&zvar->maxstrlen,zfile->default_maxstrlen);
+    zsetdfaltstrlen(zfile->default_maxstrlen,file);
 
     zvar->dimension_separator = gs->zarr.dimension_separator;
     assert(zvar->dimension_separator != 0);
@@ -410,7 +410,7 @@ var->type_info->rc++;
     var->type_info->endianness = var->endianness; /* back prop */
 
     /* Indicate we do not have quantizer yet */
-    var->quantize_mode = -1;
+    var->quantize_mode = 0;
 
     /* should we use contiguous or chunked storage. */
     var->storage = (zvar->scalar?NC_CONTIGUOUS:NC_CHUNKED);
@@ -478,6 +478,8 @@ var->type_info->rc++;
 	int no_fill = (file->fill_mode == NC_NOFILL?1:0);
 	if((stat = NCZ_set_fill_value(file,var,no_fill,NULL))) goto done;
         var->fill_val_changed = 0; /* But pretend it has not been changed */
+        /* synchronize to Attribute */
+	if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
     }
 
     if((stat = NCZ_adjust_var_cache(var))) goto done;
@@ -521,7 +523,7 @@ static int
 ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 		 int *unused2, int *fletcher32, int *storagep,
 		 const size_t *chunksizes, int *no_fill,
-		 const void *fill_value, int *endianness,
+		 const void *fillvalue, int *endianness,
 		 int *quantize_mode, int *nsd)
 {
     NC_GRP_INFO_T *grp;
@@ -535,12 +537,12 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
-    ZTRACE(2,"ncid=%d varid=%d shuffle=%d fletcher32=%d no_fill=%d, fill_value=%p endianness=%d quantize_mode=%d nsd=%d",
+    ZTRACE(2,"ncid=%d varid=%d shuffle=%d fletcher32=%d no_fill=%d, fillvalue=%p endianness=%d quantize_mode=%d nsd=%d",
            ncid,varid,
 	   (shuffle?*shuffle:-1),
    	   (fletcher32?*fletcher32:-1),
 	   (no_fill?*no_fill:-1),
-	   fill_value,
+	   fillvalue,
 	   (endianness?*endianness:-1),
 	   (quantize_mode?*quantize_mode:-1),
    	   (nsd?*nsd:-1)
@@ -696,17 +698,17 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
     }
 
     /* Are we setting a fill value? */
-    if (fill_value && no_fill && !(*no_fill))
+    if (fillvalue && no_fill && !(*no_fill))
     {
-	/* Copy the fill_value. */
+	/* Copy the fillvalue. */
 	LOG((4, "Copying fill value into metadata for variable %s",
 	     var->hdr.name));
 
 	/* (re-)set the NC_VAR_INFO_T.fill_value */	
-	if((stat = NCZ_set_fill_value(h5,var,*no_fill,fill_value))) goto done;
+	if((stat = NCZ_set_fill_value(h5,var,*no_fill,fillvalue))) goto done;
 
         /* synchronize to Attribute */
-	if((stat = NCZ_copy_var_to_fillatt(h5,var,NULL))) goto done;
+	if((stat = NCZ_sync_dual_att(h5,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
     }
 
     /* Is the user setting the endianness? */
@@ -1144,7 +1146,7 @@ NCZ_inq_var_quantize(int ncid, int varid, int *quantize_modep,
     if (!var)
         return NC_ENOTVAR;	
     assert(var->hdr.id == varid);
-    if(var->quantize_mode == -1)
+    if(var->quantize_mode == 0)
         {if((retval = NCZ_ensure_quantizer(ncid, var))) return retval;}
     /* Copy the data to the user's data buffers. */
     if (quantize_modep)
@@ -1227,7 +1229,7 @@ NCZ_rename_var(int ncid, int varid, const char *name)
        still an error according to the nc_test/test_write.c
        code. Why?*/
     if (ncindexlookup(grp->vars, name))
-	return NC_ENAMEINUSE;
+	return THROW(NC_ENAMEINUSE);
 
     /* If we're not in define mode, new name must be of equal or
        less size, if strict nc3 rules are in effect for this . */
@@ -1716,7 +1718,7 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     /* Do we need to convert the data? */
     if (need_to_convert)
     {
-	if(var->quantize_mode < 0) {if((retval = NCZ_ensure_quantizer(ncid,var))) BAIL(retval);}
+	if(var->quantize_mode == 0) {if((retval = NCZ_ensure_quantizer(ncid,var))) BAIL(retval);}
 	assert(bufr != NULL);
 	if ((retval = nc4_convert_type(data, bufr, mem_nc_type, var->type_info->hdr.id,
 				       len, &range_error, var->fill_value,
@@ -2061,7 +2063,7 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     /* Convert data type if needed. */
     if (need_to_convert)
     {
-	if(var->quantize_mode < 0) {if((retval = NCZ_ensure_quantizer(ncid,var))) BAIL(retval);}
+	if(var->quantize_mode == 0) {if((retval = NCZ_ensure_quantizer(ncid,var))) BAIL(retval);}
 	if ((retval = nc4_convert_type(bufr, data, var->type_info->hdr.id, mem_nc_type,
 					   len, &range_error, var->fill_value,
 				           (h5->cmode & NC_CLASSIC_MODEL), var->quantize_mode,

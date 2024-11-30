@@ -65,6 +65,7 @@ echo "*** Testing dynamic filters using API for storage format $zext"
 fileargs tmp_api
 deletemap $zext $file
 ${execdir}/testfilter $fileurl
+${ZMD} -h $fileurl
 ${NCDUMP} -s -n bzip2 $fileurl > ./tmp_api_$zext.dump
 # Remove irrelevant -s output
 sclean ./tmp_api_$zext.dump
@@ -78,6 +79,7 @@ echo "*** Testing dynamic filters parameter passing for storage format $zext"
 fileargs tmp_misc
 deletemap $zext $file
 ${execdir}/testfilter_misc $fileurl
+${ZMD} -h $fileurl
 # Verify the parameters via ncdump
 ${NCDUMP} -s $fileurl > ./tmp_misc_$zext.txt
 # Extract the parameters
@@ -98,6 +100,7 @@ echo "*** Testing dynamic filters using ncgen for storage format $zext"
 fileargs tmp_misc
 deletemap $zext $file
 ${NCGEN} -lb -4 -o $fileurl ${srcdir}/../nc_test4/bzip2.cdl
+${ZMD} -h $fileurl
 ${NCDUMP} -s -n bzip2 $fileurl > ./tmp_ng_$zext.txt
 # Remove irrelevant -s output
 sclean ./tmp_ng_$zext.txt
@@ -115,6 +118,7 @@ ${NCGEN} -4 -lb -o $fileurl ${srcdir}/../nc_test4/ref_unfiltered.cdl
 fileurl0=$fileurl
 fileargs tmp_filtered
 ${NCCOPY} -M0 -F "/g/var,307,9,4" $fileurl0 $fileurl
+${ZMD} -h $fileurl
 ${NCDUMP} -s -n filtered $fileurl > ./tmp_ncp_$zext.dump
 # Remove irrelevant -s output
 sclean ./tmp_ncp_$zext.dump
@@ -138,6 +142,7 @@ echo "*** Testing multiple filters for storage format $zext"
 fileargs tmp_multi
 deletemap $zext $file
 ${execdir}/testfilter_multi $fileurl
+${ZMD} -h $fileurl
 ${NCDUMP} -hsF -n multifilter $fileurl >./tmp_multi_$zext.cdl
 # Remove irrelevant -s output
 sclean ./tmp_multi_$zext.cdl

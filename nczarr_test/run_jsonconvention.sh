@@ -21,6 +21,7 @@ echo "*** Test: write then read using json convention"
 fileargs tmp_jsonconvention "mode=nczarr,$zext"
 deletemap $zext $file
 ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_jsonconvention.cdl
+${ZMD} -h $fileurl
 ${NCDUMP} $fileurl > tmp_jsonconvention_${zext}.cdl
 ${ZMD} -h $fileurl > tmp_jsonconvention_${zext}.txt
 # Clean up extraneous changes so comparisons work

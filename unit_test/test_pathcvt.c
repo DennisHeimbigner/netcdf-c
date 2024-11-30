@@ -10,6 +10,7 @@ Test ncbytes.h
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "netcdf.h"
 #include "ncbytes.h"
 
@@ -38,7 +39,7 @@ typedef struct Inst {
     Arg args[3];
 } Inst;
 
-static const char** code2txt {
+static const char* code2txt[] = {
 "0 free",
 "1 new",
 NULL
@@ -49,7 +50,7 @@ reclaiminst(Inst* inst)
 {
     size_t i;
     for(i=0;i<3;i++) {
-	if(inst->args[i] != NULL) free(inst->args[i]);
+	if(inst->args[i].sort == OR_STR || inst->args[i].u.s != NULL) free(inst->args[i].u.s);
     }
 }
 
@@ -58,24 +59,24 @@ reclaimprog(Inst* prog)
 {
     size_t i;
     for(i=0;;i++) {
-	if(reclaiminst(prog[i])) break;
+	if(reclaiminst(&prog[i])) break;
     }
 }
 
 static size_t
 decodearg(const char* code, size_t ap, Arg* arg)
 {
-    const char c;
+    char c;
     int count;
 
-    /* Discriminate argument type
+    /* Discriminate argument type */
     c = code[ap];
     if(strchr("0123456789",c)!=NULL) {
 	arg->sort = OR_INT;
 	count = -1;
-	sscanf(&code[ap],"%u%n",&arg->u.i,&count);
+	sscanf(&code[ap],"%zu%n",&arg->u.i,&count);
 	assert(count > 0);
-	ap += count;
+	ap += (size_t)count;
 	goto done;
     } else if(c == '\'') {
 	arg->sort = OR_CHR;
@@ -93,15 +94,16 @@ decodearg(const char* code, size_t ap, Arg* arg)
 	p = strchr(&code[ap],'|');
 	assert(p != NULL);
 	slen = (p - &code[ap]);
+	assert(slen >= 0);
 	assert(slen < MAXSTR);
-	memcpy(arg->u.s,&code[ap],slen);
+	memcpy(arg->u.s,&code[ap],(size_t)slen);
 	arg->u.s[slen] = '\0';
-	ap += slen;
+	ap += (size_t)slen;
 	goto done;
     } else
-	{stat = NC_EINVAL; goto done;}
+	{abort();}
 done:
-    return stat;
+    return ap;
 }
 
 static int

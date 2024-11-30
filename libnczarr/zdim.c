@@ -96,7 +96,7 @@ NCZ_def_dim(int ncid, const char *name, size_t len, int *idp)
     /* Make sure the name is not already in use. */
     dim = (NC_DIM_INFO_T*)ncindexlookup(grp->dim,norm_name);
     if(dim != NULL)
-        return NC_ENAMEINUSE;
+        return THROW(NC_ENAMEINUSE);
 
     /* If it's not in define mode, enter define mode. Do this only
      * after checking all input data, so we only enter define mode if
@@ -256,7 +256,7 @@ NCZ_rename_dim(int ncid, int dimid, const char *name)
 
     /* Check if new name is in use. */
     if (ncindexlookup(grp->dim, norm_name))
-        return NC_ENAMEINUSE;
+        return THROW(NC_ENAMEINUSE);
 
     /* Give the dimension its new name in metadata. UTF8 normalization
      * has been done. */

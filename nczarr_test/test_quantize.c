@@ -87,6 +87,7 @@ main(int argc, char **argv)
     template = argv[1];
 
     snprintf(file_url,sizeof(file_url),template,FILE_NAME);
+fprintf(stderr,"URL=%s\n",file_url);
 
 #undef FILE_NAME
 #define FILE_NAME file_url

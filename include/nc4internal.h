@@ -100,6 +100,8 @@ typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP, NCFIL} NC_SORT;
 #   define VIRTUALFLAG 8
     /** Per-variable attribute, as opposed to global */
 #   define VARFLAG 16
+    /** If written via NCZarr, then is a complex json attribute */
+#   define COMPLEXJSON 32
 
 /** Boolean type, to make the code easier to read. */
 typedef enum {NC_FALSE = 0, NC_TRUE = 1} nc_bool_t;
@@ -513,6 +515,12 @@ extern struct NCglobalstate* NC_getglobalstate(void);
 extern void NC_freeglobalstate(void);
 
 /**************************************************/
+/* Searcher for quantization attributes */
+
+extern const char* NC_findquantizeattname(int mode);
+extern int NC_isquantizeattname(const char* name);
+
+/**************************************************/
 /* Binary searcher for reserved attributes */
 extern const NC_reservedatt* NC_findreserved(const char* name);
 /* reserved attribute initializer */
@@ -526,16 +534,18 @@ extern void NC_initialize_reserved(void);
 #define NC_ATT_COORDINATES "_Netcdf4Coordinates" /*see hdf5internal.h:COORDINATES*/
 #define NC_ATT_FORMAT "_Format"
 #define NC_ATT_DIMID_NAME "_Netcdf4Dimid"
-#define NC_ATT_FILLVALUE "_FillValue"
+#define NC_ATT_FILLVALUE NC_FillValue
 #define NC_ATT_NC3_STRICT_NAME "_nc3_strict"
 #define NC_XARRAY_DIMS "_ARRAY_DIMENSIONS"
 #define NC_ATT_CODECS "_Codecs"
 
-/* Must match values in libnczarr/zinternal.h */
-#define NC_NCZARR_SUPERBLOCK "_nczarr_superblock"
-#define NC_NCZARR_GROUP "_nczarr_group"
-#define NC_NCZARR_ARRAY "_nczarr_array"
-#define NC_NCZARR_ATTRS "_nczarr_attrs"
-#define NC_NCZARR_ATTR "_nczarr_attr"
+/* Must match values in libsrc4/nc4internal.c and libnczarr/zinternal.h */
+#define NC_NCZARR_SUPERBLOCK_ATTR "_nczarr_superblock"
+#define NC_NCZARR_GROUP_ATTR "_nczarr_group"
+#define NC_NCZARR_ARRAY_ATTR "_nczarr_array"
+#define NC_NCZARR_ATTRS_ATTR "_nczarr_attrs"
+#define NC_NCZARR_ATTR_ATTR "_nczarr_attr"
+#define NC_NCZARR_MAXSTRLEN_ATTR "_nczarr_maxstrlen"
+#define NC_NCZARR_DFALT_MAXSTRLEN_ATTR "_nczarr_default_maxstrlen"
 
 #endif /* _NC4INTERNAL_ */

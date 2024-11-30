@@ -68,9 +68,10 @@ string and the attribute is stored as an NC_CHAR typed attribute.
 
 The current rule for defining a complex JSON valued attribute is defined
 by the function NCZ_iscomplexjson(). Basically the rule is as follows:
-1. If the attribute value is a single atomic value or NULL or a JSON array
+1. If the attribute name is _nczarr_XXX, then it is inherently COMPLEX.
+2. If the attribute value is a single atomic value or NULL or a JSON array
    of atomic values, then the attribute value is SIMPLE.
-2. Otherwise, the attribute value is COMPLEX.
+3. Otherwise, the attribute value is COMPLEX.
 
 In the event that we want to write a complex JSON valued attribute,
 we use the following rules in order (see NCZ_iscomplexjsontext()):
@@ -130,6 +131,8 @@ static int locatedimbyname(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char*
 static int isconsistentdim(NC_DIM_INFO_T* dim, NCZ_DimInfo* dimdata, int testunlim);
 static int locateconsistentdim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCZ_DimInfo* dimdata, int testunlim, NC_DIM_INFO_T** dimp, NC_GRP_INFO_T** grpp);
 static int cmp_strings(const void* a1, const void* a2);
+static int NCZ_inferinttype(unsigned long long u64, int negative);
+static nc_type NCZ_applytypehint(nc_type typeid, nc_type typehint);
 
 /**************************************************/
 
@@ -415,10 +418,9 @@ done:
     return stat;
 }
 
-
 /* Infer the attribute's type based on its value(s).*/
 int
-NCZ_inferattrtype(const NCjson* values, nc_type typehint, nc_type* typeidp)
+NCZ_inferattrtype(const char* aname, nc_type typehint, const NCjson* values, nc_type* typeidp)
 {
     int stat = NC_NOERR;
     nc_type typeid;
@@ -433,12 +435,6 @@ NCZ_inferattrtype(const NCjson* values, nc_type typehint, nc_type* typeidp)
 
     if(NCJsort(values) == NCJ_NULL)
         {typeid = NC_NAT; goto done;} /* NULL is also illegal */
-
-    if(typehint == NC_JSON)
-        {typeid = NC_JSON; goto done;}
-
-    if(NCZ_iscomplexjson(values,typehint))
-        {typeid = NC_JSON; goto done;}
 
     assert(NCJisatomic(values) || (NCJsort(values) == NCJ_ARRAY /*&& all i: NCJisatomic(NCJith(values)) == NCJ_ARRAY*/));
 
@@ -503,6 +499,10 @@ NCZ_inferattrtype(const NCjson* values, nc_type typehint, nc_type* typeidp)
 	}
     }
 
+    /* As a last test, use the typehint to override the inferred type
+       taking conversion consistency into account */
+    typeid = NCZ_applytypehint(typeid,typehint);
+
 done:
     if(typeidp) *typeidp = typeid;
     return stat;
@@ -511,7 +511,7 @@ done:
 /* Infer the int type from the value;
    minimum type will be int.
 */
-int
+static int
 NCZ_inferinttype(unsigned long long u64, int negative)
 {
     long long i64 = (long long)u64; /* keep bit pattern */
@@ -525,6 +525,15 @@ NCZ_inferinttype(unsigned long long u64, int negative)
     return NC_INT64;
 }
  
+/* Override a type by the typehint */
+static nc_type
+NCZ_applytypehint(nc_type typeid, nc_type typehint)
+{
+    if(typehint != NC_NAT)
+	typeid = typehint;
+    return typeid;    
+}
+
 /**
 @internal Similar to NCZ_grppath, but using group ids.
 @param gid - [in] group id
@@ -736,13 +745,13 @@ NCZ_get_maxstrlen(NC_OBJ* obj)
 	NC_FILE_INFO_T* file = grp->nc4_info;
 	NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
 	if(zfile->default_maxstrlen == 0)
-	    zdfaltstrlen(&zfile->default_maxstrlen,NCZ_MAXSTR_DEFAULT);
+	    zsetdfaltstrlen(NCZ_MAXSTR_DFALT,file);
 	maxstrlen = zfile->default_maxstrlen;
     } else { /*(obj->sort == NCVAR)*/
         NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)obj;
 	NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
         if(zvar->maxstrlen == 0)
-	    zmaxstrlen(&zvar->maxstrlen,NCZ_get_maxstrlen((NC_OBJ*)var->container));
+	    zsetmaxstrlen(NCZ_get_maxstrlen((NC_OBJ*)var->container),var);
 	maxstrlen = zvar->maxstrlen;
     }
     return maxstrlen;
@@ -778,12 +787,11 @@ NCZ_char2fixed(const char** charp, void* fixed, size_t count, size_t maxstrlen)
     memset(fixed,0,maxstrlen*count); /* clear target */
     for(i=0;i<count;i++,p+=maxstrlen) {
 	size_t len;
+        memset(p,'\0',maxstrlen); /* clear space for string */
 	if(charp[i] != NULL) {
 	    len = strlen(charp[i]);
 	    if(len > maxstrlen) len = maxstrlen;
 	    memcpy(p,charp[i],len);
-	} else {
-	    memset(p,'\0',maxstrlen);
 	}
     }
     return NC_NOERR;
@@ -812,16 +820,20 @@ NCZ_copy_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const void* memory, size
 
 /* Return 1 if the attribute will be stored as a complex JSON valued attribute; return 0 otherwise */
 int
-NCZ_iscomplexjson(const NCjson* json, nc_type typehint)
+NCZ_iscomplexjson(const char* aname, const NCjson* json)
 {
     int stat = 0;
     size_t i;
+    const NC_reservedatt* rc = NULL;
+
+    /* See if this attribute is reserved and marked as COMPLEXJSON */
+    rc = NC_findreserved(aname);
+    if(rc != NULL && (rc->flags & COMPLEXJSON) != 0)
+        {stat = 1; goto done;}
 
     switch (NCJsort(json)) {
     case NCJ_ARRAY:
-	/* If the typehint is NC_JSON, then always treat it as complex */
-	if(typehint == NC_JSON) {stat = 1; goto done;}
-	/* Otherwise see if it is a simple vector of atomic values */
+	/* see if it is a simple vector of atomic values */
 	for(i=0;i < NCJarraylength(json);i++) {
 	    NCjson* j = NCJith(json,i);
 	    if(!NCJisatomic(j)) {stat = 1; goto done;}
@@ -838,26 +850,36 @@ done:
 }
 
 /* Return 1 if the attribute value as a string should be stored as complex json
-Assumes attribute type is NC_CHAR.
-See zutil.c documentation.
+Assumes attribute type is NC_CHAR. The attribute name is involved because
+_nczarr_XXX is inherently complex json.
+
+@param aname name of the attribute
 @param text of the attribute as a string
 @param jsonp return the parsed json here (if parseable)
 @return 1 if is complex json
 */
 int
-NCZ_iscomplexjsontext(size_t textlen, const char* text, NCjson** jsonp)
+NCZ_iscomplexjsonstring(const char* aname, size_t textlen, const char* text, NCjson** jsonp)
 {
     int stat = NC_NOERR;
     NCjson* json = NULL;
     const char* p;
     int iscomplex, instring;
     size_t i;
+    const NC_reservedatt* rc = NULL;
 
     if(jsonp) *jsonp = NULL;
     if(text == NULL || textlen < 2) return 0;
 
     instring = 0;
     iscomplex = 0;
+
+    /* See if this attribute is reserved and marked as COMPLEXJSON */
+    rc = NC_findreserved(aname);
+    if(rc != NULL && (rc->flags & COMPLEXJSON) != 0)
+        {iscomplex = 1; goto loopexit;}
+
+    /* Faster than a full parse */
     for(i=0,p=text;i<textlen;i++,p++) {
 	switch (*p) {
 	case '\\': p++; break;
@@ -872,10 +894,9 @@ NCZ_iscomplexjsontext(size_t textlen, const char* text, NCjson** jsonp)
 loopexit:
     if(!iscomplex) return 0;
     /* Final test: must be parseable */
-    NCJcheck(NCJparsen(textlen,text,0,&json));
-    if(json == NULL) stat = 0;
-    else {stat = 1; if(jsonp) {*jsonp = json; json = NULL;}}
-done:
+    if(NCJparsen(textlen,text,0,&json) < 0 || json == NULL) {
+        stat = 0;
+    } else {stat = 1; if(jsonp) {*jsonp = json; json = NULL;}}
     NCZ_reclaim_json(json);
     return stat;
 }
@@ -1037,14 +1058,6 @@ NCZ_sortstringlist(void* vec, size_t count)
         qsort(vec, count, sizeof(void*), cmp_strings);
     }
     return NC_NOERR;
-}
-
-void
-NCZ_clearAttrInfo(struct NCZ_AttrInfo* ainfo)
-{
-    if(ainfo == NULL) return;
-    nullfree(ainfo->data);
-    memset(ainfo,0,sizeof(struct NCZ_AttrInfo));
 }
 
 void
@@ -1295,6 +1308,25 @@ NCZ_getnczarrkey(NC_FILE_INFO_T* file, struct ZOBJ* zobj, const char* name, cons
     if(jncxxxp) *jncxxxp = jxxx;
 done:
     return THROW(stat);
+}
+
+void
+NCZ_clearAttrInfo(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* ainfo)
+{
+    if(ainfo == NULL) return;
+    if(ainfo->data != NULL) {
+        assert(ainfo->datalen > 0);
+	(void)NC_reclaim_data_all(file->controller,ainfo->nctype,ainfo->data,ainfo->datalen);
+    }
+    *ainfo = NCZ_emptyAttrInfo();
+assert(ainfo->data == NULL);
+}
+
+struct NCZ_AttrInfo
+NCZ_emptyAttrInfo(void)
+{
+    static struct NCZ_AttrInfo ai = {NULL,NULL,NC_NAT,0,NC_ENDIAN_NATIVE,0,NULL};
+    return ai;
 }
 
 /**************************************************/

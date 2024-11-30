@@ -88,7 +88,7 @@ NC_reclaim_data(NC* nc, nc_type xtype, void* memory, size_t count)
     if(xtype == NC_STRING) {
 	char** ss = (char**)memory;
         for(i=0;i<count;i++) {
-	    nullfree(ss[i]);
+	    nullfree(ss[i]); ss[i] = NULL;
 	}
         goto done;
     }
@@ -154,7 +154,7 @@ reclaim_datar(NC_FILE_INFO_T* file, NC_TYPE_INFO_T* utype, Position instance)
 	if(basetypeid == NC_STRING) {
             if(vlen->len > 0 && vlen->p != NULL) {
 	        char** slist = (char**)vlen->p; /* vlen instance is a vector of string pointers */
-		for(i=0;i<vlen->len;i++) {if(slist[i] != NULL) free(slist[i]);}
+		for(i=0;i<vlen->len;i++) {if(slist[i] != NULL) {free(slist[i]);slist[i] = NULL;}}
 	    }
 	    goto out;
 	}
@@ -172,7 +172,7 @@ reclaim_datar(NC_FILE_INFO_T* file, NC_TYPE_INFO_T* utype, Position instance)
 	    vinstance.memory += basetype->size; /* move to next base instance */
         }
 out:
-        if(vlen->len > 0 && vlen->p != NULL) {free(vlen->p);}
+        if(vlen->len > 0 && vlen->p != NULL) {free(vlen->p); vlen->p = NULL;}
         goto done;	
     } else if(utype->nc_type_class == NC_COMPOUND) {    
 	Position finstance;  /* mark the fields's instance */
@@ -198,7 +198,7 @@ out:
 	    if(field->nc_typeid == NC_STRING) {
 	        char** strvec = (char**)finstance.memory;
 		for(i=0;i<arraycount;i++) {
-		    if(strvec[i] != NULL) free(strvec[i]);
+		    if(strvec[i] != NULL) {free(strvec[i]); strvec[i] = NULL;}
 		}
 		continue; /* do next field */
 	    }
@@ -549,7 +549,7 @@ NC_reclaim_data_all(NC* nc, nc_type xtypeid, void* memory, size_t count)
 
     stat = NC_reclaim_data(nc,xtypeid,memory,count);
     if(stat == NC_NOERR && memory != NULL)
-        free(memory);
+        {free(memory); memory = NULL;}
     return stat;
 }
 
