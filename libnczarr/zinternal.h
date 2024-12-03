@@ -358,7 +358,6 @@ typedef struct NCZ_DimDecl {
 /* Parsed Attribute info */
 struct NCZ_AttrInfo {
     const char* name;
-    const NCjson* jdata;
     nc_type nctype;
     size_t typelen;
     int endianness;

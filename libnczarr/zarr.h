@@ -97,7 +97,7 @@ EXTERNL void NCZ_setatts_read(NC_OBJ* container);
 EXTERNL int NCZ_decodesizet64vec(const NCjson* jshape, size_t* rankp, size64_t* shapes);
 EXTERNL int NCZ_decodesizetvec(const NCjson* jshape, size_t* rankp, size_t* shapes);
 EXTERNL int NCZ_uniquedimname(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NCZ_DimInfo* dimdata, NC_DIM_INFO_T** dimp, NCbytes* dimname);
-EXTERNL int NCZ_computeattrdata(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* att);
+EXTERNL int NCZ_computeattrdata(NC_FILE_INFO_T* file, const NCjson* jdata, struct NCZ_AttrInfo* att);
 EXTERNL int NCZ_dictgetalt(const NCjson* jdict, const NCjson** jvaluep, ...);
 EXTERNL int NCZ_dictgetalt2(const NCjson* jdict, const NCjson** jvaluep, const char* name1, const char* name2); /* common case */
 EXTERNL int NCZ_getnczarrkey(NC_FILE_INFO_T* file, struct ZOBJ* jsonz, const char* name, const NCjson** jncxxxp);

@@ -192,6 +192,10 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
      */
     if((stat = ncz_create_computed_var_attributes(file,var))) goto done;
 
+    /* Create|Update the dual attributes */
+    if((stat = NCZ_ensure_dual_attributes(file,(NC_OBJ*)var)))
+
+    /* Convert to JSON */
     if((stat=NCZF_encode_attributes(file,(NC_OBJ*)var,&jnczvar,NULL,&zobj.jatts))) goto done;
 
 
@@ -274,15 +278,6 @@ ncz_create_computed_var_attributes(NC_FILE_INFO_T* file,NC_VAR_INFO_T* var)
     int isnew = 0;
 
     if(parent->parent != NULL) goto done; /* Only do this for root group */
-    
-#if 0
-    /* See if _Quantize_XXX is already defined */
-    if(var != NULL && var->quantize_mode > 0) {
-	const char* qname = NC_findquantizeattname(var->quantize_mode);
-	if(qname == NULL) {stat = NC_ENOTATT; goto done;}
-	if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,qname,DA_QUANTIZE,FIXATT))) goto done;
-    }
-#endif
 
     if(zinfo->flags & FLAG_XARRAYDIMS) { /* test if we should generate xarray dimensions */
 	special = NULL;
@@ -702,12 +697,11 @@ ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, co
 	/* If we have not read a _FillValue attribute, then go ahead and create it */
 	if(stat == NC_ENOTATT) {
 	    stat = NC_NOERR; /*reset*/
-	    NCZ_clearAttrInfo(file,&ainfo);
 	    ainfo.name = NC_FillValue;
 	    ainfo.nctype = var->type_info->hdr.id;
 	    if((stat = NC4_inq_atomic_type(ainfo.nctype, NULL, &ainfo.typelen))) goto done;
 	    ainfo.datalen = 1;
-    	    ainfo.data = var->fill_value;
+	    if((stat = NC_copy_data_all(file->controller,ainfo.nctype,var->fill_value,ainfo.datalen,&ainfo.data))) goto done;
 	    if((stat = ncz_makeattr(file,(NC_OBJ*)var,&ainfo,&special))) goto done;
 	} else if(stat != NC_NOERR) goto done;
     }

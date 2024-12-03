@@ -1089,6 +1089,7 @@ NCZ_def_var_endian(int ncid, int varid, int endianness)
 int
 NCZ_def_var_quantize(int ncid, int varid, int quantize_mode, int nsd)
 {
+fprintf(stderr,"@@@ mode=%d nsd=%d\n",quantize_mode,nsd);
     return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
                             NULL, NULL, NULL, NULL, NULL,
                             &quantize_mode, &nsd);

@@ -201,6 +201,7 @@ fprintf(stderr,"URL=%s\n",file_url);
 
 		/* Close the file. */
 		if (nc_close(ncid)) ERR;
+system("/home/dmh/git/netcdf.fork/nczarr_test/.libs/zmapio -h -t float file:///home/dmh/git/netcdf.fork/alltests_1733018656/nczarr_test/testdir_quantize/tst_quantize.nc.zarr#mode=zarr,file");
 
 		/* Open the file and check. */
 		if (nc_open(FILE_NAME, NC_WRITE, &ncid)) ERR;

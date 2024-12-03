@@ -312,11 +312,11 @@ NCZ_ensure_fill_value(NC_VAR_INFO_T *var)
         return NC_NOERR;
 
     /* If the user has set a fill_value for this var, use, otherwise find the default fill value. */
-    assert(var->no_fill == NC_FILL);
     if(var->fill_value == NULL) {
 	NC_FILE_INFO_T* file = var->container->nc4_info;
 	nc_type vartid = var->type_info->hdr.id;
-	if((stat = NC_copy_data_all(file->controller,vartid,NCZ_getdfaltfillvalue(vartid),1,&var->fill_value))) goto done;
+	void* dfalt = NCZ_getdfaltfillvalue(vartid);
+	if((stat = NCZ_set_dual_obj_data(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,1,dfalt))) goto done;
 	/* synchronize to attribute */
 	if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
     }

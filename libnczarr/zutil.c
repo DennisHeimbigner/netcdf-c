@@ -1319,13 +1319,12 @@ NCZ_clearAttrInfo(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* ainfo)
 	(void)NC_reclaim_data_all(file->controller,ainfo->nctype,ainfo->data,ainfo->datalen);
     }
     *ainfo = NCZ_emptyAttrInfo();
-assert(ainfo->data == NULL);
 }
 
 struct NCZ_AttrInfo
 NCZ_emptyAttrInfo(void)
 {
-    static struct NCZ_AttrInfo ai = {NULL,NULL,NC_NAT,0,NC_ENDIAN_NATIVE,0,NULL};
+    static struct NCZ_AttrInfo ai = {NULL,NC_NAT,0,NC_ENDIAN_NATIVE,0,NULL};
     return ai;
 }
 

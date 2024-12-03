@@ -908,9 +908,9 @@ NCZ_set_dual_obj_data(NC_FILE_INFO_T* file, NC_OBJ* object, const char* name, Du
         switch(which) {
         case DA_FILLVALUE:
 	    assert(len == 1);	    
-            if((stat = NC_reclaim_data_all(file->controller,tid,var->fill_value,1))) goto done;
+            if((stat = NC_reclaim_data_all(file->controller,tid,var->fill_value,len))) goto done;
             var->fill_value = NULL;
-            if((stat = NC_copy_data_all(file->controller,tid,data,1,&var->fill_value))) goto done;
+            if((stat = NC_copy_data_all(file->controller,tid,data,len,&var->fill_value))) goto done;
             break;
         case DA_MAXSTRLEN:
 	    assert(len == 1);
@@ -970,16 +970,15 @@ This is essentially Version 2|3 agnostic because the
 data part of an attribute is (currently) the same for both versions.
 */
 int
-NCZ_computeattrdata(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* ainfo)
+NCZ_computeattrdata(NC_FILE_INFO_T* file, const NCjson* jdata, struct NCZ_AttrInfo* ainfo)
 {
     int stat = NC_NOERR;
     NCbytes* buf = ncbytesnew();
     NCjson* jtext = NULL;
     int isjson = 0; /* 1 => attribute value is neither scalar nor array of scalars */
     int reclaimvalues = 0;
-    const NCjson* jdata = ainfo->jdata;
 
-    ZTRACE(3,"typehint=%d typeid=%d values=|%s|",ainfo->typehint,ainfo->nctype,NCJtotext(ainfo->jdata));
+    ZTRACE(3,"typehint=%d typeid=%d values=|%s|",ainfo->typehint,ainfo->nctype,NCJtotext(jdata));
 
     /* See if this is a simple vector (or scalar) of atomic types vs more complex json */
     isjson = (ainfo->nctype == NC_JSON || NCZ_iscomplexjson(ainfo->name,jdata));

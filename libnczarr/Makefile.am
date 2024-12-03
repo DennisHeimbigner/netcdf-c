@@ -55,6 +55,7 @@ ztype.c \
 zutil.c \
 zvar.c \
 zwalk.c \
+znc4.c \
 zdebug.c \
 zformat.h \
 zarr.h \

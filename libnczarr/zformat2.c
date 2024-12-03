@@ -102,7 +102,7 @@ static int ZF2_encode_xarray(NC_FILE_INFO_T* file, size_t rank, NC_DIM_INFO_T** 
 static int decode_grp_dims(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* jdims, NClist* dimdefs);
 static int dtype2nctype(NC_FILE_INFO_T* file, const char* dtype, int isattr, nc_type* nctypep, int* endianp, size_t* typelenp);
 static int nctype2dtype(NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typesize, char** dtypep, char** dattrtypep);
-static int computeattrinfo(NC_FILE_INFO_T* file, nc_type typehint, const char* aname, const NCjson* jtypes, const NCjson* jainfo, struct NCZ_AttrInfo* ainfo);
+static int computeattrinfo(NC_FILE_INFO_T* file, nc_type typehint, const char* aname, const NCjson* jtypes, const NCjson* jdata, struct NCZ_AttrInfo* ainfo);
 
 /**************************************************/
 /* Format dispatch table */
@@ -517,17 +517,14 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 	    NCZ_clearAttrInfo(file,&ainfo);
 	    ainfo.name = NC_FillValue;
 	    ainfo.nctype = vtype;
-	    ainfo.jdata = jvalue;
-	    if((stat = NCZ_computeattrdata(file,&ainfo))) goto done;
+	    if((stat = NCZ_computeattrdata(file,jvalue,&ainfo))) goto done;
 	    /* Create var->fill_value */
 	    assert(ainfo.nctype == vtype);
 	    if((stat = NCZ_set_dual_obj_data(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,ainfo.datalen,ainfo.data))) goto done;	
 	    /* propagate to _FillValue attribute */
 	    if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
-	    /* reclaim ainfo.data */
-	    if((stat = NC_reclaim_data_all(file->controller,ainfo.nctype,ainfo.data,ainfo.datalen))) goto done;
-	    ainfo.datalen = 0;
-	    ainfo.data = NULL;
+	    /* clear+reclaim ainfo */
+	    NCZ_clearAttrInfo(file,&ainfo);
 	}
     }
 
@@ -1656,7 +1653,7 @@ done:
 Extract type and data for an attribute from json
 */
 static int
-computeattrinfo(NC_FILE_INFO_T* file, nc_type typehint, const char* aname, const NCjson* jtypes, const NCjson* jainfo, struct NCZ_AttrInfo* ainfo)
+computeattrinfo(NC_FILE_INFO_T* file, nc_type typehint, const char* aname, const NCjson* jtypes, const NCjson* jdata, struct NCZ_AttrInfo* ainfo)
 {
     int stat = NC_NOERR;
     int purezarr = 0;
@@ -1670,13 +1667,11 @@ computeattrinfo(NC_FILE_INFO_T* file, nc_type typehint, const char* aname, const
     TESTPUREZARR;
 
     ainfo->name = aname;
-    /* Save the attribute data */
-    ainfo->jdata = jainfo;
 
     /* Infer the attribute data's type */
     if(purezarr || jtypes == NULL) {
         ainfo->nctype = NC_NAT;
-        if((stat = NCZ_inferattrtype(ainfo->name,typehint,ainfo->jdata,&ainfo->nctype))) goto done;
+        if((stat = NCZ_inferattrtype(ainfo->name,typehint,jdata,&ainfo->nctype))) goto done;
     } else {
         /* Search the jtypes for the type of this attribute */
         ainfo->nctype = NC_NAT;
@@ -1685,7 +1680,7 @@ computeattrinfo(NC_FILE_INFO_T* file, nc_type typehint, const char* aname, const
         if((stat=dtype2nctype(file,NCJstring(jatype),ISATTR,&ainfo->nctype,&ainfo->endianness,&ainfo->typelen))) goto done;
         if(ainfo->nctype >= N_NCZARR_TYPES) {stat = NC_EINTERNAL; goto done;}
     }
-    if((stat = NCZ_computeattrdata(file,ainfo))) goto done;
+    if((stat = NCZ_computeattrdata(file,jdata,ainfo))) goto done;
 
 done:
     return ZUNTRACEX(THROW(stat),"typeid=%d typelen=%d len=%u",ainfo->nctype,ainfo->typelen,ainfo->len);
