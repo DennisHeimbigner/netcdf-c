@@ -73,12 +73,14 @@ JSON value
 #ifndef ZFILL_H
 #define ZFILL_H
 
-EXTERNL int NCZ_fillvalue_disable(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
+EXTERNL int NCZ_disable_fill(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
 EXTERNL void* NCZ_getdfaltfillvalue(nc_type nctype);
 EXTERNL int NCZ_isdfaltfillvalue(nc_type nctype, void* value);
 
+#if 0
 EXTERNL int NCZ_set_fill_value(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int no_fill, const void* fillvalue);
 EXTERNL int NCZ_set_fill_att(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_ATT_INFO_T* att, int no_fill, const void* fillvalue);
+#endif
 
 #endif /*ZFILL_H*/
 

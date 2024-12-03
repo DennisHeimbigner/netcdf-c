@@ -33,7 +33,6 @@ zformat.c \
 zformat2.c \
 zsync.c \
 zinfer.c \
-znc4.c \
 zfill.c \
 zarr.c \
 zattr.c \

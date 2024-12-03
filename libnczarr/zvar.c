@@ -341,6 +341,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
     if ((retval = nc4_var_list_add(grp, norm_name, ndims, &var)))
 	BAIL(retval);
 
+    /* Set values for the remaining NC_VAR_INFO_T fields */
     retval = NCZ_fillin_var(h5, var, type, (size_t)ndims, dimids, NULL, NULL, NC_ENDIAN_NATIVE);
 
     if(retval == NC_NOERR) {
@@ -374,6 +375,8 @@ NCZ_fillin_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_TYPE_INFO_T* type,
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     NCZ_VAR_INFO_T* zvar = NULL;
     NCglobalstate* gs = NC_getglobalstate();
+    nc_type vartypeid = NC_NAT;
+    size_t typesize = 0;
 
     /* Add storage for NCZ-specific var info. */
     if (!(zvar = calloc(1, sizeof(NCZ_VAR_INFO_T)))) {stat = NC_ENOMEM; goto done;}
@@ -401,6 +404,8 @@ NCZ_fillin_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_TYPE_INFO_T* type,
 #ifdef LOOK
 var->type_info->rc++;
 #endif
+    vartypeid = type->hdr.id;
+    typesize = type->size;
 
     /* Propagate the endianness */
     if(endianness == NC_ENDIAN_NATIVE)
@@ -459,13 +464,13 @@ var->type_info->rc++;
     zvar->chunkproduct = 1;
     if(!zvar->scalar)
         {size_t k; for(k=0;k<var->ndims;k++) {zvar->chunkproduct *= var->chunksizes[k];}}
-    zvar->chunksize = zvar->chunkproduct * var->type_info->size;
+    zvar->chunksize = zvar->chunkproduct * typesize;
 
     /* Set cache defaults */
     var->chunkcache = gs->chunkcache;
 
     /* Create the cache */
-    if((stat=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,zvar->dimension_separator,&zvar->cache)))
+    if((stat=NCZ_create_chunk_cache(var,zvar->chunkproduct*typesize,zvar->dimension_separator,&zvar->cache)))
 	goto done;
 
     /* Set the per-variable chunkcache defaults */
@@ -475,13 +480,17 @@ var->type_info->rc++;
      * variable type is variable length (NC_STRING or NC_VLEN) or is
      * user-defined type. */
     if (var->type_info->nc_type_class <= NC_STRING) { /* Make fill flags consistent */
-	int no_fill = (file->fill_mode == NC_NOFILL?1:0);
-	if((stat = NCZ_set_fill_value(file,var,no_fill,NULL))) goto done;
-        var->fill_val_changed = 0; /* But pretend it has not been changed */
-        /* synchronize to Attribute */
-	if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
+	var->no_fill = file->fill_mode;
+	if(var->no_fill == NC_NOFILL) {
+	    if((stat = NCZ_disable_fill(file,var))) goto done;
+	    var->fill_val_changed = 0; /* But pretend it has not been changed */
+	} else {
+	    const void* dfaltfillvalue = NCZ_getdfaltfillvalue(vartypeid);
+	    /* Since do not have the variable attributes (yet), set var->fill_value to default */
+	    if((stat = NC_copy_data_all(file->controller,vartypeid,dfaltfillvalue,1,&var->fill_value))) goto done;
+	    var->fill_val_changed = 1;
+	}
     }
-
     if((stat = NCZ_adjust_var_cache(var))) goto done;
 
 done:
@@ -697,44 +706,43 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
 	    var->no_fill = NC_FALSE;
     }
 
-    /* Are we setting a fill value? */
-    if (fillvalue && no_fill && !(*no_fill))
-    {
-	/* Copy the fillvalue. */
-	LOG((4, "Copying fill value into metadata for variable %s",
-	     var->hdr.name));
-
-	/* (re-)set the NC_VAR_INFO_T.fill_value */	
-	if((stat = NCZ_set_fill_value(h5,var,*no_fill,fillvalue))) goto done;
-
-        /* synchronize to Attribute */
-	if((stat = NCZ_sync_dual_att(h5,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
+    /* Are we setting or disabling a fill value? */
+    if(no_fill) {
+	if(fillvalue && *no_fill == NC_NOFILL) {
+	    var->no_fill = NC_NOFILL;
+	    if((stat = NCZ_disable_fill(h5,var))) goto done;
+	    var->fill_val_changed = 0; /* But pretend it has not been changed */
+	} else {
+	    /* synchronize to Attribute */
+	    if((stat = NCZ_sync_dual_att(h5,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
+	    var->fill_val_changed = 1;
+	}
     }
 
     /* Is the user setting the endianness? */
     if (endianness)
     {
-	/* Setting endianness is only premitted on atomic integer and
-	 * atomic float types. */
-	switch (var->type_info->hdr.id)
-	{
-	case NC_BYTE:
-	case NC_SHORT:
-	case NC_INT:
-	case NC_FLOAT:
-	case NC_DOUBLE:
-	case NC_UBYTE:
-	case NC_USHORT:
-	case NC_UINT:
-	case NC_INT64:
-	case NC_UINT64:
-	    break;
-	default:
-	    {stat = NC_EINVAL; goto done;}
-	}
-	var->type_info->endianness = *endianness;
-	/* Propagate */
-	var->endianness = *endianness;
+        /* Setting endianness is only premitted on atomic integer and
+         * atomic float types. */
+        switch (var->type_info->hdr.id)
+        {
+        case NC_BYTE:
+        case NC_SHORT:
+        case NC_INT:
+        case NC_FLOAT:
+        case NC_DOUBLE:
+        case NC_UBYTE:
+        case NC_USHORT:
+        case NC_UINT:
+        case NC_INT64:
+        case NC_UINT64:
+            break;
+        default:
+            {stat = NC_EINVAL; goto done;}
+        }
+        var->type_info->endianness = *endianness;
+        /* Propagate */
+        var->endianness = *endianness;
     }
 
     /* Remember quantization settings. They will be used when data are
@@ -742,59 +750,59 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
      * Code block is identical to one in hdf5var.c---consider functionalizing */
     if (quantize_mode)
     {
-	/* Only four valid mode settings. */
-	if (*quantize_mode != NC_NOQUANTIZE &&
-	    *quantize_mode != NC_QUANTIZE_BITGROOM &&
-	    *quantize_mode != NC_QUANTIZE_GRANULARBR &&
-	    *quantize_mode != NC_QUANTIZE_BITROUND)
-	    return NC_EINVAL;
+        /* Only four valid mode settings. */
+        if (*quantize_mode != NC_NOQUANTIZE &&
+            *quantize_mode != NC_QUANTIZE_BITGROOM &&
+            *quantize_mode != NC_QUANTIZE_GRANULARBR &&
+            *quantize_mode != NC_QUANTIZE_BITROUND)
+            return NC_EINVAL;
 
-	if (*quantize_mode == NC_QUANTIZE_BITGROOM ||
-	    *quantize_mode == NC_QUANTIZE_GRANULARBR ||
-	    *quantize_mode == NC_QUANTIZE_BITROUND)
-	  {
+        if (*quantize_mode == NC_QUANTIZE_BITGROOM ||
+            *quantize_mode == NC_QUANTIZE_GRANULARBR ||
+            *quantize_mode == NC_QUANTIZE_BITROUND)
+          {
 
-	    /* Only float and double types can have quantization. */
-	    if (var->type_info->hdr.id != NC_FLOAT &&
-		var->type_info->hdr.id != NC_DOUBLE)
-		return NC_EINVAL;
-	    
-	    /* All quantization codecs require number of significant digits */
-	    if (!nsd)
-		return NC_EINVAL;
+            /* Only float and double types can have quantization. */
+            if (var->type_info->hdr.id != NC_FLOAT &&
+                var->type_info->hdr.id != NC_DOUBLE)
+                return NC_EINVAL;
+            
+            /* All quantization codecs require number of significant digits */
+            if (!nsd)
+                return NC_EINVAL;
 
-	    /* NSD must be in range. */
-	    if (*nsd <= 0)
-		return NC_EINVAL;
+            /* NSD must be in range. */
+            if (*nsd <= 0)
+                return NC_EINVAL;
 
-	    if (*quantize_mode == NC_QUANTIZE_BITGROOM ||
-		*quantize_mode == NC_QUANTIZE_GRANULARBR)
-	      {
-		if (var->type_info->hdr.id == NC_FLOAT &&
-		    *nsd > NC_QUANTIZE_MAX_FLOAT_NSD)
-		  return NC_EINVAL;
-		if (var->type_info->hdr.id == NC_DOUBLE &&
-		    *nsd > NC_QUANTIZE_MAX_DOUBLE_NSD)
-		  return NC_EINVAL;
-	      }
-	    else if (*quantize_mode == NC_QUANTIZE_BITROUND)
-	      {
-		if (var->type_info->hdr.id == NC_FLOAT &&
-		    *nsd > NC_QUANTIZE_MAX_FLOAT_NSB)
-		  return NC_EINVAL;
-		if (var->type_info->hdr.id == NC_DOUBLE &&
-		    *nsd > NC_QUANTIZE_MAX_DOUBLE_NSB)
-		  return NC_EINVAL;
-	      }
+            if (*quantize_mode == NC_QUANTIZE_BITGROOM ||
+                *quantize_mode == NC_QUANTIZE_GRANULARBR)
+              {
+                if (var->type_info->hdr.id == NC_FLOAT &&
+                    *nsd > NC_QUANTIZE_MAX_FLOAT_NSD)
+                  return NC_EINVAL;
+                if (var->type_info->hdr.id == NC_DOUBLE &&
+                    *nsd > NC_QUANTIZE_MAX_DOUBLE_NSD)
+                  return NC_EINVAL;
+              }
+            else if (*quantize_mode == NC_QUANTIZE_BITROUND)
+              {
+                if (var->type_info->hdr.id == NC_FLOAT &&
+                    *nsd > NC_QUANTIZE_MAX_FLOAT_NSB)
+                  return NC_EINVAL;
+                if (var->type_info->hdr.id == NC_DOUBLE &&
+                    *nsd > NC_QUANTIZE_MAX_DOUBLE_NSB)
+                  return NC_EINVAL;
+              }
 
-	    var->nsd = *nsd;
-	}
-	
-	var->quantize_mode = *quantize_mode;
+            var->nsd = *nsd;
+        }
+        
+        var->quantize_mode = *quantize_mode;
 
-	/* If quantization is turned off, then set nsd to 0. */
-	if (*quantize_mode == NC_NOQUANTIZE)
-	    var->nsd = 0;
+        /* If quantization is turned off, then set nsd to 0. */
+        if (*quantize_mode == NC_NOQUANTIZE)
+            var->nsd = 0;
     }
 
 done:
@@ -824,14 +832,14 @@ done:
  */
 int
 NCZ_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
-		    int deflate_level)
+                    int deflate_level)
 {
     int stat = NC_NOERR;
     unsigned int level = (unsigned int)deflate_level;
     /* Set shuffle first */
     if((stat = ncz_def_var_extra(ncid, varid, &shuffle, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL))) goto done;
     if(deflate)
-	stat = nc_def_var_filter(ncid, varid, H5Z_FILTER_DEFLATE,1,&level);
+        stat = nc_def_var_filter(ncid, varid, H5Z_FILTER_DEFLATE,1,&level);
     if(stat) goto done;
 done:
     return stat;
@@ -859,7 +867,7 @@ int
 NCZ_def_var_fletcher32(int ncid, int varid, int fletcher32)
 {
     return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, &fletcher32,
-			    NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+                            NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -888,7 +896,7 @@ int
 NCZ_def_var_chunking(int ncid, int varid, int contiguous, const size_t *chunksizesp)
 {
     return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
-			    &contiguous, chunksizesp, NULL, NULL, NULL, NULL, NULL);
+                            &contiguous, chunksizesp, NULL, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -921,23 +929,23 @@ ncz_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
 
     /* Get pointer to the var. */
     if ((retval = nc4_find_grp_h5_var(ncid, varid, NULL, NULL, &var)))
-	return THROW(retval);
+        return THROW(retval);
     assert(var);
 
     /* Allocate space for the size_t copy of the chunksizes array. */
     if (var->ndims)
-	if (!(cs = malloc(var->ndims * sizeof(size_t))))
-	    return NC_ENOMEM;
+        if (!(cs = malloc(var->ndims * sizeof(size_t))))
+            return NC_ENOMEM;
 
     /* Copy to size_t array. */
     for (i = 0; i < var->ndims; i++)
-	cs[i] = (size_t)chunksizesp[i];
+        cs[i] = (size_t)chunksizesp[i];
 
     retval = ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
-			      &contiguous, cs, NULL, NULL, NULL, NULL, NULL);
+                              &contiguous, cs, NULL, NULL, NULL, NULL, NULL);
 
     if (var->ndims)
-	free(cs);
+        free(cs);
     return THROW(retval);
 }
 
@@ -968,7 +976,7 @@ int
 NCZ_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
 {
     return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
-			    NULL, &no_fill, fill_value, NULL, NULL, NULL);
+                            NULL, &no_fill, fill_value, NULL, NULL, NULL);
 }
 
 /**
@@ -997,7 +1005,7 @@ int
 NCZ_def_var_endian(int ncid, int varid, int endianness)
 {
     return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
-			    NULL, NULL, NULL, &endianness, NULL, NULL);
+                            NULL, NULL, NULL, &endianness, NULL, NULL);
 }
 
 /**
@@ -1082,8 +1090,8 @@ int
 NCZ_def_var_quantize(int ncid, int varid, int quantize_mode, int nsd)
 {
     return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
-			    NULL, NULL, NULL, NULL, NULL,
-			    &quantize_mode, &nsd);
+                            NULL, NULL, NULL, NULL, NULL,
+                            &quantize_mode, &nsd);
 }
 
 /**
@@ -1098,16 +1106,16 @@ NCZ_ensure_quantizer(int ncid, NC_VAR_INFO_T* var)
 
     /* Read the attribute */
     if(NCZ_get_att(ncid,var->hdr.id,NC_QUANTIZE_BITGROOM_ATT_NAME,&nsd,NC_INT)==NC_NOERR) {
-	var->quantize_mode = NC_QUANTIZE_BITGROOM;
+        var->quantize_mode = NC_QUANTIZE_BITGROOM;
         var->nsd = nsd;
     } else if(NCZ_get_att(ncid,var->hdr.id,NC_QUANTIZE_GRANULARBR_ATT_NAME,&nsd,NC_INT)==NC_NOERR) {
-	var->quantize_mode = NC_QUANTIZE_GRANULARBR;
+        var->quantize_mode = NC_QUANTIZE_GRANULARBR;
         var->nsd = nsd;
     } else if(NCZ_get_att(ncid,var->hdr.id,NC_QUANTIZE_BITROUND_ATT_NAME,&nsd,NC_INT)==NC_NOERR) {
-	var->quantize_mode = NC_QUANTIZE_BITROUND;
+        var->quantize_mode = NC_QUANTIZE_BITROUND;
         var->nsd = nsd;
     } else {
-	var->quantize_mode = NC_NOQUANTIZE;
+        var->quantize_mode = NC_NOQUANTIZE;
         var->nsd = 0;
     }
     if(var->quantize_mode < 0) var->quantize_mode = 0;
@@ -1132,7 +1140,7 @@ NCZ_ensure_quantizer(int ncid, NC_VAR_INFO_T* var)
  */
 int
 NCZ_inq_var_quantize(int ncid, int varid, int *quantize_modep,
-		     int *nsdp)
+                     int *nsdp)
 {
     NC_VAR_INFO_T *var;
     int retval;
@@ -1144,7 +1152,7 @@ NCZ_inq_var_quantize(int ncid, int varid, int *quantize_modep,
     if ((retval = nc4_find_grp_h5_var(ncid, varid, NULL, NULL, &var)))
         return retval;
     if (!var)
-        return NC_ENOTVAR;	
+        return NC_ENOTVAR;      
     assert(var->hdr.id == varid);
     if(var->quantize_mode == 0)
         {if((retval = NCZ_ensure_quantizer(ncid, var))) return retval;}
@@ -1197,7 +1205,7 @@ NCZ_rename_var(int ncid, int varid, const char *name)
     int retval = NC_NOERR;
 
     if (!name)
-	return NC_EINVAL;
+        return NC_EINVAL;
 
     LOG((2, "%s: ncid 0x%x varid %d name %s", __func__, ncid, varid, name));
 
@@ -1205,155 +1213,155 @@ NCZ_rename_var(int ncid, int varid, const char *name)
 
     /* Find info for this file and group, and set pointer to each. */
     if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
-	return THROW(retval);
+        return THROW(retval);
     assert(h5 && grp && grp->format_grp_info);
 
     /* Is the new name too long? */
     if (strlen(name) > NC_MAX_NAME)
-	return NC_EMAXNAME;
+        return NC_EMAXNAME;
 
     /* Trying to write to a read-only file? No way, Jose! */
     if (h5->no_write)
-	return NC_EPERM;
+        return NC_EPERM;
 
     /* Check name validity, if strict nc3 rules are in effect for this
      * file. */
     if ((retval = NC_check_name(name)))
-	return THROW(retval);
+        return THROW(retval);
 
     /* Get the variable wrt varid */
     if (!(var = (NC_VAR_INFO_T *)ncindexith(grp->vars, (size_t)varid)))
-	return NC_ENOTVAR;
+        return NC_ENOTVAR;
 
     /* Check if new name is in use; note that renaming to same name is
        still an error according to the nc_test/test_write.c
        code. Why?*/
     if (ncindexlookup(grp->vars, name))
-	return THROW(NC_ENAMEINUSE);
+        return THROW(NC_ENAMEINUSE);
 
     /* If we're not in define mode, new name must be of equal or
        less size, if strict nc3 rules are in effect for this . */
     if (!(h5->flags & NC_INDEF) && strlen(name) > strlen(var->hdr.name) &&
-	(h5->cmode & NC_CLASSIC_MODEL))
-	return NC_ENOTINDEFINE;
+        (h5->cmode & NC_CLASSIC_MODEL))
+        return NC_ENOTINDEFINE;
 
 #ifdef LOOK
     /* Is there another dim with this name, for which this var will not
      * be a coord var? If so, we have to create a dim without a
      * variable for the old name. */
     if ((other_dim = (NC_DIM_INFO_T *)ncindexlookup(grp->dim, name)) &&
-	strcmp(name, var->dim[0]->hdr.name))
+        strcmp(name, var->dim[0]->hdr.name))
     {
-	/* Create a dim without var dataset for old dim. */
-	if ((retval = ncz_create_dim_wo_var(other_dim)))
-	    return THROW(retval);
+        /* Create a dim without var dataset for old dim. */
+        if ((retval = ncz_create_dim_wo_var(other_dim)))
+            return THROW(retval);
 
-	/* Give this var a secret ZARR name so it can co-exist in file
-	 * with dim wp var dataset. Base the secret name on the new var
-	 * name. */
-	if ((retval = give_var_secret_name(var, name)))
-	    return THROW(retval);
-	use_secret_name++;
+        /* Give this var a secret ZARR name so it can co-exist in file
+         * with dim wp var dataset. Base the secret name on the new var
+         * name. */
+        if ((retval = give_var_secret_name(var, name)))
+            return THROW(retval);
+        use_secret_name++;
     }
 
     /* Change the ZARR file, if this var has already been created
        there. */
     if (var->created)
     {
-	int v;
-	char *ncz_name; /* Dataset will be renamed to this. */
-	ncz_name = use_secret_name ? var->ncz_name: (char *)name;
+        int v;
+        char *ncz_name; /* Dataset will be renamed to this. */
+        ncz_name = use_secret_name ? var->ncz_name: (char *)name;
 
-	if (var->ndims)
-	{
-	    NCZ_DIM_INFO_T *ncz_d0;
-	    ncz_d0 = (NCZ_DIM_INFO_T *)var->dim[0]->format_dim_info;
+        if (var->ndims)
+        {
+            NCZ_DIM_INFO_T *ncz_d0;
+            ncz_d0 = (NCZ_DIM_INFO_T *)var->dim[0]->format_dim_info;
 
-	    /* Is there an existing dimscale-only dataset of this name? If
-	     * so, it must be deleted. */
-	    if (ncz_d0->hdf_dimscaleid)
-	    {
-		if ((retval = delete_dimscale_dataset(grp, var->dim[0]->hdr.id,
-						      var->dim[0])))
-		    return THROW(retval);
-	    }
-	}
+            /* Is there an existing dimscale-only dataset of this name? If
+             * so, it must be deleted. */
+            if (ncz_d0->hdf_dimscaleid)
+            {
+                if ((retval = delete_dimscale_dataset(grp, var->dim[0]->hdr.id,
+                                                      var->dim[0])))
+                    return THROW(retval);
+            }
+        }
 
-	LOG((3, "Moving dataset %s to %s", var->hdr.name, name));
-	if (H5Lmove(ncz_grp->hdf_grpid, var->hdr.name, ncz_grp->hdf_grpid,
-		    ncz_name, H5P_DEFAULT, H5P_DEFAULT) < 0)
-	    return NC_EHDFERR;
+        LOG((3, "Moving dataset %s to %s", var->hdr.name, name));
+        if (H5Lmove(ncz_grp->hdf_grpid, var->hdr.name, ncz_grp->hdf_grpid,
+                    ncz_name, H5P_DEFAULT, H5P_DEFAULT) < 0)
+            return NC_EHDFERR;
 
-	/* Rename all the vars in this file with a varid greater than
-	 * this var. Varids are assigned based on dataset creation time,
-	 * and we have just changed that for this var. We must do the
-	 * same for all vars with a > varid, so that the creation order
-	 * will continue to be correct. */
-	for (v = var->hdr.id + 1; v < ncindexsize(grp->vars); v++)
-	{
-	    NC_VAR_INFO_T *my_var;
-	    my_var = (NC_VAR_INFO_T *)ncindexith(grp->vars, v);
-	    assert(my_var);
+        /* Rename all the vars in this file with a varid greater than
+         * this var. Varids are assigned based on dataset creation time,
+         * and we have just changed that for this var. We must do the
+         * same for all vars with a > varid, so that the creation order
+         * will continue to be correct. */
+        for (v = var->hdr.id + 1; v < ncindexsize(grp->vars); v++)
+        {
+            NC_VAR_INFO_T *my_var;
+            my_var = (NC_VAR_INFO_T *)ncindexith(grp->vars, v);
+            assert(my_var);
 
-	    LOG((3, "mandatory rename of %s to same name", my_var->hdr.name));
+            LOG((3, "mandatory rename of %s to same name", my_var->hdr.name));
 
-	    /* Rename to temp name. */
-	    if (H5Lmove(ncz_grp->hdf_grpid, my_var->hdr.name, ncz_grp->hdf_grpid,
-			NC_TEMP_NAME, H5P_DEFAULT, H5P_DEFAULT) < 0)
-		return NC_EHDFERR;
+            /* Rename to temp name. */
+            if (H5Lmove(ncz_grp->hdf_grpid, my_var->hdr.name, ncz_grp->hdf_grpid,
+                        NC_TEMP_NAME, H5P_DEFAULT, H5P_DEFAULT) < 0)
+                return NC_EHDFERR;
 
-	    /* Rename to real name. */
-	    if (H5Lmove(ncz_grp->hdf_grpid, NC_TEMP_NAME, ncz_grp->hdf_grpid,
-			my_var->hdr.name, H5P_DEFAULT, H5P_DEFAULT) < 0)
-		return NC_EHDFERR;
-	}
+            /* Rename to real name. */
+            if (H5Lmove(ncz_grp->hdf_grpid, NC_TEMP_NAME, ncz_grp->hdf_grpid,
+                        my_var->hdr.name, H5P_DEFAULT, H5P_DEFAULT) < 0)
+                return NC_EHDFERR;
+        }
     }
 #endif
 
     /* Now change the name in our metadata. */
     free(var->hdr.name);
     if (!(var->hdr.name = strdup(name)))
-	return NC_ENOMEM;
+        return NC_ENOMEM;
     LOG((3, "var is now %s", var->hdr.name));
 
     /* rebuild index. */
     if (!ncindexrebuild(grp->vars))
-	return NC_EINTERNAL;
+        return NC_EINTERNAL;
 
 #ifdef LOOK
     /* Check if this was a coordinate variable previously, but names
      * are different now */
     if (var->dimscale && strcmp(var->hdr.name, var->dim[0]->hdr.name))
     {
-	/* Break up the coordinate variable */
-	if ((retval = ncz_break_coord_var(grp, var, var->dim[0])))
-	    return THROW(retval);
+        /* Break up the coordinate variable */
+        if ((retval = ncz_break_coord_var(grp, var, var->dim[0])))
+            return THROW(retval);
     }
 
     /* Check if this should become a coordinate variable. */
     if (!var->dimscale)
     {
-	/* Only variables with >0 dimensions can become coordinate
-	 * variables. */
-	if (var->ndims)
-	{
-	    NC_GRP_INFO_T *dim_grp;
-	    NC_DIM_INFO_T *dim;
+        /* Only variables with >0 dimensions can become coordinate
+         * variables. */
+        if (var->ndims)
+        {
+            NC_GRP_INFO_T *dim_grp;
+            NC_DIM_INFO_T *dim;
 
-	    /* Check to see if this is became a coordinate variable.  If
-	     * so, it will have the same name as dimension index 0. If it
-	     * is a coordinate var, is it a coordinate var in the same
-	     * group as the dim? */
-	    if ((retval = ncz_find_dim(grp, var->dimids[0], &dim, &dim_grp)))
-		return THROW(retval);
-	    if (!strcmp(dim->hdr.name, name) && dim_grp == grp)
-	    {
-		/* Reform the coordinate variable. */
-		if ((retval = ncz_reform_coord_var(grp, var, dim)))
-		    return THROW(retval);
-		var->became_coord_var = NC_TRUE;
-	    }
-	}
+            /* Check to see if this is became a coordinate variable.  If
+             * so, it will have the same name as dimension index 0. If it
+             * is a coordinate var, is it a coordinate var in the same
+             * group as the dim? */
+            if ((retval = ncz_find_dim(grp, var->dimids[0], &dim, &dim_grp)))
+                return THROW(retval);
+            if (!strcmp(dim->hdr.name, name) && dim_grp == grp)
+            {
+                /* Reform the coordinate variable. */
+                if ((retval = ncz_reform_coord_var(grp, var, dim)))
+                    return THROW(retval);
+                var->became_coord_var = NC_TRUE;
+            }
+        }
     }
 #endif
 
@@ -1377,7 +1385,7 @@ NCZ_rename_var(int ncid, int varid, const char *name)
  */
 int
 NCZ_put_vara(int ncid, int varid, const size_t *startp,
-	     const size_t *countp, const void *op, int memtype)
+             const size_t *countp, const void *op, int memtype)
 {
     return NCZ_put_vars(ncid, varid, startp, countp, NULL, op, memtype);
 }
@@ -1399,7 +1407,7 @@ NCZ_put_vara(int ncid, int varid, const size_t *startp,
  */
 int
 NCZ_get_vara(int ncid, int varid, const size_t *startp,
-	     const size_t *countp, void *ip, int memtype)
+             const size_t *countp, void *ip, int memtype)
 {
     return NCZ_get_vars(ncid, varid, startp, countp, NULL, ip, memtype);
 }
@@ -1425,21 +1433,21 @@ check_for_vara(nc_type *mem_nc_type, NC_VAR_INFO_T *var, NC_FILE_INFO_T *h5)
      * as the mem type as well. */
     assert(mem_nc_type);
     if (*mem_nc_type == NC_NAT)
-	*mem_nc_type = var->type_info->hdr.id;
+        *mem_nc_type = var->type_info->hdr.id;
     assert(*mem_nc_type);
 
     /* No NC_CHAR conversions, you pervert! */
     if (var->type_info->hdr.id != *mem_nc_type &&
-	(var->type_info->hdr.id == NC_CHAR || *mem_nc_type == NC_CHAR))
-	return NC_ECHAR;
+        (var->type_info->hdr.id == NC_CHAR || *mem_nc_type == NC_CHAR))
+        return NC_ECHAR;
 
     /* If we're in define mode, we can't read or write data. */
     if (h5->flags & NC_INDEF)
     {
-	if (h5->cmode & NC_CLASSIC_MODEL)
-	    return NC_EINDEFINE;
-	if ((retval = ncz_enddef_netcdf4_file(h5)))
-	    return THROW(retval);
+        if (h5->cmode & NC_CLASSIC_MODEL)
+            return NC_EINDEFINE;
+        if ((retval = ncz_enddef_netcdf4_file(h5)))
+            return THROW(retval);
     }
 
     return NC_NOERR;
@@ -1451,7 +1459,7 @@ check_for_vara(nc_type *mem_nc_type, NC_VAR_INFO_T *var, NC_FILE_INFO_T *h5)
  */
 static void
 log_dim_info(NC_VAR_INFO_T *var, size64_t *fdims, size64_t *fmaxdims,
-	     size64_t *start, size64_t *count)
+             size64_t *start, size64_t *count)
 {
     size_t d2;
 
@@ -1460,9 +1468,9 @@ log_dim_info(NC_VAR_INFO_T *var, size64_t *fdims, size64_t *fmaxdims,
     LOG((4, "File space, and requested:"));
     for (d2 = 0; d2 < var->ndims; d2++)
     {
-	LOG((4, "fdims[%d]=%Ld fmaxdims[%d]=%Ld", d2, fdims[d2], d2,
-	     fmaxdims[d2]));
-	LOG((4, "start[%d]=%Ld	count[%d]=%Ld", d2, start[d2], d2, count[d2]));
+        LOG((4, "fdims[%d]=%Ld fmaxdims[%d]=%Ld", d2, fdims[d2], d2,
+             fmaxdims[d2]));
+        LOG((4, "start[%d]=%Ld  count[%d]=%Ld", d2, start[d2], d2, count[d2]));
     }
 }
 #endif /* LOGGING */
@@ -1498,7 +1506,7 @@ log_dim_info(NC_VAR_INFO_T *var, size64_t *fdims, size64_t *fmaxdims,
  */
 int
 NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
-	     const ptrdiff_t *stridep, const void *data, nc_type mem_nc_type)
+             const ptrdiff_t *stridep, const void *data, nc_type mem_nc_type)
 {
     NC_GRP_INFO_T *grp;
     NC_FILE_INFO_T *h5;
@@ -1528,11 +1536,11 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     
     /* Find info for this file, group, and var. */
     if ((retval = nc4_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
-	return THROW(retval);
+        return THROW(retval);
     assert(h5 && grp && var && var->hdr.id == varid && var->format_var_info);
 
     LOG((3, "%s: var->hdr.name %s mem_nc_type %d", __func__,
-	 var->hdr.name, mem_nc_type));
+         var->hdr.name, mem_nc_type));
 
     if(h5->no_write)
         return NC_EPERM;
@@ -1541,36 +1549,36 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 
     /* Cannot convert to user-defined types. */
     if (mem_nc_type >= NC_FIRSTUSERTYPEID)
-	return THROW(NC_EINVAL);
+        return THROW(NC_EINVAL);
 
     /* Check some stuff about the type and the file. If the file must
      * be switched from define mode, it happens here. */
     if ((retval = check_for_vara(&mem_nc_type, var, h5)))
-	return THROW(retval);
+        return THROW(retval);
     assert(!var->ndims || (startp && countp));
 
     /* Convert from size_t and ptrdiff_t to size64_t */
     /* Also do sanity checks */
     if(var->ndims == 0) { /* scalar */
-	start[0] = 0;
-	count[0] = 1;
-	stride[0] = 1;
+        start[0] = 0;
+        count[0] = 1;
+        stride[0] = 1;
     } else {
         for (i = 0; i < var->ndims; i++)
         {
-    	    /* Check for non-positive stride. */
-	    if (stridep && stridep[i] <= 0)
-	        return NC_ESTRIDE;
+            /* Check for non-positive stride. */
+            if (stridep && stridep[i] <= 0)
+                return NC_ESTRIDE;
 
-	    fdims[i] = var->dim[i]->len;
-	    start[i] = startp[i];
-	    count[i] = countp ? countp[i] : fdims[i];
-	    stride[i] = stridep ? (size64_t)stridep[i] : 1;
+            fdims[i] = var->dim[i]->len;
+            start[i] = startp[i];
+            count[i] = countp ? countp[i] : fdims[i];
+            stride[i] = stridep ? (size64_t)stridep[i] : 1;
 
-  	    /* Check to see if any counts are zero. */
-	    if (!count[i])
-	        zero_count++;
-	}
+            /* Check to see if any counts are zero. */
+            if (!count[i])
+                zero_count++;
+        }
     }
 
 
@@ -1582,19 +1590,19 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
      * put data beyond their current length. */
     for (d2 = 0; d2 < var->ndims; d2++)
     {
-	size64_t endindex = start[d2] + stride[d2] * (count[d2] - 1); /* last index written */
-	dim = var->dim[d2];
-	assert(dim && dim->hdr.id == var->dimids[d2]);
-	if (count[d2] == 0)
-	    endindex = start[d2]; /* fixup for zero read count */
-	if (!dim->unlimited)
-	{
-	    /* Allow start to equal dim size if count is zero. */
-	    if (start[d2] > fdims[d2] || (start[d2] == fdims[d2] && count[d2] > 0))
-		BAIL_QUIET(NC_EINVALCOORDS);
-	    if (!zero_count && endindex >= fdims[d2])
-		BAIL_QUIET(NC_EEDGE);
-	}
+        size64_t endindex = start[d2] + stride[d2] * (count[d2] - 1); /* last index written */
+        dim = var->dim[d2];
+        assert(dim && dim->hdr.id == var->dimids[d2]);
+        if (count[d2] == 0)
+            endindex = start[d2]; /* fixup for zero read count */
+        if (!dim->unlimited)
+        {
+            /* Allow start to equal dim size if count is zero. */
+            if (start[d2] > fdims[d2] || (start[d2] == fdims[d2] && count[d2] > 0))
+                BAIL_QUIET(NC_EINVALCOORDS);
+            if (!zero_count && endindex >= fdims[d2])
+                BAIL_QUIET(NC_EEDGE);
+        }
     }
 
 
@@ -1605,19 +1613,19 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
        scalar. If it is, we won't try to set up a hyperslab. */
     if (H5Sget_simple_extent_type(file_spaceid) == H5S_SCALAR)
     {
-	if ((mem_spaceid = H5Screate(H5S_SCALAR)) < 0)
-	    BAIL(NC_EHDFERR);
+        if ((mem_spaceid = H5Screate(H5S_SCALAR)) < 0)
+            BAIL(NC_EHDFERR);
     }
     else
     {
-	if (H5Sselect_hyperslab(file_spaceid, H5S_SELECT_SET, start, stride,
-				ones, count) < 0)
-	    BAIL(NC_EHDFERR);
+        if (H5Sselect_hyperslab(file_spaceid, H5S_SELECT_SET, start, stride,
+                                ones, count) < 0)
+            BAIL(NC_EHDFERR);
 
-	/* Create a space for the memory, just big enough to hold the slab
-	   we want. */
-	if ((mem_spaceid = H5Screate_simple(var->ndims, count, NULL)) < 0)
-	    BAIL(NC_EHDFERR);
+        /* Create a space for the memory, just big enough to hold the slab
+           we want. */
+        if ((mem_spaceid = H5Screate_simple(var->ndims, count, NULL)) < 0)
+            BAIL(NC_EHDFERR);
     }
 #endif
 
@@ -1626,39 +1634,39 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
      * opaque or vlen types.) We also need to call this code if we are doing
      * quantization. */
     if ((mem_nc_type != var->type_info->hdr.id &&
-	mem_nc_type != NC_COMPOUND && mem_nc_type != NC_OPAQUE
-	&& mem_nc_type != NC_VLEN)
-	|| var->quantize_mode > 0)
+        mem_nc_type != NC_COMPOUND && mem_nc_type != NC_OPAQUE
+        && mem_nc_type != NC_VLEN)
+        || var->quantize_mode > 0)
     {
-	size_t file_type_size;
+        size_t file_type_size;
 
-	/* We must convert - allocate a buffer. */
-	need_to_convert++;
-	if(zvar->scalar)
-	    len = 1;
+        /* We must convert - allocate a buffer. */
+        need_to_convert++;
+        if(zvar->scalar)
+            len = 1;
         else for (d2=0; d2<var->ndims; d2++)
-	    len *= countp[d2];
+            len *= countp[d2];
 
-	LOG((4, "converting data for var %s type=%d len=%d", var->hdr.name,
-	     var->type_info->hdr.id, len));
+        LOG((4, "converting data for var %s type=%d len=%d", var->hdr.name,
+             var->type_info->hdr.id, len));
 
-	/* Later on, we will need to know the size of this type in the
-	 * file. */
-	assert(var->type_info->size);
-	file_type_size = var->type_info->size;
+        /* Later on, we will need to know the size of this type in the
+         * file. */
+        assert(var->type_info->size);
+        file_type_size = var->type_info->size;
 
-	/* If we're reading, we need bufr to have enough memory to store
-	 * the data in the file. If we're writing, we need bufr to be
-	 * big enough to hold all the data in the file's type. */
-	if (len > 0) {
-	    assert(bufr == NULL);
-	    if (!(bufr = malloc(len * file_type_size)))
-		BAIL(NC_ENOMEM);
-	    bufrd = 1;
-	}
+        /* If we're reading, we need bufr to have enough memory to store
+         * the data in the file. If we're writing, we need bufr to be
+         * big enough to hold all the data in the file's type. */
+        if (len > 0) {
+            assert(bufr == NULL);
+            if (!(bufr = malloc(len * file_type_size)))
+                BAIL(NC_ENOMEM);
+            bufrd = 1;
+        }
     }
     else
-	bufr = (void *)data;
+        bufr = (void *)data;
 
     /* Write this hyperslab from memory to file. Does the dataset have to be
        extended? If it's already extended to the required size, it will
@@ -1666,110 +1674,110 @@ NCZ_put_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     if (var->ndims)
     {
 
-	for (d2 = 0; d2 < var->ndims; d2++)
-	{
-	    size64_t endindex = start[d2] + stride[d2] * (count[d2] - 1); /* last index written */
-	    if (count[d2] == 0)
-		endindex = start[d2];
-	    dim = var->dim[d2];
-	    assert(dim && dim->hdr.id == var->dimids[d2]);
-	    if (dim->unlimited)
-	    {
-		if (!zero_count && endindex >= fdims[d2])
-		{
-		    dim->len = (endindex+1);
-		}
-		else
-		    dim->len = fdims[d2];
+        for (d2 = 0; d2 < var->ndims; d2++)
+        {
+            size64_t endindex = start[d2] + stride[d2] * (count[d2] - 1); /* last index written */
+            if (count[d2] == 0)
+                endindex = start[d2];
+            dim = var->dim[d2];
+            assert(dim && dim->hdr.id == var->dimids[d2]);
+            if (dim->unlimited)
+            {
+                if (!zero_count && endindex >= fdims[d2])
+                {
+                    dim->len = (endindex+1);
+                }
+                else
+                    dim->len = fdims[d2];
 
-		if (!zero_count && endindex >= dim->len)
-		{
-		    dim->len = endindex+1;
-		    dim->extended = NC_TRUE;
-		}
-	    }
-	}
+                if (!zero_count && endindex >= dim->len)
+                {
+                    dim->len = endindex+1;
+                    dim->extended = NC_TRUE;
+                }
+            }
+        }
 
 
 
 #ifdef LOOK
-	/* If we need to extend it, we also need a new file_spaceid
-	   to reflect the new size of the space. */
-	if (need_to_extend)
-	{
-	    LOG((4, "extending dataset"));
-	    /* Convert xtend_size back to hsize_t for use with
-	     * H5Dset_extent. */
-	    for (d2 = 0; d2 < var->ndims; d2++)
-		fdims[d2] = (size64_t)xtend_size[d2];
-	    if (H5Dset_extent(ncz_var->hdf_datasetid, fdims) < 0)
-		BAIL(NC_EHDFERR);
-	    if (file_spaceid > 0 && H5Sclose(file_spaceid) < 0)
-		BAIL2(NC_EHDFERR);
-	    if ((file_spaceid = H5Dget_space(ncz_var->hdf_datasetid)) < 0)
-		BAIL(NC_EHDFERR);
-	    if (H5Sselect_hyperslab(file_spaceid, H5S_SELECT_SET,
-				    start, stride, ones, count) < 0)
-		BAIL(NC_EHDFERR);
-	}
+        /* If we need to extend it, we also need a new file_spaceid
+           to reflect the new size of the space. */
+        if (need_to_extend)
+        {
+            LOG((4, "extending dataset"));
+            /* Convert xtend_size back to hsize_t for use with
+             * H5Dset_extent. */
+            for (d2 = 0; d2 < var->ndims; d2++)
+                fdims[d2] = (size64_t)xtend_size[d2];
+            if (H5Dset_extent(ncz_var->hdf_datasetid, fdims) < 0)
+                BAIL(NC_EHDFERR);
+            if (file_spaceid > 0 && H5Sclose(file_spaceid) < 0)
+                BAIL2(NC_EHDFERR);
+            if ((file_spaceid = H5Dget_space(ncz_var->hdf_datasetid)) < 0)
+                BAIL(NC_EHDFERR);
+            if (H5Sselect_hyperslab(file_spaceid, H5S_SELECT_SET,
+                                    start, stride, ones, count) < 0)
+                BAIL(NC_EHDFERR);
+        }
 #endif
     }
 
     /* Do we need to convert the data? */
     if (need_to_convert)
     {
-	if(var->quantize_mode == 0) {if((retval = NCZ_ensure_quantizer(ncid,var))) BAIL(retval);}
-	assert(bufr != NULL);
-	if ((retval = nc4_convert_type(data, bufr, mem_nc_type, var->type_info->hdr.id,
-				       len, &range_error, var->fill_value,
-				       (h5->cmode & NC_CLASSIC_MODEL),
-				       var->quantize_mode, var->nsd)))
-	    BAIL(retval);
+        if(var->quantize_mode == 0) {if((retval = NCZ_ensure_quantizer(ncid,var))) BAIL(retval);}
+        assert(bufr != NULL);
+        if ((retval = nc4_convert_type(data, bufr, mem_nc_type, var->type_info->hdr.id,
+                                       len, &range_error, var->fill_value,
+                                       (h5->cmode & NC_CLASSIC_MODEL),
+                                       var->quantize_mode, var->nsd)))
+            BAIL(retval);
     }
 
 #ifdef LOOK
     /* Write the data. At last! */
     LOG((4, "about to write datasetid 0x%x mem_spaceid 0x%x "
-	 "file_spaceid 0x%x", ncz_var->hdf_datasetid, mem_spaceid, file_spaceid));
+         "file_spaceid 0x%x", ncz_var->hdf_datasetid, mem_spaceid, file_spaceid));
     if (H5Dwrite(ncz_var->hdf_datasetid,
-		 ((NCZ_TYPE_INFO_T *)var->type_info->format_type_info)->hdf_typeid,
-		 mem_spaceid, file_spaceid, xfer_plistid, bufr) < 0)
-	BAIL(NC_EHDFERR);
+                 ((NCZ_TYPE_INFO_T *)var->type_info->format_type_info)->hdf_typeid,
+                 mem_spaceid, file_spaceid, xfer_plistid, bufr) < 0)
+        BAIL(NC_EHDFERR);
 #endif /*LOOK*/
 
     if((retval = NCZ_transferslice(var, WRITING, start, count, stride, bufr, var->type_info->hdr.id)))
-	BAIL(retval);
+        BAIL(retval);
 
     /* Remember that we have written to this var so that Fill Value
      * can't be set for it. */
     if (!var->written_to)
-	var->written_to = NC_TRUE;
+        var->written_to = NC_TRUE;
 
     /* For strict netcdf-3 rules, ignore erange errors between UBYTE
      * and BYTE types. */
     if ((h5->cmode & NC_CLASSIC_MODEL) &&
-	(var->type_info->hdr.id == NC_UBYTE || var->type_info->hdr.id == NC_BYTE) &&
-	(mem_nc_type == NC_UBYTE || mem_nc_type == NC_BYTE) &&
-	range_error)
-	range_error = 0;
+        (var->type_info->hdr.id == NC_UBYTE || var->type_info->hdr.id == NC_BYTE) &&
+        (mem_nc_type == NC_UBYTE || mem_nc_type == NC_BYTE) &&
+        range_error)
+        range_error = 0;
 
 exit:
 #ifdef LOOK
     if (file_spaceid > 0 && H5Sclose(file_spaceid) < 0)
-	BAIL2(NC_EHDFERR);
+        BAIL2(NC_EHDFERR);
     if (mem_spaceid > 0 && H5Sclose(mem_spaceid) < 0)
-	BAIL2(NC_EHDFERR);
+        BAIL2(NC_EHDFERR);
     if (xfer_plistid && (H5Pclose(xfer_plistid) < 0))
-	BAIL2(NC_EPARINIT);
+        BAIL2(NC_EPARINIT);
 #endif
     if (bufrd && bufr) free(bufr);
 
     /* If there was an error return it, otherwise return any potential
        range error value. If none, return NC_NOERR as usual.*/
     if (retval)
-	return THROW(retval);
+        return THROW(retval);
     if (range_error)
-	return NC_ERANGE;
+        return NC_ERANGE;
     return NC_NOERR;
 }
 
@@ -1804,7 +1812,7 @@ exit:
  */
 int
 NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
-	     const ptrdiff_t *stridep, void *data, nc_type mem_nc_type)
+             const ptrdiff_t *stridep, void *data, nc_type mem_nc_type)
 {
     NC_GRP_INFO_T *grp;
     NC_FILE_INFO_T *h5;
@@ -1826,48 +1834,48 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
 
     /* Find info for this file, group, and var. */
     if ((retval = nc4_find_grp_h5_var(ncid, varid, &h5, &grp, &var)))
-	return THROW(retval);
+        return THROW(retval);
     assert(h5 && grp && var && var->hdr.id == varid && var->format_var_info &&
-	   var->type_info && var->type_info->size &&
-	   var->type_info->format_type_info);
+           var->type_info && var->type_info->size &&
+           var->type_info->format_type_info);
 
     LOG((3, "%s: var->hdr.name %s mem_nc_type %d", __func__,
-	 var->hdr.name, mem_nc_type));
+         var->hdr.name, mem_nc_type));
 
     zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
 
     /* Check some stuff about the type and the file. Also end define
      * mode, if needed. */
     if ((retval = check_for_vara(&mem_nc_type, var, h5)))
-	return THROW(retval);
+        return THROW(retval);
     assert((!var->ndims || (startp && countp)));
 
     /* Convert from size_t and ptrdiff_t to size64_t. Also do sanity
      * checks. */
     if(var->ndims == 0) { /* scalar */
-	start[0] = 0;
-	count[0] = 1;
-	stride[0] = 1;
+        start[0] = 0;
+        count[0] = 1;
+        stride[0] = 1;
     } else {
         for (i = 0; i < var->ndims; i++)
         {
-	    /* If any of the stride values are non-positive, fail. */
-	    if (stridep && stridep[i] <= 0)
-	        return NC_ESTRIDE;
-	    start[i] = startp[i];
-	    count[i] = countp[i];
-	    stride[i] = stridep ? (size64_t)stridep[i] : 1;
+            /* If any of the stride values are non-positive, fail. */
+            if (stridep && stridep[i] <= 0)
+                return NC_ESTRIDE;
+            start[i] = startp[i];
+            count[i] = countp[i];
+            stride[i] = stridep ? (size64_t)stridep[i] : 1;
 
-	    /* if any of the count values are zero don't actually read. */
-	    if (count[i] == 0)
-	        no_read++;
+            /* if any of the count values are zero don't actually read. */
+            if (count[i] == 0)
+                no_read++;
 
-	    /* Get dimension sizes also */
-	    fdims[i] = var->dim[i]->len;
-	    /* if any of the counts are zero don't actually read. */
-	    if (count[i] == 0)
-	        no_read++;
-	}
+            /* Get dimension sizes also */
+            fdims[i] = var->dim[i]->len;
+            /* if any of the counts are zero don't actually read. */
+            if (count[i] == 0)
+                no_read++;
+        }
     }
 
 #ifdef LOGGING
@@ -1889,14 +1897,14 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
     {
         /* We must convert - allocate a buffer. */
         need_to_convert++;
-	if(zvar->scalar) {
-	    len *= countp[0];	
+        if(zvar->scalar) {
+            len *= countp[0];   
         } else {
-	    for (d2 = 0; d2 < (var->ndims); d2++)
+            for (d2 = 0; d2 < (var->ndims); d2++)
                 len *= countp[d2];
         }
         LOG((4, "converting data for var %s type=%d len=%d", var->hdr.name,
- 		       var->type_info->hdr.id, len));
+                       var->type_info->hdr.id, len));
 
         /* If we're reading, we need bufr to have enough memory to store
          * the data in the file. If we're writing, we need bufr to be
@@ -1913,117 +1921,117 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
      * read/write data beyond their largest current length. */
     for (d2 = 0; d2 < var->ndims; d2++)
     {
-	size64_t endindex = start[d2] + stride[d2] * (count[d2] - 1); /* last index read */
-	dim = var->dim[d2];
-	assert(dim && dim->hdr.id == var->dimids[d2]);
-	if (count[d2] == 0)
-	    endindex = start[d2]; /* fixup for zero read count */
-	if (dim->unlimited)
-	{
-	    size64_t ulen = (size64_t)dim->len;
-	    /* Check for out of bound requests. */
-	    /* Allow start to equal dim size if count is zero. */
-	    if (start[d2] > ulen || (start[d2] == ulen && count[d2] > 0))
-		BAIL_QUIET(NC_EINVALCOORDS);
-	    if (count[d2] && endindex >= ulen)
-		BAIL_QUIET(NC_EEDGE);
+        size64_t endindex = start[d2] + stride[d2] * (count[d2] - 1); /* last index read */
+        dim = var->dim[d2];
+        assert(dim && dim->hdr.id == var->dimids[d2]);
+        if (count[d2] == 0)
+            endindex = start[d2]; /* fixup for zero read count */
+        if (dim->unlimited)
+        {
+            size64_t ulen = (size64_t)dim->len;
+            /* Check for out of bound requests. */
+            /* Allow start to equal dim size if count is zero. */
+            if (start[d2] > ulen || (start[d2] == ulen && count[d2] > 0))
+                BAIL_QUIET(NC_EINVALCOORDS);
+            if (count[d2] && endindex >= ulen)
+                BAIL_QUIET(NC_EEDGE);
 
-	    /* Things get a little tricky here. If we're getting a GET
-	       request beyond the end of this var's current length in
-	       an unlimited dimension, we'll later need to return the
-	       fill value for the variable. */
-	    if (!no_read)
-	    {
-		if (start[d2] >= (size64_t)fdims[d2])
-		    fill_value_size[d2] = (int)count[d2];
-		else if (endindex >= fdims[d2])
-		    fill_value_size[d2] = (int)(count[d2] - ((fdims[d2] - start[d2])/stride[d2]));
-		else
-		    fill_value_size[d2] = 0;
-		count[d2] -= (size64_t)fill_value_size[d2];
-		if (count[d2] == 0)
-		    no_read++;
-		if (fill_value_size[d2])
-		    provide_fill++;
-	    }
-	    else
-		fill_value_size[d2] = (int)count[d2];
-	}
-	else /* Dim is not unlimited. */
-	{
-	    /* Check for out of bound requests. */
-	    /* Allow start to equal dim size if count is zero. */
-	    if (start[d2] > (size64_t)fdims[d2] ||
-		(start[d2] == (size64_t)fdims[d2] && count[d2] > 0))
-		BAIL_QUIET(NC_EINVALCOORDS);
-	    if (count[d2] && endindex >= fdims[d2])
-		BAIL_QUIET(NC_EEDGE);
-	    /* Set the fill value boundary */
-	    fill_value_size[d2] = (int)count[d2];
-	}
+            /* Things get a little tricky here. If we're getting a GET
+               request beyond the end of this var's current length in
+               an unlimited dimension, we'll later need to return the
+               fill value for the variable. */
+            if (!no_read)
+            {
+                if (start[d2] >= (size64_t)fdims[d2])
+                    fill_value_size[d2] = (int)count[d2];
+                else if (endindex >= fdims[d2])
+                    fill_value_size[d2] = (int)(count[d2] - ((fdims[d2] - start[d2])/stride[d2]));
+                else
+                    fill_value_size[d2] = 0;
+                count[d2] -= (size64_t)fill_value_size[d2];
+                if (count[d2] == 0)
+                    no_read++;
+                if (fill_value_size[d2])
+                    provide_fill++;
+            }
+            else
+                fill_value_size[d2] = (int)count[d2];
+        }
+        else /* Dim is not unlimited. */
+        {
+            /* Check for out of bound requests. */
+            /* Allow start to equal dim size if count is zero. */
+            if (start[d2] > (size64_t)fdims[d2] ||
+                (start[d2] == (size64_t)fdims[d2] && count[d2] > 0))
+                BAIL_QUIET(NC_EINVALCOORDS);
+            if (count[d2] && endindex >= fdims[d2])
+                BAIL_QUIET(NC_EEDGE);
+            /* Set the fill value boundary */
+            fill_value_size[d2] = (int)count[d2];
+        }
     }
 
     if (!no_read)
     {
 #ifdef LOOK
-	/* Now you would think that no one would be crazy enough to write
-	   a scalar dataspace with one of the array function calls, but you
-	   would be wrong. So let's check to see if the dataset is
-	   scalar. If it is, we won't try to set up a hyperslab. */
-	if (H5Sget_simple_extent_type(file_spaceid) == H5S_SCALAR)
-	{
-	    if ((mem_spaceid = H5Screate(H5S_SCALAR)) < 0)
-		BAIL(NC_EHDFERR);
-	    scalar++;
-	}
-	else
-	{
-	    if (H5Sselect_hyperslab(file_spaceid, H5S_SELECT_SET,
-				    start, stride, ones, count) < 0)
-		BAIL(NC_EHDFERR);
-	    /* Create a space for the memory, just big enough to hold the slab
-	       we want. */
-	    if ((mem_spaceid = H5Screate_simple(var->ndims, count, NULL)) < 0)
-		BAIL(NC_EHDFERR);
-	}
+        /* Now you would think that no one would be crazy enough to write
+           a scalar dataspace with one of the array function calls, but you
+           would be wrong. So let's check to see if the dataset is
+           scalar. If it is, we won't try to set up a hyperslab. */
+        if (H5Sget_simple_extent_type(file_spaceid) == H5S_SCALAR)
+        {
+            if ((mem_spaceid = H5Screate(H5S_SCALAR)) < 0)
+                BAIL(NC_EHDFERR);
+            scalar++;
+        }
+        else
+        {
+            if (H5Sselect_hyperslab(file_spaceid, H5S_SELECT_SET,
+                                    start, stride, ones, count) < 0)
+                BAIL(NC_EHDFERR);
+            /* Create a space for the memory, just big enough to hold the slab
+               we want. */
+            if ((mem_spaceid = H5Screate_simple(var->ndims, count, NULL)) < 0)
+                BAIL(NC_EHDFERR);
+        }
 #endif
 
 #ifdef LOOK
-	/* Fix bug when reading ZARR files with variable of type
-	 * fixed-length string.	 We need to make it look like a
-	 * variable-length string, because that's all netCDF-4 data
-	 * model supports, lacking anonymous dimensions.  So
-	 * variable-length strings are in allocated memory that user has
-	 * to free, which we allocate here. */
-	if (var->type_info->nc_type_class == NC_STRING &&
-	    H5Tget_size(ncz_type->hdf_typeid) > 1 &&
-	    !H5Tis_variable_str(ncz_type->hdf_typeid))
-	{
-	    size64_t fstring_len;
+        /* Fix bug when reading ZARR files with variable of type
+         * fixed-length string.  We need to make it look like a
+         * variable-length string, because that's all netCDF-4 data
+         * model supports, lacking anonymous dimensions.  So
+         * variable-length strings are in allocated memory that user has
+         * to free, which we allocate here. */
+        if (var->type_info->nc_type_class == NC_STRING &&
+            H5Tget_size(ncz_type->hdf_typeid) > 1 &&
+            !H5Tis_variable_str(ncz_type->hdf_typeid))
+        {
+            size64_t fstring_len;
 
-	    if ((fstring_len = H5Tget_size(ncz_type->hdf_typeid)) == 0)
-		BAIL(NC_EHDFERR);
-	    if (!(*(char **)data = malloc(1 + fstring_len)))
-		BAIL(NC_ENOMEM);
-	    bufr = *(char **)data;
-	}
+            if ((fstring_len = H5Tget_size(ncz_type->hdf_typeid)) == 0)
+                BAIL(NC_EHDFERR);
+            if (!(*(char **)data = malloc(1 + fstring_len)))
+                BAIL(NC_ENOMEM);
+            bufr = *(char **)data;
+        }
 #endif
 
 #ifdef LOOK
-	/* Create the data transfer property list. */
-	if ((xfer_plistid = H5Pcreate(H5P_DATASET_XFER)) < 0)
-	    BAIL(NC_EHDFERR);
+        /* Create the data transfer property list. */
+        if ((xfer_plistid = H5Pcreate(H5P_DATASET_XFER)) < 0)
+            BAIL(NC_EHDFERR);
 
-	/* Read this hyperslab into memory. */
-	LOG((5, "About to H5Dread some data..."));
-	if (H5Dread(ncz_var->hdf_datasetid,
-		    ((NCZ_TYPE_INFO_T *)var->type_info->format_type_info)->native_hdf_typeid,
-		    mem_spaceid, file_spaceid, xfer_plistid, bufr) < 0)
-	    BAIL(NC_EHDFERR);
+        /* Read this hyperslab into memory. */
+        LOG((5, "About to H5Dread some data..."));
+        if (H5Dread(ncz_var->hdf_datasetid,
+                    ((NCZ_TYPE_INFO_T *)var->type_info->format_type_info)->native_hdf_typeid,
+                    mem_spaceid, file_spaceid, xfer_plistid, bufr) < 0)
+            BAIL(NC_EHDFERR);
 #endif /*LOOK*/
 
-	if((retval = NCZ_transferslice(var, READING, start, count, stride, bufr, var->type_info->hdr.id)))
-	    BAIL(retval);
+        if((retval = NCZ_transferslice(var, READING, start, count, stride, bufr, var->type_info->hdr.id)))
+            BAIL(retval);
     } /* endif ! no_read */
 
     /* Now we need to fake up any further data that was asked for,
@@ -2031,74 +2039,74 @@ NCZ_get_vars(int ncid, int varid, const size_t *startp, const size_t *countp,
        just read, if any. */
     if (!zvar->scalar && provide_fill)
     {
-	void *filldata;
-	size_t real_data_size = 0;
-	size_t fill_len;
+        void *filldata;
+        size_t real_data_size = 0;
+        size_t fill_len;
 
-	/* Skip past the real data we've already read. */
-	if (!no_read)
-	    for (real_data_size = file_type_size, d2 = 0; d2 < var->ndims; d2++)
-		real_data_size *= count[d2];
+        /* Skip past the real data we've already read. */
+        if (!no_read)
+            for (real_data_size = file_type_size, d2 = 0; d2 < var->ndims; d2++)
+                real_data_size *= count[d2];
 
-	/* Get the fill value from the ZARR variable. Memory will be
-	 * allocated. */
-	if (NCZ_ensure_fill_value(var))
-	    BAIL(NC_EINVAL);
+        /* Get the fill value from the ZARR variable. Memory will be
+         * allocated. */
+        if (NCZ_ensure_fill_value(var))
+            BAIL(NC_EINVAL);
 
-	/* How many fill values do we need? */
-	for (fill_len = 1, d2 = 0; d2 < var->ndims; d2++)
-	    fill_len *= (size_t)(fill_value_size[d2] ? fill_value_size[d2] : 1);
+        /* How many fill values do we need? */
+        for (fill_len = 1, d2 = 0; d2 < var->ndims; d2++)
+            fill_len *= (size_t)(fill_value_size[d2] ? fill_value_size[d2] : 1);
 
-	/* Copy the fill value into the rest of the data buffer. */
-	filldata = (char *)data + real_data_size;
-	for (i = 0; i < fill_len; i++)
-	{
-	    /* Copy one instance of the fill_value */
-	    if((retval = NC_copy_data(h5->controller,var->type_info->hdr.id,var->fill_value,1,filldata)))
-	        BAIL(retval);
-	    filldata = (char *)filldata + file_type_size;
-	}
+        /* Copy the fill value into the rest of the data buffer. */
+        filldata = (char *)data + real_data_size;
+        for (i = 0; i < fill_len; i++)
+        {
+            /* Copy one instance of the fill_value */
+            if((retval = NC_copy_data(h5->controller,var->type_info->hdr.id,var->fill_value,1,filldata)))
+                BAIL(retval);
+            filldata = (char *)filldata + file_type_size;
+        }
     }
 
     /* Convert data type if needed. */
     if (need_to_convert)
     {
-	if(var->quantize_mode == 0) {if((retval = NCZ_ensure_quantizer(ncid,var))) BAIL(retval);}
-	if ((retval = nc4_convert_type(bufr, data, var->type_info->hdr.id, mem_nc_type,
-					   len, &range_error, var->fill_value,
-				           (h5->cmode & NC_CLASSIC_MODEL), var->quantize_mode,
-				           var->nsd)))
-	   BAIL(retval);
+        if(var->quantize_mode == 0) {if((retval = NCZ_ensure_quantizer(ncid,var))) BAIL(retval);}
+        if ((retval = nc4_convert_type(bufr, data, var->type_info->hdr.id, mem_nc_type,
+                                           len, &range_error, var->fill_value,
+                                           (h5->cmode & NC_CLASSIC_MODEL), var->quantize_mode,
+                                           var->nsd)))
+           BAIL(retval);
         /* For strict netcdf-3 rules, ignore erange errors between UBYTE
-	 * and BYTE types. */
-	if ((h5->cmode & NC_CLASSIC_MODEL) &&
-		(var->type_info->hdr.id == NC_UBYTE || var->type_info->hdr.id == NC_BYTE) &&
-		(mem_nc_type == NC_UBYTE || mem_nc_type == NC_BYTE) &&
-		range_error)
-		range_error = 0;
+         * and BYTE types. */
+        if ((h5->cmode & NC_CLASSIC_MODEL) &&
+                (var->type_info->hdr.id == NC_UBYTE || var->type_info->hdr.id == NC_BYTE) &&
+                (mem_nc_type == NC_UBYTE || mem_nc_type == NC_BYTE) &&
+                range_error)
+                range_error = 0;
     }
 
 exit:
 #ifdef LOOK
     if (file_spaceid > 0)
-	if (H5Sclose(file_spaceid) < 0)
-	    BAIL2(NC_EHDFERR);
+        if (H5Sclose(file_spaceid) < 0)
+            BAIL2(NC_EHDFERR);
     if (mem_spaceid > 0)
-	if (H5Sclose(mem_spaceid) < 0)
-	    BAIL2(NC_EHDFERR);
+        if (H5Sclose(mem_spaceid) < 0)
+            BAIL2(NC_EHDFERR);
     if (xfer_plistid > 0)
-	if (H5Pclose(xfer_plistid) < 0)
+        if (H5Pclose(xfer_plistid) < 0)
 
-	    BAIL2(NC_EHDFERR);
+            BAIL2(NC_EHDFERR);
 #endif
     if (need_to_convert && bufr)
-	free(bufr);
+        free(bufr);
     /* If there was an error return it, otherwise return any potential
        range error value. If none, return NC_NOERR as usual.*/
     if (retval)
-	return THROW(retval);
+        return THROW(retval);
     if (range_error)
-	return THROW(NC_ERANGE);
+        return THROW(NC_ERANGE);
     return NC_NOERR;
 }
 
@@ -2136,11 +2144,11 @@ exit:
  */
 int
 NCZ_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
-		     int *ndimsp, int *dimidsp, int *nattsp,
-		     int *shufflep, int *unused4, int *unused5,
-		     int *fletcher32p, int *storagep, size_t *chunksizesp,
-		     int *no_fill, void *fill_valuep, int *endiannessp,
-		     unsigned int *unused1, size_t *unused2, unsigned int *unused3)
+                     int *ndimsp, int *dimidsp, int *nattsp,
+                     int *shufflep, int *unused4, int *unused5,
+                     int *fletcher32p, int *storagep, size_t *chunksizesp,
+                     int *no_fill, void *fill_valuep, int *endiannessp,
+                     unsigned int *unused1, size_t *unused2, unsigned int *unused3)
 {
     NC_FILE_INFO_T *h5;
     NC_GRP_INFO_T *grp;
@@ -2154,43 +2162,43 @@ NCZ_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
     /* Find the file, group, and var info, and do lazy att read if
      * needed. */
     if ((retval = ncz_find_grp_var_att(ncid, varid, NULL, 0, 0, NULL,
-					    &h5, &grp, &var, NULL)))
-	goto done;
+                                            &h5, &grp, &var, NULL)))
+        goto done;
     assert(grp && h5);
 
     /* Short-circuit the filter-related inquiries */
     if(shufflep) {
-	*shufflep = 0;
-	if((retval = NCZ_inq_var_filter_info(ncid,varid,H5Z_FILTER_SHUFFLE,NULL,NULL))==NC_NOERR)
-	    *shufflep = 1;
+        *shufflep = 0;
+        if((retval = NCZ_inq_var_filter_info(ncid,varid,H5Z_FILTER_SHUFFLE,NULL,NULL))==NC_NOERR)
+            *shufflep = 1;
     }
     retval = NC_NOERR; /* reset */
 
     if(fletcher32p) {
-	*fletcher32p = 0;
-	if((retval = NCZ_inq_var_filter_info(ncid,varid,H5Z_FILTER_FLETCHER32,NULL,NULL))==NC_NOERR)
-	    *fletcher32p = 1;
+        *fletcher32p = 0;
+        if((retval = NCZ_inq_var_filter_info(ncid,varid,H5Z_FILTER_FLETCHER32,NULL,NULL))==NC_NOERR)
+            *fletcher32p = 1;
     }
     retval = NC_NOERR; /* reset */
 
     /* Now that lazy atts have been read, use the libsrc4 function to
      * get the answers. */
     retval = NC4_inq_var_all(ncid, varid, name, xtypep, ndimsp, dimidsp, nattsp,
-			   NULL, unused4, unused5, NULL,
-			   storagep, chunksizesp, no_fill, fill_valuep,
-			   endiannessp, unused1, unused2, unused3);
+                           NULL, unused4, unused5, NULL,
+                           storagep, chunksizesp, no_fill, fill_valuep,
+                           endiannessp, unused1, unused2, unused3);
 done:
     return ZUNTRACEX(retval,"xtype=%d natts=%d shuffle=%d fletcher32=%d no_fill=%d endianness=%d ndims=%d dimids=%s storage=%d chunksizes=%s",
-	   (xtypep?*xtypep:-1),
-   	   (nattsp?*nattsp:-1),
-   	   (shufflep?*shufflep:-1),
-   	   (fletcher32p?*fletcher32p:-1),
-	   (no_fill?*no_fill:-1),
-	   (endiannessp?*endiannessp:-1),
-   	   (ndimsp?*ndimsp:-1), 
-	   (dimidsp?nczprint_idvector(var->ndims,dimidsp):"null"),
-	   (storagep?*storagep:-1),
-	   (chunksizesp?nczprint_sizevector(var->ndims,chunksizesp):"null"));
+           (xtypep?*xtypep:-1),
+           (nattsp?*nattsp:-1),
+           (shufflep?*shufflep:-1),
+           (fletcher32p?*fletcher32p:-1),
+           (no_fill?*no_fill:-1),
+           (endiannessp?*endiannessp:-1),
+           (ndimsp?*ndimsp:-1), 
+           (dimidsp?nczprint_idvector(var->ndims,dimidsp):"null"),
+           (storagep?*storagep:-1),
+           (chunksizesp?nczprint_sizevector(var->ndims,chunksizesp):"null"));
 }
 
 #ifdef LOOK
@@ -2209,23 +2217,23 @@ done:
  */
 int
 ncz_set_var_chunk_cache_ints(int ncid, int varid, int size, int nelems,
-			    int preemption)
+                            int preemption)
 {
     size_t real_size = H5D_CHUNK_CACHE_NBYTES_DEFAULT;
     size_t real_nelems = H5D_CHUNK_CACHE_NSLOTS_DEFAULT;
     float real_preemption = CHUNK_CACHE_PREEMPTION;
 
     if (size >= 0)
-	real_size = ((size_t) size) * MEGABYTE;
+        real_size = ((size_t) size) * MEGABYTE;
 
     if (nelems >= 0)
-	real_nelems = nelems;
+        real_nelems = nelems;
 
     if (preemption >= 0)
-	real_preemption = preemption / 100.;
+        real_preemption = preemption / 100.;
 
     return NCZ_set_var_chunk_cache(ncid, varid, real_size, real_nelems,
-					real_preemption);
+                                        real_preemption);
 }
 #endif
 
@@ -2241,48 +2249,48 @@ ncz_gettype(NC_FILE_INFO_T* h5, NC_GRP_INFO_T* container, int xtype, NC_TYPE_INF
      * struct. */
     if (xtype <= NC_STRING)
     {
-	size_t len;
-	char name[NC_MAX_NAME];
+        size_t len;
+        char name[NC_MAX_NAME];
 
-	/* Get type name and length. */
-	if((retval = NC4_inq_atomic_type(xtype,name,&len)))
-	    BAIL(retval);
+        /* Get type name and length. */
+        if((retval = NC4_inq_atomic_type(xtype,name,&len)))
+            BAIL(retval);
 
-	/* Create new NC_TYPE_INFO_T struct for this atomic type. */
-	if ((retval = nc4_type_new(len, name, xtype, &type)))
-	    BAIL(retval);
-	assert(type->rc == 0);
-	type->container = container;
-	type->endianness = (NC_isLittleEndian()?NC_ENDIAN_LITTLE:NC_ENDIAN_BIG);
-	type->size = len;
+        /* Create new NC_TYPE_INFO_T struct for this atomic type. */
+        if ((retval = nc4_type_new(len, name, xtype, &type)))
+            BAIL(retval);
+        assert(type->rc == 0);
+        type->container = container;
+        type->endianness = (NC_isLittleEndian()?NC_ENDIAN_LITTLE:NC_ENDIAN_BIG);
+        type->size = len;
 
-	/* Allocate storage for NCZ-specific type info. */
-	if (!(ztype = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
-	    return NC_ENOMEM;
-	type->format_type_info = ztype;
-	ztype->common.file = h5;
-	ztype = NULL;
+        /* Allocate storage for NCZ-specific type info. */
+        if (!(ztype = calloc(1, sizeof(NCZ_TYPE_INFO_T))))
+            return NC_ENOMEM;
+        type->format_type_info = ztype;
+        ztype->common.file = h5;
+        ztype = NULL;
 
-	/* Set the "class" of the type */
-	if (xtype == NC_CHAR)
-	    type->nc_type_class = NC_CHAR;
-	else
-	{
-	    if(xtype == NC_FLOAT || xtype == NC_DOUBLE)
-		type->nc_type_class = NC_FLOAT;
-	    else if(xtype < NC_STRING)
-		type->nc_type_class = NC_INT;
-	    else
-		type->nc_type_class = NC_STRING;
-	}
+        /* Set the "class" of the type */
+        if (xtype == NC_CHAR)
+            type->nc_type_class = NC_CHAR;
+        else
+        {
+            if(xtype == NC_FLOAT || xtype == NC_DOUBLE)
+                type->nc_type_class = NC_FLOAT;
+            else if(xtype < NC_STRING)
+                type->nc_type_class = NC_INT;
+            else
+                type->nc_type_class = NC_STRING;
+        }
     }
     else
     {
 #ifdef LOOK
-	/* If this is a user defined type, find it. */
-	if (nc4_find_type(grp->nc4_info, xtype, &type))
+        /* If this is a user defined type, find it. */
+        if (nc4_find_type(grp->nc4_info, xtype, &type))
 #endif
-	    BAIL(NC_EBADTYPE);
+            BAIL(NC_EBADTYPE);
     }
 
     /* increment its ref. count */
@@ -2293,7 +2301,7 @@ ncz_gettype(NC_FILE_INFO_T* h5, NC_GRP_INFO_T* container, int xtype, NC_TYPE_INF
 
 exit:
     if (type)
-	retval = nc4_type_free(type);
+        retval = nc4_type_free(type);
     nullfree(ztype);
     return THROW(retval);
 }
@@ -2328,42 +2336,42 @@ NCZ_write_var_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     char* key = NULL;
 
     if(var->ndims == 0) { /* scalar */
-	start[i] = 0;
-	stop[i] = 1;
+        start[i] = 0;
+        stop[i] = 1;
         stride[i] = 1;
     } else {
         for(i=0;i<var->ndims;i++) {
-	    size64_t nchunks = ceildiv(var->dim[i]->len,var->chunksizes[i]);
-	    start[i] = 0;
-	    stop[i] = nchunks;
-	    stride[i] = 1;
+            size64_t nchunks = ceildiv(var->dim[i]->len,var->chunksizes[i]);
+            start[i] = 0;
+            stop[i] = nchunks;
+            stride[i] = 1;
         }
     }
 
     {
-	if(zvar->scalar) {
-	    if((chunkodom = nczodom_new(1,start,stop,stride,stop))==NULL)
-	} else {
-	    /* Iterate over all the chunks to create missing ones */
-	    if((chunkodom = nczodom_new(var->ndims,start,stop,stride,stop))==NULL)
-	        {stat = NC_ENOMEM; goto done;}
-	}
-	for(;nczodom_more(chunkodom);nczodom_next(chunkodom)) {
-	    size64_t* indices = nczodom_indices(chunkodom);
-	    /* Convert to key */
-	    if((stat = NCZ_buildchunkpath(zvar->cache,indices,&key))) goto done;
-	    switch (stat = nczmap_exists(map,key)) {
-	    case NC_NOERR: goto next; /* already exists */
-	    case NC_ENOOBJECT: break; /* does not exist, create it with fill */
-	    default: goto done; /* some other error */
-	    }
+        if(zvar->scalar) {
+            if((chunkodom = nczodom_new(1,start,stop,stride,stop))==NULL)
+        } else {
+            /* Iterate over all the chunks to create missing ones */
+            if((chunkodom = nczodom_new(var->ndims,start,stop,stride,stop))==NULL)
+                {stat = NC_ENOMEM; goto done;}
+        }
+        for(;nczodom_more(chunkodom);nczodom_next(chunkodom)) {
+            size64_t* indices = nczodom_indices(chunkodom);
+            /* Convert to key */
+            if((stat = NCZ_buildchunkpath(zvar->cache,indices,&key))) goto done;
+            switch (stat = nczmap_exists(map,key)) {
+            case NC_NOERR: goto next; /* already exists */
+            case NC_ENOOBJECT: break; /* does not exist, create it with fill */
+            default: goto done; /* some other error */
+            }
             /* If we reach here, then chunk does not exist, create it with fill */
-	    assert(zvar->cache->fillchunk != NULL);
-	    if((stat=nczmap_write(map,key,0,zvar->cache->chunksize,zvar->cache->fillchunk))) goto done;
+            assert(zvar->cache->fillchunk != NULL);
+            if((stat=nczmap_write(map,key,0,zvar->cache->chunksize,zvar->cache->fillchunk))) goto done;
 next:
-	    nullfree(key);
-	    key = NULL;
-	}
+            nullfree(key);
+            key = NULL;
+        }
     }
     nczodom_free(chunkodom);
     nullfree(key);

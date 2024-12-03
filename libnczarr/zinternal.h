@@ -237,7 +237,7 @@ Optionally Inserted into any group zarr.json or array zarr.json is the extra att
 /* Track the possible cases where a field in some NC_XXX_INFO_T*
    must be sync'd with corresponding Attribute
 */
-typedef enum DualAtt {DA_NOT, DA_FILLVALUE, DA_MAXSTRLEN, DA_DFALTSTRLEN, DA_QUANTIZE} DualAtt;
+typedef enum DualAtt {DA_NOT, DA_FILLVALUE, DA_MAXSTRLEN, DA_DFALTSTRLEN, DA_QUANTIZE, DA_ALL} DualAtt;
 
 /* Useful macro */
 #define ncidforx(file,grpid) ((file)->controller->ext_ncid | (grpid))
@@ -410,8 +410,10 @@ int ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, struct NCZ_AttrInfo* a
 int NCZ_attr_delete(NC_FILE_INFO_T* file, NCindex* attlist, const char* name);
 int NCZ_getattr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, nc_type nctype, NC_ATT_INFO_T** attp, int* isnewp);;
 int NCZ_reclaim_att_data(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att);
+int NCZ_set_dual_obj_data(NC_FILE_INFO_T* file, NC_OBJ* object, const char* name, DualAtt which, size_t len, const void* data);
 int NCZ_set_att_data(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, size_t len, const void* data);
 int NCZ_sync_dual_att(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, DualAtt which, int direction);
+int NCZ_ensure_dual_attributes(NC_FILE_INFO_T* file, NC_OBJ* container);
 
 /* zvar.c */
 int ncz_gettype(NC_FILE_INFO_T*, NC_GRP_INFO_T*, int xtype, NC_TYPE_INFO_T** typep);

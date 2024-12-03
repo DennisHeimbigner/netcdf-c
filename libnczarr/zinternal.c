@@ -293,7 +293,7 @@ ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
 }
 
 /**
- * @internal Ensure that either var->no_fill || var->fill_value != NULL.
+ * @internal Ensure that either var->no_fill == NC_NOFILL || var->fill_value != NULL.
  * Side effects: set as default if necessary and build _FillValue attribute.
  *
  * @param h5 Pointer to file info struct.
@@ -308,14 +308,15 @@ NCZ_ensure_fill_value(NC_VAR_INFO_T *var)
 {
     int stat = NC_NOERR;
 
-    if(var->no_fill)
+    if(var->no_fill == NC_NOFILL)
         return NC_NOERR;
 
     /* If the user has set a fill_value for this var, use, otherwise find the default fill value. */
+    assert(var->no_fill == NC_FILL);
     if(var->fill_value == NULL) {
 	NC_FILE_INFO_T* file = var->container->nc4_info;
 	nc_type vartid = var->type_info->hdr.id;
-	if((stat = NCZ_set_fill_value(file,var,var->no_fill,NCZ_getdfaltfillvalue(vartid)))) goto done;
+	if((stat = NC_copy_data_all(file->controller,vartid,NCZ_getdfaltfillvalue(vartid),1,&var->fill_value))) goto done;
 	/* synchronize to attribute */
 	if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
     }

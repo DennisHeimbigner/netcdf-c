@@ -22,7 +22,7 @@ static int ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
 static int ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose);
 static int ncz_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose);
 static int ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj);
-static int ncz_create_special_var_attributes(NC_FILE_INFO_T* file,NC_VAR_INFO_T* var);
+static int ncz_create_computed_var_attributes(NC_FILE_INFO_T* file,NC_VAR_INFO_T* var);
 static int ncz_flush_var(NC_VAR_INFO_T* var);
 static int ncz_decode_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames);
 static int ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj0);
@@ -163,6 +163,7 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     TESTPUREZARR;
 
     /* Make sure that everything is established */
+
     /* ensure the fill value */
     if((stat = NCZ_ensure_fill_value(var))) goto done; /* ensure var->fill_value is set */
     assert(var->no_fill || var->fill_value != NULL);
@@ -185,12 +186,11 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
         if((stat=NCZF_encode_nczarr_array(file,var,&jnczvar))) goto done;
     }
 
-
-    /* Add special per-var attributes:
+    /* Some attributes need to be computed because they are not stored in the NC_XXX_INFO_T structs.
+     *  The current such attributes are:
      * 1. xarray attribute
-     * 2. quantize attribute
      */
-    if((stat = ncz_create_special_var_attributes(file,var))) goto done;
+    if((stat = ncz_create_computed_var_attributes(file,var))) goto done;
 
     if((stat=NCZF_encode_attributes(file,(NC_OBJ*)var,&jnczvar,NULL,&zobj.jatts))) goto done;
 
@@ -259,31 +259,31 @@ done:
     return THROW(stat);
 }
 
-/* Add special per-var attributes:
+/* Some attributes need to be computed because they are not stored in the NC_XXX_INFO_T structs.
+ *  The current such attributes are:
  * 1. xarray attribute
- * 2. quantization
  */
 static int
-ncz_create_special_var_attributes(NC_FILE_INFO_T* file,NC_VAR_INFO_T* var)
+ncz_create_computed_var_attributes(NC_FILE_INFO_T* file,NC_VAR_INFO_T* var)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     NC_GRP_INFO_T* parent = var->container;
-    struct NCZ_AttrInfo ainfo = NCZ_emptyAttrInfo();
     NC_ATT_INFO_T* special = NULL;
     char* xarraydims = NULL;
     int isnew = 0;
 
     if(parent->parent != NULL) goto done; /* Only do this for root group */
     
+#if 0
     /* See if _Quantize_XXX is already defined */
     if(var != NULL && var->quantize_mode > 0) {
 	const char* qname = NC_findquantizeattname(var->quantize_mode);
 	if(qname == NULL) {stat = NC_ENOTATT; goto done;}
 	if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,qname,DA_QUANTIZE,FIXATT))) goto done;
     }
+#endif
 
-    /* See if _ARRAY_ATTRIBUTES is already defined */
     if(zinfo->flags & FLAG_XARRAYDIMS) { /* test if we should generate xarray dimensions */
 	special = NULL;
 	isnew = 0;
@@ -292,17 +292,11 @@ ncz_create_special_var_attributes(NC_FILE_INFO_T* file,NC_VAR_INFO_T* var)
 	if(isnew) {
 	    size_t zarr_rank;
 	    if((stat = NCZF_encode_xarray(file,var->ndims,var->dim,&xarraydims,&zarr_rank))) goto done;
-	    /* Add as attribute to var */
-	    ainfo.name = NC_XARRAY_DIMS;
-	    ainfo.nctype = NC_CHAR;
-	    ainfo.datalen = strlen(xarraydims);
-	    ainfo.data = xarraydims; xarraydims = NULL;
-	    if((stat = ncz_makeattr(file,(NC_OBJ*)var,&ainfo,NULL))) goto done;
+	    if((stat = NCZ_set_att_data(file,special,strlen(xarraydims),xarraydims))) goto done;
 	}
     }
 
 done:
-    NCZ_clearAttrInfo(file,&ainfo);
     nullfree(xarraydims);
     return THROW(stat);
 }

@@ -15,6 +15,10 @@
 
 #undef ADEBUG
 
+/* Forward */
+static int charify(const NCjson* src, NCbytes* buf);
+static int json_convention_read(const NCjson* json, NCjson** jtextp);
+static int islegalatt(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, size_t alen);
 
 /* Some attributes are reflected in var|grp structure */
 static DualAtt
@@ -27,10 +31,17 @@ is_dual_att(const char* aname)
     return DA_NOT;
 }
 
-/* Forward */
-static int charify(const NCjson* src, NCbytes* buf);
-static int json_convention_read(const NCjson* json, NCjson** jtextp);
-static int islegalatt(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, size_t alen);
+/* For dual attributes, specify if they are associated with a group vs var */
+static NC_SORT
+dual_att_container(DualAtt da)
+{
+    switch (da) {
+    case DA_FILLVALUE: case DA_MAXSTRLEN: case DA_QUANTIZE: return NCVAR;
+    case DA_DFALTSTRLEN: return NCGRP;
+    default: break;
+    }
+    return NCNAT;
+}
 
 /**
  * @internal Get the attribute list for either a varid or NC_GLOBAL
@@ -104,19 +115,19 @@ ncz_get_att_special(NC_FILE_INFO_T* h5, NC_VAR_INFO_T* var, const char* name,
     /* Handle the per-var case(s) first */
     if(var != NULL) {
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
-        if(strcmp(name,NC_ATT_CODECS)==0) {	
+        if(strcmp(name,NC_ATT_CODECS)==0) {     
             NClist* filters = (NClist*)var->filters;
 
             if(mem_type == NC_NAT) mem_type = NC_CHAR;
             if(mem_type != NC_CHAR)
                 {stat = NC_ECHAR; goto done;}
             if(filetypep) *filetypep = NC_CHAR;
-	    if(lenp) *lenp = 0;
-	    if(filters == NULL) goto done;	  
- 	    if((stat = NCZ_codec_attr(var,lenp,data))) goto done;
-	}
+            if(lenp) *lenp = 0;
+            if(filters == NULL) goto done;        
+            if((stat = NCZ_codec_attr(var,lenp,data))) goto done;
+        }
 #endif
-	goto done;
+        goto done;
     }
 
     /* The global reserved attributes */
@@ -128,7 +139,7 @@ ncz_get_att_special(NC_FILE_INFO_T* h5, NC_VAR_INFO_T* var, const char* name,
         if(mem_type != NC_CHAR)
             {stat = NC_ECHAR; goto done;}
         if(filetypep) *filetypep = NC_CHAR;
-	len = strlen(h5->provenance.ncproperties);
+        len = strlen(h5->provenance.ncproperties);
         if(lenp) *lenp = len;
         if(data) strncpy((char*)data,h5->provenance.ncproperties,len+1);
     } else if(strcmp(name,ISNETCDF4ATT)==0
@@ -340,7 +351,7 @@ NCZ_attr_delete(NC_FILE_INFO_T* file, NCindex* attlist, const char* name)
 
     /* Reclaim the content of the attribute */
     if(att->data) {
-	if((stat = NC_reclaim_data_all(file->controller,att->nc_typeid,att->data,(size_t)att->len))) return stat;
+        if((stat = NC_reclaim_data_all(file->controller,att->nc_typeid,att->data,(size_t)att->len))) return stat;
     }
     att->data = NULL;
     att->len = 0;
@@ -447,11 +458,11 @@ ncz_put_att(int ncid, int containerid, const char *name, nc_type file_type,
     if(containerid == NC_GLOBAL) {
         if((stat= nc4_find_grp_h5(ncid, &grp, &file))) goto done;
         attlist = grp->att;
-	obj = (NC_OBJ*)grp;
+        obj = (NC_OBJ*)grp;
     } else {
         if((stat= nc4_find_grp_h5_var(ncid, containerid, &file, &grp, &var))) goto done;
         attlist = var->att; 
-	obj = (NC_OBJ*)var;
+        obj = (NC_OBJ*)var;
     }
     assert(file != NULL && grp != NULL && (containerid == NC_GLOBAL || var != NULL));
     assert(attlist != NULL);
@@ -505,43 +516,41 @@ ncz_put_att(int ncid, int containerid, const char *name, nc_type file_type,
 
     /* copy and/or convert memory data to file format data */
     if(mem_type != file_type && mem_type < NC_STRING && mem_type < NC_STRING) {
-	size_t mem_type_len = 0;
-	size_t file_type_len = 0;
+        size_t mem_type_len = 0;
+        size_t file_type_len = 0;
         if ((stat = nc4_get_typelen_mem(file, mem_type, &mem_type_len))) return stat;
         if ((stat = nc4_get_typelen_mem(file, file_type, &file_type_len))) return stat;
-	/* Need to convert from memory data into copy buffer */
-	if((src = malloc(len*file_type_len))==NULL) {stat = NC_ENOMEM; goto done;}
+        /* Need to convert from memory data into copy buffer */
+        if((src = malloc(len*file_type_len))==NULL) {stat = NC_ENOMEM; goto done;}
         if ((stat = nc4_convert_type(data, src, mem_type, file_type,
                                                len, &range_error, NULL,
                                                (file->cmode & NC_CLASSIC_MODEL),
-					       NC_NOQUANTIZE, 0)))
-	    goto done;
-	isconverted = 1;
+                                               NC_NOQUANTIZE, 0)))
+            goto done;
+        isconverted = 1;
     } else {/*no conversion */
-	src = (void*)data;
-	isconverted = 0;
+        src = (void*)data;
+        isconverted = 0;
     }
     
     /* See if there is already an attribute with this name or create  */
     if((stat = NCZ_getattr(file,obj,norm_name,file_type,&att,&isnew))) goto done;
-
     /* insert/overwrite data */
     if(len > 0 && data != NULL) { /* overwrite old value */
-	if((stat = NCZ_set_att_data(file,att,len,src))) goto done;
+        if((stat = NCZ_set_att_data(file,att,len,src))) goto done;
     }
 
     /* Some attributes are reflected in var|grp structure so must be sync'd */
-    switch ((dualatt=is_dual_att(name))) {
-    case DA_NOT: break;
-    case DA_FILLVALUE: case DA_MAXSTRLEN: case DA_QUANTIZE:
+    switch (dual_att_container(dualatt=is_dual_att(name))) {
+    case NCVAR:
         assert(var != NULL);
-	if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,name,dualatt,FIXOBJ))) goto done;
-	break;
-    case DA_DFALTSTRLEN:
-	assert(grp != NULL);
-	if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)grp,name,dualatt,FIXOBJ))) goto done;
-	break;
-    default: assert(0);
+        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,name,dualatt,FIXOBJ))) goto done;
+        break;
+    case NCGRP:
+        assert(grp != NULL);
+        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)grp,name,dualatt,FIXOBJ))) goto done;
+        break;
+    default: break; /* ignore */
     }
     
 done:
@@ -698,7 +707,7 @@ NCZ_inq_attname(int ncid, int varid, int attnum, char *name)
      * needed. */
     if ((stat = ncz_find_grp_var_att(ncid, varid, NULL, attnum, 0, NULL,
                                             NULL, NULL, NULL, &att)))
-	goto done;
+        goto done;
     assert(att);
 
     /* Get the name. */
@@ -723,8 +732,7 @@ done:
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-NCZ_get_att(int ncid, int varid, const char *name, void *value,
-                 nc_type mem_type)
+NCZ_get_att(int ncid, int varid, const char *name, void *value, nc_type mem_type)
 {
     int stat = NC_NOERR;
     NC_FILE_INFO_T *file;
@@ -746,7 +754,7 @@ NCZ_get_att(int ncid, int varid, const char *name, void *value,
         if ((stat = nc4_find_grp_h5_var(ncid, varid, &file, &grp, &var))) goto done;
     } else { /* just find grp and file */
         if ((stat = nc4_find_grp_h5(ncid, &grp, &file))) goto done;
-	var = NULL;
+        var = NULL;
     }
 
     /* If this is one of the reserved global atts, use nc_get_att_special. */
@@ -760,14 +768,16 @@ NCZ_get_att(int ncid, int varid, const char *name, void *value,
     /* See if the attribute exists */
     stat = nc4_find_grp_att(grp,varid,norm_name,0,&att);
 
-    /* If asking for _FillValue and it does not exist, build it using either var->fill_value or the default fill */
+#if 0
+????    /* If asking for _FillValue and it does not exist, build it using either var->fill_value or the default fill */
     if(stat == NC_ENOTATT && att == NULL && var != NULL  && strcmp(norm_name,NC_FillValue)==0) {
-	int isnew = 0;
-	if((stat = NCZ_getattr(file,(NC_OBJ*)var,NC_FillValue,var->type_info->hdr.id,&att,&isnew))) goto done;
-	assert(isnew && att->data == NULL);
-	if((stat = NC_copy_data_all(file->controller,att->nc_typeid,NCZ_getdfaltfillvalue(att->nc_typeid),1,&att->data))) goto done;
+        int isnew = 0;
+        if((stat = NCZ_getattr(file,(NC_OBJ*)var,NC_FillValue,var->type_info->hdr.id,&att,&isnew))) goto done;
+        assert(isnew && att->data == NULL);
+        if((stat = NC_copy_data_all(file->controller,att->nc_typeid,NCZ_getdfaltfillvalue(att->nc_typeid),1,&att->data))) goto done;
 assert(var->fill_value != att->data);
     }
+#endif
 
     /* stop if error */
     if(stat) goto done;
@@ -791,20 +801,20 @@ assert(var->fill_value != att->data);
 
     /* copy and/or convert memory data to file format data */
     if(mem_type != file_type && mem_type < NC_STRING && mem_type < NC_STRING) {
-	size_t mem_type_len = 0;
-	size_t file_type_len = 0;
+        size_t mem_type_len = 0;
+        size_t file_type_len = 0;
         if ((stat = nc4_get_typelen_mem(file, mem_type, &mem_type_len))) return stat;
         if ((stat = nc4_get_typelen_mem(file, file_type, &file_type_len))) return stat;
-	/* Need to convert from file_type data into output buffer */
+        /* Need to convert from file_type data into output buffer */
         if ((stat = nc4_convert_type(att->data, value, file_type, mem_type,
                                                att->len, &range_error, NULL,
                                                (file->cmode & NC_CLASSIC_MODEL),
-					       NC_NOQUANTIZE, 0)))
-	    goto done;
+                                               NC_NOQUANTIZE, 0)))
+            goto done;
 assert(var == NULL || (var->fill_value != att->data));
     } else { /* no conversion */
-	/* Still need a copy of the input data */
-	if((stat = NC_copy_data(file->controller, file_type, att->data, att->len, value))) goto done;
+        /* Still need a copy of the input data */
+        if((stat = NC_copy_data(file->controller, file_type, att->data, att->len, value))) goto done;
 assert(var == NULL || (var->fill_value != att->data));
     }
 
@@ -843,7 +853,7 @@ ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, struct NCZ_AttrInfo* ainfo
     new_att = (att == NULL?1:0);
 
     if(new_att) {
-	if((stat=nc4_att_list_add(attlist,ainfo->name,&att))) goto done;
+        if((stat=nc4_att_list_add(attlist,ainfo->name,&att))) goto done;
         if((zatt = calloc(1,sizeof(NCZ_ATT_INFO_T))) == NULL) {stat = NC_ENOMEM; goto done;}
         zatt->common.file = file;
         att->container = container;
@@ -851,10 +861,9 @@ ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, struct NCZ_AttrInfo* ainfo
     }
 
     att->nc_typeid = ainfo->nctype;
-    att->len = ainfo->datalen;
     if(ainfo->datalen > 0 && ainfo->data) {
-	/* Fill in the attribute's type and value; ainfo->data is copied  */
-	if((stat = NCZ_set_att_data(file,att,ainfo->datalen,ainfo->data))) goto done;
+        /* Fill in the attribute's type and value; ainfo->data is copied  */
+        if((stat = NCZ_set_att_data(file,att,ainfo->datalen,ainfo->data))) goto done;
     }
     att->dirty = NC_TRUE;
     if(attp) {*attp = att; att = NULL;}
@@ -864,15 +873,64 @@ ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, struct NCZ_AttrInfo* ainfo
 
 done:
     if(stat) {
-	if(new_att && att) {
-	    nc4_att_list_del(attlist,att);
-	    nullfree(zatt);
-	}
+        if(new_att && att) {
+            nc4_att_list_del(attlist,att);
+            nullfree(zatt);
+        }
     }
     return THROW(stat);
 }
 
-/* Write/overwrite attribute data; reclaim old data and replace with copy of data argument */
+/* Write/overwrite NC_XXX_INFO_T fields for fields that have a dual attribute.
+   Reclaim old data and replace with copy of data argument
+   Do not synchronize with the corresponding attribute.
+*/
+int
+NCZ_set_dual_obj_data(NC_FILE_INFO_T* file, NC_OBJ* object, const char* name, DualAtt which, size_t len, const void* data)
+{
+    int stat = NC_NOERR;
+
+    NC_UNUSED(name); /* for now */
+    if(object->sort == NCGRP) {
+        switch(which) {
+        case DA_DFALTSTRLEN:
+	    assert(len == 1);
+            zsetdfaltstrlen((size_t)((int*)data)[0],file);
+            break;
+	default: stat = NC_EINVAL; break;
+	}
+    } else {
+	NC_VAR_INFO_T* var = NULL;
+	nc_type tid;
+        assert(object->sort == NCVAR);
+	var = (NC_VAR_INFO_T*)object;
+	tid = var->type_info->hdr.id;
+        switch(which) {
+        case DA_FILLVALUE:
+	    assert(len == 1);	    
+            if((stat = NC_reclaim_data_all(file->controller,tid,var->fill_value,1))) goto done;
+            var->fill_value = NULL;
+            if((stat = NC_copy_data_all(file->controller,tid,data,1,&var->fill_value))) goto done;
+            break;
+        case DA_MAXSTRLEN:
+	    assert(len == 1);
+            zsetmaxstrlen((size_t)((int*)data)[0],var);
+            break;
+        case DA_QUANTIZE:
+	    assert(len == 1);
+            var->nsd = ((int*)data)[0];
+            break;
+        default: assert(0);
+        }
+    }
+done:
+    return THROW(stat);
+}
+
+/* Write/overwrite attribute data for any attribute.
+   Reclaim old data and replace with copy of data argument.
+   Do not synchronize with any corresponding NC_XXX_INFO_T field.
+*/
 int
 NCZ_set_att_data(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, size_t len, const void* data)
 {
@@ -885,18 +943,18 @@ NCZ_set_att_data(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, size_t len, const voi
 
     /* Reclaim any old att->data */
     if(att->data != NULL) {
-	/* remove old att data */
-	(void)NC_reclaim_data_all(file->controller,att->nc_typeid,att->data,att->len);
-	att->data = NULL;
-	att->len = 0;
+        /* remove old att data */
+        (void)NC_reclaim_data_all(file->controller,att->nc_typeid,att->data,att->len);
+        att->data = NULL;
+        att->len = 0;
     }
 
     /* set att->data with a copy of data */
     if(len > 0 && data != NULL) {
-	if((stat = NC_copy_data_all(file->controller, att->nc_typeid, data, len, &copy))) goto done;
-	/* set the att data */
+        if((stat = NC_copy_data_all(file->controller, att->nc_typeid, data, len, &copy))) goto done;
+        /* set the att data */
         att->len = len;
-	att->data = copy; copy = NULL;
+        att->data = copy; copy = NULL;
     }
     att->dirty = NC_TRUE;
 
@@ -932,11 +990,11 @@ NCZ_computeattrdata(NC_FILE_INFO_T* file, struct NCZ_AttrInfo* ainfo)
     }
 
     if(isjson) {
-	/* Apply the JSON attribute convention and convert to JSON string */
-	ainfo->nctype = NC_CHAR;
-	if((stat = json_convention_read(jdata,&jtext))) goto done;
-	jdata = jtext; jtext = NULL;
-	reclaimvalues = 1;
+        /* Apply the JSON attribute convention and convert to JSON string */
+        ainfo->nctype = NC_CHAR;
+        if((stat = json_convention_read(jdata,&jtext))) goto done;
+        jdata = jtext; jtext = NULL;
+        reclaimvalues = 1;
     } 
 
     if((stat = NC4_inq_atomic_type(ainfo->nctype, NULL, &ainfo->typelen))) goto done;
@@ -975,37 +1033,37 @@ NCZ_attr_convert(const NCjson* src, nc_type typeid, size_t typelen, size_t* coun
     */
     switch (NCJsort(src)) {
     case NCJ_INT: case NCJ_DOUBLE: case NCJ_BOOLEAN: /* case 1 */
-	count = 1;
-	if((stat = NCZ_convert1(src, typeid, dst)))
-	    goto done;
-	break;
+        count = 1;
+        if((stat = NCZ_convert1(src, typeid, dst)))
+            goto done;
+        break;
 
     case NCJ_ARRAY:
-	if(typeid == NC_CHAR) {
-	    if((stat = charify(src,dst))) goto done;
-	    count = ncbyteslength(dst);
-	} else {
-	    count = NCJarraylength(src);
-	    for(i=0;i<count;i++) {
-		NCjson* value = NCJith(src,i);
-		if((stat = NCZ_convert1(value, typeid, dst))) goto done;
-	    }
-	}
-	break;
+        if(typeid == NC_CHAR) {
+            if((stat = charify(src,dst))) goto done;
+            count = ncbyteslength(dst);
+        } else {
+            count = NCJarraylength(src);
+            for(i=0;i<count;i++) {
+                NCjson* value = NCJith(src,i);
+                if((stat = NCZ_convert1(value, typeid, dst))) goto done;
+            }
+        }
+        break;
     case NCJ_STRING:
-	if(typeid == NC_CHAR) {
-	    if((stat = charify(src,dst))) goto done;
-	    count = ncbyteslength(dst);
-	    /* Special case for "" */
-	    if(count == 0) {
-		ncbytesappend(dst,'\0');
-		count = 1;
-	    }
-	} else {
-	    if((stat = NCZ_convert1(src, typeid, dst))) goto done;
-	    count = 1;
-	}
-	break;
+        if(typeid == NC_CHAR) {
+            if((stat = charify(src,dst))) goto done;
+            count = ncbyteslength(dst);
+            /* Special case for "" */
+            if(count == 0) {
+                ncbytesappend(dst,'\0');
+                count = 1;
+            }
+        } else {
+            if((stat = NCZ_convert1(src, typeid, dst))) goto done;
+            count = 1;
+        }
+        break;
     default: stat = (THROW(NC_ENCZARR)); goto done;
     }
     if(countp) *countp = count;
@@ -1025,13 +1083,13 @@ charify(const NCjson* src, NCbytes* buf)
     memset(&jstr,0,sizeof(jstr));
 
     if(NCJsort(src) != NCJ_ARRAY) { /* singleton */
-	NCJcvt(src, NCJ_STRING, &jstr);
-	ncbytescat(buf,jstr.sval);
+        NCJcvt(src, NCJ_STRING, &jstr);
+        ncbytescat(buf,jstr.sval);
     } else for(i=0;i<NCJarraylength(src);i++) {
-	NCjson* value = NCJith(src,i);
-	NCJcvt(value, NCJ_STRING, &jstr);
-	ncbytescat(buf,jstr.sval);
-	nullfree(jstr.sval);jstr.sval = NULL;
+        NCjson* value = NCJith(src,i);
+        NCJcvt(value, NCJ_STRING, &jstr);
+        ncbytescat(buf,jstr.sval);
+        nullfree(jstr.sval);jstr.sval = NULL;
     }
 
     nullfree(jstr.sval);
@@ -1059,6 +1117,7 @@ done:
     return stat;
 }
 
+/* Syncronize NC_XXX_INFO_T* fields and corresponding Attributes */
 int
 NCZ_sync_dual_att(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, DualAtt which, int direction)
 {
@@ -1068,81 +1127,127 @@ NCZ_sync_dual_att(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, Du
     int isnew = 0;
 
     if(container->sort == NCVAR) {
-	var = (NC_VAR_INFO_T*)container;
+        var = (NC_VAR_INFO_T*)container;
     }
 
     if(direction == FIXATT) { /* transfer from NC_XXX_INFO_T* to attribute */
         switch (which) {
         case DA_FILLVALUE:
             if(var->no_fill) {
-               stat=NCZ_fillvalue_disable(file,var);
+               stat=NCZ_disable_fill(file,var);
                goto done;
             }
             att = (NC_ATT_INFO_T*)ncindexlookup(var->att,NC_FillValue);
             /*  If _FillValue is new and the proposed value is the dfalt value, then suppress the attribute
                 and force user to build default fill values; otherwise set the attribute value */
-            if(att == NULL && !NCZ_isdfaltfillvalue(var->type_info->hdr.id,var->fill_value)) {
+            if(att == NULL && (var->fill_value == NULL || !NCZ_isdfaltfillvalue(var->type_info->hdr.id,var->fill_value))) {
                 /* Not suppressing _FillValue attribute, so go ahead and create it and set value */
                 if((stat = NCZ_getattr(file,container,aname,var->type_info->hdr.id,&att,&isnew))) goto done;
                 assert(isnew);
                 if((stat = NCZ_set_att_data(file,att,1,var->fill_value))) goto done;
             }
-	    break;
-	case DA_MAXSTRLEN: {
-	    int maxstrlen;
+            break;
+        case DA_MAXSTRLEN: {
+            int maxstrlen;
             if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
-	    maxstrlen = NCZ_get_maxstrlen((NC_OBJ*)var);
+            maxstrlen = NCZ_get_maxstrlen((NC_OBJ*)var);
             if((stat = NCZ_set_att_data(file,att,1,&maxstrlen))) goto done;
-	    } break;
-	case DA_DFALTSTRLEN: {
-	    int dfaltstrlen;
+            } break;
+        case DA_DFALTSTRLEN: {
+            int dfaltstrlen;
             if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
             NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
             dfaltstrlen = zinfo->default_maxstrlen;
             if((stat = NCZ_set_att_data(file,att,1,&dfaltstrlen))) goto done;
-	    } break;
-	case DA_QUANTIZE: {
-	    int nsd;
+            } break;
+        case DA_QUANTIZE: {
+            int nsd;
             if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
             nsd = var->nsd;
             if((stat = NCZ_set_att_data(file,att,1,&nsd))) goto done;
-	    } break;
-	default:
+            } break;
+        default:
             stat = NC_ENOTATT;      
-	    goto done;
+            goto done;
         }
     } else if(direction == FIXOBJ) {/* Transfer value from att to NC_XXX_INFO_T* */
-	switch(which) {
-	case DA_FILLVALUE:
+        switch(which) {
+        case DA_FILLVALUE:
             if((stat = NCZ_getattr(file,container,aname,var->type_info->hdr.id,&att,&isnew))) goto done;
-	    assert(!isnew);
+            assert(!isnew);
             if(att->len != 1) goto done; /* some other fill value attribute */
             if((stat = NC_reclaim_data_all(file->controller,var->type_info->hdr.id,var->fill_value,1))) goto done;
             var->fill_value = NULL;
             if((stat = NC_copy_data_all(file->controller,att->nc_typeid,att->data,att->len,&var->fill_value))) goto done;
-	    break;
-	case DA_MAXSTRLEN:
+            break;
+        case DA_MAXSTRLEN:
             if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
             assert(!isnew);
             if(att->len != 1 || att->nc_typeid != NC_INT) goto done; /* some other _nczarr_maxstrlen */
             zsetmaxstrlen((size_t)((int*)att->data)[0],var);
-   	    break;
-	case DA_DFALTSTRLEN:
+            break;
+        case DA_DFALTSTRLEN:
             if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
             assert(!isnew);
             if(att->len != 1 || att->nc_typeid != NC_INT) goto done; /* some other _nczarr_default_maxstrlen */
             zsetdfaltstrlen((size_t)((int*)att->data)[0],file);
-	    break;
-	case DA_QUANTIZE:
+            break;
+        case DA_QUANTIZE:
             if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
             assert(!isnew);
             if(att->len != 1 || att->nc_typeid != NC_INT) goto done; /* some other _QuantXXX */
             var->nsd = ((int*)att->data)[0];
-	    break;
-	default: assert(0);
-	}
+            break;
+        default: assert(0);
+        }
     }
     
+done:
+    return THROW(stat);
+}
+
+/* For those attributes that reflect fields in NC_VAR/GRP_INFO_T objects,
+ * ensure that those attributes are up-to-date (creating if necessary).
+ */
+int
+NCZ_ensure_dual_attributes(NC_FILE_INFO_T* file, NC_OBJ* container)
+{
+    int stat = NC_NOERR;
+    NC_GRP_INFO_T* grp = NULL;
+    NC_VAR_INFO_T* var = NULL;
+
+    if(container->sort == NCGRP)
+        grp = (NC_GRP_INFO_T*)container;
+    else
+        var = (NC_VAR_INFO_T*)container;    
+
+    /* Some attributes are reflected in var|grp structure so must be sync'd to the attribute */
+    if(var != NULL) {
+        const char* qname = NULL;
+
+        /* _FillValue */
+        /* If var->no_fill == NC_NOFILL, then suppress the _FillValue attribute and
+           optionally set the _NoFill attribute */
+        if(var->no_fill == NC_NOFILL) {
+            if((stat = NCZ_disable_fill(file,var))) goto done;
+        } else { /* var->no_fill == NC_FILL*/
+            if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
+        }
+
+        /* _nczarr_maxstrlen */
+        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_NCZARR_MAXSTRLEN_ATTR,DA_MAXSTRLEN,FIXATT))) goto done;
+
+        /* __Quantizexxx */
+        qname = NC_findquantizeattname(var->quantize_mode);
+        if(qname == NULL) {stat = NC_ENOTATT; goto done;}
+        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,qname,DA_QUANTIZE,FIXATT))) goto done;
+
+    } else {
+        assert(grp != NULL);
+        /* _nczarr_default_maxstrlen */
+        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_NCZARR_DFALT_MAXSTRLEN_ATTR,DA_DFALTSTRLEN,FIXATT))) goto done;
+    }
+
 done:
     return THROW(stat);
 }
@@ -1220,4 +1325,3 @@ NCZ_reclaim_att_data(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att)
     }
     return stat;
 }
-

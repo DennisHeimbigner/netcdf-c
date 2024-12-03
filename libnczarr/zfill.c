@@ -43,7 +43,10 @@ static struct DFALTFILL {
 /**************************************************/
 /**************************************************/
 
-/* (over-) write the NC_VAR_INFO_T.fill_value; always make copy of fillvalue argument */
+#if 0
+/* (over-) write the NC_VAR_INFO_T.fill_value; always make copy of fillvalue argument.
+   Takes no_fill flag into account. Sync with attribute
+*/
 int
 NCZ_set_fill_value(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int no_fill, const void* fillvalue)
 {
@@ -52,7 +55,7 @@ NCZ_set_fill_value(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int no_fill, const 
     nc_type tid = var->type_info->hdr.id;
 
     if(no_fill) {
-	stat = NCZ_fillvalue_disable(file,var);
+	stat = NCZ_disable_fill(file,var);
 	goto done;
     }
 
@@ -74,14 +77,17 @@ NCZ_set_fill_value(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int no_fill, const 
         if((stat = NC_copy_data_all(file->controller,tid,fillvalue,1,&var->fill_value))) goto done;
 	var->fill_val_changed = 1;
     }
-    var->no_fill = 0;
+    var->no_fill = NC_FILL;
+    
     stat = NCZ_reclaim_fill_chunk(((NCZ_VAR_INFO_T*)var->format_var_info)->cache); /* Reclaim any existing fill_chunk */
     
 done:
     return THROW(stat);
 }
 
-/* (over-) write/create the _FillValue attribute */
+/* (over-) write/create the _FillValue attribute; always makes copy of NC_VAR_INFO_T.fill_value.
+   Takes no_fill flag into account. Does not sync with NC_VAR_INFO_T.fill_value.
+*/
 int
 NCZ_set_fill_att(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_ATT_INFO_T* att, int no_fill, const void* fillvalue)
 {
@@ -102,113 +108,47 @@ NCZ_set_fill_att(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_ATT_INFO_T* att, i
 done:
     return THROW(stat);
 }
-
-#if 0
-/* Sync from NC_VAR_INFO_T.fill_value to attribute _FillValue */
-int
-NCZ_copy_var_to_fillatt(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_ATT_INFO_T* att)
-{
-    int stat = NC_NOERR;
-    struct NCZ_AttrInfo ainfo = NCZ_emptyAttrInfo();
-
-    if(var->no_fill) {
-	/* disable fill value */
-        stat = NCZ_fillvalue_disable(file,var);
-    } else if(att == NULL) {
-	NCZ_clearAttrInfo(file,&ainfo);
-	ainfo.name = NC_FillValue;
-	ainfo.nctype = var->type_info->hdr.id;
-	ainfo.datalen = 1;
-	ainfo.data = var->fill_value;
-        stat = ncz_makeattr(file,(NC_OBJ*)var,&ainfo,NULL);
-    } else { /* presumably already exists */
-	assert(strcmp(NC_FillValue,att->hdr.name)==0);
-	stat = NCZ_copy_value_to_att(file,att,1,var->fill_value);
-    }
-    NCZ_clearAttrInfo(file,&ainfo);
-    return THROW(stat);
-}
-
-/* Sync from Attribute_FillValue to NC_VAR_INFO_T.fill_value */
-int
-NCZ_copy_fillatt_to_var(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, NC_VAR_INFO_T* var)
-{
-    int stat = NC_NOERR;
-
-    if(att == NULL) {
-        /* The att _FillValue must exist */
-	att = (NC_ATT_INFO_T*)ncindexlookup(var->att,NC_FillValue);
-    }
-    assert(var != NULL && att != NULL);
-    assert(strcmp(NC_FillValue,att->hdr.name)==0 && att->len == 1);
-    if((stat = NCZ_copy_value_to_var_fillvalue(file,var,att->data))) goto done;
-assert(var->fill_value != att->data);
-    var->fill_val_changed = 1;
-    var->no_fill = 0;
-    /* Reclaim any existing fill_chunk */
-    stat = NCZ_reclaim_fill_chunk(((NCZ_VAR_INFO_T*)var->format_var_info)->cache);
-        
-done:
-    return THROW(stat);
-}
 #endif
 
-/* Turn off FillValue */
+/* Turn off var.no_fill and var.fill_value. Sync with attribute */
 int
-NCZ_fillvalue_disable(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
+NCZ_disable_fill(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 {
     int stat = NC_NOERR;
     nc_type tid = var->type_info->hdr.id;
+    NC_ATT_INFO_T* att = NULL;
+    int isnew = 0;
 
-    if(!var->no_fill) var->fill_val_changed = 1;
-    var->no_fill = 1;
-    /* Reclaim the fill value */
-    if((stat = NC_reclaim_data_all(file->controller,tid,var->fill_value,1))) goto done;
-    var->fill_value = NULL;
-    stat = NCZ_reclaim_fill_chunk(((NCZ_VAR_INFO_T*)var->format_var_info)->cache); /* Reclaim any existing fill_chunk */
-    stat = NCZ_attr_delete(file,var->att,NC_FillValue);
-    if (stat && stat != NC_ENOTATT) return stat; else stat = NC_NOERR;
+    /* Reclaim the fill value, if any */
+    if(var->fill_value != NULL) {
+	if((stat = NC_reclaim_data_all(file->controller,tid,var->fill_value,1))) goto done;
+        var->fill_value = NULL;
+    }
+
+    /* And the fill_chunk */
+    if((stat = NCZ_reclaim_fill_chunk(((NCZ_VAR_INFO_T*)var->format_var_info)->cache))); /* Reclaim any existing fill_chunk */
+
+    /* And kill off the _FillValue attribute */
+    if((stat = NCZ_attr_delete(file,var->att,NC_FillValue)));
+    if (stat && stat != NC_ENOTATT) goto done;
+    stat = NC_NOERR;
+
+    /* set the _NoFill attribute
+       iff var->no_fill was NC_FILL and file->fill_mode == NC_NOFILL */
+    if(var->no_fill == NC_FILL &&  file->fill_mode == NC_NOFILL) {
+	int nofill = 1;
+	if((stat = NCZ_getattr(file,(NC_OBJ*)var, "_NoFill", NC_INT,&att,&isnew))) goto done;
+	if((stat = NCZ_set_att_data(file,att,1,&nofill))) goto done;
+    }
+
+    if(var->no_fill == NC_FILL) var->fill_val_changed = 1;
+    var->no_fill = NC_NOFILL;
+
 done:
     return THROW(stat);
 }
 
 /**************************************************/
-/* Basic operations are:
-1. copy from a src to att->data
-2. reclaim and clear data in att->data
-3. copy from a src to var->fill_value.
-4. reclaim and clear data in var->fill_value
-*/
-
-#if 0
-int
-NCZ_copy_value_to_var_fillvalue(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const void* src)
-{
-    int stat = NC_NOERR;
-    nc_type tid = var->type_info->hdr.id;
-    assert(var != NULL);
-    if((stat = NCZ_reclaim_var_fillvalue(file, var))) goto done; /* reclaim old data */
-    /* Now fill var->fill_value */
-    if((stat = NC_copy_data_all(file->controller,tid,src,1,&var->fill_value))) goto done;
-    
-done:
-    return stat;
-}
-
-int
-NCZ_reclaim_var_fillvalue(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
-{
-    int stat = NC_NOERR;
-    int tid = var->type_info->hdr.id;
-
-    if(var->fill_value != NULL) {
-	stat = NC_reclaim_data_all(file->controller,tid,var->fill_value,1);
-	var->fill_value = NULL;
-	/* Leave var->no_fill as is */
-    }
-    return stat;
-}
-#endif
 
 /* get the default fillvalue  */
 void*

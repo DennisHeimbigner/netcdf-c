@@ -465,12 +465,12 @@ NCZ_ensure_fill_chunk(NCZChunkCache* cache)
 	goto done;
     }
 
+    assert(var->fill_value != NULL);
     if(typeid == NC_STRING) {
         char* src = *((char**)(var->fill_value));
 	char** dst = (char**)(cache->fillchunk);
         for(i=0;i<cache->chunkcount;i++) dst[i] = strdup(src);
-    } else
-    switch (typesize) {
+    } else switch (typesize) {
     case 1: { /*byte|char*/
         unsigned char c = *((unsigned char*)var->fill_value);
         memset(cache->fillchunk,c,cache->chunksize);
@@ -483,7 +483,7 @@ NCZ_ensure_fill_chunk(NCZChunkCache* cache)
     case 4: { /*int|float*/
         unsigned int fv = *((unsigned int*)var->fill_value);
         unsigned int* p4 = (unsigned int*)cache->fillchunk;
-	for(i=0;i<cache->chunksize;i+=typesize) *p4++ = fv;
+        for(i=0;i<cache->chunksize;i+=typesize) *p4++ = fv;
         } break;
     case 8: { /*long|double*/
         unsigned long long fv = *((unsigned long long*)var->fill_value);
@@ -496,6 +496,7 @@ NCZ_ensure_fill_chunk(NCZChunkCache* cache)
             memcpy(p,var->fill_value,typesize); /* Warning: only works for non-pointer values */
         } break;
     }
+	
 done:
     return NC_NOERR;
 }

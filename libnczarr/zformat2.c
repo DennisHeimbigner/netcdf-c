@@ -509,10 +509,11 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
     /* fill_value; must precede calls to adjust cache */
     {
 	NCJcheck(NCJdictget(jvar,"fill_value",(NCjson**)&jvalue));
-	if(jvalue == NULL || NCJsort(jvalue) == NCJ_NULL)
-	    var->no_fill = 1;
-	else { /* Fill in var->fill_value */
-	    var->no_fill = 0;
+	if(jvalue == NULL || NCJsort(jvalue) == NCJ_NULL) {
+	    var->no_fill = NC_NOFILL;
+	    if((stat = NCZ_disable_fill(file,var))) goto done;
+	} else { /* Fill in var->fill_value */
+	    var->no_fill = NC_FILL;
 	    NCZ_clearAttrInfo(file,&ainfo);
 	    ainfo.name = NC_FillValue;
 	    ainfo.nctype = vtype;
@@ -520,13 +521,13 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 	    if((stat = NCZ_computeattrdata(file,&ainfo))) goto done;
 	    /* Create var->fill_value */
 	    assert(ainfo.nctype == vtype);
-	    if((stat = NCZ_set_fill_value(file,var,var->no_fill,ainfo.data))) goto done;
+	    if((stat = NCZ_set_dual_obj_data(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,ainfo.datalen,ainfo.data))) goto done;	
+	    /* propagate to _FillValue attribute */
+	    if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
 	    /* reclaim ainfo.data */
 	    if((stat = NC_reclaim_data_all(file->controller,ainfo.nctype,ainfo.data,ainfo.datalen))) goto done;
 	    ainfo.datalen = 0;
 	    ainfo.data = NULL;
-	    /* Transfer to an attribute */
-	    if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
 	}
     }
 
