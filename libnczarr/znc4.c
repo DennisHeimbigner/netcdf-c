@@ -65,66 +65,6 @@ done:
     return THROW(stat);
 }
 
-#if 0
-int
-ncz4_build_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var,
-				nc_type nctype,
-				int storage,
-				int scalar,
-				int endianness,
-				size_t maxstrlen,
-				int dimsep,
-				char order,
-			        size_t ndims,
-				size64_t* shape,
-				size64_t* chunksizes,
-				int* dimids,
-			        NClist* filters,
-				int no_fill,
-				const void* fillvalue)
-{
-    int stat = NC_NOERR;
-    NCZ_VAR_INFO_T* zvar = NULL;
-    NC_TYPE_INFO_T* typ = NULL;
-    char* dimbasename = NULL;
-
-    NC_UNUSED(order);
-    
-    if(nctype <= NC_NAT || nctype > NC_MAX_ATOMIC_TYPE) {stat = NC_EBADTYPE; goto done;}
-    /* Locate the NC_TYPE_INFO_T object */
-    if((stat = ncz_gettype(file,var->container,nctype,&typ))) goto done;
-
-    if((stat = NCZ_fillin_var(file, var, typ, ndims, dimids, shape, chunksizes, endianness))) goto done;
-    zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
-    
-    /* Overrides */
-    zvar->dimension_separator = (char)dimsep;
-    zsetmaxstrlen(maxstrlen,var);
-
-    /* Set fill value */
-    if((stat=NCZ_set_fill_value(file,var,no_fill,fillvalue))) goto done;
-
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    /* Set the filter list */
-    {
-        size_t k, nfilters;
-	NClist* varfilters = (NClist*)var->filters;
-	nfilters = nclistlength(filters);
-	for(k=0;k<nfilters;k++) {
-	    NCZ_Filter* fi = (NCZ_Filter*)nclistremove(filters,0);
-	    assert(fi != NULL);
-	    nclistpush(varfilters,fi);
-	}
-        /* At this point, we can finalize the filters */
-        if((stat = NCZ_filter_setup(file,var))) goto done;
-    }
-#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
-
-done:
-     nullfree(dimbasename);
-     return THROW(stat);
-}
-#endif
 
 int
 ncz4_create_dim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const struct NCZ_DimInfo* dimdef, NC_DIM_INFO_T** dimp)

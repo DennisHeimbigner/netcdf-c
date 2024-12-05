@@ -97,6 +97,9 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose)
     zinfo = file->format_file_info;
     TESTPUREZARR;
 
+    /* Create|Update the dual attributes */
+    if((stat = NCZ_ensure_dual_attributes(file,(NC_OBJ*)grp))) goto done;
+
     if(!purezarr) {
         if(grp->parent == NULL) { /* Root group */
 	    if((stat=NCZF_encode_superblock(file,grp,&jsuper))) goto done;
@@ -193,11 +196,10 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int isclose)
     if((stat = ncz_create_computed_var_attributes(file,var))) goto done;
 
     /* Create|Update the dual attributes */
-    if((stat = NCZ_ensure_dual_attributes(file,(NC_OBJ*)var)))
+    if((stat = NCZ_ensure_dual_attributes(file,(NC_OBJ*)var))) goto done;
 
     /* Convert to JSON */
     if((stat=NCZF_encode_attributes(file,(NC_OBJ*)var,&jnczvar,NULL,&zobj.jatts))) goto done;
-
 
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Encode the filters */

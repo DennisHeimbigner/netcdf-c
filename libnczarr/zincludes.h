@@ -64,6 +64,7 @@ extern "C" {
 }
 #endif
 
+#define ncz_find_default_chunksizes2 nc4_find_default_chunksizes2
 #endif /* ZINCLUDES_H */
 
 

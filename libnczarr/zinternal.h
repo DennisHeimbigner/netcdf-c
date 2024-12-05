@@ -419,7 +419,6 @@ int ncz_gettype(NC_FILE_INFO_T*, NC_GRP_INFO_T*, int xtype, NC_TYPE_INFO_T** typ
 int ncz_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 int NCZ_ensure_quantizer(int ncid, NC_VAR_INFO_T* var);
 int NCZ_write_var_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
-int NCZ_fillin_var(NC_FILE_INFO_T* h5, NC_VAR_INFO_T* var, NC_TYPE_INFO_T* type, size_t ndims, const int* dimids, size64_t* shape, size64_t* chunksizes, int endianness);
 int NCZ_reclaim_dim(NC_DIM_INFO_T* dim);
 void zsetmaxstrlen(size_t maxstrlen, NC_VAR_INFO_T* var);
 void zsetdfaltstrlen(size_t maxstrlen, NC_FILE_INFO_T* file);

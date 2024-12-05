@@ -894,30 +894,30 @@ NCZ_set_dual_obj_data(NC_FILE_INFO_T* file, NC_OBJ* object, const char* name, Du
     if(object->sort == NCGRP) {
         switch(which) {
         case DA_DFALTSTRLEN:
-	    assert(len == 1);
+            assert(len == 1);
             zsetdfaltstrlen((size_t)((int*)data)[0],file);
             break;
-	default: stat = NC_EINVAL; break;
-	}
+        default: stat = NC_EINVAL; break;
+        }
     } else {
-	NC_VAR_INFO_T* var = NULL;
-	nc_type tid;
+        NC_VAR_INFO_T* var = NULL;
+        nc_type tid;
         assert(object->sort == NCVAR);
-	var = (NC_VAR_INFO_T*)object;
-	tid = var->type_info->hdr.id;
+        var = (NC_VAR_INFO_T*)object;
+        tid = var->type_info->hdr.id;
         switch(which) {
         case DA_FILLVALUE:
-	    assert(len == 1);	    
+            assert(len == 1);       
             if((stat = NC_reclaim_data_all(file->controller,tid,var->fill_value,len))) goto done;
             var->fill_value = NULL;
             if((stat = NC_copy_data_all(file->controller,tid,data,len,&var->fill_value))) goto done;
             break;
         case DA_MAXSTRLEN:
-	    assert(len == 1);
+            assert(len == 1);
             zsetmaxstrlen((size_t)((int*)data)[0],var);
             break;
         case DA_QUANTIZE:
-	    assert(len == 1);
+            assert(len == 1);
             var->nsd = ((int*)data)[0];
             break;
         default: assert(0);
@@ -1124,9 +1124,12 @@ NCZ_sync_dual_att(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, Du
     NC_VAR_INFO_T* var = NULL;
     NC_ATT_INFO_T* att = NULL;
     int isnew = 0;
+    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
+    NCZ_VAR_INFO_T* zvar = NULL;
 
     if(container->sort == NCVAR) {
         var = (NC_VAR_INFO_T*)container;
+        zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
     }
 
     if(direction == FIXATT) { /* transfer from NC_XXX_INFO_T* to attribute */
@@ -1146,24 +1149,22 @@ NCZ_sync_dual_att(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, Du
                 if((stat = NCZ_set_att_data(file,att,1,var->fill_value))) goto done;
             }
             break;
-        case DA_MAXSTRLEN: {
-            int maxstrlen;
-            if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
-            maxstrlen = NCZ_get_maxstrlen((NC_OBJ*)var);
-            if((stat = NCZ_set_att_data(file,att,1,&maxstrlen))) goto done;
+        case DA_MAXSTRLEN:
+	    assert(zvar != NULL);
+	    if(zvar->maxstrlen > 0) {
+		if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
+		if((stat = NCZ_set_att_data(file,att,1,&zvar->maxstrlen))) goto done;
             } break;
-        case DA_DFALTSTRLEN: {
-            int dfaltstrlen;
-            if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
-            NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
-            dfaltstrlen = zinfo->default_maxstrlen;
-            if((stat = NCZ_set_att_data(file,att,1,&dfaltstrlen))) goto done;
+        case DA_DFALTSTRLEN:
+	    assert(zinfo != NULL);
+	    if(zinfo->default_maxstrlen > 0) {
+		if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
+		if((stat = NCZ_set_att_data(file,att,1,&zinfo->default_maxstrlen))) goto done;
             } break;
-        case DA_QUANTIZE: {
-            int nsd;
-            if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
-            nsd = var->nsd;
-            if((stat = NCZ_set_att_data(file,att,1,&nsd))) goto done;
+        case DA_QUANTIZE:
+	    if(var->quantize_mode > 0) {
+		if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
+		if((stat = NCZ_set_att_data(file,att,1,&var->nsd))) goto done;
             } break;
         default:
             stat = NC_ENOTATT;      
@@ -1212,12 +1213,9 @@ int
 NCZ_ensure_dual_attributes(NC_FILE_INFO_T* file, NC_OBJ* container)
 {
     int stat = NC_NOERR;
-    NC_GRP_INFO_T* grp = NULL;
     NC_VAR_INFO_T* var = NULL;
 
-    if(container->sort == NCGRP)
-        grp = (NC_GRP_INFO_T*)container;
-    else
+    if(container->sort == NCVAR)
         var = (NC_VAR_INFO_T*)container;    
 
     /* Some attributes are reflected in var|grp structure so must be sync'd to the attribute */
@@ -1230,21 +1228,32 @@ NCZ_ensure_dual_attributes(NC_FILE_INFO_T* file, NC_OBJ* container)
         if(var->no_fill == NC_NOFILL) {
             if((stat = NCZ_disable_fill(file,var))) goto done;
         } else { /* var->no_fill == NC_FILL*/
-            if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
+            if(var->fill_value != NULL) { /* only update if a fill value is defined */
+                if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_FillValue,DA_FILLVALUE,FIXATT))) goto done;
+            }
         }
 
         /* _nczarr_maxstrlen */
-        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_NCZARR_MAXSTRLEN_ATTR,DA_MAXSTRLEN,FIXATT))) goto done;
-
+	{
+	    NCZ_VAR_INFO_T* vinfo = (NCZ_VAR_INFO_T*)var->format_var_info;
+	    if(vinfo->maxstrlen > 0) {
+		if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_NCZARR_MAXSTRLEN_ATTR,DA_MAXSTRLEN,FIXATT))) goto done;
+	    }
+        }
+        
         /* __Quantizexxx */
-        qname = NC_findquantizeattname(var->quantize_mode);
-        if(qname == NULL) {stat = NC_ENOTATT; goto done;}
-        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,qname,DA_QUANTIZE,FIXATT))) goto done;
-
+        if(var->quantize_mode > 0) {
+            qname = NC_findquantizeattname(var->quantize_mode);
+            if(qname != NULL) {/* quantize_mode was set */
+                if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,qname,DA_QUANTIZE,FIXATT))) goto done;
+            }
+        }
     } else {
-        assert(grp != NULL);
-        /* _nczarr_default_maxstrlen */
-        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_NCZARR_DFALT_MAXSTRLEN_ATTR,DA_DFALTSTRLEN,FIXATT))) goto done;
+	NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
+        assert(file != NULL);
+	if(zinfo->default_maxstrlen > 0) {
+            if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)file->root_grp,NC_NCZARR_DFALT_MAXSTRLEN_ATTR,DA_DFALTSTRLEN,FIXATT))) goto done;
+        }
     }
 
 done:

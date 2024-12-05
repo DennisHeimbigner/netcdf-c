@@ -18,6 +18,10 @@
 #define NOCREATE 1
 
 
+/* Forward */
+static int NCZ_fillin_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_TYPE_INFO_T* type,
+		size_t ndims, const int* dimids, int endianness);
+
 #ifdef LOGGING
 static void
 reportchunking(const char* title, NC_VAR_INFO_T* var)
@@ -88,135 +92,6 @@ check_chunksizes(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, const size_t *chunksize
 	{retval = NC_EBADCHUNK; goto done;}
 done:
     return retval;
-}
-
-/**
- * @internal Determine some default chunksizes for a variable.
- *
- * @param grp Pointer to the group info.
- * @param var Pointer to the var info.
- *
- * @returns ::NC_NOERR for success
- * @returns ::NC_EBADID Bad ncid.
- * @returns ::NC_ENOTVAR Invalid variable ID.
- * @author Dennis Heimbigner, Ed Hartnett
- */
-int
-ncz_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
-{
-    size_t d;
-    size_t type_size;
-    size_t num_values = 1;
-    size_t num_unlim = 0;
-    int retval;
-    size_t suggested_size;
-#ifdef LOGGING
-    double total_chunk_size;
-#endif
-
-    type_size = var->type_info->size;
-
-#ifdef LOGGING
-    /* Later this will become the total number of bytes in the default
-     * chunk. */
-    total_chunk_size = (double) type_size;
-#endif
-
-    if(var->chunksizes == NULL) {
-	if((var->chunksizes = calloc(1,sizeof(size_t)*var->ndims)) == NULL)
-	    return NC_ENOMEM;
-    }
-
-    /* How many values in the variable (or one record, if there are
-     * unlimited dimensions). */
-    for (d = 0; d < var->ndims; d++)
-    {
-	assert(var->dim[d]);
-	if (! var->dim[d]->unlimited)
-	    num_values *= var->dim[d]->len;
-	else {
-	    num_unlim++;
-	    var->chunksizes[d] = 1; /* overwritten below, if all dims are unlimited */
-	}
-    }
-    /* Special case to avoid 1D vars with unlim dim taking huge amount
-       of space (DEFAULT_CHUNK_SIZE bytes). Instead we limit to about
-       4KB */
-    if (var->ndims == 1 && num_unlim == 1) {
-	if (DEFAULT_CHUNK_SIZE / type_size <= 0)
-	    suggested_size = 1;
-	else if (DEFAULT_CHUNK_SIZE / type_size > DEFAULT_1D_UNLIM_SIZE)
-	    suggested_size = DEFAULT_1D_UNLIM_SIZE;
-	else
-	    suggested_size = DEFAULT_CHUNK_SIZE / type_size;
-	var->chunksizes[0] = suggested_size / type_size;
-	LOG((4, "%s: name %s dim %d DEFAULT_CHUNK_SIZE %d num_values %f type_size %d "
-	     "chunksize %ld", __func__, var->hdr.name, d, DEFAULT_CHUNK_SIZE, num_values, type_size, var->chunksizes[0]));
-    }
-    if (var->ndims > 1 && var->ndims == num_unlim) { /* all dims unlimited */
-	suggested_size = (size_t)pow((double)(DEFAULT_CHUNK_SIZE/type_size), 1.0/(double)(var->ndims));
-	for (d = 0; d < var->ndims; d++)
-	{
-	    var->chunksizes[d] = suggested_size ? suggested_size : 1;
-	    LOG((4, "%s: name %s dim %d DEFAULT_CHUNK_SIZE %d num_values %f type_size %d "
-		 "chunksize %ld", __func__, var->hdr.name, d, DEFAULT_CHUNK_SIZE, num_values, type_size, var->chunksizes[d]));
-	}
-    }
-
-    /* Pick a chunk length for each dimension, if one has not already
-     * been picked above. */
-    for (d = 0; d < var->ndims; d++)
-	if (!var->chunksizes[d])
-	{
-	    suggested_size = (size_t)(pow((double)DEFAULT_CHUNK_SIZE/((double)(num_values * type_size)),
-				  1.0/(double)(var->ndims - num_unlim)) * (double)var->dim[d]->len - .5);
-	    if (suggested_size > var->dim[d]->len)
-		suggested_size = var->dim[d]->len;
-	    var->chunksizes[d] = suggested_size ? suggested_size : 1;
-	    LOG((4, "%s: name %s dim %d DEFAULT_CHUNK_SIZE %d num_values %f type_size %d "
-		 "chunksize %ld", __func__, var->hdr.name, d, DEFAULT_CHUNK_SIZE, num_values, type_size, var->chunksizes[d]));
-	}
-
-#ifdef LOGGING
-    /* Find total chunk size. */
-    for (d = 0; d < var->ndims; d++)
-	total_chunk_size *= (double) var->chunksizes[d];
-    LOG((4, "total_chunk_size %f", total_chunk_size));
-#endif
-
-    /* But did this result in a chunk that is too big? */
-    retval = check_chunksizes(grp, var, var->chunksizes);
-    if (retval)
-    {
-	/* Other error? */
-	if (retval != NC_EBADCHUNK)
-	    return THROW(retval);
-
-	/* Chunk is too big! Reduce each dimension by half and try again. */
-	for ( ; retval == NC_EBADCHUNK; retval = check_chunksizes(grp, var, var->chunksizes))
-	    for (d = 0; d < var->ndims; d++)
-		var->chunksizes[d] = var->chunksizes[d]/2 ? var->chunksizes[d]/2 : 1;
-    }
-
-    /* Do we have any big data overhangs? They can be dangerous to
-     * babies, the elderly, or confused campers who have had too much
-     * beer. */
-    for (d = 0; d < var->ndims; d++)
-    {
-	size_t num_chunks;
-	size_t overhang;
-	assert(var->chunksizes[d] > 0);
-	num_chunks = (var->dim[d]->len + var->chunksizes[d] - 1) / var->chunksizes[d];
-	if(num_chunks > 0) {
-	    overhang = (num_chunks * var->chunksizes[d]) - var->dim[d]->len;
-	    var->chunksizes[d] -= overhang / num_chunks;
-	}
-    }
-
-#ifdef LOGGING
-reportchunking("find_default: ",var);
-#endif
-    return NC_NOERR;
 }
 
 /**
@@ -342,7 +217,7 @@ NCZ_def_var(int ncid, const char *name, nc_type xtype, int ndims,
 	BAIL(retval);
 
     /* Set values for the remaining NC_VAR_INFO_T fields */
-    retval = NCZ_fillin_var(h5, var, type, (size_t)ndims, dimids, NULL, NULL, NC_ENDIAN_NATIVE);
+    retval = NCZ_fillin_var(h5, var, type, (size_t)ndims, dimids, NC_ENDIAN_NATIVE);
 
     if(retval == NC_NOERR) {
         /* Return the varid. */
@@ -358,21 +233,17 @@ exit:
 }
 
 /**
-Since variables are created in two places, encapsulate
-the fillin of the variable data. Not all data is filled in,
+Encapsulate the fillin of the variable data. Not all data is filled in,
 but important &/or complex data is filled in.
 */
-int
+static int
 NCZ_fillin_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_TYPE_INFO_T* type,
-		size_t ndims, const int* dimids,
-		size64_t* shape, size64_t* chunksizes,
-		int endianness)
+		size_t ndims, const int* dimids, int endianness)
 {
     int stat = NC_NOERR;
     size_t d;
     NC_GRP_INFO_T* grp = file->root_grp; /* only used to get back to file */
     NC_DIM_INFO_T* dim = NULL;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     NCZ_VAR_INFO_T* zvar = NULL;
     NCglobalstate* gs = NC_getglobalstate();
     nc_type vartypeid = NC_NAT;
@@ -383,7 +254,6 @@ NCZ_fillin_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NC_TYPE_INFO_T* type,
     var->format_var_info = zvar;
     zvar->common.file = file;
     zvar->scalar = (ndims == 0 ? 1 : 0);
-    zsetdfaltstrlen(zfile->default_maxstrlen,file);
 
     zvar->dimension_separator = gs->zarr.dimension_separator;
     assert(zvar->dimension_separator != 0);
@@ -425,6 +295,8 @@ var->type_info->rc++;
     /* Save the rank of the variable */
     if((stat = nc4_var_set_ndims(var, (int)ndims))) goto done;
 
+    
+
     for (d = 0; d < ndims; d++)
     {
 	NC_GRP_INFO_T *dim_grp;
@@ -437,27 +309,21 @@ var->type_info->rc++;
 	/* Track dimensions for variable */
 	var->dimids[d] = dimids[d];
 	var->dim[d] = dim;
-	if(shape != NULL) assert(shape[d] == (size64_t)var->dim[d]->len);
     }
 
-    /* Determine  chunksizes for this variable. (Even for
+    /* Determine  chunksizes for this variable. (Even
      * variables which may be scalar) */
     LOG((4, "allocating array of %d size_t to hold chunksizes for var %s",
 	 var->ndims, var->hdr.name));
-    if(!var->chunksizes) {
-	if(var->ndims) {
-            if (!(var->chunksizes = calloc(var->ndims, sizeof(size_t)))) {stat = NC_ENOMEM; goto done;}
-	    if(chunksizes != NULL) {
-		size_t j;
-		for(j=0;j<var->ndims;j++) var->chunksizes[j] = (size_t)chunksizes[j];
-	    } else {
-	        if ((stat = ncz_find_default_chunksizes2(grp, var))) goto done;
-	    }
-        } else {
-	    /* Pretend that scalars are like var[1] */
-	    if (!(var->chunksizes = calloc(1, sizeof(size_t)))) {stat = NC_ENOMEM; goto done;}
-	    var->chunksizes[0] = 1;
-	}
+    if(var->ndims > 0) {
+	assert(var->chunksizes == NULL);
+//if(var->chunksizes != NULL) {free(var->chunksizes); var->chunksizes = NULL;}
+        if (!(var->chunksizes = calloc(var->ndims, sizeof(size_t)))) {stat = NC_ENOMEM; goto done;}
+        if ((stat = ncz_find_default_chunksizes2(grp, var))) goto done;
+    } else {
+	/* Pretend that scalars are like var[1] */
+	if (!(var->chunksizes = calloc(1, sizeof(size_t)))) {stat = NC_ENOMEM; goto done;}
+	var->chunksizes[0] = 1;
     }
     
     /* Compute the chunksize cross product */
@@ -1089,7 +955,6 @@ NCZ_def_var_endian(int ncid, int varid, int endianness)
 int
 NCZ_def_var_quantize(int ncid, int varid, int quantize_mode, int nsd)
 {
-fprintf(stderr,"@@@ mode=%d nsd=%d\n",quantize_mode,nsd);
     return ncz_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
                             NULL, NULL, NULL, NULL, NULL,
                             &quantize_mode, &nsd);
