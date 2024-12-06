@@ -405,7 +405,7 @@ ncz_decode_file(NC_FILE_INFO_T* file)
     root = file->root_grp;
     if((stat = NCZF_download_grp(file, root, &zobj))) goto done;
 
-    /* Decode the group metadata to get superblock */
+    /* Decode the group metadata to get only the superblock */
     if((stat = NCZF_decode_group(file,root,&zobj,NULL,(NCjson**)&jsuper))) goto done;
 
     if(jsuper != NULL) {

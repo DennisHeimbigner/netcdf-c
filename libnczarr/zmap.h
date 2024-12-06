@@ -62,10 +62,10 @@ List:
 The list function takes a prefix path which has a key syntax (see
 above).  The set of legal keys is the set of keys such that the key
 references a content-bearing object -- e.g. /x/y/.zarray or
-/.zgroup. Essentially this is the set of keys pointing to the leaf
-objects of the tree of keys constituting a dataset. This set
-potentially limits the set of keys that need to be examined during
-search.
+/.zgroup or /g/.zgroup. Essentially this is the set of keys pointing
+to the leaf objects of the tree of keys constituting a dataset.
+This set potentially limits the set of keys that need to be examined
+during search.
 
 The list function has two primary purposes:
   1. Support reading of pure zarr datasets (because they do not explicitly track their contents).

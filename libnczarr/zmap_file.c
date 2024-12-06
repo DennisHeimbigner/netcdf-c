@@ -463,7 +463,8 @@ zfileclose(NCZMAP* map, int delete)
 }
 
 /*
-Return a list of simple names immediately "below" a specified prefix key.
+Return a list of simple names immediately "below" a specified prefix key
+(i.e. shallow listing).
 In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
 The prefix key is not included. 
@@ -962,7 +963,7 @@ platformdircontent(const char* canonpath, NClist* contents)
     default: goto done;
     }
 
-    /* We need to process the path to make it work with FindFirstFile */
+    /* We need to process the path to make it work with Windows FindFirstFile */
     len = strlen(canonpath);
     /* Need to terminate path with '/''*' */
     ffpath = (char*)malloc(len+2+1);

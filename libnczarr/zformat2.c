@@ -734,11 +734,13 @@ ZF2_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
     if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jobj))) goto done;
     nullfree(key); key = NULL;
 
-    /* build ZATTRS path */
-    if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
-    /* Write to map */
-    if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jatts))) goto done;
-    nullfree(key); key = NULL;
+    if(zobj->jatts != NULL) {
+	/* build ZATTRS path */
+	if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
+	/* Write to map */
+	if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jatts))) goto done;
+	nullfree(key); key = NULL;
+    }
 
 done:
     nullfree(fullpath);
@@ -763,7 +765,7 @@ ZF2_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
     if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jobj))) goto done;
     nullfree(key); key = NULL;
 
-    if(zobj->jatts) {
+    if(zobj->jatts != NULL) {
 	/* build ZATTRS path */
 	if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
 	/* Write to map */
@@ -1271,31 +1273,44 @@ ZF2_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NC
     size_t i;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* grpkey = NULL;
+    char* subgrpkey = NULL;
     char* varkey = NULL;
     char* zarray = NULL;
+    char* zgroup = NULL;
     NClist* matches = nclistnew();
 
     /* Compute the key for the grp */
     if((stat = NCZ_grpkey(grp,&grpkey))) goto done;
-    /* Get the map and search group */
-    if((stat = nczmap_list(zfile->map,grpkey,matches))) goto done;
+    if((stat = nczmap_list(zfile->map,grpkey,matches))) goto done; /* Shallow listing */
+    /* Search grp for group-level .zxxx and for var-level .zxxx*/
     for(i=0;i<nclistlength(matches);i++) {
 	const char* name = nclistget(matches,i);
-	if(name[0] == NCZM_DOT) continue; /* zarr/nczarr specific */
-	/* See if name/.zarray exists */
+	if(name[0] == NCZM_DOT) continue; /* current group components */
+	/* See if name is an array by testing for name/.zarray exists */
 	if((stat = nczm_concat(grpkey,name,&varkey))) goto done;
 	if((stat = nczm_concat(varkey,Z2ARRAY,&zarray))) goto done;
-	if((stat = nczmap_exists(zfile->map,zarray)) == NC_NOERR)
+	if((stat = nczmap_exists(zfile->map,zarray)) == NC_NOERR) {
 	    nclistpush(varnames,strdup(name));
+	} else {
+	    /* See if name is a group by testing for name/.zgroup exists */
+	    if((stat = nczm_concat(grpkey,name,&subgrpkey))) goto done;
+	    if((stat = nczm_concat(varkey,Z2GROUP,&zgroup))) goto done;
+	    if((stat = nczmap_exists(zfile->map,zgroup)) == NC_NOERR)
+		nclistpush(subgrpnames,strdup(name));
+	}
 	stat = NC_NOERR;
 	nullfree(varkey); varkey = NULL;
 	nullfree(zarray); zarray = NULL;
+	nullfree(subgrpkey); subgrpkey = NULL;
+	nullfree(zgroup); zgroup = NULL;
     }
 
 done:
     nullfree(grpkey);
     nullfree(varkey);
     nullfree(zarray);
+    nullfree(zgroup);
+    nullfree(subgrpkey);
     nclistfreeall(matches);
     return stat;
 }
