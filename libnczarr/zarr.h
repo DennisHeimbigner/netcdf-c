@@ -85,8 +85,9 @@ EXTERNL int NCZ_char2fixed(const char** charp, void* fixed, size_t count, size_t
 EXTERNL int NCZ_copy_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const void* memory, size_t count, int reading, void* copy);
 EXTERNL int NCZ_iscomplexjson(const char* aname, const NCjson* value);
 EXTERNL int NCZ_iscomplexjsonstring(const char* aname, size_t textlen, const char* text, NCjson** jsonp);
-EXTERNL int NCZ_makeFQN(NC_GRP_INFO_T* parent, const char* objname, NCbytes* fqn);
+EXTERNL int NCZ_makeFQN(NC_OBJ* obj, NCbytes* fqn);
 EXTERNL int NCZ_locateFQN(NC_GRP_INFO_T* parent, const char* fqn, NC_SORT sort, NC_OBJ** objectp, char** basenamep);
+EXTERNL int NCZ_search_name(NC_GRP_INFO_T* startgrp, const char* name, NC_SORT sort, NC_OBJ** objectp);
 EXTERNL char* NCZ_deescape(const char* s);
 EXTERNL char* NCZ_backslashescape(const char* s);
 EXTERNL int NCZ_sortstringlist(void* vec, size_t count);

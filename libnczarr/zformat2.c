@@ -888,7 +888,7 @@ ZF2_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jncza
     if(var->ndims > 0) {
 	for(i=0;i<var->ndims;i++) {
 	    NC_DIM_INFO_T* dim = var->dim[i];
-	    if((stat = NCZ_makeFQN(file->root_grp,dim->hdr.name,dimfqn))) goto done;
+	    if((stat = NCZ_makeFQN((NC_OBJ*)dim,dimfqn))) goto done;
 	    nclistpush(dimrefs,ncbytesextract(dimfqn));
 	}
     } else { /*scalar*/

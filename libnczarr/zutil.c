@@ -901,44 +901,49 @@ loopexit:
     return stat;
 }
 
-/* Caller must free return value */
+/* Construct the FQN for an object matching.
+@param obj the object from which to construct the FQN
+@param fqn store FQN in this buffer
+@return NC_NOERR
+
+Notes:
+* Caller must free return fqn.
+*/
 int
-NCZ_makeFQN(NC_GRP_INFO_T* parent, const char* objname, NCbytes* fqn)
+NCZ_makeFQN(NC_OBJ* obj, NCbytes* fqn)
 {
     int stat = NC_NOERR;
     size_t i;
     NClist* segments = nclistnew();
     NC_GRP_INFO_T* grp = NULL;
-    char* escaped = NULL;
 
     ncbytesclear(fqn);
     /* Add in the object name */
-    if((escaped = NCZ_backslashescape(objname))==NULL) goto done;
-    nclistpush(segments,escaped);
-    escaped = NULL;
+    nclistpush(segments,obj->name);
 
-    /* Collect the group prefix segments (escaped) */
-    for(grp=parent;grp->parent!=NULL;grp=grp->parent) {
+    /* Compute the parent group of the object */
+    switch (obj->sort) {
+    case NCDIM: grp = ((NC_DIM_INFO_T*)obj)->container; break;
+    case NCVAR: grp = ((NC_VAR_INFO_T*)obj)->container; break;
+    case NCTYP: grp = ((NC_TYPE_INFO_T*)obj)->container; break;
+    case NCGRP: grp = ((NC_GRP_INFO_T*)obj)->parent; break;
+    default: stat = NC_EINVAL; goto done; break;
+    }
+
+    /* Collect the group prefix segments (escaped) in forward order; leave out the root group */
+    for(;grp->parent!=NULL;grp=grp->parent) {
 	/* Add in the group name */
-	if((escaped = NCZ_backslashescape(grp->hdr.name))==NULL) goto done;
-        nclistpush(segments,escaped);
-	escaped = NULL;
+        nclistinsert(segments,0,grp->hdr.name);
     }
     
     /* Create the the fqn */
-    for(i=nclistlength(segments);(i--)>0;) { /* walk backwards */
+    for(i=0;i<nclistlength(segments);i++) {
 	const char* s = (const char*)nclistget(segments,i);
-#if 0
-	ncbytesinsert(fqn,0,1,"/");
-        ncbytesinsert(fqn,0,strlen(s),s);
-#else
 	ncbytescat(fqn,"/");
 	ncbytescat(fqn,s);
-#endif
     }
 done:
-    nclistfreeall(segments);
-    nullfree(escaped);
+    nclistfree(segments);
     return THROW(stat);
 }
 
@@ -948,6 +953,7 @@ done:
 @param sort of desired object
 @param objectp return pointer to matching object, or if not found,
                then to the group where it should have been found.
+@param basenamep return last name of the fqn to aid creation if not found
 @return NC_NOERR
 @return NC_ENOOBJECT if object not found (=> objectp contains where it should be)
 @return NC_EXXX
@@ -998,6 +1004,45 @@ NCZ_locateFQN(NC_GRP_INFO_T* parent, const char* fqn, NC_SORT sort, NC_OBJ** obj
     if(objectp) *objectp = object;
 done:
     nclistfreeall(segments);
+    return THROW(ret);
+}
+
+/* Search upward for an object matching the given name and of given sort.
+@param startgrp start search here
+@param name of the object
+@param sort of desired object
+@param objectp return pointer to matching object, or if not found,
+               then to the group where it should have been found.
+@param 
+@return NC_NOERR
+@return NC_ENOOBJECT if object not found (=> objectp contains where it should be)
+@return NC_EXXX
+
+Note: if we were searching for type, then the netcdf rule requires searching the whole object tree.
+*/
+int
+NCZ_search_name(NC_GRP_INFO_T* startgrp, const char* name, NC_SORT sort, NC_OBJ** objectp)
+{
+    int ret = NC_NOERR;
+    NC_GRP_INFO_T* grp = NULL;
+    NC_OBJ* object = NULL;
+
+    /* walk to convert to groups + 1 left over for the final object*/
+    for(grp=startgrp;grp != NULL;grp=grp->parent) {
+	/* Find an object to match the sort and name */
+        object = ncindexlookup(grp->children,name);
+        if(object != NULL && (sort == NCNAT || sort == NCGRP)) break; /* match */
+        object = ncindexlookup(grp->dim,name);
+        if(object != NULL && (sort == NCNAT || sort == NCDIM)) break; /* match */
+        object = ncindexlookup(grp->vars,name);
+        if(object != NULL && (sort == NCNAT || sort == NCVAR)) break; /* match */
+        object = ncindexlookup(grp->type,name);
+        if(object != NULL && (sort == NCNAT || sort == NCTYP)) break; /* match */
+        object = ncindexlookup(grp->att,name);
+        if(object != NULL && (sort == NCNAT || sort == NCATT)) break; /* match */
+        object = NULL; /* not found */
+    }
+    if(objectp) *objectp = object;
     return THROW(ret);
 }
 

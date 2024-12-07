@@ -16,6 +16,8 @@
 /*mnemonics*/
 #define DICTOPEN '{'
 #define DICTCLOSE '}'
+#define FIXED 0
+#define UNLIM 1
 
 /* Forward */
 static int ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, int isclose);
@@ -32,7 +34,7 @@ static int ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson
 static int ncz_decode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* filters);
 static int get_group_content_pure(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrps);
 static int reifydimrefs(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NC_VAR_INFO_T* var, size64_t* shapes, NClist* dimrefs, NClist* dimdecls);
-static int definedim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* basename, size64_t shape, NC_DIM_INFO_T** dimp);
+static int definedim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* basename, size64_t shape, int isunlimited, NC_DIM_INFO_T** dimp);
 
 /**************************************************/
 /* Synchronize functions to make map and memory
@@ -447,6 +449,7 @@ ncz_decode_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpna
 	if((stat = NCZF_download_grp(file,subgrp,&zobj))) goto done;
 	/* Fill in the group object */
         if((stat = ncz_decode_grp(file,subgrp,&zobj))) goto done;
+        NCZ_clear_zobj(&zobj);
     }
 
 done:
@@ -607,7 +610,7 @@ ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname
 	    var->dim[i] = dim;
 	    var->dimids[i] = dim->hdr.id;
 	    var->chunksizes[i] = (size_t)chunks[i];
-	    zvar->chunkproduct *= shapes[i];
+	    zvar->chunkproduct *= var->chunksizes[i];
 	}
     }
     zvar->chunksize = zvar->chunkproduct * var->type_info->size;
@@ -1121,21 +1124,19 @@ reifydimrefs(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NC_VAR_INFO_T* var, si
 	    switch (stat = NCZ_locateFQN(file->root_grp, dimref, NCDIM, &obj, &basename)) {
 	    case NC_NOERR: break; /* Dimension exists */
 	    case NC_ENOOBJECT: /* Need to create dimension */
-		if((stat = definedim(file,(NC_GRP_INFO_T*)obj,basename,shapes[i],(NC_DIM_INFO_T**)&obj))) goto done;
+		if((stat = definedim(file,(NC_GRP_INFO_T*)obj,basename,shapes[i],(shapes[i]==0?UNLIM:FIXED),(NC_DIM_INFO_T**)&obj))) goto done;
 		break;
 	    default: goto done; /* some kind of real error */
 	    }
 	    nclistpush(dimdecls,obj);
-	} else { /* relative to parent group */
-	    if((stat = NCZ_makeFQN(parent,dimref,fqn))) goto done;
-	    switch (stat = NCZ_locateFQN(file->root_grp, ncbytescontents(fqn), NCDIM, &obj, &basename)) {
-	    case NC_NOERR: break; /* Dimension exists */
-	    case NC_ENOOBJECT: /* Need to create dimension */
-		if((stat = definedim(file,(NC_GRP_INFO_T*)obj,basename,shapes[i],(NC_DIM_INFO_T**)&obj))) goto done;
-		break;
-	    default: goto done; /* some kind of real error */
+	} else { /* search upwards for the dimension decl */
+	    assert(strchr(dimref,'/')==NULL);
+	    if((stat = NCZ_search_name(parent,dimref,NCDIM,&obj))) goto done;
+	    if(obj == NULL) {
+	        /* Need to create dimension in parent group */
+		if((stat = definedim(file,parent,dimref,shapes[i],(shapes[i]==0?UNLIM:FIXED),(NC_DIM_INFO_T**)&obj))) goto done;
 	    }
-	    nclistpush(dimdecls,obj);
+            nclistpush(dimdecls,(NC_DIM_INFO_T*)obj);
 	}
     }
 done:
@@ -1145,7 +1146,7 @@ done:
 }
 
 static int
-definedim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* basename, size64_t shape, NC_DIM_INFO_T** dimp)
+definedim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* basename, size64_t shape, int unlim, NC_DIM_INFO_T** dimp)
 {
     int stat = NC_NOERR;
     struct NCZ_DimInfo dimdef;
@@ -1153,7 +1154,7 @@ definedim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* basename, siz
     strncpy(dimdef.norm_name,basename,sizeof(dimdef.norm_name));
     /* Use shape as the size */
     dimdef.shape = (size_t)shape;
-    dimdef.unlimited = 0;
+    dimdef.unlimited = unlim;
     if((stat = ncz4_create_dim(file,parent,&dimdef,dimp))) goto done;
 done:
     return THROW(stat);
