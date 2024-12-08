@@ -111,7 +111,7 @@ endif
 # Build Cloud Storage if desired.
 if NETCDF_ENABLE_NCZARR
 ZARR_TEST_DIRS = nczarr_test
-#ZARR_TEST_DIRS += v3_nczarr_test
+ZARR_TEST_DIRS += v3_nczarr_test
 ZARR = libnczarr
 endif
 

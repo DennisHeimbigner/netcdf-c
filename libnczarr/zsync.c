@@ -412,7 +412,7 @@ ncz_decode_file(NC_FILE_INFO_T* file)
 
     if(jsuper != NULL) {
         /* Ok, process superblock */
-        if((stat = NCZF_decode_superblock(file,root,jsuper,NULL,NULL))) goto done;
+        if((stat = NCZF_decode_superblock(file,jsuper,NULL,NULL))) goto done;
     } else {
 	zinfo->flags |= FLAG_PUREZARR;	
     }	

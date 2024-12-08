@@ -193,14 +193,6 @@ Optionally Inserted into any group zarr.json or array zarr.json is the extra att
 /* Must match values in include/nc4internal.h */
 #define NCZ_PREFIX "_nczarr"
 #define NCZ_ATTR_OLD_ATTR NC_NCZARR_ATTR_ATTR
-#if 0
-#define NCZ_SUPERBLOCK NC_NCZARR_SUPERBLOCK_ATTR
-#define NCZ_GROUP    NC_NCZARR_GROUP_ATTR
-#define NCZ_ARRAY    NC_NCZARR_ARRAY_ATTR
-#define NCZ_ATTRS    NC_NCZARR_ATTRS_ATTR
-#define NCZ_MAXSTRLEN_ATTR NC_NCZARR_MAXSTRLEN_ATTR
-#define NCZ_DFALT_MAXSTRLEN_ATTR NC_NCZARR_DFALT_MAXSTRLEN_ATTR
-#endif
 
 #define NCZARRCONTROL "nczarr"
 #define PUREZARRCONTROL "zarr"

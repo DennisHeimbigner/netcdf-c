@@ -31,9 +31,7 @@ NCZF_initialize(void)
 {
     int stat = NC_NOERR;
     if((stat=NCZF2_initialize())) goto done;
-#ifdef ENABLE_V3
     if((stat=NCZF3_initialize())) goto done;
-#endif
 done:
     return THROW(stat);
 }
@@ -43,9 +41,7 @@ NCZF_finalize(void)
 {
     int stat = NC_NOERR;
     if((stat=NCZF2_finalize())) goto done;
-#ifdef ENABLE_V3
     if((stat=NCZF3_finalize())) goto done;
-#endif
 done:
     return THROW(stat);
 }
@@ -127,13 +123,13 @@ NCZF_decode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zgroup,
 }
 
 int
-NCZF_decode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, const NCjson* jsuper, int* zformat, int* nczformat)
+NCZF_decode_superblock(NC_FILE_INFO_T* file, const NCjson* jsuper, int* zformat, int* nczformat)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_superblock(file,root,jsuper,zformat,nczformat);
+    stat = zfile->dispatcher->decode_superblock(file,jsuper,zformat,nczformat);
     return THROW(stat);
 }
 
@@ -199,14 +195,14 @@ NCZF_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
 
 /*Write JSON Metadata*/
 int
-NCZF_encode_superblock(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NCjson** jsuperp)
+NCZF_encode_superblock(NC_FILE_INFO_T* file, NCjson** jsuperp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->encode_superblock(file,root,jsuperp);
+    stat = zfile->dispatcher->encode_superblock(file,jsuperp);
     return THROW(stat);
 }
 
@@ -223,14 +219,14 @@ NCZF_encode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jzgr
 }
 
 int
-NCZF_encode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jatts, NCjson** jgroupp)
+NCZF_encode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** jgroupp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->encode_group(file,grp,jatts,jgroupp);
+    stat = zfile->dispatcher->encode_group(file,grp,jgroupp);
     return THROW(stat);
 }
 
@@ -247,14 +243,14 @@ NCZF_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jzva
 }
 
 int
-NCZF_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jattsp, NClist* filtersj, NCjson** jvarp)
+NCZF_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjson** jvarp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->encode_var(file,var,jattsp,filtersj,jvarp);
+    stat = zfile->dispatcher->encode_var(file,var,filtersj,jvarp);
     return THROW(stat);
 }
 
@@ -273,14 +269,14 @@ NCZF_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczcon
 
 /*Filter Processing*/
 int
-NCZF_encode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter, NCjson** jfilterp)
+NCZF_encode_filter(NC_FILE_INFO_T* file, NCZ_Filter* filter, NCjson** jfilterp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->encode_filter(file,var,filter,jfilterp);
+    stat = zfile->dispatcher->encode_filter(file,filter,jfilterp);
     return THROW(stat);
 }
 
@@ -293,32 +289,6 @@ NCZF_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NC
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
     stat = zfile->dispatcher->decode_filter(file,var,jfilter,filter);
-    return THROW(stat);
-}
-
-/*Filter Conversion*/
-
-int
-NCZF_hdf2codec (NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = NULL;
-
-    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    assert(zfile != NULL);
-    stat = zfile->dispatcher->hdf2codec (file,var,filter);
-    return THROW(stat);
-}
-
-int
-NCZF_codec2hdf(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCZ_Filter* filter)
-{
-    int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zfile = NULL;
-
-    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
-    assert(zfile != NULL);
-    stat = zfile->dispatcher->codec2hdf(file,var,filter);
     return THROW(stat);
 }
 
@@ -338,7 +308,7 @@ NCZF_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, N
 /*Chunkkeys*/
 
 /*
-From Zarr V2 Specification:
+From Zarr Specification:
 "The compressed sequence of bytes for each chunk is stored under
 a key formed from the index of the chunk within the grid of
 chunks representing the array.  To form a string key for a
