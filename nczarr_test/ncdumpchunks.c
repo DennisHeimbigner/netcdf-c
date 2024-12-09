@@ -235,6 +235,7 @@ int
 printchunklinear(Format* format, int* chunkdata, size_t indent)
 {
     size_t i;
+    NC_UNUSED(indent);
     for(i=0;i<format->chunkprod;i++) {
 	if(chunkdata[i] == format->fillvalue)
 	    printf(" _");
@@ -513,7 +514,6 @@ main(int argc, char** argv)
     int vtype, storage;
     int mode;
     int c;
-    int r;
 
     memset(&format,0,sizeof(format));
 

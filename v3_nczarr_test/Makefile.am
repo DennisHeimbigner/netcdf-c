@@ -229,7 +229,7 @@ testfiles_nczarr_sh.built:
 	echo "" > $@
 	for u in ${TESTFILES_NCZARR_SH} ; do \
 	  SRCPATH="${top_srcdir}/nczarr_test/$$u"; \
-	  DSTPATH="${top_srcdir}/v3_nczarr_test/$$u"; \
+	  DSTPATH="${top_builddir}/v3_nczarr_test/$$u"; \
 	  rm -f $$DSTPATH ; \
 	  cat $$SRCPATH >> $$DSTPATH ; \
 	  chmod a+x $$DSTPATH ; \
@@ -240,7 +240,7 @@ testfiles_nczarr_c.built:
 	echo "" > $@
 	for u in ${TESTFILES_NCZARR_C} ; do \
 	  SRCPATH="${top_srcdir}/nczarr_test/$$u"; \
-	  DSTPATH="${top_srcdir}/v3_nczarr_test/$$u"; \
+	  DSTPATH="${top_builddir}/v3_nczarr_test/$$u"; \
 	  rm -f $$DSTPATH ; \
 	  cat $$SRCPATH >> $$DSTPATH ; \
 	done 
@@ -248,7 +248,8 @@ testfiles_nczarr_c.built:
 testdata_nczarr.built:
 	echo "" > $@
 	for u in ${TESTDATA_NCZARR} ; do \
-	  SRCPATH="${top_srcdir}/nczarr_test/$$u"; DSTPATH="${top_srcdir}/v3_nczarr_test/$$u"; \
+	  SRCPATH="${top_srcdir}/nczarr_test/$$u"; \
+	  DSTPATH="${top_builddir}/v3_nczarr_test/$$u"; \
 	  rm -f $$DSTPATH ; \
 	  cat $$SRCPATH >> $$DSTPATH ; \
 	done 

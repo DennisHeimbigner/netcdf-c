@@ -430,6 +430,8 @@ NCZ_inferattrtype(const char* aname, nc_type typehint, const NCjson* values, nc_
     int singleton = 0;
     const NCjson* value = NULL;
 
+    NC_UNUSED(aname);
+
     if(NCJsort(values) == NCJ_ARRAY && NCJarraylength(values) == 0)
         {typeid = NC_NAT; goto done;} /* Empty array is illegal */
 
@@ -1486,6 +1488,8 @@ locatedimbyname(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* dimname, N
     NC_GRP_INFO_T* g = NULL;
     NC_GRP_INFO_T* dimg = NULL;
         
+    NC_UNUSED(file);
+
     if(dimp) *dimp = NULL;
     if(grpp) *grpp = NULL;
 
@@ -1517,6 +1521,8 @@ locateconsistentdim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCZ_DimInfo* dimda
     NC_DIM_INFO_T* dim = NULL;
     NC_GRP_INFO_T* g = NULL;
    
+    NC_UNUSED(testunlim);
+
     if(dimp) *dimp = NULL;        
 
     for(g=grp;g != NULL;g=g->parent,dim=NULL) {

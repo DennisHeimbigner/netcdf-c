@@ -396,7 +396,7 @@ int NCZ_zclose_var1(NC_VAR_INFO_T* var);
 /* zattr.c */
 int ncz_getattlist(NC_GRP_INFO_T *grp, int varid, NC_VAR_INFO_T **varp, NCindex **attlist);
 int NCZ_read_attrs(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts, const NCjson* jatypes);
-int NCZ_attr_convert(const NCjson* src, nc_type typeid, size_t typelen, size_t* countp, NCbytes* dst);
+int NCZ_attr_convert(const NCjson* src, nc_type typeid, size_t* countp, NCbytes* dst);
 int ncz_makeattr(NC_FILE_INFO_T* file, NC_OBJ* container, struct NCZ_AttrInfo* ainfo, NC_ATT_INFO_T** attp);
 int NCZ_attr_delete(NC_FILE_INFO_T* file, NCindex* attlist, const char* name);
 int NCZ_getattr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, nc_type nctype, NC_ATT_INFO_T** attp, int* isnewp);;

@@ -413,6 +413,8 @@ NCZ_overwrite_filter(NC_FILE_INFO_T* file, NCZ_Filter* src, NCZ_Filter* dst)
 {
     int stat = NC_NOERR;
 
+    NC_UNUSED(file);
+
     /* (over)write the HDF5 parameters */
     ncz_hdf5_clear(&dst->hdf5);
     ncz_codec_clear(&dst->codec);
@@ -536,6 +538,8 @@ checkfilterconflicts(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, unsigned id, size
     NCZ_Filter* deflate = NULL;
     NCZ_Filter* szip = NULL;
     int havedeflate, haveszip;
+
+    NC_UNUSED(file);
 
     /* See if deflate &/or szip is defined */
     if((stat = NCZ_filter_lookup(var,H5Z_FILTER_DEFLATE,&deflate))) goto done;

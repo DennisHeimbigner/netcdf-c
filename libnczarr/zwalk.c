@@ -383,6 +383,9 @@ NCZ_walk(NCZProjection** projv, NCZOdometer* chunkodom, NCZOdometer* slpodom, NC
 {
     int stat = NC_NOERR;
 
+    NC_UNUSED(projv);
+    NC_UNUSED(chunkodom);
+
     for(;;) {
 	size64_t slpoffset = 0;
 	size64_t memoffset = 0;

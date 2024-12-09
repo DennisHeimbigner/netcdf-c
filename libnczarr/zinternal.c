@@ -123,11 +123,12 @@ NCZ_finalize_internal(void)
  * @author Dennis Heimbigner, Ed Hartnett
  */
 static int
-find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid,
-                        size_t *maxlen)
+find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid, size_t *maxlen)
 {
     NC_VAR_INFO_T *var;
     int retval = NC_NOERR;
+
+    NC_UNUSED(dimid);
 
     *maxlen = 0;
 

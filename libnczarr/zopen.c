@@ -144,6 +144,9 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
     int stat = NC_NOERR;
     NCURI* uri = NULL;
 
+    NC_UNUSED(basepe);
+    NC_UNUSED(chunksizehintp);
+
     ZTRACE(0,"path=%s,mode=%d,ncid=%d)",path,mode,ncid);
 
     NC_UNUSED(parameters);

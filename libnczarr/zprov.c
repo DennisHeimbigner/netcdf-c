@@ -237,11 +237,14 @@ done:
 
 /* ZARR Specific attribute read/write of _NCProperties */
 static int
-NCZ_read_ncproperties(NC_FILE_INFO_T* h5, const char* value, char** propstring)
+NCZ_read_ncproperties(NC_FILE_INFO_T* file, const char* value, char** propstring)
 {
     int stat = NC_NOERR;
     char* text = NULL;
     size_t len;
+
+    NC_UNUSED(file);
+
 
     LOG((5, "%s", __func__));
 

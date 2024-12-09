@@ -438,7 +438,7 @@ nc4typelen(nc_type type)
  */
 int
 ncz_put_att(int ncid, int containerid, const char *name, nc_type file_type,
-            size_t len, const void *data, nc_type mem_type, int force)
+            size_t len, const void *data, nc_type mem_type)
 {
     int stat = NC_NOERR, range_error = 0;
     NC* nc;
@@ -595,7 +595,7 @@ NCZ_put_att(int ncid, int varid, const char *name, nc_type file_type,
         return ret;
     assert(grp && file);
 
-    return ncz_put_att(ncid, varid, name, file_type, len, data, mem_type, 0);
+    return ncz_put_att(ncid, varid, name, file_type, len, data, mem_type);
 }
 
 /**
@@ -978,6 +978,8 @@ NCZ_computeattrdata(NC_FILE_INFO_T* file, const NCjson* jdata, struct NCZ_AttrIn
     int isjson = 0; /* 1 => attribute value is neither scalar nor array of scalars */
     int reclaimvalues = 0;
 
+    NC_UNUSED(file);
+
     ZTRACE(3,"typehint=%d typeid=%d values=|%s|",ainfo->typehint,ainfo->nctype,NCJtotext(jdata));
 
     /* See if this is a simple vector (or scalar) of atomic types vs more complex json */
@@ -1000,7 +1002,7 @@ NCZ_computeattrdata(NC_FILE_INFO_T* file, const NCjson* jdata, struct NCZ_AttrIn
 
     /* Convert the JSON attribute values to the actual netcdf attribute bytes */
     assert(ainfo->data == NULL);
-    if((stat = NCZ_attr_convert(jdata,ainfo->nctype,ainfo->typelen,&ainfo->datalen,buf))) goto done;
+    if((stat = NCZ_attr_convert(jdata,ainfo->nctype,&ainfo->datalen,buf))) goto done;
     ainfo->data = ncbytesextract(buf);
 
 done:
@@ -1017,7 +1019,7 @@ done:
 */
 
 int
-NCZ_attr_convert(const NCjson* src, nc_type typeid, size_t typelen, size_t* countp, NCbytes* dst)
+NCZ_attr_convert(const NCjson* src, nc_type typeid, size_t* countp, NCbytes* dst)
 {
     int stat = NC_NOERR;
     size_t i;

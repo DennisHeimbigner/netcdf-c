@@ -91,6 +91,9 @@ infer_create_format(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, i
     int zarrformat = 0;
     int nczarrformat = NCZARRFORMAT0;
 
+    NC_UNUSED(file);
+    NC_UNUSED(map);
+
     switch (zfile->zarr.zarr_format) {
     case ZARRFORMAT2:
         zarrformat = ZARRFORMAT2;
@@ -117,6 +120,8 @@ infer_open_format(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCZMAP* map, int
     const NCjson* jsuperg = NULL;
     const NCjson* jsupera = NULL;
     struct TagParam param;
+
+    NC_UNUSED(file);
 
     /* Probe the map for tell-tale objects and dict keys */
 
@@ -195,6 +200,9 @@ tagsearch(NCZMAP* map, const char* prefix, const char* key, void* param)
     const char* segment = NULL;
     size_t seglen = 0;
 
+    NC_UNUSED(map);
+    NC_UNUSED(prefix);
+
     /* Validate */
     segment = strrchr(key,'/');
     if(segment == NULL) segment = key; else segment++;
@@ -243,6 +251,8 @@ NCZ_infer_storage_type(NC_FILE_INFO_T* file, NCZ_FILE_INFO_T* zfile, NCURI* url,
     int ret = NC_NOERR;
     int create;
     NCZM_IMPL impl = NCZM_UNDEF;
+
+    NC_UNUSED(file);
 
     assert(zfile != NULL);
     create = zfile->creating;
@@ -367,17 +377,13 @@ NCZ_get_formatter(NC_FILE_INFO_T* file, const NCZ_Formatter** formatterp)
     if(nczarr_format != 0) {
         switch(nczarr_format) {
         case 2: formatter = NCZ_formatter2; break;
-#ifdef ENABLE_V3
         case 3: formatter = NCZ_formatter3; break;
-#endif
         default: stat = NC_ENCZARR; goto done;
         }
     } else { /* Decide based on zarr format plus the fact that it is pure zarr */
         switch(zarr_format) {
         case 2: formatter = NCZ_formatter2; break;
-#ifdef ENABLE_V3
         case 3: formatter = NCZ_formatter3; break;
-#endif
         default: stat = NC_ENCZARR; goto done;
         }
     }

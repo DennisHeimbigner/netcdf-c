@@ -151,12 +151,16 @@ NCZ_finalize(void)
 static int
 NCZ_var_par_access(int ncid, int varid, int par_access)
 {
+    NC_UNUSED(ncid);
+    NC_UNUSED(varid);
+    NC_UNUSED(par_access);
     return NC_NOERR; /* no-op */
 }
 
 static int
 NCZ_show_metadata(int ncid)
 {
+    NC_UNUSED(ncid);
     return NC_NOERR;
 }
 

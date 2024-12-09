@@ -30,7 +30,7 @@ static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_DISKLESS|NC_64BIT
  * @author Dennis Heimbigner, Ed Hartnett
  */
 static int
-ncz_create_file(const char *path, int cmode, size_t initialsz, NClist* controls, int ncid)
+ncz_create_file(const char *path, int cmode, NClist* controls, int ncid)
 {
     int retval = NC_NOERR;
     NC_FILE_INFO_T* h5 = NULL;
@@ -94,6 +94,11 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
     int stat = NC_NOERR;
     NCURI* uri = NULL;
 
+    NC_UNUSED(initialsz);
+    NC_UNUSED(basepe);
+    NC_UNUSED(chunksizehintp);
+    NC_UNUSED(dispatch);
+
     ZTRACE(0,"path=%s,cmode=%d,initialsz=%ld,ncid=%d)",path,cmode,initialsz,ncid);
     
     NC_UNUSED(parameters);
@@ -124,7 +129,7 @@ NCZ_create(const char* path, int cmode, size_t initialsz, int basepe,
     if(uri == NULL) goto done;
 
     /* Create the file */
-   stat = ncz_create_file(path, cmode, initialsz, ncurifragmentparams(uri), ncid);
+    stat = ncz_create_file(path, cmode, ncurifragmentparams(uri), ncid);
 
 done:
     ncurifree(uri);

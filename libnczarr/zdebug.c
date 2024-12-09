@@ -25,6 +25,9 @@ zbreakpoint(int err)
 int
 zthrow(int err, const char* file, const char* fcn, int line)
 {
+    NC_UNUSED(file);
+    NC_UNUSED(fcn);
+    NC_UNUSED(line);
     if(err == 0) return err;
     ncbacktrace();
     return zbreakpoint(err);

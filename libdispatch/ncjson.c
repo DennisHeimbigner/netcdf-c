@@ -1124,6 +1124,7 @@ NCJtotext(const NCjson* json, unsigned flags)
 {
     static char outtext[4096];
     char* text = NULL;
+    NC_UNUSED(flags);
     if(json == NULL) {strcpy(outtext,"<null>"); goto done;}
     (void)NCJunparse(json,0,&text);
     strncpy(outtext,text,sizeof(outtext));

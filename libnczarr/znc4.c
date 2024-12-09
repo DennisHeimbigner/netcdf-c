@@ -21,6 +21,7 @@ int
 ncz4_create_file(NC_FILE_INFO_T** filep)
 {
     int stat = NC_NOERR;
+    NC_UNUSED(filep);
     return THROW(stat);
 }
 

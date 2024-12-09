@@ -40,6 +40,9 @@ main(int argc, char* argv[])
     size_t count = 5;
     double vals[] = { 1.0, 2.0, 3.0, 4.0, 5.0 };
 
+    NC_UNUSED(argc);
+    NC_UNUSED(argv);
+
     if ((ret = nc_create(FILE_NAME, NC_NETCDF4 | NC_CLOBBER, &ncid))) {
         printf("nc_create(...): error code = %d\n", ret);
         return -1;

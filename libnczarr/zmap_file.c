@@ -691,6 +691,7 @@ done:
 static void
 zfrelease(ZFMAP* zfmap, FD* fd)
 {
+    NC_UNUSED(zfmap);
     ZTRACE(5,"map=%s fd=%d",zfmap->map.url,(fd?fd->fd:-1));
     platformrelease(fd);
     (void)ZUNTRACE(NC_NOERR);
@@ -916,6 +917,8 @@ static int
 platformopendir(mode_t mode, const char* canonpath)
 {
     int ret = NC_NOERR;
+
+    NC_UNUSED(mode);
 
     ZTRACE(6,"map=%s canonpath=%s",zfmap->map.url,canonpath);
 

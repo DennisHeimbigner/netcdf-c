@@ -2351,8 +2351,6 @@ AM_CONDITIONAL([AX_ENABLE], [test xyes = xyes])
 # Provide  conditional to identify tests that must be run manually
 AM_CONDITIONAL([AX_MANUAL], [test xno = xyes])
 
-AM_CONDITIONAL([ENABLE_V3], [test xno = xyes])
-
 AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)
 AC_CONFIG_FILES(s3cleanup.sh:s3cleanup.in, [chmod ugo+x s3cleanup.sh])

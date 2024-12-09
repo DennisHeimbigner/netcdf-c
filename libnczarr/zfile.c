@@ -75,12 +75,17 @@ done:
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-NCZ__enddef(int ncid, size_t h_minfree, size_t v_align,
-            size_t v_minfree, size_t r_align)
+NCZ__enddef(int ncid, size_t h_minfree, size_t v_align, size_t v_minfree, size_t r_align)
 {
     int stat = NC_NOERR;
     NC_FILE_INFO_T* h5 = NULL;
     NC_GRP_INFO_T* grp = NULL;
+
+    NC_UNUSED(h_minfree);
+    NC_UNUSED(v_align);
+    NC_UNUSED(v_minfree);
+    NC_UNUSED(r_align);
+
     ZTRACE(0,"ncid=%d",ncid);
     if ((stat = nc4_find_grp_h5(ncid, &grp, &h5)))
         goto done;

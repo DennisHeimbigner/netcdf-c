@@ -10,7 +10,7 @@
 static int pcounter = 0;
 
 /* Forward */
-static int compute_intersection(const NCZSlice* slice, size64_t chunklen, unsigned char isunlimited, NCZChunkRange* range);
+static int compute_intersection(const NCZSlice* slice, size64_t chunklen, NCZChunkRange* range);
 static void skipchunk(const NCZSlice* slice, NCZProjection* projection);
 static int verifyslice(const NCZSlice* slice);
 
@@ -38,7 +38,7 @@ NCZ_compute_chunk_ranges(
     size_t rank = common->rank;
 
     for(i=0;i<rank;i++) {
-	if((stat = compute_intersection(&slices[i],common->chunklens[i],common->isunlimited[i],&ncr[i])))
+	if((stat = compute_intersection(&slices[i],common->chunklens[i],&ncr[i])))
 	    goto done;
     }
 
@@ -57,7 +57,6 @@ static int
 compute_intersection(
         const NCZSlice* slice,
 	size64_t chunklen,
-	unsigned char isunlimited,
         NCZChunkRange* range)
 {
     range->start = floordiv(slice->start, chunklen);

@@ -173,6 +173,8 @@ ncproplistaddbytes(NCproplist* plist, const char* key, void* value, uintptr_t si
     int stat = NC_NOERR;
     NCPproperty* prop = NULL;
     size_t keylen;
+
+    NC_UNUSED(size);
     if(plist == NULL) goto done;
     if(!hasspace(plist,1)) {if((stat = extendplist(plist,(plist->count+1)*EXPANDFACTOR))) goto done;} /* extra space */
     prop = &plist->properties[plist->count];

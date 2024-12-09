@@ -384,6 +384,8 @@ nczm_localize(const char* path, char** localpathp, int localize)
 
 #ifdef _MSC_VER
     forward = (localize?0:1);
+#else
+    NC_UNUSED(localize);
 #endif
     /* If path comes from a url, then it may start with: /x:/...
        where x is a drive letter. If so, then remove leading / */

@@ -563,6 +563,8 @@ loadcodecdefaults(const char* path, const NCZ_codec_t** cp, NCPSharedLib* lib, i
     int lib_used = 0;
     struct NCglobalstate* gs = NC_getglobalstate();
 
+    NC_UNUSED(path);
+
     nclistpush(gs->zarr.default_libs,lib);
     for(;*cp;cp++) {
 	size_t i;

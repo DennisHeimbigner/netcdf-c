@@ -410,6 +410,9 @@ ncz_def_var_extra(int ncid, int varid, int *shuffle, int *unused1,
     int storage = NC_CHUNKED;
     size_t contigchunksizes[NC_MAX_VAR_DIMS]; /* Fake chunksizes if storage is contiguous or compact */
 
+    NC_UNUSED(unused1);
+    NC_UNUSED(unused2);
+
     LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
     ZTRACE(2,"ncid=%d varid=%d shuffle=%d fletcher32=%d no_fill=%d, fillvalue=%p endianness=%d quantize_mode=%d nsd=%d",

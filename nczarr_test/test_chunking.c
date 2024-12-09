@@ -17,7 +17,10 @@
 static int ret = NC_NOERR;
 
 /* Make trackable ERR macro replacement */
-static int lerr(int stat, const char* file, int lineno) {
+static int
+lerr(int stat, const char* file, int lineno)
+{
+    NC_UNUSED(stat);
     fflush(stdout); /* Make sure our stdout is synced with stderr. */
     err++;
     fprintf(stderr, "Sorry! Unexpected result(%d), %s, line: %d\n",ret,file,lineno);

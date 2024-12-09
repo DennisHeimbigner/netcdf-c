@@ -73,8 +73,8 @@ static int ZF2_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const c
 static int ZF2_encode_xarray(NC_FILE_INFO_T* file, size_t rank, NC_DIM_INFO_T** dims, char** xarraydims, size_t* zarr_rankp);
 
 static int decode_dim_decls(NC_FILE_INFO_T* file, const NCjson* jdims, NClist* dimdefs);
-static int dtype2nctype(NC_FILE_INFO_T* file, const char* dtype, int isattr, nc_type* nctypep, int* endianp, size_t* typelenp);
-static int nctype2dtype(NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typesize, char** dtypep, char** dattrtypep);
+static int dtype2nctype(const char* dtype, nc_type* nctypep, int* endianp, size_t* typelenp);
+static int nctype2dtype(nc_type nctype, int endianness, size_t typesize, char** dtypep, char** dattrtypep);
 static int computeattrinfo(NC_FILE_INFO_T* file, nc_type typehint, const char* aname, const NCjson* jtypes, const NCjson* jdata, struct NCZ_AttrInfo* ainfo);
 
 /**************************************************/
@@ -202,6 +202,8 @@ ZF2_download_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
     char* fullpath = NULL;
     char* key = NULL;
 
+    NC_UNUSED(grp);
+
     /* Download .zgroup and .zattrs */
     if((stat = NCZ_grpkey(grp,&fullpath))) goto done;
     if((stat = nczm_concat(fullpath,Z2GROUP,&key))) goto done;
@@ -303,6 +305,8 @@ ZF2_decode_nczarr_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const NCjson* 
     size_t i;
     const NCjson* jvalue = NULL;
 
+    NC_UNUSED(grp);
+
     ZTRACE(3,"file=%s grp=%s",file->controller->path,grp->hdr.name);
 
     NCJcheck(NCZ_dictgetalt2(jnczgrp,&jvalue,"dimensions","dims"));
@@ -388,7 +392,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 	int endianness;
 	NCJcheck(NCJdictget(jvar,"dtype",(NCjson**)&jvalue));
 	/* Convert dtype to nc_type + endianness */
-	if((stat = dtype2nctype(file,NCJstring(jvalue),!ISATTR,&vtype,&endianness,&maxstrlen))) goto done;
+	if((stat = dtype2nctype(NCJstring(jvalue),&vtype,&endianness,&maxstrlen))) goto done;
 	if(vtype > NC_NAT && vtype <= NC_MAX_ATOMIC_TYPE) {
 	    /* Locate the NC_TYPE_INFO_T object */
 	    if((stat = ncz_gettype(file,var->container,vtype,&var->type_info))) goto done;
@@ -921,7 +925,7 @@ ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjso
     NCjson* jcompressor = NULL;
     NCjson* jfilters = NULL;
     
-    NC_UNUSED(jattsp);
+    NC_UNUSED(file);
 
     NCJnew(NCJ_DICT,&jvar);
 
@@ -957,7 +961,7 @@ ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjso
 	int atomictype = var->type_info->hdr.id;
 	char* dtypename = NULL;
 	assert(atomictype > 0 && atomictype <= NC_MAX_ATOMIC_TYPE);
-	if((stat = nctype2dtype(file,atomictype,endianness,NCZ_get_maxstrlen((NC_OBJ*)var),&dtypename,NULL))) goto done;
+	if((stat = nctype2dtype(atomictype,endianness,NCZ_get_maxstrlen((NC_OBJ*)var),&dtypename,NULL))) goto done;
 	NCJcheck(NCJinsertstring(jvar,"dtype",dtypename));
 	nullfree(dtypename); dtypename = NULL;
     }
@@ -1104,7 +1108,7 @@ ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp
 	    } else {
 		if((stat = NCZ_stringconvert(a->nc_typeid,a->len,a->data,&jdata))) goto done;
 		/* Collect the corresponding dtype */
-		if((stat = nctype2dtype(file,a->nc_typeid,endianness,typesize,NULL,&d2name))) goto done;
+		if((stat = nctype2dtype(a->nc_typeid,endianness,typesize,NULL,&d2name))) goto done;
 	    }
 	    
 	    /* Insert the attribute; optionally consumes jdata and d2name */
@@ -1197,6 +1201,8 @@ ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ
     NCZ_Plugin* plugin = NULL;
     NCZ_Codec codec = NCZ_codec_empty();
     NCZ_HDF5 hdf5 = NCZ_hdf5_empty();
+
+    NC_UNUSED(file);
 
     if(var->filters == NULL) var->filters = nclistnew();
 
@@ -1311,6 +1317,8 @@ ZF2_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindi
     NCbytes* key = ncbytesnew();
     size_t r;
 
+    NC_UNUSED(file);
+
     if(keyp) *keyp = NULL;
     assert(islegaldimsep(dimsep));
     
@@ -1339,6 +1347,8 @@ ZF2_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkn
     char sep;
     size_t rank,r;
     char* chunkkey = strdup(chunkname);
+
+    NC_UNUSED(file);
 
     assert(strlen(dimsep)==1);
     sep = dimsep[0];
@@ -1378,6 +1388,8 @@ ZF2_encode_xarray(NC_FILE_INFO_T* file, size_t rank, NC_DIM_INFO_T** dims, char*
     size_t zarr_rank = rank;
     NCbytes* buf = ncbytesnew();    
 
+    NC_UNUSED(file);
+
     ncbytescat(buf,"[");
     if(rank == 0) {
 	ncbytescat(buf,XARRAYSCALAR);
@@ -1404,6 +1416,8 @@ decode_dim_decls(NC_FILE_INFO_T* file, const NCjson* jdims, NClist* dimdefs)
     int stat = NC_NOERR;
     size_t i;
     struct NCZ_DimInfo* dimdef = NULL;
+
+    NC_UNUSED(file);
 
     assert(NCJsort(jdims) == NCJ_DICT);
     for(i=0;i<NCJdictlength(jdims);i++) {
@@ -1498,7 +1512,7 @@ decode_var_dimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, size_t zarr_rank, c
 */
 
 static int
-nctype2dtype(NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typesize, char** dtypep, char** dattrtypep)
+nctype2dtype(nc_type nctype, int endianness, size_t typesize, char** dtypep, char** dattrtypep)
 {
     char dtype[64];
     char dattrtype[64];
@@ -1544,7 +1558,7 @@ nctype2dtype(NC_FILE_INFO_T* file, nc_type nctype, int endianness, size_t typesi
 */
 
 static int
-dtype2nctype(NC_FILE_INFO_T* file, const char* dtype, int isattr, nc_type* nctypep, int* endianp, size_t* maxstrlenp)
+dtype2nctype(const char* dtype, nc_type* nctypep, int* endianp, size_t* maxstrlenp)
 {
     int stat = NC_NOERR;
     size_t typelen = 0;
@@ -1662,7 +1676,7 @@ computeattrinfo(NC_FILE_INFO_T* file, nc_type typehint, const char* aname, const
         ainfo->nctype = NC_NAT;
         NCJcheck(NCJdictget(jtypes,aname,(NCjson**)&jatype));
         if(jatype == NULL) {stat = NC_ENCZARR; goto done;}
-        if((stat=dtype2nctype(file,NCJstring(jatype),ISATTR,&ainfo->nctype,&ainfo->endianness,&ainfo->typelen))) goto done;
+        if((stat=dtype2nctype(NCJstring(jatype),&ainfo->nctype,&ainfo->endianness,&ainfo->typelen))) goto done;
         if(ainfo->nctype >= N_NCZARR_TYPES) {stat = NC_EINTERNAL; goto done;}
     }
     if((stat = NCZ_computeattrdata(file,jdata,ainfo))) goto done;
