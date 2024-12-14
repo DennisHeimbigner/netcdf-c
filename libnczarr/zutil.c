@@ -12,6 +12,7 @@
 
 #include "zincludes.h"
 #include "znc4.h"
+#include "isnan.h"
 
 #undef DEBUG
 
@@ -478,9 +479,14 @@ NCZ_inferattrtype(const char* aname, nc_type typehint, const NCjson* values, nc_
     case NCJ_BOOLEAN:
 	typeid = NC_UBYTE;
 	break;
-    case NCJ_STRING: /* requires special handling as an array of characters */
-	typeid = NC_STRING;
-	break;
+    case NCJ_STRING: {/* Special cases */
+	    double* naninfp = NULL;
+	    naninfp = NCZ_isnaninfstring(NCJstring(value));
+	    if(naninfp == NULL)
+		typeid = NC_STRING;
+	    else /* Might be double or float */
+		typeid = (typehint == NC_NAT ? NC_DOUBLE : typehint);
+	} break;
     default:
 	stat = NC_ENCZARR;
 	goto done;
@@ -757,6 +763,23 @@ NCZ_get_maxstrlen(NC_OBJ* obj)
 	maxstrlen = zvar->maxstrlen;
     }
     return maxstrlen;
+}
+
+/* Get dimension separator for a variable */
+/* Has side effect of setting values in the
+   internal data structures */
+char
+NCZ_get_dimsep(NC_VAR_INFO_T* var)
+{
+    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
+
+    if(zvar->dimension_separator == '\0') {
+	NCglobalstate* gs = NC_getglobalstate();
+        assert(gs != NULL);
+	assert(gs->zarr.dimension_separator != '\0');
+	zvar->dimension_separator = gs->zarr.dimension_separator;
+    }
+    return zvar->dimension_separator;
 }
 
 int
@@ -1564,3 +1587,48 @@ done:
 }
 #endif
 
+/* Support for nan and inf as strings */
+
+/* De-stringified nan and inf (all lower case)*/
+/* Warning: modified during sort so do not make const */
+static struct NANINF {const char* name; double dvalue;} naninfnames[] = {
+{"nanf",       NAN      },
+{"nan",        NAN      },
+{"inff",       INFINITY },
+{"inf",        INFINITY },
+{"infinityf",  INFINITY },
+{"infinity",   INFINITY },
+{"-infinityf", -INFINITY},
+{"-infinity",  -INFINITY},
+};
+#define NNANINF (sizeof(naninfnames)/sizeof(struct NANINF))
+static int naninfsorted = 0;
+
+static int
+nisort(const void* a, const void* b)
+{
+    const struct NANINF* nia = (struct NANINF*)a;
+    const struct NANINF* nib = (struct NANINF*)b;
+    return strcasecmp(nia->name,nib->name);
+}
+
+static int
+nicmp(const void* key, const void* elem)
+{
+    const struct NANINF* nie = (struct NANINF*)elem;
+    return strcasecmp(key,nie->name);
+}
+
+double*
+NCZ_isnaninfstring(const char* val)
+{
+    struct NANINF* match = NULL;
+    if(!naninfsorted) {
+	qsort((void*)naninfnames, NNANINF, sizeof(struct NANINF), nisort);
+	naninfsorted = 1;
+    }
+    /* Binary search the set of nan/inf names */
+    assert(naninfsorted);
+    match = (struct NANINF*)bsearch((void*)val,(void*)naninfnames,NNANINF,sizeof(struct NANINF),nicmp);
+    return (match == NULL ? NULL : &match->dvalue);
+}

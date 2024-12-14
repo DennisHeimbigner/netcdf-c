@@ -382,6 +382,8 @@ there. */
 #define NC_NOERR        0          /**< No Error */
 #define NC2_ERR         (-1)       /**< Returned for all errors in the v2 API. */
 
+#define NC_EJSON	(-1)	   /**< Malformed JSON. */
+
 /** Not a netcdf id.
 
 The specified netCDF ID does not refer to an

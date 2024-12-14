@@ -226,6 +226,8 @@ AC_MSG_RESULT($enable_dap)
 if test "x$enable_remote_functionality" = xno ; then
   AC_MSG_WARN([All network access is disabled => DAP support disabled.])
   enable_dap=no
+  AC_MSG_WARN([All network access is disabled => NCZARR support disabled.])
+  enable_nczarr=no
 fi
 
 AC_MSG_CHECKING([whether netcdf zarr storage format should be disabled])
@@ -691,6 +693,13 @@ AC_ARG_ENABLE([quantize],
                                [disable quantize support. It is safe to leave this on unless you specifically need to disable it.])])
 test "x$enable_quantize" = xno || enable_quantize=yes
 
+# If HDF5 and nczarr are disabled, there is no quantize.
+if test "x${enable_hdf5}" = xno; then
+   if test "x${enable_nczarr}" = xno; then
+      enable_quantize=no
+   fi
+fi
+
 AC_MSG_RESULT($enable_quantize)                               
 if test "x${enable_quantize}" = xyes; then
    AC_DEFINE([NETCDF_ENABLE_QUANTIZE], [1], [if true, enable quantize support])
@@ -957,8 +966,12 @@ else
    enable_nczarr_zip=${have_zip} # alias
 
    AC_MSG_CHECKING([whether nczarr zip support is enabled])
+   AC_ARG_ENABLE([nczarr-zip],
+               [AS_HELP_STRING([--enable-nczarr-zip],
+                                 [enable netcdf zip support (default off)])])
+   enable_nczarr_zip=no #default
+   if test "x$have_zip" = xyes && test "x$enable_nczarr_zip" = xyes ; then enable_nczarr_zip=yes ; fi
    AC_MSG_RESULT([${enable_nczarr_zip}])
-enable_nczarr_zip=no #@@@
    if test "x$enable_nczarr_zip" = xyes ; then
    AC_DEFINE([NETCDF_ENABLE_NCZARR_ZIP], [1], [If true, then libzip found])
    fi
@@ -1543,7 +1556,6 @@ AC_SUBST(USEPLUGINS, [${enable_plugins}])
 AC_FUNC_ALLOCA
 AC_CHECK_DECLS([isnan, isinf, isfinite],,,[#include <math.h>])
 AC_CHECK_MEMBERS([struct stat.st_blksize])
-UD_CHECK_IEEE
 AC_CHECK_TYPES([size_t, ssize_t, schar, uchar, longlong, ushort, uint, int64, uint64, size64_t, ssize64_t, _off64_t, uint64_t, ptrdiff_t])
 AC_TYPE_OFF_T
 AC_TYPE_UINTPTR_T

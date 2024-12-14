@@ -754,7 +754,7 @@ NCZ_buildchunkpath(NCZChunkCache* cache, const size64_t* chunkindices, struct Ch
 
     assert(key != NULL);
     /* Get the chunk object name */
-    if((stat = NCZF_encode_chunkkey(cache->var->container->nc4_info,cache->ndims, chunkindices, cache->dimension_separator, &chunkname))) goto done;
+    if((stat = NCZF_encode_chunkkey(cache->var->container->nc4_info,cache->var,cache->ndims, chunkindices, cache->dimension_separator, &chunkname))) goto done;
     /* Get the var object key */
     if((stat = NCZ_varkey(cache->var,&varkey))) goto done;
     key->varkey = varkey; varkey = NULL;

@@ -972,6 +972,25 @@ NCJappend(NCjson* object, NCjson* value)
     return NCJTHROW(NCJ_OK);
 }
 
+/* Append string value to an array or dict object. */
+OPTSTATIC int
+NCJappendstring(NCjson* object, int sort, const char* s)
+{
+    NCjson* js = NULL;    
+    if(object == NULL || s == NULL)
+	return NCJTHROW(NCJ_ERR);
+    NCJnewstring(sort,s,&js);
+    switch (object->sort) {
+    case NCJ_ARRAY:
+    case NCJ_DICT:
+	listappend(&object->list,js);
+	break;
+    default:
+	return NCJTHROW(NCJ_ERR);
+    }
+    return NCJTHROW(NCJ_OK);
+}
+
 /**************************************************/
 /* Unparser to convert NCjson object to text in buffer */
 
@@ -1173,12 +1192,11 @@ netcdf_supresswarnings(void)
     ignore = (void*)NCJcvt;
     ignore = (void*)NCJaddstring;
     ignore = (void*)NCJappend;
+    ignore = (void*)NCJappendstring;
     ignore = (void*)NCJinsert;
     ignore = (void*)NCJinsertstring;
     ignore = (void*)NCJinsertint;
-    ignore = (void*)NCJunparse;
-    ignore = (void*)NCJclone;
-    ignore = (void*)NCJdump;
     ignore = (void*)NCJdictsort;
-    ignore = ignore;
+    ignore = (void*)NCJdump;
+    (void)ignore;
 }

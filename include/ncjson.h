@@ -93,6 +93,9 @@ OPTEXPORT int NCJaddstring(NCjson* json, int sort, const char* s);
 /* Append value to an array or dict object. */
 OPTEXPORT int NCJappend(NCjson* object, NCjson* value);
 
+/* Append string value to an array or dict object. */
+OPTEXPORT int NCJappendstring(NCjson* object, int sort, const char* s);
+
 /* Insert (string)key-(NCjson*)value pair into a dict object. key will be copied; jvalue will not */
 OPTEXPORT int NCJinsert(NCjson* object, const char* key, NCjson* jvalue);
 
@@ -145,7 +148,7 @@ OPTEXPORT void NCJdictsort(NCjson* jdict);
 
 /**************************************************/
 /* Error detection helper */
-#define NCJcheck(expr) do{if((expr) < 0) {stat = NC_EINVAL; goto done;}}while(0)
+#define NCJcheck(expr) do{if((expr) < 0) {stat = (-1); goto done;}}while(0)
 /**************************************************/
 
 #endif /*!NCJSON_H*/ /* Leave the ! as a tag for sed */

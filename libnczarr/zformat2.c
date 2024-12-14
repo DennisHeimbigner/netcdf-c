@@ -40,7 +40,7 @@ static const struct ZTYPESV2 {
 /*NC_INT64*/	{"|i8",NULL},
 /*NC_UINT64*/	{"|u8",NULL},
 /*NC_STRING*/	{"|S%d",NULL},
-/*NC_JSON*/	{">S1",NC_JSON_DTYPE} /* NCZarr internal type */
+/*NC_JSON*/	{">S1",NC_JSON_DTYPE_V2} /* NCZarr internal type */
 };
 
 /**************************************************/
@@ -68,9 +68,10 @@ static int ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson
 static int ZF2_encode_filter(NC_FILE_INFO_T* file, NCZ_Filter* filter, NCjson** jfilterp);
 static int ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter);
 static int ZF2_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrpnames);
-static int ZF2_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
-static int ZF2_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkname, size_t* rankp, size64_t** chunkindicesp);
+static int ZF2_encode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
+static int ZF2_decode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const char* chunkname, size_t* rankp, size64_t** chunkindicesp);
 static int ZF2_encode_xarray(NC_FILE_INFO_T* file, size_t rank, NC_DIM_INFO_T** dims, char** xarraydims, size_t* zarr_rankp);
+static char ZF2_default_dimension_separator(NC_FILE_INFO_T* file);
 
 static int decode_dim_decls(NC_FILE_INFO_T* file, const NCjson* jdims, NClist* dimdefs);
 static int dtype2nctype(const char* dtype, nc_type* nctypep, int* endianp, size_t* typelenp);
@@ -127,6 +128,9 @@ static const NCZ_Formatter NCZ_formatter2_table =
 
    /*_ARRAY_DIMENSIONS*/
    ZF2_encode_xarray,
+
+   /* Per-format default dimension separator */
+   ZF2_default_dimension_separator,
 };
 
 const NCZ_Formatter* NCZ_formatter2 = &NCZ_formatter2_table;
@@ -1104,7 +1108,7 @@ ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp
 	    /* Convert to storable json */
 
 	    if(a->nc_typeid == NC_CHAR && NCZ_iscomplexjsonstring(a->hdr.name,a->len,(char*)a->data,&jdata)) {
-	        d2name = strdup(NC_JSON_DTYPE);
+	        d2name = strdup(NC_JSON_DTYPE_V2);
 	    } else {
 		if((stat = NCZ_stringconvert(a->nc_typeid,a->len,a->data,&jdata))) goto done;
 		/* Collect the corresponding dtype */
@@ -1127,12 +1131,12 @@ ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp
         if(jatts == NULL) NCJnew(NCJ_DICT,&jatts);
         /* Insert _nczarr_group|_nczarr_var + type */
 	if(jnczconp != NULL && *jnczconp != NULL) {
-	    if((stat = ncz_insert_attr(jatts,jtypes,nczname,jnczconp,NC_JSON_DTYPE))) goto done;
+	    if((stat = ncz_insert_attr(jatts,jtypes,nczname,jnczconp,NC_JSON_DTYPE_V2))) goto done;
 	    *jnczconp = NULL;
 	}
 	/* Insert _nczarr_super (if root group) + type */
 	if(jsuperp != NULL && *jsuperp != NULL) {
-	    if((stat=ncz_insert_attr(jatts,jtypes,NC_NCZARR_SUPERBLOCK_ATTR,jsuperp,NC_JSON_DTYPE))) goto done;
+	    if((stat=ncz_insert_attr(jatts,jtypes,NC_NCZARR_SUPERBLOCK_ATTR,jsuperp,NC_JSON_DTYPE_V2))) goto done;
 	    *jsuperp = NULL;
 	}
 	
@@ -1141,7 +1145,7 @@ ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp
 	NCJcheck(NCJinsert(jnczatt,"types",jtypes));
 	/* WARNING, jtypes may undergo further changes */
         /* Insert _nczarr_attrs + type */	
-	if((stat=ncz_insert_attr(jatts,jtypes,NC_NCZARR_ATTRS_ATTR,&jnczatt,NC_JSON_DTYPE))) goto done;
+	if((stat=ncz_insert_attr(jatts,jtypes,NC_NCZARR_ATTRS_ATTR,&jnczatt,NC_JSON_DTYPE_V2))) goto done;
 	jtypes = NULL;
 	assert(*jnczconp == NULL && jnczatt == NULL && jtypes == NULL);
     }
@@ -1311,14 +1315,15 @@ If the rank is 0 (i.e. scalar) then treat it as rank == 1 with shape = [1].
 */
 
 int
-ZF2_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp)
+ZF2_encode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp)
 {
     int stat = NC_NOERR;
     NCbytes* key = ncbytesnew();
     size_t r;
 
     NC_UNUSED(file);
-
+    NC_UNUSED(var);
+    
     if(keyp) *keyp = NULL;
     assert(islegaldimsep(dimsep));
     
@@ -1338,7 +1343,7 @@ ZF2_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindi
 }
 
 int
-ZF2_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkname, size_t* rankp, size64_t** chunkindicesp)
+ZF2_decode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const char* chunkname, size_t* rankp, size64_t** chunkindicesp)
 {
     int stat = NC_NOERR;
     char* oldp;
@@ -1349,15 +1354,21 @@ ZF2_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkn
     char* chunkkey = strdup(chunkname);
 
     NC_UNUSED(file);
+    NC_UNUSED(var);
 
-    assert(strlen(dimsep)==1);
-    sep = dimsep[0];
-    assert(islegaldimsep(sep));
+    /* Figure out the separator char by looking for the first non digit in the chunkkey */
+    sep = '\0';
+    for(oldp=chunkname;*oldp;oldp++) {
+	char c = *oldp;
+	if(c < '0' || c > '9') {sep = c; break;}
+    }
+    assert(sep=='\0' || islegaldimsep(sep));
 
-    rank = 0;
     /* Pass 1 to get rank and separate the indices*/
     oldp = chunkkey;
-    for(;;) {
+    if(sep == '\0')
+        rank = 1;
+    else for(rank=0;;) {
 	newp = strchr(oldp,sep); /* look for next sep or eos */
 	rank++;
 	if(newp == NULL) break;
@@ -1405,6 +1416,13 @@ ZF2_encode_xarray(NC_FILE_INFO_T* file, size_t rank, NC_DIM_INFO_T** dims, char*
 
     ncbytesfree(buf);
     return THROW(stat);
+}
+
+static char
+ZF2_default_dimension_separator(NC_FILE_INFO_T* file)
+{
+    NC_UNUSED(file);
+    return DFALT_DIM_SEPARATOR_V2;
 }
 
 /**************************************************/
@@ -1576,7 +1594,7 @@ dtype2nctype(const char* dtype, nc_type* nctypep, int* endianp, size_t* maxstrle
     if(dtype == NULL) {stat = NC_ENCZARR; goto done;}
 
     /* Handle special cases */
-    if(strcmp(dtype,NC_JSON_DTYPE)==0) {
+    if(strcmp(dtype,NC_JSON_DTYPE_V2)==0) {
         nctype = NC_JSON;
         typelen = 1;
         goto exit;

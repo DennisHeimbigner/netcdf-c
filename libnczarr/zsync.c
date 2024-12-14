@@ -109,13 +109,12 @@ ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp)
 	if((stat=NCZF_encode_nczarr_group(file,grp,&jnczgrp))) goto done;
     }
 
-    /* Assemble JSON'ized attributes */
-    /* Optionally uses _nczarr_group &/or _nczarr_superblock */
-    if((stat = NCZF_encode_attributes(file,(NC_OBJ*)grp,&jnczgrp,&jsuper,&zobj.jatts))) goto done;
 
     /* Assemble group JSON object */
-    /* Watch out &jatts is passed so that it can be NULL'd if consumed */
     if((stat=NCZF_encode_group(file,grp,&zobj.jobj))) goto done;
+
+    /* Assemble JSON'ized attributes: Optionally uses _nczarr_group &/or _nczarr_superblock */
+    if((stat = NCZF_encode_attributes(file,(NC_OBJ*)grp,&jnczgrp,&jsuper,&zobj.jatts))) goto done;
 
     /* upload group json and (depending on version) the group attributes */
     if((stat = NCZF_upload_grp(file,grp,&zobj))) goto done;
@@ -209,6 +208,7 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
 
     /* encode the var JSON including (optionally) the attributes */
     if((stat=NCZF_encode_var(file,var,filtersj,&zobj.jobj))) goto done;
+
     /* Write out the the var JSON and the corresponding attributes and chunks */
     if((stat = NCZF_upload_var(file,var,&zobj))) goto done;
     var->created = 1;

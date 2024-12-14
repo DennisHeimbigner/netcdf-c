@@ -212,7 +212,8 @@ Optionally Inserted into any group zarr.json or array zarr.json is the extra att
 /* Extend the type system */
 #define NC_JSON (NC_STRING+1)
 #define N_NCZARR_TYPES (NC_JSON+1)
-#define NC_JSON_DTYPE "|J0"
+#define NC_JSON_DTYPE_V2 "|J0"
+#define NC_JSON_DTYPE_V3 "json"
 
 /* Default max string length for fixed length strings */
 #define NCZ_MAXSTR_DFALT 128
@@ -229,7 +230,7 @@ Optionally Inserted into any group zarr.json or array zarr.json is the extra att
 /* Track the possible cases where a field in some NC_XXX_INFO_T*
    must be sync'd with corresponding Attribute
 */
-typedef enum DualAtt {DA_NOT, DA_FILLVALUE, DA_MAXSTRLEN, DA_DFALTSTRLEN, DA_QUANTIZE, DA_ALL} DualAtt;
+typedef enum DualAtt {DA_NOT, DA_FILLVALUE, DA_MAXSTRLEN, DA_DFALTSTRLEN, DA_SEP, DA_DFALTSEP, DA_QUANTIZE, DA_ALL} DualAtt;
 
 /* Useful macro */
 #define ncidforx(file,grpid) ((file)->controller->ext_ncid | (grpid))
@@ -263,6 +264,7 @@ typedef struct NCZ_FILE_INFO {
     struct Zarrformat {
 	int zarr_format;
 	int nczarr_format;
+	char dimension_separator;
     } zarr;
     int creating; /* 1=> created 0=>open */
     int native_endianness; /* NC_ENDIAN_LITTLE | NC_ENDIAN_BIG */
@@ -318,10 +320,7 @@ typedef struct NCZ_VAR_INFO {
     char dimension_separator; /* '.' | '/' */
     size_t maxstrlen; /* max length of strings for this variable */
     struct NCZ_META_HDR* metastate; /* Hold per-format state */
-#if 0
-    /* Read json array and json attrs once */
-    struct ZARROBJ zarray;
-#endif
+    int nonstdchunkkey; /* 1 => use a non-standard chunk key encoding; always 0 for V2. For V2, 1 => use V3 encoding */
 } NCZ_VAR_INFO_T;
 
 /* Struct to hold ZARR-specific info for a field. */
@@ -380,6 +379,10 @@ int ncz_find_grp_var_att(int ncid, int varid, const char *name, int attnum,
                               NC_GRP_INFO_T** grp, NC_VAR_INFO_T** var,
                               NC_ATT_INFO_T** att);
 int NCZ_set_log_level(void);
+void zsetmaxstrlen(size_t maxstrlen, NC_VAR_INFO_T* var);
+void zsetdfaltstrlen(size_t maxstrlen, NC_FILE_INFO_T* file);
+void zsetdimsep(char dimsep, NC_VAR_INFO_T* var);
+void zsetdfaltdimsep(char dimsep, NC_FILE_INFO_T* file);
 
 /* zcache.c */
 int ncz_adjust_var_cache(NC_GRP_INFO_T* grp, NC_VAR_INFO_T* var);
@@ -405,6 +408,8 @@ int NCZ_set_dual_obj_data(NC_FILE_INFO_T* file, NC_OBJ* object, const char* name
 int NCZ_set_att_data(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, size_t len, const void* data);
 int NCZ_sync_dual_att(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, DualAtt which, int direction);
 int NCZ_ensure_dual_attributes(NC_FILE_INFO_T* file, NC_OBJ* container);
+DualAtt NCZ_is_dual_att(const char* aname);
+NC_SORT NCZ_dual_att_container(DualAtt da);
 
 /* zvar.c */
 int ncz_gettype(NC_FILE_INFO_T*, NC_GRP_INFO_T*, int xtype, NC_TYPE_INFO_T** typep);
@@ -412,8 +417,6 @@ int ncz_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 int NCZ_ensure_quantizer(int ncid, NC_VAR_INFO_T* var);
 int NCZ_write_var_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
 int NCZ_reclaim_dim(NC_DIM_INFO_T* dim);
-void zsetmaxstrlen(size_t maxstrlen, NC_VAR_INFO_T* var);
-void zsetdfaltstrlen(size_t maxstrlen, NC_FILE_INFO_T* file);
 
 /* Undefined */
 /* Find var, doing lazy var metadata read if needed. */

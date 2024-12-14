@@ -66,17 +66,24 @@ NCZ_initialize_internal(void)
     if(ngs != NULL) {
         /* Defaults */
 	ngs->zarr.default_zarrformat = DFALTZARRFORMAT;
-
-	if(ngs->zarr.default_zarrformat == 3)
-	    ngs->zarr.dimension_separator = DFALT_DIM_SEPARATOR_V3;
-	else
-	    ngs->zarr.dimension_separator = DFALT_DIM_SEPARATOR_V2;
+	/* Allow .rc file override */
         dimsep = NC_rclookup("ZARR.DIMENSION_SEPARATOR",NULL,NULL);
         if(dimsep != NULL) {
             /* Verify its value */
 	    if(dimsep != NULL && strlen(dimsep) == 1 && islegaldimsep(dimsep[0]))
 		ngs->zarr.dimension_separator = dimsep[0];
         }    
+	/* Allow environment variable override */
+        if(getenv(NCZARRDEFAULTFORMAT) != NULL) { 
+	    int dfalt = 0;
+	    sscanf(getenv(NCZARRDEFAULTFORMAT),"%d",&dfalt);
+	    if(dfalt == 2 || dfalt == 3)
+	        ngs->zarr.default_zarrformat = dfalt;
+	}
+	if(ngs->zarr.default_zarrformat == 3)
+	    ngs->zarr.dimension_separator = DFALT_DIM_SEPARATOR_V3;
+	else
+	    ngs->zarr.dimension_separator = DFALT_DIM_SEPARATOR_V2;
     }
     /* Build some common proplists */
     NCplistzarrv2 = ncproplistnew();
@@ -452,4 +459,23 @@ zsetdfaltstrlen(size_t dfaltstrlen, NC_FILE_INFO_T* file)
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     zfile->default_maxstrlen = dfaltstrlen;
     if(zfile->default_maxstrlen == 0) zfile->default_maxstrlen = NCZ_MAXSTR_DFALT;
+}
+
+void
+zsetdimsep(char sep, NC_VAR_INFO_T* var)
+{
+    NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
+    zvar->dimension_separator = sep;
+    if(zvar->dimension_separator == '\0') zvar->dimension_separator = NCZ_get_dimsep(var);
+}
+
+void
+zsetdfaltdimsep(char dimsep, NC_FILE_INFO_T* file)
+{
+    NCglobalstate* gs = NC_getglobalstate();
+    NC_UNUSED(file);
+    assert(gs != NULL);
+    assert(gs->zarr.dimension_separator != '\0');
+    gs->zarr.dimension_separator = dimsep;
+    assert(gs->zarr.dimension_separator != '\0');
 }

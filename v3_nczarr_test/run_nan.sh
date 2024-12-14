@@ -17,11 +17,6 @@ cd $ISOPATH
 
 set -e
 
-# Location constants
-cdl="$srcdir/../ncdump/cdl"
-#expected="$srcdir/../ncdump/expected"
-expected="$srcdir"
-
 # Functions
 
 # Remove fillvalue attribute since zarr generates it when hdf5 does not
@@ -42,10 +37,11 @@ for t in tst_nans ; do
    rm -fr ${t}.$zext
    rm -f tmp_${t}.dmp
    fileargs $t
-   ${NCGEN} -4 -lb -o ${fileurl} ${cdl}/${ref}.cdl
+   ${NCGEN} -4 -lb -o ${fileurl} ${srcdir}/${ref}.cdl
+${ZMD} -h -t float ${fileurl}
    ${NCDUMP} ${headflag} ${specflag} -n ${ref} ${fileurl} > tmp_${t}.dmp
    # compare against expected
-   diff -b -w ${expected}/${ref}.dmp ./tmp_${t}.dmp
+   diff -b -w ${srcdir}/${ref}.cdl ./tmp_${t}.dmp
    echo "*** SUCCEED: ${t}"
 done
 }

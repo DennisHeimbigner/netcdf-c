@@ -324,26 +324,26 @@ key "2.4"; etc."
 */
 
 int
-NCZF_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp)
+NCZF_encode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->encode_chunkkey(file,rank,chunkindices,dimsep,keyp);
+    stat = zfile->dispatcher->encode_chunkkey(file,var,rank,chunkindices,dimsep,keyp);
     return THROW(stat);
 }
 
 int
-NCZF_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkname, size_t* rankp, size64_t** chunkindicesp)
+NCZF_decode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const char* chunkname, size_t* rankp, size64_t** chunkindicesp)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zfile = NULL;
 
     zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     assert(zfile != NULL);
-    stat = zfile->dispatcher->decode_chunkkey(file,dimsep,chunkname,rankp,chunkindicesp);
+    stat = zfile->dispatcher->decode_chunkkey(file,var,chunkname,rankp,chunkindicesp);
     return THROW(stat);
 }
 
@@ -358,6 +358,17 @@ NCZF_encode_xarray(NC_FILE_INFO_T* file, size_t rank, NC_DIM_INFO_T** dims, char
     assert(zfile != NULL);
     stat = zfile->dispatcher->encode_xarray(file,rank,dims,xarraydims,zarr_rank);
     return THROW(stat);
+}
+
+/* Format specific default dimension separator */
+char
+NCZF_default_dimension_separator(NC_FILE_INFO_T* file)
+{
+    NCZ_FILE_INFO_T* zfile = NULL;
+
+    zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    assert(zfile != NULL);
+    return zfile->dispatcher->default_dimension_separator(file);
 }
 
 /**************************************************/
@@ -394,4 +405,3 @@ NCZ_reclaim_json_list(NClist* listj)
         NCZ_reclaim_json((NCjson*)nclistget(listj,i));
     nclistfree(listj);
 }
-

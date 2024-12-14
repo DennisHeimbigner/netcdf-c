@@ -140,21 +140,17 @@ endif()
 if(Blosc_FOUND)
   installplugin(h5blosc)
 endif()
-if(NETCDF_ENABLE_NCZARR)
-  installplugin(h5fletcher32)
+
   installplugin(h5shuffle)
+  installplugin(h5fletcher32)
   installplugin(h5deflate)
+
   installplugin(zhdf5filters)
   installplugin(zstdfilters)
+  
   if(Szip_FOUND)
     installplugin(h5szip)
   endif()
-  installplugin(h5stringn)
-endif()
-
-endif(NETCDF_ENABLE_PLUGIN_INSTALL)
-
-endif(NETCDF_ENABLE_PLUGINS)
 
 # Copy some test files from current source dir to out-of-tree build dir.
 file(COPY ${COPY_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/)

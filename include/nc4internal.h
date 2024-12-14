@@ -43,7 +43,7 @@
 
 /* typedef enum {GET, PUT} NC_PG_T; */
 /** These are the different objects that can be in our hash-lists. */
-typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP, NCFIL} NC_SORT;
+typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP, NCFILE} NC_SORT;
 
 /** The netCDF V2 error code. */
 #define NC_V2_ERR (-1)
@@ -547,5 +547,6 @@ extern void NC_initialize_reserved(void);
 #define NC_NCZARR_ATTR_ATTR "_nczarr_attr"
 #define NC_NCZARR_MAXSTRLEN_ATTR "_nczarr_maxstrlen"
 #define NC_NCZARR_DFALT_MAXSTRLEN_ATTR "_nczarr_default_maxstrlen"
-
+#define NC_NCZARR_SEPARATOR_ATTR "_nczarr_separator"
+#define NC_NCZARR_DFALT_SEPARATOR_ATTR "_nczarr_default_separator"
 #endif /* _NC4INTERNAL_ */

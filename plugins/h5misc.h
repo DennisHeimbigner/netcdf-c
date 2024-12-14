@@ -72,7 +72,12 @@ DECLSPEC size_t H5Z_filter_test(unsigned flags,size_t cd_nelmts,const unsigned c
 
 DECLSPEC void NC_h5filterspec_fix8(void* mem0, int decode);
 
+/* Raw encode/decode */
+struct NCjson; /*Opaque*/
+DECLSPEC int NCZraw_encode(unsigned nparams, const unsigned* params, struct NCjson** jparamsp);
+DECLSPEC int NCZraw_decode(const NCjson* jcodec, unsigned nparamsp, const unsigned* paramsp);
+
 /* Shutup compiler */
-void* NC_unused_h5misc() {return (void*)&spec;}
+void* NC_unused_h5misc(void) {return (void*)&spec;}
 
 #endif /*H5MISC_H*/

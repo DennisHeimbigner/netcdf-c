@@ -15,30 +15,67 @@
 
 #undef ADEBUG
 
+/* Build table of dual attributes;
+   build unsorted, but sort at first reference
+   so we can do binary search.
+*/
+static struct DUALATT {const char* name; DualAtt dasort; NC_SORT container;} dualatts[] = {
+{NC_FillValue, DA_FILLVALUE,NCVAR},
+{NC_NCZARR_MAXSTRLEN_ATTR, DA_MAXSTRLEN,NCVAR},
+{NC_NCZARR_DFALT_MAXSTRLEN_ATTR, DA_DFALTSTRLEN,NCFILE}, /* NCGRP refers to root group in file */
+{NC_NCZARR_SEPARATOR_ATTR, DA_SEP,NCVAR},
+{NC_NCZARR_DFALT_SEPARATOR_ATTR, DA_DFALTSEP,NCFILE},
+{NC_QUANTIZE_BITGROOM_ATT_NAME, DA_QUANTIZE,NCVAR},
+{NC_QUANTIZE_GRANULARBR_ATT_NAME, DA_QUANTIZE,NCVAR},
+{NC_QUANTIZE_BITROUND_ATT_NAME, DA_QUANTIZE,NCVAR}
+};
+#define NDUALATTS (sizeof(dualatts)/sizeof(struct DUALATT))
+static int dualsorted = 0;
+
 /* Forward */
 static int charify(const NCjson* src, NCbytes* buf);
 static int json_convention_read(const NCjson* json, NCjson** jtextp);
 static int islegalatt(NC_FILE_INFO_T* file, NC_ATT_INFO_T* att, size_t alen);
 
-/* Some attributes are reflected in var|grp structure */
-static DualAtt
-is_dual_att(const char* aname)
+static int
+dasort(const void* a, const void* b)
 {
-    if(strcmp(NC_FillValue,aname)==0) return DA_FILLVALUE;
-    if(strcmp(NC_NCZARR_MAXSTRLEN_ATTR,aname)==0) return DA_MAXSTRLEN;
-    if(strcmp(NC_NCZARR_DFALT_MAXSTRLEN_ATTR,aname)==0) return DA_DFALTSTRLEN;
-    if(NC_isquantizeattname(aname)) return DA_QUANTIZE;
-    return DA_NOT;
+    const struct DUALATT *daa, *dab;
+    daa = a; dab = b;
+    return strcasecmp(daa->name,dab->name);
 }
 
-/* For dual attributes, specify if they are associated with a group vs var */
-static NC_SORT
-dual_att_container(DualAtt da)
+static int
+dacmp(const void* key, const void* elem)
 {
-    switch (da) {
-    case DA_FILLVALUE: case DA_MAXSTRLEN: case DA_QUANTIZE: return NCVAR;
-    case DA_DFALTSTRLEN: return NCGRP;
-    default: break;
+    const struct DUALATT *delem = elem;
+    return strcasecmp(key,delem->name);
+}
+
+/* Some attributes are reflected in var|file structure */
+DualAtt
+NCZ_is_dual_att(const char* aname)
+{
+    void* match = NULL;
+    if(!dualsorted) {
+	qsort((void*)dualatts, NDUALATTS, sizeof(struct DUALATT),dasort);
+	dualsorted = 1;
+    }
+    /* Binary search the set of set of atomictypes */
+    assert(dualsorted);
+    match = bsearch((void*)aname,(void*)dualatts,NDUALATTS,sizeof(struct DUALATT),dacmp);
+    if(match == NULL) return DA_NOT;
+    return ((struct DUALATT*)match)->dasort;
+}
+
+/* For dual attributes, specify if they are associated with a var vs file */
+NC_SORT
+NCZ_dual_att_container(DualAtt da)
+{
+    size_t i;
+    /* Since we cannot simultaneously binary search on two fields, do simple linear search */
+    for(i=0;i<NDUALATTS;i++) {
+	if(dualatts[i].dasort == da) {return dualatts[i].container;}
     }
     return NCNAT;
 }
@@ -541,14 +578,13 @@ ncz_put_att(int ncid, int containerid, const char *name, nc_type file_type,
     }
 
     /* Some attributes are reflected in var|grp structure so must be sync'd */
-    switch (dual_att_container(dualatt=is_dual_att(name))) {
+    switch (NCZ_dual_att_container(dualatt=NCZ_is_dual_att(name))) {
     case NCVAR:
         assert(var != NULL);
         if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,name,dualatt,FIXOBJ))) goto done;
         break;
-    case NCGRP:
-        assert(grp != NULL);
-        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)grp,name,dualatt,FIXOBJ))) goto done;
+    case NCFILE:
+        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)file->root_grp,name,dualatt,FIXOBJ))) goto done;
         break;
     default: break; /* ignore */
     }
@@ -892,6 +928,7 @@ NCZ_set_dual_obj_data(NC_FILE_INFO_T* file, NC_OBJ* object, const char* name, Du
 
     NC_UNUSED(name); /* for now */
     if(object->sort == NCGRP) {
+	assert(file->root_grp == (NC_GRP_INFO_T*)object);
         switch(which) {
         case DA_DFALTSTRLEN:
             assert(len == 1);
@@ -919,6 +956,10 @@ NCZ_set_dual_obj_data(NC_FILE_INFO_T* file, NC_OBJ* object, const char* name, Du
         case DA_QUANTIZE:
             assert(len == 1);
             var->nsd = ((int*)data)[0];
+            break;
+        case DA_SEP:
+            assert(len == 1);
+            zsetmaxstrlen((size_t)((int*)data)[0],var);
             break;
         default: assert(0);
         }
@@ -1168,6 +1209,28 @@ NCZ_sync_dual_att(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, Du
 		if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
 		if((stat = NCZ_set_att_data(file,att,1,&var->nsd))) goto done;
             } break;
+	case DA_SEP: {
+		NCglobalstate* gs = NC_getglobalstate();
+		assert(gs != NULL);
+		assert(gs->zarr.dimension_separator != 0);
+		/* If separator is not new and the proposed value is the dfalt value, then suppress the attribute value */
+		if(att == NULL && zvar->dimension_separator != '\0'
+			&& zvar->dimension_separator != gs->zarr.dimension_separator) {
+		    if((stat = NCZ_getattr(file,container,aname,NC_CHAR,&att,&isnew))) goto done;
+		    if((stat = NCZ_set_att_data(file,att,1,&zvar->dimension_separator))) goto done;
+		}
+	    } break;
+        case DA_DFALTSEP: {
+		NCglobalstate* gs = NC_getglobalstate();
+		assert(gs != NULL);
+		assert(gs->zarr.dimension_separator != 0);
+		/* If separator is not new and the proposed value is the dfalt value, then suppress the attribute value */
+	        if(att == NULL && gs->zarr.dimension_separator != '\0'
+			&& gs->zarr.dimension_separator != NCZF_default_dimension_separator(file)) {
+		    if((stat = NCZ_getattr(file,container,aname,NC_CHAR,&att,&isnew))) goto done;
+		    if((stat = NCZ_set_att_data(file,att,1,&gs->zarr.dimension_separator))) goto done;
+		}
+            } break;
         default:
             stat = NC_ENOTATT;      
             goto done;
@@ -1199,6 +1262,18 @@ NCZ_sync_dual_att(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, Du
             assert(!isnew);
             if(att->len != 1 || att->nc_typeid != NC_INT) goto done; /* some other _QuantXXX */
             var->nsd = ((int*)att->data)[0];
+            break;
+        case DA_SEP:
+            if((stat = NCZ_getattr(file,container,aname,NC_CHAR,&att,&isnew))) goto done;
+            assert(!isnew);
+            if(att->len != 1 || att->nc_typeid != NC_CHAR) goto done; /* some other _nczarr_dimension_separator */
+            zsetdimsep(((char*)att->data)[0],var);
+            break;
+        case DA_DFALTSEP:
+            if((stat = NCZ_getattr(file,container,aname,NC_CHAR,&att,&isnew))) goto done;
+            assert(!isnew);
+            if(att->len != 1 || att->nc_typeid != NC_CHAR) goto done; /* some other _nczarr_default_dimension_separator */
+            zsetdfaltdimsep(((char*)att->data)[0],file);
             break;
         default: assert(0);
         }
@@ -1250,12 +1325,28 @@ NCZ_ensure_dual_attributes(NC_FILE_INFO_T* file, NC_OBJ* container)
                 if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,qname,DA_QUANTIZE,FIXATT))) goto done;
             }
         }
+
+        /* _nczarr_dimension_separator */
+	{
+	    NCZ_VAR_INFO_T* vinfo = (NCZ_VAR_INFO_T*)var->format_var_info;
+	    if(vinfo->dimension_separator != '\0') {
+		if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)var,NC_NCZARR_SEPARATOR_ATTR,DA_SEP,FIXATT))) goto done;
+	    }
+        }
+
     } else {
 	NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
+	NCglobalstate* gs = NC_getglobalstate();
+
         assert(file != NULL);
 	if(zinfo->default_maxstrlen > 0) {
             if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)file->root_grp,NC_NCZARR_DFALT_MAXSTRLEN_ATTR,DA_DFALTSTRLEN,FIXATT))) goto done;
         }
+
+	assert(gs != NULL);
+	assert(gs->zarr.dimension_separator != 0);
+        if((stat = NCZ_sync_dual_att(file,(NC_OBJ*)file->root_grp,NC_NCZARR_DFALT_SEPARATOR_ATTR,DA_DFALTSEP,FIXATT))) goto done;
+
     }
 
 done:

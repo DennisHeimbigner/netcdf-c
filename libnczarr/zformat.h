@@ -121,11 +121,14 @@ int (*decode_filter)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, 
 int (*searchobjects)(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrpnames);
 
 /*Chunkkeys*/
-int (*encode_chunkkey)(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
-int (*decode_chunkkey)(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkname, size_t* rankp, size64_t** chunkindicesp);
+int (*encode_chunkkey)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
+int (*decode_chunkkey)(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const char* chunkname, size_t* rankp, size64_t** chunkindicesp);
 
 /* _ARRAY_DIMENSIONS encode/decode */
 int (*encode_xarray) (NC_FILE_INFO_T* file, size_t rank, NC_DIM_INFO_T** dims, char** xarraydims, size_t* zarr_rankp);
+
+/* Misc. */
+char (*default_dimension_separator) (NC_FILE_INFO_T* file);
 
 } NCZ_Formatter;
 
@@ -173,12 +176,14 @@ extern int NCZF_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* 
 extern int NCZF_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrpnames);
 
 /*Chunkkeys*/
-extern int NCZF_encode_chunkkey(NC_FILE_INFO_T* file, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
-extern int NCZF_decode_chunkkey(NC_FILE_INFO_T* file, const char* dimsep, const char* chunkname, size_t* rankp, size64_t** chunkindicesp);
+extern int NCZF_encode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
+extern int NCZF_decode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const char* chunkname, size_t* rankp, size64_t** chunkindicesp);
 
 /* _ARRAY_DIMENSIONS (xarray) encode/decode */
 extern int NCZF_encode_xarray(NC_FILE_INFO_T* file, size_t rank, NC_DIM_INFO_T** dims, char** xarraydims, size_t* zarr_rankp);
 
+/* Format specific default dimension separator */
+extern char NCZF_default_dimension_separator(NC_FILE_INFO_T* file);
 
 /* Define known dispatch tables and initializers */
 /* Each handles a specific NCZarr format + Pure Zarr */

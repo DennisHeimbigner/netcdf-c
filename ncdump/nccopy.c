@@ -2214,7 +2214,7 @@ usage(void)
   [-Ln]     set log level to n (>= 0); ignored if logging isn't enabled.\n\
   [-Mn]     set minimum chunk size to n bytes (n >= 0)\n\
   [-X<flag><arg> flag overflow for uncommon flags.\n\
-                 flag=f force enabling global fill flag  (nc_set_fill)\n\
+                 flag == 'f' forces enabling global fill flag  (nc_set_fill)\n\
 		 Use multiple times to set several flags.\n\
   infile    name of netCDF input file\n\
   outfile   name for netCDF output file\n"

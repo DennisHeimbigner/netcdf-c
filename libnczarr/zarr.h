@@ -78,8 +78,6 @@ EXTERNL void NCZ_reclaim_diminfo(struct NCZ_DimInfo* diminfo);
 EXTERNL void NCZ_reclaim_dimdecl_list(NClist* dimdecl);
 EXTERNL void NCZ_reclaim_dimdecl(struct NCZ_DimDecl* dimdecl);
 EXTERNL int NCZ_ischunkname(const char* name,char dimsep);
-EXTERNL char* NCZ_chunkpath(struct ChunkKey key);
-EXTERNL size_t NCZ_get_maxstrlen(NC_OBJ* obj);
 EXTERNL int NCZ_fixed2char(const void* fixed, char** charp, size_t count, size_t maxstrlen);
 EXTERNL int NCZ_char2fixed(const char** charp, void* fixed, size_t count, size_t maxstrlen);
 EXTERNL int NCZ_copy_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const void* memory, size_t count, int reading, void* copy);
@@ -102,6 +100,10 @@ EXTERNL int NCZ_computeattrdata(NC_FILE_INFO_T* file, const NCjson* jdata, struc
 EXTERNL int NCZ_dictgetalt(const NCjson* jdict, const NCjson** jvaluep, ...);
 EXTERNL int NCZ_dictgetalt2(const NCjson* jdict, const NCjson** jvaluep, const char* name1, const char* name2); /* common case */
 EXTERNL int NCZ_getnczarrkey(NC_FILE_INFO_T* file, struct ZOBJ* jsonz, const char* name, const NCjson** jncxxxp);
+EXTERNL char* NCZ_chunkpath(struct ChunkKey key);
+EXTERNL size_t NCZ_get_maxstrlen(NC_OBJ* obj);
+EXTERNL char NCZ_get_dimsep(NC_VAR_INFO_T* var);
+EXTERNL double* NCZ_isnaninfstring(const char* val);
 
 /* zwalk.c */
 EXTERNL int NCZ_read_chunk(int ncid, int varid, size64_t* zindices, void* chunkdata);

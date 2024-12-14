@@ -70,14 +70,6 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NClist* urlcontrol
     if(zfile->zarr.zarr_format == 0)
         zfile->zarr.zarr_format = NC_getglobalstate()->zarr.default_zarrformat;
 
-    /* Allow it to be overridden by getenv to support testing of different formats */
-    if(getenv(NCZARRDEFAULTFORMAT) != NULL) {
-	int dfalt = 0;
-	sscanf(getenv(NCZARRDEFAULTFORMAT),"%d",&dfalt);
-	if(dfalt == 2 || dfalt == 3)
-	    zfile->zarr.zarr_format = dfalt;
-    }
-
     /* initialize map handle*/
     if((stat = NCZ_get_map(file,uri,(mode_t)nc->mode,zfile->flags,NULL,&zfile->map))) goto done;
 

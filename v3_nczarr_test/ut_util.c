@@ -225,11 +225,13 @@ freevardefs(NClist* defs)
 void
 freeranges(NCZChunkRange* ranges)
 {
+    NC_UNUSED(ranges);
 }
 
 void
 freeslices(NCZSlice* slices)
 {
+    NC_UNUSED(slices);
 }
 
 void

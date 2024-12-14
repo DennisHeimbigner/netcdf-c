@@ -354,7 +354,7 @@ nc4_nc4f_list_add(NC *nc, const char *path, int mode)
     nc->dispatchdata = h5;
     h5->controller = nc;
 
-    h5->hdr.sort = NCFIL;
+    h5->hdr.sort = NCFILE;
     h5->hdr.name = strdup(path);    
     h5->hdr.id = nc->ext_ncid;
 

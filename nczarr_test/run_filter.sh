@@ -117,7 +117,7 @@ deletemap $zext $file
 ${NCGEN} -4 -lb -o $fileurl ${srcdir}/../nc_test4/ref_unfiltered.cdl
 fileurl0=$fileurl
 fileargs tmp_filtered
-${NCCOPY} -M0 -F "/g/var,307,9,4" $fileurl0 $fileurl
+${NCCOPY} -Xf -M0 -F "/g/var,307,9,4" $fileurl0 $fileurl
 ${ZMD} -h $fileurl
 ${NCDUMP} -s -n filtered $fileurl > ./tmp_ncp_$zext.dump
 # Remove irrelevant -s output

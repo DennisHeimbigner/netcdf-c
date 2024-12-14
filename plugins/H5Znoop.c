@@ -135,18 +135,7 @@ H5Z_filter_noop(unsigned int flags, size_t cd_nelmts,
 
 /* This codec test various things:
 test=1
-
-It also tests the use of hdf5raw plugin.
-Codec Format (V2)
-{
-"id": "test",
-"nparams": "n",
-"0": "<unsigned int>",
-"1": "<unsigned int>",
-"2": "<unsigned int>",
-...
-"n": "<unsigned int>",
-}
+Test the use of hdf5raw plugin (see H5Zutil.c).
 */
 
 /* Forward */
@@ -196,37 +185,23 @@ NCZ_noop_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
     
     ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
-    /* parse the JSON */
-    if(NCJparse(codec_json,0,&jcodec)<0)
-	{stat = NC_EFILTER; goto done;}
-    if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
+    /* Parse the codec */
+    NCJcheck(NCJparse(codec_json,0,&jcodec));
+    if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EFILTER; goto done;}
 
-    /* Get and Verify the codec ID */
-
+    /* Get and Verify the codec ID and parse the params*/
     if(zarrformat == 3) {
         if(NCJdictget(jcodec,"name",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
         if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
         if(strcmp(NCJstring(jtmp),NCZ_noop_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
         if(NCJdictget(jcodec,"configuration",(NCjson**)(NCjson**)&jdict)<0) {stat = NC_EFILTER; goto done;}
-        nparams = NCJdictlength(jdict); /* each param is key+value */
-    } else {
+	if((stat = NCZraw_decode(jcodec,&nparams,&params))) goto done;
+    } else { /* v2 */
         if(NCJdictget(jcodec,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
         if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
         if(strcmp(NCJstring(jtmp),NCZ_noop_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
-        nparams = (NCJdictlength(jcodec) - 1) ;
-	jdict = jcodec;
+        if(NCJdictget(jcodec,"configuration",(NCjson**)(NCjson**)&jdict)<0) {stat = NC_EFILTER; goto done;}
     }
-    if((params = (unsigned*)calloc(nparams,sizeof(unsigned)))== NULL) {stat = NC_ENOMEM; goto done;}
-    /* This filter has an arbitrary number of parameters named p0...pn */
-    for(i=0;i<nparams;i++) {
-        struct NCJconst jc;
-        snprintf(field,sizeof(field),"p%zu",i);
-        if(NCJdictget(jdict,field,(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
-        if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
-        if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
-        params[i] = (unsigned)jc.ival;
-    }
-
     if(nparamsp) *nparamsp = nparams;
     if(paramsp) {*paramsp = params; params = NULL;}
     if(idp) *idp = (unsigned)(H5Z_FILTER_NOOP + instance[0]);
@@ -242,9 +217,10 @@ NCZ_noop_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
 {
     int stat = NC_NOERR;
     size_t i;
-    char json[8192];
-    char value[8192];
+    char* jsonstr = NULL;
     uintptr_t zarrformat = 0;
+    NCjson* jcodec = NULL;
+    NCjson* jcfg = NULL;
 
     NC_UNUSED(id);
 
@@ -253,29 +229,19 @@ NCZ_noop_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
 
     ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
+    if((stat = NCZraw_encode(nparams,params,&jcfg))) goto done;
     if(zarrformat == 2) {
-        snprintf(json,sizeof(json),"{\"id\": \"%s\"",NCZ_noop_codec.codecid);
-	/* Accept an arbitrary number of params */
-	for(i=0;i<nparams;i++) {
-            snprintf(value,sizeof(value),", \"p%zu\": \"%u\"",i,params[i]);
-	    strcat(json,value);
-        }
+	jcodec = jcfg; jcfg = NULL;
+	NCJinsertstring(jcodec,"id",NCZ_noop_codec.codecid);
     } else {
-        snprintf(json,sizeof(json),"{\"name\": \"%s\", \"configuration\": {",NCZ_noop_codec.codecid);
-	/* Accept an arbitrary number of params */
-	for(i=0;i<nparams;i++) {
-	    if(i > 0) strcat(json,", ");
-            snprintf(value,sizeof(value),"\"p%zu\": \"%u\"",i,params[i]);
-	    strcat(json,value);
-        }
-        strcat(json,"}");
+	NCJcheck(NCJnew(NCJ_DICT,&jcodec));
+	NCJinsertstring(jcodec,"name",NCZ_noop_codec.codecid);
+	NCJinsert(jcodec,"configuration",jcfg);
     }
-    strcat(json,"}");
-    
-    if(codecp) {
-        if((*codecp = strdup(json))==NULL) {stat = NC_ENOMEM; goto done;}
-    }
+    NCJcheck(NCJunparse(jcodec,0,&jsonstr));
+    if(codecp) {*codecp = jsonstr; jsonstr = NULL;}
     
 done:
+    if(jsonstr) free(jsonstr);
     return stat;
 }

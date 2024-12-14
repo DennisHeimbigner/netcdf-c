@@ -68,7 +68,7 @@ typedef struct KEYWORDINFO KEYWORDINFO;
 static const struct ATOMICTYPEINFO {
     char* name; nc_type type; size_t size;
 } atomictypeinfo[] = {
-/* Keep in sorted order for binary search */
+/* Will be sorted on first use */
 /* Use lower case for canonical comparison, but keep proper name here */
 {"Byte",NC_BYTE,sizeof(char)},
 {"Char",NC_CHAR,sizeof(char)},
@@ -87,6 +87,7 @@ static const struct ATOMICTYPEINFO {
 {"Url",NC_STRING,sizeof(char*)},
 {NULL,NC_NAT,0}
 };
+static int atomictypessorted = 0;
 
 /***************************************************/
 
@@ -1259,6 +1260,12 @@ done:
 }
 #endif
 
+static int aticmp(const void* a, const void* b)
+{
+    struct ATOMICTYPEINFO *atia, *atib;
+    return strcasecmp(atia->name,atib->name);
+}
+		
 static int
 defineAtomicTypes(NCD4meta* meta, NClist* list)
 {
@@ -1266,8 +1273,12 @@ defineAtomicTypes(NCD4meta* meta, NClist* list)
     NCD4node* node;
     const struct ATOMICTYPEINFO* ati;
  
-    if(list == NULL)
-	return THROW(NC_EINTERNAL);
+    if(list == NULL) return THROW(NC_EINTERNAL);
+    if(!atomictypessorted) {
+		qsort((void*)atomictypeinfo, sizeof(atomictypeinfo)/sizeof(struct ATOMICTYPEINFO),
+		      sizeof(struct ATOMICTYPEINFO),aticmp);
+	atomictypessorted = 1;
+    }
     for(ati=atomictypeinfo;ati->name;ati++) {
         if((ret=makeNodeStatic(meta,NULL,NCD4_TYPE,ati->type,&node))) goto done;
 	SETNAME(node,ati->name);
@@ -1281,25 +1292,11 @@ done:
 static NCD4node*
 lookupAtomicType(NClist* atomictypes, const char* name)
 {
-    size_t n = nclistlength(atomictypes);
-    if (n == 0) return NULL;
-    size_t L = 0;
-    size_t R = n - 1;
-    NCD4node* p;
-
-    for(;;) {
-	if(L > R) break;
-        size_t m = (L + R) / 2;
-	p = (NCD4node*)nclistget(atomictypes,m);
-	int cmp = strcasecmp(p->name,name);
-	if(cmp == 0)
-	    return p;
-	if(cmp < 0)
-	    L = (m + 1);
-	else /*cmp > 0*/
-	    R = (m - 1);
-    }
-    return NULL;
+    void* match = NULL;
+    assert(atomictypessorted);
+    match = bsearch((void*)name,(void*)atomictypeinfo, sizeof(atomictypeinfo)/sizeof(struct ATOMICTYPEINFO),
+		      sizeof(struct ATOMICTYPEINFO),aticmp);
+    return (NCD4node*)match;
 }
 
 /**************************************************/
