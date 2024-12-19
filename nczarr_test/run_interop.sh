@@ -30,6 +30,7 @@ echo "findplugin.sh loaded"
 findplugin h5blosc
 
 if ! avail bzip2; then return 0; fi
+if ! avail blosc; then return 0; fi
 
 testcasefile() {
   echo "	to Running File Testcase:	$1	$2	$3"
@@ -103,8 +104,6 @@ fi
 if ! test -f ${ISOPATH}/ref_quotes.zip ; then
   cp -f ${srcdir}/ref_quotes_orig.zip ${ISOPATH}/ref_quotes.zip
 fi
-
-if ! avail blosc; then exit; fi
 
 testallcases file
 if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testallcases zip; fi
