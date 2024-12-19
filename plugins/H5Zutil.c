@@ -3,10 +3,9 @@
  * See netcdf/COPYRIGHT file for copying and redistribution conditions.
  */
 
-
 #include "config.h"
 #include "netcdf_filter_build.h"
-#include "netcdf_json.h"
+#include "h5misc.h"
 
 /*
 Common utilities related to filters.
@@ -70,14 +69,12 @@ NC_h5filterspec_fix8(void* mem0, int decode)
 
 /**************************************************/
 
-#define RAWTAG "rawformat"
-
 /**
 Encode/decode the storage of the raw HDF5 unsigned parameters.
 
 Codec Format
 {
-"rawformat": true,
+"hdf5raw": "<NC_RAWVERSION>",
 "nparams": "n",
 "0": "<unsigned int>",
 "1": "<unsigned int>",
@@ -93,73 +90,74 @@ Codec Format
 @return the JSON dict or NULL if failed
 */
 int
-NCZraw_encode(unsigned nparams, const unsigned* params, NCjson** jparamsp)
+NCraw_encode(size_t nparams, const unsigned* params, NCjson** jparamsp)
 {
     int stat = 0;
     unsigned i;
     NCjson* jparams = NULL;
-    char digits[64]; /* decimal or hex */
+    NCjson* jnparams = NULL;
+    NCjson* jnum = NULL;
+    char digits[64];
 
     NCJnew(NCJ_DICT,&jparams);
-    NCJcheck(NCJappendstring(jparams,NCJ_STRING,RAWTAG));
-    NCJcheck(NCJappendstring(jparams,NCJ_BOOLEAN,"true"));
-    snprintf(digits,sizeof(digits),"0x%x",nparams);
-    NCJcheck(NCJappendstring(jparams,NCJ_STRING,"nparams"));
-    NCJcheck(NCJappendstring(jparams,NCJ_INT,digits));
+    NCJcheck(NCJinsertstring(jparams,NC_RAWTAG,NC_RAWVERSION));
+    snprintf(digits,sizeof(digits),"%zu",nparams);
+    NCJcheck(NCJnewstring(NCJ_INT,digits,&jnparams));
+    NCJcheck(NCJinsert(jparams,"nparams",jnparams)); jnparams = NULL;
     for(i=0;i<nparams;i++) {
+	char num[64];
 	snprintf(digits,sizeof(digits),"%u",i);
-        NCJcheck(NCJappendstring(jparams,NCJ_STRING,digits));
-	snprintf(digits,sizeof(digits),"0x%x",params[i]);
-	NCJcheck(NCJappendstring(jparams,NCJ_INT,digits));
+	snprintf(num,sizeof(num),"%u",params[i]);
+	NCJcheck(NCJnewstring(NCJ_INT,num,&jnum));
+        NCJcheck(NCJinsert(jparams,digits,jnum)); jnum = NULL;
     }
-done:
-    if(stat) {NCJreclaim(jparams); jparams = NULL;}
     if(jparamsp) {*jparamsp = jparams; jparams = NULL;}
+done:
+    NCJreclaim(jnparams);
+    NCJreclaim(jnum);
+    NCJreclaim(jparams);
     return stat;
 }
 
 /* Convert JSON formatted string to HDF5 nparams + params.
-@param text to parse
+@param jcodec from which to extract params
 @param nparamsp return number of params
 @params paramsp return params
-@return 0 if success, -1 if fail.
+@return NCJ_OK if success, NCJ_ERR if fail.
 */
 int
-NCZraw_decode(const NCjson* jcodec, unsigned* nparamsp, unsigned** paramsp)
+NCraw_decode(const NCjson* jcodec, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = 0;
     unsigned i;
-    NCjson* jparams = NULL;
     const NCjson* jvalue = NULL;
-    unsigned nparams = 0;
+    size_t nparams = 0;
     unsigned* params = NULL;
     char digits[64];
 
-    NCJcheck(NCJdictget(jparams,RAWTAG,(NCjson**)&jvalue));
-    if(jvalue == NULL) {stat = -1; goto done;}
-    NCJcheck(NCJdictget(jparams,"nparams",(NCjson**)&jvalue));
-    if(NCJsort(jvalue) != NCJ_INT) {stat = -1; goto done;}
+    NCJcheck(NCJdictget(jcodec,NC_RAWTAG,(NCjson**)&jvalue));
+    if(jvalue == NULL) {stat = NCJ_ERR; goto done;}
+    if(strcmp(NCJstring(jvalue),NC_RAWVERSION) != 0) {stat = NCJ_ERR; goto done;}
+    NCJcheck(NCJdictget(jcodec,"nparams",(NCjson**)&jvalue));
+    if(jvalue != NULL && NCJsort(jvalue) != NCJ_INT) {stat = NCJ_ERR; goto done;}
     if(jvalue == NULL) {
         nparams = 0;
     } else {
-	if(1 != sscanf(NCJstring(jvalue),"%u",&nparams)) {stat = -1; goto done;}
-	/* Simple verification */
-	if(nparams != (NCJdictlength(jparams) - (2 + 2))) {stat = -1; goto done;}
+	if(1 != sscanf(NCJstring(jvalue),"%zu",&nparams)) {stat = NCJ_ERR; goto done;}
     }
     if(nparams > 0) {
-	if((params = (unsigned*)malloc(sizeof(unsigned)*nparams))) {stat = -1; goto done;}
+	if((params = (unsigned*)malloc(sizeof(unsigned)*nparams))==NULL) {stat = NCJ_ERR; goto done;}
     }
     for(i=0;i<nparams;i++) {
 	snprintf(digits,sizeof(digits),"%u",i);
-        NCJcheck(NCJdictget(jparams,digits,(NCjson**)&jvalue));
-        if(jvalue == NULL) {stat = -1; goto done;} /* nparams mismatch */
-        if(NCJsort(jvalue) != NCJ_INT) {stat = -1; goto done;}
-	sscanf(NCJstring(jvalue),"0x%x",&params[i]);
+        NCJcheck(NCJdictget(jcodec,digits,(NCjson**)&jvalue));
+        if(jvalue == NULL) {stat = NCJ_ERR; goto done;} /* nparams mismatch */
+        if(NCJsort(jvalue) != NCJ_INT) {stat = NCJ_ERR; goto done;}
+	sscanf(NCJstring(jvalue),"%u",&params[i]);
     }
     if(nparamsp) *nparamsp = nparams;
     if(paramsp) {*paramsp = params; params = NULL;}
 done:
     if(params) free(params);
-    NCJreclaim(jparams);
     return stat;
 }

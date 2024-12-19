@@ -74,9 +74,9 @@ extern struct NCZ_HDF5 NCZ_hdf5_empty(void);
 
 /* Codec Info */
 typedef struct NCZ_Codec {
-    char* id;              /**< The NumCodecs ID */
-    char* codec;           /**< The Codec from the file; NULL if creating */
-    int pseudo;		   /**< If the codec action is handled by non-codec code in netcdf-c */
+    char* id;		/**< The NumCodecs ID */
+    char* codec;	/**< The codec string from the file; NULL if creating */
+    int pseudo;		/**< If the codec action is handled by non-codec code in netcdf-c */
 } NCZ_Codec;
 extern struct NCZ_Codec NCZ_codec_empty();
 

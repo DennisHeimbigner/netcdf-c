@@ -1346,7 +1346,7 @@ int
 ZF2_decode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const char* chunkname, size_t* rankp, size64_t** chunkindicesp)
 {
     int stat = NC_NOERR;
-    char* oldp;
+    const char* oldp;
     char* newp;
     size64_t* chunkindices = NULL;
     char sep;

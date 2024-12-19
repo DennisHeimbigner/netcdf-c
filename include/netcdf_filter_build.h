@@ -22,10 +22,10 @@
 
 #include "netcdf_filter_hdf5_build.h"
 
-/* Avoid inclusion of both netcf_json.h and ncjson.h */
+/* Avoid including netcdf_json.h and ncjson.h */
 #ifndef NCJSON_H
 #include "netcdf_json.h"
-#endif
+#endif /*NCJSON_H*/
 
 /* Ditto */
 #ifndef NCPROPLIST_H
@@ -104,7 +104,7 @@ void (*NCZ_codec_finalize)(struct NCproplist*);
 * Convert a JSON representation to an HDF5 representation. Invoked when a NumCodec JSON Codec is extracted
 from Zarr metadata.
 
-int (*NCZ_codec_to_hdf5)(struct NCproplist* env, const char* codec, unsigned int* idp, int* nparamsp, unsigned** paramsp);
+int (*NCZ_codec_to_hdf5)(struct NCproplist* env, const char* codec, unsigned int* idp, size_t* nparamsp, unsigned** paramsp);
 
 @param env -- (in) extra environmental information
 @param codec   -- (in) ptr to JSON string representing the codec.
@@ -154,6 +154,19 @@ int (*NCZ_modify_parameters)(const struct NCproplist* env, unsigned* idp, size_t
 
 /* Opaque */
 struct NCproplist;
+struct NCjson;
+
+/* Test if JSON dict is in raw format.
+@param jraw to test
+@return NCJ_OK if in raw format; NCJ_ERR/NC_ERR otherwise.
+*/
+#ifndef NCraw_test
+#define NC_RAWTAG "hdf5raw"
+#define NC_RAWVERSION "1"
+#define NCraw_test(jraw) (jraw == NULL || NCJsort(jraw) != NCJ_DICT \
+		? NCJ_ERR \
+		: (strcmp(NCJstring(NCJdictlookup(jraw,NC_RAWTAG)),NC_RAWVERSION)!=0 ? NCJ_ERR : NCJ_OK))
+#endif /*NCraw_test*/
 
 /*
 The struct that provides the necessary filter info.

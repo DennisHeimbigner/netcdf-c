@@ -74,6 +74,9 @@ H5Z___can_apply_szip(hid_t H5_ATTR_UNUSED dcpl_id, hid_t type_id, hid_t H5_ATTR_
     unsigned dtype_size;                /* Datatype's size (in bits) */
     H5T_order_t dtype_order;            /* Datatype's endianness order */
 
+    NC_UNUSED(dcpl_id);
+    NC_UNUSED(space_id);
+
     FUNC_ENTER_STATIC
 
     /* Get datatype's size, for checking the "bits-per-pixel" */

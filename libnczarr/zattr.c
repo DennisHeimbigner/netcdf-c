@@ -209,7 +209,7 @@ done:
 }
 
 /**
- * @internal I think all atts should be named the exact same thing, to
+* @internal I think all atts should be named the exact same thing, to
  * avoid confusion!
  *
  * @param ncid File and group ID.
@@ -1080,18 +1080,6 @@ NCZ_attr_convert(const NCjson* src, nc_type typeid, size_t* countp, NCbytes* dst
             goto done;
         break;
 
-    case NCJ_ARRAY:
-        if(typeid == NC_CHAR) {
-            if((stat = charify(src,dst))) goto done;
-            count = ncbyteslength(dst);
-        } else {
-            count = NCJarraylength(src);
-            for(i=0;i<count;i++) {
-                NCjson* value = NCJith(src,i);
-                if((stat = NCZ_convert1(value, typeid, dst))) goto done;
-            }
-        }
-        break;
     case NCJ_STRING:
         if(typeid == NC_CHAR) {
             if((stat = charify(src,dst))) goto done;
@@ -1104,6 +1092,19 @@ NCZ_attr_convert(const NCjson* src, nc_type typeid, size_t* countp, NCbytes* dst
         } else {
             if((stat = NCZ_convert1(src, typeid, dst))) goto done;
             count = 1;
+        }
+        break;
+
+    case NCJ_ARRAY:
+        if(typeid == NC_CHAR) {
+            if((stat = charify(src,dst))) goto done;
+            count = ncbyteslength(dst);
+        } else {
+            count = NCJarraylength(src);
+            for(i=0;i<count;i++) {
+                NCjson* value = NCJith(src,i);
+                if((stat = NCZ_convert1(value, typeid, dst))) goto done;
+            }
         }
         break;
     default: stat = (THROW(NC_ENCZARR)); goto done;
@@ -1194,15 +1195,22 @@ NCZ_sync_dual_att(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, Du
             break;
         case DA_MAXSTRLEN:
 	    assert(zvar != NULL);
+	    assert(zinfo != NULL);
 	    if(zvar->maxstrlen > 0) {
-		if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
-		if((stat = NCZ_set_att_data(file,att,1,&zvar->maxstrlen))) goto done;
+		/* If the value is the current max strlen default, then suppress it */
+		if(zvar->maxstrlen != zinfo->default_maxstrlen) {
+		    if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
+		    if((stat = NCZ_set_att_data(file,att,1,&zvar->maxstrlen))) goto done;
+		}
             } break;
         case DA_DFALTSTRLEN:
 	    assert(zinfo != NULL);
 	    if(zinfo->default_maxstrlen > 0) {
-		if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
-		if((stat = NCZ_set_att_data(file,att,1,&zinfo->default_maxstrlen))) goto done;
+		/* If the value is the global max strlen default, then suppress it */
+		if(zinfo->default_maxstrlen != NCZ_MAXSTR_DFALT) {
+		    if((stat = NCZ_getattr(file,container,aname,NC_INT,&att,&isnew))) goto done;
+		    if((stat = NCZ_set_att_data(file,att,1,&zinfo->default_maxstrlen))) goto done;
+		}
             } break;
         case DA_QUANTIZE:
 	    if(var->quantize_mode > 0) {

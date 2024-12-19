@@ -7,12 +7,12 @@
 
 # The source files for the HDF5 dispatch layer.
 SET(libnczarr_SOURCES
-zinfer.c
-znc4.c
-zfill.c
 zformat.c
-zformat2.c
 zformat3.c
+zformat2.c
+zsync.c
+zinfer.c
+zfill.c
 zarr.c
 zattr.c
 zxcache.c
@@ -34,10 +34,11 @@ ztype.c
 zutil.c
 zvar.c
 zwalk.c
+znc4.c
 zdebug.c
+zformat.h
 zarr.h
 zfill.h
-zformat.h
 zcache.h
 zchunking.h
 zdispatch.h

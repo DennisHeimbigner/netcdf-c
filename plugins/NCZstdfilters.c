@@ -19,8 +19,6 @@ Author: Dennis Heimbigner
 #include "netcdf.h"
 #include "netcdf_filter.h"
 #include "netcdf_filter_build.h"
-#include "netcdf_json.h"
-#include "netcdf_proplist.h"
 
 /* Provide Codec information for the standard filters */
 
@@ -230,6 +228,8 @@ NCZ_zstd_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
     char json[1024];
     uintptr_t zarrformat;
     
+    NC_UNUSED(id);
+
     if(nparams == 0 || params == NULL)
         {stat = NC_EFILTER; goto done;}
 

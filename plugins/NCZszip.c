@@ -22,7 +22,6 @@ Author: Dennis Heimbigner
 #include "netcdf.h"
 #include "netcdf_filter.h"
 #include "netcdf_filter_build.h"
-#include "netcdf_json.h"
 
 #define H5Z_FILTER_SZIP         4       /*szip compression              */
 

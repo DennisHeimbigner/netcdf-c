@@ -380,9 +380,12 @@ there. */
 #define NC_ISSYSERR(err)        ((err) > 0)
 
 #define NC_NOERR        0          /**< No Error */
+#if 0
+/* This is unused, so re-purpose it to generic error */
 #define NC2_ERR         (-1)       /**< Returned for all errors in the v2 API. */
-
-#define NC_EJSON	(-1)	   /**< Malformed JSON. */
+#else
+#define NC_ERR         (-1)       /**< Returned for generic errors */
+#endif
 
 /** Not a netcdf id.
 

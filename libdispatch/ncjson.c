@@ -17,7 +17,7 @@ and do the command:
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
+#endif /*HAVE_CONFIG_H*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -33,13 +33,11 @@ and do the command:
 /* Warning: do not evaluate err more than once */
 #define NCJTHROW(err) ncjbreakpoint(err)
 static int ncjbreakpoint(int err) {return err;}
-#else
+#else /*!NCJCATCH*/
 #define NCJTHROW(err) (err)
-#endif
+#endif /*NCJCATCH*/
 
 /**************************************************/
-#define NCJ_OK 0
-#define NCJ_ERR (-1)
 
 #define NCJ_EOF -2
 
@@ -58,6 +56,8 @@ static int ncjbreakpoint(int err) {return err;}
 /* JSON_WORD Subsumes Number also */
 #define JSON_WORD "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$+-."
 
+#define NCJ_DEFAULTALLOC 16
+
 /**************************************************/
 typedef struct NCJparser {
     char* text;
@@ -71,6 +71,7 @@ typedef struct NCJparser {
 #     define NCJ_TRACE 1
 } NCJparser;
 
+/* This is used only by the unparser */
 typedef struct NCJbuf {
     size_t len; /* |text|; does not include nul terminator */
     char* text; /* NULL || nul terminated */
@@ -81,20 +82,20 @@ typedef struct NCJbuf {
 #if defined(_WIN32) && !defined(__MINGW32__)
 #define strdup _strdup
 #define strcasecmp _stricmp
-#else
+#else /*!WIN32 || __MINGW32*/
 #include <strings.h>
-#endif
+#endif /*defined(_WIN32) && !defined(__MINGW32__)*/
 
 #ifndef nullfree
 #define nullfree(x) {if(x)free(x);}
-#endif
+#endif /*nullfree*/
 #ifndef nulldup
 #define nulldup(x) ((x)?strdup(x):(x))
-#endif
+#endif /*nulldup*/
 
 #if defined NCJDEBUG || defined NCJTRACE
 static char* tokenname(int token);
-#endif
+#endif /*defined NCJDEBUG || defined NCJTRACE*/
 
 /**************************************************/
 /* Forward */
@@ -111,10 +112,15 @@ static void NCJreclaimArray(struct NCjlist*);
 static void NCJreclaimDict(struct NCjlist*);
 static int NCJunescape(NCJparser* parser);
 static char unescape1(char c);
+
 static int listappend(struct NCjlist* list, NCjson* element);
+static int listsetalloc(struct NCjlist* list, size_t sz);
+static int listlookup(const struct NCjlist* list, const char* key, size_t* indexp);
 
 static int NCJcloneArray(const NCjson* array, NCjson** clonep);
 static int NCJcloneDict(const NCjson* dict, NCjson** clonep);
+
+/* These are used only by the unparser */
 static int NCJunparseR(const NCjson* json, NCJbuf* buf, unsigned flags);
 static int bytesappendquoted(NCJbuf* buf, const char* s);
 static int bytesappend(NCJbuf* buf, const char* s);
@@ -127,7 +133,7 @@ static int bytesappendc(NCJbuf* bufp, char c);
 #define OPTSTATIC
 #endif /*NETCDF_JSON_H*/
 
-/* List legal nan and infinity names (lower case) */
+/* List legal nan and infinity names (lower case); keep in strcasecmp sorted order */
 static const char* NANINF[] = {"-infinity","infinity","-infinityf","infinityf","nan","nanf"};
 static const size_t NNANINF = 6;
 
@@ -171,7 +177,7 @@ NCJparsen(size_t len, const char* text, unsigned flags, NCjson** jsonp)
     parser->status = NCJ_OK;
 #ifdef NCJDEBUG
 fprintf(stderr,"json: |%s|\n",parser->text);
-#endif
+#endif /*NCJDEBUG*/
     if((stat=NCJparseR(parser,&json))==NCJ_ERR) goto done;
     /* Must consume all of the input */
     if(parser->pos != (parser->text+len)) {stat = NCJ_ERR; goto done;}
@@ -426,7 +432,7 @@ NCJlex(NCJparser* parser)
 	}
 #ifdef NCJDEBUG
 fprintf(stderr,"%s(%d): |%s|\n",tokenname(token),token,parser->yytext);
-#endif
+#endif /*NCJDEBUG*/
     } /*for(;;)*/
 done:
     if(parser->status == NCJ_ERR)
@@ -440,7 +446,7 @@ done:
 	}
         fprintf(stderr,">>>> token=%s:'%s'\n",tokenname(token),(txt?txt:""));
     }
-#endif
+#endif /*NCJTRACE*/
     return token;
 }
 
@@ -547,6 +553,7 @@ NCJreclaimArray(struct NCjlist* array)
     }
     nullfree(array->contents);
     array->contents = NULL;
+    array->len = 0;
 }
 
 static void
@@ -616,23 +623,36 @@ done:
 }
 
 OPTSTATIC int
-NCJdictget(const NCjson* dict, const char* key, NCjson** valuep)
+NCJdictget(const NCjson* dict, const char* key, NCjson** jvaluep)
 {
     int stat = NCJ_OK;
     size_t i;
 
     if(dict == NULL || dict->sort != NCJ_DICT)
         {stat = NCJTHROW(NCJ_ERR); goto done;}
-    if(valuep) {*valuep = NULL;}
-    for(i=0;i<NCJarraylength(dict);i+=2) {
-	NCjson* jkey = NCJith(dict,i);
+    if(jvaluep) {*jvaluep = NULL;}
+    for(i=0;i<NCJdictlength(dict);i++) {
+	NCjson* jkey = NCJdictkey(dict,i);
+	NCjson* jvalue  = NCJdictvalue(dict,i);
 	if(jkey->string != NULL && strcmp(jkey->string,key)==0) {
-	    if(valuep) {*valuep = NCJith(dict,i+1); break;}
+	    if(jvaluep) {*jvaluep = jvalue;}
+	    break;
 	}	    
     }
 
 done:
     return NCJTHROW(stat);
+}
+
+/* Functional version of NCJdictget */
+OPTSTATIC NCjson*
+NCJdictlookup(const NCjson* dict, const char* key)
+{
+    int stat;
+    NCjson* jvalue = NULL;
+    stat = NCJdictget(dict,key,&jvalue);
+    if(stat != NCJ_OK) jvalue = NULL;
+    return jvalue;
 }
 
 /* Unescape the text in parser->yytext; can
@@ -704,7 +724,7 @@ tokenname(int token)
     }
     return ("NCJ_UNDEF");
 }
-#endif
+#endif /*defined NCJDEBUG || defined NCJTRACE*/
 
 /* Convert a JSON value to an equivalent value of a specified sort */
 OPTSTATIC int
@@ -787,30 +807,72 @@ static int
 listappend(struct NCjlist* list, NCjson* json)
 {
     int stat = NCJ_OK;
-    NCjson** newcontents = NULL;
 
     assert(list->len == 0 || list->contents != NULL);
-    if(json == NULL)
-        {stat = NCJTHROW(NCJ_ERR); goto done;}
-    if(list->len == 0) {
-	nullfree(list->contents);
-	list->contents = (NCjson**)calloc(2,sizeof(NCjson*));
-	if(list->contents == NULL)
-	    {stat = NCJTHROW(NCJ_ERR); goto done;}
-	list->contents[0] = json;
-	list->len++;
-    } else {
-        if((newcontents = (NCjson**)calloc((size_t)(2*list->len)+1,sizeof(NCjson*)))==NULL)
-            {stat = NCJTHROW(NCJ_ERR); goto done;}
-        memcpy(newcontents,list->contents, (size_t)list->len*sizeof(NCjson*));
-	newcontents[list->len] = json;
-	list->len++;
-	free(list->contents);
-	list->contents = newcontents; newcontents = NULL;
-    }
+    if(json == NULL) {stat = NCJTHROW(NCJ_ERR); goto done;}
+    /* Make space for two new elements; better than one, but still probably not optimal */
+    if((stat = listsetalloc(list,list->len + 2))<0) goto done;
+    /* Append the new item */
+    list->contents[list->len++] = json;
 
 done:
-    nullfree(newcontents);
+    return NCJTHROW(stat);
+}
+
+/* Locate the index of a key in a list of (key,value) pairs.
+@param list pointer to the list
+@param key  for which to search
+@param indexp store index of match here
+@return NCJ_OK if key found, NCJ_EOF if not found, NCJ_ERR if error
+*/
+static int
+listlookup(const struct NCjlist* list, const char* key, size_t* indexp)
+{
+    int stat = NCJ_OK;
+    int i,len,match = -1;
+
+    if(list == NULL || key == NULL || strlen(key) == 0 || list->len %2 == 1)
+	{stat = NCJTHROW(NCJ_ERR); goto done;}
+    len = (int)list->len; /* => |list| < 2 billion or do */
+    for(i=0;i<len;i+=2) {
+	const NCjson* jkey = list->contents[i];
+	if(jkey != NULL && jkey->string != NULL && strcmp(jkey->string,key)==0) {match = i;break;}	    
+    }
+    if(match < 0) {stat = NCJ_EOF;}  else {if(indexp) *indexp = (size_t)match;}
+done:
+    return NCJTHROW(stat);
+}
+
+/* Increase the space available to dict/array.
+   Even if sz is zero, ensure that the object's list alloc is >= 1.
+@param list pointer to the list
+@param sz increase allocation to this size
+@return NCJ_ERR|NCJ_OK
+*/
+static int
+listsetalloc(struct NCjlist* list, size_t sz)
+{
+    int stat = NCJ_OK;
+    NCjson** newcontents = NULL;
+
+    if(list == NULL) {stat = NCJTHROW(NCJ_ERR); goto done;}
+    assert(list->alloc == 0 || list->contents != NULL);
+    if(sz == 0) sz = 1; /* Guarantee that the list->content is not NULL */
+    if(list->alloc >= sz) goto done;
+    /* Since sz > list->alloc > 0, we need to allocate space */
+    if((newcontents=(NCjson**)calloc(sz,sizeof(NCjson*))) == NULL) {stat = NCJTHROW(NCJ_ERR); goto done;}
+    list->alloc = sz;
+    if(list->contents != NULL && list->len > 0) {
+	/* Preserve any existing contents */
+	memcpy((void*)newcontents,
+		(void*)list->contents,
+		sizeof(NCjson*)*list->len);
+    }
+    free(list->contents);
+    list->contents = newcontents; newcontents = NULL;
+    assert(list->alloc > 0 && list->contents != NULL);
+done:
+    if(newcontents != NULL) free(newcontents);
     return NCJTHROW(stat);
 }
 
@@ -855,6 +917,7 @@ NCJcloneArray(const NCjson* array, NCjson** clonep)
     size_t i;
     NCjson* clone = NULL;
     if((stat=NCJnew(NCJ_ARRAY,&clone))==NCJ_ERR) goto done;
+    if((stat=listsetalloc(&clone->list,array->list.len))<0) goto done;
     for(i=0;i<NCJarraylength(array);i++) {
 	NCjson* elem = NCJith(array,i);
 	NCjson* elemclone = NULL;
@@ -874,6 +937,7 @@ NCJcloneDict(const NCjson* dict, NCjson** clonep)
     size_t i;
     NCjson* clone = NULL;
     if((stat=NCJnew(NCJ_DICT,&clone))==NCJ_ERR) goto done;
+    if((stat=listsetalloc(&clone->list,dict->list.len))<0) goto done;
     for(i=0;i<NCJarraylength(dict);i++) {
 	NCjson* elem = NCJith(dict,i);
 	NCjson* elemclone = NULL;
@@ -905,15 +969,18 @@ done:
 
 /* Insert key-value pair into a dict object. key will be strdup'd, jvalue will be claimed */
 OPTSTATIC int
-NCJinsert(NCjson* object, const char* key, NCjson* jvalue)
+NCJinsert(NCjson* dict, const char* key, NCjson* jvalue)
 {
     int stat = NCJ_OK;
     NCjson* jkey = NULL;
-    if(object == NULL || object->sort != NCJ_DICT || key == NULL || jvalue == NULL)
-	{stat = NCJTHROW(NCJ_ERR); goto done;}
+    if(dict == NULL
+	|| dict->sort != NCJ_DICT
+	|| key == NULL
+	|| jvalue == NULL) {stat = NCJTHROW(NCJ_ERR); goto done;}
     if((stat = NCJnewstring(NCJ_STRING,key,&jkey))==NCJ_ERR) goto done;
-    if((stat = NCJappend(object,jkey))==NCJ_ERR) goto done;
-    if((stat = NCJappend(object,jvalue))==NCJ_ERR) goto done;
+    if((stat=listsetalloc(&dict->list,dict->list.len+2))<0) goto done;
+    if((stat = NCJappend(dict,jkey))==NCJ_ERR) goto done;
+    if((stat = NCJappend(dict,jvalue))==NCJ_ERR) goto done;
 done:
     return NCJTHROW(stat);
 }
@@ -949,6 +1016,7 @@ NCJinsertint(NCjson* object, const char* key, long long value)
     if((stat = NCJnewstring(NCJ_STRING,key,&jkey))==NCJ_ERR) goto done;
     snprintf(digits,sizeof(digits),"%lld",value);
     if((stat = NCJnewstring(NCJ_INT,digits,&jvalue))==NCJ_ERR) goto done;
+    listsetalloc(&object->list,object->list.len + 2);
     if((stat = NCJappend(object,jkey))==NCJ_ERR) goto done;
     if((stat = NCJappend(object,jvalue))==NCJ_ERR) goto done;
 done:
@@ -989,6 +1057,57 @@ NCJappendstring(NCjson* object, int sort, const char* s)
 	return NCJTHROW(NCJ_ERR);
     }
     return NCJTHROW(NCJ_OK);
+}
+
+/* Append int value into an array/dict object. */
+OPTSTATIC int
+NCJappendint(NCjson* object, long long value)
+{
+    int stat = NCJ_OK;
+    NCjson* jvalue = NULL;
+    char digits[64];
+ 
+    snprintf(digits,sizeof(digits),"%lld",value);
+    NCJcheck(NCJnewstring(NCJ_INT,digits,&jvalue));
+    NCJcheck(NCJappend(object,jvalue)); jvalue = NULL;
+done:
+    NCJreclaim(jvalue);
+    return NCJTHROW(stat);
+}
+
+/* Overwrite key-value pair in a dict object.
+   If key does not exist, then act like NCJinsert().
+*/
+OPTSTATIC int
+NCJoverwrite(NCjson* dict, const char* key, NCjson* jvalue)
+{
+    int stat = NCJ_OK;
+    size_t index;
+    NCjson* jkey = NULL;
+    NCjson* oldvalue = NULL;
+
+    if(dict == NULL
+	|| dict->sort != NCJ_DICT
+	|| key == NULL
+	|| jvalue == NULL) {stat = NCJTHROW(NCJ_ERR); goto done;}
+    /* See if key already exists */
+    switch(stat=listlookup(&dict->list,key,&index)) {
+    case NCJ_OK:
+	/* Overwrite value part */
+	oldvalue = dict->list.contents[index];
+	dict->list.contents[index] = jvalue;
+	NCJreclaim(oldvalue);
+	break;
+    case NCJ_EOF: /* Not found */
+	if((stat=listsetalloc(&dict->list,dict->list.len+2))<0) goto done;
+	if((stat = NCJappend(dict,jkey))==NCJ_ERR) goto done;
+	if((stat = NCJappend(dict,jvalue))==NCJ_ERR) goto done;
+	break;
+    case NCJ_ERR:
+    default: goto done;
+    }
+done:
+    return NCJTHROW(stat);
 }
 
 /**************************************************/
@@ -1189,13 +1308,16 @@ netcdf_supresswarnings(void)
     ignore = (void*)NCJnewstring;
     ignore = (void*)NCJnewstringn;
     ignore = (void*)NCJdictget;
+    ignore = (void*)NCJdictlookup;
     ignore = (void*)NCJcvt;
     ignore = (void*)NCJaddstring;
     ignore = (void*)NCJappend;
     ignore = (void*)NCJappendstring;
+    ignore = (void*)NCJappendint;
     ignore = (void*)NCJinsert;
     ignore = (void*)NCJinsertstring;
     ignore = (void*)NCJinsertint;
+    ignore = (void*)NCJoverwrite;
     ignore = (void*)NCJdictsort;
     ignore = (void*)NCJdump;
     (void)ignore;

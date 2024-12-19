@@ -49,6 +49,9 @@ H5PLget_plugin_info(void)
 static htri_t
 H5Z_unknown_can_apply(hid_t dcpl_id, hid_t type_id, hid_t space_id)
 {
+    NC_UNUSED(dcpl_id);
+    NC_UNUSED(type_id);
+    NC_UNUSED(space_id);
     return 1; /* Assume it can always apply */
 }
 
@@ -59,6 +62,10 @@ H5Z_filter_unknown(unsigned int flags, size_t cd_nelmts,
 {
     void* newbuf;
     
+    NC_UNUSED(cd_nelmts);
+    NC_UNUSED(cd_values);
+    NC_UNUSED(nbytes);
+
     if (flags & H5Z_FLAG_REVERSE) {
         /* Replace buffer */
         newbuf = H5allocate_memory(*buf_size,0);
@@ -121,6 +128,7 @@ NCZ_unknown_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigne
     int stat = NC_NOERR;
 
     NC_UNUSED(env);
+    NC_UNUSED(codec_json);
     
     *nparamsp = 0;
     *paramsp = NULL;

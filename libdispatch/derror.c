@@ -100,6 +100,8 @@ const char *nc_strerror(int ncerr1)
    {
       case NC_NOERR:
 	 return "No error";
+      case NC_ERR:
+         return "Non-specific error";
       case NC_EBADID:
 	 return "NetCDF: Not a valid ID";
       case NC_ENFILE:
@@ -285,8 +287,6 @@ const char *nc_strerror(int ncerr1)
 	 return "NetCDF: Unclassified failure in accessing a dynamically loaded plugin";
       case NC_ENOTZARR:
 	 return "Malformed (NC)Zarr file";
-      case NC_EJSON:
-	 return "Malformed JSON";
      default:
 #ifdef USE_PNETCDF
         /* The behavior of ncmpi_strerror here is to return

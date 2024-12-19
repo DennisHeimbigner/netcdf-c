@@ -19,9 +19,8 @@ Author: Dennis Heimbigner
 #include "netcdf.h"
 #include "netcdf_filter.h"
 #include "netcdf_filter_build.h"
-#include "netcdf_json.h"
-#include "netcdf_proplist.h"
 #include "netcdf_vutils.h"
+#include "h5misc.h"
 
 #ifdef HAVE_SZ
 #include <szlib.h>
@@ -61,8 +60,8 @@ static int NCZ_szip_modify_parameters(const NCproplist*, unsigned* idp, size_t* 
 /* Provide a default codec for HDF5 filters.
    This encodes the parameters of the HDF5 filter
    into one of these two codec forms:
-   zarr v2: {"id": "hdf5raw", "hdf5id": "<hdf5-id>, "nparams": <uint>, "0": <uint>...,"<N>": <uint>}
-   zarr v3: {"name": "hdf5raw, "configuration": {"hdf5id": <uint>, "nparams": <uint>, "0": <uint>...,"<N>": <uint>}}
+   zarr v2: {"id": "<hdf5-id>", "hdf5raw": "<version>", "nparams": <uint-hex>, "0": <uint-hex>...,"<N>": <uint-hex>}
+   zarr v3: {"name": "<hdf5-id>, "configuration": {"hdf5raw": "<version>", "nparams": <uint-hex>, "0": <uint-hex>...,"<N>": <uint-hex>}}
    This codec is called hdf5raw.
    NOTES:
    1. this cannot be used if a modify_parameters function is required.
@@ -83,16 +82,14 @@ static NCZ_codec_t NCZ_hdf5_raw_codec = {
 static int
 NCZ_raw_codec_to_hdf5(const NCproplist* env, const char* codec, unsigned* idp, size_t* nparamsp, unsigned** paramsp)
 {
-    int i,stat = NC_NOERR;
+    int stat = NC_NOERR;
     NCjson* jcodec = NULL;
     const NCjson* jname = NULL;
     const NCjson* jdict = NULL;
-    const NCjson* jtmp = NULL;
     const char* name = NULL;
-    struct NCJconst jc;
     uintptr_t zarrformat = 0;
     unsigned hdf5id = 0;
-    size_t nparams,npairs = 0;
+    size_t nparams = 0;
     unsigned* params = NULL;
   
     if(nparamsp == NULL || paramsp == NULL)
@@ -102,7 +99,7 @@ NCZ_raw_codec_to_hdf5(const NCproplist* env, const char* codec, unsigned* idp, s
 
     /* parse the JSON */
     if(NCJparse(codec,0,&jcodec)<0) {stat = NC_EFILTER; goto done;}
-    if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
+    if(jcodec == NULL || NCJsort(jcodec) != NCJ_DICT) {stat = NC_EFILTER; goto done;}
 
     if(zarrformat == 3) {
         if(NCJdictget(jcodec,"name",(NCjson**)&jname)<0) {stat = NC_EFILTER; goto done;}
@@ -113,44 +110,19 @@ NCZ_raw_codec_to_hdf5(const NCproplist* env, const char* codec, unsigned* idp, s
     }
 
     /* Verify the codec ID */
-    if(jname == NULL || !NCJisatomic(jname)) {stat = NC_EFILTER; goto done;}
+    if(jdict == NULL || jname == NULL || NCraw_test(jdict)<0) {stat = NC_EFILTER; goto done;}
+    if(NCJsort(jname) != NCJ_INT) {stat = NC_EFILTER; goto done;}
     name = NCJstring(jname);
     if(1 != sscanf(name,"%d",&hdf5id)) {stat = NC_EINVAL; goto done;}
     /* Return the id */
     if(idp) *idp = hdf5id;
 
-    /* Get nparams */
-    if(NCJdictget(jdict,"nparams",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}       
-    if(jtmp == NULL || NCJsort(jtmp) != NCJ_INT) {stat = NC_EFILTER; goto done;}
-    if(NCJcvt(jtmp,NCJ_INT,&jc)<0) {stat = NC_EFILTER; goto done;}
-    if(jc.ival < 0 || jc.ival > NC_MAX_UINT) {stat = NC_EINVAL; goto done;}
-    nparams = (unsigned)jc.ival;
+    /* verify that the codec is in rawformat */
+    if(NCraw_test(jdict)<0) {stat = NC_EFILTER; goto done;}
 
-    if(zarrformat == 3)
-       npairs = 1 + nparams;
-    else
-       npairs = 1 + 1 + nparams;
+    /* Decode */
+    if((stat = NCraw_decode(jdict,&nparams,&params))) goto done;
 
-    /* Validate nparams */
-    if(NCJdictlength(jdict) != npairs) {stat = NC_EFILTER; goto done;}
-
-    if(nparams == 0) goto setvalues;
-    
-    if((params = (unsigned*)calloc(nparams,sizeof(unsigned)))== NULL)
-        {stat = NC_ENOMEM; goto done;}
-
-    /* Get params */
-    for(i=0;i<(int)nparams;i++) {
-	unsigned param;
-        char n[64];
-	snprintf(n,sizeof(n),"%u",i);    
-        if(NCJdictget(jdict,n,(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;} /* get parameter "<i>" */
-        if(jtmp == NULL || NCJsort(jtmp) != NCJ_INT) {stat = NC_EFILTER; goto done;}
-	if(1 != sscanf(NCJstring(jtmp),"%u",&param)) {stat = NC_EFILTER; goto done;}
-	params[i] = param;
-    }
-    
-setvalues:
     if(idp) *idp = hdf5id;
     *nparamsp = nparams;
     *paramsp = params; params = NULL;
@@ -164,40 +136,37 @@ done:
 static int
 NCZ_raw_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const unsigned* params, char** codecp)
 {
-    int i,stat = NC_NOERR;
+    int stat = NC_NOERR;
+    char* jsonstr = NULL;
     uintptr_t zarrformat = 0;
-    VString* json = NULL;
-    char stmp[128];
-    
+    NCjson* jcodec = NULL;
+    NCjson* jcfg = NULL;
+    char digits[64];
+
     if(codecp == NULL) {stat = NC_EINTERNAL; goto done;}
     
+    if(nparams != 0 && params == NULL)
+        {stat = NC_EINVAL; goto done;}
+
     ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
-    json = vsnew();
+    snprintf(digits,sizeof(digits),"%u",id);/* Compute id/name */
+    if((stat = NCraw_encode(nparams,params,&jcfg))) goto done;
 
     if(zarrformat == 3) {
-	snprintf(stmp,sizeof(stmp),"{\"name\": %d, \"configuration\": {",id);
+	jcodec = jcfg; jcfg = NULL;
+	NCJinsertstring(jcodec,"id",digits);
     } else {
-	snprintf(stmp,sizeof(stmp),"{\"id\": %d, ",id);
+	NCJcheck(NCJnew(NCJ_DICT,&jcodec));
+	NCJinsertstring(jcodec,"name",digits);
+	NCJinsert(jcodec,"configuration",jcfg);
     }
-    vscat(json,stmp);
 
-    snprintf(stmp,sizeof(stmp),"\"nparams\": %u",(unsigned)nparams);
-    vscat(json,stmp);
-
-    /* add the raw parameters */
-    for(i=0;i<(int)nparams;i++) {
-	snprintf(stmp,sizeof(stmp),", \"%u\": %u",i,params[i]);
-	vscat(json,stmp);
-    }
-    if(zarrformat == 3)
-        vscat(json,"}");
-    vscat(json,"}");
-
-    if(codecp) *codecp = vsextract(json);
+    NCJcheck(NCJunparse(jcodec,0,&jsonstr));
+    if(codecp) {*codecp = jsonstr; jsonstr = NULL;}
     
 done:
-    vsfree(json);
+    if(jsonstr) free(jsonstr);
     return stat;
 }
 
@@ -240,6 +209,10 @@ NCZ_shuffle_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, co
     char json[1024];
     uintptr_t zarrformat = 0;
     
+    NC_UNUSED(id);
+    NC_UNUSED(nparams);
+    NC_UNUSED(params);
+    
     ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     if(zarrformat == 3) {
@@ -265,6 +238,10 @@ NCZ_shuffle_modify_parameters(const NCproplist* env, unsigned* idp, size_t* vnpa
     char vname[NC_MAX_NAME+1];
     unsigned int* params = NULL;
     uintptr_t ncid, varid;
+
+    NC_UNUSED(idp);
+    NC_UNUSED(vnparamsp);
+    NC_UNUSED(vparamsp);
 
     /* Ignore the visible parameters */
 
@@ -314,6 +291,9 @@ NCZ_fletcher32_codec_to_hdf5(const NCproplist* env, const char* codec, unsigned*
     int stat = NC_NOERR;
 
     NC_UNUSED(codec);
+    NC_UNUSED(env);
+    NC_UNUSED(idp);
+
     if(!nparamsp || !paramsp) {stat = NC_EINTERNAL; goto done;}
 
     *nparamsp = 0;
@@ -329,6 +309,10 @@ NCZ_fletcher32_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams,
     int stat = NC_NOERR;
     char json[1024];
     uintptr_t zarrformat = 0;
+
+    NC_UNUSED(id);
+    NC_UNUSED(nparams);
+    NC_UNUSED(params);
 
     ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
@@ -353,6 +337,8 @@ NCZ_fletcher32_modify_parameters(const NCproplist* env, unsigned* idp, size_t* v
 
     NC_UNUSED(env);
     NC_UNUSED(idp);
+    NC_UNUSED(vnparamsp);
+    NC_UNUSED(vparamsp);
 
     /* Ignore the visible parameters */
 
@@ -440,6 +426,8 @@ NCZ_deflate_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, co
     unsigned level = 0;
     char json[1024];
     uintptr_t zarrformat = 0;
+
+    NC_UNUSED(id);
 
     if(nparams == 0 || params == NULL)
         {stat = NC_EFILTER; goto done;}
@@ -531,6 +519,9 @@ NCZ_szip_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
     char json[2048];
     uintptr_t zarrformat = 0;
 
+    NC_UNUSED(id);
+    NC_UNUSED(nparams);
+    
     ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     if(zarrformat == 3) {
@@ -568,6 +559,8 @@ NCZ_szip_modify_parameters(const NCproplist* env, unsigned* idp, size_t* vnparam
     size_t wnparams = 4;
     uintptr_t ncid, varid;
     
+    NC_UNUSED(idp);
+
     if(wnparamsp == NULL || wparamsp == NULL)
         {ret_value = NC_EFILTER; goto done;}
     if(vnparamsp == NULL || vparamsp == NULL)

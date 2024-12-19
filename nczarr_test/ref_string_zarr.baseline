@@ -6,7 +6,6 @@ variables:
 	char c(d2) ;
 		c:_FillValue = "" ;
 	string v(d2) ;
-		v:_nczarr_maxstrlen = 6 ;
 		string v:_FillValue = "" ;
 	string truncated(_scalar_) ;
 		truncated:_nczarr_maxstrlen = 4 ;

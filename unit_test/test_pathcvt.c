@@ -59,7 +59,7 @@ reclaimprog(Inst* prog)
 {
     size_t i;
     for(i=0;;i++) {
-	if(reclaiminst(&prog[i])) break;
+	reclaiminst(&prog[i]);
     }
 }
 
@@ -370,3 +370,4 @@ main(int argc, char** argv)
     nc_finalize();
     return (failcount > 0 ? 1 : 0);
 }
+

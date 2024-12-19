@@ -24,8 +24,6 @@
 #include <math.h>
 #include <assert.h>
 
-#include "netcdf_json.h"
-
 #include "netcdf.h"
 #include "netcdf_filter.h"
 #include "netcdf_filter_build.h"

@@ -148,7 +148,7 @@ Optionally inserted into any array zarr.json as an attribute:
 ````
 "_nczarr_array": "{
 \"dimension_references\": [\"/g1/g2/d1\", \"/d2\",...],
-\"type_alias\": "<string indicating special type aliasing>" // optional
+\"nczarr_type\": "<dtype specifing nczarr/netcdf-4 type>" // optional
 \"maxstrlen\": "<integer>" // optional
 }"
 ````
@@ -169,20 +169,19 @@ Similarly ````/g1/g2/d2```` defines a dimension "d2" defined in the
 group g2, which in turn is a subgroup of group g1, which is a subgroup
 of the root group.
 
-The *type_alias* key is used to annotate the type of an array
-to allow discovery of netcdf-4 specific types.
+The *nczarr_type* key is used to annotate the type of an array
+to allow use of netcdf-4 specific types not represented in the standard Zarr V3 types.
 Specifically, there are three current cases:
-| dtype | type_alias |
-| ----- | ---------- |
-| uint8 | char       |
-| rn    | string     |
-| uint8 | json       |
+| dtype | nczarr_type |
+| ----- | ----------- |
+| uint8 | char        |
+| rn    | string      |
 
 If, for example, an array's dtype is specified as *uint8*, then it may be that
 it is actually of unsigned 8-bit integer type. But it may actually be of some
 netcdf-4 type that is encoded as *uint8* in order to be recognized by other -- pure zarr--
 implementations. So, for example, if the netcdf-4 type is *char*, then the array's
-dtype is *uint8*, but its type alias is *char*.
+dtype is *uint8*, but its nczarr type is *char*.
 
 Optionally Inserted into any group zarr.json or array zarr.json is the extra attribute.
 "_nczarr_attrs": {\"attribute_types\": [{\"name\": \"attr1\", \"configuration\": {\"type\": \"<dtype>\"}}, ...]}

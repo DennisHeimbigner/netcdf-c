@@ -95,6 +95,8 @@ H5Z__set_local_shuffle(hid_t dcpl_id, hid_t type_id, hid_t space_id)
     unsigned cd_values[H5Z_SHUFFLE_TOTAL_NPARMS];  /* Filter parameters */
     herr_t ret_value = 1;         /* Return value */
 
+    NC_UNUSED(space_id);
+
     /* Set "local" parameter for this dataset */
     if((cd_values[0] = (unsigned)H5Tget_size(type_id)) == 0)
 	HGOTO_ERROR(H5E_PLINE, H5E_BADTYPE, FAIL, "bad datatype size")

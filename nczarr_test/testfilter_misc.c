@@ -71,6 +71,20 @@ static unsigned int filterid = 0;
 static size_t nparams = 0;
 static unsigned int params[MAXPARAMS];
 
+/* Test values: must match plugins/H5Zmisc.c */
+struct All spec = {
+(char)-17,		/* signed byte */
+(unsigned char)23,	/* unsigned byte */
+(signed short)-25,			/* signed short */
+(unsigned short)27U,			/* unsigned short */
+77,			/* signed int */
+93U,			/* unsigned int */
+789.0f,			/* float */
+-9223372036854775807LL,	/* signed int64 */
+18446744073709551615ULL,/* unsigned int64 */
+(double)12345678.12345678/* double */
+};
+
 /* Forward */
 static int test_test1(void);
 static void init(int argc, char** argv);

@@ -290,7 +290,7 @@ NCZ_plugin_lookup(const char* codecid, NCZ_Plugin** pluginp)
 	NCZ_Plugin* p = gs->zarr.loaded_plugins[i];
         if(p == NULL) continue;
         if(p == NULL|| p->codec.codec == NULL) continue; /* no plugin or no codec */
-	if(p->codec.ishdf5raw) {
+	if((p->codec.ishdf5raw)) {
 	    /* get true id */
 	    snprintf(digits,sizeof(digits),"%d",p->hdf5.filter->id);
 	    trueid = digits;

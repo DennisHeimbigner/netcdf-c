@@ -33,12 +33,10 @@ will generate an error.
 #include <errno.h>
 
 #include "netcdf_filter_build.h"
-#include "netcdf_json.h"
 
 #include "h5bzip2.h"
 
 /* Forward */
-static htri_t H5Z_bzip2_can_apply(hid_t dcpl_id, hid_t type_id, hid_t space_id);
 static size_t H5Z_filter_bzip2(unsigned flags,size_t cd_nelmts,const unsigned cd_values[],
                     size_t nbytes,size_t *buf_size,void**buf);
 
@@ -48,7 +46,7 @@ const H5Z_class2_t H5Z_BZIP2[1] = {{
     1,              /* encoder_present flag (set to true) */
     1,              /* decoder_present flag (set to true) */
     "bzip2",                  /* Filter name for debugging    */
-    (H5Z_can_apply_func_t)H5Z_bzip2_can_apply, /* The "can apply" callback  */
+    NULL,			/* The "can apply" callback  */
     NULL,                       /* The "set local" callback     */
     (H5Z_func_t)H5Z_filter_bzip2,         /* The actual filter function   */
 }};
@@ -66,17 +64,6 @@ const void*
 H5PLget_plugin_info(void)
 {
     return H5Z_BZIP2;
-}
-
-/* Make this explicit */
-/*
- * The "can_apply" callback returns positive a valid combination, zero for an
- * invalid combination and negative for an error.
- */
-static htri_t
-H5Z_bzip2_can_apply(hid_t dcpl_id, hid_t type_id, hid_t space_id)
-{
-    return 1; /* Assume it can always apply */
 }
 
 static size_t

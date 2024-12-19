@@ -110,7 +110,6 @@ param[6] -- compressor to use
 #include <assert.h>
 
 #include "netcdf_filter_build.h"
-#include "netcdf_json.h"
 
 #include "H5Zblosc.h"
 
@@ -153,6 +152,8 @@ herr_t blosc_set_local(hid_t dcpl, hid_t type, hid_t space)
   hid_t super_type;
   H5T_class_t classt;
   hsize_t chunkdims[32];
+
+  NC_UNUSED(space);
 
   assert(sizeof(hid_t) == 8);
   

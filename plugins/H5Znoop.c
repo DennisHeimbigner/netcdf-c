@@ -6,7 +6,7 @@
 #include <sys/types.h>
 
 #include "netcdf_filter_build.h"
-#include "netcdf_json.h"
+#include "h5misc.h"
 
 #ifndef NOOP_INSTANCE
 #define NOOP_INSTANCE 0
@@ -87,6 +87,9 @@ H5PLget_plugin_info(void)
 static htri_t
 H5Z_noop_can_apply(hid_t dcpl_id, hid_t type_id, hid_t space_id)
 {
+    NC_UNUSED(dcpl_id);
+    NC_UNUSED(type_id);
+    NC_UNUSED(space_id);
     return 1; /* Assume it can always apply */
 }
 
@@ -100,6 +103,7 @@ H5Z_filter_noop(unsigned int flags, size_t cd_nelmts,
     const char* direction = (flags & H5Z_FLAG_REVERSE) ? "decompress" : "compress";
     
     NC_UNUSED(instance);
+    NC_UNUSED(nbytes);
 
     printf("direction=%s id=%lu cd_nelmts=%lu cd_values=",direction,(unsigned long)H5Z_NOOP[0].id,(unsigned long)cd_nelmts);
     for(i=0;i<cd_nelmts;i++)
@@ -177,10 +181,8 @@ NCZ_noop_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
     NCjson* jcodec = NULL;
     const NCjson* jdict = NULL;
     const NCjson* jtmp = NULL;
-    size_t i = 0;
     size_t nparams = 0;
     unsigned* params = NULL;
-    char field[1024];
     uintptr_t zarrformat = 0;
     
     ncproplistget(env,"zarrformat",&zarrformat,NULL);
@@ -195,12 +197,12 @@ NCZ_noop_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* 
         if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
         if(strcmp(NCJstring(jtmp),NCZ_noop_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
         if(NCJdictget(jcodec,"configuration",(NCjson**)(NCjson**)&jdict)<0) {stat = NC_EFILTER; goto done;}
-	if((stat = NCZraw_decode(jcodec,&nparams,&params))) goto done;
+	if((stat = NCraw_decode(jdict,&nparams,&params))) goto done;
     } else { /* v2 */
         if(NCJdictget(jcodec,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
         if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
         if(strcmp(NCJstring(jtmp),NCZ_noop_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
-        if(NCJdictget(jcodec,"configuration",(NCjson**)(NCjson**)&jdict)<0) {stat = NC_EFILTER; goto done;}
+	if((stat = NCraw_decode(jcodec,&nparams,&params))) goto done;
     }
     if(nparamsp) *nparamsp = nparams;
     if(paramsp) {*paramsp = params; params = NULL;}
@@ -216,7 +218,6 @@ static int
 NCZ_noop_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
-    size_t i;
     char* jsonstr = NULL;
     uintptr_t zarrformat = 0;
     NCjson* jcodec = NULL;
@@ -229,7 +230,7 @@ NCZ_noop_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
 
     ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
-    if((stat = NCZraw_encode(nparams,params,&jcfg))) goto done;
+    if((stat = NCraw_encode(nparams,params,&jcfg))) goto done;
     if(zarrformat == 2) {
 	jcodec = jcfg; jcfg = NULL;
 	NCJinsertstring(jcodec,"id",NCZ_noop_codec.codecid);
@@ -242,6 +243,7 @@ NCZ_noop_hdf5_to_codec(const NCproplist* env, unsigned id, size_t nparams, const
     if(codecp) {*codecp = jsonstr; jsonstr = NULL;}
     
 done:
+    NCJreclaim(jcodec);
     if(jsonstr) free(jsonstr);
     return stat;
 }

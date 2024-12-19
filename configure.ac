@@ -165,11 +165,11 @@ if test "x$enable_netcdf4" != x ; then
 fi
 
 # --enable-netcdf-4 overrides --enable-netcdf4 if latter not defined
-if test "x$enable_netcdf_4" != x && test "x$enable_netcdf4" == x ; then
+if test "x$enable_netcdf_4" != x && test "x$enable_netcdf4" = x ; then
 enable_netcdf4="$enable_netcdf_4"
 fi
 # --enable-netcdf4 overrides --enable-hdf5 if latter not defined
-if test "x$enable_netcdf4" != x && test "x$enable_hdf5" == x ; then
+if test "x$enable_netcdf4" != x && test "x$enable_hdf5" =  x ; then
 enable_hdf5="$enable_netcdf4"
 fi
 # Otherwise, use --enable-hdf5
@@ -969,11 +969,10 @@ else
    AC_ARG_ENABLE([nczarr-zip],
                [AS_HELP_STRING([--enable-nczarr-zip],
                                  [enable netcdf zip support (default off)])])
-   enable_nczarr_zip=no #default
-   if test "x$have_zip" = xyes && test "x$enable_nczarr_zip" = xyes ; then enable_nczarr_zip=yes ; fi
+   test "x$have_zip" = xyes -a "x$enable_nczarr_zip" = xyes || enable_nczarr_zip=no
    AC_MSG_RESULT([${enable_nczarr_zip}])
    if test "x$enable_nczarr_zip" = xyes ; then
-   AC_DEFINE([NETCDF_ENABLE_NCZARR_ZIP], [1], [If true, then libzip found])
+     AC_DEFINE([NETCDF_ENABLE_NCZARR_ZIP], [1], [If true, then libzip found and ZIP for nczarr enabled.])
    fi
 
    # Check for enabling of S3 support
