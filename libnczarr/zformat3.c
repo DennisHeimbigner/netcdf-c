@@ -1181,6 +1181,7 @@ ZF3_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ
 }
 #endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
 
+
 /*Search*/
 int
 ZF3_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrpnames)
