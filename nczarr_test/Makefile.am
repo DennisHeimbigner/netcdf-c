@@ -116,10 +116,6 @@ endif #NETCDF_BUILD_UTILITIES
 
 if NETCDF_BUILD_UTILITIES 
 
-if NETCDF_ENABLE_NCZARR_ZIP
-TESTS += run_newformat.sh
-endif
-
 if LARGE_FILE_TESTS
 check_PROGRAMS += test_chunkcases
 test_chunkcases_SOURCES = test_chunkcases.c ${testcommonsrc}

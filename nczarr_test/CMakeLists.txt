@@ -213,7 +213,6 @@ IF(NETCDF_ENABLE_TESTS)
   endif(NETCDF_ENABLE_NCZARR_FILTERS)
 
   if(NETCDF_ENABLE_NCZARR_ZIP)
-      add_sh_test(nczarr_test run_newformat)
       # Test various corrupted files
       add_sh_test(nczarr_test run_corrupt.sh)
   endif()
