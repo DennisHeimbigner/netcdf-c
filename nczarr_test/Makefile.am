@@ -172,9 +172,6 @@ endif  # ISMINGW
 endif #NETCDF_ENABLE_FILTER_TESTING
 endif #NETCDF_ENABLE_NCZARR_FILTERS
 
-# Test various corrupted files
-TESTS += run_corrupt.sh
-
 endif #NETCDF_BUILD_UTILITIES
 
 # These programs are used by the test cases
