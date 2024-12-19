@@ -1082,6 +1082,7 @@ done:
     return THROW(stat);
 }
 
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
 /*Filter Processing*/
 static int
 ZF3_encode_filter(NC_FILE_INFO_T* file, NCZ_Filter* filter, NCjson** jfilterp)
@@ -1166,6 +1167,20 @@ done:
     ncz_codec_clear(&codec);
     return THROW(stat);
 }
+#else /!*NETCDF_ENABLE_NCZARR_FILTERS*/
+static int
+ZF3_encode_filter(NC_FILE_INFO_T* file, NCZ_Filter* filter, NCjson** jfilterp)
+{
+    return NC_NOERR;
+}
+
+static int
+ZF3_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter)
+{
+    return NC_NOERR;
+}
+#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
+
 
 /*Search*/
 int

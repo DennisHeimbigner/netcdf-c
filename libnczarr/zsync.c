@@ -220,6 +220,7 @@ done:
     return ZUNTRACE(THROW(stat));
 }
 
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
 static int
 ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj)
 {
@@ -237,6 +238,13 @@ ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj)
 done:
     return THROW(stat);
 }
+#else /*!NETCDF_ENABLE_NCZARR_FILTERS*/
+static int
+ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj)
+{
+    return NC_NOERR;
+}
+#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
 
 /* Some attributes need to be computed because they are not stored in the NC_XXX_INFO_T structs.
  *  The current such attributes are:
