@@ -1135,7 +1135,6 @@ There are couple things to note about hdf5raw:
 1. this cannot be used if a modify_parameters function is required.
 2. this representation will not be usable by other Zarr implementations, unless of course they choose to implement it.
 
-
 ## Appendix G. Standard Filters  {#filters_appendixg}
 
 Support for a select set of standard filters is built into the NetCDF API.
@@ -1169,7 +1168,7 @@ When installing the netcdf library, the following other libraries must be instal
 2. The HDF5 wrapper for *libzstd.so* -- There are several options for obtaining this (see [Appendix H](#filters_appendixh).)
 3. (Optional) The Zarr wrapper for *libzstd.so* -- you need this if you intend to read/write Zarr datasets that were compressed using zstandard; again see [Appendix G](#filters_appendixg).
 
-## Appendix G. Finding Filter Implementations {#filters_appendixg}
+## Appendix H. Finding Filter Implementations {#filters_appendixh}
 
 A major problem for filter users is finding an implementation of an HDF5 filter wrapper and (optionally)
 its corresponding NCZarr wrapper. There are several ways to do this.
@@ -1215,7 +1214,7 @@ provided by the *lib__nczh5filters.so* shared library.  Note also that
 if you disable HDF5 support, but leave NCZarr support enabled,
 then all of the above filters should continue to work.
 
-## Appendix I. A Warning on Backward Compatibility {#filters_appendixi}
+## Appendix J. A Warning on Backward Compatibility {#filters_appendixj}
 
 The API defined in this document should accurately reflect the
 current state of filters in the netCDF-c library.  Be aware that
