@@ -5,6 +5,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 . "${srcdir}/test_nczarr.sh"
 
+set -x
 set -e
 
 metaonly="-h"
