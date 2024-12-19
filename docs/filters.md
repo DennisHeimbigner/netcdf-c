@@ -700,9 +700,7 @@ one less than the number of significant bunary figures:
  artifacts in multipoint  statistics introduced by BitGroom 
  (see https://doi.org/10.5194/gmd-14-377-2021).
 
-
 # Debugging {#filters_debug}
-
 
 Depending on the debugger one uses, debugging plugins can be very difficult.
 It may be necessary to use the old printf approach for debugging the filter itself.
