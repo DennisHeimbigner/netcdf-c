@@ -30,7 +30,6 @@ testnoshape2() {
   # Test against the original issue URL
   rm -f tmp_noshape2_gs.cdl
   fileurl="https://storage.googleapis.com/cmip6/CMIP6/CMIP/NASA-GISS/GISS-E2-1-G/historical/r1i1p1f1/day/tasmin/gn/v20181015/#mode=zarr,s3&aws.profile=no"
-#  fileurl="file://${srcdir}/sgc.file#mode=zarr,file"
   ${ZMD} -h $fileurl > tmp_noshape2_gs.zmap
   diff -wb ${srcdir}/ref_cmip6.zmap tmp_noshape2_gs.zmap
   #  ${NCDUMP} -h $flags $fileurl > tmp_noshape2_gs.cdl -- will fail

@@ -214,7 +214,7 @@ IF(NETCDF_ENABLE_TESTS)
 
   if(NETCDF_ENABLE_NCZARR_ZIP)
       # Test various corrupted files
-      add_sh_test(nczarr_test run_corrupt.sh)
+      add_sh_test(nczarr_test run_corrupt)
   endif()
 
   if(FALSE) # Obsolete tests
