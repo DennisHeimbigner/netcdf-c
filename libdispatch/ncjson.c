@@ -844,24 +844,24 @@ done:
 }
 
 /* Increase the space available to dict/array.
-   Even if sz is zero, ensure that the object's list alloc is >= 1.
+   Even if alloc is zero, ensure that the object's list alloc is >= 1.
 @param list pointer to the list
-@param sz increase allocation to this size
+@param alloc increase allocation to this size
 @return NCJ_ERR|NCJ_OK
 */
 static int
-listsetalloc(struct NCjlist* list, size_t sz)
+listsetalloc(struct NCjlist* list, size_t alloc)
 {
     int stat = NCJ_OK;
     NCjson** newcontents = NULL;
 
     if(list == NULL) {stat = NCJTHROW(NCJ_ERR); goto done;}
     assert(list->alloc == 0 || list->contents != NULL);
-    if(sz == 0) sz = 1; /* Guarantee that the list->content is not NULL */
-    if(list->alloc >= sz) goto done;
-    /* Since sz > list->alloc > 0, we need to allocate space */
-    if((newcontents=(NCjson**)calloc(sz,sizeof(NCjson*))) == NULL) {stat = NCJTHROW(NCJ_ERR); goto done;}
-    list->alloc = sz;
+    if(alloc == 0) alloc = 1; /* Guarantee that the list->content is not NULL */
+    if(list->alloc >= alloc) goto done;
+    /* Since alloc > list->alloc > 0, we need to allocate space */
+    if((newcontents=(NCjson**)calloc(alloc,sizeof(NCjson*))) == NULL) {stat = NCJTHROW(NCJ_ERR); goto done;}
+    list->alloc = alloc;
     if(list->contents != NULL && list->len > 0) {
 	/* Preserve any existing contents */
 	memcpy((void*)newcontents,
