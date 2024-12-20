@@ -3,18 +3,18 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi 
 . ../test_common.sh
 
-echo "@@@"
-PW=`pwd`
-echo "srcdir=${srcdir} builddir=${builddir} execdir=${execdir}"
-echo "pwd=${PW} ISOPATH=${ISOPATH}"
-cd ${top_srcdir}
-find . -name test_nczarr.sh -print
-cd ${PW}
-
 . "${srcdir}/test_nczarr.sh"
 
 # Construct both ISOPATH and S3ISOPATH
 s3isolate "testdir_quantize"
+
+echo "@@@"
+PW=`pwd`
+echo "srcdir=${srcdir} builddir=${builddir} execdir=${execdir} top_srcdir=${top_srcdir}"
+echo "pwd=${PW} ISOPATH=${ISOPATH}"
+cd ${top_srcdir}
+find . -name test_nczarr.sh -print
+cd ${PW}
 
 THISDIR=`pwd`
 cd $ISOPATH
