@@ -56,7 +56,7 @@ sed -e 's/[ 	]*\([^ 	].*\)/\1/' <$1 >$2
 # Locate the plugin path and the library names; argument order is critical
 
 # Find noop and capture
-if !findplugin h5unknown ; then exit 0; fi
+if ! findplugin h5unknown ; then exit 0; fi
 UNKNOWNDIR="${HDF5_PLUGIN_DIR}"
 UNKNOWNLIB="${HDF5_PLUGIN_LIB}"
 UNKNOWNFILTER="${HDF5_PLUGIN_DIR}/${UNKNOWNLIB}"

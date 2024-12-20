@@ -60,7 +60,7 @@ echo "findplugin.sh loaded"
 # Locate the plugin path and the library names; argument order is critical
 # Find bzip2 and capture
 # Assume all test filters are in same plugin dir
-if !findplugin h5bzip2 ; then exit 0 ; fi
+if ! findplugin h5bzip2 ; then exit 0 ; fi
 
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent

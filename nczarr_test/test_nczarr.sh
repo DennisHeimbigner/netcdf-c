@@ -159,7 +159,7 @@ echo "findplugin.sh loaded"
 # Locate the plugin path and the library names; argument order is critical
 # Find misc in order to determine HDF5_PLUGIN+PATH.
 # Assume all test filters are in same plugin dir
-if !findplugin h5misc ; then exit 0; fi
+if ! findplugin h5misc ; then exit 0; fi
 
 echo "final HDF5_PLUGIN_DIR=${HDF5_PLUGIN_DIR}"
 export HDF5_PLUGIN_PATH="${HDF5_PLUGIN_DIR}"

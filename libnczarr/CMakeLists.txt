@@ -35,6 +35,8 @@ zutil.c
 zvar.c
 zwalk.c
 znc4.c
+zfilter.c
+zplugins.c
 zdebug.c
 zformat.h
 zarr.h
@@ -55,10 +57,6 @@ zdebug.h
 
 if(NETCDF_ENABLE_NCZARR_ZIP)
     SET(libnczarr_SOURCES ${libnczarr_SOURCES} zmap_zip.c)
-endif()
-
-if(NETCDF_ENABLE_NCZARR_FILTERS)
-set(libnczarr_SOURCES ${libnczarr_SOURCES} zfilter.c zplugins.c)
 endif()
 
 if(NETCDF_ENABLE_S3) 

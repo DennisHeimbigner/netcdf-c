@@ -161,13 +161,11 @@ NCZ_zclose_var1(NC_VAR_INFO_T* var)
 	nullfree(zatt);
 	att->format_att_info = NULL; /* avoid memory errors */
     }
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Reclaim filters */
     if(var->filters != NULL) {
 	(void)NCZ_filter_freelists(var);
     }
     var->filters = NULL;
-#endif
     /* Reclaim the type */
     if(var->type_info) (void)zclose_type(var->type_info);
     /* reclaim dispatch info */

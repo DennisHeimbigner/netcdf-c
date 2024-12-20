@@ -926,14 +926,12 @@ ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjso
     NCjson* jshape = NULL;
     NCjson* jchunks = NULL;
     NCjson* jfill = NULL;
+    NCjson* jcompressor = NULL;
+    NCjson* jfilters = NULL;
     size64_t shape[NC_MAX_VAR_DIMS];
     char number[1024];
     size_t zarr_rank = 0;
     size_t i;
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    NCjson* jcompressor = NULL;
-    NCjson* jfilters = NULL;
-#endif
 
     NC_UNUSED(file);
 #ifndef NETCDF_ENABLE_NCZARR_FILTERS
@@ -1019,11 +1017,11 @@ ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjso
     if(nclistlength(filtersj) > 0) {
 	jcompressor = (NCjson*)nclistremove(filtersj,nclistlength(filtersj)-1);
     } else
+#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
     { /* no filters at all; default compressor to null */
         NCJnew(NCJ_NULL,&jcompressor);
     }
     NCJcheck(NCJinsert(jvar,"compressor",jcompressor)); jcompressor = NULL;
-#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
 
     /* filters key */
     /* From V2 Spec: A list of JSON objects providing codec configurations,
@@ -1033,18 +1031,18 @@ ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjso
        if no filters are to be applied. */
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     if(nclistlength(filtersj) > 0) {
-	/* filters holds the array of encoded filters */
+	/* jfilters holds the array of encoded filters */
 	NCJnew(NCJ_ARRAY,&jfilters);
 	while(nclistlength(filtersj) > 0) { /* Insert the first n filters; last one was used as compressor */
 	    NCjson* jfilter = (NCjson*)nclistremove(filtersj,0);
 	    NCJcheck(NCJappend(jfilters,jfilter)); jfilter = NULL;
 	}
     } else
+#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
     {
         NCJnew(NCJ_NULL,&jfilters); /* no filters at all */
     }
     NCJcheck(NCJinsert(jvar,"filters",jfilters)); jfilters = NULL;
-#endif
 
     /* dimension_separator key */
     /* Single char defining the separator in chunk keys */
@@ -1062,10 +1060,8 @@ done:
     NCJreclaim(jshape);
     NCJreclaim(jchunks);
     NCJreclaim(jfill);
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     NCJreclaim(jcompressor);
     NCJreclaim(jfilters);
-#endif
     return THROW(stat);
 }
 

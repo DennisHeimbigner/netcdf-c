@@ -512,7 +512,9 @@ ZF3_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
        that specifies endianness.
     */
     if(var->filters == NULL) var->filters = (void*)nclistnew();
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     if((stat = NCZ_filter_initialize())) goto done;
+#endif
     {
 	if((stat = NCJdictget(jvar,"codecs",(NCjson**)&jcodecs))<0) {stat = NC_EINVAL; goto done;}
 	if(jcodecs == NULL || NCJsort(jcodecs) != NCJ_ARRAY || NCJarraylength(jcodecs) == 0)
