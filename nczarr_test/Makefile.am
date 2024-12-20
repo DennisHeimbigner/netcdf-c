@@ -38,9 +38,6 @@ TESTS += run_nczarr_fill.sh
 # Test various corrupted files
 TESTS += run_corrupt.sh
 
-# Test interoperability of V2 files
-TESTS += run_interop.sh
-
 if NETCDF_ENABLE_EXTERNAL_SERVER_TESTS
 TESTS += run_external.sh
 endif
@@ -146,6 +143,9 @@ endif # BUILD_BENCHMARKS
 
 if NETCDF_ENABLE_NCZARR_FILTERS
 if NETCDF_ENABLE_FILTER_TESTING
+
+# Test interoperability of V2 files
+TESTS += run_interop.sh
 
 check_PROGRAMS += test_filter_avail test_filter_vlen
 TESTS += run_filter_vlen.sh run_filter_misc.sh
