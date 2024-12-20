@@ -4,11 +4,11 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 echo "@@@@@"
-pwd
-echo "src=${srcdir} build=${builddir} exec=${execdir}"
-pushd ${abs_srcdir}
+PW=`pwd`
+echo "pwd=${PW} src=${srcdir} build=${builddir} exec=${execdir}"
+cd ${abs_srcdir}
 find . -name 'test_nczarr.sh' -print
-popd
+cd $PW
 
 . "${srcdir}/test_nczarr.sh"
 
