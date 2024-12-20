@@ -3,13 +3,6 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
-echo "@@@@@"
-PW=`pwd`
-echo "pwd=${PW} src=${srcdir} build=${builddir} exec=${execdir}"
-cd ${abs_srcdir}
-find . -name 'test_nczarr.sh' -print
-cd $PW
-
 . "${srcdir}/test_nczarr.sh"
 
 set -e
