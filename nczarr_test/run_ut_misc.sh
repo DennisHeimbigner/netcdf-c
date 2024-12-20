@@ -5,8 +5,10 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 echo "@@@@@"
 pwd
-echo "${builddir}"
-ls -1 ${builddir}/*.sh
+echo "src=${srcdir} build=${builddir} exec=${execdir}"
+pushd ${abs_srcdir}
+find . -name 'test_nczarr.sh' -print
+popd
 
 . "${srcdir}/test_nczarr.sh"
 
