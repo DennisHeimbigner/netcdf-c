@@ -13,6 +13,9 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
+echo "@@@@@@@@@"
+ls -1d *.sh
+
 . ${srcdir}/test_nczarr.sh
 
 set -e
