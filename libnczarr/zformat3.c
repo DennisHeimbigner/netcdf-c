@@ -368,7 +368,6 @@ ZF3_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
     const NCjson* jvar = NULL;
     const NCjson* jvalue = NULL;
     const NCjson* jendian = NULL;
-    const NCjson* jfilter = NULL;
     const NCjson* jcodecs = NULL;
     const NCjson* jchunkgrid = NULL;
     const NCjson* jchunkkey = NULL;
@@ -515,7 +514,6 @@ ZF3_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
     if(var->filters == NULL) var->filters = (void*)nclistnew();
     if((stat = NCZ_filter_initialize())) goto done;
     {
-	size_t k;
 	if((stat = NCJdictget(jvar,"codecs",(NCjson**)&jcodecs))<0) {stat = NC_EINVAL; goto done;}
 	if(jcodecs == NULL || NCJsort(jcodecs) != NCJ_ARRAY || NCJarraylength(jcodecs) == 0)
 	    {stat = NC_ENOTZARR; goto done;}
@@ -536,11 +534,17 @@ ZF3_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 	    var->endianness = endianness;
 	    var->type_info->endianness = var->endianness; /* Propagate */
 	}	
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
+	{
+	size_t k;
+	const NCjson* jfilter = NULL;
 	for(k=1;k<NCJarraylength(jcodecs);k++) {
 	    jfilter = NCJith(jcodecs,k);
 	    if(NCJsort(jfilter) != NCJ_DICT) {stat = NC_EFILTER; goto done;}
 	    nclistpush(filtersj,jfilter);
 	}
+	}
+#endif /*NETCDF_ENABLE_NCVARR_FILTERS*/
     }
 
     /* Suppress variable if there are filters and var is not fixed-size */
@@ -860,6 +864,9 @@ ZF3_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjso
     char* dtypename = NULL;
     
     NC_UNUSED(file);
+#ifndef NETCDF_ENABLE_NCZARR_FILTERS
+    NC_UNUSED(filtersj);
+#endif
 
     NCJnew(NCJ_DICT,&jvar);
 
@@ -1167,16 +1174,23 @@ done:
     ncz_codec_clear(&codec);
     return THROW(stat);
 }
-#else /!*NETCDF_ENABLE_NCZARR_FILTERS*/
+#else /*!NETCDF_ENABLE_NCZARR_FILTERS*/
 static int
 ZF3_encode_filter(NC_FILE_INFO_T* file, NCZ_Filter* filter, NCjson** jfilterp)
 {
+    NC_UNUSED(file);
+    NC_UNUSED(filter);
+    if(jfilterp) *jfilterp = NULL;
     return NC_NOERR;
 }
 
 static int
 ZF3_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter)
 {
+    NC_UNUSED(file);
+    NC_UNUSED(var);
+    NC_UNUSED(jfilter);
+    NC_UNUSED(filter);
     return NC_NOERR;
 }
 #endif /*NETCDF_ENABLE_NCZARR_FILTERS*/

@@ -18,7 +18,7 @@ set -e
 . ${builddir}/findplugin.sh
 echo "findplugin.sh loaded"
 
-findplugin h5deflate
+if ! findplugin h5deflate ; then exit 0; fi
 echo "HDF5_PLUGIN_DIR=$HDF5_PLUGIN_DIR"
 
 isolate "testdir_filter_vlen"

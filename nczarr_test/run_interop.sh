@@ -27,7 +27,7 @@ echo "findplugin.sh loaded"
 
 # One of the tests depends on having blosc installed
 # Assume all test filters are in same plugin dir
-findplugin h5blosc
+if !findplugin h5blosc ; then exit 0; fi
 
 if ! avail bzip2; then return 0; fi
 if ! avail blosc; then return 0; fi

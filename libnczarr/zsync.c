@@ -22,7 +22,6 @@
 /* Forward */
 static int ncz_encode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp);
 static int ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
-static int ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj);
 static int ncz_create_computed_var_attributes(NC_FILE_INFO_T* file,NC_VAR_INFO_T* var);
 static int ncz_flush_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var);
 static int ncz_decode_subgrps(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* subgrpnames);
@@ -30,7 +29,10 @@ static int ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ*
 static int ncz_decode_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* varname);
 static int ncz_decode_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* varnames);
 static int ncz_decode_atts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson* jatts);
+
+static int ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj);
 static int ncz_decode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* filters);
+
 static int get_group_content_pure(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrps);
 static int reifydimrefs(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NC_VAR_INFO_T* var, size64_t* shapes, NClist* dimrefs, NClist* dimdecls);
 static int definedim(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, const char* basename, size64_t shape, int isunlimited, NC_DIM_INFO_T** dimp);
@@ -201,10 +203,8 @@ ncz_encode_var_meta(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
     /* Convert to JSON */
     if((stat=NCZF_encode_attributes(file,(NC_OBJ*)var,&jnczvar,NULL,&zobj.jatts))) goto done;
 
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Encode the filters */
     if((stat=ncz_encode_filters(file,var,filtersj))) goto done;
-#endif
 
     /* encode the var JSON including (optionally) the attributes */
     if((stat=NCZF_encode_var(file,var,filtersj,&zobj.jobj))) goto done;
@@ -219,32 +219,6 @@ done:
     NCZ_reclaim_json_list(filtersj);
     return ZUNTRACE(THROW(stat));
 }
-
-#ifdef NETCDF_ENABLE_NCZARR_FILTERS
-static int
-ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj)
-{
-    int stat = NC_NOERR;
-    size_t i;
-    NClist* filters = (NClist*)var->filters;
-    NCjson* jfilter = NULL;
-
-    for(i=0;i<nclistlength(filters);i++) {
-	NCZ_Filter* filter = (NCZ_Filter*)nclistget(filters,i);
-        if((stat=NCZF_encode_filter(file,filter,&jfilter))) goto done;
-	nclistpush(filtersj,jfilter); jfilter = NULL;	
-    }
-
-done:
-    return THROW(stat);
-}
-#else /*!NETCDF_ENABLE_NCZARR_FILTERS*/
-static int
-ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj)
-{
-    return NC_NOERR;
-}
-#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
 
 /* Some attributes need to be computed because they are not stored in the NC_XXX_INFO_T structs.
  *  The current such attributes are:
@@ -724,6 +698,26 @@ done:
 }
 
 /**************************************************/
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
+
+static int
+ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    NClist* filters = (NClist*)var->filters;
+    NCjson* jfilter = NULL;
+
+    for(i=0;i<nclistlength(filters);i++) {
+	NCZ_Filter* filter = (NCZ_Filter*)nclistget(filters,i);
+        if((stat=NCZF_encode_filter(file,filter,&jfilter))) goto done;
+	nclistpush(filtersj,jfilter); jfilter = NULL;	
+    }
+
+done:
+    return THROW(stat);
+}
+
 /**
 @internal Read filter codecs from avar and apply them
 to a variable.
@@ -755,6 +749,25 @@ done:
     NCZ_filter_free(filter);
     return ZUNTRACE(THROW(stat));
 }
+#else
+static int
+ncz_encode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj)
+{
+    NC_UNUSED(file);
+    NC_UNUSED(var);
+    NC_UNUSED(filtersj);
+    return NC_NOERR;
+}
+
+static int
+ncz_decode_filters(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const NClist* filters)
+{
+    NC_UNUSED(file);
+    NC_UNUSED(var);
+    NC_UNUSED(filters);
+    return NC_NOERR;
+}
+#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
 
 /**************************************************/
 /* Utilities */

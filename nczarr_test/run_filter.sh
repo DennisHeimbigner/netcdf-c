@@ -42,13 +42,13 @@ sed -e 's/[ 	]*\([^ 	].*\)/\1/' <$1 >$2
 # Locate the plugin path and the library names; argument order is critical
 
 # Find misc and capture
-findplugin h5misc
+if ! findplugin h5misc ; then exit 0; fi
 MISCLIB="${HDF5_PLUGIN_LIB}"
 MISCDIR="${HDF5_PLUGIN_DIR}"
 MISCPATH="${MISCDIR}/${MISCLIB}"
 
 # Find bzip2 and capture
-findplugin h5bzip2
+if ! findplugin h5bzip2 ; then exit 0; fi
 BZIP2LIB="${HDF5_PLUGIN_LIB}"
 BZIP2DIR="${HDF5_PLUGIN_DIR}"
 BZIP2PATH="${BZIP2DIR}/${BZIP2LIB}"

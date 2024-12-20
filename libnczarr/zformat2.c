@@ -65,11 +65,11 @@ static int ZF2_encode_group(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NCjson** j
 static int ZF2_encode_nczarr_array(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson** jzvarp);
 static int ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjson** jvarp);
 static int ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp, NCjson** jsuperp, NCjson** jattsp);
-static int ZF2_encode_filter(NC_FILE_INFO_T* file, NCZ_Filter* filter, NCjson** jfilterp);
-static int ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter);
 static int ZF2_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NClist* subgrpnames);
 static int ZF2_encode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, size_t rank, const size64_t* chunkindices, char dimsep, char** keyp);
 static int ZF2_decode_chunkkey(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const char* chunkname, size_t* rankp, size64_t** chunkindicesp);
+static int ZF2_encode_filter(NC_FILE_INFO_T* file, NCZ_Filter* filter, NCjson** jfilterp);
+static int ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter);
 static int ZF2_encode_xarray(NC_FILE_INFO_T* file, size_t rank, NC_DIM_INFO_T** dims, char** xarraydims, size_t* zarr_rankp);
 static char ZF2_default_dimension_separator(NC_FILE_INFO_T* file);
 
@@ -351,7 +351,7 @@ done:
 }
 
 int
-ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NClist* jfilters, size64_t** shapesp, size64_t** chunksp, NClist* dimrefs)
+ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NClist* filtersj, size64_t** shapesp, size64_t** chunksp, NClist* dimrefs)
 {
     int stat = NC_NOERR;
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
@@ -364,7 +364,6 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
     const NCjson* jdimrefs = NULL;
     const NCjson* jvalue = NULL;
     const NCjson* jxarray = NULL;
-    int varsized = 0;
     int suppress = 0; /* Abort processing of this variable */
     nc_type vtype = NC_NAT;
     size_t maxstrlen = 0;
@@ -374,7 +373,12 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
     size64_t* shapes = NULL;
     size64_t* chunks = NULL;
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
+    int varsized = 0;
     const NCjson* jfilter = NULL;
+#endif
+
+#ifndef NETCDF_ENABLE_NCZARR_FILTERS
+    NC_UNUSED(filtersj);
 #endif
 
     TESTPUREZARR;
@@ -552,7 +556,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 		jfilter = NCJith(jvalue,k);
 		if(jfilter == NULL) break; /* done */
 		if(NCJsort(jfilter) != NCJ_DICT) {stat = NC_EFILTER; goto done;}
-		nclistpush(jfilters,jfilter);
+		nclistpush(filtersj,jfilter);
 	    }
 	}
     }
@@ -926,10 +930,15 @@ ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjso
     char number[1024];
     size_t zarr_rank = 0;
     size_t i;
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     NCjson* jcompressor = NULL;
     NCjson* jfilters = NULL;
-    
+#endif
+
     NC_UNUSED(file);
+#ifndef NETCDF_ENABLE_NCZARR_FILTERS
+    NC_UNUSED(filtersj);
+#endif
 
     NCJnew(NCJ_DICT,&jvar);
 
@@ -1010,11 +1019,11 @@ ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjso
     if(nclistlength(filtersj) > 0) {
 	jcompressor = (NCjson*)nclistremove(filtersj,nclistlength(filtersj)-1);
     } else
-#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
     { /* no filters at all; default compressor to null */
         NCJnew(NCJ_NULL,&jcompressor);
     }
     NCJcheck(NCJinsert(jvar,"compressor",jcompressor)); jcompressor = NULL;
+#endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
 
     /* filters key */
     /* From V2 Spec: A list of JSON objects providing codec configurations,
@@ -1031,11 +1040,11 @@ ZF2_encode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NClist* filtersj, NCjso
 	    NCJcheck(NCJappend(jfilters,jfilter)); jfilter = NULL;
 	}
     } else
-#endif
     {
         NCJnew(NCJ_NULL,&jfilters); /* no filters at all */
     }
     NCJcheck(NCJinsert(jvar,"filters",jfilters)); jfilters = NULL;
+#endif
 
     /* dimension_separator key */
     /* Single char defining the separator in chunk keys */
@@ -1053,8 +1062,10 @@ done:
     NCJreclaim(jshape);
     NCJreclaim(jchunks);
     NCJreclaim(jfill);
+#ifdef NETCDF_ENABLE_NCZARR_FILTERS
     NCJreclaim(jcompressor);
     NCJreclaim(jfilters);
+#endif
     return THROW(stat);
 }
 
@@ -1247,8 +1258,21 @@ done:
 }
 #else /*!NETCDF_ENABLE_NCZARR_FILTERS*/
 static int
+ZF2_encode_filter(NC_FILE_INFO_T* file, NCZ_Filter* filter, NCjson** jfilterp)
+{
+    NC_UNUSED(file);
+    NC_UNUSED(filter);
+    if(jfilterp) *jfilterp = NULL;
+    return NC_NOERR;
+}
+
+static int
 ZF2_decode_filter(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCjson* jfilter, NCZ_Filter* filter)
 {
+    NC_UNUSED(file);
+    NC_UNUSED(var);
+    NC_UNUSED(jfilter);
+    NC_UNUSED(filter);
     return NC_NOERR;
 }
 #endif /*NETCDF_ENABLE_NCZARR_FILTERS*/
