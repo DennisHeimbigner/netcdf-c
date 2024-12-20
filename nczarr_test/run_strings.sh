@@ -45,6 +45,12 @@ ${NCDUMP} -n ref_string $nczarrurl > tmp_string_nczarr_${zext}.cdl
 ${ZMD} -t 'string/6' $nczarrurl > tmp_string_nczarr_${zext}.txt
 
 echo "*** verify zarr output"
+echo "@@@"
+PW=`pwd`
+echo "pwd=${PW} srcdir=${srcdir} builddir=${builddir} execdir=${execdir}"
+cd ${top_srcdir}
+find . -name tmp_string_zarr_${zext}.cdl -print
+
 cp ${srcdir}/ref_string_zarr.baseline ${execdir}/tmp_ref_string_zarr.baseline
 diff -bw ${execdir}/tmp_ref_string_zarr.baseline ${execdir}/tmp_string_zarr_${zext}.cdl
 
