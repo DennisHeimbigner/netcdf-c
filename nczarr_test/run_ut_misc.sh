@@ -4,7 +4,9 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 echo "@@@@@"
-ls -1 *.sh
+pwd
+echo "${builddir}"
+ls -1 ${builddir}/*.sh
 
 . "${srcdir}/test_nczarr.sh"
 
