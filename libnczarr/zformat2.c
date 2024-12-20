@@ -567,7 +567,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 	if((stat = NCJdictget(jvar,"compressor",(NCjson**)&jfilter))<0) {stat = NC_EINVAL; goto done;}
 	if(jfilter != NULL && NCJsort(jfilter) != NCJ_NULL) {
 	    if(NCJsort(jfilter) != NCJ_DICT) {stat = NC_EFILTER; goto done;}
-	    nclistpush(jfilters,jfilter);
+	    nclistpush(filtersj,jfilter);
 	}
     }
     /* Suppress variable if there are filters and var is not fixed-size */
