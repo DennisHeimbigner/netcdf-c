@@ -1877,7 +1877,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/s3cleanup.in ${CMAKE_CURRENT_BINARY_D
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/s3gc.in ${CMAKE_CURRENT_BINARY_DIR}/s3gc.sh @ONLY NEWLINE_STYLE LF)
 
 #####
-# Build and copy nc_test4/findplugin.sh to various places
+# Transfer files from a single source to directories that use it.
 #####
 foreach(CC nc_test4 nczarr_test v3_nczarr_test plugins h5_test examples/C)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/plugins/findplugin.in ${CMAKE_CURRENT_BINARY_DIR}/${CC}/findplugin.sh @ONLY NEWLINE_STYLE LF)
@@ -1901,6 +1901,11 @@ if(NETCDF_ENABLE_TESTS)
     # Build dap4_test/pingurl4.c
     #####
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/pingurl.c ${CMAKE_CURRENT_BINARY_DIR}/dap4_test/pingurl4.c @ONLY NEWLINE_STYLE LF)
+
+    #####
+    # Build v3_nczarr_test/test_nczarr.sh
+    #####
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/nczarr_test/test_nczarr.sh ${CMAKE_CURRENT_BINARY_DIR}/v3_nczarr_test/test_nczarr.sh @ONLY NEWLINE_STYLE LF)
 
     #####
     # Build CTestCustom.cmake to cleanup S3 after tests are done.

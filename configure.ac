@@ -2367,7 +2367,7 @@ AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)
 AC_CONFIG_FILES(s3cleanup.sh:s3cleanup.in, [chmod ugo+x s3cleanup.sh])
 AC_CONFIG_FILES(s3gc.sh:s3gc.in, [chmod ugo+x s3gc.sh])
-for FP in plugins nc_test4 nczarr_test h5_test examples/C ; do
+for FP in plugins nc_test4 nczarr_test v3_nczarr_test h5_test examples/C ; do
 AC_CONFIG_FILES(${FP}/findplugin.sh:plugins/findplugin.in, [chmod ugo+x ${FP}/findplugin.sh])
 done
 AC_CONFIG_FILES(ncdap_test/findtestserver.c:ncdap_test/findtestserver.c.in, [chmod ugo+x ncdap_test/findtestserver.c])
@@ -2388,11 +2388,6 @@ AC_CONFIG_FILES(nczarr_test/test_filter_repeat.c:nc_test4/test_filter_repeat.c)
 AC_CONFIG_FILES(nczarr_test/test_filter_order.c:nc_test4/test_filter_order.c)
 AC_CONFIG_FILES([examples/C/run_par_test.sh], [chmod ugo+x examples/C/run_par_test.sh])
 AC_CONFIG_FILES([nc-config], [chmod 755 nc-config])
-
-# Config and copy into nczarr_test/v3_nczarr_test
-AC_CONFIG_FILES(nczarr_test/findplugin.sh:plugins/findplugin.in, [chmod ugo+x nczarr_test/findplugin.sh])
-AC_CONFIG_FILES(v3_nczarr_test/findplugin.sh:plugins/findplugin.in, [chmod ugo+x v3_nczarr_test/findplugin.sh])
-
 AC_CONFIG_FILES(v3_nczarr_test/test_nczarr.sh:nczarr_test/test_nczarr.sh, [])
 
 AC_CONFIG_FILES([Makefile
