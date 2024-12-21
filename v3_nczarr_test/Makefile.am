@@ -222,7 +222,7 @@ TESTDATA_NCZARR = ref_nulls_nczarr.baseline ref_zarr_test_data.cdl.gz ref_avail1
 
 BUILT_SOURCES += test_nczarr.sh
 test_nczarr.sh: 
-	if ! test -f "${builddir}/test_nczarr.sh ; then \
+	if ! test -f "${builddir}/test_nczarr.sh" ; then \
 	    cp ${top_srcdir}/nczarr_test/test_nczarr.sh ${builddir}/test_nczarr.sh
 
 BUILT_SOURCES += testdata_nczarr.built testfiles_nczarr_sh.built testfiles_nczarr_c.built
