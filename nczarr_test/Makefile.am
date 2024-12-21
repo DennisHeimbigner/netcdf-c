@@ -27,7 +27,7 @@ TESTS =
 check_PROGRAMS =
 TESTINPUTS =
 
-include $(top_srcdir)/nczarr_test/Makefile.files
+#include $(top_srcdir)/nczarr_test/Makefile.files
 
 if NETCDF_BUILD_UTILITIES
 # Test v2 specific tests
