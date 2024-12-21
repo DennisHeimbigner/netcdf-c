@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
-. ../test_common.sh
+. ${top_srcdir}/test_common.sh
 
 echo "@@@ ${builddir}/test_nczarr.sh"
 ls -l ${builddir}/test_nczarr.sh
