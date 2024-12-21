@@ -1903,11 +1903,6 @@ if(NETCDF_ENABLE_TESTS)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ncdap_test/pingurl.c ${CMAKE_CURRENT_BINARY_DIR}/dap4_test/pingurl4.c @ONLY NEWLINE_STYLE LF)
 
     #####
-    # Build v3_nczarr_test/test_nczarr.sh
-    #####
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/nczarr_test/test_nczarr.sh ${CMAKE_CURRENT_BINARY_DIR}/v3_nczarr_test/test_nczarr.sh @ONLY NEWLINE_STYLE LF)
-
-    #####
     # Build CTestCustom.cmake to cleanup S3 after tests are done.
     #####
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/CTestCustom.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/CTestCustom.cmake NEWLINE_STYLE LF)

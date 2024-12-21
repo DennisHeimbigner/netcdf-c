@@ -194,10 +194,9 @@ V3DATA = ref_nczarr2zarr.cdl ref_purezarr.cdl ref_xarray.cdl ref_misc2.cdl ref_j
 
 EXTRA_DIST += test_nczarr.sh ${V3FILES} ${V3DATA}
 
-DISTCLEANFILES += findplugin.sh test_nczarr.sh ${TESTFILES_NCZARR} ${TESTDATA_NCZARR}
+DISTCLEANFILES += findplugin.sh
 
 # Remove directories
-
 clean-local:
 	rm -fr tmp_*.nc tmp_*.zarr tst_quantize*.zarr tmp*.file results.file results.s3 results.zip
 	rm -fr rcmiscdir ref_power_901_constants.file 
@@ -209,45 +208,20 @@ endif
 # If valgrind is present, add valgrind targets.
 @VALGRIND_CHECK_RULES@
 
-# This set of tests is almost exactly the same as those of nczarr_test.
-# So provide a Makefile target to update the files here with copies
-# of those in nczarr test and elsewhere.
+# Construct copies of some v3 tests at build time
 
-# Sources that are copies of same files from nczarr_test
-TESTFILES_NCZARR_C = test_chunking.c test_filter_vlen.c test_h5_endians.c test_put_vars_two_unlim_dim.c test_quantize.c test_unlim_vars.c tst_pure_awssdk.cpp bm_utils.c timer_utils.c test_utils.c test_utils.h bm_utils.h bm_timer.h testfilter.c testfilter_multi.c testfilter_misc.c testfilter_order.c testfilter_repeat.c
+TESTDATA_NCZARR="ref_nulls_nczarr.baseline ref_zarr_test_data.cdl.gz ref_avail1.cdl ref_byte.cdl ref_byte_fill_value_null.cdl ref_fillonly.cdl ref_misc1.cdl ref_ndims.cdl ref_newformatpure.cdl ref_nulls.cdl ref_oldformat.cdl ref_perdimspecs.cdl ref_power_901_constants.cdl ref_purezarr_base.cdl ref_quotes.cdl ref_rem.cdl ref_scalar.cdl ref_skip.cdl ref_skipw.cdl ref_string.cdl ref_t_meta_dim1.cdl ref_t_meta_var1.cdl ref_ut_mapapi_create.cdl ref_ut_mapapi_data.cdl ref_ut_mapapi_meta.cdl ref_ut_map_create.cdl ref_ut_map_writedata.cdl ref_ut_map_writemeta.cdl ref_ut_map_writemeta2.cdl ref_ut_testmap_create.cdl ref_whole.cdl ref_avail1.dmp ref_misc1.dmp ref_ndims.dmp ref_rem.dmp ref_noshape.file.zip ref_groups.h5 ref_notzarr.tar.gz ref_avail1.txt ref_skip.txt ref_ut_json_build.txt ref_ut_json_parse.txt ref_ut_mapapi_search.txt ref_ut_map_readmeta.txt ref_ut_map_readmeta2.txt ref_ut_map_search.txt ref_ut_proj.txt ref_whole.txt ref_byte.zarr.zip ref_byte_fill_value_null.zarr.zip ref_oldformat.zip ref_power_901_constants_orig.zip ref_quotes_orig.zip ref_cmip6.zmap"
+ 
+BUILT_SOURCES += ${TESTFILES_NCZARR_C} ${TESTDATA_NCZARR}
+DISTCLEANFILES += ${TESTFILES_NCZARR_C} ${TESTDATA_NCZARR}
 
-TESTFILES_NCZARR_SH = run_chunkcases.sh run_corrupt.sh run_external.sh run_fillonlyz.sh run_filter.sh run_filterinstall.sh run_filter_misc.sh run_filter_vlen.sh run_interop.sh run_jsonconvention.sh run_misc.sh run_nccopy5.sh run_nccopyz.sh run_ncgen4.sh run_nczarr_fill.sh run_nczfilter.sh run_newformat.sh run_notzarr.sh run_nulls.sh run_perf_chunks1.sh run_purezarr.sh run_quantize.sh run_scalar.sh run_specific_filters.sh run_strings.sh run_unknown.sh run_unlim_io.sh run_ut_map.sh run_ut_mapapi.sh run_ut_misc.sh
+${TESTFILES_NCZARR_C}:
+	for u in ${TESTFILES_NCZARR_C}; do \
+	cp -f ../nczarr_test/$u ./$u ; \
+	done
 
-TESTDATA_NCZARR = ref_nulls_nczarr.baseline ref_zarr_test_data.cdl.gz ref_avail1.cdl ref_byte.cdl ref_byte_fill_value_null.cdl ref_fillonly.cdl ref_misc1.cdl ref_ndims.cdl ref_newformatpure.cdl ref_nulls.cdl ref_oldformat.cdl ref_perdimspecs.cdl ref_power_901_constants.cdl ref_purezarr_base.cdl ref_quotes.cdl ref_rem.cdl ref_scalar.cdl ref_skip.cdl ref_skipw.cdl ref_string.cdl ref_t_meta_dim1.cdl ref_t_meta_var1.cdl ref_ut_mapapi_create.cdl ref_ut_mapapi_data.cdl ref_ut_mapapi_meta.cdl ref_ut_map_create.cdl ref_ut_map_writedata.cdl ref_ut_map_writemeta.cdl ref_ut_map_writemeta2.cdl ref_ut_testmap_create.cdl ref_whole.cdl ref_avail1.dmp ref_misc1.dmp ref_ndims.dmp ref_rem.dmp ref_noshape.file.zip ref_groups.h5 ref_notzarr.tar.gz ref_avail1.txt ref_skip.txt ref_ut_json_build.txt ref_ut_json_parse.txt ref_ut_mapapi_search.txt ref_ut_map_readmeta.txt ref_ut_map_readmeta2.txt ref_ut_map_search.txt ref_ut_proj.txt ref_whole.txt ref_byte.zarr.zip ref_byte_fill_value_null.zarr.zip ref_oldformat.zip ref_power_901_constants_orig.zip ref_quotes_orig.zip ref_cmip6.zmap
+${TESTDATA_NCZARR}:
+	for u in ${TESTDATA_NCZARR}; do \
+	cp -f ../nczarr_test/$u ./$u ; \
+	done
 
-BUILT_SOURCES += testdata_nczarr.built testfiles_nczarr_sh.built testfiles_nczarr_c.built
-DISTCLEANFILES += ${BUILT_SOURCES}
-
-testfiles_nczarr_sh.built:
-	echo "" > $@
-	for u in ${TESTFILES_NCZARR_SH} ; do \
-	  SRCPATH="${top_srcdir}/nczarr_test/$$u"; \
-	  DSTPATH="${top_builddir}/v3_nczarr_test/$$u"; \
-	  rm -f $$DSTPATH ; \
-	  cat $$SRCPATH >> $$DSTPATH ; \
-	  chmod a+x $$DSTPATH ; \
-	done 
-	find . -name run_ut_misc.sh
-
-testfiles_nczarr_c.built:
-	echo "" > $@
-	for u in ${TESTFILES_NCZARR_C} ; do \
-	  SRCPATH="${top_srcdir}/nczarr_test/$$u"; \
-	  DSTPATH="${top_builddir}/v3_nczarr_test/$$u"; \
-	  rm -f $$DSTPATH ; \
-	  cat $$SRCPATH >> $$DSTPATH ; \
-	done 
-
-testdata_nczarr.built:
-	echo "" > $@
-	for u in ${TESTDATA_NCZARR} ; do \
-	  SRCPATH="${top_srcdir}/nczarr_test/$$u"; \
-	  DSTPATH="${top_builddir}/v3_nczarr_test/$$u"; \
-	  rm -f $$DSTPATH ; \
-	  cat $$SRCPATH >> $$DSTPATH ; \
-	done 

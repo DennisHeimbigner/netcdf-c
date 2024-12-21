@@ -1,7 +1,6 @@
 #                                               -*- Autoconf -*-
 ## Process this file with autoconf to produce a configure script.
 
-
 # This is part of Unidata's netCDF package. Copyright 2005-2018, see
 # the COPYRIGHT file for more information.
 # Ed Hartnett, Ward Fisher, Dennis Heimbigner
@@ -2363,6 +2362,9 @@ AM_CONDITIONAL([AX_ENABLE], [test xyes = xyes])
 # Provide  conditional to identify tests that must be run manually
 AM_CONDITIONAL([AX_MANUAL], [test xno = xyes])
 
+# Construct the V3 tests using tests from nczarr_test
+source ./v3_setup.sh
+
 AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)
 AC_CONFIG_FILES(s3cleanup.sh:s3cleanup.in, [chmod ugo+x s3cleanup.sh])
@@ -2388,7 +2390,6 @@ AC_CONFIG_FILES(nczarr_test/test_filter_repeat.c:nc_test4/test_filter_repeat.c)
 AC_CONFIG_FILES(nczarr_test/test_filter_order.c:nc_test4/test_filter_order.c)
 AC_CONFIG_FILES([examples/C/run_par_test.sh], [chmod ugo+x examples/C/run_par_test.sh])
 AC_CONFIG_FILES([nc-config], [chmod 755 nc-config])
-AC_CONFIG_FILES(v3_nczarr_test/test_nczarr.sh:nczarr_test/test_nczarr.sh, [])
 
 AC_CONFIG_FILES([Makefile
                  netcdf.pc
