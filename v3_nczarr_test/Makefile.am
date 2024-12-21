@@ -221,14 +221,12 @@ TESTFILES_NCZARR_SH = run_chunkcases.sh run_corrupt.sh run_external.sh run_fillo
 TESTDATA_NCZARR = ref_nulls_nczarr.baseline ref_zarr_test_data.cdl.gz ref_avail1.cdl ref_byte.cdl ref_byte_fill_value_null.cdl ref_fillonly.cdl ref_misc1.cdl ref_ndims.cdl ref_newformatpure.cdl ref_nulls.cdl ref_oldformat.cdl ref_perdimspecs.cdl ref_power_901_constants.cdl ref_purezarr_base.cdl ref_quotes.cdl ref_rem.cdl ref_scalar.cdl ref_skip.cdl ref_skipw.cdl ref_string.cdl ref_t_meta_dim1.cdl ref_t_meta_var1.cdl ref_ut_mapapi_create.cdl ref_ut_mapapi_data.cdl ref_ut_mapapi_meta.cdl ref_ut_map_create.cdl ref_ut_map_writedata.cdl ref_ut_map_writemeta.cdl ref_ut_map_writemeta2.cdl ref_ut_testmap_create.cdl ref_whole.cdl ref_avail1.dmp ref_misc1.dmp ref_ndims.dmp ref_rem.dmp ref_noshape.file.zip ref_groups.h5 ref_notzarr.tar.gz ref_avail1.txt ref_skip.txt ref_ut_json_build.txt ref_ut_json_parse.txt ref_ut_mapapi_search.txt ref_ut_map_readmeta.txt ref_ut_map_readmeta2.txt ref_ut_map_search.txt ref_ut_proj.txt ref_whole.txt ref_byte.zarr.zip ref_byte_fill_value_null.zarr.zip ref_oldformat.zip ref_power_901_constants_orig.zip ref_quotes_orig.zip ref_cmip6.zmap
 
 BUILT_SOURCES += test_nczarr.sh
-DISTCLEANFILES += test_nczarr.sh
-
 test_nczarr.sh: 
-	cp ${top_srcdir}/nczarr_test/test_nczarr.sh ${top_builddir}/v3_nczarr_test/test_nczarr.sh
+	cp ${top_srcdir}/nczarr_test/test_nczarr.sh ${builddir}/test_nczarr.sh
 	if ls -l ${top_builddir}/v3_nczarr_test/test_nczarr.sh ; then x=1; else x=0; fi
 
 BUILT_SOURCES += testdata_nczarr.built testfiles_nczarr_sh.built testfiles_nczarr_c.built
-DISTCLEANFILES += testdata_nczarr.built testfiles_nczarr_sh.built testfiles_nczarr_c.built
+DISTCLEANFILES += ${BUILT_SOURCES}
 
 testfiles_nczarr_sh.built:
 	echo "" > $@
