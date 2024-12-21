@@ -5,7 +5,7 @@ export SETX=1
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
-. ${builddir}/test_nczarr.sh
+. ${srcdir}/test_nczarr.sh
 
 set -e
 

@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# This file must kept in sync with
+#	nczarr_test/test_nczarr.sh
+# and
+#	v3_nczarr_test/test_nczarr.sh
+
 # Load only once
 if test "x$TEST_NCZARR_SH" = x ; then
 export TEST_NCZARR_SH=1

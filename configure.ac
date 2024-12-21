@@ -2393,6 +2393,8 @@ AC_CONFIG_FILES([nc-config], [chmod 755 nc-config])
 AC_CONFIG_FILES(nczarr_test/findplugin.sh:plugins/findplugin.in, [chmod ugo+x nczarr_test/findplugin.sh])
 AC_CONFIG_FILES(v3_nczarr_test/findplugin.sh:plugins/findplugin.in, [chmod ugo+x v3_nczarr_test/findplugin.sh])
 
+AC_CONFIG_FILES(v3_nczarr_test/test_nczarr.sh:nczarr_test/test_nczarr.sh, [])
+
 AC_CONFIG_FILES([Makefile
                  netcdf.pc
                  libnetcdf.settings

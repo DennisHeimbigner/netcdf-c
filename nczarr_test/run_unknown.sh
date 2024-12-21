@@ -11,7 +11,7 @@ THISDIR=`pwd`
 cd $ISOPATH
 
 if test "x$TESTNCZARR" = x1 ; then
-. ${builddir}/test_nczarr.sh
+. ${srcdir}/test_nczarr.sh
 s3isolate
 fi
 
