@@ -216,7 +216,9 @@ EXTRA_DIST += ref_noshape.file.zip ref_power_901_constants.cdl ref_power_901_con
 
 BUILT_SOURCES += ${builddir}/test_nczarr.sh
 ${builddir}/test_nczarr.sh: 
-	cp ${top_srcdir}/nczarr_test/test_nczarr.sh ${builddir}/test_nczarr.sh
+	if ! test -f "${builddir}/test_nczarr.sh ; then \
+	    cp ${top_srcdir}/nczarr_test/test_nczarr.sh ${builddir}/test_nczarr.sh ; \
+	fi
 
 DISTCLEANFILES += findplugin.sh ${BUILT_SOURCES}
 
