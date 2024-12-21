@@ -2362,8 +2362,8 @@ AM_CONDITIONAL([AX_ENABLE], [test xyes = xyes])
 # Provide  conditional to identify tests that must be run manually
 AM_CONDITIONAL([AX_MANUAL], [test xno = xyes])
 
-# Construct the V3 tests using tests from nczarr_test
-source ./v3_setup.sh
+# Initialize v3_nczarr_test
+cd v3_nczarr_test; rm -fr *; tar -xzf ../v3.tgz
 
 AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES(test_common.sh:test_common.in)

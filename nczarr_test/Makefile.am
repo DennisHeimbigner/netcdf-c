@@ -214,13 +214,12 @@ timer_utils.c timer_utils.h bm_utils.c test_utils.c bm_utils.h bm_timer.h
 
 EXTRA_DIST += ref_noshape.file.zip ref_power_901_constants.cdl ref_power_901_constants_orig.zip ref_avail1.cdl ref_avail1.dmp ref_avail1.txt ref_byte.cdl ref_byte_fill_value_null.cdl ref_byte_fill_value_null.zarr.zip ref_byte.zarr.zip ref_fillonly.cdl ref_groups.h5 ref_misc1.cdl ref_misc1.dmp ref_ndims.cdl ref_ndims.dmp ref_newformatpure.cdl ref_notzarr.tar.gz ref_nulls.cdl ref_oldformat.cdl ref_oldformat.zip ref_perdimspecs.cdl ref_purezarr_base.cdl ref_quotes.cdl ref_quotes_orig.zip ref_rem.cdl ref_rem.dmp ref_scalar.cdl ref_scalar_nczarr.cdl ref_skip.cdl ref_skip.txt ref_skipw.cdl ref_string.cdl ref_t_meta_dim1.cdl ref_t_meta_var1.cdl ref_ut_json_build.txt ref_ut_json_parse.txt ref_ut_mapapi_create.cdl ref_ut_mapapi_data.cdl ref_ut_mapapi_meta.cdl ref_ut_mapapi_search.txt ref_ut_map_create.cdl ref_ut_map_readmeta2.txt ref_ut_map_readmeta.txt ref_ut_map_search.txt ref_ut_map_writedata.cdl ref_ut_map_writemeta2.cdl ref_ut_map_writemeta.cdl ref_ut_proj.txt ref_ut_testmap_create.cdl ref_whole.cdl ref_whole.txt ref_zarr_test_data.cdl.gz ref_bzip2.cdl ref_filtered.cdl ref_purezarr.cdl ref_jsonconvention.cdl ref_groups_regular.cdl ref_zarr_test_data_2d.cdl.gz ref_misc2.cdl ref_string_zarr.baseline ref_string_nczarr.baseline ref_nulls_zarr.baseline ref_nulls_nczarr.baseline ref_any.cdl ref_xarray.cdl ref_jsonconvention.zmap ref_nczarr2zarr.cdl ref_multi.cdl ref_tst_mud4.cdl ref_tst_mud4-bc.cdl ref_tst_mud4_chars.cdl ref_tst_nans.dmp ref_cmip6.zmap
 
-BUILT_SOURCES += ${builddir}/test_nczarr.sh
-${builddir}/test_nczarr.sh: 
+DISTCLEANFILES += findplugin.sh ${BUILT_SOURCES}
+
+all-local:
 	if ! test -f "${builddir}/test_nczarr.sh" ; then \
 	    cp ${top_srcdir}/nczarr_test/test_nczarr.sh ${builddir}/test_nczarr.sh ; \
 	fi
-
-DISTCLEANFILES += findplugin.sh ${BUILT_SOURCES}
 
 clean-local:
 	rm -fr tmp*.file
