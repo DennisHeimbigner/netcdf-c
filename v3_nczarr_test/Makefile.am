@@ -192,7 +192,7 @@ EXTRA_DIST += CMakeLists.txt
 V3FILES = run_nan.sh run_mud.sh
 V3DATA = ref_nczarr2zarr.cdl ref_purezarr.cdl ref_xarray.cdl ref_misc2.cdl ref_jsonconvention.cdl ref_jsonconvention.zmap ref_nulls_zarr.baseline ref_string_zarr.baseline ref_string_nczarr.baseline ref_zarr_test_data_2d.cdl.gz ref_groups_regular.cdl ref_filtered.cdl ref_any.cdl ref_multi.cdl ref_bzip2.cdl ref_tst_mud4-bc.cdl ref_tst_mud4.cdl ref_tst_mud4_chars.cdl ref_tst_nans.cdl
 
-EXTRA_DIST += ${V3FILES} ${V3DATA}
+EXTRA_DIST += test_nczarr.sh ${V3FILES} ${V3DATA}
 
 DISTCLEANFILES += findplugin.sh test_nczarr.sh ${TESTFILES_NCZARR} ${TESTDATA_NCZARR}
 
