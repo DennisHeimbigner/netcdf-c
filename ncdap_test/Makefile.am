@@ -57,7 +57,7 @@ TESTS += tst_remote3.sh testurl.sh
 # iridl.ldeo.columbia.edu
 TESTS += tst_encode.sh
 # test.opendap.org
-TESTS += tst_hyrax.sh
+#TESTS += tst_hyrax.sh # currently down
 # Various
 TESTS += tst_longremote3.sh
 tst_longremote3.log: tst_remote3.log
