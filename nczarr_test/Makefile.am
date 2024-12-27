@@ -216,11 +216,6 @@ EXTRA_DIST += ref_noshape.file.zip ref_power_901_constants.cdl ref_power_901_con
 
 DISTCLEANFILES += findplugin.sh ${BUILT_SOURCES}
 
-all-local:
-	if ! test -f "${builddir}/test_nczarr.sh" ; then \
-	    cp ${top_srcdir}/nczarr_test/test_nczarr.sh ${builddir}/test_nczarr.sh ; \
-	fi
-
 clean-local:
 	rm -fr tmp*.file
 if NETCDF_ENABLE_S3_TESTALL

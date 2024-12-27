@@ -186,41 +186,11 @@ endif
 
 CLEANFILES = ut_*.txt ut*.cdl tmp*.nc tmp*.cdl tmp*.txt tmp*.dmp tmp*.zip tmp*.nc tmp*.dump tmp*.tmp tmp*.zmap tmp_ngc.c ref_zarr_test_data.cdl tst_*.nc.zip ref_quotes.zip ref_power_901_constants.zip
 
-EXTRA_DIST += CMakeLists.txt v3manifest.am
-
-include v3manifest.am
+EXTRA_DIST += CMakeLists.txt
 
 EXTRA_DIST += ${V3FILES} ${V3DATA} CMakeLists.txt
 
 DISTCLEANFILES += findplugin.sh
-DISTCLEANFILES += ${TESTFILES_NCZARR_C} ${TESTDATA_NCZARR}
-
-# Note: v3_nczarr_test is initialized with the files specified by the
-# list ${V3FILES} and ${V3DATA} in v3manifest.am. The actual
-# files are kept in the file ${top_srcdir}/v3init.tgz and they
-# are copied into v3_nczarr_test in configure.ac.
-
-BUILT_SOURCES = ${TESTFILES_NCZARR_SH} ${TESTFILES_NCZARR_C} ${TESTDATA_NCZARR}
-
-dist-hook: setup
-all-local: setup
-
-SRC = ${abs_top_srcdir}/nczarr_test
-DST = ${abs_top_srcdir}/v3_nczarr_test
-#DST = .
-
-.PHONY: setup
-setup ${TESTFILES_NCZARR_SH} ${TESTFILES_NCZARR_C} ${TESTDATA_NCZARR}:
-	set -x ; for u in ${TESTFILES_NCZARR_SH}; do \
-	cp -f ${SRC}/$$u ${DST}/$$u ; \
-	chmod a+x ${DST}/$$u ; \
-	done
-	set -x ; for u in ${TESTFILES_NCZARR_C} ; do \
-	cp -f ${SRC}/$$u ${DST}/$$u ; \
-	done
-	set -x; for u in ${TESTDATA_NCZARR}; do \
-	cp -f ${SRC}/$$u ${DST}/$$u ; \
-	done
 
 # Remove directories
 clean-local:
@@ -233,5 +203,3 @@ endif
 
 # If valgrind is present, add valgrind targets.
 @VALGRIND_CHECK_RULES@
-
-##################################################
