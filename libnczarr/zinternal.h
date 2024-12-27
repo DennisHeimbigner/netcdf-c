@@ -72,6 +72,7 @@
 #define Z3OBJECT "zarr.json"
 #define Z3GROUP Z3OBJECT
 #define Z3ARRAY Z3OBJECT
+#define Z3CHUNK "c"
 
 /* Bytes codec name */
 #define ZBYTES3 "bytes"
@@ -202,7 +203,7 @@ Optionally Inserted into any group zarr.json or array zarr.json is the extra att
 #define FORMAT2CONTROL "v2"
 #define FORMAT3CONTROL "v3"
 
-#define LEGAL_DIM_SEPARATORS "./"
+#define LEGAL_DIM_SEPARATORS "/."
 #define DFALT_DIM_SEPARATOR_V2 '.'
 #define DFALT_DIM_SEPARATOR_V3 '/'
 

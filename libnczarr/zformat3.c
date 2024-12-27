@@ -1206,45 +1206,59 @@ ZF3_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NC
     size_t i;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* grpkey = NULL;
-    char* subgrpkey = NULL;
-    char* varkey = NULL;
-    char* zarray = NULL;
-    char* zgroup = NULL;
     NClist* matches = nclistnew();
+    char* subkey = NULL;
+    char* objkey = NULL;
+    NCjson* jcontents = NULL;
+    const NCjson* jnodetype = NULL;
 
     /* Compute the key for the grp */
     if((stat = NCZ_grpkey(grp,&grpkey))) goto done;
     if((stat = nczmap_list(zfile->map,grpkey,matches))) goto done; /* Shallow listing */
-    /* Search grp for group-level .zxxx and for var-level .zxxx*/
+    /* Search grp for zarr.json objects and for chunk objects */
+    /* In order to tell if the name refers to an array, there are two ways to do it.
+       1. we extend the objkey with "/c/ or "/c." to see if it exists as a prefix.
+       2. we read the zarr.json and look at the node_type field.
+       In the absence of consolidated metadat, (1) is slightly faster, but requires
+       extending the zmap interface.
+       So, for now, we implement case (2).
+    */
     for(i=0;i<nclistlength(matches);i++) {
 	const char* name = nclistget(matches,i);
-	if(name[0] == NCZM_DOT) continue; /* current group components */
-	/* See if name is an array by testing for name/.zarray exists */
-	if((stat = nczm_concat(grpkey,name,&varkey))) goto done;
-	if((stat = nczm_concat(varkey,Z3ARRAY,&zarray))) goto done;
-	if((stat = nczmap_exists(zfile->map,zarray)) == NC_NOERR) {
-	    nclistpush(varnames,strdup(name));
-	} else {
-	    /* See if name is a group by testing for name/.zgroup exists */
-	    if((stat = nczm_concat(grpkey,name,&subgrpkey))) goto done;
-	    if((stat = nczm_concat(varkey,Z3GROUP,&zgroup))) goto done;
-	    if((stat = nczmap_exists(zfile->map,zgroup)) == NC_NOERR)
+	const char* ndtype = NULL;
+	if(strcmp(name,Z3OBJECT) == 0) continue; /* current group metadata */
+	/* Look for a zarr.json */
+	if((stat = nczm_concat(grpkey,name,&subkey))) goto done;
+	if((stat = nczm_concat(subkey,Z3OBJECT,&objkey))) goto done;
+	/* Read the zarr.json object */
+	switch (stat = NCZ_downloadjson(zfile->map,objkey,&jcontents)) {
+	case NC_NOERR: { /* We found a zarr.json object */
+	    if(jcontents == NULL || NCJsort(jcontents) != NCJ_DICT) break;
+	    NCJcheck(NCJdictget(jcontents,"node_type",(NCjson**)&jnodetype));
+	    if(jnodetype == NULL || NCJsort(jnodetype) != NCJ_STRING) {stat = NC_ENOTZARR; goto done;}
+	    ndtype = NCJstring(jnodetype);
+	    if(strcmp("array",ndtype)==0)
+		nclistpush(varnames,strdup(name));
+	    else if(strcmp("group",ndtype)==0)
 		nclistpush(subgrpnames,strdup(name));
+	    else
+	        {stat = NC_ENOTZARR; goto done;}
+	    } break;
+	case NC_ENOOBJECT: break; /* keep searching */
+	default: goto done;
 	}
 	stat = NC_NOERR;
-	nullfree(varkey); varkey = NULL;
-	nullfree(zarray); zarray = NULL;
-	nullfree(subgrpkey); subgrpkey = NULL;
-	nullfree(zgroup); zgroup = NULL;
+	nullfree(subkey); subkey = NULL;
+	nullfree(objkey); objkey = NULL;
+	NCJreclaim(jcontents); jcontents = NULL;
     }
 
 done:
+    nullfree(subkey);
+    nullfree(objkey);
     nullfree(grpkey);
-    nullfree(varkey);
-    nullfree(zarray);
-    nullfree(zgroup);
-    nullfree(subgrpkey);
     nclistfreeall(matches);
+    NCJreclaim(jcontents);
     return stat;
 }
 

@@ -45,7 +45,6 @@ set(PACKAGE "netCDF" CACHE STRING "")
 include(netcdf_functions_macros)
 include(deprecated)
 
-
 # Backport of built-in `PROJECT_IS_TOP_LEVEL` from CMake 3.21
 if (NOT DEFINED NETCDF_IS_TOP_LEVEL)
   set(NETCDF_IS_TOP_LEVEL OFF)
