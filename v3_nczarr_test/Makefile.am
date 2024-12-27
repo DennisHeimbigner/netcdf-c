@@ -213,6 +213,7 @@ EXTRA_DIST += ref_noshape.file.zip ref_power_901_constants.cdl ref_power_901_con
 
 DISTCLEANFILES += findplugin.sh
 
+# Remove directories
 clean-local:
 	rm -fr tmp*.file
 if NETCDF_ENABLE_S3_TESTALL
