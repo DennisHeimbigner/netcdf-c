@@ -193,6 +193,11 @@ are set when opening a binary file on Windows. */
 /* S3 Working subtree path prefix*/
 #define S3TESTSUBTREE "${S3TESTSUBTREE}"
 
+/* S3 Test endpoint */
+#define S3ENDPOINT "${S3ENDPOINT}"
+
+/* S3 Test Bucket */
+
 /* if true, run extra tests which may not work yet */
 #cmakedefine EXTRA_TESTS 1
 

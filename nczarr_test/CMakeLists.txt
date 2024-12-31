@@ -5,6 +5,10 @@
 
 # See netcdf-c/COPYRIGHT file for more info.
 
+/* Set some Environment variables */
+set(ENV{NCZARRFORMAT} "2")
+set(ENV{NCNOZMETADATA} "1")
+
 set(abs_top_srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 NCZARR_C_TEST(tst_quantize test_quantize nc_test4)
@@ -181,6 +185,7 @@ IF(NETCDF_ENABLE_TESTS)
     add_sh_test(nczarr_test run_external)
     add_sh_test(nczarr_test run_quantize)
     add_sh_test(nczarr_test run_notzarr)
+    add_sh_test(nczarr_test run_consolidated_zarr.sh)
 
     if(USE_HDF5)
     add_sh_test(nczarr_test run_fillonlyz)

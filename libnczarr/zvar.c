@@ -2229,7 +2229,7 @@ NCZ_write_var_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var)
             size64_t* indices = nczodom_indices(chunkodom);
             /* Convert to key */
             if((stat = NCZ_buildchunkpath(zvar->cache,indices,&key))) goto done;
-            switch (stat = nczmap_exists(map,key)) {
+            switch (stat = NCZMD_exists(file,key)) {
             case NC_NOERR: goto next; /* already exists */
             case NC_ENOOBJECT: break; /* does not exist, create it with fill */
             default: goto done; /* some other error */

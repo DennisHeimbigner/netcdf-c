@@ -5,6 +5,10 @@
 
 # See netcdf-c/COPYRIGHT file for more info.
 
+/* Set some Environment variables */
+set(ENV{NCZARRFORMAT} "3")
+set(ENV{NCNOZMETADATA} "1")
+
 set(abs_top_srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 NCZARR_C_TEST(tst_quantize test_quantize nc_test4)

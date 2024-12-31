@@ -196,14 +196,13 @@ int
 ZF3_download_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* fullpath = NULL;
     char* key = NULL;
 
     /* Download zarr.json */
     if((stat = NCZ_grpkey(grp,&fullpath))) goto done;
     if((stat = nczm_concat(fullpath,Z3GROUP,&key))) goto done;
-    if((stat = NCZ_downloadjson(zinfo->map,key,&zobj->jobj))) goto done;
+    if((stat = NCZMD_fetch_json_content(file,NCZMD_GROUP,key,&zobj->jobj))) goto done;
     nullfree(key); key = NULL;
     /* Verify that group zarr.json exists */
     if(zobj->jobj == NULL) {stat = NC_ENOTZARR; goto done;}
@@ -221,14 +220,13 @@ int
 ZF3_download_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* fullpath = NULL;
     char* key = NULL;
 
     /* Download zarr.json */
     if((stat = NCZ_varkey(var,&fullpath))) goto done;
     if((stat = nczm_concat(fullpath,Z3ARRAY,&key))) goto done;
-    if((stat = NCZ_downloadjson(zinfo->map,key,&zobj->jobj))) goto done;
+    if((stat = NCZMD_fetch_json_content(file,NCZMD_ARRAY,key,&zobj->jobj))) goto done;
     nullfree(key); key = NULL;
     /* Verify that var zarr.json exists */
     if(zobj->jobj == NULL) {stat = NC_ENOTZARR; goto done;}
@@ -638,7 +636,6 @@ int
 ZF3_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* fullpath = NULL;
     char* key = NULL;
 
@@ -651,7 +648,7 @@ ZF3_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
     /* build ZGROUP path */
     if((stat = nczm_concat(fullpath,Z3GROUP,&key))) goto done;
     /* Write to map */
-    if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jobj))) goto done;
+    if((stat=NCZMD_update_json_content(file,NCZMD_GROUP,key,zobj->jobj))) goto done;
     nullfree(key); key = NULL;
 
 done:
@@ -664,7 +661,6 @@ int
 ZF3_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* fullpath = NULL;
     char* key = NULL;
 
@@ -677,7 +673,7 @@ ZF3_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
     /* build ZARRAY path */
     if((stat = nczm_concat(fullpath,Z3ARRAY,&key))) goto done;
     /* Write to map */
-    if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jobj))) goto done;
+    if((stat=NCZMD_update_json_content(file,NCZMD_ARRAY,key,zobj->jobj))) goto done;
     nullfree(key); key = NULL;
 
 done:
@@ -1204,7 +1200,6 @@ ZF3_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NC
 {
     int stat = NC_NOERR;
     size_t i;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* grpkey = NULL;
     NClist* matches = nclistnew();
     char* subkey = NULL;
@@ -1214,7 +1209,7 @@ ZF3_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NC
 
     /* Compute the key for the grp */
     if((stat = NCZ_grpkey(grp,&grpkey))) goto done;
-    if((stat = nczmap_list(zfile->map,grpkey,matches))) goto done; /* Shallow listing */
+    if((stat = NCZMD_list(file,grpkey,matches))) goto done; /* Shallow listing */
     /* Search grp for zarr.json objects and for chunk objects */
     /* In order to tell if the name refers to an array, there are two ways to do it.
        1. we extend the objkey with "/c/ or "/c." to see if it exists as a prefix.
@@ -1231,7 +1226,7 @@ ZF3_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NC
 	if((stat = nczm_concat(grpkey,name,&subkey))) goto done;
 	if((stat = nczm_concat(subkey,Z3OBJECT,&objkey))) goto done;
 	/* Read the zarr.json object */
-	switch (stat = NCZ_downloadjson(zfile->map,objkey,&jcontents)) {
+	switch (stat = NCZMD_fetch_json_content(file,NCZMD_GROUP,objkey,&jcontents)) {
 	case NC_NOERR: { /* We found a zarr.json object */
 	    if(jcontents == NULL || NCJsort(jcontents) != NCJ_DICT) break;
 	    NCJcheck(NCJdictget(jcontents,"node_type",(NCjson**)&jnodetype));

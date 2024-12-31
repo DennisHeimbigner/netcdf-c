@@ -202,7 +202,6 @@ int
 ZF2_download_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* fullpath = NULL;
     char* key = NULL;
 
@@ -211,10 +210,10 @@ ZF2_download_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
     /* Download .zgroup and .zattrs */
     if((stat = NCZ_grpkey(grp,&fullpath))) goto done;
     if((stat = nczm_concat(fullpath,Z2GROUP,&key))) goto done;
-    if((stat = NCZ_downloadjson(zinfo->map,key,&zobj->jobj))) goto done;
+    if((stat = NCZMD_fetch_json_content(file,NCZMD_GROUP,key,&zobj->jobj))) goto done;
     nullfree(key); key = NULL;
     if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
-    if((stat = NCZ_downloadjson(zinfo->map,key,&zobj->jatts))) goto done;
+    if((stat = NCZMD_fetch_json_content(file,NCZMD_ATTRS,key,&zobj->jatts))) goto done;
     zobj->constjatts = 0;    
 
 done:
@@ -227,17 +226,16 @@ int
 ZF2_download_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* fullpath = NULL;
     char* key = NULL;
 
     /* Download .zgroup and .zattrs */
     if((stat = NCZ_varkey(var,&fullpath))) goto done;
     if((stat = nczm_concat(fullpath,Z2ARRAY,&key))) goto done;
-    if((stat = NCZ_downloadjson(zinfo->map,key,&zobj->jobj))) goto done;
+    if((stat = NCZMD_fetch_json_content(file,NCZMD_GROUP,key,&zobj->jobj))) goto done;
     nullfree(key);
     if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
-    if((stat = NCZ_downloadjson(zinfo->map,key,&zobj->jatts))) goto done;
+    if((stat = NCZMD_fetch_json_content(file,NCZMD_ATTRS,key,&zobj->jatts))) goto done;
     nullfree(key); key = NULL;
     zobj->constjatts = 0;    
 
@@ -283,18 +281,19 @@ ZF2_decode_superblock(NC_FILE_INFO_T* file, const NCjson* jsuper, int* zformatp,
     if(zformatp) *zformatp = 0;
     if(nczformatp) *nczformatp = 0;
     
-    /* Extract the zarr format number and the nczarr format number */
+    /* Extract the zarr format number */
     NCJcheck(NCJdictget(jsuper,"zarr_format",(NCjson**)&format));
     if(format != NULL) {
 	if(NCJsort(format) != NCJ_INT) {stat = NC_ENOTZARR; goto done;}
 	if(1!=sscanf(NCJstring(format),ZARR_FORMAT_VERSION_TEMPLATE,&zformat)) {stat = NC_ENOTZARR; goto done;}
     }
+    /* Extract the nczarr format number */
     NCJcheck(NCJdictget(jsuper,"nczarr_format",(NCjson**)&format));
     if(format != NULL) {
 	if(NCJsort(format) != NCJ_INT) {stat = NC_ENOTZARR; goto done;}
 	if(1!=sscanf(NCJstring(format),NCZARR_FORMAT_VERSION_TEMPLATE,&nczformat)) {stat = NC_ENOTZARR; goto done;}
     }
-    
+
     if(zformatp) *zformatp = zformat;
     if(nczformatp) *nczformatp = nczformat;
 
@@ -710,7 +709,6 @@ int
 ZF2_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* fullpath = NULL;
     char* key = NULL;
 
@@ -720,14 +718,14 @@ ZF2_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
     /* build ZGROUP path */
     if((stat = nczm_concat(fullpath,Z2GROUP,&key))) goto done;
     /* Write to map */
-    if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jobj))) goto done;
+    if((stat=NCZMD_update_json_content(file,NCZMD_GROUP,key,zobj->jobj))) goto done;
     nullfree(key); key = NULL;
 
     if(zobj->jatts != NULL) {
 	/* build ZATTRS path */
 	if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
 	/* Write to map */
-	if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jatts))) goto done;
+	if((stat=NCZMD_update_json_content(file,NCZMD_ATTRS,key,zobj->jatts))) goto done;
 	nullfree(key); key = NULL;
     }
 
@@ -741,7 +739,6 @@ int
 ZF2_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
 {
     int stat = NC_NOERR;
-    NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* fullpath = NULL;
     char* key = NULL;
 
@@ -751,14 +748,14 @@ ZF2_upload_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj)
     /* build ZARRAY path */
     if((stat = nczm_concat(fullpath,Z2ARRAY,&key))) goto done;
     /* Write to map */
-    if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jobj))) goto done;
+    if((stat=NCZMD_update_json_content(file,NCZMD_ARRAY,key,zobj->jobj))) goto done;
     nullfree(key); key = NULL;
 
     if(zobj->jatts != NULL) {
 	/* build ZATTRS path */
 	if((stat = nczm_concat(fullpath,Z2ATTRS,&key))) goto done;
 	/* Write to map */
-	if((stat=NCZ_uploadjson(zinfo->map,key,zobj->jatts))) goto done;
+	if((stat=NCZMD_update_json_content(file,NCZMD_GROUP,key,zobj->jatts))) goto done;
 	nullfree(key); key = NULL;
     }
 
@@ -1279,7 +1276,6 @@ ZF2_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NC
 {
     int stat = NC_NOERR;
     size_t i;
-    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     char* grpkey = NULL;
     char* subgrpkey = NULL;
     char* varkey = NULL;
@@ -1289,7 +1285,7 @@ ZF2_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NC
 
     /* Compute the key for the grp */
     if((stat = NCZ_grpkey(grp,&grpkey))) goto done;
-    if((stat = nczmap_list(zfile->map,grpkey,matches))) goto done; /* Shallow listing */
+    if((stat = NCZMD_list(file,grpkey,matches))) goto done; /* Shallow listing */
     /* Search grp for group-level .zxxx and for var-level .zxxx*/
     for(i=0;i<nclistlength(matches);i++) {
 	const char* name = nclistget(matches,i);
@@ -1297,13 +1293,13 @@ ZF2_searchobjects(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varnames, NC
 	/* See if name is an array by testing for name/.zarray exists */
 	if((stat = nczm_concat(grpkey,name,&varkey))) goto done;
 	if((stat = nczm_concat(varkey,Z2ARRAY,&zarray))) goto done;
-	if((stat = nczmap_exists(zfile->map,zarray)) == NC_NOERR) {
+	if((stat = NCZMD_exists(file,zarray)) == NC_NOERR) {
 	    nclistpush(varnames,strdup(name));
 	} else {
 	    /* See if name is a group by testing for name/.zgroup exists */
 	    if((stat = nczm_concat(grpkey,name,&subgrpkey))) goto done;
 	    if((stat = nczm_concat(varkey,Z2GROUP,&zgroup))) goto done;
-	    if((stat = nczmap_exists(zfile->map,zgroup)) == NC_NOERR)
+	    if((stat = NCZMD_exists(file,zgroup)) == NC_NOERR)
 		nclistpush(subgrpnames,strdup(name));
 	}
 	stat = NC_NOERR;

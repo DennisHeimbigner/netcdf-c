@@ -4,7 +4,7 @@
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
 
-AM_TESTS_ENVIRONMENT += export NCZARRFORMAT=3;
+AM_TESTS_ENVIRONMENT += export NCZARRFORMAT=3;export NCNOZMETADATA=1;
 TESTS_ENVIRONMENT =
 TEST_EXTENSIONS = .sh
 #SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose

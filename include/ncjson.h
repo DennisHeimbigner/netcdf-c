@@ -113,7 +113,7 @@ OPTEXPORT int NCJinsert(NCjson* object, const char* key, NCjson* jvalue);
 /* Insert key-value pair into a dict object. key and value will be copied */
 OPTEXPORT int NCJinsertstring(NCjson* object, const char* key, const char* value);
 
-/* Overwrite key-value pair into a dict object. Act like NCJinsert if key not found */
+/* Overwrite key-value pair in a dict object. Act like NCJinsert if key not found */
 OPTEXPORT int NCJoverwrite(NCjson* object, const char* key, NCjson* value);
 
 /* Insert key-value pair into a dict object. key and value will be copied */
