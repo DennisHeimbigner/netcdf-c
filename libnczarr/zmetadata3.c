@@ -66,35 +66,41 @@ list_nodes_csl_v3(NC_FILE_INFO_T* file, const char* prefix, NClist* matches)
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     size_t i,plen;
     NCZ_Metadata* zmd = &zfile->metadata_handler;
-    char* seg1;
+    char* seg1 = NULL;
+    NClist* segments = nclistnew();
 
     assert(zmd->jmeta != NULL && NCJsort(zmd->jmeta)==NCJ_DICT);
     if(prefix[0] == '/') prefix++; /* drop leading '/' for search purposes */
     plen = strlen(prefix);
     /* Walk the metadata nodes and collect the matches */
     for(i=0;i<NCJdictlength(zmd->jmeta);i++) {
-	NCjson* jkey = NCJdictkey(zmd->jmeta,i);
+	const NCjson* jkey = NCJdictkey(zmd->jmeta,i);
 	const char* skey = NCJstring(jkey);
 	size_t slen = strlen(skey);
+	size_t j, found;
 	/* Check for prefix taking root key into acct. */
 	if((plen == 0 && slen > 0) || strncmp(skey,prefix,plen) > 0) {
-	    const char* segment = NULL;
-	    const char* eos = NULL;
+	    const char* suffix = NULL;
 	    /* This is a match and is not just the prefix*/
 	    /* truncate any segments beyond the first */
-	    segment = skey+plen;
-	    assert(strlen(segment) > 0);
-	    if((eos=strchr(segment,'/'))!=NULL) { /* multiple extending segments */
-		/* keep only the first segment beyond the prefix */
-		slen = (size_t)(eos - segment);
+	    suffix = &skey[plen];
+	    assert(strlen(suffix) > 0);
+	    nclistclearall(segments);
+	    ncz_splitkey(suffix,segments);
+	    if(nclistlength(segments) > 0) {
+		seg1 = (char*)nclistremove(segments,0);
+		/* suppress duplicates */
+		for(found=0,j=0;j<nclistlength(matches);j++) {
+		    const char* name = (const char*)nclistget(matches,j);
+		    if(strcmp(name,seg1)==0) {found = 1; break;}
+		}
+		if(!found) nclistpush(matches,seg1); else nullfree(seg1);
+		seg1 = NULL;
 	    }
-	    seg1 = (char*)malloc(slen+1); /* the immediate segment after the prefix */
-	    memcpy(seg1,segment,slen);
-	    seg1[slen] = '\0';
-	    nclistpush(matches,seg1); seg1 = NULL;
 	}
     }
     nullfree(seg1);
+    nclistfreeall(segments);
     return stat;
 }
 

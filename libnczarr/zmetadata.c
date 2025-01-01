@@ -365,7 +365,16 @@ NCZMD_set_metadata_handler(NC_FILE_INFO_T *file)
 	    break;
 	}
     } else { /* opening a file */
-	switch (zfile->zarr.zarr_format) {
+	int haszmetadata;
+	/* See if /.zmetadata exists */
+	switch (stat = nczmap_exists(zfile->map,Z2METADATA)) {
+	case NC_NOERR: haszmetadata = 1; break;
+	case NC_ENOOBJECT: haszmetadata = 0; break;
+	default: goto done;
+	}
+	if(!haszmetadata)
+	    zmd_dispatcher = NCZ_metadata_handler;	    
+	else switch (zfile->zarr.zarr_format) {
         case 2:
 	    zmd_dispatcher = NCZ_csl_metadata_handler2;
 	    break;

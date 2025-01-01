@@ -185,6 +185,7 @@ IF(NETCDF_ENABLE_TESTS)
     add_sh_test(nczarr_test run_external)
     add_sh_test(nczarr_test run_quantize)
     add_sh_test(nczarr_test run_notzarr)
+    add_sh_test(nczarr_test run_consolidated_zarr.sh)
 
     if(USE_HDF5)
     add_sh_test(nczarr_test run_fillonlyz)
