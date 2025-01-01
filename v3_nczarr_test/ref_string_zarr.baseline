@@ -1,14 +1,14 @@
 netcdf ref_string {
 dimensions:
 	d2 = 2 ;
+	_scalar_ = 1 ;
 variables:
-	ubyte c(d2) ;
-		c:_FillValue = 0UB ;
+	char c(d2) ;
 	string v(d2) ;
- 		string v:_FillValue = "" ;
-	string truncated ;
+		string v:_FillValue = "" ;
+	string truncated(_scalar_) ;
 		truncated:_nczarr_maxstrlen = 4 ;
- 		string truncated:_FillValue = "" ;
+		string truncated:_FillValue = "" ;
 
 // global attributes:
 		string :stringattr = "abc", "def" ;
@@ -16,7 +16,7 @@ variables:
 		:_nczarr_default_maxstrlen = 6 ;
 data:
 
- c = 97, 98 ;
+ c = "ab" ;
 
  v = "uvw", "xyz" ;
 

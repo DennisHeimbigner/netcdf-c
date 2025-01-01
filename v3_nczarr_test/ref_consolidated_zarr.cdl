@@ -1,4 +1,4 @@
-netcdf tmp_purezarr {
+netcdf tmp_consolidated_zarr {
 dimensions:
 	_Anonymous_Dim_2 = 2 ;
 	_Anonymous_Dim_5 = 5 ;
