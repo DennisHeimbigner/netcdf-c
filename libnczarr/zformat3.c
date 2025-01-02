@@ -514,7 +514,7 @@ ZF3_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
     if((stat = NCZ_filter_initialize())) goto done;
 #endif
     {
-	if((stat = NCJdictget(jvar,"codecs",(NCjson**)&jcodecs))<0) {stat = NC_EINVAL; goto done;}
+	NCJcheck(NCJdictget(jvar,"codecs",(NCjson**)&jcodecs));
 	if(jcodecs == NULL || NCJsort(jcodecs) != NCJ_ARRAY || NCJarraylength(jcodecs) == 0)
 	    {stat = NC_ENOTZARR; goto done;}
 	/* Get endianess from the first codec */

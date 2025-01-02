@@ -1,9 +1,9 @@
 netcdf tmp_consolidated_zarr {
 dimensions:
-	_Anonymous_Dim_2 = 2 ;
-	_Anonymous_Dim_5 = 5 ;
+	x = 2 ;
+	y = 5 ;
 variables:
-	int i(_Anonymous_Dim_2, _Anonymous_Dim_5) ;
+	int i(x, y) ;
 data:
 
  i =

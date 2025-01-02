@@ -52,7 +52,7 @@ BUILT_SOURCES = netcdf_json.h netcdf_proplist.h
 # is out of source.
 
 # Give the recipe for building netcdf_json.h
-netcdf_json.h: ${top_srcdir}/libdispatch/ncjson.c ${top_srcdir}/include/ncjson.h ${top_srcdir}/include/ncextern.h
+netcdf_json.h: ${top_srcdir}/libdispatch/ncjson.c ${top_srcdir}/include/ncjson.h ${top_srcdir}/include/ncexternl.h
 	rm -fr ${builddir}/netcdf_json.h
 	cat ${srcdir}/ncjson.h \
 	    | sed -e '/!NCJSON_H/d' \

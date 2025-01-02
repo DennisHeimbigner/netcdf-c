@@ -164,7 +164,19 @@ OPTEXPORT void NCJdictsort(NCjson* jdict);
 
 /**************************************************/
 /* Error detection helper */
-#define NCJcheck(expr) do{if((expr) < 0) {stat = NCTHROW(NCJ_ERR); goto done;}}while(0)
+#define NCJDEBUG
+#ifdef NCJDEBUG
+static int
+NCJBREAKPOINT(int err)
+{
+    (void)NCJBREAKPOINT;
+    return err;
+}
+#else
+#define NCJBREAKPOINT(err) (err)
+#endif /*NCJDEBUG*/
+#define NCJcheck(expr) do{if((expr) < 0) {stat = NCJBREAKPOINT(NCJ_ERR); goto done;}}while(0)
+
 /**************************************************/
 
 #endif /*!NCJSON_H*/ /* Leave the ! as a tag for sed */

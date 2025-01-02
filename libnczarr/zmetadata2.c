@@ -244,7 +244,9 @@ open_csl_v2(NC_FILE_INFO_T* file)
     NCZ_Metadata* zmd = &zfile->metadata_handler;
 
     /* Read /.zmetadata */
-    if((stat = NCZ_downloadjson(zfile->map,Z2METADATA,&zmd->jcsl))) goto done;
+    if(zmd->jcsl == NULL) {
+        if((stat = NCZ_downloadjson(zfile->map,Z2METADATA,&zmd->jcsl))) goto done;
+    }
     if(zmd->jcsl == NULL || NCJsort(zmd->jcsl) != NCJ_DICT) {stat = NC_EZARRMETA; goto done;}
     /* Pull out the "metadata" key and save it */
     NCJcheck(NCJdictget(zmd->jcsl,"metadata",&zmd->jmeta));

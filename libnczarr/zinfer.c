@@ -283,6 +283,10 @@ done:
     return THROW(stat);
 }
 
+/*
+Figure out the zarr format based on the
+top-level keys of the dataset.
+*/
 static int
 tagsearch(NCZMAP* map, const char* prefix, const char* key, void* param)
 {

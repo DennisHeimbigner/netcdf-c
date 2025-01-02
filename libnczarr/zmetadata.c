@@ -345,6 +345,8 @@ NCZMD_set_metadata_handler(NC_FILE_INFO_T *file)
     NCZ_Metadata* zmd = &zfile->metadata_handler;
     const NCZ_Metadata_Dispatcher *zmd_dispatcher = NULL;
     int disallowzmetadata = 0;
+    NCjson* jcsl = NULL;
+    const NCjson* jmeta = NULL;
 
     /* Override from env var or mode flag */
     if((zfile->flags & FLAG_NOCONSOLIDATED) || getenv(NCZARRDEFAULTNOMETA) != NULL) disallowzmetadata = 1;
@@ -364,33 +366,36 @@ NCZMD_set_metadata_handler(NC_FILE_INFO_T *file)
 	    zmd_dispatcher = NCZ_metadata_handler;
 	    break;
 	}
-    } else { /* opening a file */
-	int haszmetadata;
+    } else if(zmd_dispatcher == NULL) { /* opening a file */
 	/* See if /.zmetadata exists */
-	switch (stat = nczmap_exists(zfile->map,Z2METADATA)) {
-	case NC_NOERR: haszmetadata = 1; break;
-	case NC_ENOOBJECT: haszmetadata = 0; break;
-	default: goto done;
-	}
-	if(!haszmetadata)
-	    zmd_dispatcher = NCZ_metadata_handler;	    
-	else switch (zfile->zarr.zarr_format) {
-        case 2:
-	    zmd_dispatcher = NCZ_csl_metadata_handler2;
+	switch (zfile->zarr.zarr_format) {
+	case 2: /* Try to download .zmetadata */
+	    if((stat = NCZ_downloadjson(zfile->map,Z2METADATA,&jcsl))) goto done;
+	    if(jcsl != NULL)
+		NCJcheck(NCJdictget(jcsl,"metadata",(NCjson**)&jmeta));
 	    break;
-        case 3:
-	    zmd_dispatcher = NCZ_csl_metadata_handler3;
+	case 3: /* For V3, we need to look inside the root group's zarr.json */
+	    if((stat = NCZ_downloadjson(zfile->map,Z3METADATA,&jcsl))) goto done;
+	    if(jcsl != NULL)
+		NCJcheck(NCJdictget(jcsl,"metadata",(NCjson**)&jmeta));
 	    break;
 	default:
-	    zmd_dispatcher = NCZ_metadata_handler;
 	    break;
 	}
+	if(jmeta != NULL && zfile->zarr.zarr_format == 2)
+	    zmd_dispatcher = NCZ_csl_metadata_handler2;
+	else if(jmeta && zfile->zarr.zarr_format == 3)
+	    zmd_dispatcher = NCZ_csl_metadata_handler3;
+	else
+	    zmd_dispatcher = NCZ_metadata_handler;	    
     }
     zmd->dispatcher = zmd_dispatcher;
     assert(zmd->dispatcher != NULL);
     
+    zmd->jcsl = jcsl; jcsl = NULL;
+    zmd->jmeta = jmeta; jmeta = NULL;
+
     /* Now open/create the consolidated metadata object */
-    assert(zmd->jcsl == NULL);
     if(zfile->creating) {
 	if((stat=NCZMD_create(file))) goto done;
     } else {

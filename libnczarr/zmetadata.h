@@ -35,7 +35,7 @@ extern "C"
 
 /* The keys in this dict are all stored in root group's container for consolidated metadata */
 #define MINIMIM_CSL_REP2_RAW "{\"zarr_consolidated_format\":1, \"metadata\":{}}"
-#define MINIMIM_CSL_REP3_RAW "{\"zarr_format\": 3, \"node_type\": \"group\", \"attributes\": {} \"kind\": \"inline\", \"must_understand\": False, \"metadata\": {}}"
+#define MINIMIM_CSL_REP3_RAW "{\"zarr_format\": 3, \"node_type\": \"group\", \"attributes\": {}, \"kind\": \"inline\", \"must_understand\": False, \"metadata\": {}}"
 
 typedef enum NCZMD_MetadataType {
 	NCZMD_NULL,
@@ -68,7 +68,7 @@ typedef struct NCZ_Metadata
 {
 	NCjson *jcsl; /* Consolidated JSON container: .zmetadata for V2,
 			 or root group zarr.json (minus "metadata" dict) for V3 */
-	NCjson *jmeta; /* "metadata" dict from jcsl (or NULL) */
+	const NCjson *jmeta; /* "metadata" dict from jcsl (or NULL) */
 	int dirty; /* The consolidated metadata was modified */
 	const NCZ_Metadata_Dispatcher *dispatcher;
 } NCZ_Metadata;

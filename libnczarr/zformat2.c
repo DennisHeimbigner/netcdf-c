@@ -437,7 +437,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 	if(jncvar == NULL) {stat = NC_ENCZARR; goto done;}
 	assert((NCJsort(jncvar) == NCJ_DICT));
 	/* Extract scalar flag */
-	if((stat = NCJdictget(jncvar,"scalar",(NCjson**)&jvalue))<0) {stat = NC_EINVAL; goto done;}
+	NCJcheck(NCJdictget(jncvar,"scalar",(NCjson**)&jvalue));
 	if(jvalue != NULL) zvar->scalar = 1;
 	/* Ignore storage flag and treat everything as chunked */
 	var->storage = NC_CHUNKED;
@@ -482,7 +482,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 	NCglobalstate* ngs = NC_getglobalstate();
 	assert(ngs != NULL);
 	zvar->dimension_separator = 0;
-	if((stat = NCJdictget(jvar,"dimension_separator",(NCjson**)&jvalue))<0) {stat = NC_EINVAL; goto done;}
+	NCJcheck(NCJdictget(jvar,"dimension_separator",(NCjson**)&jvalue));
 	if(jvalue != NULL) {
 	    /* Verify its value */
 	    if(NCJsort(jvalue) == NCJ_STRING && NCJstring(jvalue) != NULL && strlen(NCJstring(jvalue)) == 1)
@@ -518,7 +518,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 
     /* chunks */
     {
-	if((stat = NCJdictget(jvar,"chunks",(NCjson**)&jvalue))<0) {stat = NC_EINVAL; goto done;}
+	NCJcheck(NCJdictget(jvar,"chunks",(NCjson**)&jvalue));
 	if(jvalue != NULL && NCJsort(jvalue) != NCJ_ARRAY)
 	    {stat = (THROW(NC_ENCZARR)); goto done;}
         if(zarr_rank == 0) {stat = NC_ENCZARR; goto done;}
@@ -531,7 +531,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 
     /* Capture row vs column major; currently, column major not used*/
     {
-	if((stat = NCJdictget(jvar,"order",(NCjson**)&jvalue))<0) {stat = NC_EINVAL; goto done;}
+	NCJcheck(NCJdictget(jvar,"order",(NCjson**)&jvalue));
 	if(strcmp(NCJstring(jvalue),"C") > 0)
 	    ((NCZ_VAR_INFO_T*)var->format_var_info)->order = 1;
 	else ((NCZ_VAR_INFO_T*)var->format_var_info)->order = 0;
@@ -546,7 +546,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
     if(var->filters == NULL) var->filters = (void*)nclistnew();
     if((stat = NCZ_filter_initialize())) goto done;
     {
-	if((stat = NCJdictget(jvar,"filters",(NCjson**)&jvalue))<0) {stat = NC_EINVAL; goto done;}
+	NCJcheck(NCJdictget(jvar,"filters",(NCjson**)&jvalue));
 	if(jvalue != NULL && NCJsort(jvalue) != NCJ_NULL) {
 	    int k;
 	    if(NCJsort(jvalue) != NCJ_ARRAY) {stat = NC_EFILTER; goto done;}
@@ -563,7 +563,7 @@ ZF2_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
     /* From V2 Spec: A JSON object identifying the primary compression codec and providing
        configuration parameters, or ``null`` if no compressor is to be used. */
     { 
-	if((stat = NCJdictget(jvar,"compressor",(NCjson**)&jfilter))<0) {stat = NC_EINVAL; goto done;}
+	NCJcheck(NCJdictget(jvar,"compressor",(NCjson**)&jfilter));
 	if(jfilter != NULL && NCJsort(jfilter) != NCJ_NULL) {
 	    if(NCJsort(jfilter) != NCJ_DICT) {stat = NC_EFILTER; goto done;}
 	    nclistpush(filtersj,jfilter);

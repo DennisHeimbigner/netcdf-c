@@ -207,9 +207,6 @@ consolidate_csl_v3(NC_FILE_INFO_T* file)
     if (zmd->dirty) {
 	if(zmd->jcsl == NULL) {stat = NC_EZARRMETA; goto done;}
 	if(zmd->jmeta == NULL) {stat = NC_EZARRMETA; goto done;}
-	/* (re-)insert the metadata key value pair into jcsl */
-	NCJcheck(NCJoverwrite(zmd->jcsl,"metadata",zmd->jmeta));
-	zmd->jmeta = NULL;
         stat = NCZ_uploadjson(zfile->map, Z3METADATA ,zmd->jcsl);
 	zmd->dirty = 0;
     }
@@ -224,7 +221,7 @@ close_csl_v3(NC_FILE_INFO_T* file)
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     NCZ_Metadata* zmd = &zfile->metadata_handler;
     NCJreclaim(zmd->jcsl); zmd->jcsl = NULL;
-    NCJreclaim(zmd->jmeta); zmd->jmeta = NULL;
+    zmd->jmeta = NULL;
     return stat;
 }
 
@@ -236,17 +233,13 @@ open_csl_v3(NC_FILE_INFO_T* file)
     NCZ_Metadata* zmd = &zfile->metadata_handler;
 
     /* Read /zarr.json */
-    if((stat = NCZ_downloadjson(zfile->map,Z3METADATA,&zmd->jcsl))) goto done;
+    if(zmd->jcsl == NULL) {
+	if((stat = NCZ_downloadjson(zfile->map,Z3METADATA,&zmd->jcsl))) goto done;
+    }
     if(zmd->jcsl == NULL || NCJsort(zmd->jcsl) != NCJ_DICT) {stat = NC_EZARRMETA; goto done;}
     /* Pull out the "metadata" key and save it */
     NCJcheck(NCJdictget(zmd->jcsl,"metadata",&zmd->jmeta));
     if(zmd->jmeta == NULL || NCJsort(zmd->jmeta) != NCJ_DICT) {stat = NC_EZARRMETA; goto done;}
-    /* Remove from /zarr.json */
-    {
-        NCjson* jnull = NULL;
-	NCJcheck(NCJnew(NCJ_NULL,&jnull));
-        NCJcheck(NCJoverwrite(zmd->jcsl,"metadata",jnull));
-    }
 done:
     return stat;
 }
@@ -259,7 +252,7 @@ create_csl_v3(NC_FILE_INFO_T* file)
     NCZ_Metadata* zmd = &zfile->metadata_handler;
 
     /* Create the JSON skeleton */
-    if((stat = NCJparse(MINIMIM_CSL_REP3_RAW,0,&zmd->jcsl))) goto done; /* Create the metadata skeleton */
+    NCJcheck(NCJparse(MINIMIM_CSL_REP3_RAW,0,&zmd->jcsl)); /* Create the metadata skeleton */
     /* Pull out the "metadata" key and save it */
     NCJcheck(NCJdictget(zmd->jcsl,"metadata",&zmd->jmeta));
 done:
