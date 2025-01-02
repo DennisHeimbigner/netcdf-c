@@ -14,6 +14,9 @@ cd $ISOPATH
 
 # Force use of consolidated metadata
 unset NCNOZMETADATA
+echo "@@@"
+echo "$NCZARRFORMAT"
+echo "$NCNOZMETADA"
 
 # This shell script tests support for:
 # 1. consolidated zarr (noxarray) read-only
@@ -27,7 +30,6 @@ testcase() {
     ${NCGEN} -4 -b -o "$fileurl" $srcdir/ref_consolidated_zarr_base.cdl
     ${NCDUMP} $fileurl > tmp_consolidated_zarr_${zext}.cdl
     diff -b ${srcdir}/ref_consolidated_zarr.cdl tmp_consolidated_zarr_${zext}.cdl
-
     echo "*** Test: xarray zarr write then read; format=$zext"
     fileargs tmp_xarray "mode=zarr,$zext"
     #deletemap $zext $file
@@ -53,9 +55,9 @@ testcase_csl_vs_no(){
     cp -r ref_consolidated_zarr_2.18.2_python.zarr ref_zarr_2.18.2_python.zarr.$zext
     rm -f ref_zarr_2.18.2_python.zarr.$zext/.zmetadata
     fileargs ref_consolidated_zarr_2.18.2_python.zarr "mode=zarr,${zext}"
-    ${NCDUMP} -n same_name $fileurl |tee tmp_consolidated_python_zarr_${zext}.cdl
+    ${NCDUMP} -n same_name $fileurl > tmp_consolidated_python_zarr_${zext}.cdl
     fileargs ref_zarr_2.18.2_python.zarr "mode=zarr,$zext"
-    ${NCDUMP} -n same_name $fileurl |tee tmp_python_zarr_${zext}.cdl
+    ${NCDUMP} -n same_name $fileurl > tmp_python_zarr_${zext}.cdl
     rm -f dif.txt
     diff -b tmp_consolidated_python_zarr_${zext}.cdl tmp_python_zarr_${zext}.cdl > diff.txt
 }
