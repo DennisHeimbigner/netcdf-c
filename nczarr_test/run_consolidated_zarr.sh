@@ -50,8 +50,8 @@ testcase_csl_vs_no(){
     echo "*** Test: consolidated pure python zarr read; format=$zext"
     deletemap $zext $file
 P=`pwd`
-echo ">>> pwd=$P srcdir=$srcdir"
-ls -lrtd *.tgz
+echo ">>> pwd=${P} srcdir=${srcdir}"
+ls -lrtd ${srcdir}/*.tgz
     tar -zxf $srcdir/ref_consolidated_zarr_2.18.2_python.zarr.tgz
     cp -r ref_consolidated_zarr_2.18.2_python.zarr ref_consolidated_zarr_2.18.2_python.zarr.$zext
     cp -r ref_consolidated_zarr_2.18.2_python.zarr ref_zarr_2.18.2_python.zarr.$zext
