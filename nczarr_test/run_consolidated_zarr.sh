@@ -54,9 +54,9 @@ testcase_csl_vs_no(){
     cp -r ref_consolidated_zarr_2.18.2_python.zarr ref_zarr_2.18.2_python.zarr.$zext
     rm -f ref_zarr_2.18.2_python.zarr.$zext/.zmetadata
     fileargs ref_consolidated_zarr_2.18.2_python.zarr "mode=zarr,${zext}"
-    ${NCDUMP} -n same_name $fileurl |tee tmp_consolidated_python_zarr_${zext}.cdl
+    ${NCDUMP} -n same_name $fileurl > tmp_consolidated_python_zarr_${zext}.cdl
     fileargs ref_zarr_2.18.2_python.zarr "mode=zarr,$zext"
-    ${NCDUMP} -n same_name $fileurl |tee tmp_python_zarr_${zext}.cdl
+    ${NCDUMP} -n same_name $fileurl > tmp_python_zarr_${zext}.cdl
     rm -f dif.txt
     diff -b tmp_consolidated_python_zarr_${zext}.cdl tmp_python_zarr_${zext}.cdl > diff.txt
 }
