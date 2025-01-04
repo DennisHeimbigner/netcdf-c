@@ -57,7 +57,8 @@ testcase_csl_vs_no(){
 echo ">>> (1)"
 P=`pwd`
 ls -lrtd *.file
-    ${NCDUMP} -n same_name $fileurl > tmp_consolidated_python_zarr_${zext}.cdl
+${ZMD} -h $fileurl
+    ${NCDUMP} -n same_name $fileurl |tee tmp_consolidated_python_zarr_${zext}.cdl
     fileargs ref_zarr_2.18.2_python.zarr "mode=zarr,$zext"
 echo ">>> (2)"
 ls -lrtd *.zarr
