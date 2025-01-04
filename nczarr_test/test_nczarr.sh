@@ -11,6 +11,18 @@ export TEST_NCZARR_SH=1
 
 if test "x$SETX" != x; then set -x; fi
 
+# Get the directory in which we are running
+TMP=`pwd`
+NCZARRDIR=`basename $TMP`
+if test "x$NCZARRDIR" = xnczarr_test ; then
+    export NCZARRFORMAT=2; export NCNOZMETADATA=1
+elif test "x$NCZARRDIR" = x3_nczarr_test ; then
+    export NCZARRFORMAT=3; export NCNOZMETADATA=1
+else
+    unset NCZARRFORMAT; unset NCNOZMETADATA
+fi
+echo "@@@ NCZARRFORMAT=$NCZARRFORMAT NCNOZMETADATA=$NCNOZMETADATA"
+
 # Figure out which cloud repo to use
 if test "x$NCZARR_S3_TEST_HOST" = x ; then
 #    export NCZARR_S3_TEST_HOST=stratus.ucar.edu

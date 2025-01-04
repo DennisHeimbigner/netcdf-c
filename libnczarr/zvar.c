@@ -317,7 +317,6 @@ var->type_info->rc++;
 	 var->ndims, var->hdr.name));
     if(var->ndims > 0) {
 	assert(var->chunksizes == NULL);
-//if(var->chunksizes != NULL) {free(var->chunksizes); var->chunksizes = NULL;}
         if (!(var->chunksizes = calloc(var->ndims, sizeof(size_t)))) {stat = NC_ENOMEM; goto done;}
         if ((stat = ncz_find_default_chunksizes2(grp, var))) goto done;
     } else {

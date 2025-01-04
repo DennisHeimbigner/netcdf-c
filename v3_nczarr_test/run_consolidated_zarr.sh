@@ -50,7 +50,7 @@ testcase_csl_vs_no(){
     zext=$1
     echo "*** Test: consolidated pure python zarr read; format=$zext"
     deletemap $zext $file
-    tar -xf $srcdir/ref_consolidated_zarr_2.18.2_python.zarr.tar
+    tar -zxf $srcdir/ref_consolidated_zarr_2.18.2_python.zarr.tgz
     cp -r ref_consolidated_zarr_2.18.2_python.zarr ref_consolidated_zarr_2.18.2_python.zarr.$zext
     cp -r ref_consolidated_zarr_2.18.2_python.zarr ref_zarr_2.18.2_python.zarr.$zext
     rm -f ref_zarr_2.18.2_python.zarr.$zext/.zmetadata

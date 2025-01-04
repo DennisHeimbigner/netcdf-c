@@ -985,18 +985,20 @@ NCJinsert(NCjson* jdict, const char* key, NCjson* jvalue)
 	|| NCJsort(jdict) != NCJ_DICT
 	|| key == NULL
 	|| jvalue == NULL) {stat = NCJTHROW(NCJ_ERR); goto done;}
-    for(found=0,i=0;i < NCJdictlength(jdict); i++) {
+    for(found=(-1),i=0;i < NCJdictlength(jdict); i++) {
 	jkey = NCJdictkey(jdict,i);
 	if (jkey != NULL && strcmp(NCJstring(jkey), key) == 0) {
-	    jprev = NCJdictvalue(jdict,i);
-	    // replace existing values for new key
-	    NCJreclaim(jprev); // free old value
-	    NCJdictvalue(jdict,i) = jvalue; jvalue = NULL;
-	    found = 1;
+	    found = (int)i;
 	    break;
 	}
     }
-    if(!found) {
+    if(found >= 0) {
+	jprev = NCJdictvalue(jdict,found);
+	// replace existing values for new key
+	NCJreclaim(jprev); // free old value
+	NCJdictvalue(jdict,found) = jvalue; jvalue = NULL;
+	jkey = NULL; /* avoid reclamation */
+    } else { /* not found */
         if((stat=listsetalloc(&jdict->list,jdict->list.len+2))<0) goto done;
 	NCJcheck(NCJnewstring(NCJ_STRING, key, (NCjson**)&jkey));
 	NCJcheck(NCJappend(jdict,jkey)); jkey = NULL;

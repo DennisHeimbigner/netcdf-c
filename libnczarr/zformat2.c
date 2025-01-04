@@ -711,6 +711,8 @@ ZF2_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
     int stat = NC_NOERR;
     char* fullpath = NULL;
     char* key = NULL;
+    NCZ_FILE_INFO_T* zfile = file->format_file_info;
+    NCZ_Metadata* zmd = &zfile->metadata_handler;
 
     /* Construct grp key */
     if((stat = NCZ_grpkey(grp,&fullpath))) goto done;
@@ -1123,7 +1125,6 @@ ZF2_encode_attributes(NC_FILE_INFO_T* file, NC_OBJ* container, NCjson** jnczconp
 	    if((stat = ncz_insert_attr(jatts,jtypes,a->hdr.name,&jdata,d2name))) goto done;
 
 	    /* cleanup */
-	    NCJreclaim(jdata); jdata = NULL;
 	    nullfree(d2name); d2name = NULL;
             nullfree(d2attr); d2attr = NULL;
         }
