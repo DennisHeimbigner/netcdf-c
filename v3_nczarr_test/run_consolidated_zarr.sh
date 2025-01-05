@@ -20,6 +20,7 @@ echo "$NCNOZMETADA"
 
 # Locate the plugin path
 if ! findplugin h5blosc ; then exit 0; fi
+if ! avail blosc; then exit 0; fi
 
 # This shell script tests support for:
 # 1. consolidated zarr (noxarray) read-only
