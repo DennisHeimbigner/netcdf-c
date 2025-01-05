@@ -15,6 +15,8 @@ s3isolate "testdir_nan"
 THISDIR=`pwd`
 cd $ISOPATH
 
+set -x
+export SETX=1
 set -e
 
 # Location constants

@@ -9,7 +9,6 @@
 if test "x$TEST_NCZARR_SH" = x ; then
 export TEST_NCZARR_SH=1
 
-export SETX=1
 if test "x$SETX" != x; then set -x; fi
 
 # Get the directory in which we are running
