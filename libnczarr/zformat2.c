@@ -711,8 +711,6 @@ ZF2_upload_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
     int stat = NC_NOERR;
     char* fullpath = NULL;
     char* key = NULL;
-    NCZ_FILE_INFO_T* zfile = file->format_file_info;
-    NCZ_Metadata* zmd = &zfile->metadata_handler;
 
     /* Construct grp key */
     if((stat = NCZ_grpkey(grp,&fullpath))) goto done;
@@ -1702,7 +1700,7 @@ computeattrinfo(NC_FILE_INFO_T* file, nc_type typehint, const char* aname, const
     NCZ_FILE_INFO_T* zinfo = (NCZ_FILE_INFO_T*)file->format_file_info;
     const NCjson* jatype = NULL;
 
-    ZTRACE(3,"name=%s typehint=%d values=|%s|",att->name,att->typehint,NCJtotext(att->jdata));
+    ZTRACE(3,"typehint=%d aname=%s typehint=%d",typehint,aname);
 
     assert(aname != NULL);
 
@@ -1725,5 +1723,5 @@ computeattrinfo(NC_FILE_INFO_T* file, nc_type typehint, const char* aname, const
     if((stat = NCZ_computeattrdata(file,jdata,ainfo))) goto done;
 
 done:
-    return ZUNTRACEX(THROW(stat),"typeid=%d typelen=%d len=%u",ainfo->nctype,ainfo->typelen,ainfo->len);
+    return ZUNTRACEX(THROW(stat),"typeid=%d typelen=%d datalen=%u",ainfo->nctype,ainfo->typelen,ainfo->datalen);
 }

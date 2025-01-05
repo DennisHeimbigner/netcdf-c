@@ -164,7 +164,7 @@ OPTEXPORT void NCJdictsort(NCjson* jdict);
 
 /**************************************************/
 /* Error detection helper */
-#define NCJDEBUG
+#undef NCJDEBUG
 #ifdef NCJDEBUG
 static int
 NCJBREAKPOINT(int err)

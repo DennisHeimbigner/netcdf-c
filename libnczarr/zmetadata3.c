@@ -238,7 +238,7 @@ open_csl_v3(NC_FILE_INFO_T* file)
     }
     if(zmd->jcsl == NULL || NCJsort(zmd->jcsl) != NCJ_DICT) {stat = NC_EZARRMETA; goto done;}
     /* Pull out the "metadata" key and save it */
-    NCJcheck(NCJdictget(zmd->jcsl,"metadata",&zmd->jmeta));
+    NCJcheck(NCJdictget(zmd->jcsl,"metadata",(NCjson**)&zmd->jmeta));
     if(zmd->jmeta == NULL || NCJsort(zmd->jmeta) != NCJ_DICT) {stat = NC_EZARRMETA; goto done;}
 done:
     return stat;
@@ -254,7 +254,7 @@ create_csl_v3(NC_FILE_INFO_T* file)
     /* Create the JSON skeleton */
     NCJcheck(NCJparse(MINIMIM_CSL_REP3_RAW,0,&zmd->jcsl)); /* Create the metadata skeleton */
     /* Pull out the "metadata" key and save it */
-    NCJcheck(NCJdictget(zmd->jcsl,"metadata",&zmd->jmeta));
+    NCJcheck(NCJdictget(zmd->jcsl,"metadata",(NCjson**)&zmd->jmeta));
 done:
     return stat;
 }

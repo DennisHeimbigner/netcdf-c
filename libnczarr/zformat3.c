@@ -1681,7 +1681,7 @@ computeattrinfo(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, cons
     int stat = NC_NOERR;
     const NCjson* jatype = NULL;
 
-    ZTRACE(3,"name=%s typehint=%d values=|%s|",att->name,att->typehint,NCJtotext(att->jdata));
+    ZTRACE(3,"container=%s aname=%s",container->name,aname);
 
     assert(aname != NULL);
 
@@ -1708,7 +1708,7 @@ computeattrinfo(NC_FILE_INFO_T* file, NC_OBJ* container, const char* aname, cons
     if((stat = NCZ_computeattrdata(file,jdata,ainfo))) goto done;
 
 done:
-    return ZUNTRACEX(THROW(stat),"typeid=%d typelen=%d len=%u",ainfo->nctype,ainfo->typelen,ainfo->len);
+    return ZUNTRACEX(THROW(stat),"typeid=%d typelen=%d datalen=%u",ainfo->nctype,ainfo->typelen,ainfo->datalen);
 }
 
 /* Build a {name,configuration} dict */

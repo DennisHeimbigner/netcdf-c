@@ -445,7 +445,7 @@ ncz_decode_grp(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, struct ZOBJ* zobj)
     int purezarr = 0;
     const NCjson* jnczgrp = NULL;
 
-    ZTRACE(3,"file=%s parent=%s",file->controller->path,(parent?parent->hdr.name:"NULL"));
+    ZTRACE(3,"grp=%s",grp->hdr.name);
 
     TESTPUREZARR;
 
@@ -589,7 +589,7 @@ ncz_decode_vars(NC_FILE_INFO_T* file, NC_GRP_INFO_T* parent, NClist* varnames)
     int stat = NC_NOERR;
     size_t i;
 
-    ZTRACE(3,"file=%s grp=%s |varnames|=%u",file->controller->path,grp->hdr.name,nclistlength(varnames));
+    ZTRACE(3,"parent=%s |varnames|=%u",parent->hdr.name,nclistlength(varnames));
 
     /* Load each var in turn */
     for(i = 0; i < nclistlength(varnames); i++) {
@@ -758,7 +758,7 @@ get_group_content_pure(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, NClist* varname
 {
     int stat = NC_NOERR;
 
-    ZTRACE(3,"zinfo=%s grp=%s |varnames|=%u |subgrps|=%u",zinfo->common.file->controller->path,grp->hdr.name,(unsigned)nclistlength(varnames),(unsigned)nclistlength(subgrps));
+    ZTRACE(3,"grp=%s |varnames|=%u |subgrps|=%u",grp->hdr.name,(unsigned)nclistlength(varnames),(unsigned)nclistlength(subgrps));
 
     nclistclear(varnames);
     if((stat = NCZF_searchobjects(file,grp,varnames,subgrps))) goto done;
