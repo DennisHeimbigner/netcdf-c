@@ -5,7 +5,6 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 . "$srcdir/test_nczarr.sh"
 
-set -x
 set -e
 
 s3isolate "testdir_consolidated_zarr"
@@ -14,9 +13,6 @@ cd $ISOPATH
 
 # Force use of consolidated metadata
 unset NCNOZMETADATA
-echo "@@@"
-echo "$NCZARRFORMAT"
-echo "$NCNOZMETADA"
 
 # Locate the plugin path
 if ! findplugin h5blosc ; then exit 0; fi
@@ -70,4 +66,3 @@ testcase file
 testcase_csl_vs_no file
 if test "x$FEATURE_NCZARR_ZIP" = xyes ; then testcase zip; fi
 if test "x$FEATURE_S3TESTS" = xyes ; then testcase s3; fi
-
