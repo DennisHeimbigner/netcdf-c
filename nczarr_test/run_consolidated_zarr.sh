@@ -58,6 +58,7 @@ echo ">>> (1)"
 P=`pwd`
 ls -lrtd *.file
 ${ZMD} -h $fileurl
+export NCTRACING=10
     ${NCDUMP} -n same_name $fileurl |tee tmp_consolidated_python_zarr_${zext}.cdl
     fileargs ref_zarr_2.18.2_python.zarr "mode=zarr,$zext"
 echo ">>> (2)"
