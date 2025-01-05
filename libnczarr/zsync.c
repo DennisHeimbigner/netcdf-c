@@ -569,7 +569,7 @@ done:
     nclistfree(filters);
     ncbytesfree(fqn);
     NCZ_clear_zobj(&zobj);
-    return ZTRACE(THROW(stat));
+    return ZUNTRACE(THROW(stat));
 }
 
 /**
