@@ -5,6 +5,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 . ${srcdir}/test_nczarr.sh
 
+set -x
 set -e
 
 s3isolate "testdir_utmap"
@@ -29,7 +30,9 @@ testmapcreate() {
   deletemap $1 $output
 
   # Create the test file
+export NCTRACING=10
   $CMD -k$1 -x create -o $output
+unset NCTRACING
   cdl="ut_${tag}_create_${zext}.cdl"
   ref="ref_ut_${tag}_create.cdl"
   dumpmap $zext $output ./$cdl
