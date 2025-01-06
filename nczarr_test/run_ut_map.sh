@@ -30,6 +30,7 @@ testmapcreate() {
   deletemap $1 $output
 
   # Create the test file
+df -h
 export NCTRACING=10
   $CMD -k$1 -x create -o $output
 unset NCTRACING
