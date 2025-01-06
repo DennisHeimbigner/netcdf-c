@@ -30,13 +30,10 @@ testmapcreate() {
   deletemap $1 $output
 
   # Create the test file
-df -h
-export NCTRACING=10
   $CMD -k$1 -x create -o $output
-unset NCTRACING
   cdl="ut_${tag}_create_${zext}.cdl"
   ref="ref_ut_${tag}_create.cdl"
-find . -name tmp_map.file -print
+echo "@@@@"
   dumpmap $zext $output ./$cdl
   diff -wb ${srcdir}/$ref ./$cdl
   # delete the test file
