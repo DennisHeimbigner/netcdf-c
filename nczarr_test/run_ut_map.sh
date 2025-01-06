@@ -36,6 +36,7 @@ export NCTRACING=10
 unset NCTRACING
   cdl="ut_${tag}_create_${zext}.cdl"
   ref="ref_ut_${tag}_create.cdl"
+find . -name tmp_map.file -print
   dumpmap $zext $output ./$cdl
   diff -wb ${srcdir}/$ref ./$cdl
   # delete the test file
