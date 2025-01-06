@@ -32,9 +32,6 @@ libnczarr_la_SOURCES = \
 zmetadata.c \
 zmetadata0.c \
 zmetadata2.c \
-zmetadata3.c \
-zformat.c \
-zformat3.c \
 zformat2.c \
 zsync.c \
 zinfer.c \
@@ -61,6 +58,7 @@ zfilter.c \
 zplugins.c \
 zutil.c \
 zvar.c \
+zformat.c \
 zwalk.c \
 znc4.c \
 zdebug.c \
@@ -80,6 +78,10 @@ zplugins.h \
 zfilter.h \
 znc4.h \
 zdebug.h
+
+#ifdef NETCDF_ENABLE_NCZARR_V3 
+libnczarr_la_SOURCES += zmetadata3.c zformat3.c
+#endif
 
 if NETCDF_ENABLE_NCZARR_ZIP
 libnczarr_la_SOURCES += zmap_zip.c 

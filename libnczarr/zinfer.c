@@ -251,7 +251,7 @@ NCZ_infer_open_nczarr_format(NC_FILE_INFO_T* file)
 	NCZ_reclaim_json(jrootgrp); jrootgrp = NULL;
 	NCZ_reclaim_json(jrootatts); jrootatts = NULL;
     }
-
+#ifdef NETCDF_ENABLE_NCZARR_V3
     if(zarrformat == ZARRFORMAT3 && nczarrformat == 0) {
 	const NCjson* jrootatts = NULL;
         /* Look for "/zarr.json" */
@@ -273,6 +273,9 @@ NCZ_infer_open_nczarr_format(NC_FILE_INFO_T* file)
 	}
 	NCZ_reclaim_json(jrootgrp); jrootgrp = NULL;
     }
+#else
+	{stat = NC_ENOTBUILT; goto done;}
+#endif
     
     if(nczarrformat == 0) nczarrformat = zarrformat;
     zfile->zarr.nczarr_format = nczarrformat;

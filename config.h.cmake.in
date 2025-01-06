@@ -157,6 +157,9 @@ are set when opening a binary file on Windows. */
 /* if true, enable NCZARR */
 #cmakedefine NETCDF_ENABLE_NCZARR 1
 
+/* if true, enable NCZARR Version 3*/
+#cmakedefine NETCDF_ENABLE_NCZARR_V3 1
+
 /* if true, enable nczarr filter support */
 #cmakedefine NETCDF_ENABLE_NCZARR_FILTERS 1
 
