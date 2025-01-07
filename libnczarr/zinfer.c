@@ -163,7 +163,7 @@ NCZ_get_open_formatter(NC_FILE_INFO_T* file, const NCZ_Formatter** formatterp)
 
     zfile->zarr.zarr_format = zarr_format;
     zfile->zarr.nczarr_format = nczarr_format;
-    assert(zfile->zarr.zarr_format != 0 && zfile->zarr.nczarr_format != 0);
+    assert(zfile->zarr.zarr_format != 0);
 
     /* If the nczarr_format is NULL, then that implies pure zarr,
        so use the zarr format instead. */
@@ -250,7 +250,7 @@ NCZ_infer_open_nczarr_format(NC_FILE_INFO_T* file)
 	if(jsuperg == NULL && jsupera == NULL) nczarrformat = NCZARRFORMAT0; else nczarrformat = NCZARRFORMAT2;
 	NCZ_reclaim_json(jrootgrp); jrootgrp = NULL;
 	NCZ_reclaim_json(jrootatts); jrootatts = NULL;
-    }
+    } else
 #ifdef NETCDF_ENABLE_NCZARR_V3
     if(zarrformat == ZARRFORMAT3 && nczarrformat == 0) {
 	const NCjson* jrootatts = NULL;
@@ -272,7 +272,7 @@ NCZ_infer_open_nczarr_format(NC_FILE_INFO_T* file)
 	    }
 	}
 	NCZ_reclaim_json(jrootgrp); jrootgrp = NULL;
-    }
+    } else
 #else
 	{stat = NC_ENOTBUILT; goto done;}
 #endif
