@@ -28,11 +28,17 @@
 #include "nclog.h"
 #include "ncrc.h"
 #include "ncpathmgr.h"
+#include "ncutil.h"
 
 #define NC_MAX_PATH 4096
 #ifndef nulldup
  #define nulldup(x) ((x)?strdup(x):(x))
 #endif
+
+
+/* Forward */
+static int lexical_compare(const void* arg1, const void* arg2);
+
 /**************************************************/
 /** \internal
  * Provide a hidden interface to allow utilities
@@ -582,4 +588,29 @@ NC_freeenvv(size_t nkeys, char** keys)
     for(i=0;i<nkeys;i++)
 	nullfree(keys[i]);
     nullfree(keys);
+}
+
+int
+NC_swapatomicdata(size_t datalen, void* data, int typesize)
+{
+    int stat = NC_NOERR;
+    size_t i;
+
+    assert(datalen % (size_t)typesize == 0);
+
+    if(typesize == 1) goto done;
+
+    /*(typesize > 1)*/
+    for(i=0;i<datalen;) {
+	char* p = ((char*)data) + i;
+        switch (typesize) {
+        case 2: swapinline16(p); break;
+        case 4: swapinline32(p); break;
+        case 8: swapinline64(p); break;
+        default: break;
+	}
+	i += (size_t)typesize;
+    }
+done:
+    return stat;
 }
