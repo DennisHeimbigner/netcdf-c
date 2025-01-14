@@ -78,7 +78,7 @@ EXTERNL int NC_testmode(struct NCURI* uri, const char* tag);
 EXTERNL int NC_addmodetag(struct NCURI* uri, const char* tag);
 EXTERNL int isinf(double x);
 EXTERNL int isnan(double x);
-EXTERNL int NC_split_delim(const char* arg, char delim, NClist* segments);
+EXTERNL int NC_split_delim(const char* arg, char delim, struct NClist* segments);
 EXTERNL int NC_join(struct NClist* segments, char** pathp);
 EXTERNL int NC_joinwith(struct NClist* segments, const char* sep, const char* prefix, const char* suffix, char** pathp);
 EXTERNL void NC_sortenvv(size_t n, char** envv);
