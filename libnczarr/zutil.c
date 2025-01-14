@@ -1508,3 +1508,31 @@ NCZ_isnaninfstring(const char* val)
     match = (struct NANINF*)bsearch((void*)val,(void*)naninfnames,NNANINF,sizeof(struct NANINF),nicmp);
     return (match == NULL ? NULL : &match->dvalue);
 }
+
+/* Clone proper proplist based on zarr format */
+int
+NCZ_zarrproplist(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, NCproplist** clonep)
+{
+    int stat = NC_NOERR;
+    NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
+    NCproplist* clone = NULL;
+    NC_GRP_INFO_T* grp = NULL;
+    unsigned grpid,ncid,fileid;
+
+    clone = ncproplistnew();
+    if((stat=ncproplistclone(zfile->zarr.zarr_format==2?NCplistzarrv2:NCplistzarrv3,clone))) goto done;
+    if(var != NULL) {
+        ncproplistadd(clone,"varid",(uintptr_t)var->hdr.id);
+	grp = var->container;
+    } else
+	grp = file->root_grp; /* default */
+    assert(grp != NULL);
+    fileid = (unsigned)file->hdr.id;
+    grpid = (unsigned)grp->hdr.id;
+    ncid = (fileid | grpid);
+    ncproplistadd(clone,"ncid",(uintptr_t)ncid);
+    if(clonep) {*clonep = clone; clone = NULL;}
+done:
+    ncproplistfree(clone);
+    return stat;
+}

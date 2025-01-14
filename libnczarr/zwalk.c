@@ -113,7 +113,14 @@ NCZ_transferslice(NC_VAR_INFO_T* var, int reading,
     /* We need to take scalar into account */
     common.rank = var->ndims;
     common.scalar = zvar->scalar;
-    common.swap = (zfile->native_endianness == var->endianness ? 0 : 1);
+
+    /* If the zarr format version is V3, then swap is always false; it
+       will be handled by the "bytes" codec.
+    */
+    if(zfile->zarr.zarr_format == 3)
+	common.swap = 0;
+    else
+	common.swap = (zfile->native_endianness == var->endianness ? 0 : 1);
 
     common.chunkcount = 1;
     if(common.scalar) {

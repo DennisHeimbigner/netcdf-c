@@ -29,9 +29,9 @@ static herr_t H5Z_set_local_endian(hid_t dcpl_id, hid_t type_id, hid_t space_id)
 static size_t H5Z_filter_endian(unsigned flags, size_t cd_nelmts,
     const unsigned cd_values[], size_t nbytes, size_t *buf_size, void **buf);
 
-static int NCZ_endian_modify_parameters(const NCproplist* env, unsigned* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
-static int NCZ_endian_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* idp, size_t* vnparamsp, unsigned** vparamsp);
-static int NCZ_endian_hdf5_to_codec(const NCproplist* env, unsigned id, size_t vnparams, const unsigned* vparams, char** codecp);
+static int NCZ_endian_modify_parameters(const NCproplist* env, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
+static int NCZ_endian_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp, size_t* vnparamsp, unsigned** vparamsp);
+static int NCZ_endian_hdf5_to_codec(const NCproplist* env, int id, size_t vnparams, const unsigned* vparams, char** codecp);
 
 /* This message derives from H5Z */
 const H5Z_class2_t H5Z_ENDIAN[1] = {{
@@ -98,6 +98,20 @@ H5Z_set_local_endian(hid_t dcpl_id, hid_t type_id, hid_t space_id)
     if((cd_values[1] = (unsigned)H5Tget_size(type_id)) == 0)
 	HGOTO_ERROR(H5E_PLINE, H5E_BADTYPE, FAIL, "bad datatype size")
 
+    /* Is this type a fixed-length string?*/
+    {
+	H5T_class_t class;
+	htri_t is_str;
+        hid_t native_typeid, hdf_typeid;
+	hdf_typeid = H5Dget_type(type_id);
+	native_typeid = H5Tget_native_type(hdf_typeid, H5T_DIR_DEFAULT);
+	class = H5Tget_class(native_typeid);
+	if(class == H5T_STRING) {
+	    is_str = H5Tis_variable_str(native_typeid);
+	    if(is_str || H5Tget_size(hdf_typeid) > 1) cd_values[1] = 1; /* avoid swapping */
+	}
+    }
+	
     /* Modify the filter's parameters for this dataset */
     if(H5Pmodify_filter(dcpl_id, H5Z_FILTER_BYTES, flags, (size_t)2, cd_values) < 0)
 	HGOTO_ERROR(H5E_PLINE, H5E_CANTSET, FAIL, "can't set local endian parameters")
@@ -203,18 +217,26 @@ done:
 /**************************************************/
 /* Provide the codec support for endian filter */
 
-/* Structure for NCZ_PLUGIN_CODEC */
+
 static NCZ_codec_t NCZ_endian_codec = {/* NCZ_codec_t  codec fields */ 
-  NCZ_CODEC_CLASS_VER,	/* Struct version number */
-  NCZ_CODEC_HDF5,	/* Struct sort */
-  "bytes",	        /* Standard name/id of the codec */
-  H5Z_FILTER_BYTES ,    /* HDF5 alias for endian */
-  NULL,			/*NCZ_endian_codec_initialize*/
-  NULL,			/*NCZ_endian_codec_finalize*/
+  NCZ_CODEC_CLASS_VER,		/* Struct version number */
+  NCZ_CODEC_HDF5,		/* Struct sort */
+  H5Z_CODEC_BYTES,		/* Standard name/id of the codec */
+  H5Z_FILTER_BYTES,		/* HDF5 alias for endian */
+  NULL,				/* NCZ_endian_codec_initialize*/
+  NULL,				/* NCZ_endian_codec_finalize*/
   NCZ_endian_codec_to_hdf5,
   NCZ_endian_hdf5_to_codec,
-  NCZ_endian_modify_parameters,
+  NCZ_endian_modify_parameters, /*NCZ_endian_modify_parameters*/
 };
+
+/* External Export API */
+DLLEXPORT
+const void*
+NCZ_get_codec_info(void)
+{
+    return (void*)&NCZ_endian_codec;
+}
 
 /* NCZarr Interface Functions */
 
@@ -229,7 +251,7 @@ param[1] -- type size: 2|4|8
 */
 
 static int
-NCZ_endian_modify_parameters(const NCproplist* env, unsigned* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
+NCZ_endian_modify_parameters(const NCproplist* env, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int stat = NC_NOERR;
     unsigned* wparams = NULL;
@@ -253,7 +275,7 @@ NCZ_endian_modify_parameters(const NCproplist* env, unsigned* idp, size_t* vnpar
     if(wnparamsp == NULL || wparamsp == NULL)
         {stat = NC_EFILTER; goto done;}
 
-    ncproplistget(env,"fileid",&ncid,NULL);
+    ncproplistget(env,"ncid",&ncid,NULL);
     ncproplistget(env,"varid",&varid,NULL);
 
     vnparams = *vnparamsp;
@@ -263,6 +285,9 @@ NCZ_endian_modify_parameters(const NCproplist* env, unsigned* idp, size_t* vnpar
     if((stat = nc_inq_vartype((int)ncid,(int)varid,&xtype))) goto done;
     if(xtype >= NC_FIRSTUSERTYPEID) {stat = NC_EINVAL; goto done;}
     if((stat = nc_inq_type((int)ncid,xtype,NULL,&typesize))) goto done;
+
+    /* oops, NC_STRING is special */
+    if(xtype == NC_STRING) typesize = 1; /* to avoid swapping */
 
     /* Create the working parameters */
     if((wparams = (unsigned*)malloc(wnparams*sizeof(unsigned)))==NULL)
@@ -282,7 +307,7 @@ done:
 }
 
 static int
-NCZ_endian_codec_to_hdf5(const NCproplist* env, const char* codec_json, unsigned* idp, size_t* vnparamsp, unsigned** vparamsp)
+NCZ_endian_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp, size_t* vnparamsp, unsigned** vparamsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
@@ -327,7 +352,7 @@ done:
 }
 
 static int
-NCZ_endian_hdf5_to_codec(const NCproplist* env, unsigned id, size_t vnparams, const unsigned* vparams, char** codecp)
+NCZ_endian_hdf5_to_codec(const NCproplist* env, int id, size_t vnparams, const unsigned* vparams, char** codecp)
 {
     int stat = NC_NOERR;
     char json[1024];
@@ -341,7 +366,7 @@ NCZ_endian_hdf5_to_codec(const NCproplist* env, unsigned id, size_t vnparams, co
 
     if(zarrformat == 3)
         snprintf(json,sizeof(json),
-	    "{\"name\": \"bytes\", \"configuration\": {\"%s\"}}",
+	    "{\"name\": \"bytes\", \"configuration\": {\"endian\": \"%s\"}}",
 	    (vparams[0]==NC_ENDIAN_LITTLE?"little":"big"));
     else
 	snprintf(json,sizeof(json),

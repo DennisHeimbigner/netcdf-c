@@ -61,6 +61,7 @@ extern "C" {
 #include "zcache.h"
 #include "zarr.h"
 #include "zdebug.h"
+#include "zutil.h"
 
 #ifdef __cplusplus
 }

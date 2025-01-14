@@ -76,6 +76,7 @@ zodom.h \
 zprovenance.h \
 zplugins.h \
 zfilter.h \
+zutil.h \
 znc4.h \
 zdebug.h
 
