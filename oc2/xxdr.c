@@ -66,6 +66,7 @@
 #include <arpa/inet.h>
 #endif
 
+#include "ncexternl.h"
 #include "ncutil.h"
 #include "xxdr.h"
 
