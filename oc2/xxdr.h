@@ -55,7 +55,7 @@
     * XDRUNIT))
 #endif
 
-#include "nc4util.h"
+#include "ncutil.h"
 
 #ifdef OCIGNORE
 /* Warning dst and src should not be the same memory (assert &iswap != &i) */
