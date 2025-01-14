@@ -66,6 +66,7 @@
 #include <arpa/inet.h>
 #endif
 
+#include "ncutil.h"
 #include "xxdr.h"
 
 int xxdr_network_order; /* network order is big endian */
