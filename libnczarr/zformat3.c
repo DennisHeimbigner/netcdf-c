@@ -532,8 +532,7 @@ ZF3_decode_var(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, struct ZOBJ* zobj, NCli
 	    var->endianness = endianness;
 	    var->type_info->endianness = var->endianness; /* Propagate */
 	}	
-	/* enable the filter */
-	nclistpush(filtersj,jendian);
+	/* bytes filter is never actually invoked; it just records variable's endianness */
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
 	{
 	size_t k;
