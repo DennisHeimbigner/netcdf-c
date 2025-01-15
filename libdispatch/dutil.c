@@ -205,19 +205,17 @@ NC_shellUnescape(const char* esc)
 }
 
 /** \internal
-Wrap mktmp and return the generated path,
+Wrap mktmp and return the generated path
 or null if failed.
-Base is the base file path. XXXXX is appended
-to allow mktmp add its unique id.
-Return the generated path.
+@param base is the base file path. XXXXX is appended to allow mktmp add its unique id.
+@param tmpfile store the generated string in this.
+@return NC_NOERR|NC_EXXX
 */
-
-char*
-NC_mktmp(const char* base)
+int
+NC_mktmp(const char* base, char** tmpfile)
 {
     int fd = -1;
-    char* tmp = NULL;
-    size_t len;
+    char tmp[8192];
 #ifndef HAVE_MKSTEMP
     int tries;
 #define MAXTRIES 4
@@ -225,12 +223,8 @@ NC_mktmp(const char* base)
     mode_t mask;
 #endif
 
-    len = strlen(base)+6+1;
-    if((tmp = (char*)calloc(1,len))==NULL)
-        goto done;
 #ifdef HAVE_MKSTEMP
-    strlcat(tmp,base,len);
-    strlcat(tmp, "XXXXXX", len);
+    snprintf(tmp,sizeof(tmp),"%sXXXXXX",base);
     mask=umask(0077);
     fd = NCmkstemp(tmp);
     (void)umask(mask);
@@ -240,10 +234,8 @@ NC_mktmp(const char* base)
 	int rno = rand();
 	char spid[7];
 	if(rno < 0) rno = -rno;
-	tmp[0] = '\0';
-        strlcat(tmp,base,len);
         snprintf(spid,sizeof(spid),"%06d",rno);
-        strlcat(tmp,spid,len);
+	snprintf(tmp,sizeof(tmp),"%s%s",base,spid);
         fd=NCopen3(tmp,O_RDWR|O_CREAT, _S_IREAD|_S_IWRITE);
 	if(fd >= 0) break; /* sucess */
 	fd = -1; /* try again */
@@ -251,13 +243,12 @@ NC_mktmp(const char* base)
 #endif /* !HAVE_MKSTEMP */
     if(fd < 0) {
         nclog(NCLOGERR, "Could not create temp file: %s",tmp);
-        nullfree(tmp);
-	tmp = NULL;
-        goto done;
+	return NC_EINVAL;
+    } else {
+	if(fd >= 0) close(fd);
+	if(tmpfile) {*tmpfile = strdup(tmp);}
+	return NC_NOERR;
     }
-done:
-    if(fd >= 0) close(fd);
-    return tmp;
 }
 
 /** \internal */

@@ -67,7 +67,7 @@ EXTERNL char* NC_backslashEscape(const char* s);
 EXTERNL char* NC_backslashUnescape(const char* esc);
 EXTERNL char* NC_entityescape(const char* s);
 EXTERNL char* NC_shellUnescape(const char* esc);
-EXTERNL char* NC_mktmp(const char* base);
+EXTERNL int NC_mktmp(const char* base, char** tmpfile);
 EXTERNL int NC_readfile(const char* filename, struct NCbytes* content);
 EXTERNL int NC_readfilen(const char* filename, struct NCbytes* content, long long amount);
 EXTERNL int NC_readfileF(FILE* stream, struct NCbytes* content, long long amount);
