@@ -323,24 +323,18 @@ static OCerror
 createtempfile(OCstate* state, OCtree* tree)
 {
     int stat = OC_NOERR;
-    char* path = NULL;
+    char* basepath[8192];
     char* tmppath = NULL;
     size_t len;
     NCglobalstate* globalstate = NC_getglobalstate();
 
-    len =
-	  strlen(globalstate->tempdir)
-	  + 1 /* '/' */
-	  + strlen(DATADDSFILE)
-	  + 1; /* nul term */
-    path = (char*)malloc(len);
-    if(path == NULL) return OC_ENOMEM;
-    strncpy(path,globalstate->tempdir,len);
-    strlcat(path,"/",len);
-    strlcat(path,DATADDSFILE,len);
-    if((stat = NC_mktmp(path,&tmppath))) goto done;
-    free(path);
-    if(tmppath == NULL) {stat = OC_EACCESS; goto fail;}
+    snprintf(basepath,sizeof(basepath),"%s/%s",globalstate->tempdir,DATADDSFILE);
+    if((stat = NC_mktmp(basepath,&tmppath))) goto fail;
+    if (stat != OC_NOERR && errno != EEXIST) {
+        fprintf(stderr, "Cannot create %sfile\n",DATADDSFILE);
+	stat = OC_EACCESS;
+        goto fail;
+    }
 #ifdef OCDEBUG
     nclog(NCLOGNOTE,"oc_open: creating tmp file: %s",tmppath);
 #endif
