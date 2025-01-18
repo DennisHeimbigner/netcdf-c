@@ -75,6 +75,7 @@ zprovenance.h \
 zutil.h \
 znc4.h \
 zfilter.h \
+zplugins.h \
 zdebug.h
 
 if NETCDF_ENABLE_PLUGINS
