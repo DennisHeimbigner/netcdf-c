@@ -34,6 +34,7 @@
 #include "ocread.h"
 #include "dapparselex.h"
 #include "ncpathmgr.h"
+#include "ncutil.h"
 
 #define DATADDSFILE "datadds"
 
