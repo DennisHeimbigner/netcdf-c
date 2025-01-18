@@ -434,6 +434,7 @@ done:
 #if defined __APPLE__ 
 /** \internal */
 
+#if 0
 #if ! defined HAVE_DECL_ISINF
 
 int isinf(double x)
@@ -457,7 +458,7 @@ int isnan(double x)
 }
 
 #endif /* HAVE_DECL_ISNAN */
-
+#endif
 #endif /*APPLE*/
 #endif /*!_INTEL_COMPILER*/
 
