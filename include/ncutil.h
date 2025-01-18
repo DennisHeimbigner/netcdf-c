@@ -76,8 +76,12 @@ EXTERNL int NC_getmodelist(const char* modestr, struct NClist** modelistp);
 EXTERNL int NC_testpathmode(const char* path, const char* tag);
 EXTERNL int NC_testmode(struct NCURI* uri, const char* tag);
 EXTERNL int NC_addmodetag(struct NCURI* uri, const char* tag);
+#ifndef isinf
 EXTERNL int isinf(double x);
+#endif
+#ifndef isnan
 EXTERNL int isnan(double x);
+#endif
 EXTERNL int NC_split_delim(const char* arg, char delim, struct NClist* segments);
 EXTERNL int NC_join(struct NClist* segments, char** pathp);
 EXTERNL int NC_joinwith(struct NClist* segments, const char* sep, const char* prefix, const char* suffix, char** pathp);
