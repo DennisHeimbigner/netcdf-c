@@ -338,7 +338,7 @@ createtempfile(OCstate* state, OCtree* tree)
     strncpy(path,globalstate->tempdir,len);
     strlcat(path,"/",len);
     strlcat(path,DATADDSFILE,len);
-    tmppath = NC_mktmp(path);
+    if((stat = NC_mktmp(path,&tmppath))) goto done;
     free(path);
     if(tmppath == NULL) {stat = OC_EACCESS; goto fail;}
 #ifdef OCDEBUG
