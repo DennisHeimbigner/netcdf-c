@@ -56,10 +56,10 @@ main(int argc, char** argv)
     /* Canonicalize */
     if((stat = NCpathcanonical(utoptions.file,&tmp))) goto done;
     free(utoptions.file);
-    utoptions.file = tmp;
-    if((stat = NCpathcanonical(utoptions.output,&tmp))) goto done;
+    utoptions.file = tmp; tmp = NULL;
+    tmp = NCpathcvt(utoptions.file))) goto done;
     free(utoptions.output);
-    utoptions.output = tmp;
+    utoptions.output = tmp; tmp = NULL;
 
     impl = kind2impl(utoptions.kind);
     url = makeurl(utoptions.file,impl,&utoptions);
