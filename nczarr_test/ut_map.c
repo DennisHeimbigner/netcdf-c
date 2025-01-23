@@ -52,20 +52,15 @@ int
 main(int argc, char** argv)
 {
     int stat = NC_NOERR;
-    char* tmp = NULL;
 
     if((stat = ut_init(argc, argv, &utoptions))) goto done;
     if(utoptions.file == NULL && utoptions.output == NULL) { stat = NC_EINVAL; goto done; }
     if(utoptions.file == NULL && utoptions.output != NULL) utoptions.file = strdup(utoptions.output);
     if(utoptions.output == NULL && utoptions.file != NULL)utoptions.output = strdup(utoptions.file);
 
-    /* Canonicalize */
-    if((stat = NCpathcanonical(utoptions.file,&tmp))) goto done;
-    free(utoptions.file);
-    utoptions.file = tmp;
-    if((stat = NCpathcanonical(utoptions.output,&tmp))) goto done;
-    free(utoptions.output);
-    utoptions.output = tmp;
+    /* localize */
+    if((stat = ut_localize(utoptions.file,&utoptions.file))) goto done;
+    if((stat = ut_localize(utoptions.output,&utoptions.output))) goto done;
 fprintf(stderr,"file=%s output=%s\n",utoptions.file,utoptions.output);
 
     impl = kind2impl(utoptions.kind);
@@ -74,7 +69,6 @@ fprintf(stderr,"file=%s output=%s\n",utoptions.file,utoptions.output);
     if((stat = runtests((const char**)utoptions.cmds,tests))) goto done;
     
 done:
-    nullfree(tmp);
     ut_final();
     if(stat) usage(stat);
     return 0;

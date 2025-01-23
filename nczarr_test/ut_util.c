@@ -535,3 +535,21 @@ ut_search(NCZMAP* map, const char* prefix, NClist* objects)
 done:
     return THROW(stat);
 }
+
+int
+ut_localize(const char* path, char** localp)
+{
+    int stat = NC_NOERR;
+    char* canon = NULL;
+    char* local = NULL;
+
+    if((stat = NCpathcanonical(path,&canon))) goto done;
+    if((local = NCpathcvt(canon))==NULL) {stat = NC_EINVAL; goto done;}
+    if(*localp) free(*localp);
+    *localp = local;
+    local = NULL;
+done:
+    nullfree(canon);
+    nullfree(local);
+    return stat;
+}

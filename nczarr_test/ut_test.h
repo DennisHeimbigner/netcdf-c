@@ -71,6 +71,7 @@ EXTERNL void ut_final(void);
 
 EXTERNL void nccheck(int stat, int line);
 EXTERNL char* makeurl(const char* file, NCZM_IMPL, struct UTOptions*);
+
 //extern int setup(int argc, char** argv);
 EXTERNL struct Test* findtest(const char* cmd, struct Test* tests);
 EXTERNL int runtests(const char** cmds, struct Test* tests);

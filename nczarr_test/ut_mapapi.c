@@ -53,13 +53,9 @@ main(int argc, char** argv)
     if(utoptions.file == NULL && utoptions.output != NULL) utoptions.file = strdup(utoptions.output);
     if(utoptions.output == NULL && utoptions.file != NULL)utoptions.output = strdup(utoptions.file);
 
-    /* Canonicalize */
-    if((stat = NCpathcanonical(utoptions.file,&tmp))) goto done;
-    free(utoptions.file);
-    utoptions.file = tmp; tmp = NULL;
-    tmp = NCpathcvt(utoptions.file))) goto done;
-    free(utoptions.output);
-    utoptions.output = tmp; tmp = NULL;
+    /* localize */
+    if((stat = ut_localize(utoptions.file,&utoptions.file))) goto done;
+    if((stat = ut_localize(utoptions.output,&utoptions.output))) goto done;
 
     impl = kind2impl(utoptions.kind);
     url = makeurl(utoptions.file,impl,&utoptions);
@@ -67,7 +63,6 @@ main(int argc, char** argv)
     if((stat = runtests((const char**)utoptions.cmds,tests))) goto done;
     
 done:
-    nullfree(tmp);
     nullfree(url); url = NULL;
     nullfree(keyprefix);
     ut_final();
