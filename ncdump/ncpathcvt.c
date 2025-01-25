@@ -66,7 +66,6 @@ struct Options {
     int sep;
 } cvtoptions;
 
-static char* escape(const char* path);
 static void usage(const char* msg);
 
 static void
@@ -77,6 +76,7 @@ usage(const char* msg)
     if(msg == NULL) exit(0); else exit(1);
 }
 
+#ifdef NETCDF_ENABLE_PATHCVT
 static char*
 escape(const char* path)
 {
@@ -119,6 +119,7 @@ slash(const char* path)
     *q = '\0';
     return epath;
 }
+#endif
 
 void
 printlocalkind(void)
@@ -176,6 +177,7 @@ printenv(void)
 void
 printpathkind(const char* path)
 {
+#ifdef NETCDF_ENABLE_PATHCVT
     const char* s = NULL;
     int kind = NCgetinputpathkind(path);
     switch (kind) {
@@ -187,6 +189,10 @@ printpathkind(const char* path)
     default: s = "unknown"; break;
     }
     printf("%s",s);
+#else
+    NC_UNUSED(path);
+    printlocalkind();
+#endif
     exit(0);
 }
 
@@ -195,6 +201,7 @@ processdir(const char* indir, char** cvtdirp)
 {
     char* cvtdir = NULL;
 
+#ifdef NETCDF_ENABLE_PATHCVT
     if(cvtoptions.target == NCPD_UNKNOWN) {
         cvtdir = NCpathcvt(indir);
     } else {
@@ -211,6 +218,10 @@ processdir(const char* indir, char** cvtdirp)
         cvtdir = slash(dir);
 	free(dir);
     }
+#else /*!NETCDF_ENABLE_PATHCVT*/
+    cvtdir = strdup(indir);
+#endif /*!NETCDF_ENABLE_PATHCVT*/
+
 
     if(cvtdirp) {*cvtdirp = cvtdir; cvtdir = NULL;}
 

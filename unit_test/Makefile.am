@@ -27,8 +27,10 @@ noinst_PROGRAMS =
 noinst_PROGRAMS += ncpluginpath
 ncpluginpath_SOURCES = ncpluginpath.c
 
+if NETCDF_ENABLE_PATHCVT
 check_PROGRAMS += tst_nclist test_ncuri test_pathcvt
 TESTS += tst_nclist test_ncuri test_pathcvt
+endif
 
 # Performance tests
 if BUILD_BENCHMARKS

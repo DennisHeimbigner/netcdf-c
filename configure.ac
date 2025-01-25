@@ -243,6 +243,14 @@ if test "x$enable_hdf5" = xyes || test "x$enable_hdf4" = xyes || test "x$enable_
    enable_netcdf4=yes
 fi
 
+AC_MSG_CHECKING([whether path conversion should be enabled])
+AC_ARG_ENABLE([pathcvt],
+              [AS_HELP_STRING([--enable-pathcvt],
+                              [enable platform specific path conversions])])
+test "x$enable_pathcvt" = xyes || enable_pathcvt=no
+AC_MSG_RESULT($enable_pathcvt)
+AM_CONDITIONAL(NETCDF_ENABLE_PATHCVT, [test "x$enable_pathcvt" = xyes])
+
 AC_MSG_NOTICE([checking user options])
 
 # Did the user specify a default minimum blocksize (NCIO_MINBLOCKSIZE) for posixio?
@@ -272,6 +280,7 @@ AC_ARG_ENABLE([doxygen-tasks],
     [AS_HELP_STRING([--enable-doxygen-tasks],
         [Enable Doxygen-generated test, todo and bug list documentation. Developers only.])])
 test "x$enable_doxygen_tasks" = xyes || enable_doxygen_tasks=no
+
 AM_CONDITIONAL([SHOW_DOXYGEN_TAG_LIST], [test "x$enable_doxygen_tasks" = xyes])
 AC_SUBST([SHOW_DOXYGEN_TAG_LIST], [$enable_doxygen_tasks])
 

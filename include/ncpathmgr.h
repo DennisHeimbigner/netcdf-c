@@ -173,11 +173,14 @@ EXTERNL int NCpath2utf8(const char* path, char** u8p);
 /* Convert stdin, stdout, stderr to use binary mode (\r\n -> \n) */
 EXTERNL int NCstdbinary(void);
 
+EXTERNL int NCgetlocalpathkind(void);
+EXTERNL const char* NCgetkindname(int kind);
+
 /* Wrap various stdio and unistd IO functions.
 It is especially important to use for windows so that
 NCpathcvt (above) is invoked on the path.
 */
-#if defined(WINPATH)
+#if defined(WINPATH) && defined(NETCDF_ENABLE_PATHCVT)
 /* path converter wrappers*/
 EXTERNL FILE* NCfopen(const char* path, const char* flags);
 EXTERNL int NCopen3(const char* path, int flags, int mode);
@@ -196,7 +199,7 @@ EXTERNL int NCstat(const char* path, struct stat* buf);
 EXTERNL DIR* NCopendir(const char* path);
 EXTERNL int NCclosedir(DIR* ent);
 #endif
-#else /*!WINPATH*/
+#else /*!WINPATH || !NETCDF_ENABLE_PATHCVT*/
 #define NCfopen(path,flags) fopen((path),(flags))
 #define NCopen3(path,flags,mode) open((path),(flags),(mode))
 #define NCopen2(path,flags) open((path),(flags))
@@ -215,7 +218,7 @@ EXTERNL int NCclosedir(DIR* ent);
 #define NCopendir(path) opendir(path)
 #define NCclosedir(ent) closedir(ent)
 #endif
-#endif /*!WINPATH*/
+#endif /*!WINPATH || !NETCDF_ENABLE_PATHCVT*/
 
 /* Platform independent */
 #define NCclose(fd) close(fd)
@@ -233,12 +236,12 @@ EXTERNL int NCclosedir(DIR* ent);
 /* #define NCPD_MINGW NCPD_WIN *alias*/
 #define NCPD_REL 6 /* actual kind is unknown */
 
+#ifdef NETCDF_ENABLE_PATHCVT
 EXTERNL char* NCpathcvt_test(const char* path, int ukind, int udrive);
-EXTERNL int NCgetlocalpathkind(void);
 EXTERNL int NCgetinputpathkind(const char* inpath);
-EXTERNL const char* NCgetkindname(int kind);
 EXTERNL void printutf8hex(const char* s, char* sx);
 EXTERNL int getmountpoint(char*, size_t);
+#endif /*NETCDF_ENABLE_PATHCVT*/
 
 /**************************************************/
 /* From dutil.c */

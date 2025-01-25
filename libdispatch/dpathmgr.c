@@ -38,8 +38,10 @@
 #include "ncutf8.h"
 
 #undef DEBUGPATH
-static int pathdebug = -1;
 #undef DEBUG
+#ifdef NETCDF_ENABLE_PATHCVT
+static int pathdebug = -1;
+#endif
 
 #ifdef DEBUG
 #define REPORT(e,msg) report((e),(msg),__LINE__)
@@ -61,6 +63,11 @@ static int pathdebug = -1;
 #endif
 
 #endif
+
+/* Pick the platform kind for testing */
+static int platform = 0;
+
+#ifdef NETCDF_ENABLE_PATHCVT
 
 /*
 Code to provide some path conversion code so that
@@ -104,9 +111,6 @@ static struct MountPoint {
     char drive;
 } mountpoint;
 
-/* Pick the platform kind for testing */
-static int platform = 0;
-
 static int parsepath(const char* inpath, struct Path* path);
 static int unparsepath(struct Path* p, char** pathp, int platform);
 static int getwdpath(void);
@@ -138,6 +142,7 @@ NCpathcvt(const char* inpath)
     struct Path inparsed = empty;
     int platform= NCgetlocalpathkind();
 
+abort();
     if(inpath == NULL) goto done; /* defensive driving */
 
     if(!pathinitialized) pathinit();
@@ -1176,40 +1181,6 @@ done:
     return result;
 }
 
-int
-NCgetlocalpathkind(void)
-{
-    int kind = NCPD_UNKNOWN;
-    if(platform) return platform;
-#ifdef __CYGWIN__
-	kind = NCPD_CYGWIN;
-#elif defined _MSC_VER /* not _WIN32 */
-	kind = NCPD_WIN;
-#elif defined __MSYS__
-	kind = NCPD_MSYS;
-#elif defined __MINGW32__
-	kind = NCPD_WIN; /* alias */
-#else
-	kind = NCPD_NIX;
-#endif
-    return kind;
-}
-
-const char*
-NCgetkindname(int kind)
-{
-    switch (kind) {
-    case NCPD_UNKNOWN: return "NCPD_UNKNOWN";
-    case NCPD_NIX: return "NCPD_NIX";
-    case NCPD_MSYS: return "NCPD_MSYS";
-    case NCPD_CYGWIN: return "NCPD_CYGWIN";
-    case NCPD_WIN: return "NCPD_WIN";
-    /* same as WIN case NCPD_MINGW: return "NCPD_MINGW";*/
-    case NCPD_REL: return "NCPD_REL";
-    default: break;
-    }
-    return "NCPD_UNDEF";
-}
 
 #ifdef WINPATH
 /**
@@ -1389,3 +1360,140 @@ report(int stat, const char* msg, int line)
     }
 }
 #endif
+
+#else /*!NETCDF_ENABLE_PATHCVT*/
+
+char*
+NCpathcvt(const char* path)
+{
+    return nulldup(path);
+}
+
+int
+NCpathcanonical(const char* srcpath, char** canonp)
+{
+    if(canonp) *canonp = nulldup(srcpath);
+    return NC_NOERR;
+}
+
+int
+NChasdriveletter(const char* path)
+{
+    NC_UNUSED(path);
+    return 0;
+}
+
+int
+NCisnetworkpath(const char* path)
+{
+    NC_UNUSED(path);
+    return 0;
+}
+
+char*
+NCpathabsolute(const char* name)
+{
+    return nulldup(name);
+}
+
+int
+NCpath2utf8(const char* path, char** u8p)
+{
+    if(u8p) *u8p = nulldup(path);
+    return NC_NOERR;
+}
+
+int
+NCstdbinary(void)
+{
+    return 0;
+}
+
+char*
+NCpathcvt_test(const char* path, int ukind, int udrive)
+{
+    NC_UNUSED(ukind);
+    NC_UNUSED(udrive);
+    return nulldup(path);
+}
+
+#if 0
+int
+NCgetlocalpathkind(void)
+{
+    return 0;
+}
+
+int
+NCgetinputpathkind(const char* inpath)
+{
+}
+
+const
+char* NCgetkindname(int kind)
+{
+}
+
+void
+printutf8hex(const char* s, char* sx)
+{
+}
+
+int
+getmountpoint(char*, size_t)
+{
+}
+
+char*
+NC_backslashEscape(const char* s)
+{
+}
+
+char*
+NC_backslashUnescape(const char* esc)
+{
+}
+
+char*
+NC_shellUnescape(const char* esc)
+{
+}
+
+#endif /* 0 */
+
+#endif /*!NETCDF_ENABLE_PATHCVT*/
+
+int
+NCgetlocalpathkind(void)
+{
+    int kind = NCPD_UNKNOWN;
+    if(platform) return platform;
+#ifdef __CYGWIN__
+	kind = NCPD_CYGWIN;
+#elif defined _MSC_VER /* not _WIN32 */
+	kind = NCPD_WIN;
+#elif defined __MSYS__
+	kind = NCPD_MSYS;
+#elif defined __MINGW32__
+	kind = NCPD_WIN; /* alias */
+#else
+	kind = NCPD_NIX;
+#endif
+    return kind;
+}
+
+const char*
+NCgetkindname(int kind)
+{
+    switch (kind) {
+    case NCPD_UNKNOWN: return "NCPD_UNKNOWN";
+    case NCPD_NIX: return "NCPD_NIX";
+    case NCPD_MSYS: return "NCPD_MSYS";
+    case NCPD_CYGWIN: return "NCPD_CYGWIN";
+    case NCPD_WIN: return "NCPD_WIN";
+    /* same as WIN case NCPD_MINGW: return "NCPD_MINGW";*/
+    case NCPD_REL: return "NCPD_REL";
+    default: break;
+    }
+    return "NCPD_UNDEF";
+}

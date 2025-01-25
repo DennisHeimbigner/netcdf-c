@@ -160,6 +160,9 @@ are set when opening a binary file on Windows. */
 /* if true, enable nczarr zip support */
 #cmakedefine NETCDF_ENABLE_NCZARR_ZIP 1
 
+/* if true, Allow path conversions */
+#cmakedefine NETCDF_ENABLE_PATHCVT 1
+
 /* if true, Allow dynamically loaded plugins */
 #cmakedefine NETCDF_ENABLE_PLUGINS 1
 

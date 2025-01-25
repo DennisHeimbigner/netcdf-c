@@ -107,7 +107,9 @@ if LARGE_FILE_TESTS
 TESTS += tst_iter.sh
 endif
 
+if NETCDF_ENABLE_PATHCVT
 TESTS += testpathcvt.sh
+endif
 
 if USE_HDF5
 # HDF5 has some extra C programs to build. These will be run by
