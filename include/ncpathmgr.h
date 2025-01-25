@@ -23,6 +23,10 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "ncexternl.h"
 
 /*
