@@ -87,6 +87,10 @@ The HDF Group does not track or document the use of filters within this range."
 #define H5Z_FILTER_STRINGN (65533) /* filter id */
 #define H5Z_CODEC_STRINGN "fixedsizestrings"
 
+/* Codec for implementing CRC32 chunk checksums */
+#define H5Z_FILTER_CRC32C (65532) /* filter id */
+#define H5Z_CODEC_CRC32C "crc32c"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

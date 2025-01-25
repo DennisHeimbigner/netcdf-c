@@ -48,16 +48,18 @@ EXTRA_DIST += \
 	H5Ztemplate.c H5Zmisc.c H5Zutil.c H5Znoop.c h5noop.h NCZmisc.c \
 	H5Zshuffle.c H5Zdeflate.c H5Zszip.c H5Zszip.h \
         H5Zbzip2.c h5bzip2.h H5Zblosc.c H5Zblosc.h H5Zzstd.c H5Zzstd.h \
-	H5Zendian.c
+	H5Zendian.c H5Zcrc32c.c
 
 # The Codec filter wrappers
 EXTRA_DIST += NCZhdf5filters.c NCZstdfilters.c
 # The Filter implementations
 EXTRA_DIST += H5checksum.c
 
-plugins_to_install += lib__nch5fletcher32.la lib__nch5shuffle.la
+plugins_to_install += lib__nch5fletcher32.la lib__nch5shuffle.la lib__nch5crc32c.la
 lib__nch5shuffle_la_SOURCES = H5Zshuffle.c
 lib__nch5fletcher32_la_SOURCES = H5Zfletcher32.c H5checksum.c
+lib__nch5crc32c_la_SOURCES = H5Zcrc32c.c crc32c.cc crc32c_portable.cc \
+	crc32c.h  crc32c_internal.h  crc32c_prefetch.h  crc32c_read_le.h  crc32c_round_up.h
 
 if HAVE_DEFLATE
 plugins_to_install += lib__nch5deflate.la
