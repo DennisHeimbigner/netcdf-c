@@ -1683,7 +1683,7 @@ if test "x$enable_hdf5" = xyes; then
    # H5Pset_fapl_mpiposix and H5Pget_fapl_mpiposix have been removed since HDF5 1.8.12.
    # Use H5Pset_fapl_mpio and H5Pget_fapl_mpio, instead.
 
-   AC_CHECK_FUNCS([H5Pget_fapl_mpio H5Pset_deflate H5Z_SZIP H5Pset_all_coll_metadata_ops H5Literate H5Literate2])
+   AC_CHECK_FUNCS([H5Pget_fapl_mpio H5Pset_deflate H5Z_SZIP H5Pset_all_coll_metadata_ops H5Literate2])
 
    # Check to see if HDF5 library has collective metadata APIs, (HDF5 >= 1.10.0)
    if test "x$ac_cv_func_H5Pset_all_coll_metadata_ops" = xyes; then
@@ -2112,6 +2112,7 @@ AC_SUBST(HAS_SZLIB_WRITE, [$have_sz])
 AC_SUBST(HAS_ZSTD,[$have_zstd])
 AC_SUBST(DO_LARGE_TESTS,[$enable_large_file_tests])
 AC_SUBST(DO_REMOTE_FUNCTIONALITY,[$enable_remote_functionality])
+AC_SUBST(HAS_PATHCVT, [$enable_pathcvt])
 
 if test "x$enable_s3_aws" = xyes ; then
 AC_SUBST(WHICH_S3_SDK,[aws-sdk-cpp])

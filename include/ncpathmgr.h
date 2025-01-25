@@ -200,17 +200,30 @@ EXTERNL DIR* NCopendir(const char* path);
 EXTERNL int NCclosedir(DIR* ent);
 #endif
 #else /*!WINPATH || !NETCDF_ENABLE_PATHCVT*/
+#ifdef WINPATH
+#define NCaccess(path,mode) _access(path,mode)
+#define NCgetcwd(buf,len) _getcwd(buf,len)
+#define NCmkdir(path,mode) _mkdir(path)
+#define NCunlink(path) _unlink(path)
+#ifdef HAVE_SYS_STAT_H
+#define NCstat(path,buf) _stat(path,buf)
+#endif
+#else
+#define NCaccess(path,mode) access(path,mode)
+#define NCgetcwd(buf,len) getcwd(buf,len)
+#define NCmkdir(path,mode) mkdir(path,mode)
+#define NCunlink(path) unlink(path)
+#ifdef HAVE_SYS_STAT_H
+#define NCstat(path,buf) stat(path,buf)
+#endif
+#endif
 #define NCfopen(path,flags) fopen((path),(flags))
 #define NCopen3(path,flags,mode) open((path),(flags),(mode))
 #define NCopen2(path,flags) open((path),(flags))
 #define NCremove(path) remove(path)
-#define NCaccess(path,mode) access(path,mode)
-#define NCmkdir(path,mode) mkdir(path,mode)
-#define NCgetcwd(buf,len) getcwd(buf,len)
 #define NCmkstemp(buf) mkstemp(buf);
 #define NCcwd(buf, len) getcwd(buf,len)
 #define NCrmdir(path) rmdir(path)
-#define NCunlink(path) unlink(path)
 #ifdef HAVE_SYS_STAT_H
 #define NCstat(path,buf) stat(path,buf)
 #endif
