@@ -247,12 +247,13 @@ EXTERNL int NCclosedir(DIR* ent);
 /* Case 4. !NETCDF_ENABLE_PATHCVT && !WINPATH */
 /* Use preprocessor concatenation */
 #define WTAG(x) _##x
+#define NCmkdir(path,mode) WTAG(mkdir(path))
 #else /*!WINPATH*/
 #define WTAG(x) x
+#define NCmkdir(path,mode) mkdir(path,mode)
 #endif /*!WINPATH*/
 #define NCaccess(path,mode) WTAG(access(path,mode))
 #define NCgetcwd(buf,len) WTAG(getcwd(buf,len))
-#define NCmkdir(path,mode) WTAG(mkdir(path))
 #define NCrmdir(path) WTAG(rmdir(path))
 #define NCunlink(path) WTAG(unlink(path))
 #ifdef HAVE_SYS_STAT_H
