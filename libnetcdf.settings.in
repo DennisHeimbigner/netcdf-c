@@ -61,4 +61,3 @@ Standard Filters:       @STD_FILTERS@
 ZSTD Support:           @HAS_ZSTD@
 Parallel Filters:       @HAS_PAR_FILTERS@
 Path Localization:      @HAS_PATHCVT@
-@

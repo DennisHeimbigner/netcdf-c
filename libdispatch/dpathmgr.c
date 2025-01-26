@@ -697,7 +697,7 @@ NCstat(const char* path, struct stat* buf)
     char* cvtpath = NULL;
     char* path8 = NULL;
     wchar_t* wpath = NULL;
-
+abort();
     if((status = ansi2utf8(path,&path8))) goto done;
 
     if((cvtpath = NCpathcvt(path8)) == NULL) {status=ENOMEM; goto done;}
