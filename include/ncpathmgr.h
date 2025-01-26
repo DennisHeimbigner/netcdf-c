@@ -256,7 +256,7 @@ EXTERNL int NCclosedir(DIR* ent);
 #define NCrmdir(path) WTAG(rmdir(path))
 #define NCunlink(path) WTAG(unlink(path))
 #ifdef HAVE_SYS_STAT_H
-#define NCstat(path,buf) WTAG(stat(path,buf)))
+#define NCstat(path,buf) WTAG(stat(path,buf))
 #endif /*HAVE_SYS_STAT_H*/
 #define NCfopen(path,flags) fopen((path),(flags))
 #define NCopen3(path,flags,mode) open((path),(flags),(mode))
