@@ -248,6 +248,7 @@ EXTERNL int NCclosedir(DIR* ent);
 /* Use preprocessor concatenation */
 #define WTAG(x) _##x
 #define NCmkdir(path,mode) _mkdir(path)
+#ifdef HAVE_SYS_STAT_H
 #define NCstat(path,buf) _stat64(path,buf)
 #endif /*HAVE_SYS_STAT_H*/
 #else /*!WINPATH*/
