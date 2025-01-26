@@ -184,7 +184,22 @@ EXTERNL const char* NCgetkindname(int kind);
 It is especially important to use for windows so that
 NCpathcvt (above) is invoked on the path.
 */
-#if defined(WINPATH) && defined(NETCDF_ENABLE_PATHCVT)
+/* There are four cases:
+1. NETCDF_ENABLE_PATHCVT && WINPATH
+   - Use the windows wrappers
+2. NETCDF_ENABLE_PATHCVT && !WINPATH
+   - Use the macros
+3. !NETCDF_ENABLE_PATHCVT && WINPATH
+   - Use the macros to invoke the "_" windows versions
+   - otherwise use macros
+4. !NETCDF_ENABLE_PATHCVT && !WINPATH
+   - use the non"_" macros
+*/
+
+#ifdef NETCDF_ENABLE_PATHCVT
+#ifdef WINPATH
+/* Case 1. NETCDF_ENABLE_PATHCVT && WINPATH */
+
 /* path converter wrappers*/
 EXTERNL FILE* NCfopen(const char* path, const char* flags);
 EXTERNL int NCopen3(const char* path, int flags, int mode);
@@ -195,7 +210,6 @@ EXTERNL int NCmkdir(const char* path, int mode);
 EXTERNL int NCrmdir(const char* path);
 EXTERNL char* NCgetcwd(char* cwdbuf, size_t len);
 EXTERNL int NCmkstemp(char* buf);
-
 #ifdef HAVE_SYS_STAT_H
 EXTERNL int NCstat(const char* path, struct stat* buf);
 #endif
@@ -203,31 +217,21 @@ EXTERNL int NCstat(const char* path, struct stat* buf);
 EXTERNL DIR* NCopendir(const char* path);
 EXTERNL int NCclosedir(DIR* ent);
 #endif
-#else /*!WINPATH || !NETCDF_ENABLE_PATHCVT*/
-#ifdef WINPATH
-#define NCaccess(path,mode) _access(path,mode)
-#define NCgetcwd(buf,len) _getcwd(buf,len)
-#define NCmkdir(path,mode) _mkdir(path)
-#define NCunlink(path) _unlink(path)
-#ifdef HAVE_SYS_STAT_H
-#define NCstat(path,buf) _stat(path,buf)
-#endif
-#else
-#define NCaccess(path,mode) access(path,mode)
-#define NCgetcwd(buf,len) getcwd(buf,len)
-#define NCmkdir(path,mode) mkdir(path,mode)
-#define NCunlink(path) unlink(path)
-#ifdef HAVE_SYS_STAT_H
-#define NCstat(path,buf) stat(path,buf)
-#endif
-#endif
+
+#else /*!WINPATH*/
+/* Case 2. NETCDF_ENABLE_PATHCVT && !WINPATH */
+
 #define NCfopen(path,flags) fopen((path),(flags))
 #define NCopen3(path,flags,mode) open((path),(flags),(mode))
 #define NCopen2(path,flags) open((path),(flags))
 #define NCremove(path) remove(path)
+#define NCaccess(path,mode) access(path,mode)
+#define NCmkdir(path,mode) mkdir(path,mode)
+#define NCgetcwd(buf,len) getcwd(buf,len)
 #define NCmkstemp(buf) mkstemp(buf);
 #define NCcwd(buf, len) getcwd(buf,len)
 #define NCrmdir(path) rmdir(path)
+#define NCunlink(path) unlink(path)
 #ifdef HAVE_SYS_STAT_H
 #define NCstat(path,buf) stat(path,buf)
 #endif
@@ -235,7 +239,37 @@ EXTERNL int NCclosedir(DIR* ent);
 #define NCopendir(path) opendir(path)
 #define NCclosedir(ent) closedir(ent)
 #endif
-#endif /*!WINPATH || !NETCDF_ENABLE_PATHCVT*/
+#endif /*!WINPATH*/
+
+#else /*!NETCDF_ENABLE_PATHCVT*/
+#ifdef WINPATH
+/* Case 3. !NETCDF_ENABLE_PATHCVT && WINPATH */
+/* Case 4. !NETCDF_ENABLE_PATHCVT && !WINPATH */
+/* Use preprocessor concatenation */
+#define WTAG _
+#else /*!WINPATH*/
+#define WTAG
+#endif /*!WINPATH*/
+#define NCaccess(path,mode) WTAG##access(path,mode)
+#define NCgetcwd(buf,len) WTAG##getcwd(buf,len)
+#define NCmkdir(path,mode) WTAG##mkdir(path)
+#define NCrmdir(path) WTAG##rmdir(path)
+#define NCunlink(path) WTAG##unlink(path)
+#ifdef HAVE_SYS_STAT_H
+#define NCstat(path,buf) WTAG##stat(path,buf)
+#endif /*HAVE_SYS_STAT_H*/
+#define NCfopen(path,flags) fopen((path),(flags))
+#define NCopen3(path,flags,mode) open((path),(flags),(mode))
+#define NCopen2(path,flags) open((path),(flags))
+#define NCremove(path) remove(path)
+#define NCmkstemp(buf) mkstemp(buf);
+#define NCcwd(buf, len) getcwd(buf,len)
+#ifdef HAVE_DIRENT_H
+#define NCopendir(path) opendir(path)
+#define NCclosedir(ent) closedir(ent)
+#endif
+
+#endif /*!ENABLE_PATHCVT*/
 
 /* Platform independent */
 #define NCclose(fd) close(fd)
