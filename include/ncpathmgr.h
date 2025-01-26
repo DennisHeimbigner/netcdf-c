@@ -233,7 +233,7 @@ EXTERNL int NCclosedir(DIR* ent);
 #define NCrmdir(path) rmdir(path)
 #define NCunlink(path) unlink(path)
 #ifdef HAVE_SYS_STAT_H
-#define NCstat(path,buf) xstat(path,buf)
+#define NCstat(path,buf) stat(path,buf)
 #endif
 #ifdef HAVE_DIRENT_H
 #define NCopendir(path) opendir(path)
@@ -253,7 +253,7 @@ EXTERNL int NCclosedir(DIR* ent);
 #define WTAG(x) x
 #define NCmkdir(path,mode) mkdir(path,mode)
 #ifdef HAVE_SYS_STAT_H
-#define NCstat(path,buf) ystat(path,buf)
+#define NCstat(path,buf) stat(path,buf)
 #endif /*HAVE_SYS_STAT_H*/
 #endif /*!WINPATH*/
 #define NCaccess(path,mode) WTAG(access(path,mode))
