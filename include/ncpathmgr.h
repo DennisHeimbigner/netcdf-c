@@ -242,15 +242,13 @@ EXTERNL int NCclosedir(DIR* ent);
 #endif /*!WINPATH*/
 
 #else /*!NETCDF_ENABLE_PATHCVT*/
-#ifdef WINPATH && !__MINGW32__
+#ifdef WINPATH && !__MSYS__
 /* Case 3. !NETCDF_ENABLE_PATHCVT && WINPATH */
 /* Case 4. !NETCDF_ENABLE_PATHCVT && !WINPATH */
 /* Use preprocessor concatenation */
 #define WTAG(x) _##x
 #define NCmkdir(path,mode) _mkdir(path)
-#ifdef HAVE_SYS_STAT_H
 #define NCstat(path,buf) _stat64(path,buf)
-#endif /*HAVE_SYS_STAT_H*/
 #else /*!WINPATH*/
 #define WTAG(x) x
 #define NCmkdir(path,mode) mkdir(path,mode)
