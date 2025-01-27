@@ -18,6 +18,8 @@ NPV1="${top_srcdir}/ncdump/ref_provenance_v1.nc"
 NPNCP="${top_srcdir}/ncdump/ref_no_ncproperty.nc"
 
 # Create various files
+export NCTRACING=1
+export NETCDF_LOG_LEVEL=10
 ${execdir}/tst_fileinfo
 
 # Do a false negative test
