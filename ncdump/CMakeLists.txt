@@ -323,6 +323,10 @@ endif()
     add_sh_test(ncdump test_rcmerge)
   endif()
 
+  if(NETCDF_ENABLE_PATHCVT)
+    add_sh_test(ncdump testpathcvt)
+  endif()
+
 endif(HAVE_BASH)
 
 endif(NETCDF_ENABLE_TESTS)

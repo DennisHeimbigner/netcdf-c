@@ -242,7 +242,7 @@ EXTERNL int NCclosedir(DIR* ent);
 #endif /*!WINPATH*/
 
 #else /*!NETCDF_ENABLE_PATHCVT*/
-#ifdef WINPATH && !__MSYS__
+#if defined(WINPATH) && !defined(__MSYS__)
 /* Case 3. !NETCDF_ENABLE_PATHCVT && WINPATH */
 /* Case 4. !NETCDF_ENABLE_PATHCVT && !WINPATH */
 /* Use preprocessor concatenation */
