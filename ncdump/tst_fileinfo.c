@@ -47,6 +47,7 @@ variables:
 int
 main(int argc, char **argv)
 {
+nc_set_log_level(10);
     printf("\n*** Testing 'Fileinfo attributes.\n");
 
     {
