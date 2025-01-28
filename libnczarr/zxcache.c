@@ -24,12 +24,47 @@
 
 #define USEPARAMSIZE 0xffffffffffffffff
 
-/* Forward */
-static int get_chunk(NCZChunkCache* cache, NCZCacheEntry* entry);
-static int put_chunk(NCZChunkCache* cache, NCZCacheEntry*);
-static int verifycache(NCZChunkCache* cache);
-static int flushcache(NCZChunkCache* cache);
-static int constraincache(NCZChunkCache* cache, size64_t needed);
+typedef struct NCZCacheEntry {
+    struct List {void* next; void* prev; void* unused;} list;
+    int modified;
+    size64_t indices[NC_MAX_VAR_DIMS];
+    struct ChunkKey {
+	char* varkey; /* key to the containing variable */
+        char* chunkkey; /* name of the chunk */
+    } key;
+    size64_t hashkey;
+    int isfiltered; /* 1=>data contains filtered data else real data */
+    int isfixedstring; /* 1 => data contains the fixed strings, 0 => data contains pointers to strings */
+    size64_t size; /* |data| */
+    void* data; /* contains either filtered or real data */
+} NCZCacheEntry;
+
+typedef struct NCZChunkCache {
+    NCZCache hdr;
+    size64_t chunksize; /* for real data */
+    size64_t chunkcount; /* cross product of chunksizes */
+    void* fillchunk; /* enough fillvalues to fill a real chunk */
+    struct ChunkCache params;
+} NCZChunkCache;
+
+/*  Dispatch fcns */
+static int NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t, char dimsep, NCZCache** cachep);
+static void NCZ_free_chunk_cache(NCZCache* cache);
+static int NCZ_read_cache_chunk(NCZCache* cache, const size64_t* indices, void** datap);
+static int NCZ_flush_chunk_cache(NCZCache* cache);
+static size64_t NCZ_cache_entrysize(NCZCache* cache);
+static NCZCacheEntry* NCZ_cache_entry(NCZCache* cache, const size64_t* indices);
+static size64_t NCZ_cache_size(NCZCache* cache);
+static int NCZ_buildchunkpath(NCZCache* cache, const size64_t* chunkindices, struct ChunkKey* key);
+static int NCZ_ensure_fill_chunk(NCZCache* cache);
+static int NCZ_reclaim_fill_chunk(NCZCache* cache);
+static int NCZ_chunk_cache_modify(NCZCache* cache, const size64_t* indices);
+
+static int get_chunk(NCZCache* cache, NCZCacheEntry* entry);
+static int put_chunk(NCZCache* cache, NCZCacheEntry*);
+static int verifycache(NCZCache* cache);
+static int flushcache(NCZCache* cache);
+static int constraincache(NCZCache* cache, size64_t needed);
 
 static void
 setmodified(NCZCacheEntry* e, int tf)
@@ -114,7 +149,7 @@ NCZ_adjust_var_cache(NC_VAR_INFO_T *var)
 {
     int stat = NC_NOERR;
     NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
-    NCZChunkCache* zcache = NULL;
+    NCZCache* zcache = NULL;
 
     zcache = zvar->cache;
     if(zcache->valid) goto done;
@@ -151,6 +186,18 @@ done:
 }
 
 /**************************************************/
+
+/* Match function */
+int
+zxcachematch(NCLRUnode* node, void* object)
+{
+???    NCZCacheEntry* o = (NCZCacheEntry*)object;
+    NCZCacheEntry* n = (NCZCacheEntry*)nclrucontent(node);
+    return n->hashkey == o->hashkey
+}
+
+
+/**************************************************/
 /**
  * Create a chunk cache object
  *
@@ -163,7 +210,7 @@ done:
  * @author Dennis Heimbigner, Ed Hartnett
  */
 int
-NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, char dimsep, NCZChunkCache** cachep)
+NCZ_create_cache_chunk(NC_VAR_INFO_T* var, size64_t chunksize, char dimsep, NCZCache** cachep)
 {
     int stat = NC_NOERR;
     NCZChunkCache* cache = NULL;
@@ -171,17 +218,24 @@ NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, char dimsep, NCZC
     NCZ_VAR_INFO_T* zvar = NULL;
 	
     if(chunksize == 0) return NC_EINVAL;
-
-    zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
     if((cache = calloc(1,sizeof(NCZChunkCache))) == NULL)
 	{stat = NC_ENOMEM; goto done;}
-    cache->var = var;
-    cache->ndims = var->ndims;
+    cache->hdr.var = var;
+    cache->hdr.ndims = var->ndims;
+    cache->hdr.dimension_separator = dimsep;
+    cache->hdr.lru = nclrunew(
+
+	cache->hdr.fcns.free_chunk_cache = NCZ_free_chunk_cache;
+	cache->hdr.fcns.read_cache_chunk = NCZ_read_cache_chunk;
+	cache->hdr.fcns.flush_chunk_cache = NCZ_flush_chunk_cache;
+	cache->hdr.fcns.cache_entrysize = NCZ_cache_entrysize;
+	cache->hdr.fcns.cache_size = NCZ_cache_size;
+	cache->hdr.fcns.buildchunkpath = NCZ_buildchunkpath;
+	cache->hdr.fcns.ensure_fill_chunk = NCZ_ensure_fill_chunk;
+	cache->hdr.fcns.reclaim_fill_chunk = NCZ_reclaim_fill_chunk;
+	cache->hdr.fcns.chunk_cache_modify = NCZ_chunk_cache_modify;
     cache->fillchunk = NULL;
     cache->chunksize = chunksize;
-    cache->dimension_separator = dimsep;
-    zvar->cache = cache;
-
     cache->chunkcount = 1;
     if(var->ndims > 0) {
 	size_t i;
@@ -189,7 +243,10 @@ NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, char dimsep, NCZC
 	    cache->chunkcount *= var->chunksizes[i];
         }
     }
-    
+
+    zvar = (NCZ_VAR_INFO_T*)var->format_var_info;
+    zvar->cache = cache;
+
     /* Set default cache parameters */
     cache->params = NC_getglobalstate()->chunkcache;
 
@@ -197,10 +254,6 @@ NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, char dimsep, NCZC
     cache->maxentries = 1;
 #endif
 
-#ifdef DEBUG
-    fprintf(stderr,"%s.cache: nelems=%ld size=%ld\n",
-        var->hdr.name,(unsigned long)cache->maxentries,(unsigned long)cache->maxsize);
-#endif
     if((stat = ncxcachenew(LEAFLEN,&cache->xcache))) goto done;
     if((cache->mru = nclistnew()) == NULL)
 	{stat = NC_ENOMEM; goto done;}
@@ -214,7 +267,7 @@ done:
 }
 
 static void
-free_cache_entry(NCZChunkCache* cache, NCZCacheEntry* entry)
+free_cache_entry(NCZCache* cache, NCZCacheEntry* entry)
 {
     if(entry) {
         int tid = cache->var->type_info->hdr.id;
@@ -228,8 +281,8 @@ free_cache_entry(NCZChunkCache* cache, NCZCacheEntry* entry)
     }
 }
 
-void
-NCZ_free_chunk_cache(NCZChunkCache* cache)
+static void
+NCZ_free_chunk_cache(NCZCache* cache)
 {
     if(cache == NULL) return;
 
@@ -254,23 +307,23 @@ fprintf(stderr,"|cache.free|=%ld\n",nclistlength(cache->mru));
     (void)ZUNTRACE(NC_NOERR);
 }
 
-size64_t
-NCZ_cache_entrysize(NCZChunkCache* cache)
+static size64_t
+NCZ_cache_entrysize(NCZCache* cache)
 {
     assert(cache);
     return cache->chunksize;
 }
 
 /* Return number of active entries in cache */
-size64_t
-NCZ_cache_size(NCZChunkCache* cache)
+static size64_t
+NCZ_cache_size(NCZCache* cache)
 {
     assert(cache);
     return nclistlength(cache->mru);
 }
 
-int
-NCZ_read_cache_chunk(NCZChunkCache* cache, const size64_t* indices, void** datap)
+static int
+NCZ_read_cache_chunk(NCZCache* cache, const size64_t* indices, void** datap)
 {
     int stat = NC_NOERR;
     size_t rank = cache->ndims;
@@ -326,7 +379,7 @@ done:
 
 /* Constrain cache */
 static int
-verifycache(NCZChunkCache* cache)
+verifycache(NCZCache* cache)
 {
     int stat = NC_NOERR;
 
@@ -338,7 +391,7 @@ done:
 /* Completely flush cache */
 
 static int
-flushcache(NCZChunkCache* cache)
+flushcache(NCZCache* cache)
 {
     int stat = NC_NOERR;
     stat = constraincache(cache,USEPARAMSIZE);
@@ -355,7 +408,7 @@ flushcache(NCZChunkCache* cache)
 */
 
 static int
-constraincache(NCZChunkCache* cache, size64_t needed)
+constraincache(NCZCache* cache, size64_t needed)
 {
     int stat = NC_NOERR;
     size64_t final_size;
@@ -407,7 +460,7 @@ Also make sure the cache size is correct.
 @return NC_EXXX error
 */
 int
-NCZ_flush_chunk_cache(NCZChunkCache* cache)
+NCZ_flush_chunk_cache(NCZCache* cache)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -442,7 +495,7 @@ done:
 
 /* Ensure existence of some kind of fill chunk */
 int
-NCZ_ensure_fill_chunk(NCZChunkCache* cache)
+NCZ_ensure_fill_chunk(NCZCache* cache)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -502,7 +555,7 @@ done:
 }
     
 int
-NCZ_reclaim_fill_chunk(NCZChunkCache* zcache)
+NCZ_reclaim_fill_chunk(NCZCache* zcache)
 {
     int stat = NC_NOERR;
     if(zcache && zcache->fillchunk) {
@@ -516,7 +569,7 @@ NCZ_reclaim_fill_chunk(NCZChunkCache* zcache)
 }
 
 int
-NCZ_chunk_cache_modify(NCZChunkCache* cache, const size64_t* indices)
+NCZ_chunk_cache_modify(NCZCache* cache, const size64_t* indices)
 {
     int stat = NC_NOERR;
     ncexhashkey_t hkey = 0;
@@ -546,7 +599,7 @@ done:
  * @author Dennis Heimbigner
  */
 static int
-put_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
+put_chunk(NCZCache* cache, NCZCacheEntry* entry)
 {
     int stat = NC_NOERR;
     NC_FILE_INFO_T* file = NULL;
@@ -628,7 +681,7 @@ done:
  * @author Dennis Heimbigner
  */
 static int
-get_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
+get_chunk(NCZCache* cache, NCZCacheEntry* entry)
 {
     int stat = NC_NOERR;
     NCZMAP* map = NULL;
@@ -746,7 +799,7 @@ done:
 }
 
 int
-NCZ_buildchunkpath(NCZChunkCache* cache, const size64_t* chunkindices, struct ChunkKey* key)
+NCZ_buildchunkpath(NCZCache* cache, const size64_t* chunkindices, struct ChunkKey* key)
 {
     int stat = NC_NOERR;
     char* chunkname = NULL;
@@ -767,7 +820,7 @@ done:
 }
 
 void
-NCZ_dumpxcacheentry(NCZChunkCache* cache, NCZCacheEntry* e, NCbytes* buf)
+NCZ_dumpxcacheentry(NCZCache* cache, NCZCacheEntry* e, NCbytes* buf)
 {
     char s[8192];
     char idx[64];
@@ -792,7 +845,7 @@ NCZ_dumpxcacheentry(NCZChunkCache* cache, NCZCacheEntry* e, NCbytes* buf)
 }
 
 void
-NCZ_printxcache(NCZChunkCache* cache)
+NCZ_printxcache(NCZCache* cache)
 {
     static char xs[20000];
     NCbytes* buf = ncbytesnew();

@@ -38,6 +38,7 @@ zinfer.c \
 zfill.c \
 zarr.c \
 zattr.c \
+zcache.c \
 zxcache.c \
 zchunking.c \
 zclose.c \

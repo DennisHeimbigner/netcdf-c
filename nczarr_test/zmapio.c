@@ -79,6 +79,7 @@ static struct Type {
 struct Dumpptions {
     int debug;
     int meta_only;
+    int objectsize;
     Mapop mop;
     char infile[4096];
     NCZM_IMPL impl;    
@@ -156,7 +157,7 @@ main(int argc, char** argv)
     /* Init options */
     memset((void*)&dumpoptions,0,sizeof(dumpoptions));
 
-    while ((c = getopt(argc, argv, "23dhvx:t:F:T:X:")) != EOF) {
+    while ((c = getopt(argc, argv, "23dhvx:t:F:OT:X:")) != EOF) {
 	switch(c) {
 	case '2':
 	    dumpoptions.zarrformat = 2;
@@ -184,6 +185,8 @@ main(int argc, char** argv)
 	case 'F': 
 	    strcpy(dumpoptions.format,optarg);
 	    break;
+	case O:
+	    dumpoptions.objectsize = 1; /* Print the objectsize */
 	case 'T':
 	    nctracelevel(atoi(optarg));
 	    break;
@@ -365,7 +368,11 @@ objdump(void)
 	    assert(content != NULL);
 	    if(kind == OK_CHUNK)
 		len = ceildiv(len,dumpoptions.nctype->typesize);
-	    printf("[%zu] %s : (%llu)",depth,obj,len);
+  	    printf("[%zu] %s : ",depth,obj);
+	    if(dumpoptions.objsize)
+		printf("(%llu)",len);
+	    else
+		printf("()");
 	    if(kind == OK_CHUNK &&  dumpoptions.nctype->nctype != NC_STRING)
 		printf(" (%s)",dumpoptions.nctype->typename);
 	    printf(" |");
