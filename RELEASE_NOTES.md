@@ -7,6 +7,7 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.9.3 - TBD
 
+* Step in converting PR 3068 to a sequence of much smaller PRs. This one updates the ncjson and ncproplist code to the latest versions. See [Github #????](https://github.com/Unidata/netcdf-c/pull/????) for more information.
 * Extend the netcdf API to support programmatic changes to the plugin search path. See [Github #3034](https://github.com/Unidata/netcdf-c/pull/3034) for more information.
 
 ## Known Issue

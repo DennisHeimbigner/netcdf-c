@@ -623,7 +623,7 @@ done:
 }
 
 OPTSTATIC int
-NCJdictget(const NCjson* dict, const char* key, NCjson** jvaluep)
+NCJdictget(const NCjson* dict, const char* key, const NCjson** jvaluep)
 {
     int stat = NCJ_OK;
     size_t i;
