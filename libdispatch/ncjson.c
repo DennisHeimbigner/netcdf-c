@@ -649,7 +649,7 @@ OPTSTATIC NCjson*
 NCJdictlookup(const NCjson* dict, const char* key)
 {
     int stat;
-    NCjson* jvalue = NULL;
+    const NCjson* jvalue = NULL;
     stat = NCJdictget(dict,key,&jvalue);
     if(stat != NCJ_OK) jvalue = NULL;
     return jvalue;
