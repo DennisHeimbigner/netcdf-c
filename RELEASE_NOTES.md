@@ -5,6 +5,11 @@ Release Notes       {#RELEASE_NOTES}
 
 This file contains a high-level description of this package's evolution. Releases are in reverse chronological order (most recent first). Note that, as of netcdf 4.2, the `netcdf-c++` and `netcdf-fortran` libraries have been separated into their own libraries.
 
+## 4.9.4 - TBD
+
+* Step 1 in splittig PR [Github #3068](https://github.com/Unidata/netcdf-c/pull/3068). Update ncjson.[ch] and ncproplist.[ch]. Also fix references to old API. Also fix include/netcdf_ncjson.h and include/netcdf_proplist.h builds.
+See [Github #????](https://github.com/Unidata/netcdf-c/pull/????) for more information.
+
 ## 4.9.3 - TBD
 
 * Step in converting PR 3068 to a sequence of much smaller PRs. This one updates the ncjson and ncproplist code to the latest versions. See [Github #????](https://github.com/Unidata/netcdf-c/pull/????) for more information.
