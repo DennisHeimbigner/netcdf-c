@@ -21,7 +21,7 @@ for t in $TESTS ; do
 ${execdir}/test_auxmisc -P ${t} >> tmp_provparse.txt
 done
 echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-cat ref_provparse.txt
+cat ${srcdir}/ref_provparse.txt
 echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
 cat tmp_provparse.txt
 echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
