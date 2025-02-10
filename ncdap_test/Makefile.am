@@ -7,10 +7,10 @@
 include $(top_srcdir)/lib_flags.am
 
 # Un comment to use a more verbose test driver
-#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-#TEST_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-#TESTS_ENVIRONMENT = export SETX=1;
+SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+TEST_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+TESTS_ENVIRONMENT = export SETX=1;
 
 # Note which tests depend on other tests. Necessary for make -j check.
 TEST_EXTENSIONS = .sh
@@ -66,7 +66,6 @@ endif
 
 if NETCDF_ENABLE_DAP_LONG_TESTS
 test_manyurls_SOURCES = test_manyurls.c manyurls.h
-check_PROGRAMS += test_manyurls
 test_manyurls.log: tst_longremote3.log
 TESTS += test_manyurls
 endif
