@@ -35,6 +35,7 @@
  #define nulldup(x) ((x)?strdup(x):(x))
 #endif
 
+
 /* Forward */
 static int lexical_compare(const void* arg1, const void* arg2);
 
@@ -204,19 +205,17 @@ NC_shellUnescape(const char* esc)
 }
 
 /** \internal
-Wrap mktmp and return the generated path,
+Wrap mktmp and return the generated path
 or null if failed.
 @param base is the base file path. XXXXX is appended to allow mktmp add its unique id.
 @param tmpfile store the generated string in this.
 @return NC_NOERR|NC_EXXX
 */
-
 int
 NC_mktmp(const char* base, char** tmpfile)
 {
     int fd = -1;
     char tmp[8192];
-
 #ifndef HAVE_MKSTEMP
     int tries;
 #define MAXTRIES 4
@@ -288,7 +287,7 @@ NC_readfileF(FILE* stream, NCbytes* content, long long amount)
 	if(ferror(stream)) {ret = NC_EIO; goto done;}
 	if(count > 0) ncbytesappendn(content,part,(unsigned long)count);
 	red += (long long)count;
-        if (feof(stream)) break;
+    if (feof(stream)) break;
     }
     /* Keep only amount */
     if(amount >= 0) {
@@ -459,9 +458,8 @@ int isnan(double x)
 }
 
 #endif /* HAVE_DECL_ISNAN */
-#endif /*0*/
+#endif
 #endif /*APPLE*/
-
 #endif /*!_INTEL_COMPILER*/
 
 /** \internal */
@@ -543,12 +541,12 @@ done:
 static int
 lexical_compare(const void* arg1, const void* arg2)
 {
-   char* s1 = *((char**)arg1);
-   char* s2 = *((char**)arg2);
-   int slen1 = (int)nulllen(s1);
-   int slen2 = (int)nulllen(s2);
-   if(slen1 != slen2) return (slen1 - slen2);
-   return strcmp(s1,s2);
+    char* s1 = *((char**)arg1);
+    char* s2 = *((char**)arg2);
+    int slen1 = (int)nulllen(s1);
+    int slen2 = (int)nulllen(s2);
+    if(slen1 != slen2) return (slen1 - slen2);
+    return strcmp(s1,s2);
 }
 
 /**
@@ -559,8 +557,8 @@ Sort a vector of strings.
 void
 NC_sortenvv(size_t n, char** envv)
 {
-   if(n <= 1) return;
-   qsort(envv, n, sizeof(char*), lexical_compare);
+    if(n <= 1) return;
+    qsort(envv, n, sizeof(char*), lexical_compare);
 }
 
 /**
@@ -570,41 +568,41 @@ Sort a nclist of strings.
 void
 NC_sortlist(NClist* l)
 {
-   if(l == NULL || nclistlength(l) == 0) return;
-   NC_sortenvv(nclistlength(l),(char**)nclistcontents(l));
+    if(l == NULL || nclistlength(l) == 0) return;
+    NC_sortenvv(nclistlength(l),(char**)nclistcontents(l));
 }
 
 /* Free up a vector of strings */
 void
 NC_freeenvv(size_t nkeys, char** keys)
 {
-   size_t i;
-   for(i=0;i<nkeys;i++)
+    size_t i;
+    for(i=0;i<nkeys;i++)
 	nullfree(keys[i]);
-   nullfree(keys);
+    nullfree(keys);
 }
 
 int
 NC_swapatomicdata(size_t datalen, void* data, int typesize)
 {
-   int stat = NC_NOERR;
-   size_t i;
+    int stat = NC_NOERR;
+    size_t i;
 
-   assert(datalen % (size_t)typesize == 0);
+    assert(datalen % (size_t)typesize == 0);
 
-   if(typesize == 1) goto done;
+    if(typesize == 1) goto done;
 
-   /*(typesize > 1)*/
-   for(i=0;i<datalen;) {
+    /*(typesize > 1)*/
+    for(i=0;i<datalen;) {
 	char* p = ((char*)data) + i;
-       switch (typesize) {
-       case 2: swapinline16(p); break;
-       case 4: swapinline32(p); break;
-       case 8: swapinline64(p); break;
-       default: break;
+        switch (typesize) {
+        case 2: swapinline16(p); break;
+        case 4: swapinline32(p); break;
+        case 8: swapinline64(p); break;
+        default: break;
 	}
 	i += (size_t)typesize;
-   }
+    }
 done:
-   return stat;
+    return stat;
 }
