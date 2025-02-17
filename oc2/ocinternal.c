@@ -323,11 +323,13 @@ static OCerror
 createtempfile(OCstate* state, OCtree* tree)
 {
     int stat = OC_NOERR;
-    char* basepath[8192];
+    char basepath[8192];
     char* tmppath = NULL;
     size_t len;
     NCglobalstate* globalstate = NC_getglobalstate();
 
+    snprintf(basepath,sizeof(basepath),"%s/%s",globalstate->tempdir,DATADDSFILE);
+    tmppath = NULL;
     if((stat = NC_mktmp(basepath,&tmppath))) goto fail;
     if (stat != OC_NOERR && errno != EEXIST) {
         fprintf(stderr, "Cannot create %sfile\n",DATADDSFILE);
