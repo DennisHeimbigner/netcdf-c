@@ -348,11 +348,11 @@ zs3keyexists(NCZMAP* map, const char* key)
 
     if((stat = maketruekey(z3map->s3.rootkey,key,&truekey))) goto done;
 
-    switch (stat = NC_s3sdkinfo(z3map->s3client,z3map->s3.bucket,truekey,lenp,&z3map->errmsg)) {
+    switch (stat = NC_s3sdkinfo(z3map->s3client,z3map->s3.bucket,truekey,NULL,&z3map->errmsg)) {
     case NC_NOERR: break;
     case NC_EEMPTY: stat = NC_ENOOBJECT; /* fall thru */
     case NC_ENOOBJECT:
-	if(lenp) *lenp = 0;
+    
 	goto done;
     default:
         goto done;
