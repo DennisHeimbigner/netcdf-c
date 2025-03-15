@@ -14,7 +14,6 @@ nc_dump_data => NC_dump_data
 See the file "reclaim_tests.cdl" to see the input file semantics.
 */
 
-
 #include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -40,6 +39,8 @@ See the file "reclaim_tests.cdl" to see the input file semantics.
 
 #define MAXOBJECTS 1024
 
+#define MAXATTTXT 2048
+
 struct Options {
     int debug;
 } dumpoptions;
@@ -56,12 +57,21 @@ struct Dim {
     size_t size;
 };
 
+struct Att {
+    char name[NC_MAX_NAME];
+    int atype;
+    size_t len;
+    void* data;
+};
+
 struct Var {
     char name[NC_MAX_NAME];
     int vid;
     int tid;
     size_t dimprod;
     void* data;
+    int natts;
+    struct Att* atts;
 };
 
 struct Metadata {
@@ -79,6 +89,7 @@ struct Metadata {
     struct Type vcmpd_str_t;
     struct Type vcmpd_vlen_t;
     struct Type vcmpd_cmpd_t;
+    struct Type cmpd_str_att_t;
     /* dim ids */
     struct Dim d1;
     struct Dim d2;
@@ -98,6 +109,8 @@ struct Metadata {
     struct Var vcstrvar;
     struct Var vcvlenvar;
     struct Var vccmpdvar;
+    /* Specials */
+    struct Var int3110;
 } metadata;
 
 /* atomic Types */
@@ -173,6 +186,30 @@ setupdim(int ncid, const char* name, struct Dim* dim)
 }
 
 static int
+setupatts(int ncid, struct Var* var)
+{
+    int stat = NC_NOERR;
+    int i;
+    if((stat=nc_inq_varnatts(ncid,var->vid,&var->natts))) return NCTHROW(stat);    
+    var->atts = (struct Att*)calloc(sizeof(struct Att),MAXOBJECTS);
+    if(var->atts == NULL) return NCTHROW(NC_ENOMEM);
+
+    for(i=0;i<var->natts;i++) {
+	struct Att* att = &var->atts[i];
+	struct Type* atype = NULL;
+	size_t alen = 0;	
+        if((stat=nc_inq_attname(ncid,var->vid,i,att->name))) return NCTHROW(stat);
+        if((stat=nc_inq_att(ncid,var->vid,att->name,&att->atype,&att->len))) return NCTHROW(stat);
+	if((atype = typemap[att->atype])==NULL) return NCTHROW(NC_ENOTATT);
+	/* compute the space for the attribute */
+	if((att->data = calloc(atype->size,alen))==NULL) return NCTHROW(NC_ENOMEM);
+	/* Get the data */
+	if((stat=nc_get_att(ncid,var->vid,att->name,att->data))) return NCTHROW(stat);
+    }
+    return NCTHROW(stat);
+}
+
+static int
 setupvar(int ncid, const char* name, struct Var* var)
 {
     int stat = NC_NOERR;
@@ -190,6 +227,7 @@ setupvar(int ncid, const char* name, struct Var* var)
 	product *= dimsizes[i];
     }
     var->dimprod = product;
+    if((stat=setupatts(ncid,var))) return NCTHROW(stat);
     varmap[var->vid] = var;
     return NCTHROW(stat);
 }
@@ -233,6 +271,10 @@ setup(struct Metadata* md)
     CHECK(setupvar(md->ncid,"vcvlenvar",&md->vcvlenvar));
     CHECK(setupvar(md->ncid,"vccmpdvar",&md->vccmpdvar));
 
+    /* Specials */
+    CHECK(setuptype(md->ncid,"cmpd_str_att_t",&md->cmpd_str_att_t));
+    CHECK(setupvar(md->ncid,"int3110",&md->int3110)); /* will also setup associated attrs */
+
 done:
     assert(stat == NC_NOERR);
 }
@@ -259,31 +301,68 @@ dumpvar(int ncid, struct Var* v, void* data, char** bufp)
 }
 
 static int
+dumpatt(int ncid, struct Var* v, struct Att* a, char* attbuf)
+{
+    int stat = NC_NOERR;
+    if((stat=ncaux_dump_data(ncid,a->atype,a->data,a->len,&attbuf))) return NCTHROW(stat);
+    return NCTHROW(stat);
+}
+
+static int
+testatts(int ncid, struct Var* v, char (*attbuf)[MAXATTTXT])
+{
+    int stat = NC_NOERR;
+    /* Print any attributes */
+    if(v->natts > 0) {
+	int i;
+	for(i=0;i<v->natts;i++) {
+	    struct Att* att = &v->atts[i];
+	    struct Type* atype = typemap[att->atype];
+	    if((stat=dumpatt(ncid, v, att, attbuf[i]))) return NCTHROW(stat);
+	    printf("(o)\t%s %s:%s = {%s}\n",atype->name,v->name,att->name,attbuf[i]);
+	}
+    }
+    return NCTHROW(stat);
+}
+
+static int
 testvar(int ncid, struct Var* v)
 {
     int stat = NC_NOERR;
     char* buforig = NULL;
     char* bufcopy = NULL;
+    char attbuf[MAXOBJECTS][MAXATTTXT];
+    char attbufcopy[MAXOBJECTS][MAXATTTXT];
     void* copy = NULL;
-
     
+    /* Test original */
     if((stat=readvar(ncid,v))) return NCTHROW(stat);
     if((stat=dumpvar(ncid,v,v->data,&buforig))) return NCTHROW(stat);    
     printf("(o) %s: %s\n",v->name,buforig);
-    // Test copying
+    /* Print any attributes */
+    if(v->natts > 0) {
+	testatts(ncid,v,attbuf);
+    }
+
+    /* Test copying */
     if((stat=nc_copy_data_all(ncid,v->tid,v->data,v->dimprod,&copy))) return NCTHROW(stat);
-    // Print copy
+    /* Print copy */
     if((stat=dumpvar(ncid,v,copy,&bufcopy))) return NCTHROW(stat);    
     printf("(c) %s: %s\n",v->name,bufcopy);
+    /* Print any attributes */
+    if(v->natts > 0) {
+	testatts(ncid,v,attbufcopy);
+    }
+
     /* Compare */
     if(strcmp(buforig,bufcopy) != 0)
         fprintf(stderr,"*** orig != copy\n");
     if(buforig) free(buforig);
     if(bufcopy) free(bufcopy);
 
-    // reclaim original    
+    /* reclaim original */
     if((stat=nc_reclaim_data_all(ncid,v->tid,v->data,v->dimprod))) return NCTHROW(stat);
-    // reclaim copy
+    /* reclaim copy */
     if((stat=nc_reclaim_data_all(ncid,v->tid,copy,v->dimprod))) return NCTHROW(stat);
     v->data = NULL;
     return NCTHROW(stat);     
@@ -307,6 +386,8 @@ test(struct Metadata* md)
     CHECK(testvar(md->ncid,&md->vcstrvar));
     CHECK(testvar(md->ncid,&md->vcvlenvar));
     CHECK(testvar(md->ncid,&md->vccmpdvar));    
+    /* Specials */
+    CHECK(testvar(md->ncid,&md->int3110));
 done:
     return;
 }
