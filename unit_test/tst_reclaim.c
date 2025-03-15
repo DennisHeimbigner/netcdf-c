@@ -21,6 +21,7 @@ See the file "reclaim_tests.cdl" to see the input file semantics.
 #include <assert.h>
 #include "netcdf.h"
 #include "netcdf_aux.h"
+#include "ncbytes.h"
 
 #define NCCATCH
 #include "nclog.h"
@@ -197,12 +198,11 @@ setupatts(int ncid, struct Var* var)
     for(i=0;i<var->natts;i++) {
 	struct Att* att = &var->atts[i];
 	struct Type* atype = NULL;
-	size_t alen = 0;	
         if((stat=nc_inq_attname(ncid,var->vid,i,att->name))) return NCTHROW(stat);
         if((stat=nc_inq_att(ncid,var->vid,att->name,&att->atype,&att->len))) return NCTHROW(stat);
 	if((atype = typemap[att->atype])==NULL) return NCTHROW(NC_ENOTATT);
 	/* compute the space for the attribute */
-	if((att->data = calloc(atype->size,alen))==NULL) return NCTHROW(NC_ENOMEM);
+	if((att->data = calloc(atype->size,att->len))==NULL) return NCTHROW(NC_ENOMEM);
 	/* Get the data */
 	if((stat=nc_get_att(ncid,var->vid,att->name,att->data))) return NCTHROW(stat);
     }
@@ -293,35 +293,50 @@ readvar(int ncid, struct Var* v)
 }
 
 static int
-dumpvar(int ncid, struct Var* v, void* data, char** bufp)
+dumpvar(int ncid, struct Var* v, void* data, NCbytes* buf)
 {
     int stat = NC_NOERR;
-    if((stat=ncaux_dump_data(ncid,v->tid,data,v->dimprod,bufp))) return NCTHROW(stat);
+    char* tmpbuf = NULL;
+    if((stat=ncaux_dump_data(ncid,v->tid,data,v->dimprod,&tmpbuf))) return NCTHROW(stat);
+    ncbytescat(buf,tmpbuf);
+    if(tmpbuf) free(tmpbuf);
     return NCTHROW(stat);
 }
 
 static int
-dumpatt(int ncid, struct Var* v, struct Att* a, char* attbuf)
+dumpatt(int ncid, struct Var* v, struct Att* a, NCbytes* attbuf)
 {
     int stat = NC_NOERR;
-    if((stat=ncaux_dump_data(ncid,a->atype,a->data,a->len,&attbuf))) return NCTHROW(stat);
+    char* tmpbuf = NULL;
+    (void)v; /* unused */
+    if((stat=ncaux_dump_data(ncid,a->atype,a->data,a->len,&tmpbuf))) return NCTHROW(stat);
+    ncbytescat(attbuf,tmpbuf);
+    if(tmpbuf) free(tmpbuf);
     return NCTHROW(stat);
 }
 
 static int
-testatts(int ncid, struct Var* v, char (*attbuf)[MAXATTTXT])
+testatts(int ncid, struct Var* v, NCbytes* attbuf)
 {
     int stat = NC_NOERR;
+    NCbytes* databuf = ncbytesnew();     
     /* Print any attributes */
     if(v->natts > 0) {
 	int i;
 	for(i=0;i<v->natts;i++) {
 	    struct Att* att = &v->atts[i];
 	    struct Type* atype = typemap[att->atype];
-	    if((stat=dumpatt(ncid, v, att, attbuf[i]))) return NCTHROW(stat);
-	    printf("(o)\t%s %s:%s = {%s}\n",atype->name,v->name,att->name,attbuf[i]);
+	    ncbytescat(attbuf,"(o)\t");
+	    ncbytescat(attbuf,atype->name);
+    	    ncbytescat(attbuf,att->name);
+       	    ncbytescat(attbuf," = {");
+	    ncbytesclear(databuf);
+	    if((stat=dumpatt(ncid, v, att, databuf))) return NCTHROW(stat);
+	    ncbytescat(attbuf,ncbytescontents(databuf));
+       	    ncbytescat(attbuf,"}\n");
 	}
     }
+    ncbytesfree(databuf);
     return NCTHROW(stat);
 }
 
@@ -329,42 +344,73 @@ static int
 testvar(int ncid, struct Var* v)
 {
     int stat = NC_NOERR;
+    NCbytes* tmpbuf = ncbytesnew();
+    NCbytes* origbuf = ncbytesnew();
+    NCbytes* copybuf = ncbytesnew();
     char* buforig = NULL;
     char* bufcopy = NULL;
-    char attbuf[MAXOBJECTS][MAXATTTXT];
-    char attbufcopy[MAXOBJECTS][MAXATTTXT];
+    char* attbuforig = NULL;
+    char* attbufcopy = NULL;
     void* copy = NULL;
     
     /* Test original */
     if((stat=readvar(ncid,v))) return NCTHROW(stat);
-    if((stat=dumpvar(ncid,v,v->data,&buforig))) return NCTHROW(stat);    
-    printf("(o) %s: %s\n",v->name,buforig);
+    if((stat=dumpvar(ncid,v,v->data,tmpbuf))) return NCTHROW(stat);
+    ncbytescat(origbuf,"(o) ");
+    ncbytescat(origbuf,"v->name");
+    ncbytescat(origbuf,": ");
+    ncbytescat(origbuf,ncbytescontents(tmpbuf));
+    ncbytescat(origbuf,"\n");
+    /* capture */
+    buforig = ncbytesextract(origbuf);
     /* Print any attributes */
     if(v->natts > 0) {
-	testatts(ncid,v,attbuf);
+	ncbytesclear(tmpbuf);
+	testatts(ncid,v,tmpbuf);
+	attbuforig = ncbytesextract(tmpbuf);
     }
 
     /* Test copying */
     if((stat=nc_copy_data_all(ncid,v->tid,v->data,v->dimprod,&copy))) return NCTHROW(stat);
-    /* Print copy */
-    if((stat=dumpvar(ncid,v,copy,&bufcopy))) return NCTHROW(stat);    
-    printf("(c) %s: %s\n",v->name,bufcopy);
+    ncbytesclear(tmpbuf);
+    if((stat=dumpvar(ncid,v,copy,tmpbuf))) return NCTHROW(stat);
+    ncbytescat(copybuf,"(o) ");
+    ncbytescat(copybuf,"v->name");
+    ncbytescat(copybuf,": ");
+    ncbytescat(copybuf,ncbytescontents(tmpbuf));
+    ncbytescat(copybuf,"\n");
+    /* capture */
+    bufcopy = ncbytesextract(copybuf);
     /* Print any attributes */
     if(v->natts > 0) {
-	testatts(ncid,v,attbufcopy);
+	ncbytesclear(tmpbuf);
+	testatts(ncid,v,tmpbuf);
+	attbufcopy = ncbytesextract(tmpbuf);
     }
 
     /* Compare */
     if(strcmp(buforig,bufcopy) != 0)
         fprintf(stderr,"*** orig != copy\n");
-    if(buforig) free(buforig);
-    if(bufcopy) free(bufcopy);
 
+    if(v->natts) {
+        if(strcmp(attbuforig,attbufcopy) != 0)
+            fprintf(stderr,"*** attribute orig != attribute copy\n");
+    }
+    
     /* reclaim original */
     if((stat=nc_reclaim_data_all(ncid,v->tid,v->data,v->dimprod))) return NCTHROW(stat);
     /* reclaim copy */
     if((stat=nc_reclaim_data_all(ncid,v->tid,copy,v->dimprod))) return NCTHROW(stat);
     v->data = NULL;
+
+    ncbytesfree(tmpbuf);
+    ncbytesfree(origbuf);
+    ncbytesfree(copybuf);
+    if(buforig) free(buforig);
+    if(bufcopy) free(bufcopy);
+    if(attbuforig) free(attbuforig);
+    if(attbufcopy) free(attbufcopy);
+
     return NCTHROW(stat);     
 }
 
