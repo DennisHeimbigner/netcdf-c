@@ -7,15 +7,13 @@ set -x
 set -e
 
 rm -f reclaim_tests.nc reclaim_tests*.txt
-${NCGEN} -4 -o ${builddir}/reclaim_tests.nc ${srcdir}/reclaim_tests.cdl
-ls -l ${builddir}/reclaim_tests.nc
+${NCGEN} -4 ${srcdir}/reclaim_tests.cdl
 ${execdir}/tst_reclaim > reclaim_tests.txt
 sed -e '/^(o)/p' -ed reclaim_tests.txt | sed -e 's/^(o) //' > reclaim_tests_o.txt
 sed -e '/^(c)/p' -ed reclaim_tests.txt | sed -e 's/^(c) //' > reclaim_tests_c.txt
 diff reclaim_tests_o.txt reclaim_tests_c.txt
 # Also test using ncdump 
-ls -l ${builddir}/reclaim_tests.nc
-${NCDUMP} ${srcdir}/reclaim_tests.nc > reclaim_tests.dmp
+${NCDUMP} reclaim_tests.nc > reclaim_tests.dmp
 diff reclaim_tests.dmp reclaim_tests.baseline
 
 
