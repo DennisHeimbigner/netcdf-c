@@ -278,7 +278,7 @@ main(int argc, char **argv)
        for (i = 0; i < NUM_BAD; i++) {
 	   if ((res = nc_def_dim(ncid, notvalid[i], DIMLEN, &dimid))
 	       != NC_EBADNAME) ERRORI
-	   if ((res = nc_def_var(ncid, notvalid[i], NC_FLOAT, NDIMS, dimids,
+  	   if ((res = nc_def_var(ncid, notvalid[i], NC_FLOAT, NDIMS, dimids,
 				 &varid))
 	       != NC_EBADNAME) ERRORI
 	   if ((res = nc_put_att_text(ncid, varid, notvalid[i],

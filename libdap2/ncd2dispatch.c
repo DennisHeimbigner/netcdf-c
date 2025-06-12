@@ -1141,8 +1141,6 @@ fprintf(stderr,"conflict: %s[%lu] %s[%lu]\n",
 	}
     }
 
-    nccomm->cdf.ddsroot->tree->dimnodes = basedims;
-
     /* cleanup */
     nclistfree(alldims);
 
@@ -1201,6 +1199,9 @@ fprintf(stderr,"conflict: %s[%lu] %s[%lu]\n",
       }
 	}
     }
+
+    nccomm->cdf.ddsroot->tree->dimnodes = basedims;
+    basedims = NULL;
 
 #ifdef DEBUG
 for(i=0;i<nclistlength(basedims);i++) {

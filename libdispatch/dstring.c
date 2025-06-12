@@ -185,7 +185,6 @@ NC_check_name(const char *name)
 
 	/* First char must be [a-z][A-Z][0-9]_ | UTF8 */
 	ch = (uchar)*cp;
-#if 0
 	if(ch <= 0x7f) {
 	    if(   !('A' <= ch && ch <= 'Z')
 	       && !('a' <= ch && ch <= 'z')
@@ -193,13 +192,12 @@ NC_check_name(const char *name)
 	       && ch != '_' )
 		goto fail;
 	    cp++;
-	} else
-#endif
-	{
+	} else {
 	    if((skip = nextUTF8(cp)) < 0)
 		goto fail;
 	    cp += skip;
 	}
+
 	while(*cp != 0) {
 	    ch = (uchar)*cp;
 	    /* handle simple 0x00-0x7f characters here */
