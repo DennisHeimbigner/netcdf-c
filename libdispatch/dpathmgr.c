@@ -423,6 +423,7 @@ NCfopen(const char* path, const char* flags)
 done:
     nullfree(cvtpath);
     nullfree(path8);
+    nullfree(bflags8);
     nullfree(wpath);
     nullfree(wflags);
     return f;
@@ -686,7 +687,7 @@ done:
 #ifdef HAVE_SYS_STAT_H
 EXTERNL
 int
-NCstat(const char* path, struct stat* buf)
+NCstat(const char* path, STAT buf)
 {
     int status = 0;
     char* cvtpath = NULL;

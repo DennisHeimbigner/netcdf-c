@@ -1099,7 +1099,7 @@ nc__testurl(const char* path0, char** basenamep)
     if(!ncuriparse(path0,&uri)) {
 	char* p;
 	char* q;
-	path = strdup(uri->path);
+	path = nulldup(uri->path);
 	if(path == NULL||strlen(path)==0) goto done;
         p = strrchr(path, '/');
 	if(p == NULL) p = path; else p++;
@@ -1342,7 +1342,7 @@ openmagic(struct MagicFile* file)
 	/* Construct a URL minus any fragment */
         file->curlurl = ncuribuild(file->uri,NULL,NULL,NCURISVC);
 	/* Open the curl handle */
-        if((status=nc_http_open(file->curlurl, &file->state))) goto done;
+        if((status=nc_http_open(file->path, &file->state))) goto done;
 	if((status=nc_http_size(file->state,&file->filelen))) goto done;
 #else /*!BYTERANGE*/
 	{status = NC_ENOTBUILT;}

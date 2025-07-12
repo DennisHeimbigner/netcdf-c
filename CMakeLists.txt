@@ -1306,7 +1306,6 @@ endif()
 # Check for various functions.
 CHECK_FUNCTION_EXISTS(fsync HAVE_FSYNC)
 CHECK_FUNCTION_EXISTS(strlcat   HAVE_STRLCAT)
-CHECK_FUNCTION_EXISTS(strlcpy  HAVE_STRLCPY)
 CHECK_FUNCTION_EXISTS(strdup  HAVE_STRDUP)
 CHECK_FUNCTION_EXISTS(strndup HAVE_STRNDUP)
 CHECK_FUNCTION_EXISTS(strlen  HAVE_STRLEN)
@@ -1429,7 +1428,7 @@ configure_file("${netCDF_SOURCE_DIR}/config.h.cmake.in"
 
 add_definitions(-DHAVE_CONFIG_H)
 
-include_directories(${netCDF_BINARY_DIR})
+include_directories(BEFORE ${netCDF_BINARY_DIR})
 # End autotools-style checks for config.h
 
 #####
@@ -1476,20 +1475,6 @@ endif()
 
 if(NETCDF_ENABLE_NCZARR)
   add_subdirectory(libnczarr)
-  file(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.h
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_misc.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_repeat.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_order.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/nc_test4/tst_multifilter.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
 endif()
 
 # Tests and files which depend on libnetcdf must be included
@@ -1538,6 +1523,20 @@ if(NETCDF_ENABLE_TESTS)
     add_subdirectory(unit_test)
   endif(NETCDF_ENABLE_UNIT_TESTS)
   if(NETCDF_ENABLE_NCZARR)
+    file(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.h
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_misc.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_repeat.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_order.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/nc_test4/tst_multifilter.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
     include_directories(nczarr_test)
     add_subdirectory(nczarr_test)
   endif()
@@ -1557,21 +1556,36 @@ endif()
 # in the libdir.
 ##
 if(MSVC)
-  foreach(CPP ${CMAKE_PREFIX_PATH})
-    file(GLOB COPY_FILES ${CPP}/lib/*.lib)
-  endforeach()
-  install(FILES ${COPY_FILES}
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  COMPONENT dependencies)
 
+  if(NOT CMAKE_PREFIX_PATH OR CMAKE_PREFIX_PATH STREQUAL "")
+    set(CMAKE_PREFIX_PATH "$ENV{CMAKE_PREFIX_PATH}")
+  endif()
+  
   foreach(CPP ${CMAKE_PREFIX_PATH})
-    file(GLOB COPY_FILES ${CPP}/bin/*.dll)
-  endforeach()
-  string(REGEX REPLACE "msv[.*].dll" "" COPY_FILES "${COPY_FILES}")
-  install(FILES ${COPY_FILES}
-  DESTINATION ${CMAKE_INSTALL_BINDIR}
-  COMPONENT dependencies)
+    
+    CMAKE_PATH(CONVERT ${CPP} TO_CMAKE_PATH_LIST CPP)
 
+    file(GLOB COPY_FILES ${CPP}/*.lib ${CPP}/lib/*.lib)
+    if(COPY_FILES)
+      install(FILES ${COPY_FILES}
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        COMPONENT dependencies)
+    endif()
+  endforeach()
+  
+  foreach(CPP ${CMAKE_PREFIX_PATH})
+
+    CMAKE_PATH(CONVERT ${CPP} TO_CMAKE_PATH_LIST CPP)
+
+    file(GLOB COPY_FILES ${CPP}/*.dll ${CPP}/bin/*.dll)
+    if(COPY_FILES)
+      string(REGEX REPLACE "msv[.*].dll" "" COPY_FILES "${COPY_FILES}")
+      install(FILES ${COPY_FILES}
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT dependencies)
+    endif()
+  endforeach()
+  
 endif()
 
 # Subdirectory CMakeLists.txt files should specify their own
