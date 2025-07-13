@@ -122,7 +122,7 @@ EXTERNL void NCD4_moveSerial(struct NCD4serial* serial, struct NCD4serial* dst);
 EXTERNL int NCD4_swapdata(NCD4response*, NCD4node* topvar, int doswap);
 
 /* From d4fix.c */
-EXTERNL int NCD4_delimit(NCD4meta*, NCD4node* var, NCD4offset* offset, int inferredchecksumming);
+EXTERNL int NCD4_delimit(NCD4meta*, NCD4node* var, NCD4offset* offset, int checksumming);
 EXTERNL int NCD4_moveto(NCD4meta*, NCD4node* var, d4size_t count, NCD4offset* offset);
 EXTERNL int NCD4_toposort(NCD4meta*);
 

@@ -73,7 +73,7 @@ NCD4_parcelvars(NCD4meta* meta, NCD4response* resp)
     offset = BUILDOFFSET(resp->serial.dap,resp->serial.dapsize);
     for(i=0;i<nclistlength(toplevel);i++) {
 	NCD4node* var = (NCD4node*)nclistget(toplevel,i);
-        if((ret=NCD4_delimit(meta,var,offset,resp->inferredchecksumming))) {
+        if((ret=NCD4_delimit(meta,var,offset,resp->checksumming))) {
 	    FAIL(ret,"delimit failure");
 	}
 	var->data.response = resp; /* cross link */	
@@ -105,28 +105,28 @@ NCD4_processdata(NCD4meta* meta, NCD4response* resp)
     /* Extract remote checksums */ 
     for(i=0;i<nclistlength(toplevel);i++) {
 	NCD4node* var = (NCD4node*)nclistget(toplevel,i);
-        if(resp->inferredchecksumming) {
-	    /* Compute checksum of response data: must occur before any byte swapping and after delimiting */
+        if(resp->remotechecksumming) {
+	    /* Compute checksum of response data; must occur before any byte swapping and after delimiting */
             var->data.localchecksum = NCD4_computeChecksum(meta,var);
 #ifdef DUMPCHECKSUM
             fprintf(stderr,"var %s: remote-checksum = 0x%x\n",var->name,var->data.remotechecksum);
 #endif
             /* verify checksums */
-	    if(!resp->checksumignore) {
-                if(var->data.localchecksum != var->data.remotechecksum) {
-                    nclog(NCLOGERR,"Checksum mismatch: %s\n",var->name);
+	    if(var->data.localchecksum != var->data.remotechecksum) {
+                nclog(NCLOGERR,"Checksum mismatch: %s\n",var->name);
+                ret = NC_EDAP;
+                goto done;
+            }
+#if ANTIHYRAX
+            /* Also verify checksum attribute */
+	    if(resp->attrchecksumming) {
+		if(var->data.attrchecksum != var->data.remotechecksum) {
+		    nclog(NCLOGERR,"Attribute Checksum mismatch: %s\n",var->name);
                     ret = NC_EDAP;
                     goto done;
-                 }
-                 /* Also verify checksum attribute */
-                 if(resp->attrchecksumming) {
-                    if(var->data.attrchecksum != var->data.remotechecksum) {
-                        nclog(NCLOGERR,"Attribute Checksum mismatch: %s\n",var->name);
-                        ret = NC_EDAP;
-                        goto done;
-                    }
                 }
 	    }
+#endif
 	}
         if(meta->swap) {
             if((ret=NCD4_swapdata(resp,var,meta->swap)))
@@ -407,6 +407,7 @@ NCD4_inferChecksums(NCD4meta* meta, NCD4response* resp)
     toplevel = nclistnew();
     NCD4_getToplevelVars(meta,meta->root,toplevel);
 
+#ifdef ANTIHYRAX
     /* First, look thru the DMR to see if there is a checksum attribute */
     attrfound = 0;
     for(i=0;i<nclistlength(toplevel);i++) {
@@ -426,10 +427,11 @@ NCD4_inferChecksums(NCD4meta* meta, NCD4response* resp)
 	    }
 	}
     }
-    nclistfree(toplevel);
     resp->attrchecksumming = (attrfound ? 1 : 0);
     /* Infer checksums */
-    resp->inferredchecksumming = ((resp->attrchecksumming || resp->querychecksumming) ? 1 : 0);
+    resp->remotechecksumming = ((resp->attrchecksumming || resp->querychecksumming) ? 1 : 0);
+#endif
+    nclistfree(toplevel);
     return THROW(ret);
 }
 
@@ -442,7 +444,7 @@ NCD4_computeChecksum(NCD4meta* meta, NCD4node* topvar)
 
     ASSERT((ISTOPLEVEL(topvar)));
 
-#ifndef HYRAXCHECKSUM
+#ifndef HYRAXCOMPUTECHECKSUM
     csum = CRC32(csum,topvar->data.dap4data.memory, (unsigned int)topvar->data.dap4data.size);
 #else
     if(topvar->basetype->subsort != NC_STRING) {

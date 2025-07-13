@@ -59,8 +59,9 @@ typedef struct NCD4response NCD4response;
 #define NCD4_LAST_CHUNK          (1)
 #define NCD4_ERR_CHUNK           (2)
 #define NCD4_LITTLE_ENDIAN_CHUNK (4)
+#define NCD4_CHECKSUM_CHUNK	 (8)
 
-#define NCD4_ALL_CHUNK_FLAGS (NCD4_LAST_CHUNK|NCD4_ERR_CHUNK|NCD4_LITTLE_ENDIAN_CHUNK)
+#define NCD4_ALL_CHUNK_FLAGS (NCD4_LAST_CHUNK|NCD4_ERR_CHUNK|NCD4_LITTLE_ENDIAN_CHUNK|NCD4CHECKSUMMED)
 
 
 /**************************************************/
@@ -293,8 +294,9 @@ struct NCD4response { /* possibly processed response from a query */
     D4blob raw; /* complete response in memory */
     int querychecksumming; /* 1 => user specified dap4.ce value */
     int attrchecksumming; /* 1=> _DAP4_Checksum_CRC32 is defined for at least one variable */
-    int inferredchecksumming; /* 1 => either query checksum || att checksum */
-    int checksumignore; /* 1 => assume checksum, but do not validate */
+//    int inferredchecksumming; /* 1 => either query checksum || att checksum */
+//    int checksumignore; /* 1 => assume checksum, but do not validate */
+    int remotechecksumming; /* 1 => if the packet says data is checksummed */
     int remotelittleendian; /* 1 if the packet says data is little endian */
     NCD4mode  mode; /* Are we reading DMR (only) or DAP (includes DMR) */
     struct NCD4serial {

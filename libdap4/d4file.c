@@ -420,10 +420,6 @@ NCD4_applychecksumcontrols(NCD4INFO* info, NCD4response* resp)
     	    resp->querychecksumming = DEFAULT_CHECKSUM_STATE;
 	}
     }
-    value = getfragment(info,"hyrax");
-    if(value != NULL) {
-      resp->checksumignore = 1; /* Assume checksum, but ignore */	    
-    }
 }
 
 /* Search for substring in value of param. If substring == NULL; then just

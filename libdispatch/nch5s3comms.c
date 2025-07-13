@@ -92,7 +92,7 @@
 
 #include "netcdf.h"
 #include "ncuri.h"
-#include "netcdf_vutils.h"
+#include "vutils.h"
 
 /*****************/
 

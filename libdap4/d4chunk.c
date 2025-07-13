@@ -78,6 +78,7 @@ NCD4_dechunk(NCD4response* resp)
     if(hdr.flags & NCD4_ERR_CHUNK)
         return processerrchunk(resp, (void*)pdmr, hdr.count);
     resp->remotelittleendian = ((hdr.flags & NCD4_LITTLE_ENDIAN_CHUNK) ? 1 : 0);
+    resp->remotechecksumming = ((hdr.flags & NCD4_CHECKSUM_CHUNK) ? 1 : 0);
 
     /* avoid strxxx operations on dmr */
     if((resp->serial.dmr = malloc(hdr.count+1)) == NULL)

@@ -54,7 +54,7 @@ NCD4_swapdata(NCD4response* resp, NCD4node* var, int doswap)
 	}
 	var->data.dap4data.size = (d4size_t)DELTA(offset,var->data.dap4data.memory);
 	/* skip checksum, if there is one */
-        if(resp->inferredchecksumming)
+        if(resp->remotechecksumming)
 	    INCR(offset,CHECKSUMSIZE);
 done:
     if(offset) free(offset);
