@@ -52,6 +52,11 @@ NCD4_open(const char * path, int mode,
     void* contents = NULL;
     NCD4response* dmrresp = NULL;
     
+    NC_UNUSED(mode);
+    NC_UNUSED(basepe);
+    NC_UNUSED(chunksizehintp);
+    NC_UNUSED(mpidata);
+
     if(path == NULL)
 	return THROW(NC_EDAPURL);
 
@@ -232,6 +237,8 @@ NCD4_close(int ncid, void* ignore)
     NCD4INFO* d4info;
     int substrateid;
 
+    NC_UNUSED(ignore);
+
     ret = NC_check_id(ncid, (NC**)&nc);
     if(ret != NC_NOERR) goto done;
     d4info = (NCD4INFO*)nc->dispatchdata;
@@ -310,7 +317,7 @@ set_curl_properties(NCD4INFO* d4info)
 	/* Create the unique cookie file name */
 	snprintf(basepath,sizeof(basepath),"%s/nc4cookies",globalstate->tempdir);
 	tmppath = NULL;
-	if((stat = NC_mktmp(basepath,&tmppath))) goto fail;
+	if((tmppath = NC_mktmp(basepath))) goto fail;
         if (stat != NC_NOERR && errno != EEXIST) {
             fprintf(stderr, "Cannot create cookie file\n");
             goto fail;

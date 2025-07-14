@@ -764,6 +764,8 @@ parseMaps(NCD4parser* parser, NCD4node* var, ncxml_t xml)
     int ret = NC_NOERR;
     ncxml_t x;
 
+    NC_UNUSED(parser);
+
     for(x=ncxml_child(xml, "Map");x!= NULL;x=ncxml_next(x,"Map")) {
 	char* fqn;
 	fqn = ncxml_attr(x,"name");
@@ -937,6 +939,10 @@ static int
 getValueStrings(NCD4parser* parser, NCD4node* type, ncxml_t xattr, NClist* svalues)
 {
     char* s;
+
+    NC_UNUSED(parser);
+    NC_UNUSED(type);
+
     /* See first if we have a "value" xml attribute */
     s = ncxml_attr(xattr,"value");
     if(s != NULL) 
@@ -1649,6 +1655,8 @@ parseForwards(NCD4parser* parser, NCD4node* root)
 {
     int ret = NC_NOERR;
     size_t i,j;
+
+    NC_UNUSED(root);
 
     /* process all vars */
     for(i=0;i<nclistlength(parser->vars);i++) {

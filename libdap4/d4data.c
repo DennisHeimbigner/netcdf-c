@@ -69,11 +69,11 @@ NCD4_parcelvars(NCD4meta* meta, NCD4response* resp)
     toplevel = nclistnew();
     NCD4_getToplevelVars(meta,root,toplevel);
 
-    /* Compute the  offset and size of the toplevel vars in the raw dap data. */
+    /* Compute the  offset and size of the toplevel vars and checksum in the raw dap data. */
     offset = BUILDOFFSET(resp->serial.dap,resp->serial.dapsize);
     for(i=0;i<nclistlength(toplevel);i++) {
 	NCD4node* var = (NCD4node*)nclistget(toplevel,i);
-        if((ret=NCD4_delimit(meta,var,offset,resp->checksumming))) {
+        if((ret=NCD4_delimit(meta,var,offset,resp->remotechecksumming))) {
 	    FAIL(ret,"delimit failure");
 	}
 	var->data.response = resp; /* cross link */	
@@ -117,7 +117,7 @@ NCD4_processdata(NCD4meta* meta, NCD4response* resp)
                 ret = NC_EDAP;
                 goto done;
             }
-#if ANTIHYRAX
+#ifdef ANTIHYRAX
             /* Also verify checksum attribute */
 	    if(resp->attrchecksumming) {
 		if(var->data.attrchecksum != var->data.remotechecksum) {
@@ -273,6 +273,9 @@ fillstring(NCD4meta* meta, NCD4offset* offset, void** dstp, NClist* blobs)
     char** dst = *dstp;
     char* q;
 
+    NC_UNUSED(meta);
+    NC_UNUSED(blobs);
+
     /* Get string count (remember, it is already properly swapped) */
     count = GETCOUNTER(offset);
     SKIPCOUNTER(offset);
@@ -303,6 +306,8 @@ fillopfixed(NCD4meta* meta, d4size_t opaquesize, NCD4offset* offset, void** dstp
     d4size_t count, actual;
     int delta;
     void* dst = *dstp;
+
+    NC_UNUSED(meta);
 
     /* Get opaque count */
     count = GETCOUNTER(offset);
@@ -343,6 +348,10 @@ fillopvar(NCD4meta* meta, NCD4node* type, NCD4offset* offset, void** dstp, NClis
     nc_vlen_t* vlen;
     void* dst = *dstp;
     char* q;
+
+    NC_UNUSED(meta);
+    NC_UNUSED(type);
+    NC_UNUSED(blobs);
 
     /* alias dst format */
     vlen = (nc_vlen_t*)dst;
@@ -399,10 +408,10 @@ int
 NCD4_inferChecksums(NCD4meta* meta, NCD4response* resp)
 {
     int ret = NC_NOERR;
-    size_t i;
-    int attrfound;
     NClist* toplevel = NULL;
  
+    NC_UNUSED(resp);
+
     /* Get the toplevel vars */
     toplevel = nclistnew();
     NCD4_getToplevelVars(meta,meta->root,toplevel);
@@ -435,6 +444,75 @@ NCD4_inferChecksums(NCD4meta* meta, NCD4response* resp)
     return THROW(ret);
 }
 
+#if 0
+#ifdef HYRAXCOMPUTECHECKSUM
+/* Recursive helper */
+static unsigned
+hyraxchecksumR(NCD4node* field, unsigned startingcsum, NCD4offset* offset)
+{
+    int i;
+    unsigned long long count;
+    d4size_t dimproduct;
+    unsigned csum = startingcsum;
+
+    dimproduct = NCD4_dimproduct(field);
+    
+    if(field->basetype->meta.isfixedsize) {
+        csum = CRC32(csum,field->data.dap4data.memory,field->data.dap4data.size);
+    } else {
+	if(field->basetype->subsort == NC_STRING) {
+	    for(i=0;i<dimproduct;i++) {	
+		/* Get string count */
+		count = GETCOUNTER(&offset);
+		SKIPCOUNTER(&offset);
+		if(meta->swap) swapinline64(&count);
+		/* CRC32 count bytes */
+		csum = CRC32(csum,offset.offset,count);
+		/* Skip count bytes */
+		INCR(&offset,count);
+	    }
+	} else if(field->basetype->subsort == NC_SEQ) {
+	    assert(0); /* Wait until the dap4 spec issue is resolved */
+	} else if(field->basetype->subsort == NC_STRUCT) {
+	    assert(0); /* Wait until the dap4 spec issue is resolved */
+	}
+    }
+}
+
+/*
+Recursively compute the checksum using the Hyrax method,
+which leaves out variable length counts.
+*/
+static unsigned
+hyraxchecksum(NCD4nodef* topvar)
+{
+    int i;
+    unsigned startingcsum;
+    unsigned long long count;
+    NCD4offset offset;
+    d4size_t dimproduct;
+
+    dimproduct = NCD4_dimproduct(topvar);
+    offset.base = topvar->data.dap4data.memory;
+    offset.limit = offset.base + topvar->data.dap4data.size;
+    offset.offset = offset.base;
+    if(topvar->
+    for(i=0;i<dimproduct;i++) {	
+	if(
+        /* Get string count */
+            count = GETCOUNTER(&offset);
+            SKIPCOUNTER(&offset);
+  	    if(meta->swap) swapinline64(&count);
+            /* CRC32 count bytes */
+            csum = CRC32(csum,offset.offset,count);
+	    /* Skip count bytes */
+  	    INCR(&offset,count);
+        }
+    }
+}
+#endif /*HYRAXCOMPUTECHECKSUM*/
+#endif /*0*/
+
 /* Compute the checksum of each variable's data.
 */
 static unsigned
@@ -442,11 +520,15 @@ NCD4_computeChecksum(NCD4meta* meta, NCD4node* topvar)
 {
     unsigned int csum = 0;
 
+    NC_UNUSED(meta);
+
     ASSERT((ISTOPLEVEL(topvar)));
 
-#ifndef HYRAXCOMPUTECHECKSUM
-    csum = CRC32(csum,topvar->data.dap4data.memory, (unsigned int)topvar->data.dap4data.size);
-#else
+#ifdef HYRAXCOMPUTECHECKSUM
+    /* Compute checksum using the Hyrax (Opendap) method which excludes variable length counts */
+    /* Currently, we only do this for NC_STRING, but it would propery need to include NC_SEQ
+       and NC_STRUCT fields.
+    */
     if(topvar->basetype->subsort != NC_STRING) {
             csum = CRC32(csum,topvar->data.dap4data.memory,topvar->data.dap4data.size);
     } else { /* Checksum over the actual strings */
@@ -468,14 +550,15 @@ NCD4_computeChecksum(NCD4meta* meta, NCD4node* topvar)
   	    INCR(&offset,count);
         }
     }
-#endif
+#else /*!HYRAXCOMPUTECHECKSUM*/
+    /* Compute checksum using data including variable length counts */
+    csum = CRC32(csum,topvar->data.dap4data.memory, (unsigned int)topvar->data.dap4data.size);
+#endif /*HYRAXCOMPUTECHECKSUM*/
     return csum;
 }
 
 #if 0
-/* As a hack, if the server sent remotechecksums and
-       _DAP4_Checksum_CRC32 is not defined, then define it.
-*/
+/* If the server sent remotechecksums and _DAP4_Checksum_CRC32 is not defined, then define it. */
 static int
 NCD4_addchecksumattr(NCD4meta* meta, NClist* toplevel)
 {
