@@ -36,7 +36,7 @@
 
 #include "netcdf.h"
 #include "nc.h"
-#include "ncrc.h"
+#include "ncutil.h"
 #include "ncbytes.h"
 #include "nclist.h"
 #include "ncuri.h"

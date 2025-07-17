@@ -1292,24 +1292,6 @@ removedups(NClist* list)
     }
 }
 
-#if 0
-static int
-extendenvv(char*** envvp, int amount, int* oldlenp)
-{
-    char** envv = *envvp;
-    char** p;
-    int len;
-    for(len=0,p=envv;*p;p++) len++;
-    *oldlenp = len;
-    if((envv = (char**)malloc((amount+len+1)*sizeof(char*)))==NULL) return NC_ENOMEM;
-    memcpy(envv,*envvp,sizeof(char*)*len);
-    envv[len] = NULL;
-    nullfree(*envvp);
-    *envvp = envv; envv = NULL;
-    return NC_NOERR;
-}
-#endif
-
 /* Use for gdb debug */
 char*
 ncuriunescape(const char* s)

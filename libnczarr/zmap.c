@@ -204,42 +204,7 @@ nczmap_search(NCZMAP* map, const char* prefix, NClist* matches)
 int
 nczm_split(const char* path, NClist* segments)
 {
-    return nczm_split_delim(path,NCZM_SEP[0],segments);
-}
-
-int
-nczm_split_delim(const char* path, char delim, NClist* segments)
-{
-    return NC_split_delim(path,delim,segments);
-}
-
-/* concat the the segments with each segment preceded by '/' */
-int
-nczm_join(NClist* segments, char** pathp)
-{
-    int stat = NC_NOERR;
-    size_t i;
-    NCbytes* buf = NULL;
-
-    if(segments == NULL)
-	{stat = NC_EINVAL; goto done;}
-    if((buf = ncbytesnew())==NULL)
-	{stat = NC_ENOMEM; goto done;}
-    if(nclistlength(segments) == 0)
-        ncbytescat(buf,"/");
-    else for(i=0;i<nclistlength(segments);i++) {
-	const char* seg = nclistget(segments,i);
-	if(seg[0] != '/')
-	    ncbytescat(buf,"/");
-	ncbytescat(buf,seg);		
-    }
-
-done:
-    if(!stat) {
-	if(pathp) *pathp = ncbytesextract(buf);
-    }
-    ncbytesfree(buf);
-    return THROW(stat);
+    return NC_split_delim(path,NCZM_SEP[0],segments);
 }
 
 int
@@ -501,13 +466,15 @@ done:
     return THROW(stat);    
 }
 
-/* bubble sort a list of strings */
+
+/* sort a list of strings */
 void
 nczm_sortlist(NClist* l)
 {
-    nczm_sortenvv(nclistlength(l),(char**)nclistcontents(l));
+    NC_sortenvv(nclistlength(l),(char**)nclistcontents(l));
 }
 
+#if 0
 static int
 nczm_compare(const void* arg1, const void* arg2)
 {
@@ -545,3 +512,4 @@ NCZ_freeenvv(int n, char** envv)
     }
     free(envv);    
 }
+#endif /*0*/

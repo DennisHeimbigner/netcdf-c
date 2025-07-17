@@ -70,6 +70,9 @@ walkAtomicVar(NCD4response* resp, NCD4node* topvar, NCD4node* var, NCD4offset* o
     d4size_t dimproduct;
     NCD4node* basetype;
 
+    NC_UNUSED(resp);
+    NC_UNUSED(topvar);
+
     basetype = (var->sort == NCD4_TYPE ? var : var->basetype);
     subsort = basetype->subsort;
     dimproduct = (var->sort == NCD4_TYPE ? 1 : NCD4_dimproduct(var));
@@ -118,6 +121,9 @@ walkOpaqueVar(NCD4response* resp, NCD4node* topvar, NCD4node* var, NCD4offset* o
     d4size_t i;
     unsigned long long count;
     d4size_t dimproduct = NCD4_dimproduct(var);
+
+    NC_UNUSED(resp);
+    NC_UNUSED(topvar);
 
     dimproduct = (var->sort == NCD4_TYPE ? 1 : NCD4_dimproduct(var));
 
@@ -207,9 +213,12 @@ static int
 walkSeq(NCD4response* resp, NCD4node* topvar, NCD4node* vlentype, NCD4offset* offset, int doswap)
 {
     int ret = NC_NOERR;
-    int i;
+    size_t i;
     d4size_t recordcount;
     NCD4node* basetype;
+
+    NC_UNUSED(resp);
+    NC_UNUSED(topvar);
 
     /* process the record count */
     if(doswap)

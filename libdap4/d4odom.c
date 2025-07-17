@@ -38,7 +38,7 @@ d4odom_new(size_t rank,
 	    const size_t* start, const size_t* count,
 	    const ptrdiff_t* stride, const size_t* size)
 {
-    int i;
+    size_t i;
     D4odometer* odom = (D4odometer*)calloc(1,sizeof(D4odometer));
     if(odom == NULL)
 	return NULL;
@@ -117,7 +117,7 @@ d4odom_next(D4odometer* odom)
 d4size_t
 d4odom_offset(D4odometer* odom)
 {
-    int i;
+    size_t i;
     d4size_t offset = 0;
     for(i=0;i<odom->rank;i++) {
 	offset *= odom->declsize[i];
@@ -146,7 +146,7 @@ d4odom_nelements(D4odometer* odom)
 int
 d4odom_isWhole(D4odometer* odom)
 {
-    int i;
+    size_t i;
     for(i=0;i<odom->rank;i++) {
 	if(odom->start[i] != 0
 	   || odom->stride[i] != 1

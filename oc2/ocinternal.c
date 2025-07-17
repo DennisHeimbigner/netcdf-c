@@ -337,9 +337,9 @@ createtempfile(OCstate* state, OCtree* tree)
     strncpy(path,globalstate->tempdir,len);
     strlcat(path,"/",len);
     strlcat(path,DATADDSFILE,len);
-    tmppath = NC_mktmp(path);
+    stat = NC_mktmp(path,&tmppath);
     free(path);
-    if(tmppath == NULL) {stat = OC_EACCESS; goto fail;}
+    if(stat || tmppath == NULL) {stat = OC_EACCESS; goto fail;}
 #ifdef OCDEBUG
     nclog(NCLOGNOTE,"oc_open: creating tmp file: %s",tmppath);
 #endif
@@ -474,7 +474,7 @@ ocupdatelastmodifieddata(OCstate* state, OCflags ocflags)
     if(ocflags & OCENCODEQUERY) flags |= NCURIENCODEQUERY;
     base = ncuribuild(state->uri,NULL,NULL,flags);
     status = ocfetchlastmodified(state->curl, base, &lastmodified);
-    free(base);
+    free(base); base = NULL;
     if(status == OC_NOERR) {
 	state->datalastmodified = lastmodified;
     }
@@ -531,10 +531,13 @@ ocset_curlproperties(OCstate* state)
 {
     OCerror stat = OC_NOERR;
     NCglobalstate* globalstate = NC_getglobalstate();
+    char* path = NULL;
+    char* tmppath = NULL;
+    char* agent = NULL;
 
     if(state->auth->curlflags.useragent == NULL) {
         size_t len = strlen(DFALTUSERAGENT) + strlen(VERSION) + 1;
-	char* agent = (char*)malloc(len);
+	agent = (char*)malloc(len);
 	strncpy(agent,DFALTUSERAGENT,len);
 	strlcat(agent,VERSION,len);
         state->auth->curlflags.useragent = agent;
@@ -553,8 +556,6 @@ ocset_curlproperties(OCstate* state)
     if (state->auth->curlflags.cookiejar == NULL) {
         /* If no cookie file was defined, define a default */
         int stat = NC_NOERR;
-        char* path = NULL;
-        char* tmppath = NULL;
         size_t len;
         errno = 0;
         /* Create the unique cookie file name */
@@ -568,16 +569,14 @@ ocset_curlproperties(OCstate* state)
 	strncpy(path,globalstate->tempdir,len);
 	strlcat(path,"/",len);
 	strlcat(path,"occookies",len);
-        tmppath = NC_mktmp(path);
-if(tmppath == NULL) {
-        tmppath = NC_mktmp(path);
-}
-        free(path);
+        stat = NC_mktmp(path,&tmppath);
+	if(stat || tmppath == NULL) {stat = OC_EACCESS; goto done;}
         state->auth->curlflags.cookiejar = tmppath;
+	tmppath = NULL;
         state->auth->curlflags.cookiejarcreated = 1;
         if (stat != OC_NOERR && errno != EEXIST) {
             fprintf(stderr, "Cannot create cookie file\n");
-            goto fail;
+            goto done;
         }
         errno = 0;
     }
@@ -587,7 +586,7 @@ if(tmppath == NULL) {
     /* Make sure the cookie jar exists and can be read and written */
     {
 	FILE* f = NULL;
-	char* fname = state->auth->curlflags.cookiejar;
+	const char* fname = state->auth->curlflags.cookiejar;
 	/* See if the file exists already */
         f = NCfopen(fname,"r");
 	if(f == NULL) {
@@ -595,14 +594,14 @@ if(tmppath == NULL) {
 	    f = NCfopen(fname,"w+");
 	    if(f == NULL) {
 	        fprintf(stderr,"Cookie file cannot be read and written: %s\n",fname);
-	        {stat = OC_EPERM; goto fail;}
+	        {stat = OC_EPERM; goto done;}
 	    }
 	} else { /* test if file can be written */
 	    fclose(f);
 	    f = NCfopen(fname,"r+");
 	    if(f == NULL) {
 	        fprintf(stderr,"Cookie file is cannot be written: %s\n",fname);
-	        {stat = OC_EPERM; goto fail;}
+	        {stat = OC_EPERM; goto done;}
 	    }
 	}
 	if(f != NULL) fclose(f);
@@ -621,9 +620,10 @@ if(tmppath == NULL) {
     }
 #endif
 
-    return stat;
-
-fail:
+done:
+    nullfree(path);
+    nullfree(tmppath);
+    nullfree(agent);
     return OCTHROW(stat);
 }
 

@@ -113,6 +113,8 @@ NCD4_dumpvars(NCD4node* group)
 union ATOMICS*
 NCD4_dumpatomic(NCD4node* var, void* data)
 {
-    union ATOMICS* p = (union ATOMICS*)data;
+    union ATOMICS* p = NULL;
+    NC_UNUSED(var);
+    p = (union ATOMICS*)data;
     return p;
 }
