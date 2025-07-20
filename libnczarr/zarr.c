@@ -229,7 +229,7 @@ NCZ_get_libversion(unsigned long* majorp, unsigned long* minorp,unsigned long* r
  * @author Dennis Heimbigner.
  */
 int
-NCZ_get_superblock(NC_FILE_INFO_T* file, int* superblockp)
+NCZ_get_superblock(NC_FILE_INFO_T* file, size_t* superblockp)
 {
     NCZ_FILE_INFO_T* zinfo = file->format_file_info;
     if(superblockp) *superblockp = zinfo->zarr.nczarr_version.major;

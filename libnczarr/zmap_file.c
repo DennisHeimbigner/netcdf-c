@@ -531,7 +531,7 @@ zfcreategroup(ZFMAP* zfmap, const char* key, int nskip)
 {
     int stat = NC_NOERR;
     size_t i;
-    int len;
+    size_t len;
     char* fullpath = NULL;
     NCbytes* path = ncbytesnew();
     NClist* segments = nclistnew();
@@ -540,6 +540,7 @@ zfcreategroup(ZFMAP* zfmap, const char* key, int nskip)
     if((stat=nczm_split(key,segments)))
 	goto done;    
     len = nclistlength(segments);
+    assert(len >= nskip);
     len -= nskip; /* leave off last nskip segments */
     ncbytescat(path,zfmap->root); /* We need path to be absolute */
     for(i=0;i<len;i++) {

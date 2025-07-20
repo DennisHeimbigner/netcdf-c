@@ -33,7 +33,7 @@ EXTERNL int ncz_del_attr(NC_FILE_INFO_T* file, NC_OBJ* container, const char* na
 /* HDF5 Mimics */
 EXTERNL int NCZ_isnetcdf4(struct NC_FILE_INFO*);
 EXTERNL int NCZ_get_libversion(unsigned long* majorp, unsigned long* minorp,unsigned long* releasep);
-EXTERNL int NCZ_get_superblock(NC_FILE_INFO_T* file, int* superblockp);
+EXTERNL int NCZ_get_superblock(NC_FILE_INFO_T* file, size_t* superblockp);
 
 EXTERNL int ncz_unload_jatts(NCZ_FILE_INFO_T*, NC_OBJ* container, NCjson* jattrs, NCjson* jtypes);
 

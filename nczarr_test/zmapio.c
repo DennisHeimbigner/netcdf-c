@@ -298,7 +298,7 @@ rootpathfor(const char* path)
 	p = (char*)nclistremove(segments,0);
 	nullfree(p); p = NULL;
         /* Put it back together */
-        if((stat = nczm_join(segments,&rootpath))) goto done;
+        if((stat = NC_join(segments,&rootpath))) goto done;
 	} break;
 #endif
     default:

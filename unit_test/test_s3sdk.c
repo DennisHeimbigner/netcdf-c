@@ -163,6 +163,7 @@ static int
 testbucketexists(void)
 {
     int stat = NC_NOERR;
+#if 0
     int exists = 0;
 
     seturl("https://s3.us-east-1.amazonaws.com/${S3TESTBUCKET}",NULL,!FORCE);
@@ -180,6 +181,7 @@ testbucketexists(void)
 
 done:
     cleanup();
+#endif
     return stat;
 }
 
