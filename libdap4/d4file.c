@@ -317,7 +317,7 @@ set_curl_properties(NCD4INFO* d4info)
 	/* Create the unique cookie file name */
 	snprintf(basepath,sizeof(basepath),"%s/nc4cookies",globalstate->tempdir);
 	tmppath = NULL;
-	if((tmppath = NC_mktmp(basepath))) goto fail;
+	stat = NC_mktmp(basepath,&tmppath);
         if (stat != NC_NOERR && errno != EEXIST) {
             fprintf(stderr, "Cannot create cookie file\n");
             goto fail;

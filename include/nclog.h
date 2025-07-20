@@ -24,8 +24,10 @@
 #define NCLOGNOTE  (3)	/* General info */
 #define NCLOGDEBUG (4)	/* Everything */
 
-/* Support ptr valued arguments that are used to store results */
-#define PTRVAL(t,p,d) ((t)((p) == NULL ? (d) : *(p)))
+/* Support ptr valued arguments that are used to store results.
+   t is the type of *p, p is the ptr, d is NULL default.
+*/
+#define PTRVAL(ptyp,ptr,nulldfalt) (((ptr) == NULL ? ((ptyp)(nulldfalt)) : *(ptr)))
 
 #if defined(_CPLUSPLUS_) || defined(__CPLUSPLUS__)
 extern "C" {

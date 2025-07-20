@@ -163,8 +163,9 @@ nc_http_close(NC_HTTP_STATE* state)
         break;
 #ifdef NETCDF_ENABLE_S3
     case HTTPS3: {
+	char* errmsg = NULL;
 	if(state->s3.s3client)
-            NC_s3sdkclose(state->s3.s3client, state->s3.info, 0, NULL);
+            NC_s3sdkclose(state->s3.s3client, &errmsg);
         NC_s3clear(state->s3.info);
 	nullfree(state->s3.info);
 	state->s3.s3client = NULL;
@@ -364,7 +365,7 @@ nc_http_size(NC_HTTP_STATE* state, long long* sizep)
     case HTTPS3: {
 	size64_t len = 0;
 	if((stat = NC_s3sdkinfo(state->s3.s3client,state->s3.info->bucket,state->s3.info->rootkey,&len,&state->errmsg))) goto done;
-	if(sizep) *sizep = len;
+	if(sizep) *sizep = (long long)len;
         } break;
 #endif
     default: stat = NCTHROW(NC_ENOTBUILT); goto done;

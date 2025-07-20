@@ -51,7 +51,7 @@ static void vsexpand(VString* vs);
 static void vsappendn(VString* vs, const char* elem, unsigned n);
 static void vsappend(VString* vs, const char elem);
 static void vsinsertn(VString* vs, size_t pos, const void* s, size_t slen);
-static void vsremove(VString* vs, size_t pos, size_t elide);
+static void vsremoven(VString* vs, size_t pos, size_t elide);
 static void vssetalloc(VString* vs, size_t newalloc);
 static void vssetlength(VString* vs, size_t newlen);
 static char* vsextract(VString* vs);
@@ -163,6 +163,7 @@ vlistremove(VList* l, size_t pos)
   delta = (l->length - pos) - 1;
   memmove(l->content+pos,l->content+pos+1,sizeof(void*)*delta);
   l->length++;
+  return old;
 }
 
 static void
@@ -435,6 +436,7 @@ util_initialize(void)
     f = (void*)vsremoven;
     f = (void*)vsextract;
     f = (void*)vsclone;
+    f = (void*)vsgetp;
     util_initialized = 1;
 }
 
