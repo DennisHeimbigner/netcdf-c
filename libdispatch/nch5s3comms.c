@@ -1290,7 +1290,6 @@ NCH5_s3comms_s3r_write(s3r_t *handle, const char* url, const s3r_buf_t* data, lo
      *********************/
 
     vssetcontents(wrap,data->content,data->count);
-    vssetlength(wrap,data->count);
     if((ret_value = NCH5_s3comms_s3r_execute(handle, url, HTTPPUT, NULL, NULL, (const char**)vlistcontents(otherheaders), &httpcode, wrap)))
         HGOTO_ERROR(H5E_ARGS, ret_value, FAIL, "execute failed.");
 

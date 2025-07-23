@@ -1016,7 +1016,7 @@ splitOrigType(NCD4parser* parser, const char* fqn, NCD4node* type)
     /* It should be the case that the pieces are {/group}+/name */
     name = (char*)nclistpop(pieces);
     if((ret = lookupFQNList(parser,pieces,NCD4_GROUP,&group))) goto done;
-    if(ret) {
+    if(group == NULL) {
 	FAIL(NC_ENOGRP,"Non-existent group in FQN: ",fqn);
     }
     type->nc4.orig.name = strdup(name+1); /* plus 1 to skip the leading separator */
@@ -1097,7 +1097,8 @@ that the final object is one of: dimension, type, or var.
 This means that e.g. groups, attributes, econsts, cannot
 be found by this procedure.
 @return NC_NOERR found; result != NULL
-@return NC_EINVAL !found; result == NULL
+@return NC_NOERR !found; result == NULL
+@return NC_EINVAL if true error
 */
 static int
 lookupFQNList(NCD4parser* parser, NClist* fqn, NCD4sort sort, NCD4node** result)
@@ -1167,7 +1168,6 @@ done:
     if(result) *result = node;
     return THROW(ret);
 notfound:
-    ret = NC_EINVAL;
     goto done;
 }
 
@@ -1218,7 +1218,7 @@ lookupFQN(NCD4parser* parser, const char* sfqn, NCD4sort sort)
     if((ret=lookupFQNList(parser,fqnlist,sort,&match))) goto done;
 done:
     nclistfreeall(fqnlist);
-    return (ret == NC_NOERR ? match : NULL);
+    return match;
 }
 
 static const KEYWORDINFO*

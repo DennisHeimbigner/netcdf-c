@@ -13,6 +13,7 @@
 #endif
 #include "ncd4dispatch.h"
 #include "nc4internal.h"
+#include "nclog.h"
 #include "d4includes.h"
 #include "d4curlfunctions.h"
 
@@ -64,7 +65,7 @@ NCD4_initialize(void)
 #ifdef D4DEBUG
     /* force logging to go to stderr */
     if(nclogopen(NULL))
-        ncsetlogging(1); /* turn it on */
+        ncsetloglevel(1); /* turn it on */
 #endif
     /* Init global state */
     globalinit();

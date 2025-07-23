@@ -187,7 +187,7 @@ NCD4_open(const char * path, int mode,
 #ifdef D4DUMPDMR
   {
     fprintf(stderr,"=============\n");
-    fputs(d4info->substrate.metadata->serial.dmr,stderr);
+    fputs(dmrresp->serial.dmr,stderr);
     fprintf(stderr,"\n=============\n");
     fflush(stderr);
   }
@@ -197,7 +197,7 @@ NCD4_open(const char * path, int mode,
 
 #ifdef D4DEBUGMETA
   {
-    meta = d4info->dmrmetadata;
+    NCD4meta* meta = d4info->dmrmetadata;
     fprintf(stderr,"\n/////////////\n");
     NCbytes* buf = ncbytesnew();
     NCD4_print(meta,buf);
@@ -665,7 +665,7 @@ NCD4_newMeta(NCD4INFO* info, NCD4meta** metap)
     if(meta == NULL) return NC_ENOMEM;
     meta->allnodes = nclistnew();
 #ifdef D4DEBUG
-    meta->debuglevel = 1;
+    info->debuglevel = 1;
 #endif
     meta->controller = info;
     meta->ncid = info->substrate.nc4id; /* Transfer netcdf ncid */

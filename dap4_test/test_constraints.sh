@@ -8,7 +8,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 set -e
 
 #BIG=1
-CSUM=1
+#CSUM=1
 
 setresultdir results_test_constraints
 

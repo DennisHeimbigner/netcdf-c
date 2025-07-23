@@ -25,7 +25,7 @@ main(int argc, char **argv)
 	exit(1);
     }    
     ret = nc_open(argv[1],NC_NETCDF4,&ncid);
-    printf("%d",ret);
+    printf("%d",ret); fflush(stdout);
     if(ret == NC_NOERR) nc_close(ncid);
     exit(0);
 }

@@ -54,7 +54,7 @@ static void vsinsertn(VString* vs, size_t pos, const void* s, size_t slen);
 static void vsremoven(VString* vs, size_t pos, size_t elide);
 static void vssetalloc(VString* vs, size_t newalloc);
 static void vssetlength(VString* vs, size_t newlen);
-static void vssetcontents(VString* vs, char* contents, unsigned alloc);
+static void vssetcontents(VString* vs, char* contents, size_t length);
 static char* vsextract(VString* vs);
 static char* vsgetp(VString* vs, size_t index);
 static VString* vsclone(VString* vs);
@@ -356,14 +356,14 @@ vssetlength(VString* vs, size_t newlen)
 
 /* Set unexpandible contents */
 static void
-vssetcontents(VString* vs, char* contents, unsigned alloc)
+vssetcontents(VString* vs, char* contents, size_t length)
 {
     assert(vs != NULL && contents != NULL);
     vs->length = 0;
     if(!vs->nonextendible && vs->content != NULL) free(vs->content);
     vs->content = contents;
-    vs->length = alloc;
-    vs->alloc = alloc;
+    vs->length = length;
+    vs->alloc = length;
     vs->nonextendible = 1;
 }
 
