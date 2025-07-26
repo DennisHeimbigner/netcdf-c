@@ -141,7 +141,7 @@ NCZ_new_provenance(NC_FILE_INFO_T* file)
 {
     int stat = NC_NOERR;
     NC4_Provenance* provenance = NULL;
-    int superblock;
+    unsigned superblock;
 
     LOG((5, "%s: ncid 0x%x", __func__, file->root_grp->hdr.id));
 
@@ -186,6 +186,7 @@ NCZ_read_provenance(NC_FILE_INFO_T* file, const char* name, const char* value)
     int stat = NC_NOERR;
     NC4_Provenance* provenance = NULL;
     char* propstring = NULL;
+    int superblock;
 
     LOG((5, "%s: ncid 0x%x", __func__, file->root_grp->hdr.id));
 
@@ -195,7 +196,6 @@ NCZ_read_provenance(NC_FILE_INFO_T* file, const char* name, const char* value)
     memset(provenance,0,sizeof(NC4_Provenance)); /* make sure */
 
     /* Set the superblock number */
-    int superblock = -1;
     if((stat = NCZ_get_superblock(file,&superblock))) goto done;
     provenance->superblockversion = superblock;
 

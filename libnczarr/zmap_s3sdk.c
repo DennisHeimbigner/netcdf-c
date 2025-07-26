@@ -429,7 +429,8 @@ but it possible that it is not.
 static int
 zs3search(NCZMAP* map, const char* prefix, NClist* matches)
 {
-    int i,stat = NC_NOERR;
+    int stat = NC_NOERR;
+    size_t i;
     ZS3MAP* z3map = (ZS3MAP*)map;
     char** list = NULL;
     size_t nkeys;
@@ -461,7 +462,7 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
         }
 	/* Now remove duplicates */
 	for(i=0;i<nclistlength(tmp);i++) {
-	    int j;
+	    size_t j;
 	    int duplicate = 0;
 	    const char* is = nclistget(tmp,i);
 	    for(j=0;j<nclistlength(matches);j++) {
@@ -536,7 +537,7 @@ zs3searchall(NCZMAP* map, const char* prefix, NClist* matches)
     if((stat = nczm_removeprefix(trueprefix,nclistlength(matches),(char**)nclistcontents(matches)))) goto done;
 
     /* Lexical sort the results */
-    NCZ_sortstringlist(nclistcontents(matches),nclistlength(matches));
+    nczm_sortlist(matches);
 
 #ifdef DEBUG
     for(i=0;i<nclistlength(matches);i++) {
@@ -653,4 +654,5 @@ nczs3sdkapi = {
     zs3read,
     zs3write,
     zs3search,
+    zs3searchall,
 };

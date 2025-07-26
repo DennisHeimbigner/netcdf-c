@@ -198,6 +198,20 @@ nczmap_search(NCZMAP* map, const char* prefix, NClist* matches)
     return stat;
 }
 
+int
+nczmap_searchall(NCZMAP* map, const char* prefix, NClist* matches)
+{
+    int stat = NC_NOERR;
+    if((stat = map->api->searchall(map, prefix, matches)) == NC_NOERR) {
+        /* sort the list */
+        if(nclistlength(matches) > 1) {
+	    void* base = nclistcontents(matches);
+            qsort(base, nclistlength(matches), sizeof(char*), cmp_strings);
+	}
+    }
+    return stat;
+}
+
 /**************************************************/
 /* Utilities */
 
@@ -466,6 +480,26 @@ done:
     return THROW(stat);    
 }
 
+/* Remove a given prefix from the front of each given key */
+int
+nczm_removeprefix(const char* prefix, size_t nkeys, char** keys)
+{
+    int stat = NC_NOERR;
+    size_t i,prefixlen;
+
+    if(nkeys == 0 || keys == NULL) return stat;
+    prefixlen = strlen(prefix);
+    for(i=0;i<nkeys;i++) {
+	if(strncmp(keys[i],prefix,prefixlen)==0) {
+	    char* newkey = strdup(keys[i]+prefixlen);
+	    if(newkey == NULL) return NC_ENOMEM;
+	    nullfree(keys[i]);
+	    keys[i] = newkey;
+	    newkey = NULL;
+	}
+    }
+    return stat;
+}
 
 /* sort a list of strings */
 void

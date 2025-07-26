@@ -145,8 +145,9 @@ of the implementation.
 /*Mnemonics*/
 #define LOCALIZE 1
 
-/* Forward */
+/* opaque */
 typedef struct NCZMAP_API NCZMAP_API;
+struct NClist;
 
 /* Define the space of implemented (eventually) map implementations */
 typedef enum NCZM_IMPL {
@@ -373,6 +374,8 @@ EXTERNL int nczm_canonicalpath(const char* path, char** cpathp);
 EXTERNL int nczm_basename(const char* path, char** basep);
 EXTERNL int nczm_segment1(const char* path, char** seg1p);
 EXTERNL int nczm_lastsegment(const char* path, char** lastp);
+EXTERNL int nczm_removeprefix(const char* prefix, size_t nkeys, char** keys);
+EXTERNL void nczm_sortlist(struct NClist* l);
 
 #ifdef __cplusplus
 }

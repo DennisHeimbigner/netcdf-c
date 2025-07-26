@@ -127,7 +127,7 @@ static int zfparseurl(const char* path0, NCURI** urip);
 static int zffullpath(ZFMAP* zfmap, const char* key, char**);
 static void zfrelease(ZFMAP* zfmap, FD* fd);
 static void zfunlink(const char* canonpath);
-static int zfile_searchallR(ZFMAP* map, NCbytes* key, int depth, NClist* matches);
+static int zfilesearchallR(ZFMAP* map, NCbytes* key, int depth, NClist* matches);
 
 static int platformerr(int err);
 static int platformcreatefile(mode_t mode, const char* truepath,FD*);
@@ -473,7 +473,7 @@ In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
 The prefix key is not included. 
 */
-int
+static int
 zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
 {
     int stat = NC_NOERR;
@@ -518,7 +518,7 @@ In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
 The returned keys have the prefix removed.
 */
-int
+static int
 zfilesearchall(NCZMAP* map, const char* prefixkey, NClist* matches)
 {
     int stat = NC_NOERR;
@@ -552,7 +552,7 @@ zfilesearchall(NCZMAP* map, const char* prefixkey, NClist* matches)
     ncbytesnull(path); /* make nul terminated */
     prefixlen = ncbyteslength(path); /* remember the prefix string */
 
-    if((stat = zfile_searchallR(zfmap,path,0,matches))) goto done;
+    if((stat = zfilesearchallR(zfmap,path,0,matches))) goto done;
 
     /* Remove prefix from all entries in matches */
     ncbytessetlength(path,prefixlen); /* restore */
@@ -560,7 +560,7 @@ zfilesearchall(NCZMAP* map, const char* prefixkey, NClist* matches)
     if((stat = nczm_removeprefix(ncbytescontents(path),nclistlength(matches),(char**)nclistcontents(matches)))) goto done;
 
     /* Lexical sort the results */
-    NCZ_sortstringlist(nclistcontents(matches),nclistlength(matches));
+    nczm_sortlist(matches);
 
 done:
     nclistfreeall(nextlevel);
@@ -571,7 +571,7 @@ done:
 
 /* zfile_listall recursive helper */
 static int
-zfile_listallR(ZFMAP* map, NCbytes* key, int depth, NClist* matches)
+zfilesearchallR(ZFMAP* map, NCbytes* key, int depth, NClist* matches)
 {
     int retval = NC_NOERR;
     NClist* nextlevel = nclistnew();
@@ -601,7 +601,7 @@ zfile_listallR(ZFMAP* map, NCbytes* key, int depth, NClist* matches)
 	if((retval = NCstat(ncbytescontents(key),&statbuf))) goto done;
 	if(!S_ISDIR(statbuf.st_mode))
 	    nclistpush(matches,nulldup(ncbytescontents(key)));
-	if((retval = zfile_listallR(map,key,depth+1,matches))) goto done;
+	if((retval = zfilesearchallR(map,key,depth+1,matches))) goto done;
 	/* reset */
 	ncbytessetlength(key,keylen);
     }
@@ -715,6 +715,7 @@ static NCZMAP_API zapi = {
     zfileread,
     zfilewrite,
     zfilesearch,
+    zfilesearchall,
 };
 
 static int
