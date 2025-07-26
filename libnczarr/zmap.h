@@ -202,6 +202,7 @@ struct NCZMAP_API {
 	int (*read)(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
 	int (*write)(NCZMAP* map, const char* key, size64_t count, const void* content);
         int (*search)(NCZMAP* map, const char* prefix, struct NClist* matches);
+        int (*searchall)(NCZMAP* map, const char* prefix, struct NClist* matches);
 };
 
 /* Define the Dataset level API */

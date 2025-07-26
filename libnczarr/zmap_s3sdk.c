@@ -490,6 +490,69 @@ done:
     return ZUNTRACEX(stat,"|matches|=%d",(int)nclistlength(matches));
 }
 
+/*
+Return a list of full keys "below" a specified prefix,
+but not including the prefix.
+In theory, the returned list should be sorted in lexical order,
+but it possible that it is not.
+@return NC_NOERR if success, even if no keys returned.
+@return NC_EXXX return true error
+*/
+static int
+zs3searchall(NCZMAP* map, const char* prefix, NClist* matches)
+{
+    int stat = NC_NOERR;
+    ZS3MAP* z3map = (ZS3MAP*)map;
+    char** list = NULL;
+    size_t i,nkeys;
+    char* trueprefix = NULL;
+    char* newkey = NULL;
+
+    ZTRACE(6,"map=%s prefix0=%s",map->url,prefix);
+    
+    if((stat = maketruekey(z3map->s3.rootkey,prefix,&trueprefix))) goto done;
+    
+    if(*trueprefix != '/') return NC_EINTERNAL;
+    if((stat = NC_s3sdklistall(z3map->s3client,z3map->s3.bucket,trueprefix,&nkeys,&list,&z3map->errmsg)))
+        goto done;
+    if(nkeys > 0) {
+	/* remove duplicates and prefix */
+	for(i=0;i<nkeys;i++) {
+	    size_t j;
+	    int duplicate = 0;
+	    char* is = list[i];
+    	    if(strcmp(is,prefix)==0) {list[i] = NULL; nullfree(is); continue;}
+	    for(j=0;j<nclistlength(matches);j++) {
+	        char* js = (char*)nclistget(matches,j);
+	        if(strcmp(js,is)==0) {duplicate = 1; break;} /* duplicate */
+	    }	    
+	    if(!duplicate) {
+	        nclistpush(matches,strdup(is));
+	    }
+	}
+    }
+	
+    /* Remove prefix from all entries in matches */
+    if((stat = nczm_removeprefix(trueprefix,nclistlength(matches),(char**)nclistcontents(matches)))) goto done;
+
+    /* Lexical sort the results */
+    NCZ_sortstringlist(nclistcontents(matches),nclistlength(matches));
+
+#ifdef DEBUG
+    for(i=0;i<nclistlength(matches);i++) {
+	const char* is = nclistget(matches,i);
+	fprintf(stderr,"search: %s\n",is);
+    }
+#endif
+
+done:
+    nullfree(newkey);
+    nullfree(trueprefix);
+    reporterr(z3map);
+    freevector(nkeys,list);
+    return ZUNTRACEX(stat,"|matches|=%d",(int)nclistlength(matches));
+}
+
 /**************************************************/
 /* S3 Utilities */
 

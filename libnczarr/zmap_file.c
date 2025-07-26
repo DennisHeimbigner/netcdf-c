@@ -127,6 +127,7 @@ static int zfparseurl(const char* path0, NCURI** urip);
 static int zffullpath(ZFMAP* zfmap, const char* key, char**);
 static void zfrelease(ZFMAP* zfmap, FD* fd);
 static void zfunlink(const char* canonpath);
+static int zfile_searchallR(ZFMAP* map, NCbytes* key, int depth, NClist* matches);
 
 static int platformerr(int err);
 static int platformcreatefile(mode_t mode, const char* truepath,FD*);
@@ -511,6 +512,104 @@ done:
     return ZUNTRACEX(stat,"|matches|=%d",(int)nclistlength(matches));
 }
 
+/*
+Return a list of all content-bearing keys beginning with specified prefix.
+In theory, the returned list should be sorted in lexical order,
+but it possible that it is not.
+The returned keys have the prefix removed.
+*/
+int
+zfilesearchall(NCZMAP* map, const char* prefixkey, NClist* matches)
+{
+    int stat = NC_NOERR;
+    ZFMAP* zfmap = (ZFMAP*)map;
+    char* fullpath = NULL;
+    NClist* nextlevel = nclistnew();
+    NCbytes* path = ncbytesnew();
+    size_t prefixlen, pathlen;
+
+    ZTRACE(5,"map=%s prefixkey=%s",map->url,prefixkey);
+
+    /* Make the root path be true */
+    if(prefixkey == NULL || strlen(prefixkey)==0 || strcmp(prefixkey,"/")==0)
+	fullpath = strdup(zfmap->root);
+    else if((stat = nczm_concat(zfmap->root,prefixkey,&fullpath))) goto done;
+
+    /* prime the key tracker */
+    /* Ensure leading '/' */
+#ifndef _MSC_VER
+    if(fullpath[0] != '/')
+        ncbytescat(path,"/");
+#endif
+    ncbytescat(path,fullpath);
+    ncbytescat(path,prefixkey);
+    /* Ensure no trailing '/' */
+    pathlen = ncbyteslength(path);
+    if(pathlen > 1 && ncbytesget(path,pathlen-1) == '/') {
+	pathlen--;
+        ncbytessetlength(path,pathlen); /* truncate last char */
+    }	
+    ncbytesnull(path); /* make nul terminated */
+    prefixlen = ncbyteslength(path); /* remember the prefix string */
+
+    if((stat = zfile_searchallR(zfmap,path,0,matches))) goto done;
+
+    /* Remove prefix from all entries in matches */
+    ncbytessetlength(path,prefixlen); /* restore */
+    ncbytesnull(path);
+    if((stat = nczm_removeprefix(ncbytescontents(path),nclistlength(matches),(char**)nclistcontents(matches)))) goto done;
+
+    /* Lexical sort the results */
+    NCZ_sortstringlist(nclistcontents(matches),nclistlength(matches));
+
+done:
+    nclistfreeall(nextlevel);
+    ncbytesfree(path);
+    nullfree(fullpath);
+    return ZUNTRACEX(stat,"|matches|=%d",(int)nclistlength(matches));
+}
+
+/* zfile_listall recursive helper */
+static int
+zfile_listallR(ZFMAP* map, NCbytes* key, int depth, NClist* matches)
+{
+    int retval = NC_NOERR;
+    NClist* nextlevel = nclistnew();
+    size_t i;
+
+    /* get names of the next level path entries just below key */
+    switch (retval = platformdircontent(ncbytescontents(key), nextlevel)) {
+    case NC_NOERR: /* ok */
+	break;
+    case NC_EEMPTY: /* not a dir */
+	retval = NC_NOERR;
+	goto done;
+    case NC_ENOOBJECT:
+    default:
+	goto done;
+    }
+    /* Recurse to walk tree depth first; also record keys */
+    for(i=0;i<nclistlength(nextlevel);i++) {
+	size_t keylen;
+	char* segment;
+	struct stat statbuf;
+
+	keylen = nclistlength(key);
+	segment = nclistget(nextlevel,i);
+	ncbytescat(key,"/");
+	ncbytescat(key,segment);
+	if((retval = NCstat(ncbytescontents(key),&statbuf))) goto done;
+	if(!S_ISDIR(statbuf.st_mode))
+	    nclistpush(matches,nulldup(ncbytescontents(key)));
+	if((retval = zfile_listallR(map,key,depth+1,matches))) goto done;
+	/* reset */
+	ncbytessetlength(key,keylen);
+    }
+    
+done:
+    nclistfreeall(nextlevel);
+    return retval;
+}
 /**************************************************/
 /* Utilities */
 
