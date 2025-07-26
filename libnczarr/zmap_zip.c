@@ -98,7 +98,7 @@ zipinitialize(void)
 */
 
 static int
-zipcreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
+zipcreate(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     ZZMAP* zzmap = NULL;
@@ -109,7 +109,7 @@ zipcreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     char* abspath = NULL;
     
     NC_UNUSED(parameters);
-    ZTRACE(6,"path=%s mode=%d flag=%llu",path,mode,flags);
+    ZTRACE(6,"path=%s mode=%u flag=%llu",path,mode,flags);
 
     if(!zzinitialized) zipinitialize();
 
@@ -186,7 +186,7 @@ done:
 */
 
 static int
-zipopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
+zipopen(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     ZZMAP* zzmap = NULL;
@@ -196,7 +196,7 @@ zipopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     char* abspath = NULL;
     
     NC_UNUSED(parameters);
-    ZTRACE(6,"path=%s mode=%d flags=%llu",path,mode,flags);
+    ZTRACE(6,"path=%s mode=%u flags=%llu",path,mode,flags);
 
     if(!zzinitialized) zipinitialize();
 

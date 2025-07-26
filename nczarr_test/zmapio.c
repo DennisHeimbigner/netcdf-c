@@ -347,7 +347,7 @@ objdump(void)
 	/* Now print info for this obj key */
         switch (stat=nczmap_len(map,obj,&len)) {
 	    case NC_NOERR: hascontent = 1; break;
-	    case NC_EEMPTY: /* fall thru */ /* this is not a content bearing key */
+	    case NC_ENOOBJECT: /* fall thru */ /* this key does not exist */
 	    case NC_EACCESS: hascontent = 0; len = 0; stat = NC_NOERR; break;
 	    default: goto done;
 	}
@@ -415,11 +415,20 @@ breadthfirstR(NCZMAP* map, NCbytes* prefix, NClist* stack)
     /* Push new names onto the stack and recurse */
     mark = ncbyteslength(prefix); /* save this position */
     while(nclistlength(nextlevel) > 0) {
+	size64_t size = 0;
         char* subkey = nclistremove(nextlevel,0);
 	if(!isroot) ncbytescat(prefix,"/");
 	ncbytescat(prefix,subkey);
+	/* Ensure that key does not point to a non-content bearing object */
+	stat = nczmap_len(map,subkey,&size);
 	nullfree(subkey);
-        nclistpush(stack,ncbytesdup(prefix));
+	switch (stat) {	
+	case NC_NOERR:
+	    nclistpush(stack,ncbytesdup(prefix));
+	    break;
+	case NC_EEMPTY: break; /* a directory */
+	default: goto done;
+	}
 	if((stat = breadthfirstR(map,prefix,stack))) goto done;
 	ncbytessetlength(prefix,mark); ncbytesnull(prefix);
     }

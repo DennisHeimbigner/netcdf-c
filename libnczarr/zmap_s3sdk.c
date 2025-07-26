@@ -105,7 +105,7 @@ NCZ_s3finalize(void)
 }
 
 static int
-zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
+zs3create(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = NULL;
@@ -116,7 +116,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     NC_UNUSED(flags);
     NC_UNUSED(parameters);
 
-    ZTRACE(6,"path=%s mode=%d flag=%llu",path,mode,flags);
+    ZTRACE(6,"path=%s mode=%u flag=%llu",path,mode,flags);
 
     if(!zs3initialized) zs3initialize();
 
@@ -153,8 +153,8 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
 	        goto done;
 	}
 	/* The root object may or may not already exist */
-        switch (stat = NC_s3sdkinfo(z3map->s3client,z3map->s3.bucket,z3map->s3.rootkey,NULL,&z3map->errmsg)) {
-	case NC_EEMPTY: /* no such object */
+	switch (stat = NC_s3sdkinfo(z3map->s3client,z3map->s3.bucket,z3map->s3.rootkey,NULL,&z3map->errmsg)) {
+	case NC_ENOOBJECT: /* no such object */
 	    stat = NC_NOERR;  /* which is what we want */
 	    errclear(z3map);
 	    break;
@@ -184,7 +184,7 @@ no obvious way to test for existence.
 So, we assume that the dataset must have
 some content. We look for that */
 static int
-zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
+zs3open(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = NULL;
@@ -195,7 +195,7 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     NC_UNUSED(flags);
     NC_UNUSED(parameters);
 
-    ZTRACE(6,"path=%s mode=%d flags=%llu",path,mode,flags);
+    ZTRACE(6,"path=%s mode=%u flags=%llu",path,mode,flags);
 
     if(!zs3initialized) zs3initialize();
 
@@ -303,7 +303,7 @@ zs3len(NCZMAP* map, const char* key, size64_t* lenp)
 
     switch (stat = NC_s3sdkinfo(z3map->s3client,z3map->s3.bucket,truekey,lenp,&z3map->errmsg)) {
     case NC_NOERR: break;
-    case NC_EEMPTY:
+    case NC_ENOOBJECT:
 	if(lenp) *lenp = 0;
 	goto done;
     default:
@@ -334,7 +334,7 @@ zs3read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* cont
     
     switch (stat=NC_s3sdkinfo(z3map->s3client, z3map->s3.bucket, truekey, &size, &z3map->errmsg)) {
     case NC_NOERR: break;
-    case NC_EEMPTY: goto done;
+    case NC_ENOOBJECT: goto done;
     default: goto done; 	
     }
     /* Sanity checks */
@@ -373,7 +373,7 @@ zs3write(NCZMAP* map, const char* key, size64_t count, const void* content)
     switch (stat=NC_s3sdkinfo(z3map->s3client, z3map->s3.bucket, truekey, &objsize, &z3map->errmsg)) {
     case NC_NOERR: /* Figure out the new size of the object */
         break;
-    case NC_EEMPTY:
+    case NC_ENOOBJECT:
 	stat = NC_NOERR; /* reset */
         break;
     default: reporterr(z3map); goto done;

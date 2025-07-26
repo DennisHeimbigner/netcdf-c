@@ -74,7 +74,7 @@ ncz_open_file(const char *path, int mode, NClist* controls, int ncid)
     LOG((3, "%s: path %s mode %d", __func__, path, mode));
     assert(path);
 
-    ZTRACE(2,"path=%s,mode=%d,ncid=%d,controls=%s)",path,mode,ncid,(controls?nczprint_envv(controls):"null"));
+    ZTRACE(2,"path=%s,mode=%u,ncid=%d,controls=%s)",path,mode,ncid,(controls?nczprint_envv(controls):"null"));
 
     /* Convert ncid to an NC* structure pointer */
     if((stat = NC_check_id(ncid,&nc))) goto exit;
@@ -151,7 +151,7 @@ NCZ_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
     int stat = NC_NOERR;
     NCURI* uri = NULL;
 
-    ZTRACE(0,"path=%s,mode=%d,ncid=%d)",path,mode,ncid);
+    ZTRACE(0,"path=%s,mode=%u,ncid=%d)",path,mode,ncid);
 
     NC_UNUSED(parameters);
 

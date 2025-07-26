@@ -15,6 +15,9 @@
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -431,7 +434,7 @@ done:
 
 EXTERNL
 int
-NCopen3(const char* path, int flags, int mode)
+NCopen3(const char* path, int flags, mode_t mode)
 {
     int stat = NC_NOERR;
     int fd = -1;
@@ -503,7 +506,7 @@ Provide wrappers for other file system functions
 /* Return access applied to path+mode */
 EXTERNL
 int
-NCaccess(const char* path, int mode)
+NCaccess(const char* path, mode_t mode)
 {
     int stat = 0;
     char* cvtpath = NULL;
@@ -568,7 +571,7 @@ done:
 
 EXTERNL
 int
-NCmkdir(const char* path, int mode)
+NCmkdir(const char* path, mode_t mode)
 {
     int status = 0;
     char* cvtpath = NULL;

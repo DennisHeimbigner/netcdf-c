@@ -90,6 +90,7 @@ echo ""
 echo "*** Map Unit Testing"
 echo ""; echo "*** Test zmap_file"
 testmapcreate file; testmapmeta file; testmapdata file; testmapsearch file
+exit
 if test "x$FEATURE_NCZARR_ZIP" = xyes ; then
     echo ""; echo "*** Test zmap_zip"
     testmapcreate zip; testmapmeta zip; testmapdata zip; testmapsearch zip

@@ -41,7 +41,7 @@ typedef SSIZE_T ssize_t;
 #endif
 
 #ifndef HAVE_MODE_T
-typedef int mode_t;
+typedef unsigned mode_t;
 #define HAVE_MODE_T 1
 #endif
 

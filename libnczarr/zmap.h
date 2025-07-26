@@ -180,7 +180,7 @@ a separate per-implementation malloc piece.
 typedef struct NCZMAP {
     NCZM_IMPL format;
     char* url;
-    int mode;
+    unsigned mode;
     size64_t flags; /* Passed in by caller */
     struct NCZMAP_API* api;
 } NCZMAP;
@@ -208,8 +208,8 @@ struct NCZMAP_API {
 typedef struct NCZMAP_DS_API {
     int version;
     NCZM_FEATURES features;
-    int (*create)(const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);
-    int (*open)(const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);
+    int (*create)(const char *path, unsigned mode, size64_t constraints, void* parameters, NCZMAP** mapp);
+    int (*open)(const char *path, unsigned mode, size64_t constraints, void* parameters, NCZMAP** mapp);
     int (*truncate)(const char* url);
 } NCZMAP_DS_API;
 
@@ -300,6 +300,17 @@ next segment of legal objects that are immediately contained by the prefix key.
 @return NC_EXXX if the operation failed for one of several possible reasons
 */
 EXTERNL int nczmap_search(NCZMAP* map, const char* prefix, struct NClist* matches);
+
+/**
+Return a vector of keys representing all content-bearing
+paths below a given prefix key.
+@param map -- the containing map
+@param prefix -- the key into the tree where the search is to occur
+@param matches -- return the set of names in this list; might be empty
+@return NC_NOERR if the operation succeeded
+@return NC_EXXX if the operation failed for one of several possible reasons
+*/
+EXTERNL int nczmap_searchall(NCZMAP* map, const char* prefix, struct NClist* matches);
 
 /**
 "Truncate" the storage associated with a map. Delete all contents except

@@ -62,20 +62,20 @@
 #define NCZM_FILE_V1 1
 
 #ifdef S_IRUSR
-static int NC_DEFAULT_CREATE_PERMS =
+static mode_t NC_DEFAULT_CREATE_PERMS =
            (S_IRUSR|S_IWUSR        |S_IRGRP|S_IWGRP);
-static int NC_DEFAULT_RWOPEN_PERMS =
+static mode_t NC_DEFAULT_RWOPEN_PERMS =
            (S_IRUSR|S_IWUSR        |S_IRGRP|S_IWGRP);
-static int NC_DEFAULT_ROPEN_PERMS =
+static mode_t NC_DEFAULT_ROPEN_PERMS =
 //           (S_IRUSR                |S_IRGRP);
            (S_IRUSR|S_IWUSR        |S_IRGRP|S_IWGRP);
-static int NC_DEFAULT_DIR_PERMS =
+static mode_t NC_DEFAULT_DIR_PERMS =
   	   (S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IWGRP);
 #else
-static int NC_DEFAULT_CREATE_PERMS = 0660;
-static int NC_DEFAULT_RWOPEN_PERMS = 0660;
-static int NC_DEFAULT_ROPEN_PERMS = 0660;
-static int NC_DEFAULT_DIR_PERMS = 0770;
+static mode_t NC_DEFAULT_CREATE_PERMS = 0660;
+static mode_t NC_DEFAULT_RWOPEN_PERMS = 0660;
+static mode_t NC_DEFAULT_ROPEN_PERMS = 0660;
+static mode_t NC_DEFAULT_DIR_PERMS = 0770;
 #endif
 
 /*
@@ -153,14 +153,14 @@ zfileinitialize(void)
     if(!zfinitialized) {
         ZTRACE(5,NULL);
 	const char* env = NULL;
-	int perms = 0;
+	mode_t perms = 0;
 	env = getenv("NC_DEFAULT_CREATE_PERMS");
 	if(env != NULL && strlen(env) > 0) {
-	    if(sscanf(env,"%d",&perms) == 1) NC_DEFAULT_CREATE_PERMS = perms;
+	    if(sscanf(env,"%u",&perms) == 1) NC_DEFAULT_CREATE_PERMS = perms;
 	}
 	env = getenv("NC_DEFAULT_DIR_PERMS");
 	if(env != NULL && strlen(env) > 0) {
-	    if(sscanf(env,"%d",&perms) == 1) NC_DEFAULT_DIR_PERMS = perms;
+	    if(sscanf(env,"%u",&perms) == 1) NC_DEFAULT_DIR_PERMS = perms;
 	}
         zfinitialized = 1;
 	(void)ZUNTRACE(NC_NOERR);
@@ -179,7 +179,7 @@ zfileinitialize(void)
 */
 
 static int
-zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
+zfilecreate(const char *path, mode_t mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     char* canonpath = NULL;
@@ -188,7 +188,7 @@ zfilecreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP
     NCURI* url = NULL;
 	
     NC_UNUSED(parameters);
-    ZTRACE(5,"path=%s mode=%d flag=%llu",path,mode,flags);
+    ZTRACE(5,"path=%s mode=%u flag=%llu",path,mode,flags);
 
     if(!zfinitialized) zfileinitialize();
 
@@ -256,7 +256,7 @@ done:
 */
 
 static int
-zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
+zfileopen(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     char* canonpath = NULL;
@@ -265,7 +265,7 @@ zfileopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     NCURI*url = NULL;
     
     NC_UNUSED(parameters);
-    ZTRACE(5,"path=%s mode=%d flags=%llu",path,mode,flags);
+    ZTRACE(5,"path=%s mode=%u flags=%llu",path,mode,flags);
 
     if(!zfinitialized) zfileinitialize();
 
@@ -326,7 +326,7 @@ zfiletruncate(const char* surl)
     platformdelete(url->path,0); /* leave root; ignore errors */
 done:
     ncurifree(url);
-    return stat;    
+    return ZUNTRACE(stat);
 }
 
 /**************************************************/
@@ -365,8 +365,8 @@ zfilelen(NCZMAP* map, const char* key, size64_t* lenp)
         /* Get file size */
         if((stat=platformseek(&fd, SEEK_END, &len))) goto done;
 	break;
-    case NC_ENOOBJECT: stat = NC_EEMPTY;
-    case NC_EEMPTY: break;
+    case NC_ENOOBJECT: break;
+    case NC_EEMPTY: len = 0; stat = NC_NOERR; break;
     default: break;
     }
     zfrelease(zfmap,&fd);
@@ -493,9 +493,9 @@ zfilesearch(NCZMAP* map, const char* prefixkey, NClist* matches)
     case NC_NOERR: /* ok */
 	break;
     case NC_EEMPTY: /* not a dir */
+    case NC_ENOOBJECT: /* ignore non-existent object */
 	stat = NC_NOERR;
 	goto done;
-    case NC_ENOOBJECT:
     default:
 	goto done;
     }
@@ -692,7 +692,7 @@ platformtestcontentbearing(const char* canonpath)
         struct stat buf;
     #endif
 
-    ZTRACE(6,"map=%s canonpath=%s",zfmap->map.url,canonpath);
+    ZTRACE(6,"canonpath=%s",canonpath);
 
     errno = 0;
     ret = NCstat(canonpath, &buf);
@@ -714,9 +714,9 @@ platformcreatefile(mode_t mode, const char* canonpath, FD* fd)
     int stat = NC_NOERR;
     int ioflags = 0;
     int createflags = 0;
-    int permissions = NC_DEFAULT_ROPEN_PERMS;
+    mode_t permissions = NC_DEFAULT_ROPEN_PERMS;
 
-    ZTRACE(6,"map=%s canonpath=%s",zfmap->map.url,canonpath);
+    ZTRACE(6,"canonpath=%s",canonpath);
     
     errno = 0;
     if(!fIsSet(mode, NC_WRITE))
@@ -754,9 +754,9 @@ platformopenfile(mode_t mode, const char* canonpath, FD* fd)
 {
     int stat = NC_NOERR;
     int ioflags = 0;
-    int permissions = 0;
+    mode_t permissions = 0;
 
-    ZTRACE(6,"map=%s canonpath=%s",zfmap->map.url,canonpath);
+    ZTRACE(6,"canonpath=%s",canonpath);
 
     errno = 0;
     if(!fIsSet(mode, NC_WRITE)) {
@@ -790,7 +790,7 @@ platformcreatedir(mode_t mode, const char* canonpath)
 {
     int ret = NC_NOERR;
 
-    ZTRACE(6,"map=%s canonpath=%s",zfmap->map.url,canonpath);
+    ZTRACE(6,"canonpath=%s",canonpath);
 
     errno = 0;
     /* Try to access file as if it exists */
@@ -820,7 +820,7 @@ platformopendir(mode_t mode, const char* canonpath)
 {
     int ret = NC_NOERR;
 
-    ZTRACE(6,"map=%s canonpath=%s",zfmap->map.url,canonpath);
+    ZTRACE(6,"canonpath=%s",canonpath);
 
     errno = 0;
     /* Try to access file as if it exists */
@@ -836,13 +836,13 @@ done:
 Given a path, return the list of all files+dirs immediately below
 the specified path: e.g. X s.t. path/X exists.
 There are several possibilities:
-1. path does not exist => return NC_ENOTFOUND
+1. path does not exist => return NC_ENOOBJECT
 2. path is not a directory => return NC_EEMPTY and |contents| == 0
 3. path is a directory => return NC_NOERR and |contents| >= 0
 
 @return NC_NOERR if path is a directory
 @return NC_EEMPTY if path is not a directory
-@return NC_ENOTFOUND if path does not exist
+@return NC_ENOOBJECT if path does not exist
 */
 
 #ifdef _WIN32
@@ -858,7 +858,7 @@ platformdircontent(const char* canonpath, NClist* contents)
     size_t len;
     char* d = NULL;
 
-    ZTRACE(6,"map=%s canonpath=%s",zfmap->map.url,canonpath);
+    ZTRACE(6,"canonpath=%s",canonpath);
 
     switch (ret = platformtestcontentbearing(canonpath)) {
     case NC_EEMPTY: ret = NC_NOERR; break; /* directory */    
@@ -920,12 +920,12 @@ platformdircontent(const char* canonpath, NClist* contents)
     errno = 0;
     DIR* dir = NULL;
 
-    ZTRACE(6,"map=%s canonpath=%s",zfmap->map.url,canonpath);
+    ZTRACE(6,"canonpath=%s",canonpath);
 
     switch (ret = platformtestcontentbearing(canonpath)) {
+    case NC_NOERR: ret = NC_EEMPTY; goto done; /* path refers to file => no dir content */
     case NC_EEMPTY: ret = NC_NOERR; break; /* directory */    
-    case NC_NOERR: ret = NC_EEMPTY; goto done; 
-    case NC_ENOOBJECT: ret = NC_EEMPTY; goto done;
+    case NC_ENOOBJECT: goto done; /* no such object */
     default: goto done;
     }
 
@@ -937,8 +937,9 @@ platformdircontent(const char* canonpath, NClist* contents)
 	struct dirent* de = NULL;
 	errno = 0;
         de = readdir(dir);
-        if(de == NULL)
+        if(de == NULL && errno != 0)
 	    {ret = platformerr(errno); goto done;}
+	if(de == NULL) break;
 	if(strcmp(de->d_name,".")==0 || strcmp(de->d_name,"..")==0)
 	    continue;
 	name = de->d_name;
@@ -961,7 +962,7 @@ platformdeleter(NCbytes* canonpath, int depth)
     char* local = NULL;
 
     local = ncbytescontents(canonpath);
-    ZTRACE(6,"map=%s canonpath=%s delroot=%d depth=%d",zfmap->map.url,local,delroot,depth);
+    ZTRACE(6,"canonpath=%s depth=%d",local,depth);
 
     ret = platformdircontent(local, subfiles);
 #ifdef DEBUG
@@ -1031,7 +1032,7 @@ platformdelete(const char* rootpath, int delroot)
     int stat = NC_NOERR;
     NCbytes* canonpath = ncbytesnew();
 
-    ZTRACE(6,"map=%s rootpath=%s delroot=%d",zfmap->map.url,rootpath,delroot);
+    ZTRACE(6,"rootpath=%s delroot=%d",rootpath,delroot);
     
     if(rootpath == NULL || strlen(rootpath) == 0) goto done;
     ncbytescat(canonpath,rootpath);
@@ -1065,7 +1066,7 @@ platformseek(FD* fd, int pos, size64_t* sizep)
     
     assert(fd && fd->fd >= 0);
     
-    ZTRACE(6,"map=%s fd=%d pos=%d",zfmap->map.url,(fd?fd->fd:-1),pos);
+    ZTRACE(6,"fd=%d pos=%d",(fd?fd->fd:-1),pos);
 
     errno = 0;
     ret = NCfstat(fd->fd, &statbuf);    
@@ -1088,7 +1089,7 @@ platformread(FD* fd, size64_t count, void* content)
 
     assert(fd && fd->fd >= 0);
 
-    ZTRACE(6,"map=%s fd=%d count=%llu",zfmap->map.url,(fd?fd->fd:-1),count);
+    ZTRACE(6,"fd=%d count=%llu",(fd?fd->fd:-1),count);
 
     while(need > 0) {
         ssize_t red;
@@ -1111,7 +1112,7 @@ platformwrite(FD* fd, size64_t count, const void* content)
 
     assert(fd && fd->fd >= 0);
     
-    ZTRACE(6,"map=%s fd=%d count=%llu",zfmap->map.url,(fd?fd->fd:-1),count);
+    ZTRACE(6,"fd=%d count=%llu",(fd?fd->fd:-1),count);
 
     while(need > 0) {
         ssize_t red = 0;
@@ -1143,7 +1144,7 @@ platformcwd(char** cwdp)
 static void
 platformrelease(FD* fd)
 {
-    ZTRACE(6,"map=%s fd=%d",zfmap->map.url,(fd?fd->fd:-1));
+    ZTRACE(6,"fd=%d",(fd?fd->fd:-1));
     if(fd->fd >=0) NCclose(fd->fd);
     fd->fd = -1;
     (void)ZUNTRACE(NC_NOERR);
