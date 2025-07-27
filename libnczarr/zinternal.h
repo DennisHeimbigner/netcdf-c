@@ -126,9 +126,9 @@ typedef struct NCZ_FILE_INFO {
     struct nczarr {
 	int zarr_version;
 	struct {
-	    unsigned major;
-	    unsigned minor;
-	    unsigned release;
+	    unsigned long major;
+	    unsigned long minor;
+	    unsigned long release;
 	} nczarr_version;
     } zarr;
     int creating; /* 1=> created 0=>open */

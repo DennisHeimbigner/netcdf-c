@@ -145,9 +145,8 @@ of the implementation.
 /*Mnemonics*/
 #define LOCALIZE 1
 
-/* opaque */
+/* Forward */
 typedef struct NCZMAP_API NCZMAP_API;
-struct NClist;
 
 /* Define the space of implemented (eventually) map implementations */
 typedef enum NCZM_IMPL {
@@ -181,7 +180,7 @@ a separate per-implementation malloc piece.
 typedef struct NCZMAP {
     NCZM_IMPL format;
     char* url;
-    unsigned mode;
+    int mode;
     size64_t flags; /* Passed in by caller */
     struct NCZMAP_API* api;
 } NCZMAP;
@@ -203,15 +202,14 @@ struct NCZMAP_API {
 	int (*read)(NCZMAP* map, const char* key, size64_t start, size64_t count, void* content);
 	int (*write)(NCZMAP* map, const char* key, size64_t count, const void* content);
         int (*search)(NCZMAP* map, const char* prefix, struct NClist* matches);
-        int (*searchall)(NCZMAP* map, const char* prefix, struct NClist* matches);
 };
 
 /* Define the Dataset level API */
 typedef struct NCZMAP_DS_API {
     int version;
     NCZM_FEATURES features;
-    int (*create)(const char *path, unsigned mode, size64_t constraints, void* parameters, NCZMAP** mapp);
-    int (*open)(const char *path, unsigned mode, size64_t constraints, void* parameters, NCZMAP** mapp);
+    int (*create)(const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);
+    int (*open)(const char *path, int mode, size64_t constraints, void* parameters, NCZMAP** mapp);
     int (*truncate)(const char* url);
 } NCZMAP_DS_API;
 
@@ -304,17 +302,6 @@ next segment of legal objects that are immediately contained by the prefix key.
 EXTERNL int nczmap_search(NCZMAP* map, const char* prefix, struct NClist* matches);
 
 /**
-Return a vector of keys representing all content-bearing
-paths below a given prefix key.
-@param map -- the containing map
-@param prefix -- the key into the tree where the search is to occur
-@param matches -- return the set of names in this list; might be empty
-@return NC_NOERR if the operation succeeded
-@return NC_EXXX if the operation failed for one of several possible reasons
-*/
-EXTERNL int nczmap_searchall(NCZMAP* map, const char* prefix, struct NClist* matches);
-
-/**
 "Truncate" the storage associated with a map. Delete all contents except
 the root, which is sized to zero.
 @param url -- the url specifying the root object.
@@ -345,6 +332,12 @@ EXTERNL void NCZ_s3finalize(void);
 /** Split a path into pieces along '/' character; elide any leading '/' */
 EXTERNL int nczm_split(const char* path, struct NClist* segments);
 
+/* Split a path into pieces along some character; elide any leading char */
+EXTERNL int nczm_split_delim(const char* path, char delim, struct NClist* segments);
+
+/* Convenience: Join all segments into a path using '/' character */
+EXTERNL int nczm_join(struct NClist* segments, char** pathp);
+
 /* Convenience: Join all segments into a path using '/' character
    but taking possible lead windows drive letter into account
 */
@@ -374,8 +367,11 @@ EXTERNL int nczm_canonicalpath(const char* path, char** cpathp);
 EXTERNL int nczm_basename(const char* path, char** basep);
 EXTERNL int nczm_segment1(const char* path, char** seg1p);
 EXTERNL int nczm_lastsegment(const char* path, char** lastp);
-EXTERNL int nczm_removeprefix(const char* prefix, size_t nkeys, char** keys);
+
+/* bubble sorts (note arguments) */
 EXTERNL void nczm_sortlist(struct NClist* l);
+EXTERNL void nczm_sortenvv(size_t n, char** envv);
+EXTERNL void NCZ_freeenvv(int n, char** envv);
 
 #ifdef __cplusplus
 }

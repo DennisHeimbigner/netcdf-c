@@ -105,7 +105,7 @@ NCZ_s3finalize(void)
 }
 
 static int
-zs3create(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMAP** mapp)
+zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = NULL;
@@ -116,7 +116,7 @@ zs3create(const char *path, unsigned mode, size64_t flags, void* parameters, NCZ
     NC_UNUSED(flags);
     NC_UNUSED(parameters);
 
-    ZTRACE(6,"path=%s mode=%u flag=%llu",path,mode,flags);
+    ZTRACE(6,"path=%s mode=%d flag=%llu",path,mode,flags);
 
     if(!zs3initialized) zs3initialize();
 
@@ -153,8 +153,8 @@ zs3create(const char *path, unsigned mode, size64_t flags, void* parameters, NCZ
 	        goto done;
 	}
 	/* The root object may or may not already exist */
-	switch (stat = NC_s3sdkinfo(z3map->s3client,z3map->s3.bucket,z3map->s3.rootkey,NULL,&z3map->errmsg)) {
-	case NC_ENOOBJECT: /* no such object */
+        switch (stat = NC_s3sdkinfo(z3map->s3client,z3map->s3.bucket,z3map->s3.rootkey,NULL,&z3map->errmsg)) {
+	case NC_EEMPTY: /* no such object */
 	    stat = NC_NOERR;  /* which is what we want */
 	    errclear(z3map);
 	    break;
@@ -184,7 +184,7 @@ no obvious way to test for existence.
 So, we assume that the dataset must have
 some content. We look for that */
 static int
-zs3open(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMAP** mapp)
+zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     ZS3MAP* z3map = NULL;
@@ -195,7 +195,7 @@ zs3open(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMA
     NC_UNUSED(flags);
     NC_UNUSED(parameters);
 
-    ZTRACE(6,"path=%s mode=%u flags=%llu",path,mode,flags);
+    ZTRACE(6,"path=%s mode=%d flags=%llu",path,mode,flags);
 
     if(!zs3initialized) zs3initialize();
 
@@ -227,7 +227,7 @@ zs3open(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMA
 
     /* Search the root for content */
     content = nclistnew();
-    if((stat = NC_s3sdklist(z3map->s3client,z3map->s3.bucket,z3map->s3.rootkey,&nkeys,NULL,&z3map->errmsg)))
+    if((stat = NC_s3sdkgetkeys(z3map->s3client,z3map->s3.bucket,z3map->s3.rootkey,&nkeys,NULL,&z3map->errmsg)))
 	goto done;
     if(nkeys == 0) {
 	/* dataset does not actually exist; we choose to return ENOOBJECT instead of EEMPTY */
@@ -261,7 +261,7 @@ zs3truncate(const char *s3url)
     if((s3client = NC_s3sdkcreateclient(&info))==NULL) {stat = NC_ES3; goto done;}
     if((stat = s3clear(s3client,info.bucket,info.rootkey))) goto done;
 done:
-    if(s3client) {stat=NC_s3sdkclose(s3client,NULL);}
+    if(s3client) {stat=NC_s3sdkclose(s3client,&info,1,NULL);}
     ncurifree(url);
     ncurifree(purl);
     (void)NC_s3clear(&info);
@@ -303,7 +303,7 @@ zs3len(NCZMAP* map, const char* key, size64_t* lenp)
 
     switch (stat = NC_s3sdkinfo(z3map->s3client,z3map->s3.bucket,truekey,lenp,&z3map->errmsg)) {
     case NC_NOERR: break;
-    case NC_ENOOBJECT:
+    case NC_EEMPTY:
 	if(lenp) *lenp = 0;
 	goto done;
     default:
@@ -334,7 +334,7 @@ zs3read(NCZMAP* map, const char* key, size64_t start, size64_t count, void* cont
     
     switch (stat=NC_s3sdkinfo(z3map->s3client, z3map->s3.bucket, truekey, &size, &z3map->errmsg)) {
     case NC_NOERR: break;
-    case NC_ENOOBJECT: goto done;
+    case NC_EEMPTY: goto done;
     default: goto done; 	
     }
     /* Sanity checks */
@@ -373,7 +373,7 @@ zs3write(NCZMAP* map, const char* key, size64_t count, const void* content)
     switch (stat=NC_s3sdkinfo(z3map->s3client, z3map->s3.bucket, truekey, &objsize, &z3map->errmsg)) {
     case NC_NOERR: /* Figure out the new size of the object */
         break;
-    case NC_ENOOBJECT:
+    case NC_EEMPTY:
 	stat = NC_NOERR; /* reset */
         break;
     default: reporterr(z3map); goto done;
@@ -407,7 +407,7 @@ zs3close(NCZMAP* map, int deleteit)
     if(deleteit) 
         s3clear(z3map->s3client,z3map->s3.bucket,z3map->s3.rootkey);
      if(z3map->s3client && z3map->s3.bucket && z3map->s3.rootkey) {
-        NC_s3sdkclose(z3map->s3client, &z3map->errmsg);
+        NC_s3sdkclose(z3map->s3client, &z3map->s3, deleteit, &z3map->errmsg);
     }
     reporterr(z3map);
     z3map->s3client = NULL;
@@ -429,8 +429,7 @@ but it possible that it is not.
 static int
 zs3search(NCZMAP* map, const char* prefix, NClist* matches)
 {
-    int stat = NC_NOERR;
-    size_t i;
+    int i,stat = NC_NOERR;
     ZS3MAP* z3map = (ZS3MAP*)map;
     char** list = NULL;
     size_t nkeys;
@@ -444,7 +443,7 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
     if((stat = maketruekey(z3map->s3.rootkey,prefix,&trueprefix))) goto done;
     
     if(*trueprefix != '/') return NC_EINTERNAL;
-    if((stat = NC_s3sdklist(z3map->s3client,z3map->s3.bucket,trueprefix,&nkeys,&list,&z3map->errmsg)))
+    if((stat = NC_s3sdkgetkeys(z3map->s3client,z3map->s3.bucket,trueprefix,&nkeys,&list,&z3map->errmsg)))
         goto done;
     if(nkeys > 0) {
 	size_t tplen = strlen(trueprefix);
@@ -462,7 +461,7 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
         }
 	/* Now remove duplicates */
 	for(i=0;i<nclistlength(tmp);i++) {
-	    size_t j;
+	    int j;
 	    int duplicate = 0;
 	    const char* is = nclistget(tmp,i);
 	    for(j=0;j<nclistlength(matches);j++) {
@@ -491,69 +490,6 @@ done:
     return ZUNTRACEX(stat,"|matches|=%d",(int)nclistlength(matches));
 }
 
-/*
-Return a list of full keys "below" a specified prefix,
-but not including the prefix.
-In theory, the returned list should be sorted in lexical order,
-but it possible that it is not.
-@return NC_NOERR if success, even if no keys returned.
-@return NC_EXXX return true error
-*/
-static int
-zs3searchall(NCZMAP* map, const char* prefix, NClist* matches)
-{
-    int stat = NC_NOERR;
-    ZS3MAP* z3map = (ZS3MAP*)map;
-    char** list = NULL;
-    size_t i,nkeys;
-    char* trueprefix = NULL;
-    char* newkey = NULL;
-
-    ZTRACE(6,"map=%s prefix0=%s",map->url,prefix);
-    
-    if((stat = maketruekey(z3map->s3.rootkey,prefix,&trueprefix))) goto done;
-    
-    if(*trueprefix != '/') return NC_EINTERNAL;
-    if((stat = NC_s3sdklistall(z3map->s3client,z3map->s3.bucket,trueprefix,&nkeys,&list,&z3map->errmsg)))
-        goto done;
-    if(nkeys > 0) {
-	/* remove duplicates and prefix */
-	for(i=0;i<nkeys;i++) {
-	    size_t j;
-	    int duplicate = 0;
-	    char* is = list[i];
-    	    if(strcmp(is,prefix)==0) {list[i] = NULL; nullfree(is); continue;}
-	    for(j=0;j<nclistlength(matches);j++) {
-	        char* js = (char*)nclistget(matches,j);
-	        if(strcmp(js,is)==0) {duplicate = 1; break;} /* duplicate */
-	    }	    
-	    if(!duplicate) {
-	        nclistpush(matches,strdup(is));
-	    }
-	}
-    }
-	
-    /* Remove prefix from all entries in matches */
-    if((stat = nczm_removeprefix(trueprefix,nclistlength(matches),(char**)nclistcontents(matches)))) goto done;
-
-    /* Lexical sort the results */
-    nczm_sortlist(matches);
-
-#ifdef DEBUG
-    for(i=0;i<nclistlength(matches);i++) {
-	const char* is = nclistget(matches,i);
-	fprintf(stderr,"search: %s\n",is);
-    }
-#endif
-
-done:
-    nullfree(newkey);
-    nullfree(trueprefix);
-    reporterr(z3map);
-    freevector(nkeys,list);
-    return ZUNTRACEX(stat,"|matches|=%d",(int)nclistlength(matches));
-}
-
 /**************************************************/
 /* S3 Utilities */
 
@@ -569,7 +505,7 @@ s3clear(void* s3client, const char* bucket, const char* rootkey)
     size_t nkeys = 0;
 
     if(s3client && bucket && rootkey) {
-        if((stat = NC_s3sdklistall(s3client, bucket, rootkey, &nkeys, &list, NULL)))
+        if((stat = NC_s3sdksearch(s3client, bucket, rootkey, &nkeys, &list, NULL)))
             goto done;
         if(list != NULL) {
 	    size_t i;
@@ -654,5 +590,4 @@ nczs3sdkapi = {
     zs3read,
     zs3write,
     zs3search,
-    zs3searchall,
 };

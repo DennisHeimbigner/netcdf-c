@@ -5,7 +5,7 @@
 #ifndef ZDEBUG_H
 #define ZDEBUG_H
 
-#define ZCATCH /* Warning: significant performance impact */
+#undef ZCATCH /* Warning: significant performance impact */
 #undef ZTRACING /* Warning: significant performance impact */
 
 #undef ZDEBUG /* general debug */
@@ -15,10 +15,6 @@
 #include "nclog.h"
 
 #define ZLOG(tag,...) nclog(tag,__VA_ARGS__)
-
-#ifdef ZTRACING
-#define ZCATCH
-#endif
 
 #ifdef ZCATCH
 /* Place breakpoint on zbreakpoint to catch errors close to where they occur*/
@@ -43,8 +39,8 @@ EXTERNL int zreport(int err, const char* msg, const char* fname, const char* fcn
 #else
 #define ZTRACE(level,fmt,...)
 #define ZTRACEMORE(level,fmt,...)
-#define ZUNTRACE(e) THROW(e)
-#define ZUNTRACEX(e,fmt,...) THROW(e)
+#define ZUNTRACE(e) (e)
+#define ZUNTRACEX(e,fmt,...) (e)
 #endif
 
 /* printers */
@@ -65,7 +61,7 @@ EXTERNL char* nczprint_vector(size_t,const size64_t*);
 EXTERNL char* nczprint_idvector(size_t,const int*);
 EXTERNL char* nczprint_paramvector(size_t,const unsigned*);
 EXTERNL char* nczprint_sizevector(size_t,const size_t*);
-EXTERNL char* nczprint_envv(NClist*);
+EXTERNL char* nczprint_envv(const char** envv);
 
 EXTERNL void zdumpcommon(const struct Common*);
 

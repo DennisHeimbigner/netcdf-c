@@ -66,7 +66,7 @@ typedef zip_int64_t ZINDEX;;
 /* Forward */
 static NCZMAP_API zapi;
 static int zipclose(NCZMAP* map, int delete);
-static int zzcreategroup(ZZMAP*, const char* key, size_t nskip);
+static int zzcreategroup(ZZMAP*, const char* key, int nskip);
 static int zzlookupobj(ZZMAP*, const char* key, ZINDEX* fd);
 static int zzlen(ZZMAP* zzmap, ZINDEX zindex, size64_t* lenp);
 static int zipmaperr(ZZMAP* zzmap);
@@ -98,7 +98,7 @@ zipinitialize(void)
 */
 
 static int
-zipcreate(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMAP** mapp)
+zipcreate(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     ZZMAP* zzmap = NULL;
@@ -109,7 +109,7 @@ zipcreate(const char *path, unsigned mode, size64_t flags, void* parameters, NCZ
     char* abspath = NULL;
     
     NC_UNUSED(parameters);
-    ZTRACE(6,"path=%s mode=%u flag=%llu",path,mode,flags);
+    ZTRACE(6,"path=%s mode=%d flag=%llu",path,mode,flags);
 
     if(!zzinitialized) zipinitialize();
 
@@ -158,7 +158,7 @@ zipcreate(const char *path, unsigned mode, size64_t flags, void* parameters, NCZ
 #ifdef VERIFY
     zipflags |= ZIP_CHECKCONS;
 #endif
-    if((zzmap->archive = zip_open(zzmap->root,(int)zipflags,&zerrno))==NULL)
+    if((zzmap->archive = zip_open(zzmap->root,zipflags,&zerrno))==NULL)
         {stat = ziperrno(zerrno); goto done;}
 
     /* Tell it about the dataset as a dir */
@@ -186,7 +186,7 @@ done:
 */
 
 static int
-zipopen(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMAP** mapp)
+zipopen(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
 {
     int stat = NC_NOERR;
     ZZMAP* zzmap = NULL;
@@ -196,7 +196,7 @@ zipopen(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMA
     char* abspath = NULL;
     
     NC_UNUSED(parameters);
-    ZTRACE(6,"path=%s mode=%u flags=%llu",path,mode,flags);
+    ZTRACE(6,"path=%s mode=%d flags=%llu",path,mode,flags);
 
     if(!zzinitialized) zipinitialize();
 
@@ -238,7 +238,7 @@ zipopen(const char *path, unsigned mode, size64_t flags, void* parameters, NCZMA
     zipflags |= ZIP_CHECKCONS;
 #endif
     /* Open the file */
-    if((zzmap->archive = zip_open(zzmap->root,(int)zipflags,&zerrno))==NULL)
+    if((zzmap->archive = zip_open(zzmap->root,zipflags,&zerrno))==NULL)
         {stat = ziperrno(zerrno); goto done;}
 
     /* Use entry 0 to obtain the dataset name */
@@ -406,14 +406,14 @@ zipread(NCZMAP* map, const char* key, size64_t start, size64_t count, void* cont
     if(start == 0) { /*optimize to read directly into content */
         if((red = zip_fread(zfile, content, (zip_uint64_t)count)) < 0)
 	    {stat = (zipmaperr(zzmap)); goto done;}
-	if(((size64_t)red) < count) {stat = NC_EINTERNAL; goto done;}
+	if(red < count) {stat = NC_EINTERNAL; goto done;}
     } else {
         endpoint = start + count;
         if((buffer = malloc(endpoint))==NULL) /* consider caching this */
             {stat = NC_ENOMEM; goto done;}
         if((red = zip_fread(zfile, buffer, (zip_uint64_t)endpoint)) < 0)
 	    {stat = (zipmaperr(zzmap)); goto done;}
-	if(((size64_t)red) < endpoint) {stat = NC_EINTERNAL; goto done;}
+	if(red < endpoint) {stat = NC_EINTERNAL; goto done;}
         /* Extract what we need */
         memcpy(content,buffer+start,count);
     }
@@ -481,7 +481,7 @@ zipwrite(NCZMAP* map, const char* key, size64_t count, const void* content)
  
     zs = NULL; localbuffer = NULL;
 
-    if(zip_set_file_compression(zzmap->archive, (zip_uint64_t)zindex, compression, 0) < 0)
+    if(zip_set_file_compression(zzmap->archive, zindex, compression, 0) < 0)
 	{stat = zipmaperr(zzmap); goto done;}
 
     freesearchcache(zzmap->searchcache); zzmap->searchcache = NULL;
@@ -503,15 +503,14 @@ so, this search must get all keys and process them one by one.
 @return NC_NOERR if success, even if no keys returned.
 @return NC_EXXX return true error
 */
-static int
+int
 zipsearch(NCZMAP* map, const char* prefix0, NClist* matches)
 {
     int stat = NC_NOERR;
     ZZMAP* zzmap = (ZZMAP*)map;
     char* trueprefix = NULL;
     size_t truelen;
-    zip_int64_t num_entries;
-    zip_int64_t i;
+    zip_int64_t num_entries, i;
     char** cache = NULL;
     size_t prefixlen;
     NClist* tmp = NULL;
@@ -580,7 +579,7 @@ zipsearch(NCZMAP* map, const char* prefix0, NClist* matches)
 #ifdef CACHESEARCH
 	    key = zzmap->searchcache[i];
 #else
-	    key = zip_get_name(zzmap->archive, (zip_uint64_t)i, (zip_flags_t)0);
+	    key = zip_get_name(zzmap->archive, i, (zip_flags_t)0);
 #endif
 	    keylen = strlen(key);
 	    /* Does this name begin with trueprefix? */
@@ -595,10 +594,10 @@ zipsearch(NCZMAP* map, const char* prefix0, NClist* matches)
 	    nclistpush(tmp,match); match = NULL;
 	}
 	/* Now remove duplicates */
-	for(i=0;i<(zip_int64_t)nclistlength(tmp);i++) {
-	    size_t j;
+	for(i=0;i<nclistlength(tmp);i++) {
+	    int j;
 	    int duplicate = 0;
-	    const char* is = nclistget(tmp,(size_t)i);
+	    const char* is = nclistget(tmp,i);
 	    for(j=0;j<nclistlength(matches);j++) {
 	        const char* js = nclistget(matches,j);
 	        if(strcmp(js,is)==0) {duplicate = 1; break;} /* duplicate */
@@ -615,134 +614,15 @@ done:
     return ZUNTRACEX(stat,"|matches|=%d",(int)nclistlength(matches));
 }
 
-/*
-Return a list of all full keys under a specified prefix key.
-In theory, the returned list should be sorted in lexical order,
-but it possible that it is not.
-@return NC_NOERR if success, even if no keys returned.
-@return NC_EXXX return true error
-*/
-static int
-zipsearchall(NCZMAP* map, const char* prefix0, NClist* matches)
-{
-    int stat = NC_NOERR;
-    ZZMAP* zzmap = (ZZMAP*)map;
-    char* trueprefix = NULL;
-    size_t truelen;
-    zip_int64_t num_entries;
-    size_t i;
-    char** cache = NULL;
-    size_t prefixlen;
-
-    ZTRACE(6,"map=%s prefix0=%s",map->url,prefix0);
-
-    /* prefix constraints:
-       1. prefix is "/"
-       2. or prefix has leading '/' and no trailing '/'
-    */
-
-    /* Fix up the prefix; including adding the dataset name to the front */
-    if(prefix0 == NULL || strlen(prefix0)==0)
-        prefix0 = "/";
-    /* make sure that prefix0 has leading '/' */
-    if(prefix0[0] != '/')
-        {stat = NC_EINVAL; goto done;}
-    prefixlen = strlen(prefix0);
-    truelen = prefixlen+strlen(zzmap->dataset)+1; /* possible trailing '/'*/
-    if((trueprefix = (char*)malloc(truelen+1+1))==NULL) /* nul term */
-	{stat = NC_ENOMEM; goto done;}
-    /* Build the true prefix */
-    trueprefix[0] = '\0';
-    strlcat(trueprefix,zzmap->dataset,truelen+1);
-    strlcat(trueprefix,prefix0,truelen+1); /* recall prefix starts with '/' */
-    /* If the prefix did not end in '/', then add it */
-    if(prefixlen > 1 && prefix0[prefixlen-1] != '/')
-	strlcat(trueprefix,"/",truelen+1);
-    truelen = strlen(trueprefix);
-
-    /* Get number of entries */
-    num_entries = zip_get_num_entries(zzmap->archive, (zip_flags_t)0);
-#ifdef CACHESEARCH
-    if(num_entries > 0 && zzmap->searchcache == NULL) {
-        /* Release the current cache */
-        freesearchcache(zzmap->searchcache);
-        zzmap->searchcache = NULL;
-	/* Re-build the searchcache */
-        if((cache = calloc(sizeof(char*),num_entries+1))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-        for(i=0;i < num_entries; i++) {
-	    const char *name = NULL;
-	    /* get ith entry */
-	    name = zip_get_name(zzmap->archive, i, (zip_flags_t)0);
-	    /* Add to cache */
-	    if((cache[i] = strdup(name))==NULL)
-	        {stat = NC_ENOMEM; goto done;}
-	}
-	cache[num_entries] = NULL;
-	zzmap->searchcache = cache; cache = NULL;
-     }
-#endif
-#ifdef CACHESEARCH
-    if(zzmap->searchcache != NULL)
-#endif
-    {
-	const char *key = NULL;
-	size_t keylen = 0;
-
-	/* Walk cache looking for names with prefix */
-        for(i=0;i < (size_t)num_entries; i++) {
-	    /* get ith entry */
-#ifdef CACHESEARCH
-	    key = zzmap->searchcache[i];
-#else
-	    key = zip_get_name(zzmap->archive, i, (zip_flags_t)0);
-#endif
-	    keylen = strlen(key);
-	    /* Suppress any key that ends in '/' */
-	    if(key[keylen-1] == '/') continue;
-	    nclistpush(matches,nulldup(key));
-	}
-	/* Now remove later duplicates */
-	for(i=0;i<nclistlength(matches);i++) {
-	    size_t j;
-	    const char* is = nclistget(matches,i);
-	    if(nclistlength(matches) > 0)
-	      for(j=nclistlength(matches)-1;j>i;j--) {
-	        char* js = (char*)nclistget(matches,(size_t)j);
-	        if(strcmp(js,is)==0) {
-		    /* reclaim the duplicate */
-		    nclistremove(matches,(size_t)j);
-		    nullfree(js);
-		}
-	      }	    
-	}
-    }
-
-    /* Remove prefix from all entries in matches. */
-    if(trueprefix[strlen(trueprefix)-1] == '/')
-        {trueprefix[strlen(trueprefix)-1] = '\0'; truelen--;}
-
-    if((stat = nczm_removeprefix(trueprefix,nclistlength(matches),(char**)nclistcontents(matches)))) goto done;
-
-    /* Lexical sort the results */
-    nczm_sortlist(matches);
-
-done:
-    if(cache != NULL) freesearchcache(cache);
-    nullfree(trueprefix);
-    return ZUNTRACEX(stat,"|matches|=%d",(int)nclistlength(matches));
-}
-
 /**************************************************/
 /* Utilities */
 
 /* Guarantee existence of a group */
 static int
-zzcreategroup(ZZMAP* zzmap, const char* key, size_t nskip)
+zzcreategroup(ZZMAP* zzmap, const char* key, int nskip)
 {
     int stat = NC_NOERR;
-    size_t i;
-    size_t len;
+    int i, len;
     char* fullpath = NULL;
     NCbytes* path = ncbytesnew();
     NClist* segments = nclistnew();
@@ -827,7 +707,7 @@ zzlen(ZZMAP* zzmap, ZINDEX zindex, size64_t* lenp)
     ZTRACE(6,"zzmap=%s index=%llu",zzmap,zindex);
 
     zip_stat_init(&statbuf);
-    if(zip_stat_index(zzmap->archive,(zip_uint64_t)zindex,zipflags,&statbuf) < 0)
+    if(zip_stat_index(zzmap->archive,zindex,zipflags,&statbuf) < 0)
         {stat = (zipmaperr(zzmap)); goto done;}
     assert(statbuf.valid & ZIP_STAT_SIZE);
     len = statbuf.size; /* Always return uncompressed size */
@@ -868,7 +748,6 @@ static NCZMAP_API zapi = {
     zipread,
     zipwrite,
     zipsearch,
-    zipsearchall,
 };
 
 static int

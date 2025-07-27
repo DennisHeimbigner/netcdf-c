@@ -14,7 +14,6 @@
 #include "nclog.h"
 #include "ncrc.h"
 #include "ncxml.h"
-#include "ncutil.h"
 
 #include "ncs3sdk.h"
 #include "nch5s3comms.h"
@@ -54,7 +53,6 @@ typedef struct NCS3CLIENT {
 
 struct Object {
     NClist* checksumalgorithms; /* NClist<char*> */
-    NClist* checksumtypes; /* NClist<char*> */
     char* etag;
     char* key;
     char* lastmodified;
@@ -88,21 +86,21 @@ struct LISTOBJECTSV2 {
 static void s3client_destroy(NCS3CLIENT* s3client);
 static char* makes3rooturl(NCS3INFO* info);
 static int makes3fullpath(const char* pathkey, const char* bucket, const char* prefix, const char* key, NCbytes* url);
-static int parse_listbucketresult(char* xml, unsigned long long xmllen, struct LISTOBJECTSV2*);
+static int parse_listbucketresult(char* xml, unsigned long long xmllen, struct LISTOBJECTSV2**);
 static int parse_object(ncxml_t root, NClist* objects);
 static int parse_owner(ncxml_t root, struct Owner* ownerp);
 static int parse_prefix(ncxml_t root, NClist* prefixes);
 static int parse_checksumalgorithm(ncxml_t root, NClist* algorithms);
-static int parse_checksumtype(ncxml_t root, NClist* csumtypes);
+static struct LISTOBJECTSV2* alloclistobjectsv2(void);
 static struct Object* allocobject(void);
-static void clear_listobjectsv2(struct LISTOBJECTSV2* lo);
+static void reclaim_listobjectsv2(struct LISTOBJECTSV2* lo);
 static void reclaim_object(struct Object* o);
 static char* trim(char* s, int reclaim);
 static int makes3prefix(const char* prefix, char** prefixdirp);
 static int s3objectsinfo(NClist* contents, NClist* keys, NClist* lens);
 static int s3commonprefixes(NClist* list, NClist* keys);
 static int mergekeysets(NClist*,NClist*,NClist*);
-static int rawtokeys(s3r_buf_t* response, NClist* keys, NClist* lengths, struct LISTOBJECTSV2* listv2);
+static int rawtokeys(s3r_buf_t* response, NClist* keys, NClist* lengths, struct LISTOBJECTSV2** listv2p);
 static int httptonc(long httpcode);
 
 static int queryadd(NClist* query, const char* key, const char* value);
@@ -269,8 +267,6 @@ NC_s3sdkinfo(void* s3client0, const char* bucket, const char* pathkey, size64_t*
     long long len = -1;
     long httpcode = 0;
 
-    NC_UNUSED(errmsgp);
-
     NCTRACE(11,"bucket=%s pathkey=%s",bucket,pathkey);
 
     if((stat = makes3fullpath(s3client->rooturl,bucket,pathkey,NULL,url))) goto done;
@@ -281,7 +277,7 @@ NC_s3sdkinfo(void* s3client0, const char* bucket, const char* pathkey, size64_t*
 
 done:
     ncbytesfree(url);
-    return NCUNTRACEX(stat,"len=%lu",PTRVAL(unsigned long,lenp,(unsigned)-1));
+    return NCUNTRACEX(stat,"len=%d",PTRVAL(int,lenp,-1));
 }
 
 /*
@@ -296,8 +292,6 @@ NC_s3sdkread(void* s3client0, const char* bucket, const char* pathkey, size64_t 
     NCbytes* url = ncbytesnew();
     struct s3r_buf_t data = {0,NULL};
     long httpcode = 0;
-
-    NC_UNUSED(errmsgp);
 
     NCTRACE(11,"bucket=%s pathkey=%s start=%llu count=%llu content=%p",bucket,pathkey,start,count,content);
 
@@ -326,8 +320,6 @@ NC_s3sdkwriteobject(void* s3client0, const char* bucket, const char* pathkey,  s
     s3r_buf_t data;
     long httpcode = 0;
 
-    NC_UNUSED(errmsgp);
-
     NCTRACE(11,"bucket=%s pathkey=%s count=%llu content=%p",bucket,pathkey,count,content);
 
     if((stat = makes3fullpath(s3client->rooturl,bucket,pathkey,NULL,url))) goto done;
@@ -348,8 +340,6 @@ NC_s3sdkclose(void* s3client0, char** errmsgp)
 {
     int stat = NC_NOERR;
     NCS3CLIENT* s3client = (NCS3CLIENT*)s3client0;
-
-    NC_UNUSED(errmsgp);
 
     NCTRACE(11,"");
     s3client_destroy(s3client);
@@ -403,20 +393,16 @@ getkeys(void* s3client0, const char* bucket, const char* prefixkey0, const char*
     NCURI* purl = NULL;    
     NCbytes* listurl = ncbytesnew();
     NClist* allkeys = nclistnew();
-    struct LISTOBJECTSV2 listv2;
+    struct LISTOBJECTSV2* listv2 = NULL;
     int istruncated = 0;
     char* continuetoken = NULL;
     s3r_buf_t response = {0,NULL};
     long httpcode = 0;
 
-    NC_UNUSED(errmsgp);
-
     NCTRACE(11,"bucket=%s prefixkey0=%s",bucket,prefixkey0);
     
     /* cleanup the prefix */
     if((stat = makes3prefix(prefixkey0,&prefixdir))) return NCUNTRACE(stat);        
-
-    memset(&listv2,0,sizeof(listv2));
 
     do {
 	nclistfreeall(query);
@@ -445,17 +431,17 @@ getkeys(void* s3client0, const char* bucket, const char* prefixkey0, const char*
         if((stat = NCH5_s3comms_s3r_getkeys(s3client->h5s3client, ncbytescontents(listurl), &response, &httpcode))) goto done;
 	if((stat = httptonc(httpcode))) goto done;
         if((stat = rawtokeys(&response,allkeys,NULL,&listv2))) goto done;
-	istruncated = (strcasecmp(listv2.istruncated,"true")==0?1:0);
+	istruncated = (strcasecmp(listv2->istruncated,"true")==0?1:0);
 	nullfree(continuetoken);
-	continuetoken = nulldup(listv2.nextcontinuationtoken);
-        clear_listobjectsv2(&listv2);
+	continuetoken = nulldup(listv2->nextcontinuationtoken);
+        reclaim_listobjectsv2(listv2); listv2 = NULL;
     } while(istruncated);
     if(nkeysp) {*nkeysp = nclistlength(allkeys);}
     if(keysp) {*keysp = nclistextract(allkeys);}
 
 done:
     nullfree(continuetoken);    
-    clear_listobjectsv2(&listv2);
+    reclaim_listobjectsv2(listv2);
     nclistfreeall(allkeys);
     nclistfreeall(query);
     nullfree(querystring);
@@ -486,7 +472,6 @@ Essentially same as getkeys, but with no delimiter.
 EXTERNL int
 NC_s3sdklistall(void* s3client0, const char* bucket, const char* prefixkey0, size_t* nkeysp, char*** keysp, char** errmsgp)
 {
-    NC_UNUSED(errmsgp);
     NCTRACE(11,"bucket=%s prefixkey0=%s",bucket,prefixkey0);
     return NCUNTRACE(getkeys(s3client0, bucket, prefixkey0, NULL, nkeysp, keysp, errmsgp));
 }
@@ -499,8 +484,6 @@ NC_s3sdkdeletekey(void* s3client0, const char* bucket, const char* pathkey, char
     NCbytes* url = ncbytesnew();
     long httpcode = 0;
     
-    NC_UNUSED(errmsgp);
-
     NCTRACE(11,"s3client0=%p bucket=%s pathkey=%s",s3client0,bucket,pathkey);
 
     if((stat = makes3fullpath(s3client->rooturl,bucket,pathkey,NULL,url))) goto done;
@@ -524,13 +507,14 @@ done:
 Convert raw getkeys response to vector of keys
 */
 static int
-rawtokeys(s3r_buf_t* response, NClist* allkeys, NClist* lengths, struct LISTOBJECTSV2* listv2)
+rawtokeys(s3r_buf_t* response, NClist* allkeys, NClist* lengths, struct LISTOBJECTSV2** listv2p)
 {
     int stat = NC_NOERR;
+    struct LISTOBJECTSV2* listv2 = NULL;
     NClist* realkeys = nclistnew();
     NClist* commonkeys = nclistnew();
 
-    if((stat = parse_listbucketresult(response->content,response->count,listv2))) goto done;
+    if((stat = parse_listbucketresult(response->content,response->count,&listv2))) goto done;
 
     if(nclistlength(listv2->contents) > 0) {
         if((stat = s3objectsinfo(listv2->contents,realkeys,lengths))) goto done;
@@ -541,9 +525,11 @@ rawtokeys(s3r_buf_t* response, NClist* allkeys, NClist* lengths, struct LISTOBJE
     } 
     if((stat=mergekeysets(realkeys, commonkeys, allkeys))) goto done;
 
+    if(listv2p) {*listv2p = listv2; listv2 = NULL;}
 done:
     nclistfreeall(realkeys);
     nclistfreeall(commonkeys);
+    reclaim_listobjectsv2(listv2);
     return stat;
 }
 
@@ -620,7 +606,7 @@ static int
 mergekeysets(NClist* keys1, NClist* keys2, NClist* merge)
 {
     int stat = NC_NOERR;
-    size_t i;
+    int i;
     size_t nkeys1 = nclistlength(keys1);
     size_t nkeys2 = nclistlength(keys2);
     for(i=0;i<nkeys1;i++) nclistpush(merge,nclistremove(keys1,0));		
@@ -662,7 +648,6 @@ HTTP/1.1 200
       <Size>integer</Size>
       <StorageClass>string</StorageClass>
       <ChecksumAlgorithm>string</ChecksumAlgorithm>
-      <ChecksumType>FULL_OBJECT</ChecksumType>
       <Owner>
          <DisplayName>string</DisplayName>
          <ID>string</ID>
@@ -687,33 +672,32 @@ HTTP/1.1 200
 */
 
 static int
-parse_listbucketresult(char* xml, unsigned long long xmllen, struct LISTOBJECTSV2* result)
+parse_listbucketresult(char* xml, unsigned long long xmllen, struct LISTOBJECTSV2** resultp)
 {
     int stat = NC_NOERR;
     ncxml_doc_t doc = NULL;
     ncxml_t x;
-    const char* elem = NULL;
+    struct LISTOBJECTSV2* result = NULL;
 
 #ifdef DEBUG
     printf("-------------------------%s\n-------------------------\n",xml);
 #endif
 
     doc = ncxml_parse(xml,xmllen);
-    if(doc == NULL) {stat = NCTHROW(NC_ES3); goto done;}
+    if(doc == NULL) {stat = NC_ES3; goto done;}
     ncxml_t dom = ncxml_root(doc);
 
     /* Verify top level element */
     if(strcmp(ncxml_name(dom),"ListBucketResult")!=0) {
 	nclog(NCLOGERR,"Expected: <ListBucketResult> actual: <%s>",ncxml_name(dom));
-	stat = NCTHROW(NC_ES3);
+	stat = NC_ES3;
 	goto done;
     }
-    result->contents = nclistnew();
-    result->commonprefixes = nclistnew();
+    if((result = alloclistobjectsv2())==NULL) {stat = NC_ENOMEM; goto done;}
 
     /* Iterate next-level elements */
     for(x=ncxml_child_first(dom);x != NULL;x=ncxml_child_next(x)) {
-	elem = ncxml_name(x);
+	const char* elem = ncxml_name(x);
 	if(strcmp(elem,"IsTruncated")==0) {
 	    result->istruncated = trim(ncxml_text(x),RECLAIM);
 	} else if(strcmp(elem,"Contents")==0) {
@@ -742,13 +726,15 @@ parse_listbucketresult(char* xml, unsigned long long xmllen, struct LISTOBJECTSV
 	    result->startafter = trim(ncxml_text(x),RECLAIM);
 	} else {
 	    nclog(NCLOGERR,"Unexpected Element: <%s>",elem);
-	    stat = NCTHROW(NC_ES3);
+	    stat = NC_ES3;
 	    goto done;
 	}
     }
+    if(resultp) {*resultp = result; result = NULL;}
 
 done:
     if(doc) ncxml_free(doc);
+    if(result) reclaim_listobjectsv2(result);
     return NCTHROW(stat);
 }
 
@@ -758,23 +744,20 @@ parse_object(ncxml_t root, NClist* objects)
     int stat = NC_NOERR;
     ncxml_t x;
     struct Object* object = NULL;
-    const char* elem = NULL;
 
     /* Verify top level element */
     if(strcmp(ncxml_name(root),"Contents")!=0) {
 	nclog(NCLOGERR,"Expected: <Contents> actual: <%s>",ncxml_name(root));
-	stat = NCTHROW(NC_ES3);
+	stat = NC_ES3;
 	goto done;
     }
 
     if((object = allocobject())==NULL) {stat = NC_ENOMEM; goto done;}
 
     for(x=ncxml_child_first(root);x != NULL;x=ncxml_child_next(x)) {
-	elem = ncxml_name(x);
+	const char* elem = ncxml_name(x);
 	if(strcmp(elem,"ChecksumAlgorithm")==0) {
 	    if((stat = parse_checksumalgorithm(x,object->checksumalgorithms))) goto done;
-	} else if(strcmp(elem,"ChecksumType")==0) {
-	    if((stat = parse_checksumtype(x,object->checksumtypes))) goto done;
 	} else if(strcmp(elem,"ETag")==0) {
 	    object->etag = trim(ncxml_text(x),RECLAIM);
 	} else if(strcmp(elem,"Key")==0) {
@@ -793,7 +776,7 @@ parse_object(ncxml_t root, NClist* objects)
 	    /* Ignore */
 	} else {
 	    nclog(NCLOGERR,"Unexpected Element: <%s>",elem);
-	    stat = NCTHROW(NC_ES3);
+	    stat = NC_ES3;
 	    goto done;
 	}
     }
@@ -810,24 +793,23 @@ parse_owner(ncxml_t root, struct Owner* owner)
 {
     int stat = NC_NOERR;
     ncxml_t x;
-    const char* elem = NULL;
 
     /* Verify top level element */
     if(strcmp(ncxml_name(root),"Owner")!=0) {
 	nclog(NCLOGERR,"Expected: <Owner> actual: <%s>",ncxml_name(root));
-	stat = NCTHROW(NC_ES3);
+	stat = NC_ES3;
 	goto done;
     }
 
     for(x=ncxml_child_first(root);x != NULL;x=ncxml_child_next(x)) {
-	elem = ncxml_name(x);
+	const char* elem = ncxml_name(x);
 	if(strcmp(elem,"DisplayName")==0) {
 	    owner->displayname = trim(ncxml_text(x),RECLAIM);
 	} else if(strcmp(elem,"ID")==0) {
 	    owner->id = trim(ncxml_text(x),RECLAIM);
 	} else {
 	    nclog(NCLOGERR,"Unexpected Element: <%s>",elem);
-	    stat = NCTHROW(NC_ES3);
+	    stat = NC_ES3;
 	    goto done;
 	}
     }
@@ -842,24 +824,23 @@ parse_prefix(ncxml_t root, NClist* prefixes)
     int stat = NC_NOERR;
     ncxml_t x;
     char* prefix = NULL;
-    const char* elem = NULL;
 
     /* Verify top level element */
     if(strcmp(ncxml_name(root),"CommonPrefixes")!=0) {
 	nclog(NCLOGERR,"Expected: <CommonPrefixes> actual: <%s>",ncxml_name(root));
-	stat = NCTHROW(NC_ES3);
+	stat = NC_ES3;
 	goto done;
     }
 
     for(x=ncxml_child_first(root);x != NULL;x=ncxml_child_next(x)) {
-	elem = ncxml_name(x);
+	const char* elem = ncxml_name(x);
 	if(strcmp(elem,"Prefix")==0) {
 	    prefix = trim(ncxml_text(x),RECLAIM);
 	    nclistpush(prefixes,prefix);
 	    prefix = NULL;
 	} else {
 	    nclog(NCLOGERR,"Unexpected Element: <%s>",elem);
-	    stat = NCTHROW(NC_ES3);
+	    stat = NC_ES3;
 	    goto done;
 	}
     }
@@ -878,7 +859,7 @@ parse_checksumalgorithm(ncxml_t root, NClist* algorithms)
     /* Verify top level element */
     if(strcmp(ncxml_name(root),"ChecksumAlgorithm")!=0) {
 	nclog(NCLOGERR,"Expected: <ChecksumAlgorithm> actual: <%s>",ncxml_name(root));
-	stat = NCTHROW(NC_ES3);
+	stat = NC_ES3;
 	goto done;
     }
     alg = trim(ncxml_text(root),RECLAIM);
@@ -890,25 +871,15 @@ done:
     return NCTHROW(stat);
 }
 
-static int
-parse_checksumtype(ncxml_t root, NClist* csumtypes)
+static struct LISTOBJECTSV2*
+alloclistobjectsv2(void)
 {
-    int stat = NC_NOERR;
-    char* csumtype = NULL;
-
-    /* Verify top level element */
-    if(strcmp(ncxml_name(root),"ChecksumType")!=0) {
-	nclog(NCLOGERR,"Expected: <ChecksumType> actual: <%s>",ncxml_name(root));
-	stat = NCTHROW(NC_ES3);
-	goto done;
-    }
-    csumtype = trim(ncxml_text(root),RECLAIM);
-    nclistpush(csumtypes,csumtype);
-    csumtype = NULL;
-
-done:
-    nullfree(csumtype);
-    return NCTHROW(stat);
+    struct LISTOBJECTSV2* lov2 = NULL;
+    if((lov2 = calloc(1,sizeof(struct LISTOBJECTSV2))) == NULL)
+	return lov2;
+    lov2->contents = nclistnew();
+    lov2->commonprefixes = nclistnew();
+    return lov2;
 }
 
 static struct Object*
@@ -918,15 +889,14 @@ allocobject(void)
     if((obj = calloc(1,sizeof(struct Object))) == NULL)
 	return obj;
     obj->checksumalgorithms = nclistnew();
-    obj->checksumtypes = nclistnew();
     return obj;
 }
 
 static void
-clear_listobjectsv2(struct LISTOBJECTSV2* lo)
+reclaim_listobjectsv2(struct LISTOBJECTSV2* lo)
 {
-    size_t i;
-    
+    int i;
+    if(lo == NULL) return;
     nullfree(lo->istruncated);
     for(i=0;i<nclistlength(lo->contents);i++)
         reclaim_object((struct Object*)nclistget(lo->contents,i));
@@ -941,7 +911,7 @@ clear_listobjectsv2(struct LISTOBJECTSV2* lo)
     nullfree(lo->continuationtoken);
     nullfree(lo->nextcontinuationtoken);
     nullfree(lo->startafter);
-    memset(lo,0,sizeof(struct LISTOBJECTSV2));
+    free(lo);
 }
 
 static void
@@ -949,7 +919,6 @@ reclaim_object(struct Object* o)
 {
     if(o == NULL) return;
     nclistfreeall(o->checksumalgorithms);
-    nclistfreeall(o->checksumtypes);
     nullfree(o->etag);
     nullfree(o->key);
     nullfree(o->lastmodified);
@@ -974,7 +943,7 @@ trim(char* s, int reclaim)
     for(p=s+(strlen(s)-1);p >= s;p--) {
 	if(*p > ' ') {last = (p - s); break;}
     }
-    len = (size_t)(last - first) + 1;
+    len = (last - first) + 1;
     if((t = (char*)malloc(len+1))==NULL) return t;
     memcpy(t,s+first,len);
     t[len] = '\0';
@@ -1039,7 +1008,7 @@ static int
 s3commonprefixes(NClist* list, NClist* keys)
 {
     int stat = NC_NOERR;
-    size_t i;
+    int i;
 
     for (i=0;i<nclistlength(list);i++) {
 	char* p;
@@ -1111,19 +1080,16 @@ queryend(NClist* query, char** querystring)
 static int 
 queryinsert(NClist* list, char* ekey, char* evalue)
 {
-    int stat = NC_NOERR;
-    size_t i;
-    int pos;
-
+    int pos,i,stat = NC_NOERR;
     for(pos=-1,i=0;i<nclistlength(list);i+=2) {
 	const char* key = (const char*)nclistget(list,i);
 	int cmp = strcmp(key,ekey);
 	if(cmp == 0) {stat = NC_EINVAL; goto done;} /* duplicate keys */
-	if(cmp > 0) {pos = (int)i; break;} /* key > ekey => insert ekey before key */
+	if(cmp > 0) {pos = i; break;} /* key > ekey => insert ekey before key */
     }
-    if(pos < 0) pos = (int)nclistlength(list); /* insert at end; also works if |list|==0 */
-    nclistinsert(list,(size_t)pos,evalue);
-    nclistinsert(list,(size_t)pos,ekey);
+    if(pos < 0) pos = nclistlength(list); /* insert at end; also works if |list|==0 */
+    nclistinsert(list,pos,evalue);
+    nclistinsert(list,pos,ekey);
 done:
     return NCTHROW(stat);
 }

@@ -33,7 +33,7 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NClist* controls)
     NCjson* json = NULL;
     char* key = NULL;
 
-    ZTRACE(3,"file=%s root=%s controls=%s",file->hdr.name,root->hdr.name,(controls?nczprint_envv(controls):"null"));
+    ZTRACE(3,"file=%s root=%s controls=%s",file->hdr.name,root->hdr.name,(controls?nczprint_env(controls):"null"));
 
     nc = (NC*)file->controller;
 
@@ -52,13 +52,13 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NClist* controls)
     /* Fill in NCZ_FILE_INFO_T */
     zinfo->creating = 1;
     zinfo->common.file = file;
-    zinfo->native_endianness = (NC_isLittleEndian() ? NC_ENDIAN_LITTLE : NC_ENDIAN_BIG);
+    zinfo->native_endianness = (NCZ_isLittleEndian() ? NC_ENDIAN_LITTLE : NC_ENDIAN_BIG);
     if((zinfo->controllist=nclistclone(controls,1)) == NULL)
 	{stat = NC_ENOMEM; goto done;}
 
     /* fill in some of the zinfo and zroot fields */
     zinfo->zarr.zarr_version = atoi(ZARRVERSION);
-    sscanf(NCZARRVERSION,"%u.%u.%u",
+    sscanf(NCZARRVERSION,"%lu.%lu.%lu",
 	   &zinfo->zarr.nczarr_version.major,
 	   &zinfo->zarr.nczarr_version.minor,
 	   &zinfo->zarr.nczarr_version.release);
@@ -126,7 +126,7 @@ ncz_open_dataset(NC_FILE_INFO_T* file, NClist* controls)
     /* Fill in NCZ_FILE_INFO_T */
     zinfo->creating = 0;
     zinfo->common.file = file;
-    zinfo->native_endianness = (NC_isLittleEndian() ? NC_ENDIAN_LITTLE : NC_ENDIAN_BIG);
+    zinfo->native_endianness = (NCZ_isLittleEndian() ? NC_ENDIAN_LITTLE : NC_ENDIAN_BIG);
     if((zinfo->controllist=nclistclone(controls,1)) == NULL)
 	{stat = NC_ENOMEM; goto done;}
     zinfo->default_maxstrlen = NCZ_MAXSTR_DEFAULT;
@@ -229,7 +229,7 @@ NCZ_get_libversion(unsigned long* majorp, unsigned long* minorp,unsigned long* r
  * @author Dennis Heimbigner.
  */
 int
-NCZ_get_superblock(NC_FILE_INFO_T* file, unsigned* superblockp)
+NCZ_get_superblock(NC_FILE_INFO_T* file, int* superblockp)
 {
     NCZ_FILE_INFO_T* zinfo = file->format_file_info;
     if(superblockp) *superblockp = zinfo->zarr.nczarr_version.major;

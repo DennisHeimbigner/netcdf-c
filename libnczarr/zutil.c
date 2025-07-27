@@ -401,7 +401,6 @@ ncz_fill_value_sort(nc_type nctype, int* sortp)
     return NC_NOERR;	        
 }
 
-#if 0
 /* Return 1 if this machine is little endian */
 int
 NCZ_isLittleEndian(void)
@@ -413,7 +412,7 @@ NCZ_isLittleEndian(void)
     u.i = 1;
     return (u.bytes[0] == 1 ? 1 : 0);
 }
-#endif
+
 
 /*
 Given a path to a group, return the list of objects

@@ -28,7 +28,6 @@
 #include "ncbytes.h"
 #include "ncrc.h"
 #include "nclog.h"
-#include "ncutil.h"
 #include "ncs3sdk.h"
 
 #undef AWSDEBUG
@@ -197,10 +196,10 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
     if(region == NULL && s3 != NULL)
 	region = nulldup(s3->region);
     if(region == NULL) {
-        const char* regiondfalt = NULL;
+        const char* region0 = NULL;
 	/* Get default region */
-	if((stat = NC_getdefaults3region(url,&regiondfalt))) goto done;
-	region = nulldup(regiondfalt);
+	if((stat = NC_getdefaults3region(url,&region0))) goto done;
+	region = nulldup(region0);
     }
     if(region == NULL) {stat = NC_ES3; goto done;}
 

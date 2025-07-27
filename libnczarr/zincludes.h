@@ -46,7 +46,6 @@ extern "C" {
 #include "ncs3sdk.h"
 #include "ncindex.h"
 #include "ncjson.h"
-#include "ncutil.h"
 
 #include "zmap.h"
 #include "zinternal.h"

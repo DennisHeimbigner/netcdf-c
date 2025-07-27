@@ -95,9 +95,10 @@ struct Dumpptions {
 static int objdump(void);
 static NCZM_IMPL implfor(const char* path);
 static void printcontent(size64_t len, const char* content, OBJKIND kind);
-static int depthfirst(NCZMAP* map, const char*, NClist* stack);
+static int breadthfirst(NCZMAP* map, const char*, NClist* stack);
 static char* rootpathfor(const char* path);
 static OBJKIND keykind(const char* key);
+static void sortlist(NClist* l);
 static const char* filenamefor(const char* f0);
 
 #define NCCHECK(expr) nccheck((expr),__LINE__)
@@ -260,7 +261,7 @@ implfor(const char* path)
     mode = ncurifragmentlookup(uri,"mode");
     if(mode == NULL) goto done;
     /* split on commas */
-    NCCHECK(NC_split_delim(mode,',',segments));
+    NCCHECK(nczm_split_delim(mode,',',segments));
     for(size_t i=0;i<nclistlength(segments);i++) {
         const char* value = nclistget(segments,i);
 	if(strcmp(value,"file")==0) {impl = NCZM_FILE; goto done;}
@@ -297,7 +298,7 @@ rootpathfor(const char* path)
 	p = (char*)nclistremove(segments,0);
 	nullfree(p); p = NULL;
         /* Put it back together */
-        if((stat = NC_join(segments,&rootpath))) goto done;
+        if((stat = nczm_join(segments,&rootpath))) goto done;
 	} break;
 #endif
     default:
@@ -327,12 +328,13 @@ objdump(void)
         goto done;
 
     /* Depth first walk all the groups to get all keys */
-    if((stat = depthfirst(map,"/",stack))) goto done;
+    if((stat = breadthfirst(map,"/",stack))) goto done;
 
     if(dumpoptions.debug) {
 
         fprintf(stderr,"stack:\n");
         for(size_t i=0;i<nclistlength(stack);i++)
+
             fprintf(stderr,"[%zu] %s\n",i,(char*)nclistget(stack,i));
     }    
     for(size_t depth=0;depth < nclistlength(stack);depth++) {
@@ -345,7 +347,7 @@ objdump(void)
 	/* Now print info for this obj key */
         switch (stat=nczmap_len(map,obj,&len)) {
 	    case NC_NOERR: hascontent = 1; break;
-	    case NC_ENOOBJECT: /* fall thru */ /* this key does not exist */
+	    case NC_EEMPTY: /* fall thru */ /* this is not a content bearing key */
 	    case NC_EACCESS: hascontent = 0; len = 0; stat = NC_NOERR; break;
 	    default: goto done;
 	}
@@ -395,7 +397,6 @@ done:
     return stat;
 }
 
-#if 0
 /* Depth first walk all the groups to get all keys */
 static int
 breadthfirstR(NCZMAP* map, NCbytes* prefix, NClist* stack)
@@ -414,20 +415,11 @@ breadthfirstR(NCZMAP* map, NCbytes* prefix, NClist* stack)
     /* Push new names onto the stack and recurse */
     mark = ncbyteslength(prefix); /* save this position */
     while(nclistlength(nextlevel) > 0) {
-	size64_t size = 0;
         char* subkey = nclistremove(nextlevel,0);
 	if(!isroot) ncbytescat(prefix,"/");
 	ncbytescat(prefix,subkey);
-	/* Ensure that key does not point to a non-content bearing object */
-	stat = nczmap_len(map,subkey,&size);
 	nullfree(subkey);
-	switch (stat) {	
-	case NC_NOERR:
-	    nclistpush(stack,ncbytesdup(prefix));
-	    break;
-	case NC_EEMPTY: break; /* a directory */
-	default: goto done;
-	}
+        nclistpush(stack,ncbytesdup(prefix));
 	if((stat = breadthfirstR(map,prefix,stack))) goto done;
 	ncbytessetlength(prefix,mark); ncbytesnull(prefix);
     }
@@ -435,11 +427,10 @@ done:
    nclistfreeall(nextlevel);
    return stat;
 }
-#endif
 
 /* Depth first walk all the groups to get all keys */
 static int
-depthfirst(NCZMAP* map, const char* key, NClist* allkeys)
+breadthfirst(NCZMAP* map, const char* key, NClist* stack)
 {
     int stat = NC_NOERR;
     NCbytes* prefix = ncbytesnew();
@@ -451,10 +442,11 @@ depthfirst(NCZMAP* map, const char* key, NClist* allkeys)
         ncbytessetlength(prefix,ncbyteslength(prefix)-1); /* remove trailing '/' */
 	ncbytesnull(prefix);
     }
-    stat = nczmap_searchall(map,ncbytescontents(prefix),allkeys);
+    stat = breadthfirstR(map,prefix,stack);
     ncbytesfree(prefix);
     return stat;
 }
+
 
 static void
 printcontent(size64_t len, const char* content, OBJKIND kind)
@@ -532,6 +524,31 @@ keykind(const char* key)
     }
     nullfree(suffix);
     return kind;
+}
+
+/* bubble sort a list of strings */
+static void
+sortlist(NClist* l)
+{
+    size_t i, switched;
+
+    if(nclistlength(l) <= 1) return;
+    do {
+	switched = 0;
+        for(i=0;i<nclistlength(l)-1;i++) {
+	    char* ith = nclistget(l,i);
+	    char* ith1 = nclistget(l,i+1);
+	    if(strcmp(ith,ith1) > 0) {
+	        nclistset(l,i,ith1);
+    	        nclistset(l,i+1,ith);
+	        switched = 1;
+	    }
+	}
+    } while(switched);
+#if 0
+for(i=0;i<nclistlength(l);i++)
+fprintf(stderr,"sorted: [%d] %s\n",i,(const char*)nclistget(l,i));
+#endif
 }
 
 static const char* urlexts[] = {"nzf", "zip", "nz4", NULL};

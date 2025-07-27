@@ -56,8 +56,8 @@ struct NC_FILE_INFO;
 
 typedef struct NC4_Provenance {
     char* ncproperties; /* raw value of _NCProperties; NULL => does not exist */
-    unsigned version; 
-    unsigned superblockversion;
+    int version; 
+    int superblockversion;
 } NC4_Provenance;
 
 /* Provenance Management (moved from nc4internal.h) */

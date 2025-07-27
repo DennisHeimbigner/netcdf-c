@@ -35,7 +35,7 @@ static void
 cleanup(void)
 {
     if(s3client)
-        NC_s3sdkclose(s3client, NULL);
+        NC_s3sdkclose(s3client, &s3info, 0/*deleteit*/, NULL);
     s3client = NULL;
     NC_s3clear(&s3info);
 }

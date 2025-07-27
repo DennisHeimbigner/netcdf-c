@@ -198,27 +198,48 @@ nczmap_search(NCZMAP* map, const char* prefix, NClist* matches)
     return stat;
 }
 
-int
-nczmap_searchall(NCZMAP* map, const char* prefix, NClist* matches)
-{
-    int stat = NC_NOERR;
-    if((stat = map->api->searchall(map, prefix, matches)) == NC_NOERR) {
-        /* sort the list */
-        if(nclistlength(matches) > 1) {
-	    void* base = nclistcontents(matches);
-            qsort(base, nclistlength(matches), sizeof(char*), cmp_strings);
-	}
-    }
-    return stat;
-}
-
 /**************************************************/
 /* Utilities */
 
 int
 nczm_split(const char* path, NClist* segments)
 {
-    return NC_split_delim(path,NCZM_SEP[0],segments);
+    return nczm_split_delim(path,NCZM_SEP[0],segments);
+}
+
+int
+nczm_split_delim(const char* path, char delim, NClist* segments)
+{
+    return NC_split_delim(path,delim,segments);
+}
+
+/* concat the the segments with each segment preceded by '/' */
+int
+nczm_join(NClist* segments, char** pathp)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    NCbytes* buf = NULL;
+
+    if(segments == NULL)
+	{stat = NC_EINVAL; goto done;}
+    if((buf = ncbytesnew())==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if(nclistlength(segments) == 0)
+        ncbytescat(buf,"/");
+    else for(i=0;i<nclistlength(segments);i++) {
+	const char* seg = nclistget(segments,i);
+	if(seg[0] != '/')
+	    ncbytescat(buf,"/");
+	ncbytescat(buf,seg);		
+    }
+
+done:
+    if(!stat) {
+	if(pathp) *pathp = ncbytesextract(buf);
+    }
+    ncbytesfree(buf);
+    return THROW(stat);
 }
 
 int
@@ -480,35 +501,13 @@ done:
     return THROW(stat);    
 }
 
-/* Remove a given prefix from the front of each given key */
-int
-nczm_removeprefix(const char* prefix, size_t nkeys, char** keys)
-{
-    int stat = NC_NOERR;
-    size_t i,prefixlen;
-
-    if(nkeys == 0 || keys == NULL) return stat;
-    prefixlen = strlen(prefix);
-    for(i=0;i<nkeys;i++) {
-	if(strncmp(keys[i],prefix,prefixlen)==0) {
-	    char* newkey = strdup(keys[i]+prefixlen);
-	    if(newkey == NULL) return NC_ENOMEM;
-	    nullfree(keys[i]);
-	    keys[i] = newkey;
-	    newkey = NULL;
-	}
-    }
-    return stat;
-}
-
-/* sort a list of strings */
+/* bubble sort a list of strings */
 void
 nczm_sortlist(NClist* l)
 {
-    NC_sortenvv(nclistlength(l),(char**)nclistcontents(l));
+    nczm_sortenvv(nclistlength(l),(char**)nclistcontents(l));
 }
 
-#if 0
 static int
 nczm_compare(const void* arg1, const void* arg2)
 {
@@ -546,4 +545,3 @@ NCZ_freeenvv(int n, char** envv)
     }
     free(envv);    
 }
-#endif /*0*/

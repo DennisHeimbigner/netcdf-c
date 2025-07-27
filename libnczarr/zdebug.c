@@ -45,7 +45,7 @@ zreport(int err, const char* msg, const char* file, const char* fcn, int line)
 /* Data Structure printers */
 
 static NClist* reclaim = NULL;
-static const size_t maxreclaim = 16;
+static const int maxreclaim = 16;
 
 static char*
 capture(char* s)
@@ -249,7 +249,7 @@ nczprint_sliceprojectionsx(const NCZSliceProjections slp, int raw)
     char* result = NULL;
     NCbytes* buf = ncbytesnew();
     char tmp[4096];
-    size_t i;
+    int i;
 
     snprintf(tmp,sizeof(tmp),"SliceProjection{r=%d range=%s count=%ld",
     		slp.r,nczprint_chunkrange(slp.range),(long)slp.count);
@@ -320,7 +320,7 @@ char*
 nczprint_vector(size_t len, const size64_t* vec)
 {
     char* result = NULL;
-    size_t i;
+    int i;
     char value[128];
     NCbytes* buf = ncbytesnew();
 
@@ -337,19 +337,17 @@ nczprint_vector(size_t len, const size64_t* vec)
 }
 
 char*
-nczprint_envv(NClist* envv)
+nczprint_envv(const char** envv)
 {
     char* result = NULL;
-    size_t i;
+    int i;
     NCbytes* buf = ncbytesnew();
     const char** p;
 
     ncbytescat(buf,"(");
     if(envv) {
-	size_t len = nclistlength(envv);
-	p = (const char**)nclistcontents(envv);
-        for(i=0;i<len;i++,p++) {
-	    if(i > 0) ncbytescat(buf,",");
+        for(i=0,p=envv;*p;p++,i++) {
+        if(i > 0) ncbytescat(buf,",");
 	    ncbytescat(buf,"'");
 	    ncbytescat(buf,*p);
 	    ncbytescat(buf,"'");

@@ -52,6 +52,10 @@ endif
 endif
 
 if NETCDF_ENABLE_S3
+if NETCDF_ENABLE_S3_TESTALL
+check_PROGRAMS += test_s3sdk
+TESTS += run_s3sdk.sh
+endif
 check_PROGRAMS += aws_config
 TESTS += run_aws_config.sh
 endif
