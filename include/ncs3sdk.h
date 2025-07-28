@@ -65,6 +65,7 @@ EXTERNL int NC_s3sdkclose(void* s3client0, char** errmsgp);
 EXTERNL int NC_s3sdktruncate(void* s3client0, const char* bucket, const char* prefix, char** errmsgp);
 EXTERNL int NC_s3sdklist(void* s3client0, const char* bucket, const char* prefix, size_t* nkeysp, char*** keysp, char** errmsgp);
 EXTERNL int NC_s3sdklistall(void* s3client0, const char* bucket, const char* prefixkey0, size_t* nkeysp, char*** keysp, char** errmsgp);
+
 EXTERNL int NC_s3sdkdeletekey(void* client0, const char* bucket, const char* pathkey, char** errmsgp);
 
 /* From ds3util.c */
