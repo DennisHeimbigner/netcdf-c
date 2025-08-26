@@ -61,9 +61,9 @@ NC_s3sdkenvironment(void)
     /* Get various environment variables as defined by the AWS sdk */
     NCglobalstate* gs = NC_getglobalstate();
     if(getenv("AWS_REGION")!=NULL)
-        gs->aws.default_region = nulldup(getenv("AWS_REGION"));
-    else if(getenv("AWS_DEFAULT_REGION")!=NULL)
-        gs->aws.default_region = nulldup(getenv("AWS_DEFAULT_REGION"));
+        gs->aws.default_region = nulldup(getenv(AWS_ENV_REGION));
+    else if(getenv("AWS_ENV_DEFAULT_REGION)!=NULL)
+        gs->aws.default_region = nulldup(getenv(AWS_ENV_DEFAULT_REGION));
     else if(gs->aws.default_region == NULL)
         gs->aws.default_region = nulldup(AWS_GLOBAL_DEFAULT_REGION);
     gs->aws.access_key_id = nulldup(getenv("AWS_ACCESS_KEY_ID"));

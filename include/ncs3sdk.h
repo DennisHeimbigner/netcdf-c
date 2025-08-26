@@ -12,6 +12,20 @@
 /* Define the "global" default region to be used if no other region is specified */
 #define AWS_GLOBAL_DEFAULT_REGION "us-east-1"
 
+/* AWS getenv() keys */
+#define AWS_ENV_ACCESS_KEY_ID "AWS_ACCESS_KEY_ID"
+#define AWS_ENV_SECRET_ACCESS_KEY "AWS_SECRET_ACCESS_KEY"
+#define AWS_ENV_CONFIG_FILE "AWS_CONFIG_FILE"
+#define AWS_ENV_PROFILE "AWS_PROFILE"
+#define AWS_ENV_REGION "AWS_REGION"
+#define AWS_ENV_DEFAULT_REGION "AWS_DEFAULT_REGION"
+
+/* Known .aws profile keys (lowercase) */
+#define AWS_PROF_ACCESS_KEY_ID "aws_access_key_id"
+#define AWS_PROF_SECRET_ACCESS_KEY "aws_secret_access_key"
+#define AWS_PROF_REGION "aws_region"
+#define AWS_PROF_SESSION_TOKEN "aws_session_token"
+
 /* Track the server type, if known */
 typedef enum NCS3SVC {NCS3UNK=0, /* unknown */
 	NCS3=1,     /* s3.amazon.aws */
