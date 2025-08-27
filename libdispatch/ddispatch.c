@@ -210,6 +210,7 @@ NC_freeglobalstate(void)
 	nullfree(nc_globalstate->aws.default_region);
 	nullfree(nc_globalstate->aws.config_file);
 	nullfree(nc_globalstate->aws.profile);
+	nullfree(nc_globalstate->aws.session_token);
 	nullfree(nc_globalstate->aws.access_key_id);
 	nullfree(nc_globalstate->aws.secret_access_key);
         if(nc_globalstate->rcinfo) {

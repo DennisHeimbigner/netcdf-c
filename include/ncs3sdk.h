@@ -9,9 +9,6 @@
 #define AWSHOST ".amazonaws.com"
 #define GOOGLEHOST "storage.googleapis.com"
 
-/* Define the "global" default region to be used if no other region is specified */
-#define AWS_GLOBAL_DEFAULT_REGION "us-east-1"
-
 /* AWS getenv() keys */
 #define AWS_ENV_ACCESS_KEY_ID "AWS_ACCESS_KEY_ID"
 #define AWS_ENV_SECRET_ACCESS_KEY "AWS_SECRET_ACCESS_KEY"
@@ -19,6 +16,9 @@
 #define AWS_ENV_PROFILE "AWS_PROFILE"
 #define AWS_ENV_REGION "AWS_REGION"
 #define AWS_ENV_DEFAULT_REGION "AWS_DEFAULT_REGION"
+
+/* Define the "global" default region to be used if no other region is specified */
+#define AWS_GLOBAL_DEFAULT_REGION "us-east-1"
 
 /* Known .aws profile keys (lowercase) */
 #define AWS_PROF_ACCESS_KEY_ID "aws_access_key_id"

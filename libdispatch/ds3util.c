@@ -60,16 +60,17 @@ NC_s3sdkenvironment(void)
 {
     /* Get various environment variables as defined by the AWS sdk */
     NCglobalstate* gs = NC_getglobalstate();
-    if(getenv("AWS_REGION")!=NULL)
+    if(getenv(AWS_ENV_REGION)!=NULL)
         gs->aws.default_region = nulldup(getenv(AWS_ENV_REGION));
-    else if(getenv("AWS_ENV_DEFAULT_REGION)!=NULL)
+    else if(getenv(AWS_ENV_DEFAULT_REGION)!=NULL)
         gs->aws.default_region = nulldup(getenv(AWS_ENV_DEFAULT_REGION));
     else if(gs->aws.default_region == NULL)
         gs->aws.default_region = nulldup(AWS_GLOBAL_DEFAULT_REGION);
-    gs->aws.access_key_id = nulldup(getenv("AWS_ACCESS_KEY_ID"));
-    gs->aws.config_file = nulldup(getenv("AWS_CONFIG_FILE"));
-    gs->aws.profile = nulldup(getenv("AWS_PROFILE"));
-    gs->aws.secret_access_key = nulldup(getenv("AWS_SECRET_ACCESS_KEY"));
+    gs->aws.access_key_id = nulldup(getenv(AWS_ENV_ACCESS_KEY_ID));
+    gs->aws.config_file = nulldup(getenv(AWS_ENV_CONFIG_FILE));
+    gs->aws.profile = nulldup(getenv(AWS_ENV_PROFILE));
+    gs->aws.secret_access_key = nulldup(getenv(AWS_ENV_SECRET_ACCESS_KEY));
+    gs->aws.session_token = nulldup(getenv(AWS_ENV_SESSION_TOKEN));
 }
 
 /**************************************************/

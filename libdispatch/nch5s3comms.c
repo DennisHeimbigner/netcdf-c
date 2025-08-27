@@ -1588,6 +1588,8 @@ done:
  *     Following AWS documentation, looks for any of:
  *     + aws_access_key_id
  *     + aws_secret_access_key
+ *     + aws_secret_access_key
+ *     + aws_session_token
  *     + region
  *     To be valid, the setting must begin the line with one of the keywords,
  *     followed immediately by an equals sign '=', and have some data before
@@ -1613,7 +1615,7 @@ done:
  */
 static int
 H5FD__s3comms_load_aws_creds_from_file(FILE *file, const char *profile_name, char *key_id, char *access_key,
-                                       char *aws_region)
+                                       char* session_token_out, char *aws_region)
 {
     char        profile_line[32];
     char        buffer[128];
@@ -1621,11 +1623,13 @@ H5FD__s3comms_load_aws_creds_from_file(FILE *file, const char *profile_name, cha
         "region",
         "aws_access_key_id",
         "aws_secret_access_key",
+        "aws_session_token",
     };
     char *const setting_pointers[] = {
         aws_region,
         key_id,
         access_key,
+        session_token,
     };
     unsigned setting_count = 3;
     int   ret_value     = SUCCEED;
@@ -1727,14 +1731,14 @@ done:
  *     + FAILURE: `FAIL` (-1)
  *         + internal error occurred
  *         + unable to locate profile
- *         + region, key id, and secret key were not all found and set
+ *         + region, key id, and secret key were not all found and set; session token is optional.
  * Programmer: Jacob Smith
  *             2018-02-27
  *----------------------------------------------------------------------------
  */
 int
 NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *secret_access_key_out,
-                              char *aws_region_out)
+                              char* session_token_out, char *aws_region_out)
 {
     int ret_value = SUCCEED;
     FILE  *credfile  = NULL;
@@ -1760,7 +1764,7 @@ NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *
     credfile = fopen(filepath, "r");
     if (credfile != NULL) {
         if (H5FD__s3comms_load_aws_creds_from_file(credfile, profile_name, key_id_out, secret_access_key_out,
-                                                   aws_region_out) != SUCCEED)
+                                                   session_token_out, aws_region_out) != SUCCEED)
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to load from aws credentials");
         if (fclose(credfile) == EOF)
             HGOTO_ERROR(H5E_FILE, NC_EACCESS, FAIL, "unable to close credentials file");
@@ -1775,6 +1779,7 @@ NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *
         if (H5FD__s3comms_load_aws_creds_from_file(
                 credfile, profile_name, (*key_id_out == 0) ? key_id_out : NULL,
                 (*secret_access_key_out == 0) ? secret_access_key_out : NULL,
+                (*session_token_out == 0) ? session_token_out : NULL,
                 (*aws_region_out == 0) ? aws_region_out : NULL) != SUCCEED)
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to load from aws config");
         if (fclose(credfile) == EOF)
@@ -1782,7 +1787,7 @@ NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *
         credfile = NULL;
     } /* end if credential file opened */
 
-    /* fail if not all three settings were loaded */
+    /* fail if not all three settings were loaded; session token is optional */
     if (*key_id_out == 0 || *secret_access_key_out == 0 || *aws_region_out == 0)
         ret_value = NC_EINVAL;
 

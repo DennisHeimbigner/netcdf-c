@@ -179,6 +179,7 @@ NC_s3sdkcreateclient(NCS3INFO* info)
     int stat = NC_NOERR;
     const char* accessid = NULL;
     const char* accesskey = NULL;
+    const char* sessiontoken = NULL;
     char* urlroot = NULL;
     NCS3CLIENT* s3client = NULL;
 
@@ -189,9 +190,10 @@ NC_s3sdkcreateclient(NCS3INFO* info)
     if(info->profile != NULL) {
         if((stat = NC_s3profilelookup(info->profile, "aws_access_key_id", &accessid))) goto done;
         if((stat = NC_s3profilelookup(info->profile, "aws_secret_access_key", &accesskey))) goto done;
+        if((stat = NC_s3profilelookup(info->profile, "aws_session_token", &sessiontoken))) goto done;
     }
     if((s3client->rooturl = makes3rooturl(info))==NULL) {stat = NC_ENOMEM; goto done;}
-    s3client->h5s3client = NCH5_s3comms_s3r_open(s3client->rooturl,info->svc,info->region,accessid,accesskey);
+    s3client->h5s3client = NCH5_s3comms_s3r_open(s3client->rooturl,info->svc,info->region,accessid,accesskey,sessiontoken);
     if(s3client->h5s3client == NULL) {stat = NC_ES3; goto done;}
 
 done:

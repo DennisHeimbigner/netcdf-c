@@ -538,7 +538,7 @@ EXTERNL int NCH5_s3comms_HMAC_SHA256(const unsigned char *key, size_t key_len, c
                                        size_t msg_len, char *dest);
 
 EXTERNL int NCH5_s3comms_load_aws_profile(const char *name, char *key_id_out, char *secret_access_key_out,
-                                            char *aws_region_out);
+                                            char *session_token_out, char *aws_region_out);
 
 EXTERNL int NCH5_s3comms_nlowercase(char *dest, const char *s, size_t len);
 

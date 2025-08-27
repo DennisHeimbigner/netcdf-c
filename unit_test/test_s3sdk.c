@@ -123,6 +123,7 @@ profilesetup(const char* url)
     CHECK(NC_getactives3profile(purl, &activeprofile));
     CHECK(NC_s3profilelookup(activeprofile, "aws_access_key_id", &accessid));
     CHECK(NC_s3profilelookup(activeprofile, "aws_secret_access_key", &accesskey));
+    CHECK(NC_s3profilelookup(activeprofile, "aws_session_token", &sessiontoken));
     if(s3info.profile) free(s3info.profile);
     s3info.profile = (char*)nulldup(activeprofile);
     if(s3info.region == NULL) s3info.region = "";
