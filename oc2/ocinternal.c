@@ -99,7 +99,7 @@ OCerror
 ocopen(OCstate** statep, const char* url)
 {
     int stat = OC_NOERR;
-    OCstate * state = NULL;
+    OCstate* state = NULL;
     NCURI* tmpurl = NULL;
     CURL* curl = NULL; /* curl handle*/
 
@@ -145,15 +145,13 @@ ocopen(OCstate** statep, const char* url)
 #endif
 
     oc_curl_protocols(state);
-    if(statep) *statep = state;
-    else {
-      if(state != NULL) ocfree(state);
-    }
+    if(statep) {*statep = state; state = NULL;}
+    if(state != NULL) ocstatefree(state);
     return OCTHROW(stat);
 
 fail:
     ncurifree(tmpurl);
-    if(state != NULL) ocfree(state);
+    if(state != NULL) ocstatefree(state);
     if(curl != NULL) occurlclose(curl);
     return OCTHROW(stat);
 }
@@ -325,7 +323,6 @@ createtempfile(OCstate* state, OCtree* tree)
     int stat = OC_NOERR;
     char basepath[8192];
     char* tmppath = NULL;
-    size_t len;
     NCglobalstate* globalstate = NC_getglobalstate();
 
     snprintf(basepath,sizeof(basepath),"%s/%s",globalstate->tempdir,DATADDSFILE);
@@ -362,11 +359,17 @@ fail:
 void
 occlose(OCstate* state)
 {
-    unsigned int i;
     if(state == NULL) return;
 
     /* Warning: ocfreeroot will attempt to remove the root from state->trees */
     /* Ok in this case because we are popping the root out of state->trees */
+    ocstatefree(state);
+}
+
+void
+ocstatefree(OCstate* state)
+{
+    size_t i;
     for(i=0;i<nclistlength(state->trees);i++) {
 	OCnode* root = (OCnode*)nclistpop(state->trees);
 	ocroot_free(root);
@@ -487,8 +490,14 @@ ocget_rcproperties(OCstate* state)
 {
     OCerror ocerr = OC_NOERR;
     char* option = NULL;
+    NCRCentry params;
+
+    memset(&params,0,sizeof(params));
+    NC_rcfillfromuri(&params,state->uri);
+
 #ifdef HAVE_CURLOPT_BUFFERSIZE
-    option = NC_rclookup(OCBUFFERSIZE,state->uri->uri,NULL);
+    params.key = OCBUFFERSIZE;
+    option = NC_rclookupentry(&params);
     if(option != NULL && strlen(option) != 0) {
 	long bufsize;
 	if(strcasecmp(option,"max")==0) 
@@ -499,7 +508,8 @@ ocget_rcproperties(OCstate* state)
     }
 #endif
 #ifdef HAVE_CURLOPT_KEEPALIVE
-    option = NC_rclookup(OCKEEPALIVE,state->uri->uri,NULL);
+    params.key = OCKEEPALIVE;
+    option = NC_rclookupentry(&params);
     if(option != NULL && strlen(option) != 0) {
 	/* The keepalive value is of the form 0 or n/m,
            where n is the idle time and m is the interval time;
@@ -517,6 +527,8 @@ ocget_rcproperties(OCstate* state)
 	}
     }
 #endif
+    params.key = NULL;
+    NC_rcclearentry(&params);
     return ocerr;
 }
 

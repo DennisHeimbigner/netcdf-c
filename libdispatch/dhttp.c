@@ -600,16 +600,19 @@ setupconn(NC_HTTP_STATE* state, const char* objecturl)
     /* Pull some values from .rc tables */
     {
         NCURI* uri = NULL;
-        char* hostport = NULL;
+        char* host = NULL;
+        char* port = NULL;
         char* value = NULL;
         ncuriparse(objecturl,&uri);
         if(uri == NULL) goto fail;
-        hostport = NC_combinehostport(uri);
+        host = nulldup(uri->host);
+        port = nulldup(uri->port);
         ncurifree(uri); uri = NULL;
-        value = NC_rclookup("HTTP.SSL.CAINFO",hostport,NULL);
-        nullfree(hostport); hostport = NULL;    
+        value = NC_rclookup("HTTP.SSL.CAINFO",host,port,NULL);
+        nullfree(host); host = NULL;
+        nullfree(port); port = NULL;
         if(value == NULL)
-            value = NC_rclookup("HTTP.SSL.CAINFO",NULL,NULL);
+            value = NC_rclookup("HTTP.SSL.CAINFO",host,port,NULL);
         if(value != NULL) {
             cstat = CURLERR(curl_easy_setopt(state->curl.curl, CURLOPT_CAINFO, value));
             if (cstat != CURLE_OK) goto fail;

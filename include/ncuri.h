@@ -27,6 +27,7 @@
 */
 typedef struct NCURI {
     char* uri; /* copy of url as passed by the caller */
+    int isglob; /* This is a glob pattern URL */
     char* protocol;
     char* user; /* from user:password@ */
     char* password; /* from user:password@ */
@@ -60,6 +61,7 @@ extern "C" {
 #endif
 
 EXTERNL int ncuriparse(const char* s, NCURI** ncuri);
+EXTERNL int ncuriparseglob(const char* s, NCURI** globp);
 EXTERNL void ncurifree(NCURI* ncuri);
 
 /* Replace the protocol */

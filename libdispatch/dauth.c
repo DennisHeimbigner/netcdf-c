@@ -69,6 +69,7 @@ NC_parseproxy(NCauth* auth, const char* surl)
     return (ret);
 }
 
+#if 0
 char*
 NC_combinehostport(NCURI* uri)
 {
@@ -88,18 +89,21 @@ NC_combinehostport(NCURI* uri)
     snprintf(hp, len+1, "%s%s%s", host, port ? ":" : "", port ? port : "");
     return hp;
 }
+#endif
 
 int
 NC_authsetup(NCauth** authp, NCURI* uri)
 {
     int ret = NC_NOERR;
-    char* uri_hostport = NULL;
+    char* uri_host = NULL;
+    char* uri_port = NULL;
     NCauth* auth = NULL;
     struct AWSprofile* ap = NULL;
 
-    if(uri != NULL)
-      uri_hostport = NC_combinehostport(uri);
-    else
+    if(uri != NULL) {
+      uri_host = nulldup(uri->host);
+      uri_port = nulldup(uri->port);
+    } else
       {ret = NC_EDAP; goto done;}  /* Generic EDAP error. */
     if((auth=calloc(1,sizeof(NCauth)))==NULL)
         {ret = NC_ENOMEM; goto done;}
@@ -112,44 +116,44 @@ NC_authsetup(NCauth** authp, NCURI* uri)
     */
 
     setauthfield(auth,"HTTP.VERBOSE",
-			NC_rclookup("HTTP.VERBOSE",uri_hostport,uri->path));
+			NC_rclookup("HTTP.VERBOSE",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.TIMEOUT",
-			NC_rclookup("HTTP.TIMEOUT",uri_hostport,uri->path));
+			NC_rclookup("HTTP.TIMEOUT",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.CONNECTTIMEOUT",
-			NC_rclookup("HTTP.CONNECTTIMEOUT",uri_hostport,uri->path));
+			NC_rclookup("HTTP.CONNECTTIMEOUT",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.USERAGENT",
-			NC_rclookup("HTTP.USERAGENT",uri_hostport,uri->path));
+			NC_rclookup("HTTP.USERAGENT",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.COOKIEFILE",
-			NC_rclookup("HTTP.COOKIEFILE",uri_hostport,uri->path));
+			NC_rclookup("HTTP.COOKIEFILE",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.COOKIE_FILE",
-			NC_rclookup("HTTP.COOKIE_FILE",uri_hostport,uri->path));
+			NC_rclookup("HTTP.COOKIE_FILE",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.COOKIEJAR",
-			NC_rclookup("HTTP.COOKIEJAR",uri_hostport,uri->path));
+			NC_rclookup("HTTP.COOKIEJAR",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.COOKIE_JAR",
-			NC_rclookup("HTTP.COOKIE_JAR",uri_hostport,uri->path));
+			NC_rclookup("HTTP.COOKIE_JAR",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.PROXY.SERVER",
-			NC_rclookup("HTTP.PROXY.SERVER",uri_hostport,uri->path));
+			NC_rclookup("HTTP.PROXY.SERVER",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.PROXY_SERVER",
-			NC_rclookup("HTTP.PROXY_SERVER",uri_hostport,uri->path));
+			NC_rclookup("HTTP.PROXY_SERVER",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.SSL.CERTIFICATE",
-			NC_rclookup("HTTP.SSL.CERTIFICATE",uri_hostport,uri->path));
+			NC_rclookup("HTTP.SSL.CERTIFICATE",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.SSL.KEY",
-			NC_rclookup("HTTP.SSL.KEY",uri_hostport,uri->path));
+			NC_rclookup("HTTP.SSL.KEY",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.SSL.KEYPASSWORD",
-			NC_rclookup("HTTP.SSL.KEYPASSWORD",uri_hostport,uri->path));
+			NC_rclookup("HTTP.SSL.KEYPASSWORD",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.SSL.CAINFO",
-			NC_rclookup("HTTP.SSL.CAINFO",uri_hostport,uri->path));
+			NC_rclookup("HTTP.SSL.CAINFO",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.SSL.CAPATH",
-			NC_rclookup("HTTP.SSL.CAPATH",uri_hostport,uri->path));
+			NC_rclookup("HTTP.SSL.CAPATH",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.SSL.VERIFYPEER",
-			NC_rclookup("HTTP.SSL.VERIFYPEER",uri_hostport,uri->path));
+			NC_rclookup("HTTP.SSL.VERIFYPEER",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.SSL.VERIFYHOST",
-			NC_rclookup("HTTP.SSL.VERIFYHOST",uri_hostport,uri->path));
+			NC_rclookup("HTTP.SSL.VERIFYHOST",uri_host,uri_port,uri->path));
     /* Alias for VERIFYHOST + VERIFYPEER */
     setauthfield(auth,"HTTP.SSL.VALIDATE",
-			NC_rclookup("HTTP.SSL.VALIDATE",uri_hostport,uri->path));
+			NC_rclookup("HTTP.SSL.VALIDATE",uri_host,uri_port,uri->path));
     setauthfield(auth,"HTTP.NETRC",
-			NC_rclookup("HTTP.NETRC",uri_hostport,uri->path));
+			NC_rclookup("HTTP.NETRC",uri_host,uri_port,uri->path));
 
     { /* Handle various cases for user + password */
       /* First, see if the user+pwd was in the original url */
@@ -159,15 +163,15 @@ NC_authsetup(NCauth** authp, NCURI* uri)
 	    user = uri->user;
 	    pwd = uri->password;
       } else {
-   	    user = NC_rclookup("HTTP.CREDENTIALS.USER",uri_hostport,uri->path);
-	    pwd = NC_rclookup("HTTP.CREDENTIALS.PASSWORD",uri_hostport,uri->path);
+   	    user = NC_rclookup("HTTP.CREDENTIALS.USER",uri_host,uri_port,uri->path);
+	    pwd = NC_rclookup("HTTP.CREDENTIALS.PASSWORD",uri_host,uri_port,uri->path);
       }
       if(user != NULL && pwd != NULL) {
         user = strdup(user); /* so we can consistently reclaim */
         pwd = strdup(pwd);
       } else {
 	    /* Could not get user and pwd, so try USERPASSWORD */
-	    const char* userpwd = NC_rclookup("HTTP.CREDENTIALS.USERPASSWORD",uri_hostport,uri->path);
+	    const char* userpwd = NC_rclookup("HTTP.CREDENTIALS.USERPASSWORD",uri_host,uri_port,uri->path);
 	    if(userpwd != NULL) {
       	        if((ret = NC_parsecredentials(userpwd,&user,&pwd))) goto done;
 	    }
@@ -189,7 +193,8 @@ NC_authsetup(NCauth** authp, NCURI* uri)
 
     if(authp) {*authp = auth; auth = NULL;}
 done:
-    nullfree(uri_hostport);
+    nullfree(uri_host);
+    nullfree(uri_port);
     return (ret);
 }
 

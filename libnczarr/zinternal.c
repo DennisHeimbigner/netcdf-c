@@ -62,7 +62,7 @@ NCZ_initialize_internal(void)
     if(ngs != NULL) {
         /* Defaults */
 	ngs->zarr.dimension_separator = DFALT_DIM_SEPARATOR;
-        dimsep = NC_rclookup("ZARR.DIMENSION_SEPARATOR",NULL,NULL);
+        dimsep = NC_rclookup("ZARR.DIMENSION_SEPARATOR",NULL,NULL,NULL);
         if(dimsep != NULL) {
             /* Verify its value */
 	    if(dimsep != NULL && strlen(dimsep) == 1 && islegaldimsep(dimsep[0]))

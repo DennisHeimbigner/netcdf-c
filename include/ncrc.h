@@ -28,10 +28,9 @@ and accessing rc files (e.g. .daprc).
 #define AWS_REGION "aws_region"
 
 typedef struct NCRCentry {
-	char* host; /* combined host:port */
-	char* urlpath; /* prefix to match or NULL */
         char* key;
         char* value;
+	NCURI* uri; /* parsed glob URI */
 } NCRCentry;
 
 /* collect all the relevant info around the rc file and AWS */
@@ -52,9 +51,13 @@ extern "C" {
 
 /* From drc.c */
 EXTERNL void ncrc_initialize(void);
-EXTERNL int NC_rcfile_insert(const char* key, const char* hostport, const char* path, const char* value);
-EXTERNL char* NC_rclookup(const char* key, const char* hostport, const char* path);
-EXTERNL char* NC_rclookupx(NCURI* uri, const char* key);
+EXTERNL char* NC_rclookup(const char* key, const char* host, const char* port, const char* path);
+EXTERNL char* NC_rclookupentry(NCRCentry* candidate);
+EXTERNL char* NC_rclookup_with_uri(const char* key, const char* uri);
+EXTERNL char* NC_rclookup_with_ncuri(const char* key, NCURI* uri);
+EXTERNL int NC_rcfile_insert(NCRCentry* candidate);
+EXTERNL void NC_rcfillfromuri(NCRCentry* dst, NCURI* src);
+EXTERNL void NC_rcclearentry(NCRCentry* t);
 
 /* Following are primarily for debugging */
 /* Obtain the count of number of entries */

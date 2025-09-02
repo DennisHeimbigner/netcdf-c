@@ -2116,7 +2116,7 @@ EXTERNL int nc_initialize(void);
 */
 EXTERNL int nc_finalize(void);
 
-/* Programmatic access to the internal .rc table */
+/* Limited Programmatic access to the internal .rc table */
 
 /* Get the value corresponding to key | return NULL; caller frees  result */
 EXTERNL char* nc_rc_get(const char* key);

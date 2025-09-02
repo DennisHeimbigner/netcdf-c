@@ -224,6 +224,7 @@ extern int ocinitialized;
 
 extern OCerror ocopen(OCstate** statep, const char* url);
 extern void occlose(OCstate* state);
+extern void ocstatefree(OCstate* state);
 extern OCerror ocfetch(OCstate*, const char*, OCdxd, OCflags, OCnode**);
 extern int oc_network_order;
 extern int oc_invert_xdr_double;

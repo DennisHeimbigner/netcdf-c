@@ -26,18 +26,16 @@ printrc(NCglobalstate* ngs)
     for(i=0;i<nentries;i++) {
 	entry = NC_rcfile_ith(info,i);
 	if(entry == NULL) abort();
-        if(entry->host != NULL) {
-	    printf("[%s ",entry->host);
-            if(entry->urlpath != NULL)
-	        printf("/%s] ",entry->urlpath);
-	    printf("]");					
-        }
+        if(entry->uri != NULL) {
+	    char* uristr = ncuribuild(entry->uri,NULL,NULL,NCURIBASE);
+	    printf("[%s] ",uristr);
+	}
 	printf("|%s|->|%s|\n",entry->key,entry->value);
     }
 }
 
 int
-main(int argc, char** argv)
+main(void)
 {
     NCglobalstate* ngs = NC_getglobalstate();
 

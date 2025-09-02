@@ -57,13 +57,13 @@ object is to be returned.
 OCerror
 oc_open(const char* url, OCobject* linkp)
 {
-	OCerror ocerr = OC_NOERR;
+    OCerror ocerr = OC_NOERR;
     OCstate* state = NULL;
     ocerr = ocopen(&state,url);
     if(ocerr == OC_NOERR && linkp) {
       *linkp = (OCobject)(state);
     } else {
-      if(state) free(state);
+      if(state) ocstatefree(state);
     }
 
     return OCTHROW(ocerr);

@@ -126,7 +126,11 @@ IMPORTANT: the client parameter string is assumed to have blanks compressed out.
 
 /**************************************************/
 
-/* Do a simple uri parse: return NC_NOERR if success, NC_EXXX if failed */
+/* Do a simple uri parse.
+@param uri0 uri string to parse
+@param durip return NCURI*
+@return NC_NOERR if success, NC_EXXX if failed
+*/
 int
 ncuriparse(const char* uri0, NCURI** durip)
 {
@@ -1333,3 +1337,166 @@ ncurifragmentparams(NCURI* uri)
     return uri->fraglist;
 }
 
+/**************************************************/
+/* Parse a glob-stype URL.
+@param uri0 uri string to parse
+@param globp return NCURI*
+@return NC_NOERR if success, NC_EXXX if failed
+*/
+int
+ncuriparseglob(const char* uri0, NCURI** globp)
+{
+    int ret = NC_NOERR;
+    NCURI tmp;
+    char* p;
+    char* q;
+    char* uri = NULL;
+    NCURI* duri = NULL;
+    size_t len0;
+    char pathchar;
+    int nohost = 0;
+
+    if(uri0 == NULL)
+	{THROW(NC_EURL);}
+
+    len0 = strlen(uri0);
+    if(len0 == 0)
+	{THROW(NC_EURL);}
+
+    /* Create a local NCURI instance to hold
+       pointers into the parsed string
+    */
+    memset(&tmp,0,sizeof(tmp));
+    tmp.isglob = 1;
+
+    /* make mutable copy. Add some extra space
+       because we will need to null terminate the host section
+       without losing the first character of the path section.
+    */
+    uri = (char*)malloc(len0+1+1); /* +2 for nul term and for host section terminator */
+    if(uri == NULL)
+	{THROW(NC_ENOMEM);}
+    /* Safe because we allocated enough space right above (and */
+    /* `strdup` isn't usable because we need "one more char"). */
+    strcpy(uri,uri0);
+
+    /* Walk the uri and do the following:
+	1. remove leading and trailing whitespace
+	2. convert all '\\' -> '\' (Temp hack to remove escape characters
+                                    inserted by Windows or MinGW)
+    */
+    p = uri;
+    while(*p == ' ') p++;
+    for(q=uri;*p;p++) {if((*p == '\\' && p[1] == '\\')) {continue;} else {*q++ = *p;}}
+    while((q - 1) >= uri && *(q - 1) == ' ') q--;
+    *q = '\0';
+
+    p = uri;
+
+    tmp.uri = p; /* will be the core */
+
+    /* Now parse the core of the url */
+    p = tmp.uri;
+
+    /* Mark the protocol */
+    tmp.protocol = p;
+    p = nclocate(p,":");
+    if(!p)
+	{THROW(NC_EURL);}
+    terminate(p); /*overwrite colon*/
+    p++; /* skip the colon */
+    if(strlen(tmp.protocol)==0)
+	{THROW(NC_EURL);}
+
+    /* Consume the sequence of '/' after the colon but count */
+    {
+	unsigned count;
+	for(count=0;p[count]=='/';count++);
+	switch (count) {
+	case 0: THROW(NC_EURL);
+	case 1: nohost = 1; break; /* => no host */
+	case 2: p += 2; nohost = 0; break; /* normal case => host; proto://<host>*/
+        case 3: p += 2; nohost = 1; break;  /* => no host; proto://{</path>} */
+	default: THROW(NC_EURL); /* count > 3 */
+	}
+    }
+
+    /* Locate the end of the host section and therefore the start of the path. */
+    if(!nohost) {
+	 tmp.host = p;
+	 p  = nclocate(p,"/");
+	 if(p == NULL) { /* no path */
+	    tmp.path = NULL; /* default */
+	    pathchar = EOFCHAR;
+	 } else {
+	    tmp.path = p; /* save ptr to rest of the path */
+	    pathchar = *p; /* save leading char of the path */
+	    terminate(p); /* overwrite the leading char of the path; restored below */
+	}
+    }
+    /* Nullify tmp.host for consistency */
+    if(tmp.host != NULL && strlen(tmp.host)==0) {tmp.host = NULL;}
+
+    if(tmp.host != NULL) {/* Parse the host section */
+        char* pp;
+	/* Breakup host into host + port */
+	pp = tmp.host;
+        pp = nclocate(pp,":");
+        if(pp != NULL) { /* there is a port */
+	    terminate(pp); /* overwrite ':' */
+	    pp++; /* skip colon */
+	    if(strlen(tmp.host) == 0) tmp.host = NULL;
+	    if(strlen(pp)!=0)
+		tmp.port = pp;
+	    /* treat <host>: as if there is no port */
+	} /* else no port */
+    }
+
+    /* Fill in duri from tmp */
+    duri = (NCURI*)calloc(1,sizeof(NCURI));
+    if(duri == NULL)
+      {THROW(NC_ENOMEM);}
+    /* save original uri */
+    duri->uri = strdup(uri0);
+    duri->isglob = tmp.isglob;
+    duri->protocol = nulldup(tmp.protocol);
+    duri->host = nulldup(tmp.host);
+    duri->port = nulldup(tmp.port);
+    /* restore the leading path character after host+port has been copied */
+    if(pathchar != EOFCHAR)
+	tmp.path[0] = pathchar;
+#if 0
+    /* Check for a windows drive letter */
+    {
+        size_t offset = 0;
+	if(tmp.path
+	   && strlen(tmp.path) >= 3
+	   && tmp.path[0] == '/'
+	   && strchr(DRIVELETTERS,tmp.path[1])
+	   && tmp.path[2] == ':') offset = 1;
+	duri->path = nulldup(tmp.path+offset);
+    }
+#else
+	duri->path = nulldup(tmp.path);
+#endif
+    if(globp)
+      *globp = duri;
+    else
+      free(duri);
+
+#ifdef NCXDEBUG
+	{
+        fprintf(stderr,"duri:");
+	fprintf(stderr," protocol=|%s|",FIX(duri->protocol));
+	fprintf(stderr," host=|%s|",FIX(duri->host));
+	fprintf(stderr," port=|%s|",FIX(duri->port));
+	fprintf(stderr," path=|%s|",FIX(duri->path));
+        fprintf(stderr,"\n");
+    }
+#endif
+
+done:
+    if(uri != NULL)
+      free(uri);
+    return ret;
+}
