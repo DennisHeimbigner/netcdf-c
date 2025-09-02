@@ -21,12 +21,14 @@
 #endif
 #endif
 #include "ncrc.h"
+#include "ncutil.h"
 #include "ocinternal.h"
 #include "ocdebug.h"
 #include "ochttp.h"
 #include "ocread.h"
 #include "occurlfunctions.h"
 #include "ncpathmgr.h"
+#include "ncutil.h"
 
 /*Forward*/
 static int readpacket(OCstate* state, NCURI*, NCbytes*, OCdxd, OCflags, long*);

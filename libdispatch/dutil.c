@@ -12,6 +12,7 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -26,45 +27,55 @@
 #include "ncbytes.h"
 #include "nclist.h"
 #include "nclog.h"
-#include "ncrc.h"
 #include "ncpathmgr.h"
+#include "ncutil.h"
 
 #define NC_MAX_PATH 4096
-#ifndef nulldup
- #define nulldup(x) ((x)?strdup(x):(x))
-#endif
+
 /**************************************************/
 /** \internal
  * Provide a hidden interface to allow utilities
- * to check if a given path name is really an ncdap4 url.
- * If no, return null, else return basename of the url
- * minus any extension.
+ * to check if a given path name is really a url.
+ * If no, return null, else return basename of the url path
+ * minus any extension in basenamep.
+ * If is a url and the protocol is file:, set isfilep.
+ * @return 0 if not URL, 1 if URL
  */
 
 int
-NC__testurl(const char* path, char** basenamep)
+NC__testurl(const char* path, char** basenamep, int* isfilep)
 {
-    NCURI* uri;
-    int ok = NC_NOERR;
-    if(ncuriparse(path,&uri))
-	ok = NC_EURL;
-    else {
-	char* slash = (uri->path == NULL ? NULL : strrchr(uri->path, '/'));
-	char* dot;
-	if(slash == NULL) slash = (char*)path; else slash++;
-        slash = nulldup(slash);
-        if(slash == NULL)
-            dot = NULL;
-        else
-            dot = strrchr(slash, '.');
-        if(dot != NULL &&  dot != slash) *dot = '\0';
-        if(basenamep)
-            *basenamep=slash;
-        else if(slash)
-            free(slash);
-    }
+    int stat = NC_NOERR;
+    NCURI* uri = NULL;
+    int isurl = 1;
+    int isfile = 0;
+    const char* uripath = NULL;
+    char* slash = NULL;
+    char* dot = NULL;
+
+    /* Parse url; if fails or returns null URL, then assume path is not a URL */
+    stat = ncuriparse(path,&uri);
+    if(stat || uri == NULL) {isurl = 0; isfile = 0; goto done;} /* not a url */
+    isurl = 1;
+    if(strcmp(uri->protocol,"file")==0) isfile = 1;
+    /* Extract the basename of the URL */
+    if(uri->path == NULL)
+        uripath = "/";
+    else
+        uripath = uri->path;
+    slash = (char*)strrchr(uripath, '/');
+    if(slash == NULL) slash = (char*)uripath; else slash++;
+    slash = nulldup(slash);
+    assert(slash != NULL);
+    dot = strrchr(slash, '.');
+    if(dot != NULL &&  dot != slash) *dot = '\0';
+    if(basenamep)
+	{*basenamep=slash; slash = NULL;}
+done:
+    if(isfilep) *isfilep = isfile;
+    nullfree(slash);
     ncurifree(uri);
-    return ok;
+    return isurl;
 }
 
 /** \internal Return 1 if this machine is little endian */
@@ -203,12 +214,13 @@ Wrap mktmp and return the generated path,
 or null if failed.
 Base is the base file path. XXXXX is appended
 to allow mktmp add its unique id.
-Return the generated path.
+Return any error
 */
 
-char*
-NC_mktmp(const char* base)
+int
+NC_mktmp(const char* base, char** tmpp)
 {
+    int ret = NC_NOERR;
     int fd = -1;
     char* tmp = NULL;
     size_t len;
@@ -245,13 +257,15 @@ NC_mktmp(const char* base)
 #endif /* !HAVE_MKSTEMP */
     if(fd < 0) {
         nclog(NCLOGERR, "Could not create temp file: %s",tmp);
+	ret = errno; errno = 0;
         nullfree(tmp);
 	tmp = NULL;
         goto done;
     }
 done:
     if(fd >= 0) close(fd);
-    return tmp;
+    if(tmpp) {*tmpp = tmp;}
+    return ret;
 }
 
 /** \internal */
@@ -282,14 +296,14 @@ NC_readfileF(FILE* stream, NCbytes* content, long long amount)
 {
 #define READ_BLOCK_SIZE 4194304
     int ret = NC_NOERR;
-    size_t red = 0;
+    long long red = 0;
     char *part = (char*) malloc(READ_BLOCK_SIZE);
 
     while(amount < 0 || red < amount) {
 	size_t count = fread(part, 1, READ_BLOCK_SIZE, stream);
 	if(ferror(stream)) {ret = NC_EIO; goto done;}
 	if(count > 0) ncbytesappendn(content,part,(unsigned long)count);
-	red += count;
+	red += (long long)count;
     if (feof(stream)) break;
     }
     /* Keep only amount */
@@ -539,3 +553,91 @@ done:
     ncbytesfree(buf);
     return stat;
 }
+
+#if 0
+/* concat the the segments with each segment preceded by '/' */
+int
+NC_join(NClist* segments, char** pathp)
+{
+    int stat = NC_NOERR;
+    size_t i;
+    NCbytes* buf = NULL;
+
+    if(segments == NULL)
+	{stat = NC_EINVAL; goto done;}
+    if((buf = ncbytesnew())==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if(nclistlength(segments) == 0)
+        ncbytescat(buf,"/");
+    else for(i=0;i<nclistlength(segments);i++) {
+	const char* seg = nclistget(segments,i);
+	if(seg[0] != '/')
+	    ncbytescat(buf,"/");
+	ncbytescat(buf,seg);		
+    }
+
+done:
+    if(!stat) {
+	if(pathp) *pathp = ncbytesextract(buf);
+    }
+    ncbytesfree(buf);
+    return THROW(stat);
+}
+#endif
+
+#if 0
+static int
+extendenvv(char*** envvp, int amount, int* oldlenp)
+{
+    char** envv = *envvp;
+    char** p;
+    int len;
+    for(len=0,p=envv;*p;p++) len++;
+    *oldlenp = len;
+    if((envv = (char**)malloc((amount+len+1)*sizeof(char*)))==NULL) return NC_ENOMEM;
+    memcpy(envv,*envvp,sizeof(char*)*len);
+    envv[len] = NULL;
+    nullfree(*envvp);
+    *envvp = envv; envv = NULL;
+    return NC_NOERR;
+}
+#endif
+
+static int
+nc_compare(const void* arg1, const void* arg2)
+{
+    char* n1 = *((char**)arg1);
+    char* n2 = *((char**)arg2);
+    return strcmp(n1,n2);
+}
+
+/* quick sort a list of strings */
+void
+NC_sortenvv(size_t n, char** envv)
+{
+    if(n <= 1) return;
+    qsort(envv, n, sizeof(char*), nc_compare);
+#if 0
+{int i;
+for(i=0;i<n;i++)
+fprintf(stderr,">>> sorted: [%d] %s\n",i,(const char*)envv[i]);
+}
+#endif
+}
+
+void
+NC_freeenvv(size_t n, char** envv)
+{
+    size_t i;
+    char** p;
+    if(envv == NULL) return;
+    if(n < 0)
+       {for(n=0, p = envv; *p; n++) {}; /* count number of strings */}
+    for(i=0;i<n;i++) {
+        if(envv[i]) {
+	    free(envv[i]);
+	}
+    }
+    free(envv);    
+}
+

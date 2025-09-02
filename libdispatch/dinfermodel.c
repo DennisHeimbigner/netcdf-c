@@ -33,8 +33,8 @@
 #include "ncbytes.h"
 #include "nclist.h"
 #include "nclog.h"
-#include "ncrc.h"
 #include "nchttp.h"
+#include "ncutil.h"
 #ifdef NETCDF_ENABLE_S3
 #include "ncs3sdk.h"
 #endif
@@ -1078,43 +1078,6 @@ nullify(const char* s)
     return s;
 }
 #endif
-
-/**************************************************/
-/**************************************************/
-/**
- * Provide a hidden interface to allow utilities
- * to check if a given path name is really a url.
- * If not, put null in basenamep, else put basename of the url path
- * minus any extension into basenamep; caller frees.
- * Return 1 if it looks like a url, 0 otherwise.
- */
-
-int
-nc__testurl(const char* path0, char** basenamep)
-{
-    NCURI* uri = NULL;
-    int ok = 0;
-    char* path = NULL;
-
-    if(!ncuriparse(path0,&uri)) {
-	char* p;
-	char* q;
-	path = nulldup(uri->path);
-	if(path == NULL||strlen(path)==0) goto done;
-        p = strrchr(path, '/');
-	if(p == NULL) p = path; else p++;
-	q = strrchr(p,'.');
-        if(q != NULL) *q = '\0';
-	if(strlen(p) == 0) goto done;
-	if(basenamep)
-            *basenamep = strdup(p);
-	ok = 1;
-    }
-done:
-    ncurifree(uri);
-    nullfree(path);
-    return ok;
-}
 
 /**************************************************/
 /* Envv list utilities */

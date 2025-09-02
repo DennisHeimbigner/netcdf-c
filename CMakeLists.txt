@@ -772,6 +772,12 @@ if (NOT NETCDF_ENABLE_S3 AND NETCDF_ENABLE_NCZARR_S3)
 endif()
 unset(NETCDF_ENABLE_NCZARR_S3)
 
+# If NETCDF_ENABLE_S3 is ON/TRUE, then enable NETCDF_ENABLE_NCZARR, in order to keep 
+# things congruent with autotools.
+if (NETCDF_ENABLE_S3)
+  set(NETCDF_ENABLE_NCZARR ON CACHE BOOL "Enable NCZarr Client" FORCE)
+endif(NETCDF_ENABLE_S3)
+
 if(NOT NETCDF_ENABLE_REMOTE_FUNCTIONALITY)
   message(WARNING "NETCDF_ENABLE_REMOTE_FUNCTIONALITY=NO => disable all s3 functionality")
   set(NETCDF_ENABLE_S3 OFF CACHE BOOL "" FORCE)
@@ -1462,11 +1468,16 @@ endif()
 
 if(NETCDF_ENABLE_DAP4)
   add_subdirectory(libdap4)
-  add_subdirectory(libncxml)
 else()
   if(NETCDF_ENABLE_S3_INTERNAL)
     add_subdirectory(libncxml)
   endif()
+endif()
+
+if (NETCDF_ENABLE_DAP4 OR NETCDF_ENABLE_S3_INTERNAL OR NETCDF_ENABLE_NCZARR OR NETCDF_ENABLE_LIBXML2)
+  add_subdirectory(libncxml)
+else()
+  set(XMLPARSER "none required")
 endif()
 
 if(NETCDF_ENABLE_PLUGINS)
@@ -1748,6 +1759,10 @@ endif()
 # The Unidata testing S3 bucket
 # WARNING: this must match the value in configure.ac
 set(S3TESTBUCKET "unidata-zarr-test-data" CACHE STRING "S3 test bucket")
+
+# Additional S3 Test Endpoing
+set(S3ENDPOINT "s3.us-east-1.amazonaws.com" CACHE STRING "S3 endpoint")
+
 
 # The working S3 path tree within the Unidata bucket.
 # WARNING: this must match the value in configure.ac

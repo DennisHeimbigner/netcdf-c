@@ -401,19 +401,6 @@ ncz_fill_value_sort(nc_type nctype, int* sortp)
     return NC_NOERR;	        
 }
 
-/* Return 1 if this machine is little endian */
-int
-NCZ_isLittleEndian(void)
-{
-    union {
-        unsigned char bytes[SIZEOF_INT];
-	int i;
-    } u;
-    u.i = 1;
-    return (u.bytes[0] == 1 ? 1 : 0);
-}
-
-
 /*
 Given a path to a group, return the list of objects
 that contain another object with the name of the tag.
@@ -770,6 +757,7 @@ done:
 }
 
 /**************************************************/
+#if 0
 /* Endianness support */
 /* signature: void swapinline16(void* ip) */
 #define swapinline16(ip) \
@@ -808,6 +796,7 @@ done:
     u.b[7] = src[0]; \
     *((unsigned long long*)ip) = u.i; \
 }
+#endif /*0*/
 
 int
 NCZ_swapatomicdata(size_t datalen, void* data, int typesize)
