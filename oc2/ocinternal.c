@@ -566,7 +566,7 @@ ocset_curlproperties(OCstate* state)
 	if(stat || tmppath == NULL) {
             fprintf(stderr, "Cannot create cookie file\n");
 	    stat = OC_EACCESS;
-            goto fail;
+            goto done;
         }
         state->auth->curlflags.cookiejar = tmppath; tmppath = NULL;
         state->auth->curlflags.cookiejarcreated = 1;
