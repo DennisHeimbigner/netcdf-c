@@ -196,6 +196,8 @@ int
 NCD4_set_flags_perfetch(NCD4INFO* state)
 {
     int ret = NC_NOERR;
+
+    NC_UNUSED(state);
     /* currently none */
     return THROW(ret);
 }

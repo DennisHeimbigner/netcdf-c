@@ -41,7 +41,7 @@ typedef SSIZE_T ssize_t;
 #endif
 
 #ifndef HAVE_MODE_T
-typedef int mode_t;
+typedef unsigned mode_t;
 #define HAVE_MODE_T 1
 #endif
 
@@ -130,7 +130,7 @@ unsigned long long int strtoull(const char*, char**, int);
 #endif /*_WIN32*/
 
 #ifndef nulldup
-#define nulldup(s) ((s)==NULL?s:strdup(s))
+#define nulldup(s) ((s)==NULL?(char*)s:strdup(s))
 #endif
 
 #ifndef nulllen
@@ -195,6 +195,16 @@ typedef long long fileoffset_t;
 
 #ifndef NC_UNUSED
 #define NC_UNUSED(var) (void)var
+
+#define NC_UNUSED_1(a1) NC_UNUSED(a1)
+#define NC_UNUSED_2(a1,a2) NC_UNUSED(a1); NC_UNUSED(a2)
+#define NC_UNUSED_3(a1,a2,a3) NC_UNUSED(a1); NC_UNUSED(a2); NC_UNUSED(a3)
+#define NC_UNUSED_4(a1,a2,a3,a4) NC_UNUSED(a1); NC_UNUSED(a2); NC_UNUSED(a3); NC_UNUSED(a4)
+#define NC_UNUSED_5(a1,a2,a3,a4,a5) NC_UNUSED(a1); NC_UNUSED(a2); NC_UNUSED(a3); NC_UNUSED(a4); NC_UNUSED(a5)
+#define NC_UNUSED_6(a1,a2,a3,a4,a5,a6) NC_UNUSED(a1); NC_UNUSED(a2); NC_UNUSED(a3); NC_UNUSED(a4); NC_UNUSED(a5); NC_UNUSED(a6)
+#define NC_UNUSED_7(a1,a2,a3,a4,a5,a6,a7) NC_UNUSED(a1); NC_UNUSED(a2); NC_UNUSED(a3); NC_UNUSED(a4); NC_UNUSED(a5); NC_UNUSED(a6); NC_UNUSED(a7)
+#define NC_UNUSED_8(a1,a2,a3,a4,a5,a6,a7,a8) NC_UNUSED(a1); NC_UNUSED(a2); NC_UNUSED(a3); NC_UNUSED(a4); NC_UNUSED(a5); NC_UNUSED(a6); NC_UNUSED(a7); NC_UNUSED(a8)
+#define NC_UNUSED_9(a1,a2,a3,a4,a5,a6,a7,a9) NC_UNUSED(a1); NC_UNUSED(a2); NC_UNUSED(a3); NC_UNUSED(a4); NC_UNUSED(a5); NC_UNUSED(a6); NC_UNUSED(a7); NC_UNUSED(a8); NC_UNUSED(a8)
 #endif
 
 #endif /* NCCONFIGURE_H */

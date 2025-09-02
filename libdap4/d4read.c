@@ -176,7 +176,7 @@ static int
 readfile(NCD4INFO* state, const NCURI* uri, NCD4mode dxx, NCD4format fxx, NCbytes* packet)
 {
     int stat = NC_NOERR;
-    NCbytes* tmp = ncbytesnew();
+    NCbytes* tmp = NULL;
     char* filename = NULL;
     char suffix[256];
 #ifdef HAVE_GETTIMEOFDAY
@@ -184,6 +184,9 @@ readfile(NCD4INFO* state, const NCURI* uri, NCD4mode dxx, NCD4format fxx, NCbyte
     struct timeval time1;
 #endif
 
+    NC_UNUSED(fxx);
+
+    tmp = ncbytesnew();
     suffix[0] = '\0';
     strlcat(suffix,dxxextension(dxx),sizeof(suffix));
 #if 0

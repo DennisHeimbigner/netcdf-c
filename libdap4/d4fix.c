@@ -68,7 +68,8 @@ ADDNODE(NClist* list, NCD4node* node)
 int
 NCD4_toposort(NCD4meta* compiler)
 {
-    int i, ret=NC_NOERR;
+    int ret=NC_NOERR;
+    size_t i;
     size_t len = nclistlength(compiler->allnodes);
     NCD4node** list = (NCD4node**)nclistcontents(compiler->allnodes);
     NCD4node** p;
@@ -359,7 +360,7 @@ static int
 delimitSeq(NCD4meta* compiler, NCD4node* vlentype, NCD4offset* offset)
 {
     int ret = NC_NOERR;
-    int i;
+    size_t i;
     d4size_t recordcount;
     NCD4node* recordtype;
 

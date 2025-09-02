@@ -472,7 +472,7 @@ ocupdatelastmodifieddata(OCstate* state, OCflags ocflags)
     if(ocflags & OCENCODEQUERY) flags |= NCURIENCODEQUERY;
     base = ncuribuild(state->uri,NULL,NULL,flags);
     status = ocfetchlastmodified(state->curl, base, &lastmodified);
-    free(base);
+    free(base); base = NULL;
     if(status == OC_NOERR) {
 	state->datalastmodified = lastmodified;
     }
@@ -529,10 +529,13 @@ ocset_curlproperties(OCstate* state)
 {
     OCerror stat = OC_NOERR;
     NCglobalstate* globalstate = NC_getglobalstate();
+    char* path = NULL;
+    char* tmppath = NULL;
+    char* agent = NULL;
 
     if(state->auth->curlflags.useragent == NULL) {
         size_t len = strlen(DFALTUSERAGENT) + strlen(VERSION) + 1;
-	char* agent = (char*)malloc(len);
+	agent = (char*)malloc(len);
 	strncpy(agent,DFALTUSERAGENT,len);
 	strlcat(agent,VERSION,len);
         state->auth->curlflags.useragent = agent;
@@ -582,14 +585,14 @@ ocset_curlproperties(OCstate* state)
 	    f = NCfopen(fname,"w+");
 	    if(f == NULL) {
 	        fprintf(stderr,"Cookie file cannot be read and written: %s\n",fname);
-	        {stat = OC_EPERM; goto fail;}
+	        {stat = OC_EPERM; goto done;}
 	    }
 	} else { /* test if file can be written */
 	    fclose(f);
 	    f = NCfopen(fname,"r+");
 	    if(f == NULL) {
 	        fprintf(stderr,"Cookie file is cannot be written: %s\n",fname);
-	        {stat = OC_EPERM; goto fail;}
+	        {stat = OC_EPERM; goto done;}
 	    }
 	}
 	if(f != NULL) fclose(f);
@@ -608,9 +611,10 @@ ocset_curlproperties(OCstate* state)
     }
 #endif
 
-    return stat;
-
-fail:
+done:
+    nullfree(path);
+    nullfree(tmppath);
+    nullfree(agent);
     return OCTHROW(stat);
 }
 

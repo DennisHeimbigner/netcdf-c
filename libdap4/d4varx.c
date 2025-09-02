@@ -13,7 +13,7 @@
 
 /* Forward */
 static int getvarx(int gid, int varid, NCD4INFO**, NCD4node** varp, nc_type* xtypep, size_t*, nc_type* nc4typep, size_t*);
-static int mapvars(NCD4meta* dapmeta, NCD4meta* dmrmeta, int inferredchecksumming);
+static int mapvars(NCD4meta* dapmeta, NCD4meta* dmrmeta);
 
 int
 NCD4_get_vara(int ncid, int varid,
@@ -213,7 +213,7 @@ getvarx(int gid, int varid, NCD4INFO** infop, NCD4node** varp,
     if((ret = NCD4_processdata(dapmeta,dapresp))) goto done;
 
     /* Transfer and process the data */
-    if((ret = mapvars(dapmeta,dmrmeta,dapresp->remotechecksumming))) goto done;
+    if((ret = mapvars(dapmeta,dmrmeta))) goto done;
 
 validated:
     /* Return relevant info */
@@ -293,7 +293,7 @@ toplevel dmr var and transfer necessary info;
 */
 
 static int
-mapvars(NCD4meta* dapmeta, NCD4meta* dmrmeta, int remotechecksumming)
+mapvars(NCD4meta* dapmeta, NCD4meta* dmrmeta)
 {
     size_t i;
     int ret = NC_NOERR;

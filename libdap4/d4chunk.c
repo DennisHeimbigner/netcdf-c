@@ -84,7 +84,7 @@ NCD4_dechunk(NCD4response* resp)
     if((resp->serial.dmr = malloc(hdr.count+1)) == NULL)
         return THROW(NC_ENOMEM);        
     memcpy(resp->serial.dmr,pdmr,hdr.count);
-    resp->serial.dmr[hdr.count-1] = '\0';
+    resp->serial.dmr[hdr.count] = '\0';
     /* Suppress nuls */
     (void)NCD4_elidenuls(resp->serial.dmr,hdr.count);
 

@@ -25,6 +25,7 @@
 #define NCLOGDEBUG (4)	/* Everything */
 
 /* Support ptr valued arguments that are used to store results */
+/*   t is the type of *p, p is the ptr, d is NULL default. */
 #define PTRVAL(t,p,d) ((t)((p) == NULL ? (t)(d) : (t)*(p)))
 
 #if defined(_CPLUSPLUS_) || defined(__CPLUSPLUS__)

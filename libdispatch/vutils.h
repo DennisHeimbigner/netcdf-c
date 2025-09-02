@@ -51,9 +51,10 @@ static void vsexpand(VString* vs);
 static void vsappendn(VString* vs, const char* elem, unsigned n);
 static void vsappend(VString* vs, const char elem);
 static void vsinsertn(VString* vs, size_t pos, const void* s, size_t slen);
-static void vsremove(VString* vs, size_t pos, size_t elide);
+static void vsremoven(VString* vs, size_t pos, size_t elide);
 static void vssetalloc(VString* vs, size_t newalloc);
 static void vssetlength(VString* vs, size_t newlen);
+static void vssetcontents(VString* vs, char* contents, size_t length);
 static char* vsextract(VString* vs);
 static char* vsgetp(VString* vs, size_t index);
 static VString* vsclone(VString* vs);
@@ -163,6 +164,7 @@ vlistremove(VList* l, size_t pos)
   delta = (l->length - pos) - 1;
   memmove(l->content+pos,l->content+pos+1,sizeof(void*)*delta);
   l->length++;
+  return old;
 }
 
 static void
@@ -352,20 +354,18 @@ vssetlength(VString* vs, size_t newlen)
     vsnulterm(vs);
 }
 
-#if 0
 /* Set unexpandible contents */
 static void
-vssetcontents(VString* vs, char* contents, unsigned alloc)
+vssetcontents(VString* vs, char* contents, size_t length)
 {
     assert(vs != NULL && contents != NULL);
     vs->length = 0;
     if(!vs->nonextendible && vs->content != NULL) free(vs->content);
     vs->content = contents;
-    vs->length = alloc;
-    vs->alloc = alloc;
+    vs->length = length;
+    vs->alloc = length;
     vs->nonextendible = 1;
 }
-#endif
 
 /* Extract the content and leave content null */
 static char*
@@ -435,6 +435,7 @@ util_initialize(void)
     f = (void*)vsremoven;
     f = (void*)vsextract;
     f = (void*)vsclone;
+    f = (void*)vsgetp;
     util_initialized = 1;
 }
 

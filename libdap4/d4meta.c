@@ -252,6 +252,8 @@ buildDimension(NCD4meta* builder, NCD4node* dim)
 {
     int ret = NC_NOERR;
     NCD4node* group = NCD4_groupFor(dim);
+
+    NC_UNUSED(builder);
     if(dim->dim.isunlimited) {
 	NCCHECK((nc_def_dim(group->meta.id,dim->name,NC_UNLIMITED,&dim->meta.id)));
     } else {
@@ -267,6 +269,8 @@ buildEnumeration(NCD4meta* builder, NCD4node* en)
     size_t i;
     int ret = NC_NOERR;
     NCD4node* group = NCD4_groupFor(en);
+
+    NC_UNUSED(builder);
     NCCHECK((nc_def_enum(group->meta.id,en->basetype->meta.id,en->name,&en->meta.id)));
     for(i=0;i<nclistlength(en->en.econsts);i++) {
 	NCD4node* ec = (NCD4node*)nclistget(en->en.econsts,i);
@@ -282,6 +286,8 @@ buildOpaque(NCD4meta* builder, NCD4node* op)
     int ret = NC_NOERR;
     NCD4node* group = NCD4_groupFor(op);
     char* name  = op->name;
+
+    NC_UNUSED(builder);
 
     assert(op->opaque.size > 0);
     /* Two cases, with and without UCARTAGORIGTYPE */
@@ -352,6 +358,8 @@ buildMaps(NCD4meta* builder, NCD4node* var)
     char** memory = NULL;
     char** p;
     NCD4node* group;
+
+    NC_UNUSED(builder);
 
     if(count == 0) goto done;
 
@@ -457,6 +465,8 @@ buildVlenType(NCD4meta* builder, NCD4node* vlentype)
     nc_type tid = NC_NAT;
     char* name = NULL;
 
+    NC_UNUSED(builder);
+
     group = NCD4_groupFor(vlentype);
 
     /* Figure out the type name and containing group */
@@ -505,7 +515,7 @@ buildCompound(NCD4meta* builder, NCD4node* cmpdtype, NCD4node* group, char* name
 					field->basetype->meta.id)));
         } else { /* array  */
   	    int idimsizes[NC_MAX_VAR_DIMS];
-	    int j;
+	    size_t j;
 	    getDimsizes(field,dimsizes);
 	    /* nc_insert_array_compound: dimsizes arg is not size_t */
 	    for(j=0;j<rank;j++) idimsizes[j] = (int)dimsizes[j];
@@ -895,6 +905,8 @@ decodeEconst(NCD4meta* builder, NCD4node* enumtype, const char* nameorval, union
     int ret = NC_NOERR;
     union ATOMICS number = {0};
     NCD4node* match = NULL;
+
+    NC_UNUSED(builder);
 
     /* First, see if the value is an econst name */
     for(i=0;i<nclistlength(enumtype->en.econsts);i++) {

@@ -11,6 +11,16 @@ Provide a simple dump of binary data
 
 /**************************************************/
 
+static int
+u8size(const char* c)
+{
+    if((*c & 0x80) == 0x00) return 1; /* us-ascii */
+    if((*c & 0xE0) == 0xC0) return 2;
+    if((*c & 0xF0) == 0xE0) return 3;
+    if((*c & 0xF8) == 0xF0) return 4;
+    return -1;
+}
+
 void
 NCD4_dumpbytes(size_t size, const void* data0, int swap)
 {
@@ -18,6 +28,7 @@ NCD4_dumpbytes(size_t size, const void* data0, int swap)
     void* data = NULL;
     char* pos = NULL;
     size_t i;
+    int u8len;
 
     extended = size + 8;
     data = calloc(1,extended); /* provide some space to simplify the code */
@@ -37,8 +48,14 @@ NCD4_dumpbytes(size_t size, const void* data0, int swap)
 	    double f64[1];
 	    char s[8];
 	} v;
-	v.s[0] = *((char*)pos);
-	v.s[1] = '\0';
+	u8len = u8size(pos);
+	if(u8len <= 0) {
+	    memcpy(v.s,"?",1); u8len = 1;
+	} else
+	    memcpy(v.s,pos,(size_t)u8len);
+	v.s[u8len] = '\0';
+//	v.s[0] = *((char*)pos);
+//	v.s[1] = '\0';
 	v.u8[0] = *((unsigned char*)pos);
 	v.i8[0] = *((signed char*)pos);
         v.u16[0] = *((unsigned short*)pos);
@@ -61,7 +78,9 @@ NCD4_dumpbytes(size_t size, const void* data0, int swap)
         }
         if(v.s[0] == '\r') strcpy(v.s,"\\r");
         else if(v.s[0] == '\n') strcpy(v.s,"\\n");
-        else if(v.s[0] < ' ' || v.s[0] >= 0x7f) v.s[0] = '?';
+        else if(u8len <= 1) {
+	    if(v.s[0] < ' ' || v.s[0] >= 0x7f) strcpy(v.s,"?");
+	}
         fprintf(stderr,"[%04lu]", (unsigned long)i);
         fprintf(stderr," '%s'",v.s);
         fprintf(stderr," %03x  %03u %04d", v.u8[0], v.u8[0], v.i8[0]);
@@ -113,6 +132,8 @@ NCD4_dumpvars(NCD4node* group)
 union ATOMICS*
 NCD4_dumpatomic(NCD4node* var, void* data)
 {
-    union ATOMICS* p = (union ATOMICS*)data;
+    union ATOMICS* p = NULL;
+    NC_UNUSED(var);
+    p = (union ATOMICS*)data;
     return p;
 }

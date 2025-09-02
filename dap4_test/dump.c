@@ -61,9 +61,9 @@ main(int argc, char *argv[])
 	case 'S':
 	    swap = 1;
 	    break;
-	case 'O':
-	    offset = atol(optarg);
-	    break;
+	case 'O': {
+	    sscanf(optarg,"%zu",&offset);
+	    } break;
 	case '?':
 	  usage();
       }

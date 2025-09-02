@@ -47,7 +47,6 @@ gethyraxbaseline() {
 
 makehyraxurl() {
     if test "x$QUERY" != x ; then QUERY="&dap4.ce=$QUERY"; fi
-    QUERY="?dap4.checksum=true${QUERY}"
     URL="${TESTSERVER}/${PREFIX}/${FILE}${QUERY}"
     URL="$URL#dap4&hyrax"
     URL="$URL&log&show=fetch"
