@@ -43,7 +43,6 @@
 #include "nclog.h"
 #include "ncdap.h"
 #include "ncpathmgr.h"
-//#include "ncutil.h"
 
 #include "d4util.h"
 
