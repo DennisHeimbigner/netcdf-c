@@ -197,9 +197,9 @@ ncuriparse(const char* uri0, NCURI** durip)
     next = nclocaterev(p,"?#");
     if(next != NULL) {
 	int c = *next;
-	terminate(next);
-	next++;
 	if(c == '#') {
+	    terminate(next);
+	    next++;
 	    tmp.fragment = next;
 	    /* Search for possible query */
 	    next = nclocaterev(p,"?");	    
