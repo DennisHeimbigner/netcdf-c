@@ -43,13 +43,11 @@ typedef unsigned int NCFLAGS;
 /* Put these at top bits for now */
 /*COLUMBIA_HACK*/
 #define NCF_COLUMBIA        (0x80000000) /* Hack for columbia server */
-/* OPeNDAP Hyrax Hack */
-#define NCF_HYRAX           (0x40000000) /* Hack for hyrax server -- use checksum, but ignore */
 
 /* Define all the default on flags */
 #define DFALT_ON_FLAGS (NCF_CACHE|NCF_PREFETCH|NCF_FILLMISMATCH)
 
-#define ALL_NCF_FLAGS (0xffff|NCF_COLUMBIA|NCF_HYRAX)
+#define ALL_NCF_FLAGS (0xffff|NCF_COLUMBIA)
 
 typedef struct NCCONTROLS {
     NCFLAGS  flags;
