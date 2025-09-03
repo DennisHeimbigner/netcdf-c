@@ -8,6 +8,7 @@ export srcdir;
 
 . ${srcdir}/d4test_common.sh
 
+set -x
 set -e
 
 echo "test_hyrax.sh:"
