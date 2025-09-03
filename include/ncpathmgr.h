@@ -190,11 +190,11 @@ NCpathcvt (above) is invoked on the path.
 #if defined(WINPATH)
 /* path converter wrappers*/
 EXTERNL FILE* NCfopen(const char* path, const char* flags);
-EXTERNL int NCopen3(const char* path, int flags, int mode);
+EXTERNL int NCopen3(const char* path, int flags, mode_t mode);
 EXTERNL int NCopen2(const char* path, int flags);
-EXTERNL int NCaccess(const char* path, int mode);
+EXTERNL int NCaccess(const char* path, mode_t mode);
 EXTERNL int NCremove(const char* path);
-EXTERNL int NCmkdir(const char* path, int mode);
+EXTERNL int NCmkdir(const char* path, mode_t mode);
 EXTERNL int NCrmdir(const char* path);
 EXTERNL char* NCgetcwd(char* cwdbuf, size_t len);
 EXTERNL int NCmkstemp(char* buf);
