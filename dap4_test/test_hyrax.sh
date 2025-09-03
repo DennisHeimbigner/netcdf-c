@@ -8,7 +8,6 @@ export srcdir;
 
 . ${srcdir}/d4test_common.sh
 
-set -x
 set -e
 
 echo "test_hyrax.sh:"
@@ -47,10 +46,10 @@ gethyraxbaseline() {
 }
 
 makehyraxurl() {
-    if test "x$QUERY" != x ; then QUERY="&dap4.ce=$QUERY"; fi
+    if test "x$QUERY" != x ; then QUERY="?dap4.ce=$QUERY"; fi
     URL="${TESTSERVER}/${PREFIX}/${FILE}${QUERY}"
-    URL="$URL#dap4&hyrax"
-    URL="$URL&log&show=fetch"
+    URL="$URL#dap4"
+    URL="$URL&show=fetch"
 }
 
 hyraxsplit() {

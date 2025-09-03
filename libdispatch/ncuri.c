@@ -97,7 +97,8 @@ ncstrndup(const char* s, size_t len)
 static int collectprefixparams(char* text, char** nextp);
 static void freestringlist(NClist* list);
 static int ncfind(NClist* params, const char* key);
-static char* nclocate(char* p, const char* charlist);
+static char* nclocate(const char* s, const char* charlist);
+static char* nclocaterev(const char* s, const char* charlist);
 static int parselist(const char* ptext, NClist* list);
 static int unparselist(const NClist* vec, const char* prefix, int encode, NCbytes*);
 static int ensurefraglist(NCURI* uri);
@@ -192,24 +193,23 @@ ncuriparse(const char* uri0, NCURI** durip)
 	prefix = NULL;
     }
     tmp.uri = p; /* will be the core */
-    /* Skip past the core of the url */
-    next = nclocate(p,"?#");
+    /* Locate any trailing query (?) and or fragment (#) */
+    next = nclocaterev(p,"?#");
     if(next != NULL) {
 	int c = *next;
 	terminate(next);
 	next++;
-	if(c == '?') {
-	    tmp.query = next;
-	    next = nclocate(next,"#");
-	    if(next == NULL)
-		tmp.fragment = NULL;
-	    else {
-		terminate(next);
-		next++;
-	        tmp.fragment = next;
-	    }
-	} else { /*c == '#'*/
+	if(c == '#') {
 	    tmp.fragment = next;
+	    /* Search for possible query */
+	    next = nclocaterev(p,"?");	    
+	    c = (next == NULL ? '\0' : '?');
+	} else
+	    tmp.fragment = NULL;
+	if(c == '?') {
+	    terminate(next);
+	    next++;
+	    tmp.query = next;
 	}
     }
 
@@ -837,7 +837,7 @@ ncfind(NClist* params, const char* key)
     if(params == NULL) return -1;
     for(i=0;i<nclistlength(params);i+=2) {
         char* p=nclistget(params,(size_t)i);
-	if(strcasecmp(key,p)==0) return i;
+	if(strcasecmp(key,p)==0) return (int)i;
     }
     return -1;
 }
@@ -861,14 +861,46 @@ ncparamfree(char** params)
    occurrences
 */
 static char*
-nclocate(char* p, const char* charlist)
+nclocate(const char* p, const char* charlist)
 {
     for(;*p;p++) {
 	if(*p == '\\') p++;
 	else if(strchr(charlist,*p) != NULL)
-	    return p;
+	    return (char*)p;
     }
     return NULL;
+}
+
+/* Return the ptr to the last occurrence of
+   any char in the list. Return NULL if no
+   occurrences. This is tricky because of escapes.
+*/
+static char*
+nclocaterev(const char* s, const char* charlist)
+{
+    size_t slen;
+    int i,match;
+    char* matchpoints = NULL;
+
+    match = -1; /* signal no match */
+    if(s== NULL || *s == '\0') {goto done;} /* handle special cases */
+    slen = strlen(s);
+    if((matchpoints = calloc(slen,sizeof(char)))==NULL) {goto done;}
+    /* See if there are any possible matches */
+    for(i=0;i<(int)slen;i++) {
+	char* p = strchr(charlist,s[i]);
+	if(p != NULL) /* capture this match point */
+	    matchpoints[i] = 1; /* ith char is a match */
+    }
+    /* Now eliminate matchpoints preceded by escape char; capture last un-escaped matchpoint */
+    for(i=0;i<(int)slen;i++) { /* skip zero because it cannot be preceded by escape */
+        if(matchpoints[i] && (i == 0 || s[i - 1] != '\\')) {if(match < i) match = i;};
+    }
+done:
+    nullfree(matchpoints);
+    if(match == -1) return NULL; /* no match found */
+    /* Compute match point as pointer */
+    return ((char*)s) + match;
 }
 
 #if 0
