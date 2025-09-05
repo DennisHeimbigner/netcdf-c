@@ -524,15 +524,15 @@ NCD4_computeChecksum(NCD4meta* meta, NCD4node* topvar)
 
     ASSERT((ISTOPLEVEL(topvar)));
 
-#ifdef HYRAXCOMPUTECHECKSUM
+#ifdef HYRAXCHECKSUM
     /* Compute checksum using the Hyrax (Opendap) method which excludes variable length counts */
     /* Currently, we only do this for NC_STRING, but it would propery need to include NC_SEQ
        and NC_STRUCT fields.
     */
     if(topvar->basetype->subsort != NC_STRING) {
-            csum = CRC32(csum,topvar->data.dap4data.memory,topvar->data.dap4data.size);
+	csum = CRC32(csum,topvar->data.dap4data.memory,(unsigned int)topvar->data.dap4data.size);
     } else { /* Checksum over the actual strings */
-	int i;
+	d4size_t i;
         unsigned long long count;
 	NCD4offset offset;
         d4size_t dimproduct = NCD4_dimproduct(topvar);
@@ -545,7 +545,7 @@ NCD4_computeChecksum(NCD4meta* meta, NCD4node* topvar)
             SKIPCOUNTER(&offset);
   	    if(meta->swap) swapinline64(&count);
             /* CRC32 count bytes */
-            csum = CRC32(csum,offset.offset,count);
+            csum = CRC32(csum,offset.offset,(unsigned int)count);
 	    /* Skip count bytes */
   	    INCR(&offset,count);
         }

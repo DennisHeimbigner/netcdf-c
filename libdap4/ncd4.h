@@ -265,6 +265,13 @@ EXTERNL d4size_t NCD4_getcounter(NCD4offset* p);
 */
 #define HYRAXHACK
 
+/*
+Compute checksums for vectors of strings using the Hyrax checksum
+computation rule. Sequences (direct or indirect) are still computed
+using the netcdf-c computation rule.
+*/
+#undef HYRAXCHECKSUM
+
 EXTERNL NC* NCD4_get_substrate_nc(NC* nc);
 
 #endif /*NCD4_H*/

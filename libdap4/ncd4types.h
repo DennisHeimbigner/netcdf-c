@@ -293,9 +293,11 @@ struct NCD4response { /* possibly processed response from a query */
     NCD4INFO* controller; /* controlling connection */
     D4blob raw; /* complete response in memory */
     int querychecksumming; /* 1 => user specified dap4.ce value */
-//    int attrchecksumming; /* 1=> _DAP4_Checksum_CRC32 is defined for at least one variable */
-//    int inferredchecksumming; /* 1 => either query checksum || att checksum */
-//    int checksumignore; /* 1 => assume checksum, but do not validate */
+#if 0
+    int attrchecksumming; /* 1=> _DAP4_Checksum_CRC32 is defined for at least one variable */
+    int inferredchecksumming; /* 1 => either query checksum || att checksum */
+    int checksumignore; /* 1 => assume checksum, but do not validate */
+#endif
     int remotechecksumming; /* 1 => if the packet says data is checksummed */
     int remotelittleendian; /* 1 if the packet says data is little endian */
     NCD4mode  mode; /* Are we reading DMR (only) or DAP (includes DMR) */

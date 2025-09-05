@@ -89,7 +89,7 @@ NCD4_redef(int ncid)
 static int
 NCD4__enddef(int ncid, size_t h_minfree, size_t v_align, size_t v_minfree, size_t r_align)
 {
-    NC_UNUSED_5(ncid,h_minfree,v_align,v_minfree,r_align);
+    NC_UNUSED(ncid); NC_UNUSED(h_minfree); NC_UNUSED(v_align); NC_UNUSED(v_minfree); NC_UNUSED(r_align);
     return (NC_NOERR); /* let it go */
 }
 
@@ -105,7 +105,7 @@ NCD4_create(const char *path, int cmode,
            size_t initialsz, int basepe, size_t *chunksizehintp,
            void* mpidata, const NC_Dispatch *dispatch, int ncid)
 {
-    NC_UNUSED_8(path,cmode,initialsz,basepe,chunksizehintp,mpidata,dispatch,ncid);
+    NC_UNUSED(path); NC_UNUSED(cmode); NC_UNUSED(initialsz); NC_UNUSED(basepe); NC_UNUSED(chunksizehintp); NC_UNUSED(mpidata); NC_UNUSED(dispatch); NC_UNUSED(ncid);
     return THROW(NC_EPERM);
 }
 
@@ -115,7 +115,7 @@ NCD4_put_vara(int ncid, int varid,
             const void *value,
 	    nc_type memtype)
 {
-    NC_UNUSED_6(ncid,varid,start,edges,value,memtype);
+    NC_UNUSED(ncid); NC_UNUSED(varid); NC_UNUSED(start); NC_UNUSED(edges); NC_UNUSED(value); NC_UNUSED(memtype);
     return THROW(NC_EPERM);
 }
 
@@ -125,7 +125,7 @@ NCD4_put_vars(int ncid, int varid,
 	    const size_t *start, const size_t *edges, const ptrdiff_t* stride,
             const void *value, nc_type memtype)
 {
-    NC_UNUSED_7(ncid,varid,start,edges,stride,value,memtype);
+    NC_UNUSED(ncid); NC_UNUSED(varid); NC_UNUSED(start); NC_UNUSED(edges); NC_UNUSED(stride); NC_UNUSED(value); NC_UNUSED(memtype);
     return THROW(NC_EPERM);
 }
 
@@ -135,14 +135,14 @@ Force dap4 access to be read-only
 static int
 NCD4_set_fill(int ncid, int fillmode, int* old_modep)
 {
-    NC_UNUSED_3(ncid,fillmode,old_modep);
+    NC_UNUSED(ncid); NC_UNUSED(fillmode); NC_UNUSED(old_modep);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_dim(int ncid, const char* name, size_t len, int* idp)
 {
-    NC_UNUSED_4(ncid,name,len,idp);
+    NC_UNUSED(ncid); NC_UNUSED(name); NC_UNUSED(len); NC_UNUSED(idp);
     return (NC_EPERM);
 }
 
@@ -150,7 +150,7 @@ static int
 NCD4_put_att(int ncid, int varid, const char* name, nc_type datatype,
 	   size_t len, const void* value, nc_type t)
 {
-    NC_UNUSED_7(ncid,varid,name,datatype,len,value,t);
+    NC_UNUSED(ncid); NC_UNUSED(varid); NC_UNUSED(name); NC_UNUSED(datatype); NC_UNUSED(len); NC_UNUSED(value); NC_UNUSED(t);
     return (NC_EPERM);
 }
 
@@ -158,35 +158,35 @@ static int
 NCD4_def_var(int ncid, const char *name,
   	     nc_type xtype, int ndims, const int *dimidsp, int *varidp)
 {
-    NC_UNUSED_6(ncid,name,xtype,ndims,dimidsp,varidp);
+    NC_UNUSED(ncid); NC_UNUSED(name); NC_UNUSED(xtype); NC_UNUSED(ndims); NC_UNUSED(dimidsp); NC_UNUSED(varidp);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_grp(int ncid, const char* p2, int* p3)
 {
-    NC_UNUSED_3(ncid,p2,p3);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3);
     return (NC_EPERM);
 }
 
 static int
 NCD4_rename_grp(int ncid, const char* p)
 {
-    NC_UNUSED_2(ncid,p);
+    NC_UNUSED(ncid); NC_UNUSED(p);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_compound(int ncid, size_t p2, const char* p3, nc_type* t)
 {
-    NC_UNUSED_4(ncid,p2,p3,t);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3); NC_UNUSED(t);
     return (NC_EPERM);
 }
 
 static int
 NCD4_insert_compound(int ncid, nc_type t1, const char* p3, size_t p4, nc_type t2)
 {
-    NC_UNUSED_5(ncid,t1,p3,p4,t2);
+    NC_UNUSED(ncid); NC_UNUSED(t1); NC_UNUSED(p3); NC_UNUSED(p4); NC_UNUSED(t2);
     return (NC_EPERM);
 }
 
@@ -194,7 +194,7 @@ static int
 NCD4_insert_array_compound(int ncid, nc_type t1, const char* p3, size_t p4,
 			  nc_type t2, int p6, const int* p7)
 {
-    NC_UNUSED_7(ncid,t1,p3,p4,t2,p6,p7);
+    NC_UNUSED(ncid); NC_UNUSED(t1); NC_UNUSED(p3); NC_UNUSED(p4); NC_UNUSED(t2); NC_UNUSED(p6); NC_UNUSED(p7);
     return (NC_EPERM);
 }
 
@@ -202,84 +202,84 @@ NCD4_insert_array_compound(int ncid, nc_type t1, const char* p3, size_t p4,
 static int
 NCD4_def_vlen(int ncid, const char* p2, nc_type base_typeid, nc_type* t)
 {
-    NC_UNUSED_4(ncid,p2,base_typeid,t);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(base_typeid); NC_UNUSED(t);
     return (NC_EPERM);
 }
 
 static int
 NCD4_put_vlen_element(int ncid, int p2, void* p3, size_t p4, const void* p5)
 {
-    NC_UNUSED_5(ncid,p2,p3,p4,p5);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3); NC_UNUSED(p4); NC_UNUSED(p5);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_enum(int ncid, nc_type t1, const char* p3, nc_type* t)
 {
-    NC_UNUSED_4(ncid,t1,p3,t);
+    NC_UNUSED(ncid); NC_UNUSED(t1); NC_UNUSED(p3); NC_UNUSED(t);
     return (NC_EPERM);
 }
 
 static int
 NCD4_insert_enum(int ncid, nc_type t1, const char* p3, const void* p4)
 {
-    NC_UNUSED_4(ncid,t1,p3,p4);
+    NC_UNUSED(ncid); NC_UNUSED(t1); NC_UNUSED(p3); NC_UNUSED(p4);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_opaque(int ncid, size_t p2, const char* p3, nc_type* t)
 {
-    NC_UNUSED_4(ncid,p2,p3,t);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3); NC_UNUSED(t);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_var_deflate(int ncid, int p2, int p3, int p4, int p5)
 {
-    NC_UNUSED_5(ncid,p2,p3,p4,p5);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3); NC_UNUSED(p4); NC_UNUSED(p5);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_var_fletcher32(int ncid, int p2, int p3)
 {
-    NC_UNUSED_3(ncid,p2,p3);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_var_chunking(int ncid, int p2, int p3, const size_t* p4)
 {
-    NC_UNUSED_4(ncid,p2,p3,p4);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3); NC_UNUSED(p4);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_var_fill(int ncid, int p2, int p3, const void* p4)
 {
-    NC_UNUSED_4(ncid,p2,p3,p4);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3); NC_UNUSED(p4);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_var_endian(int ncid, int p2, int p3)
 {
-    NC_UNUSED_3(ncid,p2,p3);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3);
     return (NC_EPERM);
 }
 
 static int
 NCD4_def_var_filter(int ncid, int varid, unsigned int id, size_t n, const unsigned int* parms)
 {
-    NC_UNUSED_5(ncid,varid,id,n,parms);
+    NC_UNUSED(ncid); NC_UNUSED(varid); NC_UNUSED(id); NC_UNUSED(n); NC_UNUSED(parms);
     return (NC_EPERM);
 }
 
 static int
 NCD4_set_var_chunk_cache(int ncid, int p2, size_t p3, size_t p4, float p5)
 {
-    NC_UNUSED_5(ncid,p2,p3,p4,p5);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3); NC_UNUSED(p4); NC_UNUSED(p5);
     return (NC_EPERM);
 }
 
@@ -526,7 +526,7 @@ NCD4_rename_var(int ncid, int varid, const char* name)
 static int
 NCD4_var_par_access(int ncid, int p2, int p3)
 {
-    NC_UNUSED_3(ncid,p2,p3);
+    NC_UNUSED(ncid); NC_UNUSED(p2); NC_UNUSED(p3);
     return (NC_ENOPAR);
 }
 
