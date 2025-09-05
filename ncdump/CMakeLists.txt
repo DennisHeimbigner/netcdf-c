@@ -9,7 +9,7 @@
 #  remove_definitions(-DDLL_NETCDF)
 #ENDIF()
 
-set(RCMERGE OFF)
+set(RCTESTS on)
 
 if(USE_X_GETOPT)
   set(XGETOPTSRC "${CMAKE_CURRENT_SOURCE_DIR}/../libdispatch/XGetopt.c")
@@ -113,17 +113,19 @@ if(NETCDF_ENABLE_TESTS)
   add_executable(bom bom.c)
   add_executable(tst_dimsizes tst_dimsizes.c)
   add_executable(nctrunc nctrunc.c)
-if(RCMERGE)
+if(RCTESTS)
   add_executable(tst_rcmerge tst_rcmerge.c)
   add_executable(tst_rcmerge tst_rcapi.c)
+  add_executable(tst_rcmerge tst_rcglob.c)
 endif()
   target_link_libraries(rewrite-scalar netcdf)
   target_link_libraries(bom netcdf)
   target_link_libraries(tst_dimsizes netcdf)
   target_link_libraries(nctrunc netcdf)
-if(RCMERGE)
+if(RCTESTS)
   target_link_libraries(tst_rcmerge netcdf)
   target_link_libraries(tst_rcapi netcdf)
+  target_link_libraries(tst_rcglob netcdf)
 endif()
 
   IF(USE_HDF5)
@@ -160,7 +162,7 @@ endif()
         RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}
     )
 
-    if(RCMERGE)
+    if(RCTESTS)
         set_target_properties(tst_rcmerge 
           PROPERTIES 
             RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -169,6 +171,13 @@ endif()
         )
 
         set_target_properties(tst_rcapi 
+          PROPERTIES 
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR}
+            RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}
+        )
+
+        set_target_properties(tst_rcglob
           PROPERTIES 
             RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
             RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR}
@@ -319,8 +328,9 @@ endif()
     add_sh_test(ncdump test_scope)
   ENDIF()
 
-  if(RCMERGE)
+  if(RCTESTS)
     add_sh_test(ncdump test_rcmerge)
+    add_sh_test(ncdump test_rcglob)
   endif()
 
 endif(HAVE_BASH)

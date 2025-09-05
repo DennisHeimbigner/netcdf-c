@@ -6,9 +6,7 @@
    Dennis Heimbigner
 */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -56,19 +54,16 @@ printrc(NCglobalstate* ngs)
 #endif /*DEBUG*/
 
 static void
-usage(const char* msg, int err);
+usage(const char* msg)
 {
     fprintf(stderr,"Usage: tst_rcglob <key> [<search url>]\n");
     if(msg != NULL && strlen(msg) > 0) fprintf(stderr,"Error: %s\n",msg);
-    if(err != 0)
-        fprintf(stderr,"*** FAIL: (%d) %s\n",nc_strerror(err));
-    exit(err==0?0:1);
+    exit(1);
 }
 
 int
 main(int argc, char **argv)
 {
-    int stat = NC_NOERR;
     char* key = NULL;
     char* url = NULL;
     char* value = NULL;
@@ -77,19 +72,22 @@ main(int argc, char **argv)
 
     /* get the arguments */
     switch (argc) {
-    case 0: case 1: usage("Too few arguments",0); break;
+    case 0: case 1: usage("Too few arguments"); break;
     case 2: key = nulldup(argv[1]); break;
     default: key = nulldup(argv[1]); url = nulldup(argv[2]); break;
     }
-    if(url && strlen(uri)==0) url = NULL;
-    
-    if(uri == NULL) {
+    if(url && strlen(url)==0) {nullfree(url); url = NULL;}
+    if(url == NULL) {
         value = nc_rc_get(key);
     } else {
-	value = NC_rclookup_with_uri(key, url);
+	value = nulldup(NC_rclookup_with_uri(key, url));
     }
-    if(value == NULL) value = "";
+    if(value == NULL) value = strdup("");
 
+    printf("%s",value);
+    nullfree(key)
+    nullfree(url)
+    nullfree(value);
     nc_finalize();
     return 0;
 }

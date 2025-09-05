@@ -130,7 +130,7 @@ unsigned long long int strtoull(const char*, char**, int);
 #endif /*_WIN32*/
 
 #ifndef nulldup
-#define nulldup(s) ((s)==NULL?s:strdup(s))
+#define nulldup(s) ((s)==NULL?(char*)s:strdup(s))
 #endif
 
 #ifndef nulllen

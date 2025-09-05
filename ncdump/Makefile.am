@@ -83,7 +83,7 @@ man_MANS = ncdump.1 nccopy.1
 if BUILD_TESTSETS
 # C programs needed by shell scripts for classic tests.
 check_PROGRAMS = rewrite-scalar ref_ctest ref_ctest64 ncdump tst_utf8   \
-bom tst_dimsizes nctrunc tst_rcmerge tst_rcapi
+bom tst_dimsizes nctrunc tst_rcmerge tst_rcapi tst_rcglob
 
 # Tests for classic and 64-bit offset files.
 TESTS = tst_inttags.sh run_tests.sh tst_64bit.sh ref_ctest	\
@@ -91,7 +91,7 @@ ref_ctest64 tst_lengths.sh tst_calendars.sh	\
 run_utf8_tests.sh tst_nccopy3_subset.sh		\
 tst_charfill.sh tst_iter.sh tst_formatx3.sh tst_bom.sh		\
 tst_dimsizes.sh run_ncgen_tests.sh tst_ncgen4_classic.sh        \
-test_radix.sh test_rcmerge.sh
+test_radix.sh test_rcmerge.sh test_rcglob.sh
 
 # The tst_nccopy3.sh test uses output from a bunch of other
 # tests. This records the dependency so parallel builds work.
@@ -207,7 +207,7 @@ ref_no_ncproperty.nc test_unicode_directory.sh test_unicode_path.sh      \
 ref_roman_szip_simple.cdl ref_roman_szip_unlim.cdl ref_tst_perdimspecs.cdl \
 test_keywords.sh ref_keyword1.cdl ref_keyword2.cdl ref_keyword3.cdl ref_keyword4.cdl \
 ref_tst_nofilters.cdl test_scope.sh  \
-test_rcmerge.sh ref_rcmerge1.txt ref_rcmerge2.txt ref_rcmerge3.txt \
+test_rcmerge.sh ref_rcmerge1.txt ref_rcmerge2.txt ref_rcmerge3.txt test_rcglob.sh \
 scope_ancestor_only.cdl scope_ancestor_subgroup.cdl scope_group_only.cdl scope_preorder.cdl \
 ref_rcapi.txt ref_tst_enum_undef.cdl tst_calendars_nc4.cdl ref_times_nc4.cdl ref_tst_comp2.cdl
 

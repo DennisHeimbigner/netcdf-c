@@ -51,22 +51,22 @@ extern "C" {
 
 /* From drc.c */
 EXTERNL void ncrc_initialize(void);
-EXTERNL char* NC_rclookup(const char* key, const char* host, const char* port, const char* path);
-EXTERNL char* NC_rclookupentry(NCRCentry* candidate);
-EXTERNL char* NC_rclookup_with_uri(const char* key, const char* uri);
-EXTERNL char* NC_rclookup_with_ncuri(const char* key, NCURI* uri);
+EXTERNL const char* NC_rclookup(const char* key, const char* host, const char* port, const char* path);
+EXTERNL const char* NC_rclookup_with_uri(const char* key, const char* uri);
+EXTERNL const char* NC_rclookup_with_ncuri(const char* key, NCURI* uri);
 EXTERNL int NC_rcfile_insert(NCRCentry* candidate);
 EXTERNL void NC_rcfillfromuri(NCRCentry* dst, NCURI* src);
 EXTERNL void NC_rcclearentry(NCRCentry* t);
 
-/* Following are primarily for debugging */
+/* Following are primarily for debugging and testing */
 /* Obtain the count of number of entries */
 EXTERNL size_t NC_rcfile_length(NCRCinfo*);
 /* Obtain the ith entry; return NULL if out of range */
 EXTERNL NCRCentry* NC_rcfile_ith(NCRCinfo*,size_t);
+/* Lookup and return a complete entry */
+EXTERNL const struct NCRCentry* NC_rclookup_entry(NCRCentry* candidate);
 
 /* For internal use */
-EXTERNL void NC_rcclear(NCRCinfo* info);
 EXTERNL void NC_rcclear(NCRCinfo* info);
 
 #if defined(__cplusplus)
