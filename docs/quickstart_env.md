@@ -54,6 +54,10 @@ these files contain entries specifying (key,value) pairs.
 These pairs are compiled into a single internal database
 that can be queried by other parts of the netcdf-c library.
 
+Currently the .rc file used by the netcdf library is called ".ncrc".
+For historical reasons, two other files can be used, but are deprecated.
+These files are ".dodsrc" and ".daprc".
+
 ### Locating The _.rc_ Files
 
 For historical reasons, multiple .rc files are allowed.
@@ -63,11 +67,13 @@ For historical reasons, multiple .rc files are allowed.
 The netcdf-c library searches for, and loads from, the following files,
 in this order:
 1. $HOME/.ncrc
-2. $HOME/.dodsrc
-3. $CWD/.ncrc
-4. $CWD/.dodsrc
+2. $HOME/.dapsrc
+3. $HOME/.dodsrc
+4. $CWD/.ncrc
+5. $CWD/.daprc
+6. $CWD/.dodsrc
 
-*$HOME* is the user's home directory and *$CWD* is the current working directory.
+*\$HOME* is the user's home directory and *\$CWD* is the current working directory.
 Entries in later files override any of the earlier files
 
 It is strongly suggested that you pick a uniform location and a uniform name
@@ -78,36 +84,43 @@ when the netcdf-c library loads an rc file you did not expect.
 
 The rc file format is a series of lines of the general form:
 ````
-    [<URL>]<key>=<value>
+    [<GLOB-URL>]<key>=<value>
 ````
-where the bracket-enclosed URL is optional. Note that the brackets
+where the bracket-enclosed GLOB-URL is optional. Note that the brackets
 are part of the line.
 
 ### URL Constrained RC File Entries
 
-Each line of the rc file can begin with a URL enclosed in
-square brackets. The parts of the URL that are used for choosing
-an entry are the host, the port, and the URL path.
-Note that the host+port is the only part used when searching for
-libcurl related entries. This is because libcurl's authorization grain is not
-any finer than host+port level.
-The URL path may be used for non-curl related entries.
-Also note that the protocol is ignored.
+Each line of the rc file can begin with a special form of URL enclosed in
+square brackets.
+The URL is special in that it is a "glob"-style URL.
+Let <glob> be any legal .gitignore glob pattern.
+The general form of the glob-url is as follows:
+````
+<glob>://<glob>:<glob>/<glob>
+````
+So given a URL, it can be applied to the glob-url where:
+* The first \<glob\> in the glob-url must match the protocol/scheme from the URL.
+* The second \<glob\> must match the host from the URL.
+* The third \<glob\> is optional and if present, it must match the port from the URL. The glob-url without a port can be specified using either of these patterns:<br>
+    ````<glob>://<glob>/<glob>```` or ````<glob>://<glob>:/<glob>````
+* The fourth \<glob\>; must match the path from the URL.
+
+If any \<glob\> is missing, then it is treated as the "**" pattern,
+which effectively means that it matches any URL at that \<glob\> position.
 
 Here are some examples.
 ````
-    [https://remotetest.unidata.ucar.edu/thredds]HTTP.VERBOSE=1
+    [*://**:**/**]HTTP.VERBOSE=1 # The most general possible
 or
-    [https://fake.ucar.edu:9090]HTTP.VERBOSE=0
+    [{file,http,https}:///*.ucar.edu:9090]HTTP.VERBOSE=0
 ````
 
-For selection purposes, the host+port+path is used when the path argument
-for _nc_open()_ or _nc_create()_ takes the form of a URL.
-If the url request from, say, the _netcdf_open_ method
-has a host,port, and path matching one of the prefixes in the rc file, then
-the corresponding entry will be used, otherwise ignored.
-This means that an entry with a matching host+port+path will take
-precedence over an entry without a host+port+path.
+For selection purposes, if the path argument for
+_nc_open()_ or _nc_create()_ takes the form of a URL,
+then that URL is used to search for .ncrc entries.
+A .ncrc entry with glob-url that matches the URL argument will take
+precedence over an entry without a glob-url.
 
 For example, passing this URL to _nc_open_
 ````
@@ -121,10 +134,18 @@ Similarly, using this path
 ````
 will have HTTP.VERBOSE set to 0 because its host+port matches the example above.
 
+### .gitignore Glob patterns
+
+The form of a glob pattern is defined using an extended form of
+[.gitignore glob patterns](https://git-scm.com/docs/gitignore#_pattern_format).
+
+The set of glob patterns has been extended with one additional form of pattern:
+a list of values to match. The general form is as follows:<br>
+````{String1,String2,...}````<br>
+
 ### Programmatic Access to .rc File
 
-It is possible for client programs to query and modify the internal .rc database
-through the following API.
+It is possible for client programs to have limited access to the internal .rc table through the following API.
 * ````char* nc_rc_get(const char* key);````
     Get the value corresponding to key or return NULL if not defined. The caller must free the resulting value.
 * ````int nc_rc_set(const char* key, const char* value);````
@@ -154,4 +175,4 @@ Other keys are as follows:
 __Author__: Dennis Heimbigner<br>
 __Email__: dmh at ucar dot edu<br>
 __Initial Version__: 01/09/2023<br>
-__Last Revised__: 07/30/2024
+__Last Revised__: 09/04/2025
