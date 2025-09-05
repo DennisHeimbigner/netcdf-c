@@ -117,6 +117,7 @@ if(RCMERGE)
   add_executable(tst_rcmerge tst_rcmerge.c)
   add_executable(tst_rcapi tst_rcapi.c)
 endif()
+
   target_link_libraries(rewrite-scalar netcdf)
   target_link_libraries(bom netcdf)
   target_link_libraries(tst_dimsizes netcdf)
