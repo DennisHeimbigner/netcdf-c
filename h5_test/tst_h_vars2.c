@@ -380,7 +380,7 @@ main()
     {
 #define VAR_NAME2 "obs"
 #define REF_FILE "ref_tst_compounds.nc"
-#define ATT_NAME NC_FillValue
+#define ATT_NAME "_FillValue"
 
 	typedef struct obs_t {
 	    char day ;

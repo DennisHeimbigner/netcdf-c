@@ -137,7 +137,7 @@ nc_inq_att(int ncid, int varid, const char *name, nc_type *xtypep,
          if (nc_def_var(ncid, VAR_NAME, NC_BYTE, NUM_DIMS, dimids, &varid)) ERR;
          for (a = 0; a < NUM_LEADERS; a++)
             if (nc_put_att_short(ncid, varid, leader[a], NC_SHORT, 1, &hair_length[a])) ERR;
-         if (nc_put_att_schar(ncidf, varid, NC_FillValue, NC_BYTE, 1, &fill_value)) ERR;
+         if (nc_put_att_schar(ncid, varid, _FillValue, NC_BYTE, 1, &fill_value)) ERR;
          if (nc_close(ncid)) ERR;
 
          if (nc_open(FILE_NAME, NC_NOWRITE, &ncid)) ERR;

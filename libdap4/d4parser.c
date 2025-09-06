@@ -65,11 +65,10 @@ static const struct KEYWORDINFO {
 };
 typedef struct KEYWORDINFO KEYWORDINFO;
 
-/* Warning do not make const because sort will modify */
-static struct ATOMICTYPEINFO {
+static const struct ATOMICTYPEINFO {
     char* name; nc_type type; size_t size;
 } atomictypeinfo[] = {
-/* Will be sorted on first use */
+/* Keep in sorted order for binary search */
 /* Use lower case for canonical comparison, but keep proper name here */
 {"Byte",NC_BYTE,sizeof(char)},
 {"Char",NC_CHAR,sizeof(char)},
@@ -86,10 +85,8 @@ static struct ATOMICTYPEINFO {
 {"UInt64",NC_UINT64,sizeof(unsigned long long)},
 {"UInt8",NC_UBYTE,sizeof(unsigned char)},
 {"Url",NC_STRING,sizeof(char*)},
+{NULL,NC_NAT,0}
 };
-
-#define NCD4_NATOMICTYPES (sizeof(atomictypeinfo)/sizeof(struct ATOMICTYPEINFO))
-static int atomictypessorted = 0;
 
 /***************************************************/
 
@@ -1258,7 +1255,7 @@ defineBytestringType(NCD4parser* parser)
         if(ret != NC_NOERR) goto done;
         SETNAME(bstring,"_bytestring");
 	bstring->opaque.size = 0;
-	bstring->basetype = lookupAtomicType(parser->meta->atomictypes,"UInt8");
+	bstring->basetype = lookupAtomicType(parser,"UInt8");
         PUSH(parser->metadata->root->types,bstring);
 	parser->metadata->_bytestring = bstring;
     } else
@@ -1268,13 +1265,16 @@ done:
 }
 #endif
 
-    if(list == NULL) return THROW(NC_EINTERNAL);
-    if(!atomictypessorted) {
-	qsort((void*)atomictypeinfo, NCD4_NATOMICTYPES,sizeof(struct ATOMICTYPEINFO),atisort);
-	atomictypessorted = 1;
-    }
-    for(i=0;i<NCD4_NATOMICTYPES;i++) {
-	const struct ATOMICTYPEINFO* ati = &atomictypeinfo[i];
+static int
+defineAtomicTypes(NCD4meta* meta, NClist* list)
+{
+    int ret = NC_NOERR;
+    NCD4node* node;
+    const struct ATOMICTYPEINFO* ati;
+ 
+    if(list == NULL)
+	return THROW(NC_EINTERNAL);
+    for(ati=atomictypeinfo;ati->name;ati++) {
         if((ret=makeNodeStatic(meta,NULL,NCD4_TYPE,ati->type,&node))) goto done;
 	SETNAME(node,ati->name);
 	PUSH(list,node);
@@ -1283,27 +1283,29 @@ done:
     return THROW(ret);
 }
 
-/* Define the comparison function for bsearch */
-static int
-aticmp(const void* a, const void* b)
-{
-    const char* name = (const char*)a;
-    NCD4node** nodebp = (NCD4node**)b;
-    return strcasecmp(name,(*nodebp)->name);
-}
-
 /* Binary search the set of set of atomictypes */
 static NCD4node*
 lookupAtomicType(NClist* atomictypes, const char* name)
 {
-    void* match = NULL;
-    size_t ntypes = 0;
-    NCD4node** types = NULL;
-    assert(atomictypessorted && nclistlength(atomictypes) > 0);
-    ntypes = nclistlength(atomictypes);
-    types = (NCD4node**)atomictypes->content;
-    match = bsearch((void*)name,(void*)types,ntypes,sizeof(NCD4node*),aticmp);
-    return (match==NULL?NULL:*(NCD4node**)match);
+    size_t n = nclistlength(atomictypes);
+    if (n == 0) return NULL;
+    size_t L = 0;
+    size_t R = n - 1;
+    NCD4node* p;
+
+    for(;;) {
+	if(L > R) break;
+        size_t m = (L + R) / 2;
+	p = (NCD4node*)nclistget(atomictypes,m);
+	int cmp = strcasecmp(p->name,name);
+	if(cmp == 0)
+	    return p;
+	if(cmp < 0)
+	    L = (m + 1);
+	else /*cmp > 0*/
+	    R = (m - 1);
+    }
+    return NULL;
 }
 
 /**************************************************/

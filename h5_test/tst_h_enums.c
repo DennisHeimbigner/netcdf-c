@@ -142,7 +142,7 @@ main()
    {
 #define NUM_LANG 4
 #define VAR_LANG_NAME "Programming_Language"
-#define FV_NAME NC_FillValue
+#define FV_NAME "_FillValue"
 #define GRP_NAME2 "NetCDF_Programming"
 
       hid_t datasetid, mem_spaceid, fileid, grpid, spaceid, typeid, plistid;
