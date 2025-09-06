@@ -259,12 +259,8 @@ oc_curl_debug(OCstate* state)
 int
 ocrc_netrc_required(OCstate* state)
 {
-    NCRCentry params;
-    memset(&params,0,sizeof(params));
-    NC_rcfillfromuri(&params,state->uri);
-    params.key = strdup(NETRCFILETAG);
-    char* netrcfile = NC_rclookupentry(&params);
-    NC_rcclearentry(&params);
+    const char* key = NETRCFILETAG;
+    const char* netrcfile = NC_rclookup_with_ncuri(key,state->uri);
     return (netrcfile != NULL || state->auth->curlflags.netrc != NULL ? 0 : 1);
 }
 

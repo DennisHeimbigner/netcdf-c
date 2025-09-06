@@ -196,6 +196,7 @@ int
 NCD4_set_flags_perfetch(NCD4INFO* state)
 {
     int ret = NC_NOERR;
+    NC_UNUSED(state);
     /* currently none */
     return THROW(ret);
 }
@@ -338,15 +339,12 @@ ncerror
 NCD4_get_rcproperties(NCD4INFO* state)
 {
     ncerror err = NC_NOERR;
-    char* option = NULL;
-    NCRCentry params;
-
-    memset(&params,0,sizeof(params));    
-    NC_rcfillfromuri(&params,state->dmruri);
+    const char* option = NULL;
+    const char* key = NULL;
 
 #ifdef HAVE_CURLOPT_BUFFERSIZE
-    params.key = D4BUFFERSIZE;
-    option = NC_rclookupentry(&params);
+    key = D4BUFFERSIZE;
+    option = NC_rclookup_with_ncuri(key,state->dmruri);
     if(option != NULL && strlen(option) != 0) {
 	long bufsize;
 	if(strcasecmp(option,"max")==0)
@@ -357,8 +355,8 @@ NCD4_get_rcproperties(NCD4INFO* state)
     }
 #endif
 #ifdef HAVE_CURLOPT_KEEPALIVE
-    params.key = D4KEEPALIVE;
-    option = NC_rclookupentry(&params);
+    key = D4KEEPALIVE;
+    option = NC_rclookup_with_ncuri(key,state->dmruri);
     if(option != NULL && strlen(option) != 0) {
 	/* The keepalive value is of the form 0 or n/m,
            where n is the idle time and m is the interval time;
@@ -376,8 +374,6 @@ NCD4_get_rcproperties(NCD4INFO* state)
 	}
     }
 #endif
-    params.key = NULL;
-    NC_rcclearentry(&params);
     return err;
 }
 

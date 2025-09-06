@@ -490,14 +490,11 @@ ocget_rcproperties(OCstate* state)
 {
     OCerror ocerr = OC_NOERR;
     char* option = NULL;
-    NCRCentry params;
-
-    memset(&params,0,sizeof(params));
-    NC_rcfillfromuri(&params,state->uri);
+    const char* key = NULL;
 
 #ifdef HAVE_CURLOPT_BUFFERSIZE
-    params.key = OCBUFFERSIZE;
-    option = NC_rclookupentry(&params);
+    key = OCBUFFERSIZE;
+    option = NC_rclookup_with_ncuri(key,state->uri);
     if(option != NULL && strlen(option) != 0) {
 	long bufsize;
 	if(strcasecmp(option,"max")==0) 
@@ -508,8 +505,8 @@ ocget_rcproperties(OCstate* state)
     }
 #endif
 #ifdef HAVE_CURLOPT_KEEPALIVE
-    params.key = OCKEEPALIVE;
-    option = NC_rclookupentry(&params);
+    key = OCKEEPALIVE;
+    option = NC_rclookup_with_ncuri(key,state->uri);
     if(option != NULL && strlen(option) != 0) {
 	/* The keepalive value is of the form 0 or n/m,
            where n is the idle time and m is the interval time;
@@ -527,8 +524,6 @@ ocget_rcproperties(OCstate* state)
 	}
     }
 #endif
-    params.key = NULL;
-    NC_rcclearentry(&params);
     return ocerr;
 }
 

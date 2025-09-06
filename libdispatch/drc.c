@@ -91,18 +91,17 @@ char*
 nc_rc_get(const char* key)
 {
     NCglobalstate* ncg = NULL;
+    const char* constvalue = NULL;
     char* value = NULL;
-    NCRCentry entry = NCRCentry_empty();
 
     if(!NC_initialized) nc_initialize();
 
     ncg = NC_getglobalstate();
     assert(ncg != NULL && ncg->rcinfo != NULL && ncg->rcinfo->entries != NULL);
     if(ncg->rcinfo->ignore) goto done;
-    entry.key = (char*)key;
-    value = NC_rclookupentry(&entry);
+    constvalue = NC_rclookup(key,NULL,NULL,NULL);
+    value = nulldup(constvalue);
 done:
-    value = nulldup(value);   
     return value;
 }
 
@@ -304,13 +303,13 @@ done:
  * @param candidate to lookup
  * @return the value of the key or NULL if not found.
  */
-char*
-NC_rclookupentry(NCRCentry* candidate)
+const struct NCRCentry*
+NC_rclookup_entry(NCRCentry* candidate)
 {
     struct NCRCentry* entry = NULL;
     if(!NCRCinitialized) ncrc_initialize();
     entry = rclocate(candidate);
-    return (entry == NULL ? NULL : entry->value);
+    return entry;
 }
 
 /**
@@ -318,10 +317,10 @@ NC_rclookupentry(NCRCentry* candidate)
  * If duplicate keys, first takes precedence.
  * @return value of matching entry or NULL
  */
-char*
+const char*
 NC_rclookup(const char* key, const char* host, const char* port, const char* path)
 {
-    char* value = NULL;
+    const char* value = NULL;
     NCURI uri;
 
     memset(&uri,0,sizeof(NCURI));
@@ -339,10 +338,10 @@ NC_rclookup(const char* key, const char* host, const char* port, const char* pat
  * If duplicate keys, first takes precedence.
  * @return value of matching entry or NULL
  */
-char*
+const char*
 NC_rclookup_with_uri(const char* key, const char* uri)
 {
-    char* value = NULL;
+    const char* value = NULL;
     NCURI* ncuri = NULL;
 
     if(ncuriparse(uri,&ncuri) || ncuri == NULL) return NULL;
@@ -356,16 +355,16 @@ NC_rclookup_with_uri(const char* key, const char* uri)
  * If duplicate keys, first takes precedence.
  * @return value of matching entry or NULL
  */
-char*
+const char*
 NC_rclookup_with_ncuri(const char* key, NCURI* ncuri)
 {
-    char* value = NULL;
     NCRCentry candidate = NCRCentry_empty();
+    const NCRCentry* entry = NULL;
 
     candidate.key = (char*)key;
     candidate.uri = ncuri;
-    value = NC_rclookupentry(&candidate);
-    return value;
+    entry = NC_rclookup_entry(&candidate);
+    return (entry == NULL ? NULL : entry->value);
 }
 
 #if 0
