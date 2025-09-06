@@ -269,6 +269,7 @@ EXTERNL d4size_t NCD4_getcounter(NCD4offset* p);
 Compute checksums for vectors of strings using the Hyrax checksum
 computation rule. Sequences (direct or indirect) are still computed
 using the netcdf-c computation rule.
+Note: Hyrax appears to have fixed this for at least strings.
 */
 #undef HYRAXCHECKSUM
 

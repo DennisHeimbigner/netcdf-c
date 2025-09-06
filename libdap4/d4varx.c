@@ -203,6 +203,9 @@ getvarx(int gid, int varid, NCD4INFO** infop, NCD4node** varp,
     /* Process the dmr part */
     if((ret=NCD4_parse(dapmeta,dapresp,1))) goto done;
 
+    /* process checksum parameters */
+    NCD4_applychecksumcontrols(info,dapresp);
+
     /* See if we are checksumming */
     if((ret=NCD4_inferChecksums(dapmeta,dapresp))) goto done;
 
