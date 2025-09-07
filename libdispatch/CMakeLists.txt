@@ -5,6 +5,7 @@
 
 # See netcdf-c/COPYRIGHT file for more info.
 add_library(dispatch OBJECT)
+target_include_directories(dispatch PUBLIC ${CURL_INCLUDE_DIRS})
 
 target_sources(dispatch 
   PRIVATE
@@ -12,6 +13,7 @@ target_sources(dispatch
     daux.c dinstance.c dinstance_intern.c
     dcrc32.c dcrc32.h dcrc64.c ncexhash.c ncxcache.c ncjson.c ds3util.c dparallel.c dmissing.c
     ncproplist.c 
+    ncindex.c
 )
 
 if (NETCDF_ENABLE_DLL)

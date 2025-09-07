@@ -10,6 +10,7 @@
  */
 
 #include "config.h"
+#include <stddef.h>
 #include "hdf5internal.h"
 #include "hdf5err.h"
 #include "hdf5debug.h"
@@ -18,7 +19,7 @@
 #include "ncauth.h"
 #include "ncmodel.h"
 #include "ncpathmgr.h"
-#include <stddef.h>
+#include "ncutil.h"
 
 #ifdef NETCDF_ENABLE_BYTERANGE
 #include "H5FDhttp.h"
@@ -443,8 +444,10 @@ create_phony_dims(NC_GRP_INFO_T *grp, hid_t hdf_datasetid, NC_VAR_INFO_T *var)
     }
     else
     {
-        /* Make sure it's scalar. */
-        assert(H5Sget_simple_extent_type(spaceid) == H5S_SCALAR);
+        /* Make sure it's scalar.  Null data space is possible in HDF5,
+         * but not allowed in netcdf data model. */
+        if (H5Sget_simple_extent_type(spaceid) != H5S_SCALAR)
+            BAIL(NC_EHDFERR);
     }
 
     /* Create a phony dimension for each dimension in the dataset,

@@ -53,7 +53,6 @@ static NC_reservedatt NC_reserved[] = {
     {NC_ATT_DIMID_NAME, READONLYFLAG|HIDDENATTRFLAG},			/*_Netcdf4Dimid*/
     {SUPERBLOCKATT, READONLYFLAG|NAMEONLYFLAG|VIRTUALFLAG},		/*_SuperblockVersion*/
     {NC_ATT_NC3_STRICT_NAME, READONLYFLAG},				/*_nc3_strict*/
-    {NC_ATT_NC3_STRICT_NAME, READONLYFLAG},				/*_nc3_strict*/
     {NC_NCZARR_ATTR, READONLYFLAG|HIDDENATTRFLAG},			/*_nczarr_attr */
     {NC_NCZARR_GROUP, READONLYFLAG|HIDDENATTRFLAG},			/*_nczarr_group */
     {NC_NCZARR_ARRAY, READONLYFLAG|HIDDENATTRFLAG},			/*_nczarr_array */
@@ -71,6 +70,8 @@ static int sortcmp(const void* arg1, const void* arg2);
    severity 0 for errors, 1 for important log messages, 2 for less
    important, etc. */
 int nc_log_level = NC_TURN_OFF_LOGGING;
+
+
 #if NC_HAS_PARALLEL4
 /* File pointer for the parallel I/O log file. */
 FILE *LOG_FILE = NULL;
@@ -95,6 +96,12 @@ nc_log(int severity, const char *fmt, ...)
     va_list argp;
     int t;
     FILE *f = stderr;
+
+    const char* envv = NULL;
+    envv = getenv("NC4LOGGING");
+    if(envv != NULL) {
+        nc_log_level = atoi(envv);
+    }
 
     /* If the severity is greater than the log level, we don't print
      * this message. */

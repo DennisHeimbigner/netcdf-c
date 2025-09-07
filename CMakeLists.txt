@@ -772,6 +772,12 @@ if (NOT NETCDF_ENABLE_S3 AND NETCDF_ENABLE_NCZARR_S3)
 endif()
 unset(NETCDF_ENABLE_NCZARR_S3)
 
+# If NETCDF_ENABLE_S3 is ON/TRUE, then enable NETCDF_ENABLE_NCZARR, in order to keep 
+# things congruent with autotools.
+if (NETCDF_ENABLE_S3)
+  set(NETCDF_ENABLE_NCZARR ON CACHE BOOL "Enable NCZarr Client" FORCE)
+endif(NETCDF_ENABLE_S3)
+
 if(NOT NETCDF_ENABLE_REMOTE_FUNCTIONALITY)
   message(WARNING "NETCDF_ENABLE_REMOTE_FUNCTIONALITY=NO => disable all s3 functionality")
   set(NETCDF_ENABLE_S3 OFF CACHE BOOL "" FORCE)
@@ -1306,7 +1312,6 @@ endif()
 # Check for various functions.
 CHECK_FUNCTION_EXISTS(fsync HAVE_FSYNC)
 CHECK_FUNCTION_EXISTS(strlcat   HAVE_STRLCAT)
-CHECK_FUNCTION_EXISTS(strlcpy  HAVE_STRLCPY)
 CHECK_FUNCTION_EXISTS(strdup  HAVE_STRDUP)
 CHECK_FUNCTION_EXISTS(strndup HAVE_STRNDUP)
 CHECK_FUNCTION_EXISTS(strlen  HAVE_STRLEN)
@@ -1429,7 +1434,7 @@ configure_file("${netCDF_SOURCE_DIR}/config.h.cmake.in"
 
 add_definitions(-DHAVE_CONFIG_H)
 
-include_directories(${netCDF_BINARY_DIR})
+include_directories(BEFORE ${netCDF_BINARY_DIR})
 # End autotools-style checks for config.h
 
 #####
@@ -1463,11 +1468,16 @@ endif()
 
 if(NETCDF_ENABLE_DAP4)
   add_subdirectory(libdap4)
-  add_subdirectory(libncxml)
 else()
   if(NETCDF_ENABLE_S3_INTERNAL)
     add_subdirectory(libncxml)
   endif()
+endif()
+
+if (NETCDF_ENABLE_DAP4 OR NETCDF_ENABLE_S3_INTERNAL OR NETCDF_ENABLE_NCZARR OR NETCDF_ENABLE_LIBXML2)
+  add_subdirectory(libncxml)
+else()
+  set(XMLPARSER "none required")
 endif()
 
 if(NETCDF_ENABLE_PLUGINS)
@@ -1476,20 +1486,6 @@ endif()
 
 if(NETCDF_ENABLE_NCZARR)
   add_subdirectory(libnczarr)
-  file(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.h
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_misc.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_repeat.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_order.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
-  file(COPY ${netCDF_SOURCE_DIR}/nc_test4/tst_multifilter.c
-       DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
 endif()
 
 # Tests and files which depend on libnetcdf must be included
@@ -1538,6 +1534,20 @@ if(NETCDF_ENABLE_TESTS)
     add_subdirectory(unit_test)
   endif(NETCDF_ENABLE_UNIT_TESTS)
   if(NETCDF_ENABLE_NCZARR)
+    file(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.h
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/unit_test/timer_utils.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_misc.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_repeat.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/nc_test4/test_filter_order.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
+    file(COPY ${netCDF_SOURCE_DIR}/nc_test4/tst_multifilter.c
+         DESTINATION ${netCDF_BINARY_DIR}/nczarr_test/)
     include_directories(nczarr_test)
     add_subdirectory(nczarr_test)
   endif()
@@ -1563,20 +1573,30 @@ if(MSVC)
   endif()
   
   foreach(CPP ${CMAKE_PREFIX_PATH})
+    
+    CMAKE_PATH(CONVERT ${CPP} TO_CMAKE_PATH_LIST CPP)
+
     file(GLOB COPY_FILES ${CPP}/*.lib ${CPP}/lib/*.lib)
+    if(COPY_FILES)
+      install(FILES ${COPY_FILES}
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        COMPONENT dependencies)
+    endif()
   endforeach()
-  install(FILES ${COPY_FILES}
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  COMPONENT dependencies)
-
+  
   foreach(CPP ${CMAKE_PREFIX_PATH})
-    file(GLOB COPY_FILES ${CPP}/*.dll)
-  endforeach()
-  string(REGEX REPLACE "msv[.*].dll" "" COPY_FILES "${COPY_FILES}")
-  install(FILES ${COPY_FILES}
-  DESTINATION ${CMAKE_INSTALL_BINDIR}
-  COMPONENT dependencies)
 
+    CMAKE_PATH(CONVERT ${CPP} TO_CMAKE_PATH_LIST CPP)
+
+    file(GLOB COPY_FILES ${CPP}/*.dll ${CPP}/bin/*.dll)
+    if(COPY_FILES)
+      string(REGEX REPLACE "msv[.*].dll" "" COPY_FILES "${COPY_FILES}")
+      install(FILES ${COPY_FILES}
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT dependencies)
+    endif()
+  endforeach()
+  
 endif()
 
 # Subdirectory CMakeLists.txt files should specify their own
@@ -1739,6 +1759,10 @@ endif()
 # The Unidata testing S3 bucket
 # WARNING: this must match the value in configure.ac
 set(S3TESTBUCKET "unidata-zarr-test-data" CACHE STRING "S3 test bucket")
+
+# Additional S3 Test Endpoing
+set(S3ENDPOINT "s3.us-east-1.amazonaws.com" CACHE STRING "S3 endpoint")
+
 
 # The working S3 path tree within the Unidata bucket.
 # WARNING: this must match the value in configure.ac

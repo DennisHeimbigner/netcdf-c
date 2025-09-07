@@ -201,6 +201,9 @@ if(USE_HDF5)
 
   # Check to see if H5Dread_chunk is available
   check_symbol_exists(H5Dread_chunk "hdf5.h" HAS_READCHUNKS)
+  if(NOT HAS_READCHUNKS)
+    check_symbol_exists(H5Dread_chunk2 "hdf5.h" HAS_READCHUNKS)
+  endif()
 
   # Check to see if H5Pset_fapl_ros3 is available
   check_symbol_exists(H5Pset_fapl_ros3 "hdf5.h" HAS_HDF5_ROS3)
@@ -232,7 +235,7 @@ endif(USE_HDF5)
 # and byterange support
 ################################
 
-if( NETCDF_ENABLE_DAP2 OR NETCDF_ENABLE_DAP4 OR NETCDF_ENABLE_BYTERANGE_SUPPORT OR NETCDF_ENABLE_NCZARR_S3)
+if( NETCDF_ENABLE_DAP2 OR NETCDF_ENABLE_DAP4 OR NETCDF_ENABLE_BYTERANGE OR NETCDF_ENABLE_NCZARR_S3)
   # See if we have libcurl
   find_package(CURL)
   #target_compile_options(netcdf
@@ -450,7 +453,7 @@ if(NETCDF_ENABLE_S3)
     if(NOT OpenSSL_FOUND)
       message(FATAL_ERROR "Can't find an ssl library, required by S3_INTERNAL")
     endif(NOT OpenSSL_FOUND)
-    
+
     #find_package(Crypto REQUIRED)
     #if(NOT CRYPTO_LIB)
     #  message(FATAL_ERROR "Can't find a crypto library, required by S3_INTERNAL")

@@ -625,48 +625,6 @@ fi
 # End libcurl-related stanza
 ###
 
-###
-# Libxml2 control block.
-###
-
-AC_MSG_CHECKING([whether to search for and use external libxml2])
-AC_ARG_ENABLE([libxml2],
-              [AS_HELP_STRING([--disable-libxml2],
-                              [disable detection and use of libxml2 in favor of the bundled xml parser])])
-test "x$enable_libxml2" = xno || enable_libxml2=yes
-AC_MSG_RESULT([$enable_libxml2])
-
-# We can optionally use libxml2 for DAP4 and nch5comms, if enabled
-have_libxml2=no
-if test "x$enable_libxml2" = xyes; then
-   AC_CHECK_PROGS([NC_XML2_CONFIG], [xml2-config])
-   if test -z "$NC_XML2_CONFIG"; then
-      AC_MSG_ERROR([Cannot find xml2-config utility. Either install the libxml2 development package, or re-run configure with --disable-libxml2 to use the bundled xml2 parser])
-   fi
-  AC_CHECK_LIB([xml2],[xmlReadMemory],[have_libxml2=yes],[have_libxml2=no])
-  if test "x$have_libxml2" = "xyes" ; then
-      AC_SEARCH_LIBS([xmlReadMemory],[xml2 xml2.dll cygxml2.dll], [],[])
-  fi
-  if test "x$have_libxml2" = xyes; then
-     XML2FLAGS=`xml2-config --cflags`
-     AC_SUBST([XML2FLAGS],${XML2FLAGS})
-     AC_DEFINE([HAVE_LIBXML2], [1], [if true, use libxml2])
-  fi
-fi
-
-if test "x$enable_libxml2" = xyes; then
-XMLPARSER="libxml2"
-else
-XMLPARSER="tinyxml2 (bundled)"
-fi
-
-# Need a condition and subst for this
-AM_CONDITIONAL(NETCDF_ENABLE_LIBXML2, [test "x$enable_libxml2" = xyes])
-AC_SUBST([XMLPARSER],[${XMLPARSER}])
-
-###
-# End Libxml2 block
-###
 
 ##
 # Should quantize be enabled?
@@ -786,6 +744,66 @@ if test "x$enable_nczarr" = xyes; then
    AC_SUBST(NETCDF_ENABLE_NCZARR)
 fi
 AM_CONDITIONAL(NETCDF_ENABLE_NCZARR, [test x$enable_nczarr = xyes])
+
+
+###
+# End nczarr, dap block
+###
+
+###
+# Libxml2 control block.
+###
+
+AC_MSG_CHECKING([whether to search for and use external libxml2])
+AC_ARG_ENABLE([libxml2],
+              [AS_HELP_STRING([--disable-libxml2],
+                              [disable detection and use of libxml2 in favor of the bundled xml parser])])
+test "x$enable_libxml2" = xno || enable_libxml2=yes
+AC_MSG_RESULT([$enable_libxml2])
+
+# We can optionally use libxml2 for DAP4 and nch5comms, if enabled
+have_libxml2=no
+if test "x$enable_libxml2" = xyes; then
+   AC_CHECK_PROGS([NC_XML2_CONFIG], [xml2-config])
+   if test -z "$NC_XML2_CONFIG"; then
+      AC_MSG_ERROR([Cannot find xml2-config utility. Either install the libxml2 development package, or re-run configure with --disable-libxml2 to use the bundled xml2 parser])
+   fi
+  AC_CHECK_LIB([xml2],[xmlReadMemory],[have_libxml2=yes],[have_libxml2=no])
+  if test "x$have_libxml2" = "xyes" ; then
+      AC_SEARCH_LIBS([xmlReadMemory],[xml2 xml2.dll cygxml2.dll], [],[])
+  fi
+  if test "x$have_libxml2" = xyes; then
+     XML2FLAGS=`xml2-config --cflags`
+     AC_SUBST([XML2FLAGS],${XML2FLAGS})
+     AC_DEFINE([HAVE_LIBXML2], [1], [if true, use libxml2])
+  fi
+fi
+
+###
+# See https://github.com/Unidata/netcdf-c/issues/2851
+# There is a condition where we can avoid compiling libxml2 *and* tinyxml2, if we don't need nczarr or DAP4.
+###
+XMLPARSER="none required"
+AM_CONDITIONAL(NETCDF_ENABLE_XML2,[test "$enable_nczarr" = yes || test "$enable_dap4" = yes || test "$enable_libxml2" = yes])
+if test "$enable_nczarr" = yes || test "$enable_dap4" = yes || test "$enable_libxml2" = yes ; then
+
+   if test "x$enable_libxml2" = xyes; then
+      XMLPARSER="libxml2"
+   else 
+      XMLPARSER="tinyxml2 (bundled)"
+   fi
+fi
+
+# Need a condition and subst for this
+AM_CONDITIONAL(NETCDF_ENABLE_LIBXML2, [test "x$enable_libxml2" = xyes])
+
+AC_SUBST([XMLPARSER],[${XMLPARSER}])
+
+###
+# End Libxml2 block
+###
+
+
 
 ##########
 # Look for Standardized libraries
@@ -969,13 +987,13 @@ else
 
    # Set enable_s3 instead of enable_nczarr_s3
    if test "x$enable_s3" = xno && test "x$enable_nczarr_s3" = xyes ; then
-   enable_s3=yes # back compatibility
+      enable_s3=yes # back compatibility
    fi
    unset enable_nczarr_s3
 
    if test "x$enable_remote_functionality" = xno ; then
    AC_MSG_WARN([--disable-remote-functionality => --disable-s3])
-   enable_s3=no
+      enable_s3=no
    fi
 
    # Note we check for the library after checking for enable_s3
@@ -1388,7 +1406,7 @@ AC_CHECK_FUNCS([strlcat snprintf strcasecmp fileno \
                 strdup strtoll strtoull \
 		mkstemp mktemp random \
 		getrlimit gettimeofday fsync MPI_Comm_f2c MPI_Info_f2c \
-		strncasecmp strlcpy])
+		strncasecmp])
 
 # See if clock_gettime is available and its arg types.
 AC_CHECK_FUNCS([clock_gettime])
@@ -1689,7 +1707,10 @@ if test "x$enable_hdf5" = xyes; then
    AC_MSG_RESULT([$hdf5_parallel])
 
    # See if H5Dread_chunk is available
-   AC_SEARCH_LIBS([H5Dread_chunk],[hdf5_hldll hdf5_hl], [has_readchunks=yes], [has_readdhunks=no])
+   AC_SEARCH_LIBS([H5Dread_chunk],[hdf5_hldll hdf5_hl], [has_readchunks=yes], [has_readchunks=no])
+   if test "x$has_readchunks" = xno; then
+    AC_SEARCH_LIBS([H5Dread_chunk2],[hdf5_hldll hdf5_hl], [has_readchunks=yes], [has_readchunks=no])
+   fi
 
    # See if hdf5 library supports Read-Only S3 (byte-range) driver
    AC_SEARCH_LIBS([H5Pset_fapl_ros3],[hdf5_hldll hdf5_hl], [has_hdf5_ros3=yes], [has_hdf5_ros3=no])
@@ -2124,6 +2145,11 @@ AC_SUBST([S3TESTBUCKET],["unidata-zarr-test-data"])
 # WARNING: this must match the value in CMakeLists.txt
 AC_DEFINE([S3TESTSUBTREE], ["netcdf-c"], [S3 test path prefix])
 AC_SUBST([S3TESTSUBTREE],[netcdf-c])
+
+# Additional S3 Test Endpoint
+# WARNING: this must match the value in CMakeLists.txt
+AC_DEFINE([S3ENDPOINT], ["s3.us-east-1.amazonaws.com"], [S3 test endpoint])
+AC_SUBST([S3ENDPOINT],["s3.us-east-1.amazonaws.com"])
 
 # Build a small unique id to avoid interference on same platform
 PLATFORMUID="$RANDOM"

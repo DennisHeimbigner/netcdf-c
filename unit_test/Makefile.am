@@ -28,7 +28,7 @@ noinst_PROGRAMS += ncpluginpath
 ncpluginpath_SOURCES = ncpluginpath.c
 
 check_PROGRAMS += tst_nclist test_ncuri test_pathcvt
-TESTS += tst_nclist test_ncuri test_pathcvt
+TESTS += tst_nclist test_ncuri run_pathcvt.sh
 
 # Performance tests
 if BUILD_BENCHMARKS
@@ -70,8 +70,17 @@ EXTRA_DIST += nctest_netcdf4_classic.nc reclaim_tests.cdl
 EXTRA_DIST += ref_get.txt ref_set.txt
 EXTRA_DIST += ref_xget.txt ref_xset.txt
 EXTRA_DIST += ref_provparse.txt
+EXTRA_DIST += reclaim_tests.baseline
+CLEANFILES = reclaim_tests*.txt reclaim_tests.nc reclaim_tests.dmp tmp_*.txt
 
-CLEANFILES = reclaim_tests*.txt reclaim_tests.nc tmp_*.txt
+# Remove directories
+clean-local:
+	rm -fr testdir_* testset_*
+
+check-local:
+	echo "@@@"
+	pwd
+	if ls -ld *.sh ; then x=1; else x=0; fi
 
 # If valgrind is present, add valgrind targets.
 @VALGRIND_CHECK_RULES@

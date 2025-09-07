@@ -401,19 +401,6 @@ ncz_fill_value_sort(nc_type nctype, int* sortp)
     return NC_NOERR;	        
 }
 
-/* Return 1 if this machine is little endian */
-int
-NCZ_isLittleEndian(void)
-{
-    union {
-        unsigned char bytes[SIZEOF_INT];
-	int i;
-    } u;
-    u.i = 1;
-    return (u.bytes[0] == 1 ? 1 : 0);
-}
-
-
 /*
 Given a path to a group, return the list of objects
 that contain another object with the name of the tag.
@@ -623,7 +610,7 @@ NCZ_inferattrtype(const NCjson* value, nc_type typehint, nc_type* typeidp)
     long long i64;
     int negative = 0;
 
-    if(NCJsort(value) == NCJ_ARRAY && NCJlength(value) == 0)
+    if(NCJsort(value) == NCJ_ARRAY && NCJarraylength(value) == 0)
         {typeid = NC_NAT; goto done;} /* Empty array is illegal */
 
     if(NCJsort(value) == NCJ_NULL)
@@ -634,7 +621,7 @@ NCZ_inferattrtype(const NCjson* value, nc_type typehint, nc_type* typeidp)
 
     /* If an array, make sure all the elements are simple */
     if(value->sort == NCJ_ARRAY) {
-	for(i=0;i<NCJlength(value);i++) {
+	for(i=0;i<NCJarraylength(value);i++) {
 	    j=NCJith(value,i);
 	    if(!NCJisatomic(j))
 	        {typeid = NC_NAT; goto done;}
@@ -770,6 +757,7 @@ done:
 }
 
 /**************************************************/
+#if 0
 /* Endianness support */
 /* signature: void swapinline16(void* ip) */
 #define swapinline16(ip) \
@@ -808,6 +796,7 @@ done:
     u.b[7] = src[0]; \
     *((unsigned long long*)ip) = u.i; \
 }
+#endif /*0*/
 
 int
 NCZ_swapatomicdata(size_t datalen, void* data, int typesize)
@@ -1026,7 +1015,7 @@ checksimplejson(NCjson* json, int depth)
     switch (NCJsort(json)) {
     case NCJ_ARRAY:
 	if(depth > 0) return 0;  /* e.g. [...,[...],...]  or [...,{...},...] */
-	for(i=0;i < NCJlength(json);i++) {
+	for(i=0;i < NCJarraylength(json);i++) {
 	    NCjson* j = NCJith(json,i);
 	    if(!checksimplejson(j,depth+1)) return 0;
         }
@@ -1052,7 +1041,7 @@ NCZ_iscomplexjson(const NCjson* json, nc_type typehint)
 	/* If the typehint is NC_CHAR, then always treat it as complex */
 	if(typehint == NC_CHAR) {stat = 1; goto done;}
 	/* Otherwise see if it is a simple vector of atomic values */
-	for(i=0;i < NCJlength(json);i++) {
+	for(i=0;i < NCJarraylength(json);i++) {
 	    NCjson* j = NCJith(json,i);
 	    if(!NCJisatomic(j)) {stat = 1; goto done;}
         }

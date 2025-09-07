@@ -14,6 +14,7 @@
 #include "nclog.h"
 #include "ncrc.h"
 #include "ncxml.h"
+#include "ncutil.h"
 
 #include "ncs3sdk.h"
 #include "nch5s3comms.h"
@@ -53,6 +54,7 @@ typedef struct NCS3CLIENT {
 
 struct Object {
     NClist* checksumalgorithms; /* NClist<char*> */
+    NClist* checksumtypes; /* NClist<char*> */
     char* etag;
     char* key;
     char* lastmodified;
@@ -91,6 +93,7 @@ static int parse_object(ncxml_t root, NClist* objects);
 static int parse_owner(ncxml_t root, struct Owner* ownerp);
 static int parse_prefix(ncxml_t root, NClist* prefixes);
 static int parse_checksumalgorithm(ncxml_t root, NClist* algorithms);
+static int parse_checksumtypes(ncxml_t root, NClist* types);
 static struct LISTOBJECTSV2* alloclistobjectsv2(void);
 static struct Object* allocobject(void);
 static void reclaim_listobjectsv2(struct LISTOBJECTSV2* lo);
@@ -101,6 +104,7 @@ static int s3objectsinfo(NClist* contents, NClist* keys, NClist* lens);
 static int s3commonprefixes(NClist* list, NClist* keys);
 static int mergekeysets(NClist*,NClist*,NClist*);
 static int rawtokeys(s3r_buf_t* response, NClist* keys, NClist* lengths, struct LISTOBJECTSV2** listv2p);
+static int httptonc(long httpcode);
 
 static int queryadd(NClist* query, const char* key, const char* value);
 static int queryend(NClist* query, char** querystring);
@@ -113,7 +117,7 @@ static int queryinsert(NClist* list, char* ekey, char* evalue);
 static int ncs3_initialized = 0;
 static int ncs3_finalized = 0;
 
-EXTERNL int
+/*EXTERNL*/ int
 NC_s3sdkinitialize(void)
 {
     if(!ncs3_initialized) {
@@ -127,7 +131,7 @@ NC_s3sdkinitialize(void)
     return NC_NOERR;
 }
 
-EXTERNL int
+/*EXTERNL*/ int
 NC_s3sdkfinalize(void)
 {
     if(!ncs3_finalized) {
@@ -169,7 +173,7 @@ dumps3client(void* s3client0, const char* tag)
 
 /**************************************************/
 
-EXTERNL void*
+/*EXTERNL*/ void*
 NC_s3sdkcreateclient(NCS3INFO* info)
 {
     int stat = NC_NOERR;
@@ -193,14 +197,14 @@ NC_s3sdkcreateclient(NCS3INFO* info)
 done:
     nullfree(urlroot);
     if(stat && s3client) {
-        NC_s3sdkclose(s3client,info,0,NULL);
+        NC_s3sdkclose(s3client,NULL);
 	s3client = NULL;
     }
     NCNILTRACE(NC_NOERR);
     return (void*)s3client;
 }
 
-EXTERNL int
+/*EXTERNL*/ int
 NC_s3sdkbucketexists(void* s3client0, const char* bucket, int* existsp, char** errmsgp)
 {
     int stat = NC_NOERR;
@@ -213,6 +217,7 @@ NC_s3sdkbucketexists(void* s3client0, const char* bucket, int* existsp, char** e
 
     if((stat = makes3fullpath(s3client->rooturl,bucket,NULL,NULL,url))) goto done;
     if((stat = NCH5_s3comms_s3r_head(s3client->h5s3client, ncbytescontents(url), NULL, NULL, &httpcode, NULL))) goto done;
+    stat = httptonc(httpcode);
 
     if(existsp) {*existsp = (stat == 0 && httpcode == 200);}
 done:
@@ -220,7 +225,7 @@ done:
     return NCUNTRACEX(stat,"exists=%d",PTRVAL(int,existsp,-1));
 }
 
-EXTERNL int
+/*EXTERNL*/ int
 NC_s3sdkbucketcreate(void* s3client0, const char* region, const char* bucket, char** errmsgp)
 {
     int stat = NC_NOERR;
@@ -234,7 +239,7 @@ NC_s3sdkbucketcreate(void* s3client0, const char* region, const char* bucket, ch
     return NCUNTRACE(stat);    
 }
 
-EXTERNL int
+/*EXTERNL*/ int
 NC_s3sdkbucketdelete(void* s3client0, NCS3INFO* info, char** errmsgp)
 {
     int stat = NC_NOERR;
@@ -255,23 +260,25 @@ NC_s3sdkbucketdelete(void* s3client0, NCS3INFO* info, char** errmsgp)
 
 /*
 @return NC_NOERR if key points to a content-bearing object.
-@return NC_EEMPTY if object at key has no content.
+@return NC_ENOOBJECT if object at key does not exist
 @return NC_EXXX return true error
 */
-EXTERNL int
+/*EXTERNL*/ int
 NC_s3sdkinfo(void* s3client0, const char* bucket, const char* pathkey, size64_t* lenp, char** errmsgp)
 {
     int stat = NC_NOERR;
     NCS3CLIENT* s3client = (NCS3CLIENT*)s3client0;
     NCbytes* url = ncbytesnew();
     long long len = -1;
+    long httpcode = 0;
 
     NCTRACE(11,"bucket=%s pathkey=%s",bucket,pathkey);
 
     if((stat = makes3fullpath(s3client->rooturl,bucket,pathkey,NULL,url))) goto done;
-    if((stat = NCH5_s3comms_s3r_getsize(s3client->h5s3client, ncbytescontents(url), &len))) goto done;
+    if((stat = NCH5_s3comms_s3r_getsize(s3client->h5s3client, ncbytescontents(url), &len, &httpcode))) goto done;
+    stat = httptonc(httpcode);
 
-    if(lenp) {*lenp = len;}
+    if(lenp) {*lenp = (size64_t)len;}
 
 done:
     ncbytesfree(url);
@@ -282,13 +289,14 @@ done:
 @return NC_NOERR if success
 @return NC_EXXX if fail
 */
-EXTERNL int
+/*EXTERNL*/ int
 NC_s3sdkread(void* s3client0, const char* bucket, const char* pathkey, size64_t start, size64_t count, void* content, char** errmsgp)
 {
     int stat = NC_NOERR;
     NCS3CLIENT* s3client = (NCS3CLIENT*)s3client0;
     NCbytes* url = ncbytesnew();
     struct s3r_buf_t data = {0,NULL};
+    long httpcode = 0;
 
     NCTRACE(11,"bucket=%s pathkey=%s start=%llu count=%llu content=%p",bucket,pathkey,start,count,content);
 
@@ -297,8 +305,8 @@ NC_s3sdkread(void* s3client0, const char* bucket, const char* pathkey, size64_t 
     /* Read the data */
     data.count = count;
     data.content = content;
-    if((stat = NCH5_s3comms_s3r_read(s3client->h5s3client,ncbytescontents(url),(size_t)start,(size_t)count,&data))) goto done;
-    
+    if((stat = NCH5_s3comms_s3r_read(s3client->h5s3client,ncbytescontents(url),(size_t)start,(size_t)count,&data,&httpcode))) goto done;
+    stat = httptonc(httpcode);    
 done:
     ncbytesfree(url);
     return NCUNTRACE(stat);
@@ -308,13 +316,14 @@ done:
 For S3, I can see no way to do a byterange write;
 so we are effectively writing the whole object
 */
-EXTERNL int
+/*EXTERNL*/ int
 NC_s3sdkwriteobject(void* s3client0, const char* bucket, const char* pathkey,  size64_t count, const void* content, char** errmsgp)
 {
     int stat = NC_NOERR;
     NCS3CLIENT* s3client = (NCS3CLIENT*)s3client0;
     NCbytes* url = ncbytesnew();
     s3r_buf_t data;
+    long httpcode = 0;
 
     NCTRACE(11,"bucket=%s pathkey=%s count=%llu content=%p",bucket,pathkey,count,content);
 
@@ -323,36 +332,58 @@ NC_s3sdkwriteobject(void* s3client0, const char* bucket, const char* pathkey,  s
     /* Write the data */
     data.count = count;
     data.content = (void*)content;
-    if((stat = NCH5_s3comms_s3r_write(s3client->h5s3client,ncbytescontents(url),&data))) goto done;
+    if((stat = NCH5_s3comms_s3r_write(s3client->h5s3client,ncbytescontents(url),&data,&httpcode))) goto done;
+    stat = httptonc(httpcode);
     
 done:
     ncbytesfree(url);
     return NCUNTRACE(stat);
 }
 
-EXTERNL int
-NC_s3sdkclose(void* s3client0, NCS3INFO* info, int deleteit, char** errmsgp)
+/*EXTERNL*/ int
+NC_s3sdkclose(void* s3client0, char** errmsgp)
 {
     int stat = NC_NOERR;
     NCS3CLIENT* s3client = (NCS3CLIENT*)s3client0;
 
-    NCTRACE(11,"info=%s deleteit=%d",NC_s3dumps3info(info),deleteit);
-    
-    if(deleteit) {
-        /* Delete the root key; ok it if does not exist */
-        switch (stat = NC_s3sdkdeletekey(s3client0,info->bucket,info->rootkey,errmsgp)) {
-        case NC_NOERR: break;
-        case NC_EEMPTY: case NC_ENOTFOUND: stat = NC_NOERR; break;
-        default: break;
-        }
-    }
+    NCTRACE(11,"");
     s3client_destroy(s3client);
     return NCUNTRACE(stat);
 }
 
+/*EXTERNL*/ int
+NC_s3sdktruncate(void* s3client0, const char* bucket, const char* prefix, char** errmsgp)
+{
+    int stat = NC_NOERR;
+    char* errmsg = NULL;
+    size_t nkeys;
+    char** keys = NULL;
+    NCS3CLIENT* s3client = (NCS3CLIENT*)s3client0;
+
+    NCTRACE(11,"bucket=%s prefix=%s",bucket,prefix);
+
+    if((stat = NC_s3sdklistall(s3client0,bucket,prefix,&nkeys,&keys,&errmsg))) goto done;
+
+    if(nkeys > 0 && keys != NULL) {
+	size_t i;
+	/* Sort the list -- shortest first */
+	NC_sortenvv(nkeys,keys);
+	for(i=0;i<nkeys;i++) {
+	    if((stat = NC_s3sdkdeletekey(s3client, bucket, keys[i], NULL))) goto done;
+        }
+    }
+
+    if(errmsgp) {*errmsgp = errmsg; errmsg = NULL;}
+
+done:
+    nullfree(errmsg);
+    NC_freeenvv(nkeys,keys);    
+    return NCUNTRACE(stat);
+}
+
 /*
-Common code for getkeys and searchkeys.
-Return a list of names of legal objects immediately below a specified key.
+Common code for list and listall.
+Return a list of names of legal objects immediately or anywhere below a specified key.
 In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
 */
@@ -371,6 +402,7 @@ getkeys(void* s3client0, const char* bucket, const char* prefixkey0, const char*
     int istruncated = 0;
     char* continuetoken = NULL;
     s3r_buf_t response = {0,NULL};
+    long httpcode = 0;
 
     NCTRACE(11,"bucket=%s prefixkey0=%s",bucket,prefixkey0);
     
@@ -401,7 +433,8 @@ getkeys(void* s3client0, const char* bucket, const char* prefixkey0, const char*
         ncbytescat(listurl,"?");
         ncbytescat(listurl,querystring);
 
-        if((stat = NCH5_s3comms_s3r_getkeys(s3client->h5s3client, ncbytescontents(listurl), &response))) goto done;
+        if((stat = NCH5_s3comms_s3r_getkeys(s3client->h5s3client, ncbytescontents(listurl), &response, &httpcode))) goto done;
+	if((stat = httptonc(httpcode))) goto done;
         if((stat = rawtokeys(&response,allkeys,NULL,&listv2))) goto done;
 	istruncated = (strcasecmp(listv2->istruncated,"true")==0?1:0);
 	nullfree(continuetoken);
@@ -429,26 +462,26 @@ Return a list of names of legal objects immediately below a specified key.
 In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
 */
-EXTERNL int
-NC_s3sdkgetkeys(void* s3client0, const char* bucket, const char* prefixkey0, size_t* nkeysp, char*** keysp, char** errmsgp)
+/*EXTERNL*/ int
+NC_s3sdklist(void* s3client0, const char* bucket, const char* prefixkey0, size_t* nkeysp, char*** keysp, char** errmsgp)
 {
     NCTRACE(11,"bucket=%s prefixkey0=%s",bucket,prefixkey0);
     return NCUNTRACE(getkeys(s3client0, bucket, prefixkey0, "/", nkeysp, keysp, errmsgp));
 }
 
 /*
-Return a list of full keys  of legal objects immediately below a specified key.
+Return a list of full keys  of legal objects anywhere below a specified key.
 Not necessarily sorted.
 Essentially same as getkeys, but with no delimiter.
 */
-EXTERNL int
-NC_s3sdksearch(void* s3client0, const char* bucket, const char* prefixkey0, size_t* nkeysp, char*** keysp, char** errmsgp)
+/*EXTERNL*/ int
+NC_s3sdklistall(void* s3client0, const char* bucket, const char* prefixkey0, size_t* nkeysp, char*** keysp, char** errmsgp)
 {
     NCTRACE(11,"bucket=%s prefixkey0=%s",bucket,prefixkey0);
     return NCUNTRACE(getkeys(s3client0, bucket, prefixkey0, NULL, nkeysp, keysp, errmsgp));
 }
 
-EXTERNL int
+/*EXTERNL*/ int
 NC_s3sdkdeletekey(void* s3client0, const char* bucket, const char* pathkey, char** errmsgp)
 {
     int stat = NC_NOERR;
@@ -461,6 +494,11 @@ NC_s3sdkdeletekey(void* s3client0, const char* bucket, const char* pathkey, char
     if((stat = makes3fullpath(s3client->rooturl,bucket,pathkey,NULL,url))) goto done;
 
     if((stat = NCH5_s3comms_s3r_deletekey(s3client->h5s3client, ncbytescontents(url), &httpcode))) goto done;
+    switch(stat = httptonc(httpcode)) {
+    case NC_NOERR: break;
+    case NC_ENOOBJECT: break; /* does not exist */
+    default: goto done;
+    }
 
 done:
     ncbytesfree(url);
@@ -615,6 +653,7 @@ HTTP/1.1 200
       <Size>integer</Size>
       <StorageClass>string</StorageClass>
       <ChecksumAlgorithm>string</ChecksumAlgorithm>
+      <ChecksumType>string</ChecksumType>
       <Owner>
          <DisplayName>string</DisplayName>
          <ID>string</ID>
@@ -700,8 +739,8 @@ parse_listbucketresult(char* xml, unsigned long long xmllen, struct LISTOBJECTSV
     if(resultp) {*resultp = result; result = NULL;}
 
 done:
-    if(result) reclaim_listobjectsv2(result);
     if(doc) ncxml_free(doc);
+    if(result) reclaim_listobjectsv2(result);
     return NCTHROW(stat);
 }
 
@@ -725,6 +764,8 @@ parse_object(ncxml_t root, NClist* objects)
 	const char* elem = ncxml_name(x);
 	if(strcmp(elem,"ChecksumAlgorithm")==0) {
 	    if((stat = parse_checksumalgorithm(x,object->checksumalgorithms))) goto done;
+	} else if(strcmp(elem,"ChecksumType")==0) {
+	    if((stat = parse_checksumtypes(x,object->checksumtypes))) goto done;
 	} else if(strcmp(elem,"ETag")==0) {
 	    object->etag = trim(ncxml_text(x),RECLAIM);
 	} else if(strcmp(elem,"Key")==0) {
@@ -838,6 +879,27 @@ done:
     return NCTHROW(stat);
 }
 
+static int
+parse_checksumtypes(ncxml_t root, NClist* types)
+{
+    int stat = NC_NOERR;
+    char* typ = NULL;
+
+    /* Verify top level element */
+    if(strcmp(ncxml_name(root),"ChecksumType")!=0) {
+	nclog(NCLOGERR,"Expected: <ChecksumType> actual: <%s>",ncxml_name(root));
+	stat = NC_ES3;
+	goto done;
+    }
+    typ = trim(ncxml_text(root),RECLAIM);
+    nclistpush(types,typ);
+    typ = NULL;
+
+done:
+    nullfree(typ);
+    return NCTHROW(stat);
+}
+
 static struct LISTOBJECTSV2*
 alloclistobjectsv2(void)
 {
@@ -856,6 +918,7 @@ allocobject(void)
     if((obj = calloc(1,sizeof(struct Object))) == NULL)
 	return obj;
     obj->checksumalgorithms = nclistnew();
+    obj->checksumtypes = nclistnew();
     return obj;
 }
 
@@ -886,6 +949,7 @@ reclaim_object(struct Object* o)
 {
     if(o == NULL) return;
     nclistfreeall(o->checksumalgorithms);
+    nclistfreeall(o->checksumtypes);
     nullfree(o->etag);
     nullfree(o->key);
     nullfree(o->lastmodified);
@@ -1061,3 +1125,33 @@ done:
     return NCTHROW(stat);
 }
 
+static int
+httptonc(long httpcode)
+{
+    int stat = NC_NOERR;
+    if(httpcode == 0)
+        stat = NC_NOERR;
+    else if(httpcode <= 99)
+        stat = NC_EINTERNAL; /* should never happen */
+    else if(httpcode <= 199)
+        stat = NC_NOERR; /* I guess */
+    else if(httpcode <= 299) {
+        switch (httpcode) {
+	case 200: stat = NC_NOERR; break;
+	case 204: stat = NC_ENOOBJECT; break;
+        default: stat = NC_NOERR; break;
+        }
+    } else if(httpcode <= 399)
+        stat = NC_NOERR; /* ? */
+    else if(httpcode <= 499) {
+        switch (httpcode) {
+        case 400: stat = NC_EINVAL; break;
+        case 401: case 402: case 403:
+            stat = NC_EAUTH; break;
+        case 404: stat = NC_ENOOBJECT; break;
+        default: stat = NC_EINVAL; break;
+        }
+    } else
+        stat = NC_ES3;
+    return stat;
+}

@@ -73,8 +73,6 @@ typedef struct Odometer {
 static char* captured[4096];
 static size_t ncap = 0;
 
-extern int nc__testurl(const char*,char**);
-
 Odometer* odom_new(size_t rank, const size_t* stop, const size_t* max);
 void odom_free(Odometer* odom);
 int odom_more(Odometer* odom);
@@ -411,8 +409,13 @@ dump(Format* format)
         switch (format->format) {
 #ifdef H5
 	case NC_FORMATX_NC_HDF5: {
-	    for(i=0;i<format->rank;i++) hoffset[i] = (hsize_t)offset[i];
+            for(i=0;i<format->rank;i++) hoffset[i] = (hsize_t)offset[i];
+#if H5_VERSION_GE(2,0,0)
+            size_t chunkdata_size = sizeof(chunkdata);
+            if(H5Dread_chunk2(datasetid, dxpl_id, hoffset, &filter_mask, chunkdata, &chunkdata_size) < 0)
+#else
 	    if(H5Dread_chunk(datasetid, dxpl_id, hoffset, &filter_mask, chunkdata) < 0)
+#endif
 	        holechunk = 1;
 	} break;
 #endif
@@ -485,7 +488,7 @@ filenamefor(const char* f0)
     char* p;
 
     strcpy(result,f0); /* default */
-    if(nc__testurl(f0,NULL)) goto done;
+    if(NC__testurl(f0,NULL,NULL)) goto done;
     /* Not a URL */
     p = strrchr(f0,'.'); /* look at the extension, if any */
     if(p == NULL) goto done; /* No extension */
