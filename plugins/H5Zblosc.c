@@ -269,7 +269,7 @@ blosc_filter(unsigned flags, size_t cd_nelmts,
   /* We're compressing */
   if (!(flags & H5Z_FLAG_REVERSE)) {
 
-    /* Allocate an output buffer exactly as long as the input data + blocs overhead.
+    /* Allocate an output buffer exactly as long as the input data + blosc overhead.
        This should be sufficient to work even if the buffer is uncompressable.
     */
 
