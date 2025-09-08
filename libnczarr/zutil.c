@@ -1032,9 +1032,16 @@ checksimplejson(NCjson* json, int depth)
 
 /* Return 1 if the attribute will be stored as a complex JSON valued attribute; return 0 otherwise */
 int
-NCZ_iscomplexjson(const NCjson* json, nc_type typehint)
+NCZ_iscomplexjson(const char* aname, const NCjson* json, nc_type typehint)
 {
-    int i, stat = 0;
+    int stat = 0;
+    size_t i;
+    const NC_reservedatt* rc = NULL;
+
+    /* See if this attribute is reserved and marked as COMPLEXJSON */
+    rc = NC_findreserved(aname);
+    if(rc != NULL && (rc->flags & COMPLEXJSON) != 0)
+        {stat = 1; goto done;}
 
     switch (NCJsort(json)) {
     case NCJ_ARRAY:
@@ -1053,5 +1060,56 @@ NCZ_iscomplexjson(const NCjson* json, nc_type typehint)
     default: break;
     }
 done:
+    return stat;
+}
+
+/* Return 1 if the attribute value as a string should be stored as complex json
+Assumes attribute type is NC_CHAR. The attribute name is involved because
+_nczarr_XXX is inherently complex json.
+@param aname name of the attribute
+@param text of the attribute as a string
+@param jsonp return the parsed json here (if parseable)
+@return 1 if is complex json
+*/
+int
+NCZ_iscomplexjsonstring(const char* aname, size_t textlen, const char* text, NCjson** jsonp)
+{
+    int stat = NC_NOERR;
+    NCjson* json = NULL;
+    const char* p;
+    int iscomplex, instring;
+    size_t i;
+    const NC_reservedatt* rc = NULL;
+
+    if(jsonp) *jsonp = NULL;
+    if(text == NULL || textlen < 2) return 0;
+
+    instring = 0;
+    iscomplex = 0;
+
+    /* See if this attribute is reserved and marked as COMPLEXJSON */
+    rc = NC_findreserved(aname);
+    if(rc != NULL && (rc->flags & COMPLEXJSON) != 0)
+        {iscomplex = 1; goto loopexit;}
+
+    /* Faster than a full parse */
+    for(i=0,p=text;i<textlen;i++,p++) {
+	switch (*p) {
+	case '\\': p++; break;
+	case '"': instring = (instring?0:1); break;
+	case '[': case '{': case ']': case '}':
+	    iscomplex=1;
+	    goto loopexit;
+	    break;
+	default: break;
+	}
+    }
+loopexit:
+    if(!iscomplex) return 0;
+    /* Final test: must be parseable */
+    if(NCJparsen(textlen,text,0,&json) < 0 || json == NULL) {
+        stat = 0;
+    } else {stat = 1; if(jsonp) {*jsonp = json; json = NULL;}}
+    NCZ_reclaim_json(json);
     return stat;
 }

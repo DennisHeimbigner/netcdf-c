@@ -15,16 +15,6 @@
 struct ChunkKey;
 struct S3credentials;
 
-/* Intermediate results */
-struct ZCVT {
-    signed long long int64v;
-    unsigned long long uint64v;
-    double float64v;
-    char* strv; /* null terminated utf-8 */
-};
-
-#define zcvt_empty {0,0,0.0,NULL}
-
 /* zarr.c */
 EXTERNL int ncz_create_dataset(NC_FILE_INFO_T*, NC_GRP_INFO_T*, NClist* controls);
 EXTERNL int ncz_open_dataset(NC_FILE_INFO_T*, NClist* controls);
@@ -65,11 +55,8 @@ EXTERNL int ncz_splitkey(const char* path, NClist* segments);
 EXTERNL int ncz_nctypedecode(const char* snctype, nc_type* nctypep);
 EXTERNL int ncz_nctype2dtype(nc_type nctype, int endianness, int purezarr,int len, char** dnamep);
 EXTERNL int ncz_dtype2nctype(const char* dtype, nc_type typehint, int purezarr, nc_type* nctypep, int* endianp, int* typelenp);
-EXTERNL int NCZ_inferattrtype(const NCjson* value, nc_type typehint, nc_type* typeidp);
-EXTERNL int NCZ_inferinttype(unsigned long long u64, int negative);
 EXTERNL int ncz_fill_value_sort(nc_type nctype, int*);
 EXTERNL int NCZ_createobject(NCZMAP* zmap, const char* key, size64_t size);
-EXTERNL int NCZ_uploadjson(NCZMAP* zmap, const char* key, NCjson* json);
 EXTERNL int NCZ_downloadjson(NCZMAP* zmap, const char* key, NCjson** jsonp);
 EXTERNL int NCZ_subobjects(NCZMAP* map, const char* prefix, const char* tag, char dimsep, NClist* objlist);
 EXTERNL int NCZ_grpname_full(int gid, char** pathp);
@@ -82,11 +69,7 @@ EXTERNL int NCZ_ischunkname(const char* name,char dimsep);
 EXTERNL char* NCZ_chunkpath(struct ChunkKey key);
 EXTERNL int NCZ_reclaim_fill_value(NC_VAR_INFO_T* var);
 EXTERNL int NCZ_copy_fill_value(NC_VAR_INFO_T* var, void** dstp);
-EXTERNL int NCZ_get_maxstrlen(NC_OBJ* obj);
-EXTERNL int NCZ_fixed2char(const void* fixed, char** charp, size_t count, int maxstrlen);
-EXTERNL int NCZ_char2fixed(const char** charp, void* fixed, size_t count, int maxstrlen);
 EXTERNL int NCZ_copy_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const void* memory, size_t count, int reading, void* copy);
-EXTERNL int NCZ_iscomplexjson(const NCjson* value, nc_type typehint);
 
 /* zwalk.c */
 EXTERNL int NCZ_read_chunk(int ncid, int varid, size64_t* zindices, void* chunkdata);

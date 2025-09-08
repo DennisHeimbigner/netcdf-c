@@ -38,11 +38,15 @@
 #  endif
 #endif
 
-#define ZMETAROOT "/.zgroup"
-#define ZMETAATTR "/.zattrs"
+#define ZGRPPATH "/.zgroup"
+#define ZATTRPATH "/.zattrs"
 #define ZGROUP ".zgroup"
 #define ZATTRS ".zattrs"
 #define ZARRAY ".zarray"
+#define ZMETADATA ".zmetadata"
+
+/* The name of the env var for controlling .zmetadata use*/
+#define NCZARRDEFAULTNOMETA "NCNOZMETADATA"
 
 /* V2 Reserved Attributes */
 /*
@@ -81,6 +85,8 @@ Inserted into any .zattrs
 #define XARRAYCONTROL "xarray"
 #define NOXARRAYCONTROL "noxarray"
 #define XARRAYSCALAR "_scalar_"
+#define ZMETADATACONTROL "zmetadata"
+#define NOZMETADATACONTROL "nozmetadata"
 
 #define NC_NCZARR_MAXSTRLEN_ATTR "_nczarr_maxstrlen"
 #define NC_NCZARR_DEFAULT_MAXSTRLEN_ATTR "_nczarr_default_maxstrlen"
@@ -194,6 +200,38 @@ typedef struct NCZ_FIELD_INFO {
 typedef struct NCZ_TYPE_INFO {
     NCZcommon common;
 } NCZ_TYPE_INFO_T;
+
+/* Parsed dimension info */
+typedef struct NCZ_DimInfo {
+    char norm_name[NC_MAX_NAME+1];
+    size64_t shape;
+    int unlimited;
+} NCZ_DimInfo;
+
+/* Dimension declaration info */
+typedef struct NCZ_DimDecl {
+    char* fqn;
+    size64_t shape;
+} NCZ_DimDecl;
+
+/* Parsed Attribute info */
+struct NCZ_AttrInfo {
+    const char* name;
+    nc_type nctype;
+    size_t typelen;
+    int endianness;
+    size_t datalen;
+    void* data;
+};
+
+/* Intermediate JSON results */
+struct ZCVT {
+    signed long long int64v;
+    unsigned long long uint64v;
+    double float64v;
+    char* strv; /* null terminated utf-8 */
+};
+#define zcvt_empty {0,0,0.0,NULL}
 
 #if 0
 /* Define the contents of the .nczcontent object */

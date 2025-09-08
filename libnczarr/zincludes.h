@@ -48,17 +48,22 @@ extern "C" {
 #include "ncindex.h"
 #include "ncjson.h"
 #include "ncproplist.h"
-#include "ncutil.h"
 
 #include "zmap.h"
+#include "zmetadata.h"
 #include "zinternal.h"
 #include "zdispatch.h"
+#include "zinfer.h"
 #include "zprovenance.h"
 #include "zodom.h"
 #include "zchunking.h"
 #include "zcache.h"
 #include "zarr.h"
+#include "zfilter.h"
+#include "zutil.h"
 #include "zdebug.h"
+
+#define ncz_find_default_chunksizes2 nc4_find_default_chunksizes2
 
 #ifdef __cplusplus
 }

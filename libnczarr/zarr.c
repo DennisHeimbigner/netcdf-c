@@ -140,8 +140,16 @@ ncz_open_dataset(NC_FILE_INFO_T* file, NClist* controls)
     if((stat = applycontrols(zinfo))) goto done;
 
     /* initialize map handle*/
-    if((stat = nczmap_open(zinfo->controls.mapimpl,nc->path,mode,zinfo->controls.flags,NULL,&zinfo->map)))
-	goto done;
+    if((stat = NCZ_get_map(file,uri,(mode_t)nc->mode,zinfo->controls.flags,NULL,&zinfo->map))) goto done;
+
+    /* Get the zarr_format */
+    if((stat = NCZ_infer_open_zarr_format(file,uri))) goto done; //???
+    /* And add the consolidated metadata manager to file */
+    /* Must follow NCZ_infer_open_zarr_format because it uses the discovered zarr format */
+    if((stat = NCZMD_set_metadata_handler(file))) goto done;
+
+    /* Set the nczarr format; must follow set_metadata_handler because it needs to read metadata */
+    if((stat = NCZ_infer_open_nczarr_format(file))) goto done;
 
     /* Ok, try to read superblock */
     if((stat = ncz_read_superblock(file,&nczarr_version,&zarr_format))) goto done;

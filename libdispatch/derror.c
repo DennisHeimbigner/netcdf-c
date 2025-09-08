@@ -276,7 +276,7 @@ const char *nc_strerror(int ncerr1)
       case NC_ES3:
 	 return "NetCDF: S3 error";
       case NC_EEMPTY:
-	 return "NetCDF: Attempt to read empty NCZarr map key";
+	 return "NetCDF: Attempt to read non-content-bearing key";
       case NC_EOBJECT:
 	 return "NetCDF: Some object exists when it should not";
       case NC_ENOOBJECT:

@@ -527,7 +527,7 @@ by the desired type. */
 #define NC_ENOFILTER     (-136)    /**< Filter not defined on variable. */
 #define NC_ENCZARR       (-137)    /**< Error at NCZarr layer. */
 #define NC_ES3           (-138)    /**< Generic S3 error */
-#define NC_EEMPTY        (-139)    /**< Attempt to read empty NCZarr map key */
+#define NC_EEMPTY        (-139)    /**< Attempt to read non-content-bearing key */
 #define NC_EOBJECT       (-140)    /**< Some object exists when it should not */
 #define NC_ENOOBJECT     (-141)    /**< Some object not found */
 #define NC_EPLUGIN       (-142)    /**< Unclassified failure in accessing a dynamically loaded plugin> */

@@ -51,6 +51,9 @@ ztype.c \
 zutil.c \
 zvar.c \
 zwalk.c \
+zmetadata.c \
+zmetadata0.c \
+zmetadata2.c \
 zdebug.c \
 zarr.h \
 zcache.h \
@@ -63,6 +66,8 @@ zodom.h \
 zprovenance.h \
 zplugins.h \
 zfilter.h \
+zmetadata.h \
+zinfer.h \
 zdebug.h
 
 if NETCDF_ENABLE_NCZARR_ZIP

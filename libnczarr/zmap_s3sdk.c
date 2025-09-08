@@ -421,7 +421,7 @@ zs3close(NCZMAP* map, int deleteit)
 }
 
 /*
-Return a list of full keys immediately "below" a specified prefix,
+Return a list of all key segments immediately "below" a specified prefix,
 but not including the prefix.
 In theory, the returned list should be sorted in lexical order,
 but it possible that it is not.
@@ -429,7 +429,7 @@ but it possible that it is not.
 @return NC_EXXX return true error
 */
 static int
-zs3search(NCZMAP* map, const char* prefix, NClist* matches)
+zs3list(NCZMAP* map, const char* prefix, NClist* matches)
 {
     int stat = NC_NOERR;
     size_t i;
@@ -445,7 +445,7 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
     
     if((stat = maketruekey(z3map->s3.rootkey,prefix,&trueprefix))) goto done;
     
-    if(*trueprefix != '/') return NC_EINTERNAL;
+    if(trueprefix[0] != '/') return NC_EINTERNAL;
     if((stat = NC_s3sdklist(z3map->s3client,z3map->s3.bucket,trueprefix,&nkeys,&list,&z3map->errmsg)))
         goto done;
     if(nkeys > 0) {
@@ -458,7 +458,10 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
 		p  = l+tplen; /* Point to start of suffix */
 		/* If the key is same as trueprefix, ignore it */
 		if(*p == '\0') continue;
+		/* Also check for trailing '/' */
+		if(strcmp(p,"/")==0) continue;
 		if(nczm_segment1(p,&newkey)) goto done;
+assert(newkey[0] != '/');
 	        nclistpush(tmp,newkey); newkey = NULL;
 	    }
         }
@@ -466,9 +469,9 @@ zs3search(NCZMAP* map, const char* prefix, NClist* matches)
 	for(i=0;i<nclistlength(tmp);i++) {
 	    size_t j;
 	    int duplicate = 0;
-	    const char* is = nclistget(tmp,i);
+	    const char* is = (char*)nclistget(tmp,i);
 	    for(j=0;j<nclistlength(matches);j++) {
-	        const char* js = nclistget(matches,j);
+	        const char* js = (char*)nclistget(matches,j);
 	        if(strcmp(js,is)==0) {duplicate = 1; break;} /* duplicate */
 	    }	    
 	    if(!duplicate)
@@ -489,6 +492,69 @@ done:
     nullfree(trueprefix);
     reporterr(z3map);
     nclistfreeall(tmp);
+    freevector(nkeys,list);
+    return ZUNTRACEX(stat,"|matches|=%d",(int)nclistlength(matches));
+}
+
+/*
+Return a list of full keys "below" a specified prefix,
+but not including the prefix.
+In theory, the returned list should be sorted in lexical order,
+but it possible that it is not.
+@return NC_NOERR if success, even if no keys returned.
+@return NC_EXXX return true error
+*/
+static int
+zs3listall(NCZMAP* map, const char* prefix, NClist* matches)
+{
+    int stat = NC_NOERR;
+    ZS3MAP* z3map = (ZS3MAP*)map;
+    char** list = NULL;
+    size_t i,nkeys;
+    char* trueprefix = NULL;
+    char* newkey = NULL;
+
+    ZTRACE(6,"map=%s prefix0=%s",map->url,prefix);
+    
+    if((stat = maketruekey(z3map->s3.rootkey,prefix,&trueprefix))) goto done;
+    
+    if(*trueprefix != '/') return NC_EINTERNAL;
+    if((stat = NC_s3sdklistall(z3map->s3client,z3map->s3.bucket,trueprefix,&nkeys,&list,&z3map->errmsg)))
+        goto done;
+    if(nkeys > 0) {
+	/* remove duplicates and prefix */
+	for(i=0;i<nkeys;i++) {
+	    size_t j;
+	    int duplicate = 0;
+	    char* is = list[i];
+    	    if(strcmp(is,prefix)==0) {list[i] = NULL; nullfree(is); continue;}
+	    for(j=0;j<nclistlength(matches);j++) {
+	        char* js = (char*)nclistget(matches,j);
+	        if(strcmp(js,is)==0) {duplicate = 1; break;} /* duplicate */
+	    }	    
+	    if(!duplicate) {
+	        nclistpush(matches,strdup(is));
+	    }
+	}
+    }
+	
+    /* Remove prefix from all entries in matches */
+    if((stat = nczm_removeprefix(trueprefix,nclistlength(matches),(char**)nclistcontents(matches)))) goto done;
+
+    /* Lexical sort the results */
+    NCZ_sortstringlist(nclistcontents(matches),nclistlength(matches));
+
+#ifdef DEBUG
+    for(i=0;i<nclistlength(matches);i++) {
+	const char* is = nclistget(matches,i);
+	fprintf(stderr,"search: %s\n",is);
+    }
+#endif
+
+done:
+    nullfree(newkey);
+    nullfree(trueprefix);
+    reporterr(z3map);
     freevector(nkeys,list);
     return ZUNTRACEX(stat,"|matches|=%d",(int)nclistlength(matches));
 }
@@ -592,5 +658,6 @@ nczs3sdkapi = {
     zs3len,
     zs3read,
     zs3write,
-    zs3search,
+    zs3list,
+    zs3listall,
 };
