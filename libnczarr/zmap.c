@@ -186,16 +186,24 @@ cmp_strings(const void* a1, const void* a2)
 }
 
 int
-nczmap_search(NCZMAP* map, const char* prefix, NClist* matches)
+nczmap_list(NCZMAP* map, const char* prefix, NClist* matches)
 {
     int stat = NC_NOERR;
-    if((stat = map->api->search(map, prefix, matches)) == NC_NOERR) {
-        /* sort the list */
-        if(nclistlength(matches) > 1) {
-	    void* base = nclistcontents(matches);
-            qsort(base, nclistlength(matches), sizeof(char*), cmp_strings);
-	}
+    if((stat = map->api->list(map, prefix, matches)) == NC_NOERR) {
+        if((stat = NCZ_sortstringlist(nclistcontents(matches),nclistlength(matches)))) goto done; /* sort the list */
     }
+done:
+    return stat;
+}
+
+int
+nczmap_listall(NCZMAP* map, const char* prefix, NClist* matches)
+{
+    int stat = NC_NOERR;
+    if((stat = map->api->listall(map, prefix, matches)) == NC_NOERR) {
+        if((stat = NCZ_sortstringlist(nclistcontents(matches),nclistlength(matches)))) goto done; /* sort the list */
+    }
+done:
     return stat;
 }
 

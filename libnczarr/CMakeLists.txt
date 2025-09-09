@@ -31,6 +31,7 @@ ztype.c
 zutil.c
 zvar.c
 zwalk.c
+zinfer.c
 zmetadata.c
 zmetadata0.c
 zmetadata2.c
@@ -47,6 +48,8 @@ zprovenance.h
 zplugins.h
 zfilter.h
 zmetadata.h
+zinfer.h
+zutil.h
 zdebug.h
 )
 
