@@ -131,7 +131,7 @@ static int zfile_listallR(ZFMAP* map, NCbytes* key, int depth, NClist* matches);
 
 static int platformerr(int err);
 static int platformcreatefile(int mode, const char* truepath,FD*);
-static int platformcreatedir(int, const char* truepath);
+static int platformcreatedir(int mode, const char* truepath);
 static int platformopenfile(int mode, const char* truepath, FD* fd);
 static int platformopendir(int mode, const char* truepath);
 static int platformdircontent(const char* path, NClist* contents);
@@ -905,7 +905,7 @@ platformcreatedir(int mode, const char* canonpath)
    	    if(NCmkdir(canonpath,(mode_t)NC_DEFAULT_DIR_PERMS) < 0)
 	        {ret = platformerr(errno); goto done;}
 	    /* try to access again */
-	    ret = NCaccess(canonpath,ACCESS_MODE_EXISTS);
+	    ret = NCaccess(canonpath,(mode_t)ACCESS_MODE_EXISTS);
     	    if(ret < 0)
 	        {ret = platformerr(errno); goto done;}
 	} else
@@ -1174,9 +1174,9 @@ platformseek(FD* fd, int pos, size64_t* sizep)
     ret = NCfstat(fd->fd, &statbuf);    
     if(ret < 0)
 	{ret = platformerr(errno); goto done;}
-    if(sizep) size = *sizep; else size = 0;
-    newsize = (size64_t)lseek(fd->fd,(off_t)size,pos);
-    if(sizep) *sizep = newsize;
+    if(sizep) size = (off_t)*sizep; else size = 0;
+    newsize = lseek(fd->fd,size,pos);
+    if(sizep) *sizep = (size64_t)newsize;
 done:
     errno = 0;
     return ZUNTRACEX(ret,"sizep=%llu",*sizep);
@@ -1197,7 +1197,7 @@ platformread(FD* fd, size64_t count, void* content)
         ssize_t red;
         if((red = read(fd->fd,readpoint,need)) <= 0)
 	    {stat = errno; goto done;}
-        need -= red;
+        need -= (size_t)red;
 	readpoint += red;
     }
 done:
@@ -1220,7 +1220,7 @@ platformwrite(FD* fd, size64_t count, const void* content)
         ssize_t red = 0;
         if((red = write(fd->fd,(void*)writepoint,need)) <= 0)	
 	    {ret = NC_EACCESS; goto done;}
-        need -= red;
+        need -= (size_t)red;
 	writepoint += red;
     }
 done:

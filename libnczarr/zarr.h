@@ -69,6 +69,9 @@ EXTERNL int NCZ_ischunkname(const char* name,char dimsep);
 EXTERNL char* NCZ_chunkpath(struct ChunkKey key);
 EXTERNL int NCZ_reclaim_fill_value(NC_VAR_INFO_T* var);
 EXTERNL int NCZ_copy_fill_value(NC_VAR_INFO_T* var, void** dstp);
+EXTERNL size_t NCZ_get_maxstrlen(NC_OBJ* obj);
+EXTERNL int NCZ_fixed2char(const void* fixed, char** charp, size_t count, size_t maxstrlen);
+EXTERNL int NCZ_char2fixed(const char** charp, void* fixed, size_t count, size_t maxstrlen);
 EXTERNL int NCZ_copy_data(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, const void* memory, size_t count, int reading, void* copy);
 
 /* zwalk.c */

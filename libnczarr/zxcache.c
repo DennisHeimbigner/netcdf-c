@@ -662,8 +662,7 @@ put_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
 
     if(tid == NC_STRING && !entry->isfixedstring) {
         /* Convert from char* to char[strlen] format */
-        int maxstrlen = NCZ_get_maxstrlen((NC_OBJ*)cache->var);
-        assert(maxstrlen > 0);
+        size_t maxstrlen = NCZ_get_maxstrlen((NC_OBJ*)cache->var);
         if((strchunk = malloc((size_t)cache->chunkcount * (size_t)maxstrlen))==NULL) {stat = NC_ENOMEM; goto done;}
         /* copy char* to char[] format */
         if((stat = NCZ_char2fixed((const char**)entry->data,strchunk,cache->chunkcount,maxstrlen))) goto done;
@@ -817,7 +816,7 @@ get_chunk(NCZChunkCache* cache, NCZCacheEntry* entry)
 
     if(tid == NC_STRING && entry->isfixedstring) {
         /* Convert from char[strlen] to char* format */
-	int maxstrlen = NCZ_get_maxstrlen((NC_OBJ*)cache->var);
+	size_t maxstrlen = NCZ_get_maxstrlen((NC_OBJ*)cache->var);
 	assert(maxstrlen > 0);
 	/* copy char[] to char* format */
 	if((strchunk = (char**)malloc(sizeof(char*)*cache->chunkcount))==NULL)

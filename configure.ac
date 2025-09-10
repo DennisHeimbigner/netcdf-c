@@ -485,11 +485,6 @@ AC_ARG_ENABLE([byterange],
 test "x$enable_byterange" = xno || enable_byterange=yes
 AC_MSG_RESULT($enable_byterange)
 
-if test "x$enable_dap" = xno && test "x$enable_byterange" = xyes; then 
-   AC_MSG_WARN([DAP required for byterange. Byterange support disabled.])
-   enable_byterange=no
-fi
-
 ###
 # Stanza to check for functionality which requires linking against
 # libcurl.
@@ -1030,7 +1025,7 @@ else
    fi
 
    if test "x$enable_s3_aws" = xyes && test "x$enable_s3_internal" = xyes ; then
-   AC_MSG_WARN([Both aws-sdk-cpp and s3-internal enabled => use s3-internal.])
+   AC_MSG_WARN([Both aws-sdk-cpp and s3-internal available => use s3-internal.])
    enable_s3_aws=no
    fi
 
@@ -2191,8 +2186,8 @@ AC_ARG_WITH([plugin-dir], [AS_HELP_STRING([--with-plugin-dir=<absolute directory
 AC_MSG_RESULT([$with_plugin_dir])
 
 # Using selected filter options forces installation
-if test "x$have_zstd" = xyes; then
-    AC_MSG_WARN([--enable_filter-zstd => --enable-plugins.])
+if test "x$have_zstd" = xyes || test "x$have_bz2" = xyes ; then
+    AC_MSG_WARN([--enable-filter-{zstd,bz2} => --enable-plugins.])
     enable_plugins=yes
 fi
 

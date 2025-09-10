@@ -603,7 +603,8 @@ recursively.
 int
 NCZ_inferattrtype(const NCjson* value, nc_type typehint, nc_type* typeidp)
 {
-    int i,stat = NC_NOERR;
+    int stat = NC_NOERR;
+    size_t i;
     nc_type typeid;
     NCjson* j = NULL;
     unsigned long long u64;
@@ -921,10 +922,10 @@ done:
 /* Get max str len for a variable or grp */
 /* Has side effect of setting values in the
    internal data structures */
-int
+size_t
 NCZ_get_maxstrlen(NC_OBJ* obj)
 {
-    int maxstrlen = 0;
+    size_t maxstrlen = 0;
     assert(obj->sort == NCGRP || obj->sort == NCVAR);
     if(obj->sort == NCGRP) {
         NC_GRP_INFO_T* grp = (NC_GRP_INFO_T*)obj;
@@ -944,7 +945,7 @@ NCZ_get_maxstrlen(NC_OBJ* obj)
 }
 
 int
-NCZ_fixed2char(const void* fixed, char** charp, size_t count, int maxstrlen)
+NCZ_fixed2char(const void* fixed, char** charp, size_t count, size_t maxstrlen)
 {
     size_t i;
     unsigned char* sp = NULL;
@@ -966,7 +967,7 @@ NCZ_fixed2char(const void* fixed, char** charp, size_t count, int maxstrlen)
 }
 
 int
-NCZ_char2fixed(const char** charp, void* fixed, size_t count, int maxstrlen)
+NCZ_char2fixed(const char** charp, void* fixed, size_t count, size_t maxstrlen)
 {
     size_t i;
     unsigned char* p = fixed;

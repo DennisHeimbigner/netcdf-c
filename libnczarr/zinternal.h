@@ -149,7 +149,7 @@ typedef struct NCZ_FILE_INFO {
 #		define FLAG_NCZARR_KEY  16 /* _nczarr_xxx keys are stored in object and not in _nczarr_attrs */
 	NCZM_IMPL mapimpl;
     } controls;
-    int default_maxstrlen; /* default max str size for variables of type string */
+    size_t default_maxstrlen; /* default max str size for variables of type string */
 } NCZ_FILE_INFO_T;
 
 /* This is a struct to handle the dim metadata. */
@@ -185,7 +185,7 @@ typedef struct NCZ_VAR_INFO {
     struct NClist* xarray; /* names from _ARRAY_DIMENSIONS */
     char dimension_separator; /* '.' | '/' */
     NClist* incompletefilters;
-    int maxstrlen; /* max length of strings for this variable */
+    size_t maxstrlen; /* max length of strings for this variable */
     /* Read .zarray and .zattrs once */
     struct ZARROBJ zarray;
     struct ZARROBJ zattrs;
