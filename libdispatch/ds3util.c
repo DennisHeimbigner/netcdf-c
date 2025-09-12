@@ -30,6 +30,7 @@
 #include "nclog.h"
 #include "ncs3sdk.h"
 #include "ncutil.h"
+#include "ncglobal.h"
 
 #undef AWSDEBUG
 
@@ -43,6 +44,9 @@ static const char* awsconfigfiles[] = {".aws/config",".aws/credentials",NULL};
 #define NCONFIGFILES (sizeof(awsconfigfiles)/sizeof(char*))
 
 /**************************************************/
+/* Opaque */
+
+/**************************************************/
 /* Forward */
 
 static int endswith(const char* s, const char* suffix);
@@ -51,27 +55,6 @@ static void freeentry(struct AWSentry* e);
 static int awsparse(const char* text, NClist* profiles);
 
 extern void awsprofiles(void);
-
-/**************************************************/
-/* Capture environmental Info */
-
-EXTERNL void
-NC_s3sdkenvironment(void)
-{
-    /* Get various environment variables as defined by the AWS sdk */
-    NCglobalstate* gs = NC_getglobalstate();
-    if(getenv(AWS_ENV_REGION)!=NULL)
-        gs->aws.default_region = nulldup(getenv(AWS_ENV_REGION));
-    else if(getenv(AWS_ENV_DEFAULT_REGION)!=NULL)
-        gs->aws.default_region = nulldup(getenv(AWS_ENV_DEFAULT_REGION));
-    else if(gs->aws.default_region == NULL)
-        gs->aws.default_region = nulldup(AWS_GLOBAL_DEFAULT_REGION);
-    gs->aws.access_key_id = nulldup(getenv(AWS_ENV_ACCESS_KEY_ID));
-    gs->aws.config_file = nulldup(getenv(AWS_ENV_CONFIG_FILE));
-    gs->aws.profile = nulldup(getenv(AWS_ENV_PROFILE));
-    gs->aws.secret_access_key = nulldup(getenv(AWS_ENV_SECRET_ACCESS_KEY));
-    gs->aws.session_token = nulldup(getenv(AWS_ENV_SESSION_TOKEN));
-}
 
 /**************************************************/
 /* Generic S3 Utilities */
@@ -99,6 +82,7 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
     char* path = NULL;
     char* region = NULL;
     NCS3SVC svc = NCS3UNK;
+    int fragregion = 0; /* 1 => store region in URI fragment as aws.region=<region> */
     
     if(url == NULL)
         {stat = NC_EURL; goto done;}
@@ -113,28 +97,38 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
     /* split the path by "/" */
     if((stat = NC_split_delim(url->path,'/',pathsegments))) goto done;
 
-	/* Distinguish path-style from virtual-host style from s3: and from other.
+    /* Distinguish path-styles:
 	Virtual:
-		(1) https://<bucket-name>.s3.<region>.amazonaws.com/<path>
-		(2) https://<bucket-name>.s3.amazonaws.com/<path> -- region defaults (to us-east-1)
+		(1) https://<bucket>.s3.<region>.amazonaws.com/<path>
+			-> https://s3.<region>.amazonaws.com/<bucket>/path
+		(2) https://<bucket>.s3.amazonaws.com/<path> -- region defaults (to us-east-1)
+			-> https://s3.us-east-1.amazonaws.com/<bucket>/path
 	Path:
-		(3) https://s3.<region>.amazonaws.com/<bucket-name>/<path>
-		(4) https://s3.amazonaws.com/<bucket-name>/<path> -- region defaults to us-east-1
+		(3) https://s3.<region>.amazonaws.com/<bucket>/<path>
+			-> https:/s3.<region>.amazonaws.com/<bucket>/path
+		(4) https://s3.amazonaws.com/<bucket>/<path> -- region defaults to us-east-1
+			-> https:/s3.us-east-1.amazonaws.com/<bucket>/path
 	S3:
-		(5) s3://<bucket-name>/<path>
+		(5) s3://<bucket>/<path>
+			-> https:/s3.us-east-1.amazonaws.com/<bucket>/path
 	Google:
-		(6) https://storage.googleapis.com/<bucket-name>/<path>
-		(7) gs3://<bucket-name>/<path>
+		(6) https://storage.googleapis.com/<bucket>/<path>
+			-> https:/storage.googleapis.com/<bucket>/path
+		(7) gs3://<bucket>/<path>
+			-> https:/storage.googleapis.com/<bucket>/path
 	Other:
-		(8) https://<host>/<bucket-name>/<path>
-		(9) https://<bucket-name>.s3.<region>.domain.example.com/<path>
-		(10)https://s3.<region>.example.com/<bucket>/<path>
-	*/
-	if(url->host == NULL || strlen(url->host) == 0)
-        {stat = NC_EURL; goto done;}
+		(8) https://<bucket>.s3.<region>.example.com/<path>
+			-> https:/s3.<region>.example.com/<bucket>/path
+		(9) https://s3.<region>.example.com/<bucket>/<path>
+			-> https:/s3.<region>.example.com/<bucket>/path
+		(10) https://<host>/<bucket/<path> -- the most general case;
+							probably some kind of S3 appliance;
+							generalization of (6)
+			-> https:/<host>/<bucket>path -- region defaults, but is stored in the fragment
+    */
+    if(url->host == NULL || strlen(url->host) == 0) {stat = NC_EURL; goto done;}
 
-    /* Reduce the host to standard form such as s3.amazonaws.com by pulling out the
-       region and bucket from the host */
+    /* Reduce the host to standard form such as s3.amazonaws.com by pulling out the region and bucket from the host */
     if(strcmp(url->protocol,"s3")==0 && nclistlength(hostsegments)==1) { /* Format (5) */
 	bucket = nclistremove(hostsegments,0);
 	/* region unknown at this point */
@@ -173,28 +167,34 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
 	    break;
 	}
     } else if(strcasecmp(url->host,GOOGLEHOST)==0) { /* Google (6) */
-        if((host = strdup(url->host))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
         /* region is unknown */
 	/* bucket is unknown at this point */
+	/* host should be: storage.googleapis.com */
 	svc = NCS3GS;
-    } else { /* Presume Formats (8),(9),(10) */
-		if (nclistlength(hostsegments) > 3 && strcasecmp(nclistget(hostsegments, 1), "s3") == 0){
-			bucket = nclistremove(hostsegments, 0);
-			region = nclistremove(hostsegments, 2);
-			host = strdup(url->host + sizeof(bucket) + 1);
-		}else{
-			if (nclistlength(hostsegments) > 2 && strcasecmp(nclistget(hostsegments, 0), "s3") == 0){
-				region = nclistremove(hostsegments, 1);
-			}
-			if ((host = strdup(url->host)) == NULL){
-				stat = NC_ENOMEM;
-				goto done;
-			}
-		}
+    } else { /* Presume Formats (8), (9), (10) */
+	if (nclistlength(hostsegments) > 3 && strcasecmp(nclistget(hostsegments, 1), "s3") == 0) { /* case (8) */
+	    bucket = nclistget(hostsegments, 0);
+	    region = nclistget(hostsegments, 2);
+	    nclistremove(hostsegments,2);
+    	    nclistremove(hostsegments,1);
+    	    nclistremove(hostsegments,0);
+	    /* host segments should have form: example.com */
+	} else if (nclistlength(hostsegments) > 2 && strcasecmp(nclistget(hostsegments, 0), "s3") == 0) { /* case (9) */
+	    region = nclistget(hostsegments, 1);
+	    nclistremove(hostsegments,1);
+    	    nclistremove(hostsegments,0);
+	    /* bucket unknown for now */
+	    /* host segments should have form: example.com */
+	} else { /* case (10) */
+	    if ((host = strdup(url->host)) == NULL) {stat = NC_ENOMEM; goto done;}
+	    /* region is default */
+	    fragregion = 1; /* Store in URI fragment as aws.region=<region> */
+	    /* bucket extracted from path below */
+	    /* host segments should have form: <host> */
 	}
+    }
 
-    /* region = (1) from url, (2) s3->region, (3) default */
+    /* If region is null, set region = (1) from url, (2) s3->region, (3) default */
     if(region == NULL && s3 != NULL)
 	region = nulldup(s3->region);
     if(region == NULL) {
@@ -205,7 +205,7 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
     }
     if(region == NULL) {stat = NC_ES3; goto done;}
 
-    /* bucket = (1) from url, (2) s3->bucket */
+    /* bucket = (1) from url path, (2) s3->bucket */
     if(bucket == NULL && nclistlength(pathsegments) > 0) {
 	bucket = nclistremove(pathsegments,0); /* Get from the URL path; will reinsert below */
     }
@@ -213,19 +213,27 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
 	bucket = nulldup(s3->bucket);
     if(bucket == NULL) {stat = NC_ES3; goto done;}
 
-    if(svc == NCS3) {
-        /* Construct the revised host */
+    /* Rebuild the URI */
+    switch (svc) {
+    case NCS3: {
+        /* Construct the revised amazon host */
 	ncbytesclear(buf);
         ncbytescat(buf,"s3");
-	assert(region != NULL);
         ncbytescat(buf,".");
 	ncbytescat(buf,region);
         ncbytescat(buf,AWSHOST);
 	nullfree(host);
         host = ncbytesextract(buf);
-    } else if(svc == NCS3GS) {
+	}; break;
+    case NCS3GS: {
 	nullfree(host);
 	host = strdup(GOOGLEHOST);
+	}; break;
+    case NCS3APP: {
+	nullfree(host)
+	NC_joinwith(hostsegments,".",NULL,NULL,&host);
+    }; break;
+    default: stat = NC_ES3; goto done; break;
     }
 
     ncbytesclear(buf);
@@ -253,6 +261,10 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
 
     /* Add "s3" to the mode list */
     NC_addmodetag(newurl,"s3");
+    /* If region is not part of the host, then add it as a fragment key */
+    if(fragregion && region != NULL) {
+	ncuriappendfragmentkey(url,AWS_FRAG_REGION,region);
+    }
 
     /* Rebuild the url->url */
     ncurirebuild(newurl);
@@ -262,8 +274,11 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
 #endif
     if(newurlp) {*newurlp = newurl; newurl = NULL;}
     if(s3 != NULL) {
+	assert(bucket != NULL);
         s3->bucket = bucket; bucket = NULL;
+	assert(region != NULL);
         s3->region = region; region = NULL;
+	assert(svc != NCS3UNK);
         s3->svc = svc;
     }
 done:
@@ -577,13 +592,26 @@ NC_aws_load_credentials(NCglobalstate* gstate)
 	    nclistpush(profiles,dfalt); dfalt = NULL;
 	    /* Create the entries for default */
 	    if((entry = (struct AWSentry*)calloc(1,sizeof(struct AWSentry)))==NULL) {stat = NC_ENOMEM; goto done;}
-	    entry->key = strdup("aws_access_key_id");
+	    entry->key = strdup(AWS_PROF_ACCESS_KEY_ID);
 	    entry->value = strdup(gs->aws.access_key_id);
 	    nclistpush(dfalt->entries,entry); entry = NULL;
 	    if((entry = (struct AWSentry*)calloc(1,sizeof(struct AWSentry)))==NULL) {stat = NC_ENOMEM; goto done;}
-	    entry->key = strdup("aws_secret_access_key");
+	    entry->key = strdup(AWS_PROF_SECRET_ACCESS_KEY);
 	    entry->value = strdup(gs->aws.secret_access_key);
 	    nclistpush(dfalt->entries,entry); entry = NULL;
+	    /* These are optional */
+	    if(gs->aws.region != NULL) {
+		if((entry = (struct AWSentry*)calloc(1,sizeof(struct AWSentry)))==NULL) {stat = NC_ENOMEM; goto done;}
+		entry->key = strdup(AWS_PROF_REGION);
+		entry->value = strdup(gs->aws.region);
+		nclistpush(dfalt->entries,entry); entry = NULL;
+	    }
+	    if(gs->aws.session_token != NULL) {
+		if((entry = (struct AWSentry*)calloc(1,sizeof(struct AWSentry)))==NULL) {stat = NC_ENOMEM; goto done;}
+		entry->key = strdup(AWS_PROF_SESSION_TOKEN);
+		entry->value = strdup(gs->aws.session_token);
+		nclistpush(dfalt->entries,entry); entry = NULL;
+	    }
 	}
     }
 
@@ -609,7 +637,7 @@ done:
 */
 
 int
-NC_authgets3profile(const char* profilename, struct AWSprofile** profilep)
+NC_gets3profile(const char* profilename, struct AWSprofile** profilep)
 {
     int stat = NC_NOERR;
     NCglobalstate* gstate = NC_getglobalstate();
@@ -639,7 +667,7 @@ NC_s3profilelookup(const char* profile, const char* key, const char** valuep)
     const char* value = NULL;
 
     if(profile == NULL) return NC_ES3;
-    if((stat=NC_authgets3profile(profile,&awsprof))==NC_NOERR && awsprof != NULL) {
+    if((stat=NC_gets3profile(profile,&awsprof))==NC_NOERR && awsprof != NULL) {
         for(size_t i=0;i<nclistlength(awsprof->entries);i++) {
 	    struct AWSentry* entry = (struct AWSentry*)nclistget(awsprof->entries,i);
 	    if(strcasecmp(entry->key,key)==0) {
@@ -651,6 +679,7 @@ NC_s3profilelookup(const char* profile, const char* key, const char** valuep)
     if(valuep) *valuep = value;
     return stat;
 }
+
 /**
  * Get the credentials for a given profile or load them from environment.
  @param profile name to use to look for credentials
@@ -672,6 +701,9 @@ void NC_s3getcredentials(const char *profile, const char **region, const char** 
         }
         if (gstate->aws.secret_access_key != NULL && accesskey){
             *accesskey = gstate->aws.secret_access_key;
+        }
+        if(gstate->aws.region != NULL && region){
+            *region = gstate->aws.region;
         }
         if(gstate->aws.default_region != NULL && region){
             *region = gstate->aws.default_region;
@@ -710,17 +742,17 @@ NC_getactives3profile(NCURI* uri, const char** profilep)
     }
 
     if(profile == NULL && gs->aws.profile != NULL) {
-        if((stat=NC_authgets3profile(gs->aws.profile,&ap))) goto done;
+        if((stat=NC_gets3profile(gs->aws.profile,&ap))) goto done;
 	if(ap) profile = nulldup(gs->aws.profile);
     }
 
     if(profile == NULL) {
-        if((stat=NC_authgets3profile("default",&ap))) goto done;
+        if((stat=NC_gets3profile("default",&ap))) goto done;
 	if(ap) profile = "default";
     }
 
     if(profile == NULL) {
-        if((stat=NC_authgets3profile("no",&ap))) goto done;
+        if((stat=NC_gets3profile("no",&ap))) goto done;
 	if(ap) profile = "no";
     }
 
@@ -733,12 +765,7 @@ done:
 }
 
 /*
-Get the current default region. The search order is as follows:
-1. aws.region key in mode flags
-2. aws.region in .rc entries
-3. aws_region key in current profile (only if profiles are being used)
-4. NCglobalstate.aws.default_region
-
+Get the current default region from NCZ_FILE_INFO_T->aws.region
 @param uri uri with mode flags, may be NULL
 @param regionp return region name here or NULL if none found
 @return NC_NOERR if no error.
@@ -751,18 +778,23 @@ NC_getdefaults3region(NCURI* uri, const char** regionp)
     int stat = NC_NOERR;
     const char* region = NULL;
     const char* profile = NULL;
-
-    region = ncurifragmentlookup(uri,"aws.region");
+    NCglobalstate* gs = NULL;
+	
+    region = ncurifragmentlookup(uri,AWS_RC_REGION);
     if(region == NULL)
-        region = NC_rclookupx(uri,"AWS.REGION");
+        region = NC_rclookupx(uri,AWS_RC_DEFAULT_REGION);
     if(region == NULL) {/* See if we can find a profile */
         if(NC_getactives3profile(uri,&profile)==NC_NOERR) {
 	    if(profile)
-	        (void)NC_s3profilelookup(profile,"aws_region",&region);
+	        (void)NC_s3profilelookup(profile,AWS_PROF_REGION,&region);
 	}
     }
-    if(region == NULL)
-	region = (NC_getglobalstate()->aws.default_region ? NC_getglobalstate()->aws.default_region : "us-east-1"); /* Force use of the Amazon default */
+    if(region == NULL) {
+	gs = NC_getglobalstate();
+	region = gs->aws.default_region;
+	if(region == NULL)
+	    region = AWS_GLOBAL_DEFAULT_REGION;  /* Force use of the Amazon default */
+    }
 #ifdef AWSDEBUG
     fprintf(stderr,">>> activeregion = |%s|\n",region);
 #endif

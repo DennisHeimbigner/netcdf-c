@@ -12,7 +12,7 @@
 #include "ncpathmgr.h"
 #include "ncs3sdk.h"
 #include "ncuri.h"
-#include "nc4internal.h"
+#include "ncglobal.h"
 
 NCS3INFO s3info;
 void* s3client = NULL;

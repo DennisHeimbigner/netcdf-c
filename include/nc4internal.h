@@ -104,6 +104,9 @@ typedef enum {NCNAT, NCVAR, NCDIM, NCATT, NCTYP, NCFLD, NCGRP, NCFIL} NC_SORT;
 /** Boolean type, to make the code easier to read. */
 typedef enum {NC_FALSE = 0, NC_TRUE = 1} nc_bool_t;
 
+/* Opaque */
+struct AWSPARAMS;
+
 /* Forward declarations. */
 struct NC_GRP_INFO;
 struct NC_TYPE_INFO;
@@ -456,47 +459,6 @@ extern int NC4_get_atomic_typeclass(nc_type xtype, int *type_class);
 
 extern int nc_set_alignment(int threshold, int alignment);
 extern int nc_get_alignment(int* thresholdp, int* alignmentp);
-
-/**************************************************/
-/* Begin to collect global state info in one place (more to do) */
-
-typedef struct NCglobalstate {
-    int initialized;
-    char* tempdir; /* track a usable temp dir */
-    char* home; /* track $HOME */
-    char* cwd; /* track getcwd */
-    struct NCRCinfo* rcinfo; /* Currently only one rc file per session */
-    NClist* pluginpaths; /* Global Plugin State */
-    struct GlobalZarr { /* Zarr specific parameters */
-	char dimension_separator;
-	int default_zarrformat;
-	NClist* pluginpaths; /* NCZarr mirror of plugin paths */
-	NClist* codec_defaults;
-	NClist* default_libs;
-	/* All possible HDF5 filter plugins */
-	/* Consider onverting to linked list or hash table or
-	   equivalent since very sparse */
-	struct NCZ_Plugin** loaded_plugins; //[H5Z_FILTER_MAX+1];
-	size_t loaded_plugins_max; /* plugin filter id index. 0<loaded_plugins_max<=H5Z_FILTER_MAX */
-    } zarr;
-    struct GlobalAWS { /* AWS S3 specific parameters/defaults */
-	char* default_region;
-	char* config_file;
-	char* profile;
-	char* access_key_id;
-	char* secret_access_key;
-	char* session_token;
-    } aws;
-    struct Alignment { /* H5Pset_alignment parameters */
-        int defined; /* 1 => threshold and alignment explicitly set */
-	int threshold;
-	int alignment;
-    } alignment;
-    struct ChunkCache chunkcache;
-} NCglobalstate;
-
-extern struct NCglobalstate* NC_getglobalstate(void);
-extern void NC_freeglobalstate(void);
 
 /**************************************************/
 /* Binary searcher for reserved attributes */

@@ -23,7 +23,6 @@ and accessing rc files (e.g. .daprc).
 #define NCRCENVRC "NCRCENV_RC"
 #define NCRCENVHOME "NCRCENV_HOME"
 
-
 typedef struct NCRCentry {
 	char* host; /* combined host:port */
 	char* urlpath; /* prefix to match or NULL */

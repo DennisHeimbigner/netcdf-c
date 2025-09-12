@@ -11,10 +11,12 @@
 #include <string.h>
 #include <assert.h>
 #include "netcdf.h"
+#include "nc4internal.h"
 #include "nclog.h"
 #include "ncrc.h"
 #include "ncxml.h"
 #include "ncutil.h"
+#include "ncglobal.h"
 
 #include "ncs3sdk.h"
 #include "nch5s3comms.h"
@@ -123,21 +125,24 @@ NC_s3sdkinitialize(void)
     if(!ncs3_initialized) {
 	ncs3_initialized = 1;
 	ncs3_finalized = 0;
+        NC_awsglobal(); /* Load global AWS key values from various sources */
     }
-
-    /* Get environment information */
-    NC_s3sdkenvironment();
-
     return NC_NOERR;
 }
 
 /*EXTERNL*/ int
 NC_s3sdkfinalize(void)
 {
+    NCglobalstate* gs = NULL;
+
     if(!ncs3_finalized) {
 	ncs3_initialized = 0;
 	ncs3_finalized = 1;
+	gs = NC_getglobalstate();
+	if(gs != NULL)
+	    NC_clearawsparams(&gs->aws);
     }
+
     return NC_NOERR;
 }
 
@@ -188,14 +193,20 @@ NC_s3sdkcreateclient(NCS3INFO* info)
     s3client = (NCS3CLIENT*)calloc(1,sizeof(NCS3CLIENT));
     if(s3client == NULL) goto done;
     if(info->profile != NULL) {
-        if((stat = NC_s3profilelookup(info->profile, "aws_access_key_id", &accessid))) goto done;
-        if((stat = NC_s3profilelookup(info->profile, "aws_secret_access_key", &accesskey))) goto done;
-        if((stat = NC_s3profilelookup(info->profile, "aws_session_token", &sessiontoken))) goto done;
+        if((stat = NC_s3profilelookup(info->profile, AWS_PROF_ACCESS_KEY_ID, &accessid))) goto done;
+        if((stat = NC_s3profilelookup(info->profile, AWS_PROF_SECRET_ACCESS_KEY, &accesskey))) goto done;
+        if((stat = NC_s3profilelookup(info->profile, AWS_PROF_SESSION_TOKEN, &sessiontoken))) goto done;
     }
     if((s3client->rooturl = makes3rooturl(info))==NULL) {stat = NC_ENOMEM; goto done;}
-    s3client->h5s3client = NCH5_s3comms_s3r_open(s3client->rooturl,info->svc,info->region,accessid,accesskey,sessiontoken);
-    if(s3client->h5s3client == NULL) {stat = NC_ES3; goto done;}
-
+    {
+	NCAWSPARAMS aws = NC_awsparams_empty();
+	aws.region = info->region;
+	aws.access_key_id = accessid;
+	aws.secret_access_key = accesskey;
+	aws.session_token = sessiontoken;
+        s3client->h5s3client = NCH5_s3comms_s3r_open(s3client->rooturl,info->svc,&aws);
+        if(s3client->h5s3client == NULL) {stat = NC_ES3; goto done;}
+    }
 done:
     nullfree(urlroot);
     if(stat && s3client) {

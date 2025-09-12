@@ -93,6 +93,7 @@
 #include "netcdf.h"
 #include "ncuri.h"
 #include "ncutil.h"
+#include "ncglobal.h"
 #include "netcdf_vutils.h"
 
 /*****************/
@@ -1057,7 +1058,7 @@ done:
  *----------------------------------------------------------------------------
  */
 s3r_t *
-NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const char *access_id, const char* access_key)
+NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
 {
     int ret_value = SUCCEED;
     size_t         tmplen    = 0;
@@ -1066,9 +1067,9 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
     unsigned char *signing_key = NULL;
     char           iso8601now[ISO8601_SIZE];
     struct tm     *now           = NULL;
-    const char* signingregion = AWS_GLOBAL_DEFAULT_REGION;
+    const char* signingregion = aws->default_region;
 
-    TRACE(0,"root=%s region=%s access_id=%s access_key=%s",root,region,access_id,access_key);
+    TRACE(0,"root=%s region=%s access_id=%s access_key=%s token=%s",root,aws->region,aws->access_key_id,aws->secret_key,aws->session_token);
 
 #if S3COMMS_DEBUG_TRACE
     fprintf(stdout, "called NCH5_s3comms_s3r_open.\n");
@@ -1090,8 +1091,8 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
     switch (svc) {
     case NCS3:
         /* Verify that the region is a substring of root */
-        if(region != NULL && region[0] != '\0') {
-	    if(strstr(root,region) == NULL)
+        if(aws->region != NULL && aws->region[0] != '\0') {
+	    if(strstr(root,aws->region) == NULL)
 	        HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "region not present in root path.");
         }
 	break;
@@ -1104,28 +1105,36 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
      *************************************/
 
     /* copy strings */
-    if(nulllen(region) != 0) {
-        tmplen = nulllen(region) + 1;
+    if(nulllen(aws->region) != 0) {
+        tmplen = nulllen(aws->region) + 1;
         handle->region = (char *)malloc(sizeof(char) * tmplen);
         if (handle->region == NULL)
             HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle region copy.");
-        memcpy(handle->region, region, tmplen);
+        memcpy(handle->region, aws->region, tmplen);
     }
 
-    if(nulllen(access_id) != 0) {
-        tmplen = nulllen(access_id) + 1;
+    if(nulllen(aws->access_key_id) != 0) {
+        tmplen = nulllen(aws->access_key_id) + 1;
         handle->accessid = (char *)malloc(sizeof(char) * tmplen);
         if (handle->accessid == NULL)
             HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle ID copy.");
-        memcpy(handle->accessid, access_id, tmplen);
+        memcpy(handle->accessid, aws->access_key_id, tmplen);
     }
     
-    if(nulllen(access_key) != 0) {
-        tmplen = nulllen(access_key) + 1;
+    if(nulllen(aws->secret_access_key) != 0) {
+        tmplen = nulllen(aws->secret_access_key) + 1;
         handle->accesskey = (char *)malloc(sizeof(char) * tmplen);
         if (handle->accesskey == NULL)
            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle access key copy.");
-        memcpy(handle->accesskey, access_key, tmplen);
+        memcpy(handle->accesskey, aws->secret_access_key, tmplen);
+    }
+
+    if(nulllen(aws->session_token) != 0) {
+        tmplen = nulllen(aws->session_token) + 1;
+        handle->session_token = (char *)malloc(sizeof(char) * tmplen);
+        if(handle->session_token == NULL)
+           HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle session token copy.");
+        memcpy(handle->session_token, aws->session_token, tmplen);
     }
 
     now = gmnow();
@@ -1134,18 +1143,19 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
     memcpy(handle->iso8601now,iso8601now,ISO8601_SIZE);
 
     /* Do optional authentication */
-    if(access_id != NULL && access_key != NULL) { /* We are authenticating */
+    if(aws->access_key_id != NULL && aws->secret_access_key != NULL) { /* We are authenticating */
         /* Need several pieces of info for authentication */
         if (nulllen(handle->region) > 0)
-	     signingregion = region;
+	     signingregion = handle->region;
 //            HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "region cannot be null.");
         if (nulllen(handle->accessid)==0)
             HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "access id cannot be null.");
         if (nulllen(handle->accesskey)==0)
             HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "signing key cannot be null.");
 
+        assert(signingregion != NULL);
         /* Compute the signing key */
-        if (SUCCEED != NCH5_s3comms_signing_key(&signing_key, access_key, signingregion, iso8601now))
+        if (SUCCEED != NCH5_s3comms_signing_key(&signing_key, aws->access_key_id, signingregion, handle->session_token, iso8601now))
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "problem in NCH5_s3comms_s3comms_signing_key.");
         if (signing_key == NULL)
             HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "signing key cannot be null.");
@@ -1588,7 +1598,6 @@ done:
  *     Following AWS documentation, looks for any of:
  *     + aws_access_key_id
  *     + aws_secret_access_key
- *     + aws_secret_access_key
  *     + aws_session_token
  *     + region
  *     To be valid, the setting must begin the line with one of the keywords,
@@ -1615,7 +1624,7 @@ done:
  */
 static int
 H5FD__s3comms_load_aws_creds_from_file(FILE *file, const char *profile_name, char *key_id, char *access_key,
-                                       char* session_token_out, char *aws_region)
+                                       char* session_token, char *aws_region)
 {
     char        profile_line[32];
     char        buffer[128];
@@ -1983,6 +1992,7 @@ done:
  *     generating re-usable checksum (according to documentation, valid for
  *     7 days from time given).
  *     `secret` is `access key id` for targeted service/bucket/resource.
+ *     `session_token'` is `session token` for targeted service/bucket/resource.
  *     `iso8601now` must conform to format, yyyyMMDD'T'hhmmss'Z'
  *     e.g. "19690720T201740Z".
  *     `region` should be one of AWS service region names, e.g. "us-east-1".
@@ -2000,7 +2010,7 @@ done:
  *----------------------------------------------------------------------------
  */
 int
-NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *region, const char *iso8601now)
+NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *region, const char *session_token, const char *iso8601now)
 {
     char         *AWS4_secret     = NULL;
     size_t        AWS4_secret_len = 0;
@@ -2459,6 +2469,11 @@ build_request(s3r_t* handle, NCURI* purl,
     if (SUCCEED != NCH5_s3comms_hrb_node_insert(request->headers, "x-amz-date", (const char *)iso8601now))
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to set x-amz-date header");
 
+    if(handle->session_token) {
+	if (SUCCEED != NCH5_s3comms_hrb_node_insert(request->headers, "x-amz-security-token", (const char *)handle->session_token))
+            HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to set x-amz-security-token header");
+    }
+    
     /* Compute SHA256 of upload data, if any */
     if(verb == HTTPPUT && payload != NULL) {
             unsigned char sha256csum[SHA256_DIGEST_LENGTH];

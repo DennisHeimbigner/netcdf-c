@@ -23,10 +23,10 @@ See COPYRIGHT for license information.
 #include "nclog.h"
 #include "ncauth.h"
 #include "ncpathmgr.h"
-#include "nc4internal.h"
 #include "ncs3sdk.h"
 #include "ncdispatch.h"
 #include "ncutil.h"
+#include "ncglobal.h"
 
 #undef NOREAD
 
@@ -293,10 +293,12 @@ char*
 NC_rclookupx(NCURI* uri, const char* key)
 {
     char* hostport = NULL;
+    char* path = NULL;
     char* result = NULL;
 
-    hostport = NC_combinehostport(uri);
-    result = NC_rclookup(key,hostport,uri->path);
+    hostport = (uri==NULL?(char*)uri:NC_combinehostport(uri));
+    path = (uri==NULL?(char*)uri:uri->path);
+    result = NC_rclookup(key,hostport,path);
     nullfree(hostport);
     return result;
 }

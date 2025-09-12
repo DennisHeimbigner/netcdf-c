@@ -11,6 +11,7 @@
 #include "config.h"
 #include "netcdf.h"
 #include "ncpathmgr.h"
+#include "ncglobal.h"
 #include "hdf5internal.h"
 
 /** @internal These flags may not be set for create. */
@@ -47,6 +48,7 @@ nc4_create_file(const char *path, int cmode, size_t initialsz,
     NC_FILE_INFO_T *nc4_info;
     NC_HDF5_FILE_INFO_T *hdf5_info;
     NC_HDF5_GRP_INFO_T *hdf5_grp;
+    NCglobalstate* gs = NC_getglobalstate();
 
 #ifdef USE_PARALLEL4
     NC_MPI_INFO *mpiinfo = NULL;
@@ -151,13 +153,12 @@ nc4_create_file(const char *path, int cmode, size_t initialsz,
     /* Only set cache for non-parallel creates. */
     if (!nc4_info->parallel)
     {
-	NCglobalstate* gs = NC_getglobalstate();
-	if (H5Pset_cache(fapl_id, 0, gs->chunkcache.nelems, gs->chunkcache.size,
-			 gs->chunkcache.preemption) < 0)
+	if (H5Pset_cache(fapl_id, 0, gs->chunkcache->nelems, gs->chunkcache->size,
+			 gs->chunkcache->preemption) < 0)
 	    BAIL(NC_EHDFERR);
 	LOG((4, "%s: set HDF raw chunk cache to size %d nelems %d preemption %f",
-	     __func__, gs->chunkcache.size, gs->chunkcache.nelems,
-	     gs->chunkcache.preemption));
+	     __func__, gs->chunkcache->size, gs->chunkcache->nelems,
+	     gs->chunkcache->preemption));
     }
 
     {

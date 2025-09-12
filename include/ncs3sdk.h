@@ -16,6 +16,7 @@
 #define AWS_ENV_PROFILE "AWS_PROFILE"
 #define AWS_ENV_REGION "AWS_REGION"
 #define AWS_ENV_DEFAULT_REGION "AWS_DEFAULT_REGION"
+#define AWS_ENV_SESSION_TOKEN "AWS_SESSION_TOKEN"
 
 /* Define the "global" default region to be used if no other region is specified */
 #define AWS_GLOBAL_DEFAULT_REGION "us-east-1"
@@ -26,17 +27,35 @@
 #define AWS_PROF_REGION "aws_region"
 #define AWS_PROF_SESSION_TOKEN "aws_session_token"
 
+/* AWS .rc keys */
+#define AWS_RC_ACCESS_KEY_ID "AWS.ACCESS_KEY_ID"
+#define AWS_RC_SECRET_ACCESS_KEY "AWS.SECRET_ACCESS_KEY"
+#define AWS_RC_CONFIG_FILE "AWS.CONFIG_FILE"
+#define AWS_RC_PROFILE "AWS.PROFILE"
+#define AWS_RC_REGION "AWS.REGION"
+#define AWS_RC_DEFAULT_REGION "AWS.DEFAULT_REGION"
+#define AWS_RC_SESSION_TOKEN "AWS.SESSION_TOKEN"
+
+/* AWS URI fragment keys */
+#define AWS_FRAG_ACCESS_KEY_ID AWS_RC_ACCESS_KEY_ID
+#define AWS_FRAG_SECRET_ACCESS_KEY AWS_RC_SECRET_ACCESS_KEY
+#define AWS_FRAG_CONFIG_FILE AWS_RC_CONFIG_FILE
+#define AWS_FRAG_PROFILE AWS_RC_PROFILE
+#define AWS_FRAG_REGION AWS_RC_REGION
+#define AWS_FRAG_DEFAULT_REGION AWS_RC_DEFAULT_REGION
+#define AWS_FRAG_SESSION_TOKEN AWS_RC_SESSION_TOKEN
+
 /* Track the server type, if known */
-typedef enum NCS3SVC {NCS3UNK=0, /* unknown */
+typedef enum NCS3SVC {
+	NCS3UNK=0,    /* Unknown */
 	NCS3=1,     /* s3.amazon.aws */
 	NCS3GS=2,   /* storage.googleapis.com */
-#ifdef NETCDF_ENABLE_ZOH
-	NCS3ZOH=4,  /* ZoH Server */
-#endif
+	NCS3APP=3,  /* non-google and non-amazon url; probably some kind of appliance */
 } NCS3SVC;
 
 /* Opaque Handles */
 struct NClist;
+struct NC_FILE_INFO;
 
 typedef struct NCS3INFO {
     char* host; /* non-null if other*/
@@ -60,6 +79,7 @@ struct AWSprofile {
 /* Opaque Types */
 struct NClist;
 struct NCglobalstate;
+struct NCZ_FILE_INFO;
 
 #ifndef DECLSPEC
 #ifdef DLL_NETCDF
@@ -93,9 +113,6 @@ DECLSPEC int NC_s3sdklist(void* s3client0, const char* bucket, const char* prefi
 DECLSPEC int NC_s3sdklistall(void* s3client0, const char* bucket, const char* prefixkey0, size_t* nkeysp, char*** keysp, char** errmsgp);
 DECLSPEC int NC_s3sdkdeletekey(void* client0, const char* bucket, const char* pathkey, char** errmsgp);
 
-/* From ds3util.c */
-DECLSPEC void NC_s3sdkenvironment(void);
-
 DECLSPEC int NC_getdefaults3region(NCURI* uri, const char** regionp);
 DECLSPEC int NC_s3urlprocess(NCURI* url, NCS3INFO* s3, NCURI** newurlp);
 DECLSPEC int NC_s3clear(NCS3INFO* s3);
@@ -104,8 +121,8 @@ DECLSPEC const char* NC_s3dumps3info(NCS3INFO* info);
 DECLSPEC void NC_s3freeprofilelist(struct NClist* profiles);
 DECLSPEC int NC_getactives3profile(NCURI* uri, const char** profilep);
 DECLSPEC int NC_s3profilelookup(const char* profile, const char* key, const char** valuep);
+DECLSPEC int NC_gets3profile(const char* profile, struct AWSprofile** profilep);
 DECLSPEC void NC_s3getcredentials(const char *profile, const char **region, const char **accessid, const char **accesskey);
-DECLSPEC int NC_authgets3profile(const char* profile, struct AWSprofile** profilep);
 DECLSPEC int NC_iss3(NCURI* uri, enum NCS3SVC*);
 DECLSPEC int NC_s3urlrebuild(NCURI* url, struct NCS3INFO* s3, NCURI** newurlp);
 DECLSPEC int NC_aws_load_credentials(struct NCglobalstate* gstate);

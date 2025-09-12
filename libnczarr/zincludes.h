@@ -49,6 +49,7 @@ extern "C" {
 #include "ncjson.h"
 #include "ncproplist.h"
 #include "ncutil.h"
+#include "ncglobal.h"
 
 #include "zmap.h"
 #include "zinternal.h"

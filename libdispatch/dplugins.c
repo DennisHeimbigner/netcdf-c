@@ -26,6 +26,7 @@
 #include "nclog.h"
 #include "ncbytes.h"
 #include "ncplugins.h"
+#include "ncglobal.h"
 #include "netcdf_aux.h"
 
 /*

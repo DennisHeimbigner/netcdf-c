@@ -178,10 +178,11 @@ NC_authsetup(NCauth** authp, NCURI* uri)
       nullfree(pwd);
     }
 
+#ifdef NETCDF_ENABLE_S3
     /* Get the Default profile */
-    if((ret=NC_authgets3profile("no",&ap))) goto done;
+    if((ret=NC_gets3profile("no",&ap))) goto done;
     if(ap == NULL)
-        if((ret=NC_authgets3profile("default",&ap))) goto done;
+        if((ret=NC_gets3profile("default",&ap))) goto done;
     if(ap != NULL)
         auth->s3profile = strdup(ap->name);
     else
@@ -192,6 +193,7 @@ done:
     nullfree(uri_hostport);
     return (ret);
 }
+#endif
 
 void
 NC_authfree(NCauth* auth)

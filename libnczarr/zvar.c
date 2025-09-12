@@ -457,7 +457,7 @@ var->type_info->rc++;
     zvar->chunksize = zvar->chunkproduct * var->type_info->size;
 
     /* Set cache defaults */
-    var->chunkcache = gstate->chunkcache;
+    var->chunkcache = *gstate->chunkcache;
 
     /* Create the cache */
     if((retval=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,zvar->dimension_separator,&zvar->cache)))

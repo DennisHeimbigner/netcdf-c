@@ -68,8 +68,13 @@ ncz_create_dataset(NC_FILE_INFO_T* file, NC_GRP_INFO_T* root, NClist* controls)
     /* Apply client controls */
     if((stat = applycontrols(zinfo))) goto done;
 
-    /* Load auth info from rc file */
+    /* Parse the path as URI */
     if((stat = ncuriparse(nc->path,&uri))) goto done;
+
+    /* Load the path specific aws parameters over the global ones */
+    NC_awsnczfile(&zinfo->aws,uri);
+
+    /* Load auth info from rc file */
     if(uri) {
 	if((stat = NC_authsetup(&zinfo->auth, uri)))
 	    goto done;
@@ -159,11 +164,11 @@ ncz_open_dataset(NC_FILE_INFO_T* file, NClist* controls)
 		    &zinfo->zarr.nczarr_version.release) == 0)
 	{stat = NC_ENCZARR; goto done;}
 
-    /* Load auth info from rc file */
+    /* Load info from various sources */
     if((stat = ncuriparse(nc->path,&uri))) goto done;
     if(uri) {
-	if((stat = NC_authsetup(&zinfo->auth, uri)))
-	    goto done;
+	NC_awsnczfile(&zinfo->aws, uri);
+	if((stat = NC_authsetup(&zinfo->auth, uri))) goto done;
     }
 
 done:

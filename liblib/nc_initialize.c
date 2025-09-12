@@ -170,10 +170,6 @@ nc_finalize(void)
     if((stat = NCZ_finalize())) failed = stat;
 #endif
 
-#ifdef NETCDF_ENABLE_S3
-    if((stat = NC_s3sdkfinalize())) failed = stat;
-#endif
-
     if((stat = NC3_finalize())) failed = stat;
 
     /* Do general finalization */

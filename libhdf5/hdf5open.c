@@ -14,7 +14,9 @@
 #include "hdf5internal.h"
 #include "hdf5err.h"
 #include "hdf5debug.h"
+
 #include "nc4internal.h"
+#include "ncglobal.h"
 #include "ncrc.h"
 #include "ncauth.h"
 #include "ncmodel.h"
@@ -715,6 +717,7 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
     int info_duped = 0; /* Whether the MPI Info object was duplicated */
 #endif
     int retval;
+    NCglobalstate* gs = NC_getglobalstate();
 
     LOG((3, "%s: path %s mode %d", __func__, path, mode));
     assert(path);
@@ -825,16 +828,15 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
     if (!nc4_info->parallel)
     {
 	NCglobalstate* gs = NC_getglobalstate();
-	if (H5Pset_cache(fapl_id, 0, gs->chunkcache.nelems, gs->chunkcache.size,
-			 gs->chunkcache.preemption) < 0)
+	if (H5Pset_cache(fapl_id, 0, gs->chunkcache->nelems, gs->chunkcache->size,
+			 gs->chunkcache->preemption) < 0)
 	    BAIL(NC_EHDFERR);
 	LOG((4, "%s: set HDF raw chunk cache to size %d nelems %d preemption %f",
-	     __func__, gs->chunkcache.size, gs->chunkcache.nelems,
-	     gs->chunkcache.preemption));
+	     __func__, gs->chunkcache->size, gs->chunkcache->nelems,
+	     gs->chunkcache->preemption));
     }
 
     {
-	NCglobalstate* gs = NC_getglobalstate();
         if(gs->alignment.defined) {
 	    if (H5Pset_alignment(fapl_id, (hsize_t)gs->alignment.threshold, (hsize_t)gs->alignment.alignment) < 0) {
 	        BAIL(NC_EHDFERR);
@@ -918,7 +920,7 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
 		if((retval = NC_s3profilelookup(profile0,AWS_SESSION_TOKEN,&sessiontoken0)))
 		    BAIL(retval);		
 		if(s3.region == NULL)
-		    s3.region = strdup(AWS_GLOBAL_DEFAULT_REGION);
+		    s3.region = nulldup(gs->aws.region);
 	        if(awsaccessid0 == NULL || awssecretkey0 == NULL ) {
 		    /* default, non-authenticating, "anonymous" fapl configuration */
 		    fa.authenticate = (hbool_t)0;

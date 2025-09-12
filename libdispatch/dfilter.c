@@ -20,6 +20,7 @@
 #include "ncdispatch.h"
 #include "nc4internal.h"
 #include "nclog.h"
+#include "ncglobal.h"
 
 #ifdef USE_HDF5
 #include "hdf5internal.h"

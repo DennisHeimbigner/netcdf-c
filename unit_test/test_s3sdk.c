@@ -51,6 +51,7 @@ NCURI* purl = NULL;
 const char* activeprofile = NULL;
 const char* accessid = NULL;
 const char* accesskey = NULL;
+const char* sessiontoken = NULL;
 const char* newurl = NULL;
 NCS3INFO s3info;
 void* s3client = NULL;

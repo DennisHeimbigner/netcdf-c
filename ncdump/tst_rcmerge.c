@@ -3,7 +3,7 @@
 #include <string.h>
 #include "netcdf.h"
 #include "ncrc.h"
-#include "nc4internal.h"
+#include "ncglobal.h"
 
 static void
 printrc(NCglobalstate* ngs)

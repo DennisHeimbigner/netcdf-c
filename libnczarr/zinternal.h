@@ -123,6 +123,7 @@ typedef struct NCZ_FILE_INFO {
     NCZcommon common;
     struct NCZMAP* map; /* implementation */
     struct NCauth* auth;
+    struct NCAWSPARAMS aws; /* AWS S3 specific parameters/defaults on a per-file basis */
     struct nczarr {
 	int zarr_version;
 	struct {
