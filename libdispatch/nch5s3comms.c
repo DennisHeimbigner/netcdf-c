@@ -1085,6 +1085,15 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
     handle->magic	= S3COMMS_S3R_MAGIC;
 
     /*************************************
+     * RECORD USE OF CURLOPT_VERBOSE
+     *************************************/
+    {
+	char* cv = getenv("CURLOPT_VERBOSE");
+	long icv = 0;
+	if(1==sscanf(cv,"%ld",&icv) && icv != 0) handle->verbose = 1; else handle->verbose = 0;
+    }
+
+    /*************************************
      * RECORD THE ROOT PATH
      *************************************/
 
@@ -1176,6 +1185,9 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_HTTP_VERSION).");
 
     if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_FAILONERROR, 1L))
+        HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_FAILONERROR).");
+
+    if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_VERBOSE, (long)handle->verbose))
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_FAILONERROR).");
 
     handle->curlhandle = curlh;
@@ -2720,6 +2732,10 @@ curl_reset(s3r_t* handle)
     /* clear any Range */
     if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_RANGE, NULL))
         HDONE_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "cannot unset CURLOPT_RANGE");
+
+    /* clear verbose */
+    if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_VERBOSE, 0L))
+        HDONE_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "cannot unset CURLOPT_VERBOSE");
 
     /* clear headers */
     if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_HTTPHEADER, NULL))

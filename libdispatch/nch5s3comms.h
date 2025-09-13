@@ -418,6 +418,10 @@ typedef struct {
  *
  *     Pointer to the curl_easy handle generated for the request.
  *
+ * `verbose` (CURL)
+ *
+ *     CURLOPT_VERBOSE should be enabled if set to non-zero.
+ *
  * `httpverb` (char *)
  *
  *     Pointer to NULL-terminated string. HTTP verb,
@@ -462,6 +466,7 @@ typedef struct {
  */
 typedef struct {
     unsigned long  magic;
+    int		  verbose; /* CURLOPT_VERBOSE */
     struct CURL   *curlhandle;
     char          *rootpath; /* All keys are WRT this path */
     char          *region;
