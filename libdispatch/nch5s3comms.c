@@ -1069,7 +1069,8 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
     struct tm     *now           = NULL;
     const char* signingregion = aws->default_region;
 
-    TRACE(0,"root=%s region=%s access_id=%s access_key=%s token=%s",root,aws->region,aws->access_key_id,aws->secret_key,aws->session_token);
+    TRACE(0,"root=%s region=%s access_id=%s access_key=%s token=%s",root,aws->region,aws->access_key_id,aws->secret_access_key,aws->session_token);
+fprintf(stderr,"@@@ root=%s region=%s access_id=%s access_key=%s token=%s",root,aws->region,aws->access_key_id,aws->secret_access_key,aws->session_token);
 
 #if S3COMMS_DEBUG_TRACE
     fprintf(stdout, "called NCH5_s3comms_s3r_open.\n");
@@ -1117,37 +1118,53 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
      *************************************/
 
     /* copy strings */
-    if(nulllen(aws->region) != 0) {
+    if(nulllen(aws->region) > 0) {
+#if 0
         tmplen = nulllen(aws->region) + 1;
         handle->region = (char *)malloc(sizeof(char) * tmplen);
         if (handle->region == NULL)
             HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle region copy.");
         memcpy(handle->region, aws->region, tmplen);
+#else
+	handle->region = nulldup (aws->region);
+#endif
     }
 
-    if(nulllen(aws->access_key_id) != 0) {
+    if(nulllen(aws->access_key_id) > 0) {
+#if 0
         tmplen = nulllen(aws->access_key_id) + 1;
         handle->accessid = (char *)malloc(sizeof(char) * tmplen);
         if (handle->accessid == NULL)
             HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle ID copy.");
         memcpy(handle->accessid, aws->access_key_id, tmplen);
+#else
+	handle->accessid = nulldup(aws->access_key_id);
+#endif
     }
     
-    if(nulllen(aws->secret_access_key) != 0) {
+    if(nulllen(aws->secret_access_key) > 0) {
+#if 0
         tmplen = nulllen(aws->secret_access_key) + 1;
         handle->accesskey = (char *)malloc(sizeof(char) * tmplen);
         if (handle->accesskey == NULL)
            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle access key copy.");
         memcpy(handle->accesskey, aws->secret_access_key, tmplen);
+#else
+	handle->accesskey = nulldup(aws->secret_access_key);
+#endif
     }
 
 #if 0
-    if(nulllen(aws->session_token) != 0) {
+    if(nulllen(aws->session_token) > 0) {
+#if 0
         tmplen = nulllen(aws->session_token) + 1;
         handle->session_token = (char *)malloc(sizeof(char) * tmplen);
         if(handle->session_token == NULL)
            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle session token copy.");
         memcpy(handle->session_token, aws->session_token, tmplen);
+#else
+	handle->session_token = nulldup(aws->session_token);
+#endif
     }
 #endif
 
@@ -1160,7 +1177,8 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
     if(aws->access_key_id != NULL && aws->secret_access_key != NULL) { /* We are authenticating */
         /* Need several pieces of info for authentication */
         if (nulllen(handle->region) > 0)
-	     signingregion = handle->region;
+//	     signingregion = handle->region;
+	     signingregion = aws->region;
 //            HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "region cannot be null.");
         if (nulllen(handle->accessid)==0)
             HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "access id cannot be null.");
