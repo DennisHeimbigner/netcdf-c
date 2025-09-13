@@ -1090,7 +1090,10 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
     {
 	char* cv = getenv("CURLOPT_VERBOSE");
 	long icv = 0;
-	if(1==sscanf(cv,"%ld",&icv) && icv != 0) handle->verbose = 1; else handle->verbose = 0;
+	if(cv != NULL) {
+	    if(1!=sscanf(cv,"%ld",&icv)) icv = 0;
+	}
+	handle->verbose = icv;
     }
 
     /*************************************
@@ -1138,6 +1141,7 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
         memcpy(handle->accesskey, aws->secret_access_key, tmplen);
     }
 
+#if 0
     if(nulllen(aws->session_token) != 0) {
         tmplen = nulllen(aws->session_token) + 1;
         handle->session_token = (char *)malloc(sizeof(char) * tmplen);
@@ -1145,6 +1149,7 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle session token copy.");
         memcpy(handle->session_token, aws->session_token, tmplen);
     }
+#endif
 
     now = gmnow();
     if (ISO8601NOW(iso8601now, now) != (ISO8601_SIZE - 1))
@@ -1644,13 +1649,17 @@ H5FD__s3comms_load_aws_creds_from_file(FILE *file, const char *profile_name, cha
         "region",
         "aws_access_key_id",
         "aws_secret_access_key",
+#if 0
         "aws_session_token",
+#endif
     };
     char *const setting_pointers[] = {
         aws_region,
         key_id,
         access_key,
+#if 0
         session_token,
+#endif
     };
     unsigned setting_count = 3;
     int   ret_value     = SUCCEED;
@@ -2481,11 +2490,13 @@ build_request(s3r_t* handle, NCURI* purl,
     if (SUCCEED != NCH5_s3comms_hrb_node_insert(request->headers, "x-amz-date", (const char *)iso8601now))
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to set x-amz-date header");
 
+#if 0
     if(handle->session_token) {
 	if (SUCCEED != NCH5_s3comms_hrb_node_insert(request->headers, "x-amz-security-token", (const char *)handle->session_token))
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to set x-amz-security-token header");
     }
-    
+#endif
+
     /* Compute SHA256 of upload data, if any */
     if(verb == HTTPPUT && payload != NULL) {
             unsigned char sha256csum[SHA256_DIGEST_LENGTH];
