@@ -1070,7 +1070,7 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
     const char* signingregion = aws->default_region;
 
     TRACE(0,"root=%s region=%s access_id=%s access_key=%s token=%s",root,aws->region,aws->access_key_id,aws->secret_access_key,aws->session_token);
-fprintf(stderr,"@@@ root=%s region=%s access_id=%s access_key=%s token=%s",root,aws->region,aws->access_key_id,aws->secret_access_key,aws->session_token);
+fprintf(stderr,"@@@ (x) root=|%s| region=|%s| access_id=|%s| access_key=|%s| token=|%s|\n",root,aws->region,aws->access_key_id,aws->secret_access_key,aws->session_token);
 
 #if S3COMMS_DEBUG_TRACE
     fprintf(stdout, "called NCH5_s3comms_s3r_open.\n");
