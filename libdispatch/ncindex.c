@@ -27,8 +27,9 @@
 #endif
 #include <assert.h>
 
-#include "nc4internal.h"
 #include "ncindex.h"
+#include "ncglobal.h"
+#include "nc4internal.h"
 
 #ifdef SMALLTABLE
 /* Keep the table sizes small initially */
@@ -118,7 +119,7 @@ ncindexadd(NCindex* ncindex, NC_OBJ* obj)
 /* Insert object at ith position of the vector, also insert into the hashmaps; */
 /* Return 1 if ok, 0 otherwise.*/
 int
-ncindexset(NCindex* ncindex, size_t i, NC_OBJ* obj)
+ncindexset(NCindex* ncindex, size_t i, struct NC_OBJ* obj)
 {
     if(ncindex == NULL) return 0;
     if(!nclistset(ncindex->list,i,obj)) return 0;
@@ -149,12 +150,12 @@ ncindexidel(NCindex* index, size_t i)
 
 /*Return a duplicate of the index's vector */
 /* Return list if ok, NULL otherwise.*/
-NC_OBJ**
+struct NC_OBJ**
 ncindexdup(NCindex* index)
 {
     if(index == NULL || nclistlength(index->list) == 0)
         return NULL;
-    return (NC_OBJ**)nclistclone(index->list,0/*!deep*/);
+    return (struct NC_OBJ**)nclistclone(index->list,0/*!deep*/);
 }
 
 /* Count the non-null entries in an NCindex */
@@ -180,7 +181,7 @@ ncindexrebuild(NCindex* index)
 #ifndef NCNOHASH
     size_t i;
     size_t size = nclistlength(index->list);
-    NC_OBJ** contents = (NC_OBJ**)nclistextract(index->list);
+    struct NC_OBJ** contents = (struct NC_OBJ**)nclistextract(index->list);
     /* Reset the index map and list*/
     nclistfree(index->list);
     index->list = nclistnew();
@@ -189,7 +190,7 @@ ncindexrebuild(NCindex* index)
     index->map = NC_hashmapnew(size);
     /* Now, reinsert all the attributes except NULLs */
     for(i=0;i<size;i++) {
-        NC_OBJ* tmp = contents[i];
+        struct NC_OBJ* tmp = contents[i];
         if(tmp == NULL) continue; /* ignore */
         if(!ncindexadd(index,tmp))
             return 0;
@@ -375,7 +376,7 @@ printindexlist(NClist* lm)
         return;
     }
     for(i=0;i<nclistlength(lm);i++) {
-        NC_OBJ* o = (NC_OBJ*)nclistget(lm,i);
+        struct NC_OBJ* o = (struct NC_OBJ*)nclistget(lm,i);
         if(o == NULL)
             fprintf(stderr,"[%zu] <null>\n",i);
         else

@@ -9,7 +9,8 @@ Functions for inquiring about variables.
 #include "netcdf.h"
 #include "netcdf_filter.h"
 #include "ncdispatch.h"
-#include "nc4internal.h"
+#include "ncglobal.h"
+
 #ifdef USE_HDF5
 #include <hdf5.h>
 #endif /* USE_HDF5 */

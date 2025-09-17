@@ -10,9 +10,8 @@
 #include "netcdf.h"
 #include "netcdf_filter.h"
 #include "ncdispatch.h"
-#include "nc4internal.h"
 #include "netcdf_f.h"
-#include "nc4internal.h"
+#include "ncglobal.h"
 
 /**
    @defgroup variables Variables

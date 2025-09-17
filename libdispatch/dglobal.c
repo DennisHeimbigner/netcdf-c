@@ -9,7 +9,6 @@ See LICENSE.txt for license information.
 #include <string.h>
 
 #include "netcdf.h"
-#include "nc4internal.h"
 #include "ncglobal.h"
 #include "nclist.h"
 #include "ncuri.h"
@@ -57,11 +56,9 @@ NC_createglobalstate(void)
     if(tmp != NULL && strlen(tmp) > 0)
         nc_globalstate->rcinfo->rcfile = strdup(tmp);
     /* Initialize chunk cache defaults */
-    if((nc_globalstate->chunkcache = (struct ChunkCache*)calloc(1,sizeof(struct ChunkCache)))==NULL)
-	{stat = NC_ENOMEM; goto done;}    
-    nc_globalstate->chunkcache->size = DEFAULT_CHUNK_CACHE_SIZE;		    /**< Default chunk cache size. */
-    nc_globalstate->chunkcache->nelems = DEFAULT_CHUNKS_IN_CACHE;	    /**< Default chunk cache number of elements. */
-    nc_globalstate->chunkcache->preemption = DEFAULT_CHUNK_CACHE_PREEMPTION; /**< Default chunk cache preemption. */
+    nc_globalstate->chunkcache.size = DEFAULT_CHUNK_CACHE_SIZE;		    /**< Default chunk cache size. */
+    nc_globalstate->chunkcache.nelems = DEFAULT_CHUNKS_IN_CACHE;	    /**< Default chunk cache number of elements. */
+    nc_globalstate->chunkcache.preemption = DEFAULT_CHUNK_CACHE_PREEMPTION; /**< Default chunk cache preemption. */
     
 done:
     return stat;
@@ -84,7 +81,6 @@ NC_freeglobalstate(void)
         nullfree(gs->tempdir);
         nullfree(gs->home);
         nullfree(gs->cwd);
-	nullfree(gs->chunkcache);
 	NC_clearawsparams(&gs->aws);
         if(gs->rcinfo) {
 	    NC_rcclear(gs->rcinfo);

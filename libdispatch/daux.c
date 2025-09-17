@@ -25,7 +25,6 @@ See COPYRIGHT for license information.
 #include "config.h"
 #include "netcdf.h"
 #include "netcdf_aux.h"
-#include "nc4internal.h"
 #include "ncoffsets.h"
 #include "nclog.h"
 #include "ncrc.h"
@@ -33,6 +32,7 @@ See COPYRIGHT for license information.
 #include "ncpathmgr.h"
 #include "nclist.h"
 #include "ncutil.h"
+#include "ncglobal.h"
 
 struct NCAUX_FIELD {
     char* name;

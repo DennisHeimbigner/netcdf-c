@@ -47,7 +47,7 @@ static int throw(int x)
 #endif
 #include <assert.h>
 
-#include "nc4internal.h"
+#include "ncglobal.h"
 #include "ncexhash.h"
 #include "ncxcache.h"
 

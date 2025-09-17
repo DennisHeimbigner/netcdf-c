@@ -17,7 +17,7 @@
 #include "netcdf_filter.h"
 #include "netcdf_aux.h"
 #include "ncdispatch.h"
-#include "nc4internal.h"
+#include "ncglobal.h"
 
 /**
  * @internal Not implemented in some dispatch tables

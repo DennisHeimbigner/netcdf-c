@@ -19,10 +19,11 @@ Currently two operations are defined:
 #include <assert.h>
 #include "netcdf.h"
 #include "netcdf_aux.h"
-#include "nc4internal.h"
 #include "nc4dispatch.h"
 #include "ncoffsets.h"
 #include "ncbytes.h"
+#include "ncglobal.h"
+#include "nc4internal.h"
 
 #undef REPORT
 #undef DEBUG

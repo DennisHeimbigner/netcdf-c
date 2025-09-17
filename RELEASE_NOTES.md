@@ -7,7 +7,7 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.10.0 - TBD
 
-* Add support for aws_session_tokens. See [Github #](https://github.com/Unidata/netcdf-c/pull/????) for more information.
+* Add support for aws_session_tokens. See [Github #????](https://github.com/Unidata/netcdf-c/pull/????) for more information.
 * Rebuild the S3-related code and other changes necessary to build cleanly on github actions. See [Github #3159](https://github.com/Unidata/netcdf-c/pull/3159) for more information.
 * Fix an error compiling netCDF with AWS-S3-SDK support using cmake. See [Github 3155](https://github.com/Unidata/netcdf-c/issues/3155) for more information. 
 * Add new environmental logging variable for `netCDF4` related logging subsystem, `NC4LOGGING`.  If `libnetcdf` is compiled with logging enabled, logs can be enabled at runtime by setting this environmental variable to the desired log level.  

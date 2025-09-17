@@ -11,7 +11,6 @@
 #include <string.h>
 #include <assert.h>
 #include "netcdf.h"
-#include "nc4internal.h"
 #include "nclog.h"
 #include "ncrc.h"
 #include "ncxml.h"

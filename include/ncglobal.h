@@ -15,7 +15,6 @@ struct NClist;
 struct NCURI;
 struct NCRCinfo;
 struct NCZ_Plugin;
-struct ChunkCache;
 
 /**************************************************/
 /* Begin to collect global state info in one place (more to do) */
@@ -53,7 +52,11 @@ typedef struct NCglobalstate {
 	int threshold;
 	int alignment;
     } alignment;
-    struct ChunkCache* chunkcache;
+    struct ChunkCache {
+        size_t size;     /**< Size in bytes of the var chunk cache. */
+        size_t nelems;   /**< Number of slots in var chunk cache. */
+        float preemption; /**< Chunk cache preemtion policy. */
+    } chunkcache;
 } NCglobalstate;
 
 /* Externally visible */
