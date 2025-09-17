@@ -466,7 +466,6 @@ typedef struct {
  */
 typedef struct {
     unsigned long  magic;
-    int		  verbose; /* CURLOPT_VERBOSE */
     struct CURL   *curlhandle;
     char          *rootpath; /* All keys are WRT this path */
     char          *region;

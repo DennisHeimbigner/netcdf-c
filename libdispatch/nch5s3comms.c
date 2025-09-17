@@ -489,7 +489,7 @@ NCH5_s3comms_hrb_node_insert(VList* list, const char *name, const char *value)
     namelen = nulllen(name);
 
     /* get lowercase name */
-    lowername = (char *)malloc(sizeof(char) * (namelen + 1));
+    lowername = (char *)calloc(namelen + 1, sizeof(char));
     if (lowername == NULL)
         HGOTO_ERROR(H5E_RESOURCE, NC_ENOMEM, FAIL, "cannot make space for lowercase name copy.");
     for (i = 0; i < namelen; i++)
@@ -508,7 +508,7 @@ NCH5_s3comms_hrb_node_insert(VList* list, const char *name, const char *value)
 
     catlen   = namelen + strlen(value) + 2; /* +2 from ": " */
     catwrite = catlen + 3;             /* 3 not 1 to quiet compiler warning */
-    nvcat = (char *)malloc(catwrite);
+    nvcat = (char *)calloc(1,catwrite);
     if (nvcat == NULL)
 	HGOTO_ERROR(H5E_RESOURCE, NC_ENOMEM, FAIL, "cannot make space for concatenated string.");
     ret = snprintf(nvcat, catwrite, "%s: %s", lowername, value);
@@ -622,25 +622,26 @@ NCH5_s3comms_hrb_init_request(const char *_resource, const char *_http_version)
     if (_http_version == NULL)
         _http_version = "HTTP/1.1";
 
-    /* malloc space for and prepare structure */
-    request = (hrb_t *)malloc(sizeof(hrb_t));
+    /* alloc space for and prepare structure */
+    request = (hrb_t *)calloc(1,sizeof(hrb_t));
     if (request == NULL)
         HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "no space for request structure");
     request->magic        = S3COMMS_HRB_MAGIC;
     request->body         = vsnew();
     request->headers	  = vlistnew();
 
-    /* malloc and copy strings for the structure */
+    /* alloc and copy strings for the structure */
     reslen = nulllen(_resource);
 
     if (_resource[0] == '/') {
-        res = (char *)malloc(sizeof(char) * (reslen + 1));
+        res = (char *)calloc(reslen + 1,sizeof(char));
         if (res == NULL)
             HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "no space for resource string");
         memcpy(res, _resource, (reslen + 1));
     }
     else {
-        res = (char *)malloc(sizeof(char) * (reslen + 2));
+//        res = (char *)calloc(reslen + 1, sizeof(char));
+        res = (char *)calloc(reslen + 2, sizeof(char));
         if (res == NULL)
             HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "no space for resource string");
         *res = '/';
@@ -649,7 +650,7 @@ NCH5_s3comms_hrb_init_request(const char *_resource, const char *_http_version)
     } /* end if (else resource string not starting with '/') */
 
     vrsnlen = nulllen(_http_version) + 1;
-    vrsn    = (char *)malloc(sizeof(char) * vrsnlen);
+    vrsn    = (char *)calloc(vrsnlen, sizeof(char));
     if (vrsn == NULL)
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "no space for http-version string");
     strncpy(vrsn, _http_version, vrsnlen);
@@ -1024,7 +1025,7 @@ NCH5_s3comms_s3r_execute(s3r_t *handle, const char* url,
 done:
     if(httpcodep) *httpcodep = httpcode;
     ncurifree(purl);
-    /* clean any malloc'd resources */
+    /* clean any alloc'd resources */
     curl_reset(handle);
     return (ret_value);;
 } /* NCH5_s3comms_s3r_read */
@@ -1059,8 +1060,13 @@ done:
  */
 s3r_t *
 NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
+
 {
     int ret_value = SUCCEED;
+    const char *region = aws->region;
+    const char *access_id = aws->access_key_id;
+    const char* access_key = aws->secret_access_key;
+    const char* session_token = aws->session_token;
     size_t         tmplen    = 0;
     CURL          *curlh     = NULL;
     s3r_t         *handle    = NULL;
@@ -1068,9 +1074,12 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
     char           iso8601now[ISO8601_SIZE];
     struct tm     *now           = NULL;
     const char* signingregion = aws->default_region;
+//    const char* signingregion = AWS_GLOBAL_DEFAULT_REGION;
 
-    TRACE(0,"root=%s region=%s access_id=%s access_key=%s token=%s",root,aws->region,aws->access_key_id,aws->secret_access_key,aws->session_token);
-fprintf(stderr,"@@@ (x) root=|%s| region=|%s| access_id=|%s| access_key=|%s| token=|%s|\n",root,aws->region,aws->access_key_id,aws->secret_access_key,aws->session_token);
+     TRACE(0,"root=%s region=%s access_id=%s access_key=%s token=%s",root,region,access_id,access_key,session_token);
+#ifdef DEBUG
+    fprintf(stderr,"@@@ open: root=|%s| region=|%s| access_id=|%s| access_key=|%s| token=|%s|\n",root,region,access_id,access_key,session_token);
+#endif
 
 #if S3COMMS_DEBUG_TRACE
     fprintf(stdout, "called NCH5_s3comms_s3r_open.\n");
@@ -1081,21 +1090,9 @@ fprintf(stderr,"@@@ (x) root=|%s| region=|%s| access_id=|%s| access_key=|%s| tok
 
     handle = (s3r_t *)calloc(1,sizeof(s3r_t));
     if (handle == NULL)
-	HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle.");
+	HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not calloc space for handle.");
 
     handle->magic	= S3COMMS_S3R_MAGIC;
-
-    /*************************************
-     * RECORD USE OF CURLOPT_VERBOSE
-     *************************************/
-    {
-	char* cv = getenv("CURLOPT_VERBOSE");
-	long icv = 0;
-	if(cv != NULL) {
-	    if(1!=sscanf(cv,"%ld",&icv)) icv = 0;
-	}
-	handle->verbose = icv;
-    }
 
     /*************************************
      * RECORD THE ROOT PATH
@@ -1104,8 +1101,8 @@ fprintf(stderr,"@@@ (x) root=|%s| region=|%s| access_id=|%s| access_key=|%s| tok
     switch (svc) {
     case NCS3:
         /* Verify that the region is a substring of root */
-        if(aws->region != NULL && aws->region[0] != '\0') {
-	    if(strstr(root,aws->region) == NULL)
+        if(region != NULL && region[0] != '\0') {
+	    if(strstr(root,region) == NULL)
 	        HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "region not present in root path.");
         }
 	break;
@@ -1118,55 +1115,21 @@ fprintf(stderr,"@@@ (x) root=|%s| region=|%s| access_id=|%s| access_key=|%s| tok
      *************************************/
 
     /* copy strings */
-    if(nulllen(aws->region) > 0) {
-#if 0
-        tmplen = nulllen(aws->region) + 1;
-        handle->region = (char *)malloc(sizeof(char) * tmplen);
-        if (handle->region == NULL)
-            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle region copy.");
-        memcpy(handle->region, aws->region, tmplen);
-#else
-	handle->region = nulldup (aws->region);
-#endif
+    if(nulllen(region) != 0) {
+	handle->region = nulldup(region);
     }
 
-    if(nulllen(aws->access_key_id) > 0) {
-#if 0
-        tmplen = nulllen(aws->access_key_id) + 1;
-        handle->accessid = (char *)malloc(sizeof(char) * tmplen);
-        if (handle->accessid == NULL)
-            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle ID copy.");
-        memcpy(handle->accessid, aws->access_key_id, tmplen);
-#else
-	handle->accessid = nulldup(aws->access_key_id);
-#endif
+    if(nulllen(access_id) != 0) {
+	handle->accessid = nulldup(access_id);
     }
     
-    if(nulllen(aws->secret_access_key) > 0) {
-#if 0
-        tmplen = nulllen(aws->secret_access_key) + 1;
-        handle->accesskey = (char *)malloc(sizeof(char) * tmplen);
-        if (handle->accesskey == NULL)
-           HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle access key copy.");
-        memcpy(handle->accesskey, aws->secret_access_key, tmplen);
-#else
-	handle->accesskey = nulldup(aws->secret_access_key);
-#endif
+    if(nulllen(access_key) != 0) {
+	handle->accesskey = nulldup(access_key);
     }
 
-#if 0
-    if(nulllen(aws->session_token) > 0) {
-#if 0
-        tmplen = nulllen(aws->session_token) + 1;
-        handle->session_token = (char *)malloc(sizeof(char) * tmplen);
-        if(handle->session_token == NULL)
-           HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle session token copy.");
-        memcpy(handle->session_token, aws->session_token, tmplen);
-#else
-	handle->session_token = nulldup(aws->session_token);
-#endif
+    if(nulllen(session_token) != 0) {
+	handle->session_token = nulldup(session_token);
     }
-#endif
 
     now = gmnow();
     if (ISO8601NOW(iso8601now, now) != (ISO8601_SIZE - 1))
@@ -1174,21 +1137,29 @@ fprintf(stderr,"@@@ (x) root=|%s| region=|%s| access_id=|%s| access_key=|%s| tok
     memcpy(handle->iso8601now,iso8601now,ISO8601_SIZE);
 
     /* Do optional authentication */
-    if(aws->access_key_id != NULL && aws->secret_access_key != NULL) { /* We are authenticating */
+    if(access_id != NULL && access_key != NULL) { /* We are authenticating */
         /* Need several pieces of info for authentication */
-        if (nulllen(handle->region) > 0)
-//	     signingregion = handle->region;
-	     signingregion = aws->region;
-//            HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "region cannot be null.");
+        if (nulllen(handle->region)==0)
+            HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "region cannot be null.");
+        signingregion = region;
         if (nulllen(handle->accessid)==0)
             HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "access id cannot be null.");
         if (nulllen(handle->accesskey)==0)
             HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "signing key cannot be null.");
 
-        assert(signingregion != NULL);
         /* Compute the signing key */
-        if (SUCCEED != NCH5_s3comms_signing_key(&signing_key, aws->access_key_id, signingregion, handle->session_token, iso8601now))
+        if (SUCCEED != NCH5_s3comms_signing_key(&signing_key, access_key, region, NULL, iso8601now))
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "problem in NCH5_s3comms_s3comms_signing_key.");
+#ifdef DEBUG
+	{
+	int i;
+	fprintf(stderr,"@@@ signing_key: access_key=|%s| signingregion=|%s| iso8601now=|%s|\n", access_key, signingregion, iso8601now);
+	fprintf(stderr,"@@@\tsigning_key=|");
+	for(i=0;i<(int)SHA256_DIGEST_LENGTH;i++)
+	fprintf(stderr,"%hhu",signing_key[i]);
+	fprintf(stderr,"|\n");
+	}
+#endif
         if (signing_key == NULL)
             HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "signing key cannot be null.");
 	handle->signing_key = signing_key;
@@ -1201,6 +1172,7 @@ fprintf(stderr,"@@@ (x) root=|%s| region=|%s| access_id=|%s| access_key=|%s| tok
      ************************/
 
     curlh = curl_easy_init();
+
     if (curlh == NULL)
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "problem creating curl easy handle!");
 
@@ -1210,8 +1182,10 @@ fprintf(stderr,"@@@ (x) root=|%s| region=|%s| access_id=|%s| access_key=|%s| tok
     if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_FAILONERROR, 1L))
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_FAILONERROR).");
 
-    if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_VERBOSE, (long)handle->verbose))
-        HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_FAILONERROR).");
+    if(getenv("CURLOPT_VERBOSE") != NULL) {
+	if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_VERBOSE, 1L))
+            HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_VERBOSE).");
+    }
 
     handle->curlhandle = curlh;
 
@@ -1294,7 +1268,7 @@ done:
     if(httpcodep) *httpcodep = httpcode;
     (void)vsextract(wrap);
     vsfree(wrap);
-    /* clean any malloc'd resources */
+    /* clean any alloc'd resources */
     nullfree(rangebytesstr);
     curl_reset(handle);
     return UNTRACE(ret_value);;
@@ -1345,7 +1319,7 @@ done:
     if(httpcodep) *httpcodep = httpcode;
     (void)vsextract(wrap);
     vsfree(wrap);
-    /* clean any malloc'd resources */
+    /* clean any alloc'd resources */
     vlistfreeall(otherheaders);
     curl_reset(handle);
     return UNTRACE(ret_value);
@@ -1387,7 +1361,7 @@ NCH5_s3comms_s3r_getkeys(s3r_t *handle, const char* url, s3r_buf_t* response, lo
 done:
     if(httpcodep) *httpcodep = httpcode;
     vsfree(content);
-    /* clean any malloc'd resources */
+    /* clean any alloc'd resources */
     curl_reset(handle);
     return UNTRACEX(ret_value,"response=[%d]",ncbyteslength(response));
 } /* NCH5_s3comms_s3r_getkeys */
@@ -1563,7 +1537,7 @@ NCH5_s3comms_bytes_to_hex(char *dest, const unsigned char *msg, size_t msg_len, 
     }
 
 done:
-    return (ret_value);
+   return (ret_value);
 } /* end NCH5_s3comms_bytes_to_hex() */
 
 /*----------------------------------------------------------------------------
@@ -1633,7 +1607,6 @@ done:
  *     Following AWS documentation, looks for any of:
  *     + aws_access_key_id
  *     + aws_secret_access_key
- *     + aws_session_token
  *     + region
  *     To be valid, the setting must begin the line with one of the keywords,
  *     followed immediately by an equals sign '=', and have some data before
@@ -1659,7 +1632,7 @@ done:
  */
 static int
 H5FD__s3comms_load_aws_creds_from_file(FILE *file, const char *profile_name, char *key_id, char *access_key,
-                                       char* session_token, char *aws_region)
+                                       char *aws_region)
 {
     char        profile_line[32];
     char        buffer[128];
@@ -1667,17 +1640,11 @@ H5FD__s3comms_load_aws_creds_from_file(FILE *file, const char *profile_name, cha
         "region",
         "aws_access_key_id",
         "aws_secret_access_key",
-#if 0
-        "aws_session_token",
-#endif
     };
     char *const setting_pointers[] = {
         aws_region,
         key_id,
         access_key,
-#if 0
-        session_token,
-#endif
     };
     unsigned setting_count = 3;
     int   ret_value     = SUCCEED;
@@ -1779,7 +1746,7 @@ done:
  *     + FAILURE: `FAIL` (-1)
  *         + internal error occurred
  *         + unable to locate profile
- *         + region, key id, and secret key were not all found and set; session token is optional.
+ *         + region, key id, and secret key were not all found and set
  * Programmer: Jacob Smith
  *             2018-02-27
  *----------------------------------------------------------------------------
@@ -1794,6 +1761,7 @@ NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *
     char   filepath[128];
     int    ret = 0;
 
+abort();
 #if S3COMMS_DEBUG_TRACE
     fprintf(stdout, "called NCH5_s3comms_load_aws_profile.\n");
 #endif
@@ -1812,7 +1780,7 @@ NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *
     credfile = fopen(filepath, "r");
     if (credfile != NULL) {
         if (H5FD__s3comms_load_aws_creds_from_file(credfile, profile_name, key_id_out, secret_access_key_out,
-                                                   session_token_out, aws_region_out) != SUCCEED)
+                                                   aws_region_out) != SUCCEED)
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to load from aws credentials");
         if (fclose(credfile) == EOF)
             HGOTO_ERROR(H5E_FILE, NC_EACCESS, FAIL, "unable to close credentials file");
@@ -1827,7 +1795,6 @@ NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *
         if (H5FD__s3comms_load_aws_creds_from_file(
                 credfile, profile_name, (*key_id_out == 0) ? key_id_out : NULL,
                 (*secret_access_key_out == 0) ? secret_access_key_out : NULL,
-                (*session_token_out == 0) ? session_token_out : NULL,
                 (*aws_region_out == 0) ? aws_region_out : NULL) != SUCCEED)
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to load from aws config");
         if (fclose(credfile) == EOF)
@@ -1835,7 +1802,7 @@ NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *
         credfile = NULL;
     } /* end if credential file opened */
 
-    /* fail if not all three settings were loaded; session token is optional */
+    /* fail if not all three settings were loaded */
     if (*key_id_out == 0 || *secret_access_key_out == 0 || *aws_region_out == 0)
         ret_value = NC_EINVAL;
 
@@ -2031,7 +1998,6 @@ done:
  *     generating re-usable checksum (according to documentation, valid for
  *     7 days from time given).
  *     `secret` is `access key id` for targeted service/bucket/resource.
- *     `session_token'` is `session token` for targeted service/bucket/resource.
  *     `iso8601now` must conform to format, yyyyMMDD'T'hhmmss'Z'
  *     e.g. "19690720T201740Z".
  *     `region` should be one of AWS service region names, e.g. "us-east-1".
@@ -2049,7 +2015,7 @@ done:
  *----------------------------------------------------------------------------
  */
 int
-NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *region, const char *session_token, const char *iso8601now)
+NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *region, const char* sessio_token, const char *iso8601now)
 {
     char         *AWS4_secret     = NULL;
     size_t        AWS4_secret_len = 0;
@@ -2074,7 +2040,7 @@ NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *re
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "`iso8601now` cannot be NULL.");
 
     AWS4_secret_len = 4 + nulllen(secret) + 1;
-    AWS4_secret     = (char *)malloc(sizeof(char *) * AWS4_secret_len);
+    AWS4_secret     = (char *)calloc(AWS4_secret_len,sizeof(char *));
     if (AWS4_secret == NULL)
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "Could not allocate space.");
 
@@ -2084,7 +2050,7 @@ NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *re
         HGOTO_ERRORVA(H5E_ARGS, NC_EINVAL, FAIL, "problem writing AWS4+secret `%s`", secret);
 
     if((md = (unsigned char*)calloc(1,SHA256_DIGEST_LENGTH))==NULL)
-       HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for signing key .");
+       HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not alloc space for signing key .");
 
     /* hash_func, key, len(key), msg, len(msg), digest_dest, digest_len_dest
      * we know digest length, so ignore via NULL
@@ -2508,13 +2474,6 @@ build_request(s3r_t* handle, NCURI* purl,
     if (SUCCEED != NCH5_s3comms_hrb_node_insert(request->headers, "x-amz-date", (const char *)iso8601now))
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to set x-amz-date header");
 
-#if 0
-    if(handle->session_token) {
-	if (SUCCEED != NCH5_s3comms_hrb_node_insert(request->headers, "x-amz-security-token", (const char *)handle->session_token))
-            HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to set x-amz-security-token header");
-    }
-#endif
-
     /* Compute SHA256 of upload data, if any */
     if(verb == HTTPPUT && payload != NULL) {
             unsigned char sha256csum[SHA256_DIGEST_LENGTH];
@@ -2782,18 +2741,18 @@ build_range(size_t offset, size_t len, char** rangep)
     int                ret           = 0; /* working variable to check  */
                                           /* return value of snprintf  */
     if (len > 0) {
-        rangebytesstr = (char *)malloc(sizeof(char) * (S3COMMS_MAX_RANGE_STRING_SIZE + 1));
+        rangebytesstr = (char *)calloc(S3COMMS_MAX_RANGE_STRING_SIZE + 1,sizeof(char));
         if (rangebytesstr == NULL)
-            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, FAIL, "could not malloc range format string.");
+            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, FAIL, "could not alloc range format string.");
         ret = snprintf(rangebytesstr, (S3COMMS_MAX_RANGE_STRING_SIZE), "bytes=%lld-%lld",
                          (long long)offset, (long long)(offset + len - 1));
         if (ret <= 0 || ret >= S3COMMS_MAX_RANGE_STRING_SIZE)
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to format HTTP Range value");
     }
     else if (offset > 0) {
-        rangebytesstr = (char *)malloc(sizeof(char) * (S3COMMS_MAX_RANGE_STRING_SIZE + 1));
+        rangebytesstr = (char *)calloc(S3COMMS_MAX_RANGE_STRING_SIZE + 1,sizeof(char));
         if (rangebytesstr == NULL)
-            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, FAIL, "could not malloc range format string.");
+            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, FAIL, "could not alloc range format string.");
         ret = snprintf(rangebytesstr, (S3COMMS_MAX_RANGE_STRING_SIZE), "bytes=%lld-", (long long)offset);
         if (ret <= 0 || ret >= S3COMMS_MAX_RANGE_STRING_SIZE)
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to format HTTP Range value");
