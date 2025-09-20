@@ -56,7 +56,7 @@ typedef struct NCglobalstate {
         size_t size;     /**< Size in bytes of the var chunk cache. */
         size_t nelems;   /**< Number of slots in var chunk cache. */
         float preemption; /**< Chunk cache preemtion policy. */
-    } chunkcache;
+    }* chunkcache;
 } NCglobalstate;
 
 /* Externally visible */

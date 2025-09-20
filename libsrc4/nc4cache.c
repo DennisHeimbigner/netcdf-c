@@ -11,7 +11,6 @@
  */
 
 #include "config.h"
-#include "ncglobal.h"
 #include "nc4internal.h"
 
 /**

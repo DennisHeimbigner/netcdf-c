@@ -26,7 +26,7 @@
 #include "ncdispatch.h" /* from libdispatch */
 #include "ncutf8.h"
 #include "ncrc.h"
-#include "ncglobal.h"
+#include "nc4internal.h"
 
 /** @internal Number of reserved attributes. These attributes are
  * hidden from the netcdf user, but exist in the implementation
@@ -756,10 +756,11 @@ nc4_var_list_add2(NC_GRP_INFO_T *grp, const char *name, NC_VAR_INFO_T **var)
     new_var->hdr.sort = NCVAR;
     new_var->container = grp;
 
-    /* These are the HDF5-1.8.4 defaults. */
-    new_var->chunkcache.size = gs->chunkcache->size;
-    new_var->chunkcache.nelems = gs->chunkcache->nelems;
-    new_var->chunkcache.preemption = gs->chunkcache->preemption;
+    if((new_var->chunkcache = (struct ChunkCache*)calloc(1,sizeof(struct ChunkCache))) == NULL) {
+	free(new_var);
+        return NC_ENOMEM;
+    }
+    memcpy(new_var->chunkcache,gs->chunkcache,sizeof(struct ChunkCache));
 
     /* Now fill in the values in the var info structure. */
     new_var->hdr.id = (int)ncindexsize(grp->vars);
@@ -1400,6 +1401,9 @@ var_free(NC_VAR_INFO_T *var)
 
     if (var->dim)
         free(var->dim);
+
+    if (var->chunkcache)
+        free(var->chunkcache);
 
     /* Delete any fill value allocation. */
     if (var->fill_value) {

@@ -456,15 +456,10 @@ var->type_info->rc++;
         {for(d=0;d<var->ndims;d++) {zvar->chunkproduct *= var->chunksizes[d];}}
     zvar->chunksize = zvar->chunkproduct * var->type_info->size;
 
-    /* Set cache defaults */
-    var->chunkcache = *gstate->chunkcache;
-
-    /* Create the cache */
+    /* Create the zvar cache */
+    assert(zvar->cache == NULL);
     if((retval=NCZ_create_chunk_cache(var,zvar->chunkproduct*var->type_info->size,zvar->dimension_separator,&zvar->cache)))
 	BAIL(retval);
-
-    /* Set the per-variable chunkcache defaults */
-    zvar->cache->params = var->chunkcache;
 
     /* Return the varid. */
     if (varidp)

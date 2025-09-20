@@ -86,9 +86,9 @@ NCZ_set_var_chunk_cache(int ncid, int varid, size_t cachesize, size_t nelems, fl
     assert(zvar != NULL && zvar->cache != NULL);
 
     /* Set the values. */
-    var->chunkcache.size = cachesize;
-    var->chunkcache.nelems = nelems;
-    var->chunkcache.preemption = preemption;
+    var->chunkcache->size = cachesize;
+    var->chunkcache->nelems = nelems;
+    var->chunkcache->preemption = preemption;
 
     /* Fix up cache */
     if((retval = NCZ_adjust_var_cache(var))) goto done;
@@ -129,9 +129,8 @@ fprintf(stderr,"xxx: adjusting cache for: %s\n",var->hdr.name);
     /* Reclaim any existing fill_chunk */
     if((stat = NCZ_reclaim_fill_chunk(zcache))) goto done;
     /* Reset the parameters */
-    zvar->cache->params.size = var->chunkcache.size;
-    zvar->cache->params.nelems = var->chunkcache.nelems;
-    zvar->cache->params.preemption = var->chunkcache.preemption;
+    assert(zvar != NULL && zvar->cache != NULL);
+    memcpy(zvar->cache->params,var->chunkcache,sizeof(struct ChunkCache));
 #ifdef DEBUG
     fprintf(stderr,"%s.cache.adjust: size=%ld nelems=%ld\n",
         var->hdr.name,(unsigned long)zvar->cache->maxsize,(unsigned long)zvar->cache->maxentries);
@@ -191,7 +190,11 @@ NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, char dimsep, NCZC
     }
     
     /* Set default cache parameters */
-    cache->params = *NC_getglobalstate()->chunkcache;
+    assert(cache->params == NULL);
+assert(cache->params == NULL);
+    if((cache->params = calloc(1,sizeof(struct ChunkCache))) == NULL)
+	{stat = NC_ENOMEM; goto done;}
+    memcpy(cache->params,NC_getglobalstate()->chunkcache,sizeof(struct ChunkCache));
 
 #ifdef FLUSH
     cache->maxentries = 1;
@@ -204,7 +207,7 @@ NCZ_create_chunk_cache(NC_VAR_INFO_T* var, size64_t chunksize, char dimsep, NCZC
     if((stat = ncxcachenew(LEAFLEN,&cache->xcache))) goto done;
     if((cache->mru = nclistnew()) == NULL)
 	{stat = NC_ENOMEM; goto done;}
-    nclistsetalloc(cache->mru,cache->params.nelems);
+    nclistsetalloc(cache->mru,cache->params->nelems);
 
     if(cachep) {*cachep = cache; cache = NULL;}
 done:
@@ -250,6 +253,7 @@ fprintf(stderr,"|cache.free|=%ld\n",nclistlength(cache->mru));
     nclistfree(cache->mru);
     cache->mru = NULL;
     (void)NCZ_reclaim_fill_chunk(cache);
+    nullfree(cache->params);
     nullfree(cache);
     (void)ZUNTRACE(NC_NOERR);
 }
@@ -387,10 +391,10 @@ flushcache(NCZChunkCache* cache)
 {
     int stat = NC_NOERR;
 #if 0
-    size_t oldsize = cache->params.size;
-    cache->params.size = 0;
+    size_t oldsize = cache->params->size;
+    cache->params->size = 0;
     stat = constraincache(cache,USEPARAMSIZE);
-    cache->params.size = oldsize;
+    cache->params->size = oldsize;
 #else
     stat = constraincache(cache,USEPARAMSIZE);
 #endif
@@ -416,14 +420,14 @@ constraincache(NCZChunkCache* cache, size64_t needed)
     if(cache->used == 0) goto done;
 
     if(needed == USEPARAMSIZE)
-        final_size = cache->params.size;
+        final_size = cache->params->size;
     else if(cache->used > needed)
         final_size = cache->used - needed;
     else
         final_size = 0;
 
     /* Flush from LRU end if we are at capacity */
-    while(nclistlength(cache->mru) > cache->params.nelems || cache->used > final_size) {
+    while(nclistlength(cache->mru) > cache->params->nelems || cache->used > final_size) {
 	size_t i;
 	void* ptr;
 	NCZCacheEntry* e = ncxcachelast(cache->xcache); /* last entry is the least recently used */
@@ -905,8 +909,8 @@ NCZ_printxcache(NCZChunkCache* cache)
     ncbytescat(buf,s);
 
     snprintf(s,sizeof(s),"\tmaxentries=%u\n\tmaxsize=%u\n\tused=%u\n\tdimsep='%c'\n",
-    	(unsigned)cache->params.nelems,
-	(unsigned)cache->params.size,
+    	(unsigned)cache->params->nelems,
+	(unsigned)cache->params->size,
     	(unsigned)cache->used,
     	cache->dimension_separator
 	);

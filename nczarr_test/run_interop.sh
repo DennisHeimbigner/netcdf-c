@@ -45,7 +45,6 @@ testcasezip() {
 }
 
 testcases3() {
-  set -x
   echo "	o Running S3 Testcase:	$1	$2"
   zext=s3
   base=$1

@@ -1,10 +1,11 @@
 #!/bin/sh
-#set -x
-#set -e
+
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi 
 . ../test_common.sh
 
 . "$srcdir/test_nczarr.sh"
+
+set -e
 
 # Build both ISOPATH and S3ISOPATH
 s3isolate "testdir_notzarr"
