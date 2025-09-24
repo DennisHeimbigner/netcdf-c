@@ -86,7 +86,6 @@ DECLSPEC void NC_awsrc(struct NCAWSPARAMS* aws, struct NCURI* uri);
 DECLSPEC void NC_awsfrag(struct NCAWSPARAMS* aws, struct NCURI* uri);
 
 DECLSPEC void NC_clearawsparams(struct NCAWSPARAMS*);
-DECLSPEC void NC_cloneawsparams(struct NCAWSPARAMS* clone, struct NCAWSPARAMS* aws);
 DECLSPEC NCAWSPARAMS NC_awsparams_empty(void);
 
 DECLSPEC int NC_aws_load_credentials(struct NCglobalstate* gstate);

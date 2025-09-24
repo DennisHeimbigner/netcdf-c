@@ -34,8 +34,17 @@
 
 #undef AWSDEBUG
 
+/**************************************************/
+/* Local Macros */
+
+#ifndef REPLACE
+#define REPLACE(dst,src) do{nullfree(dst); dst = nulldup(src);}while(0)
+#endif
+
 /* Alternate .aws directory location */
 #define NC_TEST_AWS_DIR "NC_TEST_AWS_DIR"
+
+/**************************************************/
 
 enum URLFORMAT {UF_NONE=0, UF_VIRTUAL=1, UF_PATH=2, UF_S3=3, UF_OTHER=4};
 
@@ -62,15 +71,15 @@ NC_s3sdkenvironment(void)
     /* Get various environment variables as defined by the AWS sdk */
     NCglobalstate* gs = NC_getglobalstate();
     if(getenv(AWS_ENV_REGION)!=NULL)
-        gs->aws->default_region = nulldup(getenv(AWS_ENV_REGION));
+	REPLACE(gs->aws->default_region,getenv(AWS_ENV_REGION));
     else if(getenv(AWS_ENV_DEFAULT_REGION)!=NULL)
-        gs->aws->default_region = nulldup(getenv(AWS_ENV_DEFAULT_REGION));
+	REPLACE(gs->aws->default_region,getenv(AWS_ENV_DEFAULT_REGION));
     else if(gs->aws->default_region == NULL)
-        gs->aws->default_region = nulldup(AWS_GLOBAL_DEFAULT_REGION);
-    gs->aws->access_key_id = nulldup(getenv(AWS_ENV_ACCESS_KEY_ID));
-    gs->aws->config_file = nulldup(getenv(AWS_ENV_CONFIG_FILE));
-    gs->aws->profile = nulldup(getenv(AWS_ENV_PROFILE));
-    gs->aws->secret_access_key = nulldup(getenv(AWS_ENV_SECRET_ACCESS_KEY));
+	REPLACE(gs->aws->default_region,AWS_GLOBAL_DEFAULT_REGION);
+    REPLACE(gs->aws->access_key_id,getenv(AWS_ENV_ACCESS_KEY_ID));
+    REPLACE(gs->aws->config_file,getenv(AWS_ENV_CONFIG_FILE));
+    REPLACE(gs->aws->profile,getenv(AWS_ENV_PROFILE));
+    REPLACE(gs->aws->secret_access_key,getenv(AWS_ENV_SECRET_ACCESS_KEY));
 }
 
 /**************************************************/
@@ -683,11 +692,10 @@ void NC_s3getcredentials(const char *profile, const char **region, const char** 
 /**************************************************/
 /*
 Get the current active profile. The priority order is as follows:
-1. aws.profile key in mode flags
-2. aws.profile in .rc entries
-3. AWS_PROFILE env variable
-4. "default"
-5. "no" -- meaning do not use any profile => no secret key
+1. aws.profile key in URL fragment mode flags
+2. aws->profile in NCglobalstate.aws
+3. "default"
+4. "no" -- meaning do not use any profile => no secret key
 
 @param uri uri with mode flags, may be NULL
 @param profilep return profile name here or NULL if none found
@@ -727,8 +735,9 @@ NC_getactives3profile(NCURI* uri, const char** profilep)
 #ifdef AWSDEBUG
     fprintf(stderr,">>> activeprofile = %s\n",(profile?profile:"null"));
 #endif
-    if(profilep) *profilep = profile;
+    if(profilep) {*profilep = profile; profile = NULL;}
 done:
+    nullfree(profile);
     return stat;
 }
 

@@ -33,8 +33,6 @@ See LICENSE.txt for license information.
 #include "ncs3sdk.h"
 #endif
 
-#define MAXPATH 1024
-
 /* Define vectors of zeros and ones for use with various nc_get_varX functions */
 /* Note, this form of initialization fails under Cygwin */
 size_t NC_coord_zero[NC_MAX_VAR_DIMS] = {0};
@@ -60,64 +58,10 @@ NCDISPATCH_initialize(void)
         NC_stride_one[i] = 1;
     }
 
-    globalstate = NC_getglobalstate(); /* will allocate and clear */
-
-    /* Capture temp dir*/
-    {
-	char* tempdir = NULL;
-#if defined _WIN32 || defined __MSYS__ || defined __CYGWIN__
-        tempdir = getenv("TEMP");
-#else
-	tempdir = "/tmp";
-#endif
-        if(tempdir == NULL) {
-	    fprintf(stderr,"Cannot find a temp dir; using ./\n");
-	    tempdir = ".";
-	}
-	globalstate->tempdir= strdup(tempdir);
-    }
-
-    /* Capture $HOME */
-    {
-#if defined(_WIN32) && !defined(__MINGW32__)
-        char* home = getenv("USERPROFILE");
-#else
-        char* home = getenv("HOME");
-#endif
-        if(home == NULL) {
-	    /* use cwd */
-	    home = malloc(MAXPATH+1);
-	    NCgetcwd(home,MAXPATH);
-        } else
-	    home = strdup(home); /* make it always free'able */
-	assert(home != NULL);
-        NCpathcanonical(home,&globalstate->home);
-	nullfree(home);
-    }
- 
-    /* Capture $CWD */
-    {
-        char cwdbuf[4096];
-
-        cwdbuf[0] = '\0';
-	(void)NCgetcwd(cwdbuf,sizeof(cwdbuf));
-
-        if(strlen(cwdbuf) == 0) {
-	    /* use tempdir */
-	    strcpy(cwdbuf, globalstate->tempdir);
-	}
-        globalstate->cwd = strdup(cwdbuf);
-    }
-
     ncloginit();
 
-    /* load RC Files */
-    ncrc_initialize();
-
-    /* load AWS Profiles: .aws/config &/ credentials */
-    if(NC_aws_load_credentials(globalstate)) {
-        nclog(NCLOGWARN,"AWS config file not loaded");
-    }
+    /* will allocate, clear, and init some fields */
+    (void)NC_getglobalstate();
 
     /* Compute type alignments */
     NC_compute_alignments();

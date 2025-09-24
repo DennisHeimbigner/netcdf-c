@@ -7,6 +7,7 @@ See LICENSE.txt for license information.
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "netcdf.h"
 #include "ncglobal.h"
@@ -15,7 +16,12 @@ See LICENSE.txt for license information.
 #include "ncrc.h"
 
 /**************************************************/
-/* Opaque */
+/* Local Macros */
+
+#ifndef REPLACE
+#define REPLACE(dst,src) do{nullfree(dst); dst = nulldup(src);}while(0)
+#endif
+
 /**************************************************/
 /* Forward */
 
@@ -36,6 +42,7 @@ NC_clearawsparams(struct NCAWSPARAMS* aws)
     memset(aws,0,sizeof(struct NCAWSPARAMS));
 }
 
+#if 0
 void
 NC_cloneawsparams(struct NCAWSPARAMS* clone, struct NCAWSPARAMS* aws)
 {
@@ -47,6 +54,7 @@ NC_cloneawsparams(struct NCAWSPARAMS* clone, struct NCAWSPARAMS* aws)
     clone->access_key_id = nulldup(aws->access_key_id);
     clone->secret_access_key = nulldup(aws->secret_access_key);
 }
+#endif
 
 NCAWSPARAMS
 NC_awsparams_empty(void)
@@ -138,12 +146,13 @@ NC_awsnczfile(NCAWSPARAMS* zfileaws, NCURI* uri)
 static void
 NC_awsparamsmerge(struct NCAWSPARAMS* baseaws, struct NCAWSPARAMS* newaws)
 {
-    if(newaws->profile != NULL) {nullfree(baseaws->profile); baseaws->profile = nulldup(newaws->profile);}
-    if(newaws->config_file != NULL) {nullfree(baseaws->config_file); baseaws->config_file = nulldup(newaws->config_file);}
-    if(newaws->region != NULL) {nullfree(baseaws->region); baseaws->region = nulldup(newaws->region);}
-    if(newaws->default_region != NULL) {nullfree(baseaws->default_region); baseaws->default_region = nulldup(newaws->default_region);}
-    if(newaws->access_key_id != NULL) {nullfree(baseaws->access_key_id); baseaws->access_key_id = nulldup(newaws->access_key_id);}
-    if(newaws->secret_access_key != NULL) {nullfree(baseaws->secret_access_key); baseaws->secret_access_key = nulldup(newaws->secret_access_key);}
+    assert(baseaws != NULL && newaws != NULL);
+    if(newaws->config_file != NULL)       REPLACE(baseaws->config_file,newaws->config_file);
+    if(newaws->profile != NULL)           REPLACE(baseaws->profile,newaws->profile);
+    if(newaws->region != NULL)            REPLACE(baseaws->region,newaws->region);
+    if(newaws->default_region != NULL)    REPLACE(baseaws->default_region,newaws->default_region);
+    if(newaws->access_key_id != NULL)     REPLACE(baseaws->access_key_id,newaws->access_key_id);
+    if(newaws->secret_access_key != NULL) REPLACE(baseaws->secret_access_key,newaws->secret_access_key);
 }
 
 /**************************************************/
