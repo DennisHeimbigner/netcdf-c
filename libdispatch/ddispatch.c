@@ -13,6 +13,7 @@ See LICENSE.txt for license information.
 #include "ncpathmgr.h"
 #include "ncxml.h"
 #include "nc4internal.h"
+#include "ncaws.h"
 
 /* Required for getcwd, other functions. */
 #ifdef HAVE_UNISTD_H
@@ -110,8 +111,13 @@ NCDISPATCH_initialize(void)
 
     ncloginit();
 
-    /* Now load RC Files */
+    /* load RC Files */
     ncrc_initialize();
+
+    /* load AWS Profiles: .aws/config &/ credentials */
+    if(NC_aws_load_credentials(globalstate)) {
+        nclog(NCLOGWARN,"AWS config file not loaded");
+    }
 
     /* Compute type alignments */
     NC_compute_alignments();

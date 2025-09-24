@@ -30,6 +30,7 @@
 #include "nclog.h"
 #include "ncs3sdk.h"
 #include "ncutil.h"
+#include "ncaws.h"
 
 #undef AWSDEBUG
 
@@ -61,15 +62,15 @@ NC_s3sdkenvironment(void)
     /* Get various environment variables as defined by the AWS sdk */
     NCglobalstate* gs = NC_getglobalstate();
     if(getenv(AWS_ENV_REGION)!=NULL)
-        gs->aws.default_region = nulldup(getenv(AWS_ENV_REGION));
+        gs->aws->default_region = nulldup(getenv(AWS_ENV_REGION));
     else if(getenv(AWS_ENV_DEFAULT_REGION)!=NULL)
-        gs->aws.default_region = nulldup(getenv(AWS_ENV_DEFAULT_REGION));
-    else if(gs->aws.default_region == NULL)
-        gs->aws.default_region = nulldup(AWS_GLOBAL_DEFAULT_REGION);
-    gs->aws.access_key_id = nulldup(getenv(AWS_ENV_ACCESS_KEY_ID));
-    gs->aws.config_file = nulldup(getenv(AWS_ENV_CONFIG_FILE));
-    gs->aws.profile = nulldup(getenv(AWS_ENV_PROFILE));
-    gs->aws.secret_access_key = nulldup(getenv(AWS_ENV_SECRET_ACCESS_KEY));
+        gs->aws->default_region = nulldup(getenv(AWS_ENV_DEFAULT_REGION));
+    else if(gs->aws->default_region == NULL)
+        gs->aws->default_region = nulldup(AWS_GLOBAL_DEFAULT_REGION);
+    gs->aws->access_key_id = nulldup(getenv(AWS_ENV_ACCESS_KEY_ID));
+    gs->aws->config_file = nulldup(getenv(AWS_ENV_CONFIG_FILE));
+    gs->aws->profile = nulldup(getenv(AWS_ENV_PROFILE));
+    gs->aws->secret_access_key = nulldup(getenv(AWS_ENV_SECRET_ACCESS_KEY));
 }
 
 /**************************************************/
@@ -529,7 +530,7 @@ NC_aws_load_credentials(NCglobalstate* gstate)
     }
 
     awscfg = awsconfigfiles;
-    if((awscfg_local[0] = NC_getglobalstate()->aws.config_file)!=NULL) {
+    if((awscfg_local[0] = NC_getglobalstate()->aws->config_file)!=NULL) {
 	memcpy(&awscfg_local[1],awsconfigfiles,sizeof(char*)*NCONFIGFILES);
 	awscfg = awscfg_local;
     }
@@ -559,7 +560,7 @@ NC_aws_load_credentials(NCglobalstate* gstate)
         struct AWSentry* entry = NULL;
         NCglobalstate* gs = NC_getglobalstate();
 	/* Verify that we can build a default */
-        if(gs->aws.access_key_id != NULL && gs->aws.secret_access_key != NULL) {
+        if(gs->aws->access_key_id != NULL && gs->aws->secret_access_key != NULL) {
 	    /* Kill off any previous default profile */
 	    for(i=nclistlength(profiles)-1;i>=0;i--) {/* walk backward because we are removing entries */
 		struct AWSprofile* prof = (struct AWSprofile*)nclistget(profiles,i);
@@ -577,11 +578,11 @@ NC_aws_load_credentials(NCglobalstate* gstate)
 	    /* Create the entries for default */
 	    if((entry = (struct AWSentry*)calloc(1,sizeof(struct AWSentry)))==NULL) {stat = NC_ENOMEM; goto done;}
 	    entry->key = strdup(AWS_PROF_ACCESS_KEY_ID);
-	    entry->value = strdup(gs->aws.access_key_id);
+	    entry->value = strdup(gs->aws->access_key_id);
 	    nclistpush(dfalt->entries,entry); entry = NULL;
 	    if((entry = (struct AWSentry*)calloc(1,sizeof(struct AWSentry)))==NULL) {stat = NC_ENOMEM; goto done;}
 	    entry->key = strdup(AWS_PROF_SECRET_ACCESS_KEY);
-	    entry->value = strdup(gs->aws.secret_access_key);
+	    entry->value = strdup(gs->aws->secret_access_key);
 	    nclistpush(dfalt->entries,entry); entry = NULL;
 	}
     }
@@ -666,14 +667,14 @@ void NC_s3getcredentials(const char *profile, const char **region, const char** 
     else
     { // We load from env if not in profile
         NCglobalstate* gstate = NC_getglobalstate();
-        if(gstate->aws.access_key_id != NULL && accessid){
-            *accessid = gstate->aws.access_key_id;
+        if(gstate->aws->access_key_id != NULL && accessid){
+            *accessid = gstate->aws->access_key_id;
         }
-        if (gstate->aws.secret_access_key != NULL && accesskey){
-            *accesskey = gstate->aws.secret_access_key;
+        if (gstate->aws->secret_access_key != NULL && accesskey){
+            *accesskey = gstate->aws->secret_access_key;
         }
-        if(gstate->aws.default_region != NULL && region){
-            *region = gstate->aws.default_region;
+        if(gstate->aws->default_region != NULL && region){
+            *region = gstate->aws->default_region;
         }
     }
 }
@@ -708,9 +709,9 @@ NC_getactives3profile(NCURI* uri, const char** profilep)
 		profile = NC_rclookupx(uri,AWS_RC_PROFILE);
     }
 
-    if(profile == NULL && gs->aws.profile != NULL) {
-        if((stat=NC_authgets3profile(gs->aws.profile,&ap))) goto done;
-	if(ap) profile = nulldup(gs->aws.profile);
+    if(profile == NULL && gs->aws->profile != NULL) {
+        if((stat=NC_authgets3profile(gs->aws->profile,&ap))) goto done;
+	if(ap) profile = nulldup(gs->aws->profile);
     }
 
     if(profile == NULL) {
@@ -761,7 +762,7 @@ NC_getdefaults3region(NCURI* uri, const char** regionp)
 	}
     }
     if(region == NULL)
-	region = (NC_getglobalstate()->aws.default_region ? NC_getglobalstate()->aws.default_region : "us-east-1"); /* Force use of the Amazon default */
+	region = (NC_getglobalstate()->aws->default_region ? NC_getglobalstate()->aws->default_region : "us-east-1"); /* Force use of the Amazon default */
 #ifdef AWSDEBUG
     fprintf(stderr,">>> activeregion = |%s|\n",region);
 #endif

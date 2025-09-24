@@ -86,14 +86,12 @@
 
 /* Necessary S3 headers */
 #include <curl/curl.h>
-//#include <openssl/evp.h>
-//#include <openssl/hmac.h>
-//#include <openssl/sha.h>
 
 #include "netcdf.h"
 #include "ncuri.h"
 #include "ncutil.h"
 #include "netcdf_vutils.h"
+#include "ncaws.h"
 
 /*****************/
 
@@ -1056,10 +1054,15 @@ done:
  *             2017-09-01
  *----------------------------------------------------------------------------
  */
+
 s3r_t *
-NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const char *access_id, const char* access_key)
+NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
+
 {
     int ret_value = SUCCEED;
+    const char *region = aws->region;
+    const char *access_id = aws->access_key_id;
+    const char* access_key = aws->secret_access_key;
     size_t         tmplen    = 0;
     CURL          *curlh     = NULL;
     s3r_t         *handle    = NULL;
@@ -1068,7 +1071,7 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
     struct tm     *now           = NULL;
     const char* signingregion = AWS_GLOBAL_DEFAULT_REGION;
 
-    TRACE(0,"root=%s region=%s access_id=%s access_key=%s",root,region,access_id,access_key);
+     TRACE(0,"root=%s region=%s access_id=%s access_key=%s",root,region,access_id,access_key);
 
 #if S3COMMS_DEBUG_TRACE
     fprintf(stdout, "called NCH5_s3comms_s3r_open.\n");
@@ -1079,7 +1082,7 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
 
     handle = (s3r_t *)calloc(1,sizeof(s3r_t));
     if (handle == NULL)
-	HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle.");
+	HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not calloc space for handle.");
 
     handle->magic	= S3COMMS_S3R_MAGIC;
 
@@ -1105,27 +1108,15 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
 
     /* copy strings */
     if(nulllen(region) != 0) {
-        tmplen = nulllen(region) + 1;
-        handle->region = (char *)malloc(sizeof(char) * tmplen);
-        if (handle->region == NULL)
-            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle region copy.");
-        memcpy(handle->region, region, tmplen);
+	handle->region = nulldup(region);
     }
 
     if(nulllen(access_id) != 0) {
-        tmplen = nulllen(access_id) + 1;
-        handle->accessid = (char *)malloc(sizeof(char) * tmplen);
-        if (handle->accessid == NULL)
-            HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle ID copy.");
-        memcpy(handle->accessid, access_id, tmplen);
+	handle->accessid = nulldup(access_id);
     }
     
     if(nulllen(access_key) != 0) {
-        tmplen = nulllen(access_key) + 1;
-        handle->accesskey = (char *)malloc(sizeof(char) * tmplen);
-        if (handle->accesskey == NULL)
-           HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not malloc space for handle access key copy.");
-        memcpy(handle->accesskey, access_key, tmplen);
+	handle->accesskey = nulldup(access_key);
     }
 
     now = gmnow();
@@ -1145,8 +1136,18 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
             HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "signing key cannot be null.");
 
         /* Compute the signing key */
-        if (SUCCEED != NCH5_s3comms_signing_key(&signing_key, access_key, signingregion, iso8601now))
+        if (SUCCEED != NCH5_s3comms_signing_key(&signing_key, access_key, region, iso8601now))
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "problem in NCH5_s3comms_s3comms_signing_key.");
+#if S3COMMS_DEBUG_TRACE
+  {
+int i;
+fprintf(stderr,"@@@ signing_key: access_key=|%s| signingregion=|%s| iso8601now=|%s|\n", access_key, signingregion, iso8601now);
+fprintf(stderr,"@@@\tsigning_key=|");
+for(i=0;i<(int)SHA256_DIGEST_LENGTH;i++)
+fprintf(stderr,"%hhu",signing_key[i]);
+fprintf(stderr,"|\n");
+  }
+#endif
         if (signing_key == NULL)
             HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "signing key cannot be null.");
 	handle->signing_key = signing_key;
@@ -1159,6 +1160,7 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
      ************************/
 
     curlh = curl_easy_init();
+
     if (curlh == NULL)
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "problem creating curl easy handle!");
 
@@ -1167,6 +1169,11 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, const char *region, const c
 
     if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_FAILONERROR, 1L))
         HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_FAILONERROR).");
+
+    if(getenv("CURLOPT_VERBOSE") != NULL) {
+	if (CURLE_OK != curl_easy_setopt(curlh, CURLOPT_VERBOSE, 1L))
+            HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "error while setting CURL option (CURLOPT_VERBOSE).");
+    }
 
     handle->curlhandle = curlh;
 
