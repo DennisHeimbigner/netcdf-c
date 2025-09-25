@@ -58,6 +58,7 @@ typedef struct NCAWSPARAMS { /* AWS S3 specific parameters/defaults */
     char* default_region;
     char* access_key_id;
     char* secret_access_key; 
+    char* session_token;
 } NCAWSPARAMS;
 
 struct AWSentry {

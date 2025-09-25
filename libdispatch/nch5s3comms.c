@@ -1063,6 +1063,7 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
     const char *region = aws->region;
     const char *access_id = aws->access_key_id;
     const char* access_key = aws->secret_access_key;
+    const char* session_token = aws->session_token;
     size_t         tmplen    = 0;
     CURL          *curlh     = NULL;
     s3r_t         *handle    = NULL;
@@ -1071,7 +1072,7 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
     struct tm     *now           = NULL;
     const char* signingregion = AWS_GLOBAL_DEFAULT_REGION;
 
-     TRACE(0,"root=%s region=%s access_id=%s access_key=%s",root,region,access_id,access_key);
+    TRACE(0,"root=%s region=%s access_id=%s access_key=%s",root,region,access_id,access_key);
 
 #if S3COMMS_DEBUG_TRACE
     fprintf(stdout, "called NCH5_s3comms_s3r_open.\n");
@@ -1596,6 +1597,7 @@ done:
  *     + aws_access_key_id
  *     + aws_secret_access_key
  *     + region
+ *     + session_token (optional)
  *     To be valid, the setting must begin the line with one of the keywords,
  *     followed immediately by an equals sign '=', and have some data before
  *     newline at end of line.
@@ -1620,7 +1622,7 @@ done:
  */
 static int
 H5FD__s3comms_load_aws_creds_from_file(FILE *file, const char *profile_name, char *key_id, char *access_key,
-                                       char *aws_region)
+                                       char *aws_region, char* session_token)
 {
     char        profile_line[32];
     char        buffer[128];
@@ -1628,11 +1630,13 @@ H5FD__s3comms_load_aws_creds_from_file(FILE *file, const char *profile_name, cha
         AWS_PROF_REGION,
         AWS_PROF_ACCESS_KEY_ID,
         AWS_PROF_SECRET_ACCESS_KEY,
+        AWS_PROF_SESSION_TOKEN,
     };
     char *const setting_pointers[] = {
         aws_region,
         key_id,
         access_key,
+        session_token,
     };
     unsigned setting_count = 3;
     int   ret_value     = SUCCEED;
@@ -1741,7 +1745,7 @@ done:
  */
 int
 NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *secret_access_key_out,
-                              char *aws_region_out)
+                              char *aws_region_out, char* aws_session_token_outa)
 {
     int ret_value = SUCCEED;
     FILE  *credfile  = NULL;
@@ -1767,7 +1771,7 @@ NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *
     credfile = fopen(filepath, "r");
     if (credfile != NULL) {
         if (H5FD__s3comms_load_aws_creds_from_file(credfile, profile_name, key_id_out, secret_access_key_out,
-                                                   aws_region_out) != SUCCEED)
+                                                   aws_region_out, aws_session_token_out) != SUCCEED)
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to load from aws credentials");
         if (fclose(credfile) == EOF)
             HGOTO_ERROR(H5E_FILE, NC_EACCESS, FAIL, "unable to close credentials file");
@@ -1782,14 +1786,15 @@ NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *
         if (H5FD__s3comms_load_aws_creds_from_file(
                 credfile, profile_name, (*key_id_out == 0) ? key_id_out : NULL,
                 (*secret_access_key_out == 0) ? secret_access_key_out : NULL,
-                (*aws_region_out == 0) ? aws_region_out : NULL) != SUCCEED)
+                (*aws_region_out == 0) ? aws_region_out : NULL) != SUCCEED,
+                (*aws_session_token_out == 0) ? aws_session_token_out : NULL) != SUCCEED)
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to load from aws config");
         if (fclose(credfile) == EOF)
             HGOTO_ERROR(H5E_FILE, NC_EACCESS, FAIL, "unable to close config file");
         credfile = NULL;
     } /* end if credential file opened */
 
-    /* fail if not all three settings were loaded */
+    /* fail if not all three settings were loaded; note session_token is optional */
     if (*key_id_out == 0 || *secret_access_key_out == 0 || *aws_region_out == 0)
         ret_value = NC_EINVAL;
 

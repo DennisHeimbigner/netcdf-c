@@ -441,6 +441,12 @@ typedef struct {
  *
  *     Required to authenticate.
  *
+ * `session_token` (char *)
+ *
+ *     Pointer to NULL-terminated string for short-term session token to access S3 resource.
+ *
+ *     Optional ato authenticate.
+ *
  * `signing_key` (unsigned char *)
  *
  *     Pointer to `SHA256_DIGEST_LENGTH`-long string for "re-usable" signing
@@ -461,6 +467,7 @@ typedef struct {
     char          *region;
     char          *accessid;
     char          *accesskey;
+    char          *session_token;
     char           httpverb[S3COMMS_VERB_MAX];
     unsigned char *signing_key; /*|signing_key| = SHA256_DIGEST_LENGTH*/
     char          iso8601now[ISO8601_SIZE];
@@ -545,7 +552,7 @@ EXTERNL int NCH5_s3comms_nlowercase(char *dest, const char *s, size_t len);
 
 EXTERNL int NCH5_s3comms_percent_encode_char(char *repr, const unsigned char c, size_t *repr_len);
 
-EXTERNL int NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *region,
+EXTERNL int NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *region, connst char* session_token,
                                        const char *iso8601now);
 
 EXTERNL int NCH5_s3comms_tostringtosign(struct VString* dest, const char *req_str, const char *now,

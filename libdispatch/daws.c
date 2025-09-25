@@ -39,6 +39,7 @@ NC_clearawsparams(struct NCAWSPARAMS* aws)
     nullfree(aws->default_region);
     nullfree(aws->access_key_id);
     nullfree(aws->secret_access_key);
+    nullfree(aws->session_token);
     memset(aws,0,sizeof(struct NCAWSPARAMS));
 }
 
@@ -153,6 +154,7 @@ NC_awsparamsmerge(struct NCAWSPARAMS* baseaws, struct NCAWSPARAMS* newaws)
     if(newaws->default_region != NULL)    REPLACE(baseaws->default_region,newaws->default_region);
     if(newaws->access_key_id != NULL)     REPLACE(baseaws->access_key_id,newaws->access_key_id);
     if(newaws->secret_access_key != NULL) REPLACE(baseaws->secret_access_key,newaws->secret_access_key);
+    if(newaws->session_token != NULL) REPLACE(baseaws->session_token,newaws->session_token);
 }
 
 /**************************************************/
@@ -169,6 +171,7 @@ NC_awsenvironment(struct NCAWSPARAMS* aws)
     aws->default_region = nulldup(getenv(AWS_ENV_DEFAULT_REGION));
     aws->access_key_id = nulldup(getenv(AWS_ENV_ACCESS_KEY_ID));
     aws->secret_access_key = nulldup(getenv(AWS_ENV_SECRET_ACCESS_KEY));
+    aws->session_token = nulldup(getenv(AWS_ENV_SESSION_TOKEN));
 }
 
 /* Setup aws params from .rc file */
@@ -182,6 +185,7 @@ NC_awsrc(struct NCAWSPARAMS* aws, NCURI* uri)
     aws->default_region = nulldup(NC_rclookupx(uri,AWS_RC_DEFAULT_REGION));
     aws->access_key_id = nulldup(NC_rclookupx(uri,AWS_RC_ACCESS_KEY_ID));
     aws->secret_access_key = nulldup(NC_rclookupx(uri,AWS_RC_SECRET_ACCESS_KEY));
+    aws->session_token = nulldup(NC_rclookupx(uri,AWS_RC_SESSION_TOKEN));
 }
 
 /* Setup aws params from URI fragment */
@@ -195,4 +199,5 @@ NC_awsfrag(struct NCAWSPARAMS* aws, NCURI* uri)
     aws->default_region = nulldup(ncurifragmentlookup(uri,AWS_FRAG_DEFAULT_REGION));
     aws->access_key_id = nulldup(ncurifragmentlookup(uri,AWS_FRAG_ACCESS_KEY_ID));
     aws->secret_access_key = nulldup(ncurifragmentlookup(uri,AWS_FRAG_SECRET_ACCESS_KEY));
+    aws->session_token = nulldup(ncurifragmentlookup(uri,AWS_FRAG_SESSION_TOKEN));
 }

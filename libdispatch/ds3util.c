@@ -80,6 +80,7 @@ NC_s3sdkenvironment(void)
     REPLACE(gs->aws->config_file,getenv(AWS_ENV_CONFIG_FILE));
     REPLACE(gs->aws->profile,getenv(AWS_ENV_PROFILE));
     REPLACE(gs->aws->secret_access_key,getenv(AWS_ENV_SECRET_ACCESS_KEY));
+    REPLACE(gs->aws->session_token,getenv(AWS_ENV_SESSION_TOKEN));
 }
 
 /**************************************************/
@@ -592,7 +593,12 @@ NC_aws_load_credentials(NCglobalstate* gstate)
 	    if((entry = (struct AWSentry*)calloc(1,sizeof(struct AWSentry)))==NULL) {stat = NC_ENOMEM; goto done;}
 	    entry->key = strdup(AWS_PROF_SECRET_ACCESS_KEY);
 	    entry->value = strdup(gs->aws->secret_access_key);
-	    nclistpush(dfalt->entries,entry); entry = NULL;
+	    if(gs->aws->session_token != NULL) {
+		if((entry = (struct AWSentry*)calloc(1,sizeof(struct AWSentry)))==NULL) {stat = NC_ENOMEM; goto done;}
+		entry->key = strdup(AWS_PROF_SESSION_TOKEN);
+		entry->value = strdup(gs->aws->session_token);
+		nclistpush(dfalt->entries,entry); entry = NULL;
+	    }
 	}
     }
 
@@ -660,6 +666,8 @@ NC_s3profilelookup(const char* profile, const char* key, const char** valuep)
     if(valuep) *valuep = value;
     return stat;
 }
+
+#if 0
 /**
  * Get the credentials for a given profile or load them from environment.
  @param profile name to use to look for credentials
@@ -667,11 +675,14 @@ NC_s3profilelookup(const char* profile, const char* key, const char** valuep)
  @param accessid return accessid from progile or env
  @param accesskey return accesskey from profile or env
  */
-void NC_s3getcredentials(const char *profile, const char **region, const char** accessid, const char** accesskey) {
+void
+NC_s3getcredentials(const char *profile, const char **region, const char** accessid, const char** accesskey, const char** session_token)
+{
     if(profile != NULL && strcmp(profile,"no") != 0) {
         NC_s3profilelookup(profile, AWS_PROF_ACCESS_KEY_ID, accessid);
         NC_s3profilelookup(profile, AWS_PROF_SECRET_ACCESS_KEY, accesskey);
         NC_s3profilelookup(profile, AWS_PROF_REGION, region);
+        NC_s3profilelookup(profile, AWS_PROF_SESSION_TOKEN, session_token);
     }
     else
     { // We load from env if not in profile
@@ -687,7 +698,7 @@ void NC_s3getcredentials(const char *profile, const char **region, const char** 
         }
     }
 }
-
+#endif
 
 /**************************************************/
 /*

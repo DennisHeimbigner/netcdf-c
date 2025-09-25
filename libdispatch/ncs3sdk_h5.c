@@ -180,6 +180,7 @@ NC_s3sdkcreateclient(NCS3INFO* info)
     int stat = NC_NOERR;
     const char* accessid = NULL;
     const char* accesskey = NULL;
+    const char* session_token = NULL;
     char* urlroot = NULL;
     NCS3CLIENT* s3client = NULL;
     NCAWSPARAMS aws = NC_awsparams_empty();
@@ -191,11 +192,13 @@ NC_s3sdkcreateclient(NCS3INFO* info)
     if(info->profile != NULL) {
         if((stat = NC_s3profilelookup(info->profile, AWS_PROF_ACCESS_KEY_ID, &accessid))) goto done;
         if((stat = NC_s3profilelookup(info->profile, AWS_PROF_SECRET_ACCESS_KEY, &accesskey))) goto done;
+        if((stat = NC_s3profilelookup(info->profile, AWS_PROF_SESSION_TOKEN, &session_token))) goto done;
     }
     if((s3client->rooturl = makes3rooturl(info))==NULL) {stat = NC_ENOMEM; goto done;}
     aws.region = info->region;
     aws.access_key_id = accessid;
     aws.secret_access_key = accesskey;
+    aws.session_token = session_token;
     s3client->h5s3client = NCH5_s3comms_s3r_open(s3client->rooturl,info->svc,&aws);
     if(s3client->h5s3client == NULL) {stat = NC_ES3; goto done;}
 
