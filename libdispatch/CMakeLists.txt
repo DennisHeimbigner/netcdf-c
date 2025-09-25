@@ -14,7 +14,9 @@ target_sources(dispatch
     dcrc32.c dcrc32.h dcrc64.c ncexhash.c ncxcache.c ncjson.c ds3util.c dparallel.c dmissing.c
     ncproplist.c 
     ncindex.c
-    ncglob.c
+    dglobal.c
+    daws.c
+    ncglobpat.c
 )
 
 if (NETCDF_ENABLE_DLL)

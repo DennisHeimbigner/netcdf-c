@@ -13,6 +13,7 @@ See LICENSE.txt for license information.
 #include "ncpathmgr.h"
 #include "ncxml.h"
 #include "nc4internal.h"
+#include "ncaws.h"
 
 /* Required for getcwd, other functions. */
 #ifdef HAVE_UNISTD_H
@@ -31,8 +32,6 @@ See LICENSE.txt for license information.
 #ifdef NETCDF_ENABLE_S3
 #include "ncs3sdk.h"
 #endif
-
-#define MAXPATH 1024
 
 /* Define vectors of zeros and ones for use with various nc_get_varX functions */
 /* Note, this form of initialization fails under Cygwin */
@@ -59,59 +58,10 @@ NCDISPATCH_initialize(void)
         NC_stride_one[i] = 1;
     }
 
-    globalstate = NC_getglobalstate(); /* will allocate and clear */
-
-    /* Capture temp dir*/
-    {
-	char* tempdir = NULL;
-#if defined _WIN32 || defined __MSYS__ || defined __CYGWIN__
-        tempdir = getenv("TEMP");
-#else
-	tempdir = "/tmp";
-#endif
-        if(tempdir == NULL) {
-	    fprintf(stderr,"Cannot find a temp dir; using ./\n");
-	    tempdir = ".";
-	}
-	globalstate->tempdir= strdup(tempdir);
-    }
-
-    /* Capture $HOME */
-    {
-#if defined(_WIN32) && !defined(__MINGW32__)
-        char* home = getenv("USERPROFILE");
-#else
-        char* home = getenv("HOME");
-#endif
-        if(home == NULL) {
-	    /* use cwd */
-	    home = malloc(MAXPATH+1);
-	    NCgetcwd(home,MAXPATH);
-        } else
-	    home = strdup(home); /* make it always free'able */
-	assert(home != NULL);
-        NCpathcanonical(home,&globalstate->home);
-	nullfree(home);
-    }
- 
-    /* Capture $CWD */
-    {
-        char cwdbuf[4096];
-
-        cwdbuf[0] = '\0';
-	(void)NCgetcwd(cwdbuf,sizeof(cwdbuf));
-
-        if(strlen(cwdbuf) == 0) {
-	    /* use tempdir */
-	    strcpy(cwdbuf, globalstate->tempdir);
-	}
-        globalstate->cwd = strdup(cwdbuf);
-    }
-
     ncloginit();
 
-    /* Now load RC Files */
-    ncrc_initialize();
+    /* will allocate, clear, and init some fields */
+    (void)NC_getglobalstate();
 
     /* Compute type alignments */
     NC_compute_alignments();
@@ -141,88 +91,6 @@ NCDISPATCH_finalize(void)
     NC_freeglobalstate(); /* should be one of the last things done */
     return status;
 }
-
-/**************************************************/
-/* Global State constants and state */
-
-/* The singleton global state object */
-static NCglobalstate* nc_globalstate = NULL;
-
-/* Forward */
-static int NC_createglobalstate(void);
-
-/** \defgroup global_state Global state functions. */
-/** \{
-
-\ingroup global_state
-*/
-
-/* NCglobal state management */
-
-static int
-NC_createglobalstate(void)
-{
-    int stat = NC_NOERR;
-    const char* tmp = NULL;
-    
-    if(nc_globalstate == NULL) {
-        nc_globalstate = calloc(1,sizeof(NCglobalstate));
-    }
-    /* Initialize struct pointers */
-    if((nc_globalstate->rcinfo = calloc(1,sizeof(struct NCRCinfo)))==NULL)
-            {stat = NC_ENOMEM; goto done;}
-    if((nc_globalstate->rcinfo->entries = nclistnew())==NULL)
-            {stat = NC_ENOMEM; goto done;}
-    if((nc_globalstate->rcinfo->s3profiles = nclistnew())==NULL)
-            {stat = NC_ENOMEM; goto done;}
-
-    /* Get environment variables */
-    if(getenv(NCRCENVIGNORE) != NULL)
-        nc_globalstate->rcinfo->ignore = 1;
-    tmp = getenv(NCRCENVRC);
-    if(tmp != NULL && strlen(tmp) > 0)
-        nc_globalstate->rcinfo->rcfile = strdup(tmp);
-    /* Initialize chunk cache defaults */
-    nc_globalstate->chunkcache.size = DEFAULT_CHUNK_CACHE_SIZE;		    /**< Default chunk cache size. */
-    nc_globalstate->chunkcache.nelems = DEFAULT_CHUNKS_IN_CACHE;	    /**< Default chunk cache number of elements. */
-    nc_globalstate->chunkcache.preemption = DEFAULT_CHUNK_CACHE_PREEMPTION; /**< Default chunk cache preemption. */
-    
-done:
-    return stat;
-}
-
-/* Get global state */
-NCglobalstate*
-NC_getglobalstate(void)
-{
-    if(nc_globalstate == NULL)
-        NC_createglobalstate();
-    return nc_globalstate;
-}
-
-void
-NC_freeglobalstate(void)
-{
-    if(nc_globalstate != NULL) {
-        nullfree(nc_globalstate->tempdir);
-        nullfree(nc_globalstate->home);
-        nullfree(nc_globalstate->cwd);
-	nullfree(nc_globalstate->aws.default_region);
-	nullfree(nc_globalstate->aws.config_file);
-	nullfree(nc_globalstate->aws.profile);
-	nullfree(nc_globalstate->aws.access_key_id);
-	nullfree(nc_globalstate->aws.secret_access_key);
-        if(nc_globalstate->rcinfo) {
-	    NC_rcclear(nc_globalstate->rcinfo);
-	    free(nc_globalstate->rcinfo);
-	}
-	nclistfree(nc_globalstate->pluginpaths);
-	free(nc_globalstate);
-	nc_globalstate = NULL;
-    }
-}
-
-/** \} */
 
 /**************************************************/
 /** \defgroup atomic_types Atomic Type functions */

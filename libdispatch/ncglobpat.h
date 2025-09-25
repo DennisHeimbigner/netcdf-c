@@ -1,5 +1,10 @@
-#ifndef NCGLOB_H
-#define NCGLOB_H
+/*********************************************************************
+*    Copyright 2018, UCAR/Unidata
+*    See netcdf/COPYRIGHT file for copying and redistribution conditions.
+* ********************************************************************/
+
+#ifndef NCGLOBPAT_H
+#define NCGLOBPAT_H
 
 #define NCGNOSEP ((unsigned char)255)
 
@@ -35,4 +40,4 @@ void globmatchclear(GlobMatches* gm);
 }
 #endif
 
-#endif /*NCGLOB_H*/
+#endif /*NCGLOBPAT_H*/

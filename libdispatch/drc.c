@@ -152,23 +152,14 @@ This is set by the environment variable NC_TEST_AWS_DIR.
 void
 ncrc_initialize(void)
 {
+    int stat = NC_NOERR;
+
     if(NCRCinitialized) return;
     NCRCinitialized = 1; /* prevent recursion */
-
-#ifndef NOREAD
-    {
-    int stat = NC_NOERR;
-    NCglobalstate* ncg = NC_getglobalstate();
     /* Load entrys */
     if((stat = NC_rcload())) {
         nclog(NCLOGWARN,".rc loading failed");
     }
-    /* Load .aws/config &/ credentials */
-    if((stat = NC_aws_load_credentials(ncg))) {
-        nclog(NCLOGWARN,"AWS config file not loaded");
-    }
-    }
-#endif
 }
 
 static void
