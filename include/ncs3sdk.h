@@ -7,7 +7,8 @@
 #define NCS3SDK_H 1
 
 /* Track the server type, if known */
-typedef enum NCS3SVC {NCS3UNK=0, /* unknown */
+typedef enum NCS3SVC {
+	NCS3UNK=0, /* unknown */
 	NCS3=1,     /* s3.amazon.aws */
 	NCS3GS=2,   /* storage.googleapis.com */
 #ifdef NETCDF_ENABLE_ZOH
