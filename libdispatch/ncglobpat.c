@@ -5,7 +5,7 @@
 #include "nclist.h"
 #include "ncuri.h"
 #include "ncutil.h"
-#include "ncglob.h"
+#include "ncglobpat.h"
 
 #undef DEBUG
 

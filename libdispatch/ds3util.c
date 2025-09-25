@@ -714,7 +714,7 @@ NC_getactives3profile(NCURI* uri, const char** profilep)
     if (uri != NULL) {
 	profile = ncurifragmentlookup(uri,AWS_FRAG_PROFILE);
 	if(profile == NULL)
-		profile = NC_rclookupx(uri,AWS_RC_PROFILE);
+		profile = NC_rclookup_with_ncuri(AWS_RC_PROFILE,uri);
     }
 
     if(profile == NULL && gs->aws->profile != NULL) {
@@ -763,7 +763,7 @@ NC_getdefaults3region(NCURI* uri, const char** regionp)
 
     region = ncurifragmentlookup(uri,AWS_FRAG_REGION);
     if(region == NULL)
-        region = NC_rclookupx(uri,AWS_RC_REGION);
+        region = NC_rclookup_with_ncuri(AWS_RC_REGION,uri);
     if(region == NULL) {/* See if we can find a profile */
         if(NC_getactives3profile(uri,&profile)==NC_NOERR) {
 	    if(profile)

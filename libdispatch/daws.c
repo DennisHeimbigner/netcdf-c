@@ -176,12 +176,12 @@ void
 NC_awsrc(struct NCAWSPARAMS* aws, NCURI* uri)
 {
     NC_clearawsparams(aws);
-    aws->profile = nulldup(NC_rclookupx(uri,AWS_RC_PROFILE));
-    aws->config_file = nulldup(NC_rclookupx(uri,AWS_RC_CONFIG_FILE));
-    aws->region = nulldup(NC_rclookupx(uri,AWS_RC_REGION));
-    aws->default_region = nulldup(NC_rclookupx(uri,AWS_RC_DEFAULT_REGION));
-    aws->access_key_id = nulldup(NC_rclookupx(uri,AWS_RC_ACCESS_KEY_ID));
-    aws->secret_access_key = nulldup(NC_rclookupx(uri,AWS_RC_SECRET_ACCESS_KEY));
+    aws->profile = nulldup(NC_rclookup_with_ncuri(AWS_RC_PROFILE,uri));
+    aws->config_file = nulldup(NC_rclookup_with_ncuri(AWS_RC_CONFIG_FILE,uri));
+    aws->region = nulldup(NC_rclookup_with_ncuri(AWS_RC_REGION,uri));
+    aws->default_region = nulldup(NC_rclookup_with_ncuri(AWS_RC_DEFAULT_REGION,uri));
+    aws->access_key_id = nulldup(NC_rclookup_with_ncuri(AWS_RC_ACCESS_KEY_ID,uri));
+    aws->secret_access_key = nulldup(NC_rclookup_with_ncuri(AWS_RC_SECRET_ACCESS_KEY,uri));
 }
 
 /* Setup aws params from URI fragment */

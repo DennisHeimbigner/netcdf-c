@@ -27,7 +27,7 @@ See COPYRIGHT for license information.
 #include "ncs3sdk.h"
 #include "ncdispatch.h"
 #include "ncutil.h"
-#include "ncglob.h"
+#include "ncglobpat.h"
 
 #undef NOREAD
 
