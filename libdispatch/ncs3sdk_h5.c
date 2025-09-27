@@ -175,27 +175,19 @@ dumps3client(void* s3client0, const char* tag)
 /**************************************************/
 
 void*
-NC_s3sdkcreateclient(NCS3INFO* info)
+NC_s3sdkcreateclient(NCS3INFO* info, NCawsprofile* aws)
 {
     int stat = NC_NOERR;
     const char* accessid = NULL;
     const char* accesskey = NULL;
     char* urlroot = NULL;
     NCS3CLIENT* s3client = NULL;
-    NCAWSPARAMS aws = NC_awsparams_empty();
 
     NCTRACE(11,"info=%s",NC_s3dumps3info(info));
 
     s3client = (NCS3CLIENT*)calloc(1,sizeof(NCS3CLIENT));
     if(s3client == NULL) goto done;
-    if(info->profile != NULL) {
-        if((stat = NC_s3profilelookup(info->profile, AWS_PROF_ACCESS_KEY_ID, &accessid))) goto done;
-        if((stat = NC_s3profilelookup(info->profile, AWS_PROF_SECRET_ACCESS_KEY, &accesskey))) goto done;
-    }
     if((s3client->rooturl = makes3rooturl(info))==NULL) {stat = NC_ENOMEM; goto done;}
-    aws.region = info->region;
-    aws.access_key_id = accessid;
-    aws.secret_access_key = accesskey;
     s3client->h5s3client = NCH5_s3comms_s3r_open(s3client->rooturl,info->svc,&aws);
     if(s3client->h5s3client == NULL) {stat = NC_ES3; goto done;}
 

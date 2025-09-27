@@ -93,7 +93,7 @@ zipinitialize(void)
        might be a relative path.
 @param mode the netcdf-c mode flags
 @param flags extra flags
-@param flags extra parameters
+@param parameters extra parameters
 @param mapp return the map object in this
 */
 
@@ -181,8 +181,8 @@ done:
        might be a relative path.
 @param mode the netcdf-c mode flags
 @param flags extra flags
-@param flags extra parameters
-@param mapp return the map object in this
+@param parameters extra parameters
+@parameters mapp return the map object in this
 */
 
 static int

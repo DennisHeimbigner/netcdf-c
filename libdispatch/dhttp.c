@@ -100,7 +100,7 @@ nc_http_open_verbose(const char* path, int verbose, NC_HTTP_STATE** statep)
     if((state = calloc(1,sizeof(NC_HTTP_STATE))) == NULL)
         {stat = NCTHROW(NC_ENOMEM); goto done;}
     state->path = strdup(path);
-    state->url = uri; uri = NULL;    
+    state->uri = uri; uri = NULL;
 #ifdef NETCDF_ENABLE_S3
     state->format = (NC_iss3(state->url,NULL)?HTTPS3:HTTPCURL);
 #else
@@ -125,9 +125,10 @@ nc_http_open_verbose(const char* path, int verbose, NC_HTTP_STATE** statep)
         } break;
 #ifdef NETCDF_ENABLE_S3
     case HTTPS3: {
-	if((state->s3.info = (NCS3INFO*)calloc(1,sizeof(NCS3INFO)))==NULL)
+	if((state->s3.s3uri = (NCS3URI*)calloc(1,sizeof(NCS3URI)))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
-        if((stat = NC_s3urlprocess(state->url,state->s3.info,NULL))) goto done;
+	state->s3.s3uri->uri = ncuriclone(state->uri);
+        if((stat = NC_s3urlprocess(state->s3.s3uri))) goto done;
 	if((state->s3.s3client = NC_s3sdkcreateclient(state->s3.info))==NULL)
 	    {stat = NCTHROW(NC_EURL); goto done;}
         } break;

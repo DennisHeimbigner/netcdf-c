@@ -131,6 +131,9 @@ ncz_open_dataset(NC_FILE_INFO_T* file, NClist* controls)
 	{stat = NC_ENOMEM; goto done;}
     zinfo->default_maxstrlen = NCZ_MAXSTR_DEFAULT;
 
+    
+
+
     /* Add struct to hold NCZ-specific group info. */
     if (!(root->format_grp_info = calloc(1, sizeof(NCZ_GRP_INFO_T))))
         {stat = NC_ENOMEM; goto done;}
@@ -159,8 +162,15 @@ ncz_open_dataset(NC_FILE_INFO_T* file, NClist* controls)
 		    &zinfo->zarr.nczarr_version.release) == 0)
 	{stat = NC_ENCZARR; goto done;}
 
-    /* Load auth info from rc file */
     if((stat = ncuriparse(nc->path,&uri))) goto done;
+
+#if defined(NETCDF_ENABLE_S3) || defined(NETCDF_ENABLE_HDF5_ROS3)
+    /* Load the aws parameters on  per-file basis */
+    if((zinfo->aws = calloc(1,sizeof(NCawsprofile))) == NULL) {stat = NC_ENOMEM; goto done;}
+    NC_awsnczfile(zinfo->aws,uri);
+#endif    
+
+    /* Load auth info */
     if(uri) {
 	if((stat = NC_authsetup(&zinfo->auth, uri)))
 	    goto done;

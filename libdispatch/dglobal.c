@@ -60,7 +60,7 @@ NC_createglobalstate(void)
 	    {stat = NC_ENOMEM; goto done;}
 	if((nc_globalstate->chunkcache = calloc(1,sizeof(struct ChunkCache)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	if((nc_globalstate->aws = calloc(1,sizeof(struct NCAWSPARAMS)))==NULL)
+	if((nc_globalstate->aws = calloc(1,sizeof(struct NCawsprofile)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
     }
 

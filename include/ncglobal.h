@@ -38,7 +38,8 @@ typedef struct NCglobalstate {
 	struct NCZ_Plugin** loaded_plugins; /*[H5Z_FILTER_MAX+1]*/
 	size_t loaded_plugins_max; /* plugin filter id index. 0<loaded_plugins_max<=H5Z_FILTER_MAX */
     } zarr;
-    struct NCAWSPARAMS* aws;
+    struct NCawsprofile* aws;
+    NClist* s3profiles; /* NClist<struct AWSprofile*> */
     struct Alignment { /* H5Pset_alignment parameters */
         int defined; /* 1 => threshold and alignment explicitly set */
 	int threshold;

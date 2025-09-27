@@ -37,7 +37,6 @@ typedef struct NCRCinfo {
         NClist* entries; /* the rc file entry store fields*/
         char* rcfile; /* specified rcfile; overrides anything else */
         char* rchome; /* Overrides $HOME when looking for .rc files */
-	NClist* s3profiles; /* NClist<struct AWSprofile*> */
 } NCRCinfo;
 
 /* Opaque structures */

@@ -49,8 +49,8 @@
 enum URLFORMAT {UF_NONE=0, UF_VIRTUAL=1, UF_PATH=2, UF_S3=3, UF_OTHER=4};
 
 /* Read these files in order and later overriding earlier */
-static const char* awsconfigfiles[] = {".aws/config",".aws/credentials",NULL};
-#define NCONFIGFILES (sizeof(awsconfigfiles)/sizeof(char*))
+static const char* AWSCONFIGDIRS[] = {".aws",NULL}; /* Must be relative file */
+static const char* AWSCONFIGFILES[] = {"config","credentials",NULL};
 
 /**************************************************/
 /* Forward */
@@ -204,8 +204,8 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
 	}
 
     /* region = (1) from url, (2) s3->region, (3) default */
-    if(region == NULL && s3 != NULL)
-	region = nulldup(s3->region);
+    if(region == NULL && s3 != NULL && s3->aws != NULL)
+	region = nulldup(s3->aws->region);
     if(region == NULL) {
         const char* region0 = NULL;
 	/* Get default region */
@@ -272,7 +272,7 @@ NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
     if(newurlp) {*newurlp = newurl; newurl = NULL;}
     if(s3 != NULL) {
         s3->bucket = bucket; bucket = NULL;
-        s3->region = region; region = NULL;
+        s3->aws->region = region; region = NULL;
         s3->svc = svc;
     }
 done:
@@ -302,8 +302,16 @@ endswith(const char* s, const char* suffix)
 /**************************************************/
 /* S3 utilities */
 
+/**
+Process the url to get info for NCS3INFO object.
+Also rebuild the url to proper path format.
+@param url to process
+@param newurlp the rebuilt url.
+@param s3 store infot from url
+@return NC_NOERR | NC_EXXX
+*/
 EXTERNL int
-NC_s3urlprocess(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
+NC_s3infobuild(NCURI* url, NCURI** newurlp, NCS3INFO* s3)
 {
     int stat = NC_NOERR;
     NCURI* url2 = NULL;
@@ -313,7 +321,7 @@ NC_s3urlprocess(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
     if(url == NULL || s3 == NULL)
         {stat = NC_EURL; goto done;}
     /* Get current profile */
-    if((stat = NC_getactives3profile(url,&profile0))) goto done;
+    if((stat = NC_getactives3profile(s3,url,&profile0))) goto done;
     if(profile0 == NULL) profile0 = "no";
     s3->profile = strdup(profile0);
 
@@ -369,15 +377,16 @@ NC_s3clear(NCS3INFO* s3)
 	nullfree(s3->bucket); s3->bucket = NULL;
 	nullfree(s3->rootkey); s3->rootkey = NULL;
 	nullfree(s3->profile); s3->profile = NULL;
+	s3->aws = NULL;
     }
     return NC_NOERR;
 }
 
 /*
-Check if a url has indicators that signal an S3 or Google S3 url or ZoH S3 url.
+Check if a url has indicators that signal an S3 or Google S3 url.
 The rules are as follows:
-1. If the protocol is "s3" or "gs3" or "zoh", then return (true,s3|gs3|zoh).
-2. If the mode contains "s3" or "gs3" or "zoh", then return (true,s3|gs3|zoh).
+1. If the protocol is "s3" or "gs3" , then return (true,s3|gs3).
+2. If the mode contains "s3" or "gs3", then return (true,s3|gs3).
 3. Check the host name:
 3.1 If the host ends with ".amazonaws.com", then return (true,s3).
 3.1 If the host is "storage.googleapis.com", then return (true,gs3).
@@ -391,12 +400,9 @@ NC_iss3(NCURI* uri, NCS3SVC* svcp)
     NCS3SVC svc = NCS3UNK;
 
     if(uri == NULL) goto done; /* not a uri */
-    /* is the protocol "s3" or "gs3" or "zoh" ? */
+    /* is the protocol "s3" or "gs3" ? */
     if(strcasecmp(uri->protocol,"s3")==0) {iss3 = 1; svc = NCS3; goto done;}
     if(strcasecmp(uri->protocol,"gs3")==0) {iss3 = 1; svc = NCS3GS; goto done;}
-#ifdef NETCDF_ENABLE_ZOH
-    if(strcasecmp(uri->protocol,"zoh")==0) {iss3 = 1; svc = NCS3ZOH; goto done;}
-#endif
     /* Is "s3" or "gs3" in the mode list? */
     if(NC_testmode(uri,"s3")) {iss3 = 1; svc = NCS3; goto done;}
     if(NC_testmode(uri,"gs3")) {iss3 = 1; svc = NCS3GS; goto done;}    
@@ -520,15 +526,19 @@ NC_s3dumps3info(NCS3INFO* info)
 
 /* Find, load, and parse the aws config &/or credentials file */
 int
-NC_aws_load_credentials(NCglobalstate* gstate)
+NC_aws_load_profiles(NCglobalstate* gs)
 {
     int stat = NC_NOERR;
-    NClist* profiles = nclistnew();
+    size_t i,j;
+    NClist* awscfgfiles = NULL;
     NCbytes* buf = ncbytesnew();
     char path[8192];
     const char* aws_root = getenv(NC_TEST_AWS_DIR);
     const char* awscfg_local[NCONFIGFILES + 1]; /* +1 for the env variable */
     const char** awscfg = NULL;
+    const NCawsprofile* aws = gs->aws;
+    struct AWSprofile* dfalt = NULL;
+    struct AWSentry* entry = NULL;
 
     /* add a "no" credentials */
     {
@@ -538,52 +548,44 @@ NC_aws_load_credentials(NCglobalstate* gstate)
 	nclistpush(profiles,noprof); noprof = NULL;
     }
 
-    awscfg = awsconfigfiles;
-    if((awscfg_local[0] = NC_getglobalstate()->aws->config_file)!=NULL) {
-	memcpy(&awscfg_local[1],awsconfigfiles,sizeof(char*)*NCONFIGFILES);
-	awscfg = awscfg_local;
+    /* Collect, in precedence order, the places to look for profiles */
+    for(i=0;;i++) {
+	const char* dir; const char* file;
+	if((dir = AWSCONFIGDIRS[i])==NULL) break;
+	for(j=0;;j++) {
+	    if((file = AWSCONFIGFILES[i])==NULL) break;
+	    snprintf(path,sizeof(path),"%s/%s/%s",aws_root?aws_root:gs->home,dir,file); /* create an absolute path */
+	    nclistpush(awscfgfiles,strdup(path)); /* save */
+	}
     }
-    for(;*awscfg;awscfg++) {
-        /* Construct the path ${HOME}/<file> or Windows equivalent. */
-	const char* cfg = *awscfg;
+    if(aws->config_file != NULL) /* Highest precedence; used as-is */
+	nclistpush(awscfgfiles,strdup(aws->config_file));
 
-        snprintf(path,sizeof(path),"%s%s%s",
-	    (aws_root?aws_root:gstate->home),
-	    (*cfg == '/'?"":"/"),
-	    cfg);
+   for(i=0;i<nclistlength(awscfgfiles);i++) {
+	const char* cfg = nclistget(awscfgfiles,i);
 	ncbytesclear(buf);
-        if((stat=NC_readfile(path,buf))) {
-            nclog(NCLOGWARN, "Could not open file: %s",path);
+        if((stat=NC_readfile(cfg,buf))) {
+            nclog(NCLOGWARN, "Could not open file: %s",cfg);
         } else {
-            /* Parse the credentials file */
+            /* Parse the file and insert profiles (with override) */
 	    const char* text = ncbytescontents(buf);
             if((stat = awsparse(text,profiles))) goto done;
 	}
     }
   
+    /* Search for "default" credentials */
+    if((stat=NC_gets3profile("default",&dfalt))) goto done;
+
     /* If there is no default credentials, then try to synthesize one
        from various environment variables */
-    {
-	size_t i;
-        struct AWSprofile* dfalt = NULL;
-        struct AWSentry* entry = NULL;
-        NCglobalstate* gs = NC_getglobalstate();
+
+    if(dfalt == NULL) {
 	/* Verify that we can build a default */
         if(gs->aws->access_key_id != NULL && gs->aws->secret_access_key != NULL) {
-	    /* Kill off any previous default profile */
-	    for(i=nclistlength(profiles)-1;i>=0;i--) {/* walk backward because we are removing entries */
-		struct AWSprofile* prof = (struct AWSprofile*)nclistget(profiles,i);
-		if(strcasecmp(prof->name,"default")==0) {
-		    nclistremove(profiles,i);
-		    freeprofile(prof);
-		}
-	    }
 	    /* Build new default profile */
 	    if((dfalt = (struct AWSprofile*)calloc(1,sizeof(struct AWSprofile)))==NULL) {stat = NC_ENOMEM; goto done;}
 	    dfalt->name = strdup("default");
 	    dfalt->entries = nclistnew();
-	    /* Save the new default profile */
-	    nclistpush(profiles,dfalt); dfalt = NULL;
 	    /* Create the entries for default */
 	    if((entry = (struct AWSentry*)calloc(1,sizeof(struct AWSentry)))==NULL) {stat = NC_ENOMEM; goto done;}
 	    entry->key = strdup(AWS_PROF_ACCESS_KEY_ID);
@@ -593,18 +595,21 @@ NC_aws_load_credentials(NCglobalstate* gstate)
 	    entry->key = strdup(AWS_PROF_SECRET_ACCESS_KEY);
 	    entry->value = strdup(gs->aws->secret_access_key);
 	    nclistpush(dfalt->entries,entry); entry = NULL;
+	    /* Save the new default profile */
+	    nclistpush(profiles,dfalt); dfalt = NULL;
 	}
     }
 
-    if(gstate->rcinfo->s3profiles)
-        NC_s3freeprofilelist(gstate->rcinfo->s3profiles);
-    gstate->rcinfo->s3profiles = profiles; profiles = NULL;
+    if(gs->s3profiles)
+        NC_s3freeprofilelist(gs->s3profiles);
+    gs->s3profiles = profiles; profiles = NULL;
 
 #ifdef AWSDEBUG
     awsprofiles();
 #endif
 
 done:
+    nclistfreeall(awscfgfiles);
     ncbytesfree(buf);
     NC_s3freeprofilelist(profiles);
     return stat;
@@ -618,13 +623,13 @@ done:
 */
 
 int
-NC_authgets3profile(const char* profilename, struct AWSprofile** profilep)
+NC_gets3profile(const char* profilename, struct AWSprofile** profilep)
 {
     int stat = NC_NOERR;
     NCglobalstate* gstate = NC_getglobalstate();
 
-    for(size_t i=0;i<nclistlength(gstate->rcinfo->s3profiles);i++) {
-	struct AWSprofile* profile = (struct AWSprofile*)nclistget(gstate->rcinfo->s3profiles,i);
+    for(size_t i=0;i<nclistlength(gstate->s3profiles);i++) {
+	struct AWSprofile* profile = (struct AWSprofile*)nclistget(gstate->s3profiles,i);
 	if(strcmp(profilename,profile->name)==0)
 	    {if(profilep) {*profilep = profile; goto done;}}
     }
@@ -633,6 +638,7 @@ done:
     return stat;
 }
 
+#if 0
 /**
 @param profile name of profile
 @param key key to search for in profile
@@ -660,6 +666,8 @@ NC_s3profilelookup(const char* profile, const char* key, const char** valuep)
     if(valuep) *valuep = value;
     return stat;
 }
+#endif
+
 /**
  * Get the credentials for a given profile or load them from environment.
  @param profile name to use to look for credentials
@@ -667,8 +675,10 @@ NC_s3profilelookup(const char* profile, const char* key, const char** valuep)
  @param accessid return accessid from progile or env
  @param accesskey return accesskey from profile or env
  */
-void NC_s3getcredentials(const char *profile, const char **region, const char** accessid, const char** accesskey) {
-    if(profile != NULL && strcmp(profile,"no") != 0) {
+void
+NC_s3getcredentials(NCawsprofile* aws, const char **region, const char** accessid, const char** accesskey)
+{
+    if(aws != NULL)
         NC_s3profilelookup(profile, AWS_PROF_ACCESS_KEY_ID, accessid);
         NC_s3profilelookup(profile, AWS_PROF_SECRET_ACCESS_KEY, accesskey);
         NC_s3profilelookup(profile, AWS_PROF_REGION, region);
@@ -687,43 +697,32 @@ void NC_s3getcredentials(const char *profile, const char **region, const char** 
         }
     }
 }
-
+#endif
 
 /**************************************************/
 /*
 Get the current active profile. The priority order is as follows:
-1. aws.profile key in URL fragment mode flags
-2. aws->profile in NCglobalstate.aws
-3. "default"
-4. "no" -- meaning do not use any profile => no secret key
+1. aws->profile
+2. "default"
+3. "no" -- meaning do not use any profile => no secret key
 
-@param uri uri with mode flags, may be NULL
+@params aws the NCawsprofile to check
 @param profilep return profile name here or NULL if none found
 @return NC_NOERR if no error.
 @return NC_EINVAL if something else went wrong.
 */
 
 int
-NC_getactives3profile(NCURI* uri, const char** profilep)
+NC_getactives3profile(NCawsprofile* aws, const char** profilep)
 {
     int stat = NC_NOERR;
     const char* profile = NULL;
     struct AWSprofile* ap = NULL;
-    struct NCglobalstate* gs = NC_getglobalstate();
+    NCglobalstate* gs = NC_getglobalstate();
 
-    if (uri != NULL) {
-	profile = ncurifragmentlookup(uri,AWS_FRAG_PROFILE);
-	if(profile == NULL)
-		profile = NC_rclookupx(uri,AWS_RC_PROFILE);
-    }
-
-    if(profile == NULL && gs->aws->profile != NULL) {
-        if((stat=NC_authgets3profile(gs->aws->profile,&ap))) goto done;
-	if(ap) profile = nulldup(gs->aws->profile);
-    }
-
-    if(profile == NULL) {
-        if((stat=NC_authgets3profile("default",&ap))) goto done;
+    profile = aws->profile;
+    if(profile == NULL)
+????        if((stat=NC_authgets3profile("default",&ap))) goto done;
 	if(ap) profile = "default";
     }
 
@@ -1069,7 +1068,7 @@ awsdumpprofiles(NClist* profiles)
 {
     size_t i;
     NCglobalstate* gs = NC_getglobalstate();
-    for(i=0;i<nclistlength(gs->rcinfo->s3profiles);i++) {
+    for(i=0;i<nclistlength(gs->s3profiles);i++) {
 	struct AWSprofile* p = (struct AWSprofile*)nclistget(profiles,i);
 	awsdumpprofile(p);
     }
@@ -1079,7 +1078,7 @@ void
 awsprofiles(void)
 {
     NCglobalstate* gs = NC_getglobalstate();
-    fprintf(stderr,">>> profiles from global->rcinfo->s3profiles:\n");
-    awsdumpprofiles(gs->rcinfo->s3profiles);
+    fprintf(stderr,">>> profiles from global->s3profiles:\n");
+    awsdumpprofiles(gs->s3profiles);
 }
 

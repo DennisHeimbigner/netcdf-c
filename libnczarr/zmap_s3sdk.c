@@ -112,9 +112,9 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     NCURI* url = NULL;
     char* prefix = NULL;
     char* truekey = NULL;
+    NCawsprofile* aws = (NCawsprofile*)parameters;
 	
     NC_UNUSED(flags);
-    NC_UNUSED(parameters);
 
     ZTRACE(6,"path=%s mode=%d flag=%llu",path,mode,flags);
 
@@ -191,9 +191,122 @@ zs3open(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** m
     NCURI* url = NULL;
     NClist* content = NULL;
     size_t nkeys = 0;
+ *	Copyright 2018, University Corporation for Atmospheric Research
+ *      See netcdf/COPYRIGHT file for copying and redistribution conditions.
+ */
+
+#include "zincludes.h"
+#include "zmap.h"
+#include "ncs3sdk.h"
+
+#undef S3DEBUG
+
+/*
+Map our simplified map model to an S3 bucket + objects.
+
+For the API, the mapping is as follows:
+1. A bucket contains multiple datasets.
+2. A key to the root of a dataset is assumed to be with respect to
+   the bucket name from the original open/create url.
+2. Containment is simulated using the S3 key conventions.
+3. Every object (e.g. group or array) is mapped to an S3 object
+4. Meta data objects (e.g. .zgroup, .zarray, etc) are kept as an S3 object.
+5. Actual variable data (for e.g. chunks) is stored as
+   using an S3 object per chunk.
+
+Given a key, one of three things is true.
+1. The key points to a content-bearing object
+2. The key has no associated object
+This basically means that there is no notion of not-found:
+all keys are assumed to exist, but may have no content.
+
+Notes:
+1. Our canonical URLs use path style rather than virtual-host, although
+   virtual-host URLs will be accepted anc converted to path-style.
+*/
+
+#undef DEBUG
+#define DEBUGERRORS
+
+#define NCZM_S3SDK_V1 1
+
+#define ZS3_PROPERTIES (0)
+
+/* Define the "subclass" of NCZMAP */
+typedef struct ZS3MAP {
+    NCZMAP map;
+    NCS3INFO s3;
+    void* s3client;
+    char* errmsg;
+} ZS3MAP;
+
+/* Forward */
+static NCZMAP_API nczs3sdkapi; // c++ will not allow static forward variables
+static int zs3len(NCZMAP* map, const char* key, size64_t* lenp);
+
+static void freevector(size_t nkeys, char** list);
+
+static void zs3initialize(void);
+static int s3clear(void* s3client, const char* bucket, const char* key);
+
+static int maketruekey(const char* rootpath, const char* key, char** truekeyp);
+
+static void
+errclear(ZS3MAP* z3map)
+{
+    if(z3map) {
+        if(z3map->errmsg)
+            free(z3map->errmsg);
+	z3map->errmsg = NULL;
+    }
+}
+
+#ifdef DEBUGERRORS
+static void
+reporterr(ZS3MAP* z3map)
+{
+    if(z3map) {
+        if(z3map->errmsg) {
+            nclog(NCLOGERR,z3map->errmsg);
+	}
+	errclear(z3map);
+    }
+}
+#else
+#define reporterr(map)
+#endif
+
+/* Define the Dataset level API */
+
+static int zs3initialized = 0;
+
+static void
+zs3initialize(void)
+{
+    if(!zs3initialized) {
+        ZTRACE(7,NULL);
+        zs3initialized = 1;
+	(void)ZUNTRACE(NC_NOERR);
+    }
+}
+
+void
+NCZ_s3finalize(void)
+{
+    zs3initialized = 0;
+}
+
+static int
+zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP** mapp)
+{
+    int stat = NC_NOERR;
+    ZS3MAP* z3map = NULL;
+    NCURI* url = NULL;
+    char* prefix = NULL;
+    char* truekey = NULL;
+    NCawsprofile* aws = (NCawsprofile*)parameters;
 
     NC_UNUSED(flags);
-    NC_UNUSED(parameters);
 
     ZTRACE(6,"path=%s mode=%d flags=%llu",path,mode,flags);
 

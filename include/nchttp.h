@@ -14,7 +14,7 @@ HTTPNONE=0, HTTPGET=1, HTTPPUT=2, HTTPPOST=3, HTTPHEAD=4, HTTPDELETE=5
 
 /* Forward */
 struct CURL;
-struct NCS3INFO;
+struct NCS3URI;
 struct NCURI;
 
 /* Common state For S3 vs Simple Curl */
@@ -29,7 +29,7 @@ typedef struct NC_HTTP_STATE {
 #ifdef NETCDF_ENABLE_S3
     struct NC_HTTP_S3 {
         void* s3client;
-	struct NCS3INFO* info;
+	NCS3URI* s3uri;
     } s3;
 #endif
     struct NC_HTTP_CURL {

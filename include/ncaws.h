@@ -51,20 +51,57 @@
 #define AWS_FRAG_SECRET_ACCESS_KEY AWS_RC_SECRET_ACCESS_KEY
 #define AWS_FRAG_SESSION_TOKEN AWS_RC_SESSION_TOKEN
 
-typedef struct NCAWSPARAMS { /* AWS S3 specific parameters/defaults */
+/**
+
+NCawsprofils is a unified profile object containing an extended set of
+all the relevant AWS profile information.
+There are two "instances" of this profile object.
+1. NCglobalstate holds the values defined globally and independent of any file.
+2. NC_FILE_INFO_T.format_file_info contains a per-file profile set of values.
+
+Each profile is constructed as the union of values from various sources.
+These sources are:
+1. .rc file entries that have no associated URI.
+2. environment variables
+3. .rc file entries that have an associated URI.
+4. fragment keys of the path if the path is a URI.
+
+When loading the NCglobalstate profile, load from the following sources:
+1. .rc file without URI patterns.
+2. environment variables
+3. profile if defined
+Notes:
+* precedence order: 3 over 2 over 1
+* region field set from defaults
+
+When loading the NC_FILE_INFO_T.format_file_info profile, load from the following sources:
+1. existing NCglobalstate profile values
+2. .rc file with URI patterns.
+3. profile if defined
+4. environment variables 
+5. URI fragment keys (only if path is URI).
+Notes:
+* precedence order: 5 over 4 over 3 over 2 over 1
+* region field set from defaults
+*/
+
+typedef struct NCawsprofile {
     char* config_file;
     char* profile;
     char* region;
     char* default_region;
     char* access_key_id;
     char* secret_access_key; 
-} NCAWSPARAMS;
+} NCawsprofile;;
 
 struct AWSentry {
     char* key;
     char* value;
 };
 
+/* Do not confuse with NCawsprofile.
+   This one is a parsed profile from e.g. .aws/config.
+*/
 struct AWSprofile {
     char* name;
     struct NClist* entries; /* NClist<struct AWSentry*> */
@@ -80,15 +117,14 @@ extern "C" {
 
 /* Extract AWS values from various sources */
 DECLSPEC void NC_awsglobal(void);
-DECLSPEC void NC_awsnczfile(NCAWSPARAMS* zfileaws, struct NCURI* uri);
-DECLSPEC void NC_awsenvironment(struct NCAWSPARAMS* aws);
-DECLSPEC void NC_awsrc(struct NCAWSPARAMS* aws, struct NCURI* uri);
-DECLSPEC void NC_awsfrag(struct NCAWSPARAMS* aws, struct NCURI* uri);
+DECLSPEC void NC_awsnczfile(NCawsprofile* fileaws, struct NCURI* uri);
+DECLSPEC void NC_awsenvironment(struct NCawsprofile* aws);
+DECLSPEC void NC_awsrc(struct NCawsprofile* aws, struct NCURI* uri);
+DECLSPEC void NC_awsfrag(struct NCawsprofile* aws, struct NCURI* uri);
+DECLSPEC void NC_awsprofile(const char* profile, struct NCawsprofile* aws);
 
-DECLSPEC void NC_clearawsparams(struct NCAWSPARAMS*);
-DECLSPEC NCAWSPARAMS NC_awsparams_empty(void);
-
-DECLSPEC int NC_aws_load_credentials(struct NCglobalstate* gstate);
+DECLSPEC void NC_clearawsprofile(struct NCawsprofile*);
+DECLSPEC NCawsprofile NC_awsprofile_empty(void);
 
 #ifdef __cplusplus
 }

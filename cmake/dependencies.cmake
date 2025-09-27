@@ -231,11 +231,11 @@ endif(USE_HDF5)
 ################################
 # Curl Libraries
 # Only needed for DAP (DAP2 or DAP4)
-# and NCZARR S3 support
 # and byterange support
+# and S3 support
 ################################
 
-if( NETCDF_ENABLE_DAP2 OR NETCDF_ENABLE_DAP4 OR NETCDF_ENABLE_BYTERANGE OR NETCDF_ENABLE_NCZARR_S3)
+if( NETCDF_ENABLE_DAP2 OR NETCDF_ENABLE_DAP4 OR NETCDF_ENABLE_BYTERANGE OR NETCDF_ENABLE_S3)
   # See if we have libcurl
   find_package(CURL)
   #target_compile_options(netcdf

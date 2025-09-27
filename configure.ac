@@ -204,17 +204,20 @@ AC_ARG_ENABLE([pnetcdf], [AS_HELP_STRING([--enable-pnetcdf],
 test "x$enable_pnetcdf" = xyes || enable_pnetcdf=no
 AC_MSG_RESULT($enable_pnetcdf)
 
-AC_MSG_CHECKING([whether any network access should be allowed])
-AC_ARG_ENABLE([remote-functionality], [AS_HELP_STRING([--enable-remote-functionality],
-              [enable|disable all forms of network access (default enabled)])])
-test "x$enable_remote_functionality" = xno || enable_remote_functionality=yes
-AC_MSG_RESULT($enable_remote_functionality)
+AC_MSG_CHECKING([whether netcdf zarr storage format should be disabled])
+AC_ARG_ENABLE([nczarr],
+              [AS_HELP_STRING([--disable-nczarr],
+                              [disable netcdf zarr storage support])])
+test "x$enable_nczarr" = xno || enable_nczarr=yes
+AC_MSG_RESULT($enable_nczarr)
 
-# We need curl for remote operations
-AC_MSG_CHECKING([whether we need to look for libcurl])
-AC_ARG_ENABLE([curl],
-   [AS_HELP_STRING([--enable-curl],
-                   [look for and link against libcurl])])
+# Does the user want to allow reading of remote data via range headers?
+AC_MSG_CHECKING([whether byte range support is enabled])
+AC_ARG_ENABLE([byterange],
+              [AS_HELP_STRING([--disable-byterange],
+                              [allow byte-range I/O])])
+test "x$enable_byterange" = xno || enable_byterange=yes
+AC_MSG_RESULT($enable_byterange)
 
 ## Capture the state of the --enable-dap flag => enable dap2+dap4
 AC_MSG_CHECKING([whether DAP client(s) are to be built])
@@ -224,19 +227,70 @@ AC_ARG_ENABLE([dap],
 test "x$enable_dap" = xno || enable_dap=yes
 AC_MSG_RESULT($enable_dap)
 
+# --enable-dap => enable-dap4 && enable-dap2
+enable_dap4=$enable_dap
+enable_dap2=$enable_dap
+
+# Check for enabling of S3 support
+AC_MSG_CHECKING([whether netcdf S3 support should be enabled])
+AC_ARG_ENABLE([s3],
+               [AS_HELP_STRING([--enable-s3],
+                                 [enable netcdf S3 support (default off)])])
+test "x$enable_s3" = xyes || enable_s3=no
+AC_MSG_RESULT($enable_s3)
+
+# --enable-nczarr-s3 is synonym for --enable-s3 (but...)
+AC_MSG_CHECKING([whether netcdf NCZarr S3 support should be enabled])
+AC_ARG_ENABLE([nczarr-s3],
+               [AS_HELP_STRING([--enable-nczarr-s3],
+                                 [(Deprecated) enable netcdf NCZarr S3 support; Deprecated in favor of --enable-s3])])
+AC_MSG_RESULT([$enable_nczarr_s3 (Deprecated) Please use --enable-s3)])
+
+# Set enable_s3 instead of enable_nczarr_s3
+if test "x$enable_s3" = xno && test "x$enable_nczarr_s3" = xyes ; then
+      enable_s3=yes # back compatibility
+fi
+unset enable_nczarr_s3
+
+# We need curl for remote operations
+AC_MSG_CHECKING([whether we need to look for libcurl])
+AC_ARG_ENABLE([curl],
+   [AS_HELP_STRING([--enable-curl],
+                   [look for and link against libcurl])])
+test "x$enable_curl" = xyes || enable_curl=no
+AC_MSG_RESULT([$enable_curl])
+
+AC_MSG_CHECKING([whether any network access should be allowed])
+AC_ARG_ENABLE([remote-functionality], [AS_HELP_STRING([--enable-remote-functionality],
+              [enable|disable all forms of network access (default enabled)])])
+test "x$enable_remote_functionality" = xno || enable_remote_functionality=yes
+AC_MSG_RESULT($enable_remote_functionality)
+
+
 if test "x$enable_remote_functionality" = xno ; then
-  AC_MSG_WARN([All network access is disabled => DAP support disabled.])
-  enable_dap=no
-  AC_MSG_WARN([All network access is disabled => NCZARR support disabled.])
-  enable_nczarr=no
+    AC_MSG_WARN([--disable-remote-functionality => --disable-curl, which disables other remote functionality])
+    enable_curl=no
 fi
 
-AC_MSG_CHECKING([whether netcdf zarr storage format should be disabled])
-AC_ARG_ENABLE([nczarr],
-              [AS_HELP_STRING([--disable-nczarr],
-                              [disable netcdf zarr storage support])])
-test "x$enable_nczarr" = xno || enable_nczarr=yes
-AC_MSG_RESULT($enable_nczarr)
+# Verify libcurl is available
+if test "x$enable_curl" = xyes; then
+   AC_CHECK_LIB([curl],[curl_easy_setopt],[found_curl=yes],[found_curl=no])
+   if test "x$found_curl" = "xyes" ; then
+      AC_SEARCH_LIBS([curl_easy_setopt],[curl curl.dll cygcurl.dll], [],[])
+   fi 
+   if test "x$found_curl" = xno ; then
+      AC_MSG_WARN([curl required but libcurl not found])
+      enable_curl=no
+   fi
+fi
+
+# propagate curl usage
+if test "x$enable_curl" = xno ; then
+  AC_MSG_NOTICE([--disable-curl => --disable-dap && --disable-byterange && --disable-s3])
+  enable_dap=no
+  enable_byterange=no
+  enable_s3=no
+fi
 
 # HDF5 | HDF4 | NCZarr => netcdf-4
 if test "x$enable_hdf5" = xyes || test "x$enable_hdf4" = xyes || test "x$enable_nczarr" = xyes ; then
@@ -477,55 +531,7 @@ if test "x$enable_legacy_macros" = xyes; then
    AC_DEFINE([NETCDF_ENABLE_LEGACY_MACROS], 1, [If true, enable legacy macros in netcdf.h])
 fi
 
-# Does the user want to allow reading of remote data via range headers?
-AC_MSG_CHECKING([whether byte range support is enabled])
-AC_ARG_ENABLE([byterange],
-              [AS_HELP_STRING([--disable-byterange],
-                              [allow byte-range I/O])])
-test "x$enable_byterange" = xno || enable_byterange=yes
-AC_MSG_RESULT($enable_byterange)
-
-if test "x$enable_dap" = xno && test "x$enable_byterange" = xyes; then 
-   AC_MSG_WARN([DAP required for byterange. Byterange support disabled.])
-   enable_byterange=no
-fi
-
-###
-# Stanza to check for functionality which requires linking against
-# libcurl.
-###
-
-if test "x$enable_dap" = xyes || test "x$enable_nczarr" = xyes; then 
-   enable_curl=yes
-fi
-
 if test "x$enable_curl" = xyes; then
-
-
-   if test "x$enable_dap" = xyes && test "x$found_curl" = xno ; then
-      AC_MSG_WARN([curl required for dap access. DAP support disabled.])
-      enable_dap=no
-   fi
-
-   # Need curl for byte ranges
-   if test "x$found_curl" = xno && test "x$enable_byterange" = xyes ; then
-   AC_MSG_WARN([curl required for byte range support. Install curl or build without --enable-byterange.])
-   enable_byterange=no
-   fi
-
-   if test "x$enable_byterange" = xyes; then
-      AC_DEFINE([NETCDF_ENABLE_BYTERANGE], [1], [if true, support byte-range read of remote datasets.])
-   fi
-
-   AC_CHECK_LIB([curl],[curl_easy_setopt],[found_curl=yes],[found_curl=no])
-   if test "x$found_curl" = "xyes" ; then
-      AC_SEARCH_LIBS([curl_easy_setopt],[curl curl.dll cygcurl.dll], [],[])
-   fi 
-
-   if test "x$enable_dap" = xyes & test "x$found_curl" = xno ; then
-   AC_MSG_WARN([curl required for dap access. DAP support disabled.])
-   enable_dap=no
-   fi
 
    # Save/restore CFLAGS
    SAVECFLAGS="$CFLAGS"
@@ -650,8 +656,6 @@ if test "x${enable_quantize}" = xyes; then
 fi
 AM_CONDITIONAL(NETCDF_ENABLE_QUANTIZE, [test x$enable_quantize = xyes])
 
-# --enable-dap => enable-dap4
-enable_dap4=$enable_dap
 AC_MSG_CHECKING([whether dap use of remotetest server should be enabled])
 AC_ARG_ENABLE([dap-remote-tests],
               [AS_HELP_STRING([--disable-dap-remote-tests],
@@ -956,7 +960,6 @@ AC_MSG_RESULT([${have_sz}])
 if test "x$enable_nczarr" = xno ; then
    enable_nczarr_zip=no
 else
-
    # See if we have libzip for NCZarr
    AC_SEARCH_LIBS([zip_open],[zip zip.dll cygzip.dll],[have_zip=yes],[have_zip=no])
    AC_MSG_CHECKING([whether libzip library is available])
@@ -970,31 +973,6 @@ else
    AC_DEFINE([NETCDF_ENABLE_NCZARR_ZIP], [1], [If true, then libzip found])
    fi
 
-   # Check for enabling of S3 support
-   AC_MSG_CHECKING([whether netcdf S3 support should be enabled])
-   AC_ARG_ENABLE([s3],
-               [AS_HELP_STRING([--enable-s3],
-                                 [enable netcdf S3 support (default off)])])
-   test "x$enable_s3" = xyes || enable_s3=no
-   AC_MSG_RESULT($enable_s3)
-
-   # --enable-nczarr-s3 is synonym for --enable-s3 (but...)
-   AC_MSG_CHECKING([whether netcdf NCZarr S3 support should be enabled])
-   AC_ARG_ENABLE([nczarr-s3],
-               [AS_HELP_STRING([--enable-nczarr-s3],
-                                 [(Deprecated) enable netcdf NCZarr S3 support; Deprecated in favor of --enable-s3])])
-   AC_MSG_RESULT([$enable_nczarr_s3 (Deprecated) Please use --enable-s3)])
-
-   # Set enable_s3 instead of enable_nczarr_s3
-   if test "x$enable_s3" = xno && test "x$enable_nczarr_s3" = xyes ; then
-      enable_s3=yes # back compatibility
-   fi
-   unset enable_nczarr_s3
-
-   if test "x$enable_remote_functionality" = xno ; then
-   AC_MSG_WARN([--disable-remote-functionality => --disable-s3])
-      enable_s3=no
-   fi
 
    # Note we check for the library after checking for enable_s3
    # because for some reason this fails if we unconditionally test for sdk
@@ -1468,11 +1446,13 @@ if test "x$enable_mmap" = xyes; then
     AC_DEFINE([USE_MMAP], [1], [if true, use mmap for in-memory files])
 fi
 
-
-
 if test "x$enable_remote_functionality" = xno ; then
   AC_MSG_WARN([--disable-remote-functionality => --disable-byterange])
   enable_byterange=no
+fi
+
+if test "x$enable_byterange" = xyes; then
+    AC_DEFINE([NETCDF_ENABLE_BYTERANGE], [1], [if true, support byte-range read of remote datasets.])
 fi
 
 

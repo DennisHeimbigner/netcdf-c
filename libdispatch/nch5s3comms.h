@@ -75,7 +75,7 @@
 struct CURL;
 struct NCURI;
 struct VString;
-struct NCAWSPARAMS;
+struct NCawsprofile;
 
 /*****************
  * PUBLIC MACROS *
@@ -503,7 +503,7 @@ EXTERNL hrb_t *NCH5_s3comms_hrb_init_request(const char *resource, const char *h
  * DECLARATION OF S3REQUEST ROUTINES *
  *************************************/
 
-EXTERNL s3r_t *NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, struct NCAWSPARAMS* aws);
+EXTERNL s3r_t *NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, struct NCawsprofile* aws);
 
 EXTERNL int NCH5_s3comms_s3r_close(s3r_t *handle);
 

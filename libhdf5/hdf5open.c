@@ -703,6 +703,7 @@ check_for_classic_model(NC_GRP_INFO_T *root_grp, int *is_classic)
 static int
 nc4_open_file(const char *path, int mode, void* parameters, int ncid)
 {
+    int retval;
     NC_FILE_INFO_T *nc4_info = NULL;
     NC_HDF5_FILE_INFO_T *h5 = NULL;
     NC *nc;
@@ -714,7 +715,7 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
     int comm_duped = 0; /* Whether the MPI Communicator was duplicated */
     int info_duped = 0; /* Whether the MPI Info object was duplicated */
 #endif
-    int retval;
+    NCglobalstate* gs = NC_getglobalstate();
 
     LOG((3, "%s: path %s mode %d", __func__, path, mode));
     assert(path);
@@ -743,9 +744,10 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
 
     h5 = (NC_HDF5_FILE_INFO_T*)nc4_info->format_file_info;
 
-#ifdef NETCDF_ENABLE_BYTERANGE
-    /* Do path as URL processing */
+    /* Try to parse path as URI */
     ncuriparse(path,&h5->uri);
+
+#ifdef NETCDF_ENABLE_BYTERANGE
     if(h5->uri != NULL) {
         /* See if we want the byte range protocol */
         if(NC_testmode(h5->uri,"bytes")) h5->byterange = 1; else h5->byterange = 0;
@@ -756,6 +758,13 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
 	}
     }
 #endif /*NETCDF_ENABLE_BYTERANGE*/
+
+#if defined(NETCDF_ENABLE_S3) || defined(NETCDF_ENABLE_HDF5_ROS3)
+    /* Load the aws parameters on  per-file basis */
+    if((h5->aws = calloc(1,sizeof(NCawsprofile))) == NULL)
+        BAIL(NC_ENOMEM);
+    NC_awsnczfile(h5->aws,h5->uri);
+#endif    
 
     nc4_info->mem.inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
     nc4_info->mem.diskless = ((mode & NC_DISKLESS) == NC_DISKLESS);
@@ -824,7 +833,6 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
     /* Only set cache for non-parallel opens. */
     if (!nc4_info->parallel)
     {
-	NCglobalstate* gs = NC_getglobalstate();
 	if (H5Pset_cache(fapl_id, 0, gs->chunkcache->nelems, gs->chunkcache->size,
 			 gs->chunkcache->preemption) < 0)
 	    BAIL(NC_EHDFERR);
@@ -834,7 +842,6 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
     }
 
     {
-	NCglobalstate* gs = NC_getglobalstate();
         if(gs->alignment.defined) {
 	    if (H5Pset_alignment(fapl_id, (hsize_t)gs->alignment.threshold, (hsize_t)gs->alignment.alignment) < 0) {
 	        BAIL(NC_EHDFERR);
