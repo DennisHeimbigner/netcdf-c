@@ -90,12 +90,12 @@ Rebuild an S3 url into a canonical path-style url.
 If region is not in the host, then use specified region
 if provided, otherwise us-east-1.
 @param url      (in) the current url
-@param s3       (in/out) NCS3INFO structure
+@param s3       (in/out) NCS3NOTE structure
 @param pathurlp (out) the resulting pathified url string
 */
 
 int
-NC_s3urlrebuild(NCURI* url, NCS3INFO* s3, NCURI** newurlp)
+NC_s3urlrebuild(NCURI* url, NCS3NOTE* s3, NCURI** newurlp)
 {
     size_t i;
     int stat = NC_NOERR;
@@ -303,7 +303,7 @@ endswith(const char* s, const char* suffix)
 /* S3 utilities */
 
 /**
-Process the url to get info for NCS3INFO object.
+Process the url to get info for NCS3NOTE object.
 Also rebuild the url to proper path format.
 @param url to process
 @param newurlp the rebuilt url.
@@ -311,7 +311,7 @@ Also rebuild the url to proper path format.
 @return NC_NOERR | NC_EXXX
 */
 EXTERNL int
-NC_s3infobuild(NCURI* url, NCURI** newurlp, NCS3INFO* s3)
+NC_s3infobuild(NCURI* url, NCURI** newurlp, NCS3NOTE* s3)
 {
     int stat = NC_NOERR;
     NCURI* url2 = NULL;
@@ -351,11 +351,11 @@ done:
 }
 
 int
-NC_s3clone(NCS3INFO* s3, NCS3INFO** news3p)
+NC_s3clone(NCS3NOTE* s3, NCS3NOTE** news3p)
 {
-    NCS3INFO* news3 = NULL;
+    NCS3NOTE* news3 = NULL;
     if(s3 && news3p) {
-	if((news3 = (NCS3INFO*)calloc(1,sizeof(NCS3INFO)))==NULL)
+	if((news3 = (NCS3NOTE*)calloc(1,sizeof(NCS3NOTE)))==NULL)
            return NC_ENOMEM;
 	if((news3->host = nulldup(s3->host))==NULL) return NC_ENOMEM;
 	if((news3->region = nulldup(s3->region))==NULL) return NC_ENOMEM;
@@ -369,7 +369,7 @@ NC_s3clone(NCS3INFO* s3, NCS3INFO** news3p)
 }
 
 int
-NC_s3clear(NCS3INFO* s3)
+NC_s3clear(NCS3NOTE* s3)
 {
     if(s3) {
 	nullfree(s3->host); s3->host = NULL;
@@ -512,7 +512,7 @@ NC_s3freeprofilelist(NClist* profiles)
 }
 
 const char*
-NC_s3dumps3info(NCS3INFO* info)
+NC_s3dumps3info(NCS3NOTE* info)
 {
     static char text[8192];
     snprintf(text,sizeof(text),"host=%s region=%s bucket=%s rootkey=%s profile=%s",

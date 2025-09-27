@@ -52,34 +52,32 @@
 #define AWS_FRAG_SESSION_TOKEN AWS_RC_SESSION_TOKEN
 
 /**
-
-NCawsprofils is a unified profile object containing an extended set of
+NCawsprofile is a unified profile object containing an extended set of
 all the relevant AWS profile information.
 There are two "instances" of this profile object.
 1. NCglobalstate holds the values defined globally and independent of any file.
 2. NC_FILE_INFO_T.format_file_info contains a per-file profile set of values.
 
-Each profile is constructed as the union of values from various sources.
-These sources are:
+Each profile is constructed as the union of values from various sources, namely:
 1. .rc file entries that have no associated URI.
 2. environment variables
 3. .rc file entries that have an associated URI.
 4. fragment keys of the path if the path is a URI.
+5. profile taken from fragment keys
 
 When loading the NCglobalstate profile, load from the following sources:
 1. .rc file without URI patterns.
 2. environment variables
-3. profile if defined
 Notes:
-* precedence order: 3 over 2 over 1
+* precedence order: 2 over 1
 * region field set from defaults
 
 When loading the NC_FILE_INFO_T.format_file_info profile, load from the following sources:
 1. existing NCglobalstate profile values
 2. .rc file with URI patterns.
-3. profile if defined
-4. environment variables 
-5. URI fragment keys (only if path is URI).
+3. environment variables 
+4. URI fragment keys (only if path is URI).
+5. profile if defined
 Notes:
 * precedence order: 5 over 4 over 3 over 2 over 1
 * region field set from defaults
@@ -99,10 +97,10 @@ struct AWSentry {
     char* value;
 };
 
-/* Do not confuse with NCawsprofile.
-   This one is a parsed profile from e.g. .aws/config.
+/*
+Parsed representation of e.g. .aws/config or .aws/credentials
 */
-struct AWSprofile {
+struct AWSconfig {
     char* name;
     struct NClist* entries; /* NClist<struct AWSentry*> */
 };
