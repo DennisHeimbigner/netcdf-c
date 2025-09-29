@@ -81,7 +81,7 @@ nc4_create_file(const char *path, int cmode, size_t initialsz,
 
 #if defined(NETCDF_ENABLE_S3) || defined(NETCDF_ENABLE_HDF5_ROS3)
     /* Load the aws parameters on  per-file basis */
-    if((hdf5_ifo->aws = calloc(1,sizeof(NCawsprofile))) == NULL)
+    if((hdf5_ifo->aws = calloc(1,sizeof(NCawsconfig))) == NULL)
         BAIL(NC_ENOMEM);
     NC_awsnczfile(hdf5_info->aws,hdf5_info->uri);
 #endif    

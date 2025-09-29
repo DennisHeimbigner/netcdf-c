@@ -180,11 +180,11 @@ NC_authsetup(NCauth** authp, NCURI* uri)
     }
 
     /* Get the Default profile */
-    if((ret=NC_gets3profile("no",&ap))) goto done;
+    if((ret=NC_profiles_lookup("no",&ap))) goto done;
     if(ap == NULL)
-        if((ret=NC_gets3profile("default",&ap))) goto done;
+        if((ret=NC_profiles_lookup("default",&ap))) goto done;
     if(ap != NULL)
-        auth->s3profile = strdup(ap->name);
+        auth->s3profile = strdup(ap->profilename);
     else
         auth->s3profile = NULL;
 

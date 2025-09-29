@@ -71,7 +71,7 @@ typedef struct NC_HDF5_FILE_INFO {
 #endif
    struct NCauth* auth;
 #ifdef NETCDF_ENABLE_S3
-   struct NCawsprofile* aws; /* S3 AWS values */
+   struct NCawsconfig* aws; /* S3 AWS values */
 #endif
 } NC_HDF5_FILE_INFO_T;
 

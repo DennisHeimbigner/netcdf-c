@@ -66,7 +66,7 @@ main(int argc, char** argv)
         const char *argvalue = strtok(NULL,"=");
         const char* value = NULL;
 
-        NC_s3profilelookup(activeprofile,argkey,&value);
+        NC_profiles_findpair(activeprofile,argkey,&value);
         fprintf(stderr, "%s\t%s -> %s\n",value?"":"*** FAIL:", argv[i],value?value:"NOT DEFINED!");
         if ( value == NULL 
             || (argvalue != NULL 

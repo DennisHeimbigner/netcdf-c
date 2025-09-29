@@ -112,7 +112,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     NCURI* url = NULL;
     char* prefix = NULL;
     char* truekey = NULL;
-    NCawsprofile* aws = (NCawsprofile*)parameters;
+    NCawsconfig* aws = (NCawsconfig*)parameters;
 	
     NC_UNUSED(flags);
 
@@ -304,7 +304,7 @@ zs3create(const char *path, int mode, size64_t flags, void* parameters, NCZMAP**
     NCURI* url = NULL;
     char* prefix = NULL;
     char* truekey = NULL;
-    NCawsprofile* aws = (NCawsprofile*)parameters;
+    NCawsconfig* aws = (NCawsconfig*)parameters;
 
     NC_UNUSED(flags);
 

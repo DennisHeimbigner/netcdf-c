@@ -166,7 +166,7 @@ ncz_open_dataset(NC_FILE_INFO_T* file, NClist* controls)
 
 #if defined(NETCDF_ENABLE_S3) || defined(NETCDF_ENABLE_HDF5_ROS3)
     /* Load the aws parameters on  per-file basis */
-    if((zinfo->aws = calloc(1,sizeof(NCawsprofile))) == NULL) {stat = NC_ENOMEM; goto done;}
+    if((zinfo->aws = calloc(1,sizeof(NCawsconfig))) == NULL) {stat = NC_ENOMEM; goto done;}
     NC_awsnczfile(zinfo->aws,uri);
 #endif    
 

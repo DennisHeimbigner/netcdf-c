@@ -1056,7 +1056,7 @@ done:
  */
 
 s3r_t *
-NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCawsprofile* aws)
+NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCawsconfig* aws)
 
 {
     int ret_value = SUCCEED;

@@ -170,7 +170,6 @@ NC_rcclear(NCRCinfo* info)
     nullfree(info->rcfile);
     nullfree(info->rchome);
     rcfreeentries(info->entries);
-    NC_s3freeprofilelist(info->s3profiles);
 }
 
 static void
@@ -427,9 +426,9 @@ rccompile(const char* filepath)
     NCURI* uri = NULL;
     char* nextline = NULL;
     NCglobalstate* globalstate = NC_getglobalstate();
-    NCS3INFO s3;
+    NCS3NOTES s3;
 
-    memset(&s3,0,sizeof(s3));
+    s3 = NC_s3notes_empty();
 
     if((ret=NC_readfile(filepath,tmp))) {
         nclog(NCLOGWARN, "Could not open configuration file: %s",filepath);
@@ -476,7 +475,7 @@ rccompile(const char* filepath)
 	    if(NC_iss3(uri,NULL)) {
 	         NCURI* newuri = NULL;
 	        /* Rebuild the url to S3 "path" format */
-		NC_s3clear(&s3);
+		NC_s3notesclear(&s3);
 	        if((ret = NC_s3urlrebuild(uri,&s3,&newuri))) goto done;
 		ncurifree(uri);
 		uri = newuri;
@@ -537,7 +536,7 @@ rccompile(const char* filepath)
     rcorder(rc);
 
 done:
-    NC_s3clear(&s3);
+    NC_s3notesclear(&s3);
     if(contents) free(contents);
     ncurifree(uri);
     ncbytesfree(tmp);

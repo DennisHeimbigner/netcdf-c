@@ -7,7 +7,8 @@
 #define NCS3SDK_H 1
 
 /* Track the server type, if known */
-typedef enum NCS3SVC {NCS3UNK=0, /* unknown */
+typedef enum NCS3SVC {
+	NCS3UNK=0, /* unknown */
 	NCS3=1,     /* s3.amazon.aws */
 	NCS3GS=2,   /* storage.googleapis.com */
 	NCS3APP=3,   /* Arbitrary appliance url*/
@@ -15,21 +16,24 @@ typedef enum NCS3SVC {NCS3UNK=0, /* unknown */
 
 /* Opaque Handles */
 struct NClist;
-struct NCawsprofile;
+struct NCawsconfig;
 struct AWSprofile;
 struct NCglobalstate;
 
 /**
-Collected extra S3 information.
+Collected extra S3 information inferred/extracted from a URI.
 */
 typedef struct NCS3NOTES {
-//    char* host; /* non-null if other*/
+    NCS3SVC svc;  /* Kind of URI */
     char* region; /* inferred from URI */
     char* bucket; /* inferred from URI */
-    char* rootkey;
+    struct NCawsconfig* aws; /* current file aggregate profile */
+//    char* host; /* non-null if other*/
+//    char* rootkey;
 //    char* profile;
-    NCS3SVC svc;
 } NCS3NOTES;
+
+extern NCS3NOTES NC_s3notes_empty(void); 
 
 #ifndef DECLSPEC
 #ifdef DLL_NETCDF
@@ -66,22 +70,19 @@ DECLSPEC int NC_s3sdkdeletekey(void* client0, const char* bucket, const char* pa
 /* From ds3util.c */
 DECLSPEC void NC_s3sdkenvironment(void);
 
-DECLSPEC int NC_aws_load_profiles(struct NCglobalstate* gstate);
-DECLSPEC void NC_s3freeprofilelist(struct NClist* profiles);
-DECLSPEC int NC_gets3profile(const char* profile, struct AWSprofile** profilep);
+DECLSPEC int NC_s3buildnotes(NCURI* url, struct NCawsconfig* aws, NCURI** newurlp, struct NCS3NOTES** noteps);
+DECLSPEC int NC_s3notesclear(struct NCS3NOTES* s3);
+DECLSPEC int NC_s3notesclone(struct NCS3NOTES* s3, struct NCS3NOTES** news3p);
+DECLSPEC const char* NC_s3dumpnotes(struct NCS3NOTES* notes);
 
-DECLSPEC int NC_s3urlprocess(NCawsprofile* aws, NCS3NOTES* s3url);
-DECLSPEC int NC_s3clear(NCS3NOTES* s3);
-DECLSPEC int NC_s3clone(NCS3NOTES* s3, NCS3NOTES** news3p);
-DECLSPEC const char* NC_s3dumps3info(NCS3NOTES* info);
+DECLSPEC int NC_s3urlrebuild(NCURI* uri, struct NCS3NOTES* notes, NCURI** newurlp);
 
-DECLSPEC int NC_getdefaults3region(NCS3NOTES* s3uri, char* const * regionp);
-DECLSPEC int NC_getactives3profile(NCS3NOTES* s3 uri, char* const * profilep);
+DECLSPEC int NC_getdefaults3region(struct NCS3NOTES* s3uri, char** regionp);
+DECLSPEC int NC_getactives3profile(struct NCS3NOTES* s3, const char** profilep);
 
 DECLSPEC int NC_s3profilelookup(const char* profile, const char* key, const char** valuep);
-DECLSPEC void NC_s3getcredentials(NCS3NOTES*, char** const region, char** const accessid, char** const accesskey);
+DECLSPEC void NC_s3getcredentials(NCS3NOTES*, const char** region, const char** accessid, const char** accesskey);
 DECLSPEC int NC_iss3(NCURI* uri, enum NCS3SVC*);
-DECLSPEC int NC_s3urlrebuild(NCS3NOTES* s3);
 
 #ifdef __cplusplus
 }

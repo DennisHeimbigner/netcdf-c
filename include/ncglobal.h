@@ -24,7 +24,7 @@ typedef struct NCglobalstate {
     char* tempdir; /* track a usable temp dir */
     char* home; /* track $HOME */
     char* cwd; /* track getcwd */
-    struct NCRCinfo* rcinfo; /* Currently only one rc file per session */
+    struct NCRCinfo* rcinfo; /* Currently .rc file values are global (as opposed to per-file) */
     struct NClist* pluginpaths; /* Global Plugin State */
     struct GlobalZarr { /* Zarr specific parameters */
 	char dimension_separator;
@@ -38,8 +38,8 @@ typedef struct NCglobalstate {
 	struct NCZ_Plugin** loaded_plugins; /*[H5Z_FILTER_MAX+1]*/
 	size_t loaded_plugins_max; /* plugin filter id index. 0<loaded_plugins_max<=H5Z_FILTER_MAX */
     } zarr;
-    struct NCawsprofile* aws;
-    NClist* s3profiles; /* NClist<struct AWSprofile*> */
+    struct NCawsconfig* aws;
+    struct NClist* awsprofiles; /* NClist<struct AWSprofile*>; union of parsed profile files */
     struct Alignment { /* H5Pset_alignment parameters */
         int defined; /* 1 => threshold and alignment explicitly set */
 	int threshold;

@@ -56,11 +56,11 @@ NC_createglobalstate(void)
 	    {stat = NC_ENOMEM; goto done;}
 	if((nc_globalstate->rcinfo->entries = nclistnew())==NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	if((nc_globalstate->rcinfo->s3profiles = nclistnew())==NULL)
+	if((nc_globalstate->awsprofiles = nclistnew())==NULL)
 	    {stat = NC_ENOMEM; goto done;}
 	if((nc_globalstate->chunkcache = calloc(1,sizeof(struct ChunkCache)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	if((nc_globalstate->aws = calloc(1,sizeof(struct NCawsprofile)))==NULL)
+	if((nc_globalstate->aws = calloc(1,sizeof(struct NCawsconfig)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
     }
 
@@ -78,9 +78,10 @@ NC_createglobalstate(void)
         nc_globalstate->rcinfo->rcfile = strdup(tmp);
     ncrc_initialize();
 
-    /* load AWS Profiles: .aws/config &/ credentials */
-    if(NC_aws_load_credentials(nc_globalstate)) {
-        nclog(NCLOGWARN,"AWS config file not loaded");
+    /* load AWS Profiles: .aws/config & .aws/credentials */
+
+    if(NC_profiles_load(nc_globalstate)) {
+        nclog(NCLOGWARN,"AWS profiles not loaded");
     }
 
     /* Initialize aws defaults from .rc, env vars, aws profiles */
@@ -165,7 +166,7 @@ NC_freeglobalstate(void)
 {
     NCglobalstate* gs = nc_globalstate;
     if(gs != NULL) {
-	NC_clearawsparams(gs->aws);
+	NC_clearawsconfig(gs->aws);
 	NC_rcclear(gs->rcinfo);
         nullfree(gs->tempdir);
         nullfree(gs->home);

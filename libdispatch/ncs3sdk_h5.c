@@ -175,7 +175,7 @@ dumps3client(void* s3client0, const char* tag)
 /**************************************************/
 
 void*
-NC_s3sdkcreateclient(NCS3INFO* info, NCawsprofile* aws)
+NC_s3sdkcreateclient(NCS3INFO* info, NCawsconfig* aws)
 {
     int stat = NC_NOERR;
     const char* accessid = NULL;

@@ -761,7 +761,7 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
 
 #if defined(NETCDF_ENABLE_S3) || defined(NETCDF_ENABLE_HDF5_ROS3)
     /* Load the aws parameters on  per-file basis */
-    if((h5->aws = calloc(1,sizeof(NCawsprofile))) == NULL)
+    if((h5->aws = calloc(1,sizeof(NCawsconfig))) == NULL)
         BAIL(NC_ENOMEM);
     NC_awsnczfile(h5->aws,h5->uri);
 #endif    
@@ -906,10 +906,9 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
 	    fa.secret_key[0] = '\0';
 
 	    if(iss3) {
-	        NCS3INFO s3;
+	        NCS3NOTES s3 = NC_s3notes_empty();
 		NCURI* newuri = NULL;
 	        /* Rebuild the URL */
-	        memset(&s3,0,sizeof(s3));
 		if((retval = NC_s3urlrebuild(h5->uri,&s3,&newuri))) goto exit;
 		if((newpath = ncuribuild(newuri,NULL,NULL,NCURISVC))==NULL)
 		    {retval = NC_EURL; goto exit;}
