@@ -425,10 +425,8 @@ rccompile(const char* filepath)
     NCbytes* tmp = ncbytesnew();
     NCURI* uri = NULL;
     char* nextline = NULL;
-    NCglobalstate* globalstate = NC_getglobalstate();
-    NCS3NOTES s3;
+    NCglobalstate* gs = NC_getglobalstate();
 
-    s3 = NC_s3notes_empty();
 
     if((ret=NC_readfile(filepath,tmp))) {
         nclog(NCLOGWARN, "Could not open configuration file: %s",filepath);
@@ -437,10 +435,10 @@ rccompile(const char* filepath)
     contents = ncbytesextract(tmp);
     if(contents == NULL) contents = strdup("");
     /* Either reuse or create new  */
-    rc = globalstate->rcinfo->entries;
+    rc = gs->rcinfo->entries;
     if(rc == NULL) {
         rc = nclistnew();
-        globalstate->rcinfo->entries = rc;
+        gs->rcinfo->entries = rc;
     }
     nextline = contents;
     for(;;) {
@@ -472,11 +470,9 @@ rccompile(const char* filepath)
                 nclog(NCLOGERR, "Malformed [url] in %s entry: %s",filepath,line);
 		continue;
             }
-	    if(NC_iss3(uri,NULL)) {
-	         NCURI* newuri = NULL;
-	        /* Rebuild the url to S3 "path" format */
-		NC_s3notesclear(&s3);
-	        if((ret = NC_s3urlrebuild(uri,&s3,&newuri))) goto done;
+	    if(NC_iss3(uri)) {
+	        NCURI* newuri = NULL;
+	        if((ret = NC_s3urlrebuild(uri,gs->aws,&newuri))) goto done;
 		ncurifree(uri);
 		uri = newuri;
 		newuri = NULL;
@@ -536,7 +532,6 @@ rccompile(const char* filepath)
     rcorder(rc);
 
 done:
-    NC_s3notesclear(&s3);
     if(contents) free(contents);
     ncurifree(uri);
     ncbytesfree(tmp);
@@ -586,8 +581,8 @@ static int
 rclocatepos(const char* key, const char* hostport, const char* urlpath)
 {
     size_t i;
-    NCglobalstate* globalstate = NC_getglobalstate();
-    struct NCRCinfo* info = globalstate->rcinfo;
+    NCglobalstate* gs = NC_getglobalstate();
+    struct NCRCinfo* info = gs->rcinfo;
     NCRCentry* entry = NULL;
     NCRCentry candidate;
     NClist* rc = info->entries;
@@ -614,10 +609,10 @@ static struct NCRCentry*
 rclocate(const char* key, const char* hostport, const char* urlpath)
 {
     int pos;
-    NCglobalstate* globalstate = NC_getglobalstate();
-    struct NCRCinfo* info = globalstate->rcinfo;
+    NCglobalstate* gs = NC_getglobalstate();
+    struct NCRCinfo* info = gs->rcinfo;
 
-    if(globalstate->rcinfo->ignore) return NULL;
+    if(gs->rcinfo->ignore) return NULL;
     if(key == NULL || info == NULL) return NULL;
     pos = rclocatepos(key,hostport,urlpath);
     if(pos < 0) return NULL;
@@ -668,7 +663,7 @@ NC_rcfile_insert(const char* key, const char* hostport, const char* urlpath, con
     int ret = NC_NOERR;
     /* See if this key already defined */
     struct NCRCentry* entry = NULL;
-    NCglobalstate* globalstate = NULL;
+    NCglobalstate* gs = NULL;
     NClist* rc = NULL;
 
     if(!NCRCinitialized) ncrc_initialize();
@@ -676,12 +671,12 @@ NC_rcfile_insert(const char* key, const char* hostport, const char* urlpath, con
     if(key == NULL || value == NULL)
         {ret = NC_EINVAL; goto done;}
 
-    globalstate = NC_getglobalstate();
-    rc = globalstate->rcinfo->entries;
+    gs = NC_getglobalstate();
+    rc = gs->rcinfo->entries;
 
     if(rc == NULL) {
 	rc = nclistnew();
-        globalstate->rcinfo->entries = rc;
+        gs->rcinfo->entries = rc;
 	if(rc == NULL) {ret = NC_ENOMEM; goto done;}
     }
     entry = rclocate(key,hostport,urlpath);

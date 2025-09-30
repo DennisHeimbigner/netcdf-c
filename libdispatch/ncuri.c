@@ -471,6 +471,7 @@ ncurifree(NCURI* duri)
     nullfree(duri->fragment);
     nclistfreeall(duri->querylist);
     nclistfreeall(duri->fraglist);
+    nclistfreeall(duri->notes);
     free(duri);
 }
 
@@ -1331,5 +1332,54 @@ ncurifragmentparams(NCURI* uri)
 {
     ensurefraglist(uri);
     return uri->fraglist;
+}
+
+/* Annotation support */
+
+/* Replace/add a specific &key=...& in uri notes */
+int
+ncurinotesinsert(NCURI* uri,const char* key, const char* value)
+{
+    int ret = NC_NOERR;
+    int pos = -1;
+
+    if(uri->notes == NULL) uri->notes = nclistnew();
+
+    pos = ncfind(uri->notes, key);
+    if(pos < 0) { /* does not exist */
+	nclistpush(uri->notes,strdup(key));
+	nclistpush(uri->notes,strdup(value));
+    } else {
+        nullfree(nclistget(uri->notes,(size_t)pos+1)); /* value is next element after key */
+        nclistset(uri->notes,(size_t)pos+1,strdup(value));
+    }
+done:
+    return ret;
+}
+
+/*! Search the notes for a given key
+    Null result => entry not found; !NULL=>found, return the value.
+    In any case, the result is imutable and should not be free'd.
+*/
+const char*
+ncurinoteslookup(NCURI* uri, const char* key)
+{
+    int i;
+    char* value = NULL;
+
+    if(uri->notes == NULL) uri->notes = nclistnew();
+    if(uri == NULL || key == NULL) return NULL;
+    i = ncfind(uri->notes,key);
+    if(i < 0) return NULL;
+    value = nclistget(uri->notes,(size_t)i+1);
+    return value;
+}
+
+/* Get the actual list of frags */
+void*
+ncurinotes(NCURI* uri)
+{
+    if(uri->notes == NULL) uri->notes = nclistnew();
+    return uri->notes;
 }
 

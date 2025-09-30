@@ -102,7 +102,7 @@ nc_http_open_verbose(const char* path, int verbose, NC_HTTP_STATE** statep)
     state->path = strdup(path);
     state->uri = uri; uri = NULL;
 #ifdef NETCDF_ENABLE_S3
-    state->format = (NC_iss3(state->url,NULL)?HTTPS3:HTTPCURL);
+    state->format = (NC_iss3(state->url)?HTTPS3:HTTPCURL);
 #else
     state->format = HTTPCURL;
 #endif

@@ -133,10 +133,7 @@ NC_awsconfig_empty(void)
 /* Capture environmental Info */
 
 /*
-When loading the globalstate AWS key values, load in the following order:
-1. .rc file without URI patterns.
-2. environment variables
-Note: precedence order: 2 over 1.
+See the comment in ncaws.h describing the loading of AWS values. 
 */
 
 /* Load the globalstate.aws fields */
@@ -160,23 +157,19 @@ NC_awsglobal(void)
     NC_awsconfigmerge(gs->aws,&aws);
     NC_clearawsconfig(&aws);   
 
+    /* Load the profiles */
+    if(aws->config_dir
+	
+    }
+
     /* Load from specified profile, if defined */
     if(gs->aws->profile != NULL)
 	NC_awsprofilemerge(gs->aws,gs->aws->profile);
 
-    /* Do some defaulting */
+    /* Do defaulting  */
     if(gs->aws->default_region == NULL) gs->aws->default_region = nulldup(AWS_GLOBAL_DEFAULT_REGION);
     if(gs->aws->region == NULL) gs->aws->region = nulldup(gs->aws->default_region);
 }
-
-/*
-When loading the NC_FILE_INFO_T AWS key values, load in the following order:
-1. existing globalstate values
-2. .rc file with URI patterns.
-3. environment variables 
-4. URI fragment keys (only if path is URI).
-Note: precedence order: 4 over 3 over 2 over 1.
-*/
 
 /*
 Load the NC_FILE_INFO_T->format_file_info aws fields.
@@ -284,9 +277,7 @@ NC_awsfrag(NCawsconfig* aws, NCURI* uri)
 {
     NC_clearawsconfig(aws);
     aws->profile = nulldup(ncurifragmentlookup(uri,AWS_FRAG_PROFILE));
-    aws->config_file = nulldup(ncurifragmentlookup(uri,AWS_FRAG_CONFIG_FILE));
     aws->region = nulldup(ncurifragmentlookup(uri,AWS_FRAG_REGION));
-    aws->default_region = nulldup(ncurifragmentlookup(uri,AWS_FRAG_DEFAULT_REGION));
     aws->access_key_id = nulldup(ncurifragmentlookup(uri,AWS_FRAG_ACCESS_KEY_ID));
     aws->secret_access_key = nulldup(ncurifragmentlookup(uri,AWS_FRAG_SECRET_ACCESS_KEY));
 }

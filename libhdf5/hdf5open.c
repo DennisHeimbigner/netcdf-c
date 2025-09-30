@@ -897,7 +897,7 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
 	    const char* awsaccessid0 = NULL;
 	    const char* awssecretkey0 = NULL;
 	    const char* profile0 = NULL;
-	    int iss3 = NC_iss3(h5->uri,NULL);
+	    int iss3 = NC_iss3(h5->uri);
 	    
             fa.version = H5FD_CURR_ROS3_FAPL_T_VERSION;
 	    fa.authenticate = (hbool_t)0;

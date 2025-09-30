@@ -37,6 +37,8 @@ typedef struct NCURI {
     char* fragment;   /*!< fragment */
     void* fraglist;   /* some representation of the decomposed fragment string */
     void* querylist;   /* some representation of the decomposed query string */
+    /* Annotation support */
+    void* notes;
 } NCURI;
 
 #if 0
@@ -94,9 +96,9 @@ EXTERNL int ncuriappendquerykey(NCURI* duri,const char* key, const char* value);
 
 /* Get the actual list of queryies */
 EXTERNL void* ncuriqueryparams(NCURI* uri);
+
 /* Get the actual list of frags */
 EXTERNL void* ncurifragmentparams(NCURI* uri);
-
 
 /* Construct a complete NC URI; caller frees returned string */
 EXTERNL char* ncuribuild(NCURI*,const char* prefix, const char* suffix, int flags);
@@ -124,6 +126,20 @@ EXTERNL char* ncuriencodeuserpwd(const char* s);
 
 /* Deep clone a uri */
 EXTERNL NCURI* ncuriclone(NCURI*);
+
+/* Annotation support */
+
+/* Replace/add a specific &key=...& in uri notes */
+EXTERNL int ncurinotesinsert(NCURI* duri,const char* key, const char* value);
+
+/*! Search the notes for a given key
+    Null result => entry not found; !NULL=>found, return the value.
+    In any case, the result is imutable and should not be free'd.
+*/
+EXTERNL const char* ncurinoteslookup(NCURI*, const char* key);
+
+/* Get the actual list of frags */
+EXTERNL void* ncurinotes(NCURI* uri);
 
 #if defined(_CPLUSPLUS_) || defined(__CPLUSPLUS__) || defined(__CPLUSPLUS)
 }

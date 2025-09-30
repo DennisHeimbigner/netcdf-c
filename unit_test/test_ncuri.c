@@ -133,7 +133,7 @@ main(int argc, char** argv)
 			fprintf(stderr,"Parse fail: %s\n",test->url);
 			failcount++;
 		} else {
-			int iss3 = NC_iss3(uri,NULL);
+			int iss3 = NC_iss3(uri);
 			if(iss3 != 0){
 				NCURI * newuri = NULL;
 				if(NC_s3urlrebuild(uri,NULL,&newuri)){
