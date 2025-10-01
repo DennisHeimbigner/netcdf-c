@@ -58,7 +58,6 @@ extern "C" {
 
 extern int NC_authsetup(NCauth**, NCURI*);
 extern void NC_authfree(NCauth*);
-extern char* NC_combinehostport(NCURI*);
 extern int NC_parsecredentials(const char* userpwd, char** userp, char** pwdp);
 
 extern int NC_authgets3creds(NCauth* auth, const char* profile, const char** accessidp, const char** secretkeyp);

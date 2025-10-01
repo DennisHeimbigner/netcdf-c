@@ -47,45 +47,39 @@ NC_createglobalstate(void)
 {
     int stat = NC_NOERR;
     const char* tmp = NULL;
+    NCglobalstate* gs = nc_globalstate; /* allow shorter name */
     
-    if(nc_globalstate == NULL) {
-        nc_globalstate = calloc(1,sizeof(NCglobalstate));
-	if(nc_globalstate == NULL) {stat = NC_ENOMEM; goto done;}
+    if(gs == NULL) {
+        gs = calloc(1,sizeof(NCglobalstate));
+	if(gs == NULL) {stat = NC_ENOMEM; goto done;}
 	/* Initialize struct pointers */
-	if((nc_globalstate->rcinfo = calloc(1,sizeof(struct NCRCinfo)))==NULL)
+	if((gs->rcinfo = calloc(1,sizeof(struct NCRCinfo)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	if((nc_globalstate->rcinfo->entries = nclistnew())==NULL)
+	if((gs->rcinfo->entries = nclistnew())==NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	if((nc_globalstate->awsprofiles = nclistnew())==NULL)
+	if((gs->chunkcache = calloc(1,sizeof(struct ChunkCache)))==NULL)
 	    {stat = NC_ENOMEM; goto done;}
-	if((nc_globalstate->chunkcache = calloc(1,sizeof(struct ChunkCache)))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	if((nc_globalstate->aws = calloc(1,sizeof(struct NCawsconfig)))==NULL)
+	if((gs->profiles = nclistnew())==NULL)
 	    {stat = NC_ENOMEM; goto done;}
     }
 
     /* Initialize chunk cache defaults */
-    gs_chunkcache_init(nc_globalstate);
+    gs_chunkcache_init(gs);
     
     /* Initialize various paths */
-    gs_paths_init(nc_globalstate);
+    gs_paths_init(gs);
     
     /* Get .rc state */
     if(getenv(NCRCENVIGNORE) != NULL)
-        nc_globalstate->rcinfo->ignore = 1;
+        gs->rcinfo->ignore = 1;
     tmp = getenv(NCRCENVRC);
     if(tmp != NULL && strlen(tmp) > 0)
-        nc_globalstate->rcinfo->rcfile = strdup(tmp);
-    ncrc_initialize();
+        gs->rcinfo->rcfile = strdup(tmp);
+    ncrc_initialize(); /* load and parse the .ncrc file */
 
-    /* load AWS Profiles: .aws/config & .aws/credentials */
-
-    if(NC_profiles_load(nc_globalstate)) {
+    if(NC_profiles_load()) {
         nclog(NCLOGWARN,"AWS profiles not loaded");
     }
-
-    /* Initialize aws defaults from .rc, env vars, aws profiles */
-    NC_awsglobal();
 
 done:
     return stat;
@@ -166,15 +160,14 @@ NC_freeglobalstate(void)
 {
     NCglobalstate* gs = nc_globalstate;
     if(gs != NULL) {
-	NC_clearawsconfig(gs->aws);
 	NC_rcclear(gs->rcinfo);
         nullfree(gs->tempdir);
         nullfree(gs->home);
         nullfree(gs->cwd);
 	nullfree(gs->chunkcache);
-	nullfree(gs->aws);
 	nullfree(gs->rcinfo);
 	nclistfree(gs->pluginpaths);
+	NC_profiles_free(gs->profiles);
 	free(gs);
 	nc_globalstate = NULL;
     }

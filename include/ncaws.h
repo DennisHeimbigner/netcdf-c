@@ -14,23 +14,49 @@
 /* Define the "global" default region to be used if no other region is specified */
 #define AWS_GLOBAL_DEFAULT_REGION "us-east-1"
 
+#define AWS_DEFAULT_CONFIG_FILE ".aws/config"
+#define AWS_DEFAULT_CREDS_FILE ".aws/credential"
+
+
 /* Provide macros for the keys for the possible sources of
-   AWS values: getenv(), .aws profiles, .ncrc keys, and URL fragment keys
+   AWS values: environment variables, .aws profiles, .ncrc keys, URL fragment keys, and URL notes
 */
 
-AWS_SHARED_CREDENTIALS_FILE
-AWS_CONFIG_FILE
+/* Use this enum when searching generically (as argument to NC_aws_lookup) */
+typedef enum AWS_KEYSORT {
+AWS_SORT_UNKNOWN=0,
+AWS_SORT_CONFIG_FILE=1,
+AWS_SORT_CREDS_FILE=2,
+AWS_SORT_PROFILE=3,
+AWS_SORT_BUCKET=4,
+AWS_SORT_DEFAULT_REGION=5,
+AWS_SORT_REGION=6,
+AWS_SORT_ACCESS_KEY_ID=7,
+AWS_SORT_SECRET_ACCESS_KEY=8,
+} AWS_KEYSORT;
 
-/* AWS getenv() keys */
-#define AWS_ENV_CONFIG_DIR "AWS_CONFIG_DIR"
-#define AWS_ENV_PROFILE "AWS_PROFILE"
-#define AWS_ENV_DEFAULT_REGION "AWS_DEFAULT_REGION"
-#define AWS_ENV_REGION "AWS_REGION"
-#define AWS_ENV_ACCESS_KEY_ID "AWS_ACCESS_KEY_ID"
-#define AWS_ENV_SECRET_ACCESS_KEY "AWS_SECRET_ACCESS_KEY"
+/* Generic names */
+#define AWS_CONFIG_FILE "AWS_CONFIG_FILE"
+#define AWS_CREDS_FILE "AWS_SHARED_CREDENTIALS_FILE"
+#define AWS_PROFILE "AWS_PROFILE"
+#define AWS_BUCKET "AWS_BUCKET"
+#define AWS_DEFAULT_REGION "AWS_DEFAULT_REGION"
+#define AWS_REGION "AWS_REGION"
+#define AWS_ACCESS_KEY_ID "AWS_ACCESS_KEY_ID"
+#define AWS_SECRET_ACCESS_KEY "AWS_SECRET_ACCESS_KEY"
+
+/* AWS environment variable */
+#define AWS_ENV_CONFIG_FILE AWS_CONFIG_FILE
+#define AWS_ENV_CREDS_FILE AWS_SHARED_CREDENTIALS_FILE
+#define AWS_ENV_PROFILE AWS_PROFILE
+#define AWS_ENV_DEFAULT_REGION AWS_DEFAULT_REGION
+#define AWS_ENV_REGION AWS_REGION
+#define AWS_ENV_ACCESS_KEY_ID AWS_ACCESS_KEY_ID
+#define AWS_ENV_SECRET_ACCESS_KEY AWS_SECRET_ACCESS_KEY
 
 /* AWS .rc keys */
-#define AWS_RC_CONFIG_DIR "AWS.CONFIG_DIR"
+#define AWS_RC_CONFIG_FILE "AWS.CONFIG_FILE"
+#define AWS_RC_CREDS_FILE "AWS.CREDENTIALS_FILE"
 #define AWS_RC_PROFILE "AWS.PROFILE"
 #define AWS_RC_DEFAULT_REGION "AWS.DEFAULT_REGION"
 #define AWS_RC_REGION "AWS.REGION"
@@ -51,6 +77,7 @@ AWS_CONFIG_FILE
 /* AWS URI notes keys */
 #define AWS_NOTES_TYPE "aws.uri_type" /* Notes only: Track the kind of URI after rebuild (see AWSURI below) */
 #define AWS_NOTES_BUCKET "aws.bucket" /* Notes only: Track the inferred bucket */
+#define AWS_NOTES_REGION "aws.region" /* Notes only: Track the inferred region */
 
 /* Track the URI type, if known */
 /* Note cannot use enum because C standard does not allow forward declarations of enums. */ 
@@ -67,65 +94,29 @@ struct NClist;
 struct NCglobalstate;
 
 /**
-NCawsconfig is a unified profile object containing an extended set of
-all the relevant AWS profile information.
-There are two "instances" of this profile object.
-1. NCglobalstate holds the values defined globally and independent of any file.
-2. NC_FILE_INFO_T.format_file_info contains a per-file profile set of values.
+The process of looking-up an AWS parameter is unfortunately complex
+(see [AWS API Document](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)).
 
-Each profile is constructed as the union of values from various
-sources.  The sources are loaded in a specific order with later loads
-over-writing earlier loads.
+For now, the lookup process is implemented procedurally.  The primary lookup
+function is ````NC_aws_lookup(enum AWS_KEY_SORT key, NCURI* uri)````, where uri may be NULL.
+Internally it uses a number of other functions to do lookups of .ncrc (key,value) pairs,
+environment variables, and profile pairs.
 
-When loading NCglobalstate, load -- in order -- from these sources:
-1. .rc file entries that have no associated URI.
-2. environment variables
-3, profile, if defined.
+The search algorithm looks for keys in the following sources.
+The value associated with the first occurrence of a key is the one returned.
 
-When loading NC_FILE_INFO_T, load -- in order -- from these sources:
-1.  NCglobalstate values (see above)
-2. .rc file with URI patterns matching the file path for NC_FILE_INfO_T
-3. URI notes keys (if path is URI) inferred from URI
-4. URI fragment keys (if path is URI).
-5. profile, if defined
+The search order is basically as follows (no. 1 is highest precedence).
+1. URI notes pairs (if path is URI).
+2. URI fragment pairs (if path is URI).
+3. environment variables
+4. active profile fields
+5. .rc file
 
-If the default_region is undefined, then attempt to define it using (in order):
-1, the global default region -- us-east-1.
+Profiles are loaded and parsed from the following files, in order:
+1. config_file -- defaults to ~/.aws/config
+2. creds_file  -- defaults to ~/.aws/credentials
 
-If the region is undefined, then attempt to define it using (in order):
-1. default_region
-
-If the profile is undefined, then try the following alternatives are used (in order):
-1. "default" profile, if defined
-2. "no" profile as last resort.
-
-Note that profiles are loaded from a directory specified as follows.
-1. If config_dir is defined, then use that absolute path.
-2. If config_dir is undefined then set it to $HOME/.aws
-
-In either case, parse and load the following files:
-1.<config_dir>/config
-2.<config_dir>/credentials.
-
-The set of values loaded from the above sources
-include the following:
-1. config_dir -- used to find profiles
-2. profile -- the currently active profile
-3. default_region -- in case no region is defined
-
-typedef struct NCawsconfig {
-    char* config_dir;
-    char* profile;
-    char* default_region;
-    char* region;
-    char* access_key_id;
-    char* secret_access_key; 
-} NCawsconfig;;
-
-struct AWSentry {
-    char* key;
-    char* value;
-};
+*/
 
 struct AWSprofile {
     char* profilename;
@@ -136,6 +127,10 @@ struct AWSprofile {
 extern "C" {
 #endif
 
+/* Lookup procedure for finding aws (key,value) pairs. */
+DECLSPEC const char* NC_aws_lookup(AWS_KEYSORT, struct NCURI* uri);
+
+#if 0
 /* Extract AWS values from various sources */
 DECLSPEC void NC_awsglobal(void);
 DECLSPEC void NC_awsnczfile(NCawsconfig* fileaws, struct NCURI* uri);
@@ -143,16 +138,18 @@ DECLSPEC void NC_awsenvironment(struct NCawsconfig* aws);
 DECLSPEC void NC_awsrc(struct NCawsconfig* aws, struct NCURI* uri);
 DECLSPEC void NC_awsfrag(struct NCawsconfig* aws, struct NCURI* uri);
 DECLSPEC void NC_awsprofile(const char* profile, struct NCawsconfig* aws);
-
-DECLSPEC void NC_clearawsconfig(struct NCawsconfig* aws);
-DECLSPEC NCawsconfig NC_awsprofile_empty(void);
+#endif
 
 /* Parse and load profile */
-DECLSPEC int NC_profiles_load(struct NCglobalstate* gstate);
-DECLSPEC void NC_profiles_free(struct NClist* config);
+DECLSPEC int NC_profiles_load(void);  /* Use NCglobalstate to get the config_dir and the creds_dir */
+DECLSPEC void NC_profiles_free(struct NClist*); /* Free profiles in NCglobalstate */
 DECLSPEC int NC_profiles_lookup(const char* profile, struct AWSprofile** profilep);
-DECLSPEC void NC_profiles_insert(struct AWSprofile* profile);
+DECLSPEC void NC_profiles_insert(struct AWSprofile* profile); /* Overwrite existing occurrence */
 DECLSPEC int NC_profiles_findpair(const char* profile, const char* key, const char** valuep);
+DECLSPEC struct AWSprofile NC_profiles_empty(void); /* To initialize a profile object */
+
+/* Compute current active profile */
+DECLSPEC int NC_getactiveawsprofile(struct NCURI*, const char**);
 
 #ifdef __cplusplus
 }

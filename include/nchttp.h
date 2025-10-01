@@ -29,7 +29,9 @@ typedef struct NC_HTTP_STATE {
 #ifdef NETCDF_ENABLE_S3
     struct NC_HTTP_S3 {
         void* s3client;
-	NCS3URI* s3uri;
+#if 0
+	NCURI* s3uri;
+#endif
     } s3;
 #endif
     struct NC_HTTP_CURL {

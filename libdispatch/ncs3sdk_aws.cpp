@@ -116,6 +116,7 @@ static int makes3key(const char* pathkey, const char** keyp);
 static int makes3keydir(const char* prefix, char** prefixdirp);
 static int mergekeysets(KeySet* keys1, KeySet* keys2, KeySet* merge);
     
+#if 0
 const char*
 NCS3_dumps3info(NCS3INFO* info)
 {
@@ -128,6 +129,7 @@ NCS3_dumps3info(NCS3INFO* info)
 		(info->profile?info->profile:"null"));
     return text;
 }
+#endif
 
 /*EXTERNL*/ int
 NC_s3sdkinitialize(void)
@@ -181,23 +183,24 @@ makeerrmsg(const Aws::Client::AWSError<Aws::S3::S3Errors> err, const char* key="
 
 
 static Aws::Client::ClientConfiguration
-s3sdkcreateconfig(NCS3INFO* info)
+s3sdkcreateconfig(NCURI* uri)
 {
-    NCTRACE(11,"info=%s", dumps3info(info));
+    NCTRACE(11,NULL);
 
     Aws::Client::ClientConfiguration config;
 
-    if(info->profile)
-        config.profileName = info->profile;
+    if((config.profileName = NC_aws_lookup(AWS_SORT_PROFILE,uri))==NULL) {goto done;}
     config.scheme = Aws::Http::Scheme::HTTPS;
     //config.connectTimeoutMs = 1000;
     //config.requestTimeoutMs = 0;
     config.connectTimeoutMs = 300000;
     config.requestTimeoutMs = 600000;
-    if(info->region) config.region = info->region;
-    if(info->host) config.endpointOverride = info->host;
+    if((config.region = NC_aws_lookup(AWS_SORT_REGION,?))==NULL) {goto done;}
+    char* hostport = NC_combinehostport(uri);
+    if(hostport) config.endpointOverride = hostport;
     config.enableEndpointDiscovery = true;
     config.followRedirects = Aws::Client::FollowRedirectsPolicy::ALWAYS;
+done:
     NCUNTRACENOOP(NC_NOERR);
     return config;
 }
@@ -235,11 +238,11 @@ buildclient(Aws::Client::ClientConfiguration* config, Aws::Auth::AWSCredentials*
 }
 
 /*EXTERNL*/ void*
-NC_s3sdkcreateclient(NCS3INFO* info)
+NC_s3sdkcreateclient(NCURI* uri)
 {
     NCTRACE(11,NULL);
 
-    Aws::Client::ClientConfiguration config = s3sdkcreateconfig(info);
+    Aws::Client::ClientConfiguration config = s3sdkcreateconfig(uri);
     AWSS3CLIENT s3client;
 
     if(info->profile == NULL || strcmp(info->profile,"none")==0) {
@@ -326,19 +329,19 @@ NC_s3sdkbucketcreate(void* s3client0, const char* region, const char* bucket, ch
 }
 
 /*EXTERNL*/ int
-NC_s3sdkbucketdelete(void* s3client0, NCS3INFO* info, char** errmsgp)
+NC_s3sdkbucketdelete(void* s3client0, NCURI* uri, char** errmsgp)
 {
     int stat = NC_NOERR;
 
-    NCTRACE(11,"info=%s%s",dumps3info(info));
+    NCTRACE(11,NULL);
 
     AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
     
     if(errmsgp) *errmsgp = NULL;
-    const Aws::S3::Model::BucketLocationConstraint &awsregion = s3findregion(info->region);
+    const Aws::S3::Model::BucketLocationConstraint &awsregion = s3findregion(NC_aws_lookup(AWS_SORT_REGION,uri));
     if(awsregion == Aws::S3::Model::BucketLocationConstraint::NOT_SET)
         return NC_EURL;
-        /* Set up the request */
+    /* Set up the request */
     Aws::S3::Model::DeleteBucketRequest request;
     request.SetBucket(info->bucket);
 
@@ -555,7 +558,7 @@ NC_s3sdkclose(void* s3client0, char** errmsgp)
     int stat = NC_NOERR;
     AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
 
-    NCTRACE(11,"info=%s rootkey=%s deleteit=%d",dumps3info(info),deleteit);
+    NCTRACE(11,"deleteit=%d",deleteit);
     
 #if 0
     if(deleteit) {

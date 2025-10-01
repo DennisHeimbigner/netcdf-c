@@ -244,20 +244,22 @@ AC_MSG_CHECKING([whether netcdf NCZarr S3 support should be enabled])
 AC_ARG_ENABLE([nczarr-s3],
                [AS_HELP_STRING([--enable-nczarr-s3],
                                  [(Deprecated) enable netcdf NCZarr S3 support; Deprecated in favor of --enable-s3])])
-AC_MSG_RESULT([$enable_nczarr_s3 (Deprecated) Please use --enable-s3)])
+test "x$enable_nczarr_s3" = xyes || enable_nczarr_s3=no
+AC_MSG_RESULT($enable_nczarr_s3)
 
 # Set enable_s3 instead of enable_nczarr_s3
 if test "x$enable_s3" = xno && test "x$enable_nczarr_s3" = xyes ; then
+      AC_MSG_WARN([--enable-nczarr-s3 is deprecated: converting to --enable-s3])
       enable_s3=yes # back compatibility
 fi
 unset enable_nczarr_s3
 
-# We need curl for remote operations
-AC_MSG_CHECKING([whether we need to look for libcurl])
+# Assume that curl is required
+AC_MSG_CHECKING([whether libcurl is required])
 AC_ARG_ENABLE([curl],
-   [AS_HELP_STRING([--enable-curl],
-                   [look for and link against libcurl])])
-test "x$enable_curl" = xyes || enable_curl=no
+   [AS_HELP_STRING([--disable-curl],
+                   [disable libcurl])])
+test "x$enable_curl" = xno || enable_curl=yes
 AC_MSG_RESULT([$enable_curl])
 
 AC_MSG_CHECKING([whether any network access should be allowed])
@@ -265,7 +267,6 @@ AC_ARG_ENABLE([remote-functionality], [AS_HELP_STRING([--enable-remote-functiona
               [enable|disable all forms of network access (default enabled)])])
 test "x$enable_remote_functionality" = xno || enable_remote_functionality=yes
 AC_MSG_RESULT($enable_remote_functionality)
-
 
 if test "x$enable_remote_functionality" = xno ; then
     AC_MSG_WARN([--disable-remote-functionality => --disable-curl, which disables other remote functionality])

@@ -472,7 +472,7 @@ rccompile(const char* filepath)
             }
 	    if(NC_iss3(uri)) {
 	        NCURI* newuri = NULL;
-	        if((ret = NC_s3urlrebuild(uri,gs->aws,&newuri))) goto done;
+	        if((ret = NC_s3urlrebuild(uri,&newuri))) goto done;
 		ncurifree(uri);
 		uri = newuri;
 		newuri = NULL;

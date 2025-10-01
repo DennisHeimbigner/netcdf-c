@@ -141,6 +141,10 @@ unsigned long long int strtoull(const char*, char**, int);
 #define nullfree(s) {if((s)!=NULL) {free(s);} else {}}
 #endif
 
+#ifndef nullify
+#define nullify(s) ((s)!=NULL && strlen(s) != 0 ? (s) : (char*)NULL)
+#endif
+
 #ifndef HAVE_UCHAR
 typedef unsigned char uchar;
 #endif

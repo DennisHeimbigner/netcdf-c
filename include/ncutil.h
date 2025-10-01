@@ -84,6 +84,7 @@ EXTERNL int NC_joinwith(struct NClist* segments, const char* sep, const char* pr
 EXTERNL void NC_sortenvv(size_t n, char** envv);
 EXTERNL void NC_sortlist(struct NClist* l);
 EXTERNL void NC_freeenvv(size_t nkeys, char** keys);
+EXTERNL char* NC_combinehostport(struct NCURI*);
 
 #if defined(__cplusplus)
 }

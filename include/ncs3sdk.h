@@ -45,7 +45,7 @@ extern "C" {
 /* API for ncs3sdk_XXX.[c|cpp] */
 DECLSPEC int NC_s3sdkinitialize(void);
 DECLSPEC int NC_s3sdkfinalize(void);
-DECLSPEC void* NC_s3sdkcreateclient(struct NCURI*,struct NCawsconfig*);
+DECLSPEC void* NC_s3sdkcreateclient(struct NCURI*);
 DECLSPEC int NC_s3sdkbucketexists(void* s3client, const char* bucket, int* existsp, char** errmsgp);
 DECLSPEC int NC_s3sdkbucketcreate(void* s3client, const char* region, const char* bucket, char** errmsgp);
 DECLSPEC int NC_s3sdkbucketdelete(void* s3client, char** errmsgp);
@@ -61,16 +61,18 @@ DECLSPEC int NC_s3sdkdeletekey(void* client0, const char* bucket, const char* pa
 /* From ds3util.c */
 DECLSPEC int NC_iss3(struct NCURI* uri);
 DECLSPEC void NC_s3sdkenvironment(void);
-DECLSPEC int NC_s3urlrebuild(struct NCURI* uri, struct NCawsconfig* aws, struct NCURI** newurlp);
+DECLSPEC int NC_s3urlrebuild(struct NCURI* uri, struct NCURI** newurlp);
+
+DECLSPEC int NC_getactiveawsprofile(struct NCURI*, const char** profilep);
 
 #if 0
+DECLSPEC int NC_s3urlrebuild(struct NCURI* uri, struct NCawsconfig* aws, struct NCURI** newurlp);
 DECLSPEC int NC_s3buildnotes(struct NCURI* url, struct NCawsconfig* aws, struct NCURI** newurlp);
 DECLSPEC int NC_s3notesclear(struct NCS3NOTES* s3);
 DECLSPEC int NC_s3notesclone(struct NCS3NOTES* s3, struct NCS3NOTES** news3p);
 DECLSPEC const char* NC_s3dumpnotes(struct NCS3NOTES* notes);
 
-DECLSPEC int NC_getdefaults3region(NCawsconfig* aws, char** regionp);
-DECLSPEC int NC_getactives3profile(struct NCS3NOTES* s3, const char** profilep);
+DECLSPEC int NC_getdefaultawsregion(NCawsconfig* aws, char** regionp);
 
 DECLSPEC int NC_s3profilelookup(const char* profile, const char* key, const char** valuep);
 DECLSPEC void NC_s3getcredentials(NCS3NOTES*, const char** region, const char** accessid, const char** accesskey);

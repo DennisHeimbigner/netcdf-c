@@ -26,6 +26,7 @@
 #include "ncuri.h"
 #include "ncauth.h"
 #include "ncutil.h"
+#include "ncaws.h"
 
 #ifdef NETCDF_ENABLE_S3
 #include "ncs3sdk.h"
@@ -100,7 +101,7 @@ nc_http_open_verbose(const char* path, int verbose, NC_HTTP_STATE** statep)
     if((state = calloc(1,sizeof(NC_HTTP_STATE))) == NULL)
         {stat = NCTHROW(NC_ENOMEM); goto done;}
     state->path = strdup(path);
-    state->uri = uri; uri = NULL;
+    state->url = uri; uri = NULL;
 #ifdef NETCDF_ENABLE_S3
     state->format = (NC_iss3(state->url)?HTTPS3:HTTPCURL);
 #else
@@ -125,11 +126,16 @@ nc_http_open_verbose(const char* path, int verbose, NC_HTTP_STATE** statep)
         } break;
 #ifdef NETCDF_ENABLE_S3
     case HTTPS3: {
+	NCURI* rebuilturi = NULL;
+#if 0
 	if((state->s3.s3uri = (NCS3URI*)calloc(1,sizeof(NCS3URI)))==NULL)
 	    {stat = NCTHROW(NC_ENOMEM); goto done;}
 	state->s3.s3uri->uri = ncuriclone(state->uri);
-        if((stat = NC_s3urlprocess(state->s3.s3uri))) goto done;
-	if((state->s3.s3client = NC_s3sdkcreateclient(state->s3.info))==NULL)
+#endif
+	if((stat = NC_s3urlrebuild(state->url,&rebuilturi))) goto done;
+	ncurifree(state->url);
+	state->url = rebuilturi; rebuilturi = NULL;
+	if((state->s3.s3client = NC_s3sdkcreateclient(state->url))==NULL)
 	    {stat = NCTHROW(NC_EURL); goto done;}
         } break;
 #endif
@@ -164,8 +170,6 @@ nc_http_close(NC_HTTP_STATE* state)
     case HTTPS3: {
 	if(state->s3.s3client)
             NC_s3sdkclose(state->s3.s3client, NULL);
-        NC_s3clear(state->s3.info);
-	nullfree(state->s3.info);
 	state->s3.s3client = NULL;
         } break;
 #endif   
@@ -219,7 +223,6 @@ done:
 /**************************************************/
 /**
 @param state state handle
-@param objecturl to read
 @param start starting offset
 @param count number of bytes to read
 @param buf store read data here -- caller must allocate and free
@@ -248,18 +251,19 @@ nc_http_read(NC_HTTP_STATE* state, size64_t start, size64_t count, NCbytes* buf)
         cstat = CURLERR(curl_easy_setopt(state->curl.curl, CURLOPT_RANGE, range));
         if(cstat != CURLE_OK)
             {stat = NCTHROW(NC_ECURL); goto done;}
-    
         if((stat = execute(state)))
             goto done;
 	break;
 #ifdef NETCDF_ENABLE_S3
     case HTTPS3: {
+	const char* bucket = NULL;
+	char* rootkey = NULL;
 	/* Make sure buf has enough space allocated */
         ncbytessetalloc(buf,count);
         ncbytessetlength(buf,count);
         if((stat = NC_s3sdkread(state->s3.s3client,
-                                state->s3.info->bucket,
-                                state->s3.info->rootkey,
+                                bucket,
+                                rootkey,
 				start,
                                 count,
                                 ncbytescontents(buf),
@@ -306,7 +310,7 @@ nc_http_write(NC_HTTP_STATE* state, NCbytes* payload)
 #ifdef NETCDF_ENABLE_S3
     case HTTPS3:
         if((stat = NC_s3sdkwriteobject(state->s3.s3client,
-                                state->s3.info->bucket,
+                                NC_aws_lookup(AWS_SORT_BUCKET,state->url),
                                 state->s3.info->rootkey,
                                 ncbyteslength(payload),
                                 ncbytescontents(payload),

@@ -43,8 +43,9 @@
 
 /**************************************************/
 
+#if 0
 enum URLFORMAT {UF_NONE=0, UF_VIRTUAL=1, UF_PATH=2, UF_S3=3, UF_OTHER=4};
-
+#endif
 
 static const char* AWSURITYPENAMES[] = {"unk", "s3", "gs", "app", NULL};
 
@@ -54,11 +55,7 @@ static const char* AWSURITYPENAMES[] = {"unk", "s3", "gs", "app", NULL};
 static int endswith(const char* s, const char* suffix);
 static void freeprofile(struct AWSprofile* profile);
 static void clearprofile(struct AWSprofile* profile);
-static void freeentry(struct AWSentry* e);
-static char* infer_region(NCawsconfig* aws);
 static int awsparse(const char* text, NClist* profiles);
-static void NC_awsconfigmerge(NCawsconfig* baseaws, NCawsconfig* newaws);
-static void NC_awsprofilemerge(NCawsconfig* aws, const char* profilename);
 
 #if 0
 NCS3NOTES
@@ -71,6 +68,8 @@ NC_s3notes_empty(void)
 #endif
 
 /**************************************************/
+
+#if 0
 /* Capture environmental Info */
 
 EXTERNL void
@@ -89,6 +88,7 @@ NC_s3sdkenvironment(void)
     REPLACE(gs->aws->profile,getenv(AWS_ENV_PROFILE));
     REPLACE(gs->aws->secret_access_key,getenv(AWS_ENV_SECRET_ACCESS_KEY));
 }
+#endif
 
 /**************************************************/
 /* Generic S3 Utilities */
@@ -102,7 +102,7 @@ Additionally:
 */
 
 int
-NC_s3urlrebuild(NCURI* url, NCawsconfig* aws, NCURI** newurlp)
+NC_s3urlrebuild(NCURI* url, NCURI** newurlp)
 {
     size_t i;
     int stat = NC_NOERR;
@@ -223,15 +223,9 @@ NC_s3urlrebuild(NCURI* url, NCawsconfig* aws, NCURI** newurlp)
 	/* At this point, the host segments contain only <domain>.<tld> */
     }
 
-    /* Attempt to compute a region */
-    if(region != NULL)
-	REPLACE(aws->region,region);
-    nullfree(region);
-    region = infer_region(aws);
-
     /* bucket from url */
     if(bucket == NULL && nclistlength(pathsegments) > 0) {
-	bucket = nclistremove(pathsegments,0); /* Get from the URL path; will reinsert below */
+	bucket = strdup(nclistget(pathsegments,0)); /* Get from the URL path */
     }
     if(bucket == NULL) {stat = NC_ES3; goto done;}
 
@@ -267,18 +261,8 @@ NC_s3urlrebuild(NCURI* url, NCawsconfig* aws, NCURI** newurlp)
     default: stat = NC_ES3; goto done;
     }
 
-    ncbytesclear(buf);
-
-    /* Construct the revised path to include bucket */
-    if(bucket != NULL) {
-	ncbytescat(buf,"/");
-        ncbytescat(buf,bucket);
-    }
-    for(i=0;i<nclistlength(pathsegments);i++) {
-	ncbytescat(buf,"/");
-	ncbytescat(buf,nclistget(pathsegments,i));
-    }
-    path = ncbytesextract(buf);
+    /* Re-construct the revised path  */
+    if((stat = NC_join(pathsegments,&path))) goto done;
 
     /* clone the url so we can modify it*/
     if((newurl=ncuriclone(url))==NULL) {stat = NC_ENOMEM; goto done;}
@@ -299,9 +283,10 @@ NC_s3urlrebuild(NCURI* url, NCawsconfig* aws, NCURI** newurlp)
     /* Record the region in the ncuri fragment list */
     ncurisetfragmentkey(newurl,AWS_FRAG_REGION,region);
 
-    /* Record the url type and bucket in ncuri notes list */
+    /* Record the url type and region and bucket in ncuri notes list */
     ncurinotesinsert(newurl,AWS_NOTES_TYPE,AWSURITYPENAMES[(unsigned)svc]);
     ncurinotesinsert(newurl,AWS_NOTES_BUCKET,bucket);
+    ncurinotesinsert(newurl,AWS_NOTES_REGION,region);
 
 #ifdef AWSDEBUG
     fprintf(stderr,">>> NC_s3urlrebuild: final=%s bucket=|%s| region=|%s|\n",newurl->uri,bucket,region);
@@ -536,14 +521,13 @@ Get the current active profile. The priority order is as follows:
 */
 
 int
-NC_getactives3profile(NCawsconfig* aws, const char** profilep)
+NC_getactiveawsprofile(NCURI* uri, const char** profilep)
 {
     int stat = NC_NOERR;
     const char* profile = NULL;
     struct AWSprofile* ap = NULL;
 
-    assert(aws != NULL);
-    profile = aws->profile;
+    profile = NC_aws_lookup(AWS_SORT_PROFILE,uri);
     if(profile == NULL) {
 	if((stat = NC_profiles_lookup("default",&ap))) goto done;
 	if(ap) profile = "default";
@@ -557,6 +541,7 @@ done:
     return stat;
 }
 
+#if 0
 /* Infer region and return it */
 static char*
 infer_region(NCawsconfig* aws)
@@ -571,6 +556,7 @@ infer_region(NCawsconfig* aws)
         region = strdup(AWS_GLOBAL_DEFAULT_REGION);
     return region;
 }
+#endif
 
 #if 0
 /*
