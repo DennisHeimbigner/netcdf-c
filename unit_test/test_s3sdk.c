@@ -12,6 +12,7 @@
 #include "ncpathmgr.h"
 #include "ncs3sdk.h"
 #include "ncuri.h"
+#include "ncaws.h"
 
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
@@ -52,8 +53,13 @@ const char* activeprofile = NULL;
 const char* accessid = NULL;
 const char* accesskey = NULL;
 const char* newurl = NULL;
-NCS3INFO s3info;
 void* s3client = NULL;
+typedef struct NCS3INFO {
+    const char* profile;
+    const char* region;
+    const char* bucket;
+} NCS3INFO;
+NCS3INFO s3info;
 
 char* testkeypath = NULL;
 
@@ -118,15 +124,26 @@ profilesetup(const char* url)
         fprintf(stderr,"URI parse fail: %s\n",url);
         goto done;
     }
-    CHECK(NC_s3urlprocess(purl, &s3info, NULL));
 
-    CHECK(NC_getactives3profile(purl, &activeprofile));
+    {
+	NCURI* tmpuri = NULL;
+	CHECK(NC_s3urlrebuild(purl, &tmpuri));
+	ncurifree(purl);
+	purl = tmpuri;
+    }
+
+    activeprofile = nulldup(NC_getactiveawsprofile(purl));
+    CHECK((activeprofile==NULL?NC_ES3:NC_NOERR));
     CHECK(NC_profiles_findpair(activeprofile, "aws_access_key_id", &accessid));
     CHECK(NC_profiles_findpair(activeprofile, "aws_secret_access_key", &accesskey));
-    if(s3info.profile) free(s3info.profile);
-    s3info.profile = (char*)nulldup(activeprofile);
-    if(s3info.region == NULL) s3info.region = "";
-    if(s3info.bucket == NULL) {stat = NC_ES3; goto done;}
+    s3info.profile = activeprofile;
+    activeprofile = NULL;
+
+    s3info.region = NC_getactiveawsregion(purl);
+    CHECK((s3info.region==NULL?NC_ES3:NC_NOERR));
+
+    s3info.bucket = NC_getactiveawsbucket(purl);
+    CHECK((s3info.bucket==NULL?NC_ES3:NC_NOERR));
 
 #ifdef DEBUG
     printf("%s\n",NC_s3dumps3info(&s3info));
@@ -184,7 +201,7 @@ testbucketexists(void)
     printf("url=%s {url=%s bucket=%s region=%s profile=%s}\n",
                dumpoptions.url,newurl,s3info.bucket,s3info.region,activeprofile);
 #endif
-    if((s3client = NC_s3sdkcreateclient(&s3info))==NULL) {CHECK(NC_ES3);}
+    if((s3client = NC_s3sdkcreateclient(purl))==NULL) {CHECK(NC_ES3);}
     CHECK(NC_s3sdkbucketexists(s3client, s3info.bucket, &exists, NULL));
     printf("testbucketexists: exists=%d\n",exists);
     if(!exists) {stat = NC_EINVAL; goto done;}
@@ -208,7 +225,7 @@ testinfo(void)
     printf("url=%s => {url=%s bucket=%s region=%s profile=%s}\n",
                dumpoptions.url,newurl,s3info.bucket,s3info.region,activeprofile);
 #endif
-    if((s3client = NC_s3sdkcreateclient(&s3info))==NULL) {CHECK(NC_ES3);}
+    if((s3client = NC_s3sdkcreateclient(purl))==NULL) {CHECK(NC_ES3);}
     CHECK(NC_s3sdkinfo(s3client, s3info.bucket, buildkey(dumpoptions.key), &size, NULL));
     printf("testinfo: size=%llu\n",size);
 
@@ -232,7 +249,7 @@ testread(void)
     printf("url=%s {url=%s bucket=%s region=%s profile=%s}\n",
                dumpoptions.url,newurl,s3info.bucket,s3info.region,activeprofile);
 #endif
-    if((s3client = NC_s3sdkcreateclient(&s3info))==NULL) {CHECK(NC_ES3);}
+    if((s3client = NC_s3sdkcreateclient(purl))==NULL) {CHECK(NC_ES3);}
     CHECK(NC_s3sdkinfo(s3client, s3info.bucket, buildkey(dumpoptions.key), &size, NULL));
     printf("testread: size=%llu\n",size);
     content = calloc(1,size+1);
@@ -261,7 +278,7 @@ testwrite(void)
     printf("url=%s {url=%s bucket=%s region=%s profile=%s}\n",
                dumpoptions.url,newurl,s3info.bucket,s3info.region,activeprofile);
 #endif
-    if((s3client = NC_s3sdkcreateclient(&s3info))==NULL) {CHECK(NC_ES3);}
+    if((s3client = NC_s3sdkcreateclient(purl))==NULL) {CHECK(NC_ES3);}
     CHECK(NC_s3sdkwriteobject(s3client, s3info.bucket, buildkey(dumpoptions.key), strlen(uploaddata), uploaddata, NULL));
 
     /* Verify existence and size */
@@ -293,7 +310,7 @@ testlist(void)
 #ifdef DEBUG
     printf("url=%s => info=%s\n",dumpoptions.url,NC_s3dumps3info(&s3info));
 #endif
-    if((s3client = NC_s3sdkcreateclient(&s3info))==NULL) {CHECK(NC_ES3);}
+    if((s3client = NC_s3sdkcreateclient(purl))==NULL) {CHECK(NC_ES3);}
     CHECK(NC_s3sdklist(s3client, s3info.bucket, buildkey(dumpoptions.key), &nkeys, &keys, NULL));
     printf("testlist: nkeys=%u; keys:\n",(unsigned)nkeys);
     for(i=0;i<nkeys;i++) {
@@ -324,7 +341,7 @@ testlistlong(void)
 #ifdef DEBUG
     printf("url=%s => info=%s\n",dumpoptions.url,NC_s3dumps3info(&s3info));
 #endif
-    if((s3client = NC_s3sdkcreateclient(&s3info))==NULL) {CHECK(NC_ES3);}
+    if((s3client = NC_s3sdkcreateclient(purl))==NULL) {CHECK(NC_ES3);}
     for(i=0;i<LONGCOUNT;i++) { /* create many keys */
         newurl = ncuribuild(purl,NULL,NULL,NCURIALL);
 #ifdef DEBUG
@@ -394,7 +411,7 @@ testlistall(void)
 #ifdef DEBUG
     printf("url=%s => info=%s\n",dumpoptions.url,NC_s3dumps3info(&s3info));
 #endif
-    if((s3client = NC_s3sdkcreateclient(&s3info))==NULL) {CHECK(NC_ES3);}
+    if((s3client = NC_s3sdkcreateclient(purl))==NULL) {CHECK(NC_ES3);}
     CHECK(NC_s3sdklistall(s3client, s3info.bucket, buildkey(dumpoptions.key), &nkeys, &keys, NULL));
     printf("testlistall: nkeys=%u; keys:\n",(unsigned)nkeys);
     for(i=0;i<nkeys;i++) {
@@ -423,7 +440,7 @@ testdeletekey(void)
     printf("url=%s {url=%s bucket=%s region=%s profile=%s}\n",
                dumpoptions.url,newurl,s3info.bucket,s3info.region,activeprofile);
 #endif
-    if((s3client = NC_s3sdkcreateclient(&s3info))==NULL) {CHECK(NC_ES3);}
+    if((s3client = NC_s3sdkcreateclient(purl))==NULL) {CHECK(NC_ES3);}
     stat = NC_s3sdkdeletekey(s3client, s3info.bucket, buildkey(dumpoptions.key), NULL);
 
     printf("testdeletekey: url %s%s: ",newurl,buildkey(dumpoptions.key));
@@ -457,7 +474,6 @@ cleanup(void)
     if(s3client)
         NC_s3sdkclose(s3client, NULL);
     s3client = NULL;
-    NC_s3clear(&s3info);
     ncurifree(purl); purl = NULL;
 }
 

@@ -36,7 +36,7 @@ endpoint_url = https://s3.example.domain/
 dummy_key = dummy_value
 
 [profile play]
-region = us-east-1
+region = us-east-2
 endpoint_url = https://endpoint.example.com/
 EOF
 
@@ -51,28 +51,71 @@ aws_access_key_id = DummyKeys
 aws_secret_access_key = DummySecret
 EOF
 
+rm -fr test1 test2 test 3 test4 test5
+
+cat > test1 <<EOF
+Active profile:unidata
+	endpoint_url -> https://s3.example.domain/
+	region -> us-east-1
+	dummy_key -> dummy_value
+EOF
+
+cat > test2 <<EOF
+Active profile:play
+	endpoint_url -> https://endpoint.example.com/
+	region -> us-east-2
+EOF
+
+cat > test3 <<EOF
+Active profile:uni
+	endpoint_url -> https://example.com/bucket/prefix/2
+	region -> somewhere-2
+	key -> value-overwritten
+EOF
+
+cat > test4 <<EOF
+Active profile:uni
+	key -> value-overwritten
+	region -> somewhere-2
+	endpoint_url -> https://example.com/bucket/prefix/2
+	extrakey -> willbepropagated
+EOF
+
+cat > test5 <<EOF
+Active profile:no
+EOF
+
+cmp() {
+    CMP=`cat $1`
+    if test "x$2" != "x$CMP" ; then FAIL=1; fi
+}
+
 echo -e "Testing loading AWS configuration in ${THISDIR}/.aws/config"
-export NC_TEST_AWS_DIR=${THISDIR}
+export AWS_CONFIG_FILE=${THISDIR}/.aws/config
+export AWS_SHARED_CREDENTIALS_FILE=${THISDIR}/.aws/credentials
 export AWS_PROFILE=unidata
-${CMD} ${execdir}/aws_config  endpoint_url region dummy_key
-echo "Status: $?"
+
+OUT=`${CMD} ${execdir}/aws_config  endpoint_url region dummy_key`
+cmp test1 "$OUT"
+
 export AWS_PROFILE=play
-${CMD} ${execdir}/aws_config  endpoint_url region 
-echo "Status: $?"
+OUT=`${CMD} ${execdir}/aws_config  endpoint_url region`
+cmp test2 "$OUT"
 
 export AWS_PROFILE=uni
-${CMD} ${execdir}/aws_config  endpoint_url region key 
-echo "Status: $?"
+OUT=`${CMD} ${execdir}/aws_config  endpoint_url region key`
+cmp test3 "$OUT"
 
 export AWS_PROFILE=uni
-${CMD} ${execdir}/aws_config key=value-overwritten region=somewhere-2 endpoint_url=https://example.com/bucket/prefix/2 extrakey=willbepropagated
-echo "Status: $?"
+OUT=`${CMD} ${execdir}/aws_config key=value-overwritten region=somewhere-2 endpoint_url=https://example.com/bucket/prefix/2 extrakey=willbepropagated`
+cmp test4 "$OUT"
 
 # Will use profile=no
 unset AWS_PROFILE
-${CMD} ${execdir}/aws_config 2>&1 | grep -q 'Active profile:no'
-echo "Status: $?"
-echo -e "Finished"
+OUT=`${CMD} ${execdir}/aws_config`
+cmp test5 "$OUT"
+
+if test "x$FAIL" = x ; then echo "***PASS" ; else echo "***FAIL" ; fi
 
 exit
 

@@ -256,14 +256,11 @@ nc_http_read(NC_HTTP_STATE* state, size64_t start, size64_t count, NCbytes* buf)
 	break;
 #ifdef NETCDF_ENABLE_S3
     case HTTPS3: {
-	const char* bucket = NULL;
-	char* rootkey = NULL;
 	/* Make sure buf has enough space allocated */
-        ncbytessetalloc(buf,count);
         ncbytessetlength(buf,count);
         if((stat = NC_s3sdkread(state->s3.s3client,
-                                bucket,
-                                rootkey,
+                                NC_getactiveawsbucket(state->url),
+                                NC_gets3rootkey(state->url),
 				start,
                                 count,
                                 ncbytescontents(buf),
@@ -310,8 +307,8 @@ nc_http_write(NC_HTTP_STATE* state, NCbytes* payload)
 #ifdef NETCDF_ENABLE_S3
     case HTTPS3:
         if((stat = NC_s3sdkwriteobject(state->s3.s3client,
-                                NC_aws_lookup(AWS_SORT_BUCKET,state->url),
-                                state->s3.info->rootkey,
+                                NC_getactiveawsbucket(state->url),
+                                NC_gets3rootkey(state->url),
                                 ncbyteslength(payload),
                                 ncbytescontents(payload),
                                 &state->errmsg))) goto done;
@@ -366,7 +363,11 @@ nc_http_size(NC_HTTP_STATE* state, long long* sizep)
 #ifdef NETCDF_ENABLE_S3
     case HTTPS3: {
 	size64_t len = 0;
-	if((stat = NC_s3sdkinfo(state->s3.s3client,state->s3.info->bucket,state->s3.info->rootkey,&len,&state->errmsg))) goto done;
+	if((stat = NC_s3sdkinfo(state->s3.s3client,
+				NC_getactiveawsbucket(state->url),
+				NC_gets3rootkey(state->url),
+				&len,
+				&state->errmsg))) goto done;
 	if(sizep) *sizep = (long long)len;
         } break;
 #endif
@@ -609,7 +610,7 @@ setupconn(NC_HTTP_STATE* state, const char* objecturl)
         char* value = NULL;
         ncuriparse(objecturl,&uri);
         if(uri == NULL) goto fail;
-        hostport = NC_combinehostport(uri);
+        hostport = NC_combinehostport(uri->host,uri->port);
         ncurifree(uri); uri = NULL;
         value = NC_rclookup("HTTP.SSL.CAINFO",hostport,NULL);
         nullfree(hostport); hostport = NULL;    

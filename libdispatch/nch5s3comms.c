@@ -1056,13 +1056,9 @@ done:
  */
 
 s3r_t *
-NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCawsconfig* aws)
-
+NCH5_s3comms_s3r_open(const char* root, const char* region, const char* access_id, const char* access_key)
 {
     int ret_value = SUCCEED;
-    const char *region = aws->region;
-    const char *access_id = aws->access_key_id;
-    const char* access_key = aws->secret_access_key;
     size_t         tmplen    = 0;
     CURL          *curlh     = NULL;
     s3r_t         *handle    = NULL;
@@ -1071,7 +1067,7 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCawsconfig* aws)
     struct tm     *now           = NULL;
     const char* signingregion = AWS_GLOBAL_DEFAULT_REGION;
 
-     TRACE(0,"root=%s region=%s access_id=%s access_key=%s",root,region,access_id,access_key);
+    TRACE(0,"root=%s region=%s access_id=%s access_key=%s",root,region,access_id,access_key);
 
 #if S3COMMS_DEBUG_TRACE
     fprintf(stdout, "called NCH5_s3comms_s3r_open.\n");
@@ -1085,21 +1081,6 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCawsconfig* aws)
 	HGOTO_ERROR(H5E_ARGS, NC_ENOMEM, NULL, "could not calloc space for handle.");
 
     handle->magic	= S3COMMS_S3R_MAGIC;
-
-    /*************************************
-     * RECORD THE ROOT PATH
-     *************************************/
-
-    switch (svc) {
-    case NCS3:
-        /* Verify that the region is a substring of root */
-        if(region != NULL && region[0] != '\0') {
-	    if(strstr(root,region) == NULL)
-	        HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "region not present in root path.");
-        }
-	break;
-    default: break;
-    }
     handle->rootpath = nulldup(root);
 
     /*************************************

@@ -48,7 +48,7 @@ DECLSPEC int NC_s3sdkfinalize(void);
 DECLSPEC void* NC_s3sdkcreateclient(struct NCURI*);
 DECLSPEC int NC_s3sdkbucketexists(void* s3client, const char* bucket, int* existsp, char** errmsgp);
 DECLSPEC int NC_s3sdkbucketcreate(void* s3client, const char* region, const char* bucket, char** errmsgp);
-DECLSPEC int NC_s3sdkbucketdelete(void* s3client, char** errmsgp);
+DECLSPEC int NC_s3sdkbucketdelete(void* s3client, const char* bucket, char** errmsgp);
 DECLSPEC int NC_s3sdkinfo(void* client0, const char* bucket, const char* pathkey, unsigned long long* lenp, char** errmsgp);
 DECLSPEC int NC_s3sdkread(void* client0, const char* bucket, const char* pathkey, unsigned long long start, unsigned long long count, void* content, char** errmsgp);
 DECLSPEC int NC_s3sdkwriteobject(void* client0, const char* bucket, const char* pathkey, unsigned long long count, const void* content, char** errmsgp);
@@ -60,10 +60,8 @@ DECLSPEC int NC_s3sdkdeletekey(void* client0, const char* bucket, const char* pa
 
 /* From ds3util.c */
 DECLSPEC int NC_iss3(struct NCURI* uri);
-DECLSPEC void NC_s3sdkenvironment(void);
 DECLSPEC int NC_s3urlrebuild(struct NCURI* uri, struct NCURI** newurlp);
-
-DECLSPEC int NC_getactiveawsprofile(struct NCURI*, const char** profilep);
+DECLSPEC char* NC_gets3rootkey(NCURI* uri); /* caller frees result */
 
 #if 0
 DECLSPEC int NC_s3urlrebuild(struct NCURI* uri, struct NCawsconfig* aws, struct NCURI** newurlp);

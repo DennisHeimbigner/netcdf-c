@@ -87,7 +87,7 @@ struct LISTOBJECTSV2 {
 
 /* Forward */
 static void s3client_destroy(NCS3CLIENT* s3client);
-static char* makes3rooturl(NCS3INFO* info);
+static char* makes3rooturl(const char* hostport);
 static int makes3fullpath(const char* pathkey, const char* bucket, const char* prefix, const char* key, NCbytes* url);
 static int parse_listbucketresult(char* xml, unsigned long long xmllen, struct LISTOBJECTSV2**);
 static int parse_object(ncxml_t root, NClist* objects);
@@ -125,9 +125,6 @@ NC_s3sdkinitialize(void)
 	ncs3_initialized = 1;
 	ncs3_finalized = 0;
     }
-
-    /* Get environment information */
-    NC_s3sdkenvironment();
 
     return NC_NOERR;
 }
@@ -175,23 +172,31 @@ dumps3client(void* s3client0, const char* tag)
 /**************************************************/
 
 void*
-NC_s3sdkcreateclient(NCS3INFO* info, NCawsconfig* aws)
+NC_s3sdkcreateclient(NCURI* uri)
 {
     int stat = NC_NOERR;
+    const char* region = NULL;
     const char* accessid = NULL;
     const char* accesskey = NULL;
     char* urlroot = NULL;
     NCS3CLIENT* s3client = NULL;
+    char* hostport = NULL;
 
-    NCTRACE(11,"info=%s",NC_s3dumps3info(info));
+    NCTRACE(11,NULL);
 
+    hostport = NC_combinehostport(uri->host,uri->port);
     s3client = (NCS3CLIENT*)calloc(1,sizeof(NCS3CLIENT));
     if(s3client == NULL) goto done;
-    if((s3client->rooturl = makes3rooturl(info))==NULL) {stat = NC_ENOMEM; goto done;}
-    s3client->h5s3client = NCH5_s3comms_s3r_open(s3client->rooturl,info->svc,&aws);
+    if((s3client->rooturl = makes3rooturl(hostport))==NULL) {stat = NC_ENOMEM; goto done;}
+
+    region = NC_getactiveawsregion(uri);
+    accessid = NC_aws_lookup(AWS_SORT_ACCESS_KEY_ID,uri);
+    accesskey = NC_aws_lookup(AWS_SORT_SECRET_ACCESS_KEY,uri);
+    s3client->h5s3client = NCH5_s3comms_s3r_open(s3client->rooturl,region,accessid,accesskey);
     if(s3client->h5s3client == NULL) {stat = NC_ES3; goto done;}
 
 done:
+    nullfree(hostport);
     nullfree(urlroot);
     if(stat && s3client) {
         NC_s3sdkclose(s3client,NULL);
@@ -210,7 +215,7 @@ NC_s3sdkbucketexists(void* s3client0, const char* bucket, int* existsp, char** e
     long httpcode = 0;
 
     NCTRACE(11,"bucket=%s",bucket);
-    if(errmsgp) *errmsgp = NULL;
+    if(errmsgp) {nullfree(*errmsgp); *errmsgp = NULL;}
 
     if((stat = makes3fullpath(s3client->rooturl,bucket,NULL,NULL,url))) goto done;
     if((stat = NCH5_s3comms_s3r_head(s3client->h5s3client, ncbytescontents(url), NULL, NULL, &httpcode, NULL))) goto done;
@@ -231,23 +236,23 @@ NC_s3sdkbucketcreate(void* s3client0, const char* region, const char* bucket, ch
     NC_UNUSED(s3client);
 
     NCTRACE(11,"region=%s bucket=%s",region,bucket);
-    if(errmsgp) *errmsgp = NULL;
+    if(errmsgp) {nullfree(*errmsgp); *errmsgp = NULL;}
     fprintf(stderr,"create bucket: %s\n",bucket); fflush(stderr);
     return NCUNTRACE(stat);    
 }
 
 int
-NC_s3sdkbucketdelete(void* s3client0, NCS3INFO* info, char** errmsgp)
+NC_s3sdkbucketdelete(void* s3client0, const char* bucket, char** errmsgp)
 {
     int stat = NC_NOERR;
     NCS3CLIENT* s3client = (NCS3CLIENT*)s3client0;
     
     NC_UNUSED(s3client);
 
-    NCTRACE(11,"info=%s%s",NC_s3dumps3info(info));
+    NCTRACE(11,NULL);
 
-    if(errmsgp) *errmsgp = NULL;
-    fprintf(stderr,"delete bucket: %s\n",info->bucket); fflush(stderr);
+    if(errmsgp) {nullfree(*errmsgp); *errmsgp = NULL;}
+    fprintf(stderr,"delete bucket: %s\n",bucket); fflush(stderr);
 
     return NCUNTRACE(stat);    
 }
@@ -270,6 +275,7 @@ NC_s3sdkinfo(void* s3client0, const char* bucket, const char* pathkey, size64_t*
     long httpcode = 0;
 
     NCTRACE(11,"bucket=%s pathkey=%s",bucket,pathkey);
+    if(errmsgp) {nullfree(*errmsgp); *errmsgp = NULL;}
 
     if((stat = makes3fullpath(s3client->rooturl,bucket,pathkey,NULL,url))) goto done;
     if((stat = NCH5_s3comms_s3r_getsize(s3client->h5s3client, ncbytescontents(url), &len, &httpcode))) goto done;
@@ -296,6 +302,7 @@ NC_s3sdkread(void* s3client0, const char* bucket, const char* pathkey, size64_t 
     long httpcode = 0;
 
     NCTRACE(11,"bucket=%s pathkey=%s start=%llu count=%llu content=%p",bucket,pathkey,start,count,content);
+    if(errmsgp) {nullfree(*errmsgp); *errmsgp = NULL;}
 
     if((stat = makes3fullpath(s3client->rooturl,bucket,pathkey,NULL,url))) goto done;
 
@@ -323,6 +330,7 @@ NC_s3sdkwriteobject(void* s3client0, const char* bucket, const char* pathkey,  s
     long httpcode = 0;
 
     NCTRACE(11,"bucket=%s pathkey=%s count=%llu content=%p",bucket,pathkey,count,content);
+    if(errmsgp) {nullfree(*errmsgp); *errmsgp = NULL;}
 
     if((stat = makes3fullpath(s3client->rooturl,bucket,pathkey,NULL,url))) goto done;
 
@@ -344,6 +352,7 @@ NC_s3sdkclose(void* s3client0, char** errmsgp)
     NCS3CLIENT* s3client = (NCS3CLIENT*)s3client0;
 
     NCTRACE(11,"");
+    if(errmsgp) {nullfree(*errmsgp); *errmsgp = NULL;}
     s3client_destroy(s3client);
     return NCUNTRACE(stat);
 }
@@ -358,6 +367,7 @@ NC_s3sdktruncate(void* s3client0, const char* bucket, const char* prefix, char**
     NCS3CLIENT* s3client = (NCS3CLIENT*)s3client0;
 
     NCTRACE(11,"bucket=%s prefix=%s",bucket,prefix);
+    if(errmsgp) {nullfree(*errmsgp); *errmsgp = NULL;}
 
     if((stat = NC_s3sdklistall(s3client0,bucket,prefix,&nkeys,&keys,&errmsg))) goto done;
 
@@ -402,6 +412,7 @@ getkeys(void* s3client0, const char* bucket, const char* prefixkey0, const char*
     long httpcode = 0;
 
     NCTRACE(11,"bucket=%s prefixkey0=%s",bucket,prefixkey0);
+    if(errmsgp) {nullfree(*errmsgp); *errmsgp = NULL;}
     
     /* cleanup the prefix */
     if((stat = makes3prefix(prefixkey0,&prefixdir))) return NCUNTRACE(stat);        
@@ -487,6 +498,7 @@ NC_s3sdkdeletekey(void* s3client0, const char* bucket, const char* pathkey, char
     long httpcode = 0;
     
     NCTRACE(11,"s3client0=%p bucket=%s pathkey=%s",s3client0,bucket,pathkey);
+    if(errmsgp) {nullfree(*errmsgp); *errmsgp = NULL;}
 
     if((stat = makes3fullpath(s3client->rooturl,bucket,pathkey,NULL,url))) goto done;
 
@@ -537,13 +549,13 @@ done:
 
 /* Create a path-format root url */
 static char*
-makes3rooturl(NCS3INFO* info)
+makes3rooturl(const char* hostport)
 {
     NCbytes* buf = ncbytesnew();
     char* result = NULL;
     
     ncbytescat(buf,"https://");
-    ncbytescat(buf,info->host);
+    ncbytescat(buf,hostport);
     result = ncbytesextract(buf);
     ncbytesfree(buf);
     return result;
@@ -965,6 +977,7 @@ trim(char* s, int reclaim)
     char* t = NULL;
     size_t len;
     
+    if(s  == NULL) return NULL;
     for(p=s;*p;p++) {
 	if(*p > ' ') {first = (p - s); break;}
     }

@@ -68,7 +68,7 @@ const struct AWS_KEY {
     { AWS_SORT_PROFILE, // sort
         "AWS_PROFILE",  // env
         "AWS.PROFILE",  // .rc
-        "profile",      // profile
+        NULL,           // profile
         "aws.profile",  // fragment
         NULL,           // notes
     },
@@ -82,28 +82,28 @@ const struct AWS_KEY {
     { AWS_SORT_DEFAULT_REGION, // sort
         "AWS_DEFAULT_REGION",  // env
         "AWS.DEFAULT_REGION",  // .rc
-        "default_ region",     // profile
+        "aws_default_region",  // profile
         "aws.default_region",  // fragment
         NULL,                  // notes
     },
     { AWS_SORT_REGION, // sort
         "AWS_REGION",  // env
         "AWS.REGION",  // .rc
-        "region",      // profile
+        "aws_region",  // profile
         "aws.region",  // fragment
         NULL,          // notes
     },
     { AWS_SORT_ACCESS_KEY_ID, // sort
         "AWS_ACCESS_KEY_ID",  // env
         "AWS.ACCESS_KEY_ID",  // .rc
-        "access_key_ Id",     //profile
+        "aws_access_key_Id",  // profile
         "aws.access_key_id",  // fragment
         NULL,                 // notes
     },
     { AWS_SORT_SECRET_ACCESS_KEY, // sort
         "AWS_SECRET_ACCESS_KEY",  // env
         "AWS.SECRET_ACCESS_KEY",  // .rc
-        "secret_ access_key",     // profile
+        "aws_secret_access_key",  // profile
         "aws.secret_access_key",  // fragment
         NULL,  // notes
     },
@@ -170,6 +170,7 @@ static void freeprofile(struct AWSprofile* p);
 static const char* tokenname(int token);
 static int awslex(AWSparser* parser);
 static int awsparse(const char* text, NClist* profiles);
+static const char* awsdumpprofiles(NClist* profiles);
 
 /**************************************************/
 
@@ -230,28 +231,37 @@ NC_aws_lookup(AWS_KEYSORT sort, NCURI* uri)
     assert(gs->profiles != NULL);
 
     keyset = &aws_keys[(int)sort];
-    profile = NULL;
-    if((stat = NC_getactiveawsprofile(uri,&profile)))goto done;
-    assert(profile != NULL);
 
-    for(i=0;i<NSRCS || value != NULL;i++) {
+    for(i=0;i<NSRCS && value == NULL;i++) {
 	/* get key */
 	switch (i) {
 	case A_NOTE:
+	    if(keyset->note == NULL) continue; /* ignore */
 	    if(uri != NULL) {value = ncurinoteslookup(uri,keyset->note);}
 	    break;
 	case A_FRAG:
+	    if(keyset->frag == NULL) continue; /* ignore */
 	    if(uri != NULL) {value = ncurifragmentlookup(uri,keyset->frag);}
 	    break;
 	case A_ENV:
+	    if(keyset->env == NULL) continue; /* ignore */
 	    value = getenv(keyset->env);
 	    break;
 	case A_PROF:
+	    if(keyset->prof == NULL) continue; /* ignore */
+	    profile = NC_getactiveawsprofile(uri);
+	    assert(profile != NULL);
 	    if((stat = NC_profiles_findpair(profile,keyset->prof,&value))) goto done;
 	    break;
 	case A_RC: {
-	    char* hostport = NC_combinehostport(uri);
-	    value = NC_rclookup(keyset->rc,hostport,uri->path);
+	    char* hostport = NULL;
+   	    char* path = NULL;
+	    if(keyset->rc == NULL) continue; /* ignore */
+	    if(uri != NULL) {
+		hostport = NC_combinehostport(uri->host,uri->port);
+		path = uri->path;
+	    }
+	    value = NC_rclookup(keyset->rc,hostport,path);
 	    nullfree(hostport);
 	    } break;
 	}
@@ -260,6 +270,38 @@ done:
     if(stat) {nullfree(value); value = NULL;}
     return value;
 }
+
+/* Testing only: Lookup an aws_keys source name for given sort */
+const char*
+NC_aws_source(AWS_KEYSORT sort, enum AWS_SOURCE src)
+{
+    int stat = NC_NOERR;
+    const struct AWS_KEY* keyset = NULL;
+    const char* srcname = NULL;
+
+    keyset = &aws_keys[(int)sort];
+    switch(src) {
+    case AWS_SRC_SORT:
+        switch (keyset->sort) {
+	case AWS_SORT_UNKNOWN:           srcname = "AWS_SORT_UNKNOWN";           break;
+	case AWS_SORT_CONFIG_FILE:       srcname = "AWS_SORT_CONFIG_FILE";       break;
+	case AWS_SORT_CREDS_FILE:        srcname = "AWS_SORT_CREDS_FILE";        break;
+	case AWS_SORT_PROFILE:           srcname = "AWS_SORT_PROFILE";           break;
+	case AWS_SORT_BUCKET:            srcname = "AWS_SORT_BUCKET";            break;
+	case AWS_SORT_DEFAULT_REGION:    srcname = "AWS_SORT_DEFAULT_REGION";    break;
+	case AWS_SORT_REGION:            srcname = "AWS_SORT_REGION";            break;
+	case AWS_SORT_ACCESS_KEY_ID:     srcname = "AWS_SORT_ACCESS_KEY_ID";     break;
+	case AWS_SORT_SECRET_ACCESS_KEY: srcname = "AWS_SORT_SECRET_ACCESS_KEY"; break;
+	}; break;
+    case AWS_SRC_ENV:  srcname = keyset->env;  break;
+    case AWS_SRC_RC:   srcname = keyset->rc;   break;
+    case AWS_SRC_PROF: srcname = keyset->prof; break;
+    case AWS_SRC_FRAG: srcname = keyset->frag; break;
+    case AWS_SRC_NOTE: srcname = keyset->note; break;
+    };
+    return srcname;
+}
+
 
 #if 0
 /* Load the globalstate.aws fields */
@@ -436,6 +478,8 @@ NC_profiles_free(NClist* profiles)
     if(profiles) {
 	for(i=0;i<nclistlength(profiles);i++) {
 	    struct AWSprofile* p = (struct AWSprofile*)nclistget(profiles,i);
+	    assert(p != NULL);
+	    freeprofile(p);
 	}
 	nclistfree(profiles);
     }
@@ -444,13 +488,24 @@ NC_profiles_free(NClist* profiles)
 static void
 clearprofile(struct AWSprofile* p)
 {
-    size_t i;
     if(p) {
 	nullfree(p->profilename);
 	nclistfreeall(p->pairs);
 	memset(p,0,sizeof(struct AWSprofile));
     }
 }
+
+#if 0
+static struct AWSprofile
+cloneprofile(struct AWSprofile* p)
+{
+    struct AWSprofile clone;
+    memset(&clone,0,sizeof(struct AWSprofile));
+    clone.profilename = nulldup(p->profilename);
+    clone.pairs = nclistclone(p->pairs,AWSDEEP);
+    return clone;    
+}
+#endif
 
 static void
 freeprofile(struct AWSprofile* p)
@@ -479,7 +534,7 @@ NC_profiles_load(void)
     /* add a "no" credentials */
     {
 	struct AWSprofile* noprof = (struct AWSprofile*)calloc(1,sizeof(struct AWSprofile));
-			noprof->profilename = strdup("no");
+	noprof->profilename = strdup("no");
 	noprof->pairs = nclistnew();
 	NC_profiles_insert(noprof); noprof = NULL;
     }
@@ -490,6 +545,7 @@ NC_profiles_load(void)
     aws_config_file = nullify(aws_config_file);
     aws_creds_file = nullify(aws_creds_file);
     
+    awscfgfiles = nclistnew();
     /* compute where to look for profile files */
     if(aws_config_file == NULL) {
         snprintf(path,sizeof(path),"%s/%s",gs->home,AWS_DEFAULT_CONFIG_FILE);
@@ -515,7 +571,6 @@ NC_profiles_load(void)
 	    if((stat = awsparse(text,gs->profiles))) goto done;
 	}
     }
-  
     /* Search for "default" credentials */
     if((stat=NC_profiles_lookup("default",&dfalt))) goto done;
 
@@ -591,11 +646,11 @@ NC_profiles_insert(struct AWSprofile* prof)
 	*p = *prof;
 	memset(prof,0,sizeof(struct AWSprofile)); /* Avoid memory leak */
     } else {
-	nclistpush(gs->profiles,p);
-	p = NULL;
+	nclistpush(gs->profiles,prof);
+        prof = NULL;
     }
 done:
-    freeprofile(prof);
+    nullfree(prof);
     return;
 }
 
@@ -667,20 +722,26 @@ Note:
 #define AWS_WORD (0x10001)
 #define AWS_EOL (0x10002)
 
-#ifdef LEXDEBUG
+//#ifdef LEXDEBUG
 static const char*
 tokenname(int token)
 {
-    static char num[32];
+    static char ch[32];
     switch(token) {
-    case AWS_EOF: return "EOF";
-    case AWS_ERR: return "ERR";
-    case AWS_WORD: return "WORD";
-    default: snprintf(num,sizeof(num),"%d",token); return num;
+    case AWS_EOF: return "EOF"; break;
+    case AWS_ERR: return "ERR"; break;
+    case AWS_WORD: return "WORD"; break;
+    case AWS_EOL: return "'\\n'"; break;
+    default:
+	if(token >= ' ' && token <= '~')
+	     snprintf(ch,sizeof(ch),"'%c'",(char)token);
+        else snprintf(ch,sizeof(ch),"0x%x",(unsigned)token);
+	return ch;
+	break;
     }
     return "UNKNOWN";
 }
-#endif
+//#endif
 
 static int
 awslex(AWSparser* parser)
@@ -723,7 +784,6 @@ awslex(AWSparser* parser)
 	    }
 	} else if(c == '[' || c == ']' || c == '=') {
 	    ncbytesappend(parser->yytext,c);
-	    ncbytesnull(parser->yytext);
 	    token = c;
 	    parser->pos++;
 	} else { /*Assume a word*/
@@ -736,11 +796,10 @@ awslex(AWSparser* parser)
 	    parser->pos--;
 	    count = (size_t)(parser->pos - start);
 	    ncbytesappendn(parser->yytext,start,count);
-	    ncbytesnull(parser->yytext);
 	    token = AWS_WORD;
 	}
 #ifdef LEXDEBUG
-fprintf(stderr,"%s(%d): |%s|\n",tokenname(token),token,ncbytescontents(parser->yytext));
+fprintf(stderr,">>> lex: token=%s: text=|%s|\n",tokenname(token),ncbytescontents(parser->yytext));
 #endif
     } /*for(;;)*/
 
@@ -767,6 +826,7 @@ awsparse(const char* text, NClist* profiles)
     int token;
     char* key = NULL;
     char* value = NULL;
+    int profileexists = 0;
 
     if(text == NULL) text = "";
 
@@ -791,7 +851,6 @@ awsparse(const char* text, NClist* profiles)
 
     /* Do not need recursion, use simple loops */
     for(;;) {
-	int profileexists = 0;
 	char* profilename = NULL;
 	token = awslex(parser); /* make token always be defined */
 	if(token ==  AWS_EOF) break; /* finished */
@@ -802,10 +861,10 @@ awsparse(const char* text, NClist* profiles)
 	if(token != AWS_WORD) {stat = NCTHROW(NC_EINVAL); goto done;}
 	profilename = ncbytesextract(parser->yytext);
 	if(strncmp("profile", profilename, sizeof("profile")) == 0 ) {
+	    nullfree(profilename); profilename = NULL;
 	    /* next word is real profile name */
 	    token = awslex(parser);
 	    if(token != AWS_WORD) {stat = NCTHROW(NC_EINVAL); goto done;}
-	    nullfree(profilename);
 	    profilename = ncbytesextract(parser->yytext);
 	}
 	/* See if this profile already exists */
@@ -818,6 +877,9 @@ awsparse(const char* text, NClist* profiles)
 	        {stat = NC_ENOMEM; goto done;}
 	    profile->profilename = profilename; profilename = NULL;
 	    profile->pairs = nclistnew();
+	} else {
+	    nullfree(profilename);
+	    profilename = NULL;
 	}
 	token = awslex(parser);
 	if(token != RBR) {stat = NCTHROW(NC_EINVAL); goto done;}
@@ -827,6 +889,8 @@ fprintf(stderr,">>> parse: profile=%s\n",profile->profilename);
 	/* The fields can be in any order */
 	for(;;) {
 	    size_t j,k;
+	    nullfree(key); key = NULL;
+	    nullfree(value); value = NULL;
 	    token = awslex(parser);
 	    if(token == AWS_EOL) {
 		continue; /* ignore empty lines */
@@ -846,27 +910,31 @@ fprintf(stderr,">>> parse: profile=%s\n",profile->profilename);
 #ifdef PARSEDEBUG
 fprintf(stderr,">>> parse: pair=(%s,%s)\n",key,value);
 #endif
-		/* merge pairs into profile */
+		/* merge pair into profile */
 		for(match=0,j=0;j<nclistlength(profile->pairs);j+=2){ /* walk existing pairs */
 		    const char* oldkey = nclistget(profile->pairs,j);
     		    const char* oldvalue = nclistget(profile->pairs,j+1);
-		    if(strcasecmp(key,oldkey)==0) { /* overwrite */
-			nclistset(profile->pairs,j+1,value); /* overwrite */
-		        nullfree(oldvalue); /* reclaim old value */
+		    if(strcasecmp(key,oldkey)==0) { /* pair exists */
+			/* Overwrite */
+			nclistset(profile->pairs,j,key); key = NULL;
+			nclistset(profile->pairs,j+1,value); value = NULL;
+			nullfree(oldkey); nullfree(oldvalue);
 			match = 1;
 			break;
 		    }
 		}
 		if(!match) { /* add new pair to profile */
-		   nclistpush(profile->pairs,key); key = NULL;
-		   nclistpush(profile->pairs,value); value = NULL;
+		    nclistpush(profile->pairs,key);
+		    nclistpush(profile->pairs,value);
+		    key = NULL; value = NULL;
 		}
 		if(token == AWS_WORD) token = awslex(parser); /* finish the line */
 	    } else
 		{stat = NCTHROW(NC_EINVAL); goto done;}
 	}
-	if(!profileexists) nclistpush(profiles,profile);
+	if(!profileexists) {nclistpush(profiles,profile);}
 	profile = NULL;
+	profileexists = 0;
     }
 
 done:
@@ -882,35 +950,46 @@ done:
 }
 
 /* Provide profile-related  dumper(s) */
-void
+const char*
 awsdumpprofile(struct AWSprofile* p)
 {
+    static char sp[8192];
     size_t j;
+    strcpy(sp,"profile{");
     if(p == NULL) {
-	fprintf(stderr,"    <NULL>");
+	strcat(sp,"NULL");
 	goto done;
     }
-    fprintf(stderr,"	[%s]",p->profilename);
+    strcat(sp,"name=|");
+    strcat(sp,p->profilename);
+    strcat(sp,"| pairs=<");
     if(p->pairs == NULL) {
-	fprintf(stderr,"<NULL>");
+	fprintf(stderr,"NULL>");
 	goto done;
     }
     for(j=0;j<nclistlength(p->pairs);j+=2) {
 	const char* key = nclistget(p->pairs,j);
 	const char* value = nclistget(p->pairs,j+1);
-	fprintf(stderr," %s=%s",key,value);
+	if(j > 0) strcat(sp," ");
+	strcat(sp,key); strcat(sp,"="); strcat(sp,value);
     }
+    strcat(sp,">");
 done:
-    fprintf(stderr,"\n");
+    strcat(sp,"}");
+    return sp;
 }
 
-void
+const char*
 awsdumpprofiles(NClist* profiles)
 {
+    static char ch[1<<14];
     size_t i;
-    NCglobalstate* gs = NC_getglobalstate();
-    for(i=0;i<nclistlength(gs->profiles);i++) {
+    ch[0] = '\0';
+    for(i=0;i<nclistlength(profiles);i++) {
 	struct AWSprofile* p = (struct AWSprofile*)nclistget(profiles,i);
-	awsdumpprofile(p);
+	strcat(ch,"	");
+	strcat(ch,awsdumpprofile(p));
+	strcat(ch,"\n");
     }
+    return ch;
 }

@@ -47,21 +47,23 @@ NC_createglobalstate(void)
 {
     int stat = NC_NOERR;
     const char* tmp = NULL;
-    NCglobalstate* gs = nc_globalstate; /* allow shorter name */
+    NCglobalstate* gs = NULL;
     
-    if(gs == NULL) {
-        gs = calloc(1,sizeof(NCglobalstate));
-	if(gs == NULL) {stat = NC_ENOMEM; goto done;}
-	/* Initialize struct pointers */
-	if((gs->rcinfo = calloc(1,sizeof(struct NCRCinfo)))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	if((gs->rcinfo->entries = nclistnew())==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	if((gs->chunkcache = calloc(1,sizeof(struct ChunkCache)))==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-	if((gs->profiles = nclistnew())==NULL)
-	    {stat = NC_ENOMEM; goto done;}
-    }
+    if(nc_globalstate != NULL) goto done;
+    nc_globalstate = calloc(1,sizeof(NCglobalstate));
+    gs = nc_globalstate; /* allow shorter name */
+    if(gs == NULL) {stat = NC_ENOMEM; goto done;}
+
+    if(gs == NULL) {stat = NC_ENOMEM; goto done;}
+    /* Initialize struct pointers */
+    if((gs->rcinfo = calloc(1,sizeof(struct NCRCinfo)))==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if((gs->rcinfo->entries = nclistnew())==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if((gs->chunkcache = calloc(1,sizeof(struct ChunkCache)))==NULL)
+	{stat = NC_ENOMEM; goto done;}
+    if((gs->profiles = nclistnew())==NULL)
+	{stat = NC_ENOMEM; goto done;}
 
     /* Initialize chunk cache defaults */
     gs_chunkcache_init(gs);

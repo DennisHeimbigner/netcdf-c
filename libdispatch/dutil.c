@@ -641,3 +641,18 @@ NC_freeenvv(size_t n, char** envv)
     free(envv);    
 }
 
+char*
+NC_combinehostport(const char* host, const char* port)
+{
+    size_t len;
+    char* hp = NULL;
+
+    if(host == NULL) return NULL;
+    if(port != NULL && strlen(port) == 0) port = NULL;
+    len = strlen(host);
+    if(port != NULL) len += (1+strlen(port));
+    hp = (char*)malloc(len+1);
+    if(hp == NULL) return NULL;
+    snprintf(hp, len+1, "%s%s%s", host, port ? ":" : "", port ? port : "");
+    return hp;
+}

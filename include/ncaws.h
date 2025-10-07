@@ -35,6 +35,19 @@ AWS_SORT_ACCESS_KEY_ID=7,
 AWS_SORT_SECRET_ACCESS_KEY=8,
 } AWS_KEYSORT;
 
+/* For testing, track the possible sources;
+   these can act as indices into aws_keys.
+*/
+enum AWS_SOURCE {
+    AWS_SRC_SORT=0,
+    AWS_SRC_ENV=1,
+    AWS_SRC_RC=2,
+    AWS_SRC_PROF=3,
+    AWS_SRC_FRAG=4,
+    AWS_SRC_NOTE=5
+};
+
+
 /* Generic names */
 #define AWS_CONFIG_FILE "AWS_CONFIG_FILE"
 #define AWS_CREDS_FILE "AWS_SHARED_CREDENTIALS_FILE"
@@ -69,10 +82,10 @@ AWS_SORT_SECRET_ACCESS_KEY=8,
 #define AWS_PROF_SECRET_ACCESS_KEY "aws_secret_access_key"
 
 /* AWS URI fragment keys */
-#define AWS_FRAG_PROFILE AWS_RC_PROFILE
-#define AWS_FRAG_REGION AWS_RC_REGION
-#define AWS_FRAG_ACCESS_KEY_ID AWS_RC_ACCESS_KEY_ID
-#define AWS_FRAG_SECRET_ACCESS_KEY AWS_RC_SECRET_ACCESS_KEY
+#define AWS_FRAG_PROFILE "aws.profile"
+#define AWS_FRAG_REGION "aws.region"
+#define AWS_FRAG_ACCESS_KEY_ID "aws.access_key_id"
+#define AWS_FRAG_SECRET_ACCESS_KEY "aws.secret_access_key"
 
 /* AWS URI notes keys */
 #define AWS_NOTES_TYPE "aws.uri_type" /* Notes only: Track the kind of URI after rebuild (see AWSURI below) */
@@ -130,6 +143,9 @@ extern "C" {
 /* Lookup procedure for finding aws (key,value) pairs. */
 DECLSPEC const char* NC_aws_lookup(AWS_KEYSORT, struct NCURI* uri);
 
+/* Testing only: Lookup an aws_keys source name for given sort */
+DECLSPEC const char* NC_aws_source(AWS_KEYSORT sort, enum AWS_SOURCE src);
+
 #if 0
 /* Extract AWS values from various sources */
 DECLSPEC void NC_awsglobal(void);
@@ -149,7 +165,11 @@ DECLSPEC int NC_profiles_findpair(const char* profile, const char* key, const ch
 DECLSPEC struct AWSprofile NC_profiles_empty(void); /* To initialize a profile object */
 
 /* Compute current active profile */
-DECLSPEC int NC_getactiveawsprofile(struct NCURI*, const char**);
+DECLSPEC const char* NC_getactiveawsprofile(struct NCURI*);
+/* Compute current active region */
+DECLSPEC const char* NC_getactiveawsregion(struct NCURI*);
+/* Compute current active bucket */
+DECLSPEC const char* NC_getactiveawsbucket(struct NCURI*);
 
 #ifdef __cplusplus
 }

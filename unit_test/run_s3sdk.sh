@@ -20,9 +20,9 @@ S3ISOPATH="${S3ISOPATH}/$S3ISODIR"
 test_cleanup() {
 ${CMD} ${execdir}/../nczarr_test/s3util -u "${URL}" -k "${S3ISOPATH}" clear
 }
-if test "x$GITHUB_ACTIONS" != xtrue; then
+#if test "x$GITHUB_ACTIONS" != xtrue; then
 trap test_cleanup EXIT
-fi
+#fi
 
 THISDIR=`pwd`
 cd $ISOPATH

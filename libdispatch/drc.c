@@ -129,9 +129,9 @@ Initialize defaults and load:
 * ${HOME}/.aws/credentials
 
 For debugging support, it is possible
-to change where the code looks for the .aws directory.
-This is set by the environment variable NC_TEST_AWS_DIR.
-
+to change where the code looks for the profile files:
+AWS_CONFIG_FILE => config
+AWS_SHARED_CREDENTIALS_FILE => credentials
 */
 
 void
@@ -287,7 +287,7 @@ NC_rclookupx(NCURI* uri, const char* key)
     char* result = NULL;
 
     if(uri != NULL) {
-	hostport = NC_combinehostport(uri);
+	hostport = NC_combinehostport(uri->host,uri->port);
 	path = uri->path;
     }
     result = NC_rclookup(key,hostport,path);

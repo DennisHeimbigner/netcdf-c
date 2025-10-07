@@ -36,7 +36,6 @@ typedef struct ncio ncio;	/* forward reference */
 
 #define RGN_MODIFIED	0x8	/* we did modify, else, discard */
 
-
 /*
  * The next four typedefs define the signatures
  * of function pointers in struct ncio below.

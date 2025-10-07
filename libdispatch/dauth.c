@@ -22,6 +22,7 @@ See COPYRIGHT for license information.
 #include "ncs3sdk.h"
 #include "ncaws.h"
 #include "ncauth.h"
+#include "ncutil.h"
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -70,26 +71,6 @@ NC_parseproxy(NCauth* auth, const char* surl)
     return (ret);
 }
 
-char*
-NC_combinehostport(NCURI* uri)
-{
-    size_t len;
-    char* host = NULL;
-    char* port = NULL;
-    char* hp = NULL;
-    if(uri == NULL) return NULL;
-    host = uri->host;
-    port = uri->port;
-    if(uri == NULL || host == NULL) return NULL;
-    if(port != NULL && strlen(port) == 0) port = NULL;
-    len = strlen(host);
-    if(port != NULL) len += (1+strlen(port));
-    hp = (char*)malloc(len+1);
-    if(hp == NULL) return NULL;
-    snprintf(hp, len+1, "%s%s%s", host, port ? ":" : "", port ? port : "");
-    return hp;
-}
-
 int
 NC_authsetup(NCauth** authp, NCURI* uri)
 {
@@ -99,7 +80,7 @@ NC_authsetup(NCauth** authp, NCURI* uri)
     struct AWSprofile* ap = NULL;
 
     if(uri != NULL)
-      uri_hostport = NC_combinehostport(uri);
+      uri_hostport = NC_combinehostport(uri->host,uri->port);
     else
       {ret = NC_EDAP; goto done;}  /* Generic EDAP error. */
     if((auth=calloc(1,sizeof(NCauth)))==NULL)

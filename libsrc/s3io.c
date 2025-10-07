@@ -37,6 +37,7 @@
 #include "rnd.h"
 #include "ncs3sdk.h"
 #include "ncuri.h"
+#include "ncaws.h"
 
 #define DEFAULTPAGESIZE 16384
 
@@ -45,8 +46,8 @@
 enum IO {NOIO=0, CURLIO=1, S3IO=2};
 
 typedef struct NCS3IO {
+    NCURI* uri;
     long long size; /* of the object */
-    NCS3INFO s3;
     void* s3client;
     char* errmsg;
     void* buffer;
@@ -67,7 +68,7 @@ static long pagesize = 0;
 
 /* Create a new ncio struct to hold info about the file. */
 static int
-s3io_new(const char* path, int ioflags, ncio** nciopp, NCS3IO** hpp)
+s3io_new(NCURI* uri, int ioflags, ncio** nciopp, NCS3IO** hpp)
 {
     int status = NC_NOERR;
     ncio* nciop = NULL;
@@ -82,7 +83,7 @@ s3io_new(const char* path, int ioflags, ncio** nciopp, NCS3IO** hpp)
     
     nciop->ioflags = ioflags;
 
-    *((char**)&nciop->path) = strdup(path);
+    *((char**)&nciop->path) = ncuribuild(uri,NULL,NULL,NCURIALL);
     if(nciop->path == NULL) {status = NC_ENOMEM; goto fail;}
 
     *((ncio_relfunc**)&nciop->rel) = s3io_rel;
@@ -95,8 +96,9 @@ s3io_new(const char* path, int ioflags, ncio** nciopp, NCS3IO** hpp)
 
     s3io = (NCS3IO*)calloc(1,sizeof(NCS3IO));
     if(s3io == NULL) {status = NC_ENOMEM; goto fail;}
-    *((void* *)&nciop->pvt) = s3io;
+    s3io->uri = uri; uri = NULL;
 
+    *((void* *)&nciop->pvt) = s3io;
     if(nciopp) *nciopp = nciop;
     if(hpp) *hpp = s3io;
 
@@ -167,22 +169,30 @@ s3io_open(const char* path,
     if(path == NULL ||* path == 0)
         return EINVAL;
 
-    /* Create private data */
-    if((status = s3io_new(path, ioflags, &nciop, &s3io))) goto done;
-
     /* parse path */
     ncuriparse(path,&url);
     if(url == NULL)
         {status = NC_EURL; goto done;}
 
     /* Convert to canonical path-style */
-    if((status = NC_s3urlprocess(url,&s3io->s3,NULL))) goto done;
+    {
+	NCURI* urltmp = NULL;
+	if((status = NC_s3urlrebuild(url,&urltmp))) goto done;
+	ncurifree(url); url = urltmp; urltmp = NULL;
+    }
+    
     /* Verify root path */
-    if(s3io->s3.rootkey == NULL)
+    if(NC_gets3rootkey(url) == NULL)
         {status = NC_EURL; goto done;}
-    s3io->s3client = NC_s3sdkcreateclient(&s3io->s3);
+
+    /* Create private data */
+    if((status = s3io_new(url, ioflags, &nciop, &s3io))) goto done;
+    s3io->s3client = NC_s3sdkcreateclient(url);
     /* Get the size */
-    switch (status = NC_s3sdkinfo(s3io->s3client,s3io->s3.bucket,s3io->s3.rootkey,(long long unsigned*)&s3io->size,&s3io->errmsg)) {
+    switch (status = NC_s3sdkinfo(s3io->s3client,
+    				  NC_getactiveawsbucket(url),
+				  NC_gets3rootkey(url),
+				  (long long unsigned*)&s3io->size,&s3io->errmsg)) {
     case NC_NOERR: break;
     case NC_ENOOBJECT:
         s3io->size = 0;
@@ -253,17 +263,16 @@ s3io_close(ncio* nciop, int deleteit)
     assert(s3io != NULL);
 
 
+#if 0
     if(s3io->s3client && s3io->s3.bucket && s3io->s3.rootkey) {
-
 #ifdef NETCDF_ENABLE_S3_INTERNAL
 	if(deleteit)
 	    NC_s3sdktruncate(s3io->s3client, s3io->s3.bucket, s3io->s3.rootkey, &s3io->errmsg);
         NC_s3sdkclose(s3io->s3client, &s3io->errmsg);
 #endif
-
     }
+#endif
     s3io->s3client = NULL;
-    NC_s3clear(&s3io->s3);
     nullfree(s3io->errmsg);
     nullfree(s3io->buffer);
     nullfree(s3io);
@@ -289,7 +298,10 @@ s3io_get(ncio* const nciop, off_t offset, size_t extent, int rflags, void** cons
     assert(s3io->buffer == NULL);
     if((s3io->buffer = (unsigned char*)malloc(extent))==NULL)
         {status = NC_ENOMEM; goto done;}
-    status = NC_s3sdkread(s3io->s3client, s3io->s3.bucket, s3io->s3.rootkey, offset, extent, s3io->buffer, &s3io->errmsg);
+    status = NC_s3sdkread(s3io->s3client,
+			  NC_getactiveawsbucket(s3io->uri),
+			  NC_gets3rootkey(s3io->uri),
+			  offset, extent, s3io->buffer, &s3io->errmsg);
     if(status) {reporterr(s3io); goto done;}
 
     if(vpp) *vpp = s3io->buffer;

@@ -70,7 +70,6 @@ struct MagicFile {
     char* curlurl; /* url to use with CURLOPT_SET_URL */
     NC_HTTP_STATE* state;
 #ifdef NETCDF_ENABLE_S3
-    NCS3INFO s3;
     void* s3client;
     char* errmsg;
 #endif
@@ -914,7 +913,7 @@ NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void
 	/* If s3, then rebuild the url */
 	if(NC_iss3(uri)) {
 	    NCURI* newuri = NULL;
-	    if((stat = NC_s3urlrebuild(uri,NULL,&newuri))) goto done;
+	    if((stat = NC_s3urlrebuild(uri,&newuri))) goto done;
 	    ncurifree(uri);
 	    uri = newuri;
 	} else

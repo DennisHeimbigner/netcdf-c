@@ -20,6 +20,7 @@
 #include "ncmodel.h"
 #include "ncpathmgr.h"
 #include "ncutil.h"
+#include "ncaws.h"
 
 #ifdef NETCDF_ENABLE_BYTERANGE
 #include "H5FDhttp.h"
@@ -759,13 +760,6 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
     }
 #endif /*NETCDF_ENABLE_BYTERANGE*/
 
-#if defined(NETCDF_ENABLE_S3) || defined(NETCDF_ENABLE_HDF5_ROS3)
-    /* Load the aws parameters on  per-file basis */
-    if((h5->aws = calloc(1,sizeof(NCawsconfig))) == NULL)
-        BAIL(NC_ENOMEM);
-    NC_awsnczfile(h5->aws,h5->uri);
-#endif    
-
     nc4_info->mem.inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
     nc4_info->mem.diskless = ((mode & NC_DISKLESS) == NC_DISKLESS);
     nc4_info->mem.persist = ((mode & NC_PERSIST) == NC_PERSIST);
@@ -906,35 +900,34 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
 	    fa.secret_key[0] = '\0';
 
 	    if(iss3) {
-	        NCS3NOTES s3 = NC_s3notes_empty();
 		NCURI* newuri = NULL;
+		const char* region = NULL;
 	        /* Rebuild the URL */
-		if((retval = NC_s3urlrebuild(h5->uri,&s3,&newuri))) goto exit;
+		if((retval = NC_s3urlrebuild(h5->uri,&newuri))) goto exit;
 		if((newpath = ncuribuild(newuri,NULL,NULL,NCURISVC))==NULL)
 		    {retval = NC_EURL; goto exit;}
 		ncurifree(h5->uri);
 		h5->uri = newuri;
-	        if((retval = NC_getactives3profile(h5->uri,&profile0)))
-		    BAIL(retval);
-   	        if((retval = NC_s3profilelookup(profile0,AWS_PROF_ACCESS_KEY_ID,&awsaccessid0)))
-		    BAIL(retval);		
-		if((retval = NC_s3profilelookup(profile0,AWS_PROF_SECRET_ACCESS_KEY,&awssecretkey0)))
-		    BAIL(retval);		
-		if(s3.region == NULL)
-		    s3.region = strdup(AWS_GLOBAL_DEFAULT_REGION);
+		if((region = NC_getactiveawsregion(h5->uri))==NULL)
+		    BAIL(NC_ES3);
+	        if((profile0 = NC_getactiveawsprofile(h5->uri))==NULL)
+		    BAIL(NC_ES3);
+		if((awsaccessid0 = NC_aws_lookup(AWS_SORT_ACCESS_KEY_ID,h5->uri))==NULL)
+		    BAIL(NC_ES3);
+		if((awssecretkey0 = NC_aws_lookup(AWS_SORT_SECRET_ACCESS_KEY,h5->uri))==NULL)
+		    BAIL(NC_ES3);
 	        if(awsaccessid0 == NULL || awssecretkey0 == NULL ) {
 		    /* default, non-authenticating, "anonymous" fapl configuration */
 		    fa.authenticate = (hbool_t)0;
 	        } else {
 		    fa.authenticate = (hbool_t)1;
-	  	    assert(s3.region != NULL && strlen(s3.region) > 0);
+	  	    assert(region != NULL && strlen(region) > 0);
 		    assert(awsaccessid0 != NULL && strlen(awsaccessid0) > 0);
 		    assert(awssecretkey0 != NULL && strlen(awssecretkey0) > 0);
-		    strlcat(fa.aws_region,s3.region,H5FD_ROS3_MAX_REGION_LEN);
+		    strlcat(fa.aws_region,region,H5FD_ROS3_MAX_REGION_LEN);
 		    strlcat(fa.secret_id, awsaccessid0, H5FD_ROS3_MAX_SECRET_ID_LEN);
                     strlcat(fa.secret_key, awssecretkey0, H5FD_ROS3_MAX_SECRET_KEY_LEN);
 	        }
-		NC_s3clear(&s3);
                 /* create and set fapl entry */
                 if(H5Pset_fapl_ros3(fapl_id, &fa) < 0)
                     BAIL(NC_EHDFERR);

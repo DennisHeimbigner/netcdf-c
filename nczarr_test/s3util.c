@@ -24,6 +24,7 @@
 #include "nclog.h"
 #include "ncuri.h"
 #include "netcdf_aux.h"
+#include "ncaws.h"
 
 #undef NODELETE
 
@@ -66,7 +67,9 @@ struct Dumpptions {
 } dumpoptions;
 
 struct S3SDK {
-    NCS3INFO s3;
+    NCURI* uri;
+    char* rootkey;
+    const char* bucket;
     void* s3client;
     char* errmsg;
 } s3sdk;
@@ -100,11 +103,24 @@ decodeop(const char* name)
     return S3OP_NONE;
 }
 
+static void
+s3sdkclear(void)
+{
+    ncurifree(s3sdk.uri);
+    nullfree(s3sdk.rootkey);
+    nullfree(s3sdk.bucket);
+    nullfree(s3sdk.errmsg);
+    assert(s3sdk.s3client == NULL);
+    memset(&s3sdk,0,sizeof(s3sdk));
+}
+
 static int
 s3setup(void)
 {
-    int stat = NC_NOERR;
-    s3sdk.s3client = NC_s3sdkcreateclient(&s3sdk.s3);
+    int stat = NC_NOERR; 
+    s3sdk.rootkey = NC_gets3rootkey(s3sdk.uri); 
+    s3sdk.bucket = nulldup(NC_getactiveawsbucket(s3sdk.uri));
+    s3sdk.s3client = NC_s3sdkcreateclient(s3sdk.uri);
     return stat;
 }
 
@@ -112,10 +128,11 @@ static int
 s3shutdown(int deleteit)
 {
     int stat = NC_NOERR;
-    if(deleteit) {
-        stat = s3clear();
-    }
     stat = NC_s3sdkclose(s3sdk.s3client, &s3sdk.errmsg);
+    s3sdk.s3client = NULL;
+    if(deleteit) {
+	s3sdkclear();
+    }
     return stat;
 }
 
@@ -206,18 +223,22 @@ main(int argc, char** argv)
 
     memset(&s3sdk,0,sizeof(s3sdk));
 
-    if((stat = NC_s3urlprocess(dumpoptions.url, &s3sdk.s3, NULL))) goto done;
-    if(s3sdk.s3.rootkey != NULL && dumpoptions.key != NULL) {
+    if((stat = NC_s3urlrebuild(dumpoptions.url, &s3sdk.uri))) goto done;
+    s3setup();
+
+    if(s3sdk.rootkey != NULL && dumpoptions.key != NULL) {
 	/* Make the root key be the concatenation of rootkey+dumpoptions.key */
-        if((stat = nczm_concat(s3sdk.s3.rootkey,dumpoptions.key,&tmp))) goto done;
-	nullfree(s3sdk.s3.rootkey);
-	s3sdk.s3.rootkey = tmp; tmp = NULL;
+        if((stat = nczm_concat(s3sdk.rootkey,dumpoptions.key,&tmp))) goto done;
+	nullfree(s3sdk.rootkey);
+	s3sdk.rootkey = tmp; tmp = NULL;
     } else if(dumpoptions.key != NULL) {
-	s3sdk.s3.rootkey = dumpoptions.key;
-	dumpoptions.key = NULL;
+	nullfree(s3sdk.rootkey);
+	s3sdk.rootkey = nulldup(dumpoptions.key);
     }
-    if(s3sdk.s3.rootkey == NULL || strlen(s3sdk.s3.rootkey)==0)
-        s3sdk.s3.rootkey = strdup("/");
+    if(s3sdk.rootkey == NULL || strlen(s3sdk.rootkey)==0) {
+	nullfree(s3sdk.rootkey);
+        s3sdk.rootkey = strdup("/");
+    }
 
     switch (dumpoptions.s3op) {
     default:
@@ -244,8 +265,9 @@ done:
     /* Reclaim dumpoptions */
     ncurifree(dumpoptions.url);
     nullfree(dumpoptions.rootkey);
+    /* reclaim s3sdk */
+    s3sdkclear();
     nullfree(tmp);
-    NC_s3clear(&s3sdk.s3);
     nc_finalize();
     if(stat)
 	fprintf(stderr,"fail: %s\n",nc_strerror(stat));
@@ -259,9 +281,7 @@ s3list(void)
     size_t nkeys = 0;
     char** keys = NULL;
 
-    if(s3setup()) goto done;
-
-    stat = NC_s3sdklistall(s3sdk.s3client, s3sdk.s3.bucket, s3sdk.s3.rootkey, &nkeys, &keys, &s3sdk.errmsg);
+    stat = NC_s3sdklistall(s3sdk.s3client, s3sdk.bucket, s3sdk.rootkey, &nkeys, &keys, &s3sdk.errmsg);
     if(stat) goto done;
 
     if(nkeys > 0) {
@@ -288,9 +308,7 @@ s3clear(void)
     size_t nkeys = 0;
     char** keys = NULL;
 
-    if(s3setup()) goto done;
-
-    if((stat = NC_s3sdklistall(s3sdk.s3client, s3sdk.s3.bucket, s3sdk.s3.rootkey, &nkeys, &keys, &s3sdk.errmsg))) goto done;
+    if((stat = NC_s3sdklistall(s3sdk.s3client, s3sdk.bucket, s3sdk.rootkey, &nkeys, &keys, &s3sdk.errmsg))) goto done;
 
     if(nkeys > 0 && keys != NULL) {
 	size_t i;
@@ -304,7 +322,7 @@ s3clear(void)
         }
 #ifndef NODELETE
 	for(i=0;i<nkeys;i++) {
-	    if((stat = NC_s3sdkdeletekey(s3sdk.s3client, s3sdk.s3.bucket, keys[i], &s3sdk.errmsg)))
+	    if((stat = NC_s3sdkdeletekey(s3sdk.s3client, s3sdk.bucket, keys[i], &s3sdk.errmsg)))
 		goto done;
         }
 #endif
@@ -324,16 +342,18 @@ s3print(void)
     char** keys = NULL;
     size64_t count;
     char* content = NULL;
+#if 0
+    const char* bucket = NULL;
+    bucket = NC_getactiveawsbucket(s3sdk.uri);
+#endif
 
-    if(s3setup()) goto done;
-
-    if((stat = NC_s3sdkinfo(s3sdk.s3client, s3sdk.s3.bucket, s3sdk.s3.rootkey, &count,&s3sdk.errmsg)))
+    if((stat = NC_s3sdkinfo(s3sdk.s3client, s3sdk.bucket, s3sdk.rootkey, &count,&s3sdk.errmsg)))
 	goto done;
 
     if((content = (char*)calloc(1,count+1))==NULL)
         {stat = NC_ENOMEM; goto done;}
 
-    if((stat = NC_s3sdkread(s3sdk.s3client, s3sdk.s3.bucket, s3sdk.s3.rootkey, 0, count, (void*) content, &s3sdk.errmsg)))
+    if((stat = NC_s3sdkread(s3sdk.s3client, s3sdk.bucket, s3sdk.rootkey, 0, count, (void*) content, &s3sdk.errmsg)))
 	goto done;
 
     printcontent(count,content,dumpoptions.nctype);
@@ -352,12 +372,10 @@ s3upload(void)
     size_t red = 0;
     void* content = NULL;
 
-    if(s3setup()) goto done;
-
     if((stat = ncaux_readfile(dumpoptions.filename,&red,&content)))
         goto done;
 
-    if((stat = NC_s3sdkwriteobject(s3sdk.s3client, s3sdk.s3.bucket, s3sdk.s3.rootkey, red, content, &s3sdk.errmsg)))
+    if((stat = NC_s3sdkwriteobject(s3sdk.s3client, s3sdk.bucket, s3sdk.rootkey, red, content, &s3sdk.errmsg)))
 	goto done;
 
 done:
@@ -373,15 +391,13 @@ s3download(void)
     size64_t count;
     char* content = NULL;
 
-    if(s3setup()) goto done;
-
-    if((stat = NC_s3sdkinfo(s3sdk.s3client, s3sdk.s3.bucket, s3sdk.s3.rootkey, &count,&s3sdk.errmsg)))
+    if((stat = NC_s3sdkinfo(s3sdk.s3client, s3sdk.bucket, s3sdk.rootkey, &count,&s3sdk.errmsg)))
 	goto done;
 
     if((content = (char*)calloc(1,count))==NULL)
         {stat = NC_ENOMEM; goto done;}
 
-    if((stat = NC_s3sdkread(s3sdk.s3client, s3sdk.s3.bucket, s3sdk.s3.rootkey, 0, count, (void*) content, &s3sdk.errmsg)))
+    if((stat = NC_s3sdkread(s3sdk.s3client, s3sdk.bucket, s3sdk.rootkey, 0, count, (void*) content, &s3sdk.errmsg)))
 	goto done;
 
     if((stat = ncaux_writefile(dumpoptions.filename,count,content)))

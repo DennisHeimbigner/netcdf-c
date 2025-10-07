@@ -6,6 +6,9 @@
 #include "ncexternl.h"
 #include <stddef.h>
 
+/*Mnemonics*/
+#define AWSDEEP 1
+
 /* Define the type of the elements in the list*/
 
 #if defined(_CPLUSPLUS_) || defined(__CPLUSPLUS__)

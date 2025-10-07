@@ -534,7 +534,7 @@ ncurisetfragments(NCURI* duri,const char* fragments)
     return ret;
 }
 
-/* Replace the path */
+/* Replace the url text */
 int
 ncurirebuild(NCURI* duri)
 {

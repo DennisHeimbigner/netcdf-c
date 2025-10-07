@@ -215,8 +215,8 @@ NC_s3urlrebuild(NCURI* url, NCURI** newurlp)
 	    nclistremove(hostsegments,0); /* remove the "s3" */
 	} else if(s3pos == 1 && pres3 == 1 && posts3 >= 3) {/* check for (9): bucket.s3.<region>.<domain>.<tld>/<path> */
 	    region = nclistremove(hostsegments,2);
-    	    bucket = nclistget(hostsegments,0);
-	    nclistremove(hostsegments,0); /* remove the "s3" */
+	    nclistremove(hostsegments,1); /* remove the "s3" */
+    	    bucket = nclistremove(hostsegments,0);
 	} else if(s3pos == -1) { /* (10) https://<host>/<bucket>/<path> */
 	    /* region not specified */
 	}
@@ -281,12 +281,15 @@ NC_s3urlrebuild(NCURI* url, NCURI** newurlp)
     ncurirebuild(newurl);
 
     /* Record the region in the ncuri fragment list */
-    ncurisetfragmentkey(newurl,AWS_FRAG_REGION,region);
+    if(region !=NULL)
+	ncurisetfragmentkey(newurl,AWS_FRAG_REGION,region);
 
     /* Record the url type and region and bucket in ncuri notes list */
     ncurinotesinsert(newurl,AWS_NOTES_TYPE,AWSURITYPENAMES[(unsigned)svc]);
-    ncurinotesinsert(newurl,AWS_NOTES_BUCKET,bucket);
-    ncurinotesinsert(newurl,AWS_NOTES_REGION,region);
+    if(bucket != NULL)
+	ncurinotesinsert(newurl,AWS_NOTES_BUCKET,bucket);
+    if(region != NULL)
+	ncurinotesinsert(newurl,AWS_NOTES_REGION,region);
 
 #ifdef AWSDEBUG
     fprintf(stderr,">>> NC_s3urlrebuild: final=%s bucket=|%s| region=|%s|\n",newurl->uri,bucket,region);
@@ -320,6 +323,27 @@ endswith(const char* s, const char* suffix)
 
 /**************************************************/
 /* S3 utilities */
+
+char*
+NC_gets3rootkey(NCURI* uri)
+{
+    int stat = NC_NOERR;
+    char* rootkey = NULL;
+    NClist* pathsegments = NULL;
+
+    /* construct the rootkey minus the leading bucket */
+    pathsegments = nclistnew();
+    if((stat = NC_split_delim(uri->path,'/',pathsegments))) goto done;
+    if(nclistlength(pathsegments) > 0) {
+	char* seg = nclistremove(pathsegments,0); /* remove the leading bucket */
+        nullfree(seg);
+    }
+    if((stat = NC_join(pathsegments,&rootkey))) goto done;
+done:
+    nclistfreeall(pathsegments);
+    if(stat) {nullfree(rootkey); rootkey = NULL;}
+    return rootkey;
+}
 
 #if 0
 /**
@@ -520,8 +544,8 @@ Get the current active profile. The priority order is as follows:
 @return NC_EINVAL if something else went wrong.
 */
 
-int
-NC_getactiveawsprofile(NCURI* uri, const char** profilep)
+const char*
+NC_getactiveawsprofile(NCURI* uri)
 {
     int stat = NC_NOERR;
     const char* profile = NULL;
@@ -536,27 +560,33 @@ NC_getactiveawsprofile(NCURI* uri, const char** profilep)
 	if((stat = NC_profiles_lookup("no",&ap))) goto done;
 	if(ap) profile = "no";
     }
-    if(profilep) {*profilep = profile; profile = NULL;}
+
 done:
-    return stat;
+    if(stat) {nullfree(profile); profile = NULL;}
+    return profile;
 }
 
-#if 0
 /* Infer region and return it */
-static char*
-infer_region(NCawsconfig* aws)
+const char*
+NC_getactiveawsregion(NCURI* uri)
 {
     const char* region = NULL;
-    assert(aws != NULL);
-    if(aws->region == NULL)
-	region = nulldup(aws->region);
-    if(region == NULL) /* Get default region */
-	region = nulldup(aws->default_region);
+    region = NC_aws_lookup(AWS_SORT_REGION,uri);
     if(region == NULL)
-        region = strdup(AWS_GLOBAL_DEFAULT_REGION);
+        region = NC_aws_lookup(AWS_SORT_DEFAULT_REGION,uri);
+    if(region == NULL)
+        region = AWS_GLOBAL_DEFAULT_REGION;
     return region;
 }
-#endif
+
+/* Infer bucket and return it */
+const char*
+NC_getactiveawsbucket(NCURI* uri)
+{
+    const char* bucket = NULL;
+    bucket = NC_aws_lookup(AWS_SORT_BUCKET,uri);
+    return bucket;
+}
 
 #if 0
 /*

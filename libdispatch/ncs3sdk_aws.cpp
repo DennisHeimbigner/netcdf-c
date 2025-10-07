@@ -21,7 +21,7 @@
 #include "netcdf.h"
 #include "ncrc.h"
 #include "ncutil.h"
-
+#include "ncaws.h"
 #include "ncs3sdk.h"
 #include "nch5s3comms.h"
 
@@ -147,9 +147,6 @@ NC_s3sdkinitialize(void)
 #endif
         Aws::InitAPI(ncs3options);
 
-	/* Get environment information */
-        NC_s3sdkenvironment();
-
     }
     return NCUNTRACE(NC_NOERR);
 }
@@ -185,18 +182,21 @@ makeerrmsg(const Aws::Client::AWSError<Aws::S3::S3Errors> err, const char* key="
 static Aws::Client::ClientConfiguration
 s3sdkcreateconfig(NCURI* uri)
 {
+    char* hostport = NULL;
     NCTRACE(11,NULL);
 
     Aws::Client::ClientConfiguration config;
 
-    if((config.profileName = NC_aws_lookup(AWS_SORT_PROFILE,uri))==NULL) {goto done;}
+    config.profileName = NC_aws_lookup(AWS_SORT_PROFILE,uri);
+    if(config.profileName.empty()) goto done;
     config.scheme = Aws::Http::Scheme::HTTPS;
     //config.connectTimeoutMs = 1000;
     //config.requestTimeoutMs = 0;
     config.connectTimeoutMs = 300000;
     config.requestTimeoutMs = 600000;
-    if((config.region = NC_aws_lookup(AWS_SORT_REGION,?))==NULL) {goto done;}
-    char* hostport = NC_combinehostport(uri);
+    config.region = NC_aws_lookup(AWS_SORT_REGION,uri);
+    if(config.region.empty()) goto done;
+    hostport = NC_combinehostport(uri);
     if(hostport) config.endpointOverride = hostport;
     config.enableEndpointDiscovery = true;
     config.followRedirects = Aws::Client::FollowRedirectsPolicy::ALWAYS;
@@ -240,21 +240,22 @@ buildclient(Aws::Client::ClientConfiguration* config, Aws::Auth::AWSCredentials*
 /*EXTERNL*/ void*
 NC_s3sdkcreateclient(NCURI* uri)
 {
-    NCTRACE(11,NULL);
-
+    const char* profile = NULL;
     Aws::Client::ClientConfiguration config = s3sdkcreateconfig(uri);
     AWSS3CLIENT s3client;
 
-    if(info->profile == NULL || strcmp(info->profile,"none")==0) {
+    NCTRACE(11,NULL);
+
+    profile = NC_aws_lookup(AWS_SORT_PROFILE,uri);
+
+    if(profile == NULL || strcmp(profile,"none")==0 || strcmp(profile,"no")==0) {
         Aws::Auth::AWSCredentials creds;
         creds.SetAWSAccessKeyId(Aws::String(""));
         creds.SetAWSSecretKey(Aws::String(""));
-
         s3client = buildclient(&config,&creds);
     } else {
         s3client = buildclient(&config,NULL);
     }
-//    delete config;
     NCUNTRACENOOP(NC_NOERR);
     return (void*)s3client;
 }
@@ -329,21 +330,22 @@ NC_s3sdkbucketcreate(void* s3client0, const char* region, const char* bucket, ch
 }
 
 /*EXTERNL*/ int
-NC_s3sdkbucketdelete(void* s3client0, NCURI* uri, char** errmsgp)
+NC_s3sdkbucketdelete(void* s3client0, const char* bucket, char** errmsgp)
 {
     int stat = NC_NOERR;
-
-    NCTRACE(11,NULL);
-
     AWSS3CLIENT s3client = (AWSS3CLIENT)s3client0;
     
+    NCTRACE(11,NULL);
+
     if(errmsgp) *errmsgp = NULL;
+#if 0
     const Aws::S3::Model::BucketLocationConstraint &awsregion = s3findregion(NC_aws_lookup(AWS_SORT_REGION,uri));
     if(awsregion == Aws::S3::Model::BucketLocationConstraint::NOT_SET)
         return NC_EURL;
+#endif
     /* Set up the request */
     Aws::S3::Model::DeleteBucketRequest request;
-    request.SetBucket(info->bucket);
+    request.SetBucket(bucket);
 
 #ifdef NOOPBUCKET
     /* Delete the bucket */
@@ -694,16 +696,6 @@ Not necessarily sorted.
 NC_s3sdklist(void* s3client0, const char* bucket, const char* prefixkey0, size_t* nkeysp, char*** keysp, char** errmsgp)
 {
     return getkeys(s3client0, bucket, prefixkey0, "/", nkeysp, keysp, errmsgp);
-}
-
-/*
-Return a list of full keys  of legal objects anywhere below a specified key.
-Not necessarily sorted.
-*/
-/*EXTERNL*/ int
-NC_s3sdklistall(void* s3client0, const char* bucket, const char* prefixkey0, size_t* nkeysp, char*** keysp, char** errmsgp)
-{
-    return getkeys(s3client0, bucket, prefixkey0, NULL, nkeysp, keysp, errmsgp);
 }
 
 /*EXTERNL*/ int

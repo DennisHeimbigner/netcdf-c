@@ -13,8 +13,15 @@
 #include "ncs3sdk.h"
 #include "ncuri.h"
 #include "nc4internal.h"
+#include "ncaws.h"
 
+typedef struct NCS3INFO {
+    const char* profile;
+    const char* region;
+    const char* bucket;
+} NCS3INFO;
 NCS3INFO s3info;
+
 void* s3client = NULL;
 
 /* Forward */
@@ -28,7 +35,7 @@ check(int code, const char* fcn, int line)
 {
     if(code == NC_NOERR) return code;
     fprintf(stderr,"***FAIL: (%d) %s @ %s:%d\n",code,nc_strerror(code),fcn,line);
-    abort();
+    exit(1);
 }
 
 static void
@@ -37,7 +44,6 @@ cleanup(void)
     if(s3client)
         NC_s3sdkclose(s3client, NULL);
     s3client = NULL;
-    NC_s3clear(&s3info);
 }
 
 int
@@ -47,16 +53,16 @@ main(int argc, char** argv)
 
     /* Load RC and .aws/config */
     CHECK(nc_initialize()); /* Will invoke NC_s3sdkinitialize()); */
-    NCglobalstate* gs = NC_getglobalstate();
     //Not checking, aborts if ~/.aws/config doesn't exist
-    CHECK(NC_aws_load_credentials(gs));
+    CHECK(NC_profiles_load());
     
     // Lets ensure the active profile is loaded
-    // from the configurtion files instead of an URL
+    // from the configuration files instead of a URI
     const char* activeprofile = NULL;
-    CHECK(NC_getactives3profile(NULL, &activeprofile));
+    activeprofile = NC_getactiveawsprofile(NULL);
+    CHECK((activeprofile==NULL?NC_ES3:NC_NOERR));
 
-    fprintf(stderr, "Active profile:%s\n", STR(activeprofile));
+    printf("Active profile:%s\n", STR(activeprofile));
     
     // ARGV contains should contain "key[=value]" to verify
     // if key was parsed when loading the aws config and if it's
@@ -67,7 +73,7 @@ main(int argc, char** argv)
         const char* value = NULL;
 
         NC_profiles_findpair(activeprofile,argkey,&value);
-        fprintf(stderr, "%s\t%s -> %s\n",value?"":"*** FAIL:", argv[i],value?value:"NOT DEFINED!");
+        printf("%s\t%s -> %s\n",value?"":"*** FAIL:", argv[i],value?value:"NOT DEFINED!");
         if ( value == NULL 
             || (argvalue != NULL 
                 && strncmp(value, argvalue, strlen(value)))
@@ -79,11 +85,5 @@ main(int argc, char** argv)
 
 done:
     cleanup();
-    if(stat)
-        printf("*** FAIL: a total of %d keys were not found on the profile %s\n", c, STR(activeprofile));
-    else
-        printf("***PASS\n");
-    (void)NC_s3sdkfinalize();
-    (void)nc_finalize();
-    exit(stat?:0);
+    exit(stat?1:0);
 }
