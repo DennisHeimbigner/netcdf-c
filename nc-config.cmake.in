@@ -134,6 +134,13 @@ else
     has_quantize="yes"
 fi
 
+has_threadsafe="@IS_THREADSAFE@"
+if [ -z "$has_threadsafe" -o "$has_threadsafe" = "OFF" -o "$has_threadsafe" = "FALSE" ]; then
+    has_threadsafe="no"
+else
+    has_threadsafe="yes"
+fi
+
 version="@PACKAGE@ @VERSION@"
 
 usage()
@@ -215,6 +222,7 @@ all()
         echo "  --has-multifilters -> $has_multifilters"
         echo "  --has-stdfilters   -> @STD_FILTERS@"
         echo "  --has-quantize     -> $has_quantize"
+        echo "  --has-threadsfe    -> $has_threadsafe"
         echo
         echo "  --prefix            -> $prefix"
         echo "  --includedir        -> $includedir"
@@ -356,6 +364,10 @@ while test $# -gt 0; do
 
     --has-quantize)
         echo $has_quantize
+        ;;
+
+    --has-threadsafe)
+        echo $has_threadsafe
         ;;
 
     --libs)

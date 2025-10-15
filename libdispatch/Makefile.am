@@ -65,6 +65,10 @@ if REGEDIT
 libdispatch_la_SOURCES += dreg.c
 endif
 
+if NETCDF_ENABLE_THREADSAFE
+libdispatch_la_SOURCES += dthreaded.c
+endif
+
 # Support generation of 32-bit unsigned int random numbers
 noinst_PROGRAMS = ncrandom
 ncrandom_SOURCES = ncrandom.c

@@ -674,6 +674,15 @@ with zip */
 /* if true enable tests that access external servers */
 #cmakedefine NETCDF_ENABLE_EXTERNAL_SERVER_TESTS 1
 
+/* if true enable thread safety */
+#cmakedefine NETCDF_ENABLE_THREADSAFE 1
+
+/* if true the pthreads library is used */
+#cmakedefine HAVE_PTHREADS 1
+
+# Set max No. of threads
+#cmakedefine PTHREAD_T_MAX_SIZE ${PTHREAD_T_MAX_SIZE}
+
 /* Version number of package */
 #cmakedefine VERSION "${netCDF_VERSION}"
 

@@ -43,6 +43,8 @@ has_benchmarks="@HAS_BENCHMARKS@"
 has_multifilters="yes"
 has_quantize="@HAS_QUANTIZE@"
 has_stdfilters="@STD_FILTERS@"
+has_threadsafe="@IS_THREADSAFE@"
+
 version="@PACKAGE_NAME@ @PACKAGE_VERSION@"
 HAS_STATIC="FALSE"
 PRINTLIBS="FALSE"
@@ -75,6 +77,7 @@ Available values for OPTION include:
   --has-zstd          whether zstandard compression enabled
   --has-multifilters  whether multifilter support is enabled
   --has-quanitze      whether quantize support is enabled
+  --has-threadsafe    whether thread safe support is enabled
   --has-stdfilters    lists the standard filters enabled
   --has-benchmarks    whether benchmarks enabled
 
@@ -121,6 +124,7 @@ all()
         echo "  --has-multifilters  -> $has_multifilters"
         echo "  --has-stdfilters    -> @STD_FILTERS@"
         echo "  --has-quantize      -> $has_quantize"
+        echo "  --has-threadsafe    -> $has_threadsafe"
         echo
         echo "  --prefix            -> $prefix"
         echo "  --includedir        -> $includedir"
@@ -261,6 +265,10 @@ while test $# -gt 0; do
 
     --has-quantize)
         echo $has_quantize
+        ;;
+
+    --has-threadsafe)
+        echo $has_threadsafe
         ;;
 
     --libs)

@@ -36,6 +36,10 @@ if NETCDF_ENABLE_BYTERANGE
 noinst_HEADERS += nchttp.h
 endif
 
+if NETCDF_ENABLE_THREADSAFE
+noinst_HEADERS += ncthreaded.h
+endif
+
 EXTRA_DIST = CMakeLists.txt XGetopt.h netcdf_meta.h.in netcdf_dispatch.h.in
 
 MAINTAINERCLEANFILES = netcdf_json.h netcdf_proplist.h
