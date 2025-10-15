@@ -715,6 +715,43 @@ fi
 AC_MSG_RESULT([${msg}])
 AC_DEFINE_UNQUOTED([REMOTETESTSERVERS], ["$REMOTETESTSERVERS"], [the testservers for remote tests.])
 
+# Thread safety options
+AC_MSG_CHECKING([whether we should enable thread safety])
+AC_ARG_ENABLE([threadsafe], [AS_HELP_STRING([--enable-threadsafe],
+              [enable thread-safe operation (default=no)])])
+test "x$enable_threadsafe" = xyes || enable_threadsafe=no
+AC_MSG_RESULT([$enable_threadsafe])
+
+if test "x$enable_threadsafe" = xyes ; then
+    # See if we have libpthreads
+    # Note: we use search_libs initially instead of check_lib
+    # because sometimes pthreads is built-in and check_lib will not find it.
+    AC_SEARCH_LIBS([pthread_mutex_init],[pthreads pthreads.dll cygpthreads.dll], [have_pthreads=yes], [have_pthreads=no])
+    if test "x${ac_res}" = "xnone required" ; then # A hack to record if pthreads is built-in
+	pthreads_builtin=yes
+        have_pthreads=yes
+    else
+        pthreads_builtin=no # but have_pthreads might be yes if not builtin
+    fi
+    if test "x$have_pthreads" = "xyes" ; then
+	if test "x$pthreads_builtin" = xno ; then
+	    AC_CHECK_LIB([pthreads],[pthread_mutex_init],[],[]) # to ensure it is in the loaded libs set
+	fi
+        AC_DEFINE([HAVE_PTHREADS], [1], [if true, pthreads is available])
+    else
+	AC_MSG_WARN([!pthreads => !threadsafe])
+	enable_threadsafe=no
+    fi
+fi
+
+if test "x$enable_threadsafe" = xyes ; then
+AC_DEFINE([NETCDF_ENABLE_THREADSAFE], [1], [if true, include experimental thread safe code])
+AC_DEFINE_UNQUOTED([PTHREAD_T_MAX_SIZE], [64], [|pthread_t|])
+else
+AC_DEFINE_UNQUOTED([PTHREAD_T_MAX_SIZE], [0], [|pthread_t|])
+fi
+AM_CONDITIONAL(NETCDF_ENABLE_THREADSAFE, [test "x$enable_threadsafe" = xyes])
+
 # Set the config.h flags
 if test "x$enable_dap" = xyes; then
    AC_DEFINE([USE_DAP], [1], [if true, build DAP Client])
@@ -2129,6 +2166,7 @@ AC_SUBST(HAS_SZLIB_WRITE, [$have_sz])
 AC_SUBST(HAS_ZSTD,[$have_zstd])
 AC_SUBST(DO_LARGE_TESTS,[$enable_large_file_tests])
 AC_SUBST(DO_REMOTE_FUNCTIONALITY,[$enable_remote_functionality])
+AC_SUBST(IS_THREADSAFE,[$enable_threadsafe])
 
 if test "x$enable_s3_aws" = xyes ; then
 AC_SUBST(WHICH_S3_SDK,[aws-sdk-cpp])
@@ -2326,6 +2364,7 @@ AX_SET_META([NC_HAS_SZIP],[$enable_hdf5_szip],[yes])
 AX_SET_META([NC_HAS_ZSTD],[$have_zstd],[yes])
 AX_SET_META([NC_HAS_BLOSC],[$have_blosc],[yes])
 AX_SET_META([NC_HAS_BZ2],[$have_bz2],[yes])
+AX_SET_META([NC_IS_THREADSAFE],[$enable_threadsafe],[yes])
 
 # This is the version of the dispatch table. If the dispatch table is
 # changed, this should be incremented, so that user-defined format
