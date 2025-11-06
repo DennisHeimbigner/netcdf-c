@@ -76,13 +76,13 @@ NC_createglobalstate(void)
 
     ncrc_initialize();
 
+    /* Initialize aws defaults from .rc, env vars, aws profiles */
+    NC_awsglobal();
+
     /* load AWS Profiles: .aws/config &/ credentials */
     if(NC_aws_load_credentials(nc_globalstate)) {
         nclog(NCLOGWARN,"AWS config file not loaded");
     }
-
-    /* Initialize aws defaults from .rc, env vars, aws profiles */
-    NC_awsglobal();
 
 #if 0
     /* Initialize chunk cache defaults */
@@ -99,9 +99,9 @@ done:
 static void
 gs_chunkcache_init(NCglobalstate* gs)
 {    
-    gs->chunkcache->size = DEFAULT_CHUNK_CACHE_SIZE;		/**< Default chunk cache size. */
-    gs->chunkcache->nelems = DEFAULT_CHUNKS_IN_CACHE;		/**< Default chunk cache number of elements. */
-    gs->chunkcache->preemption = DEFAULT_CHUNK_CACHE_PREEMPTION;/**< Default chunk cache preemption. */
+    gs->chunkcache.size = DEFAULT_CHUNK_CACHE_SIZE;		/**< Default chunk cache size. */
+    gs->chunkcache.nelems = DEFAULT_CHUNKS_IN_CACHE;		/**< Default chunk cache number of elements. */
+    gs->chunkcache.preemption = DEFAULT_CHUNK_CACHE_PREEMPTION;/**< Default chunk cache preemption. */
 }
 
 static void
@@ -170,13 +170,12 @@ NC_freeglobalstate(void)
 {
     NCglobalstate* gs = nc_globalstate;
     if(gs != NULL) {
-	NC_clearawsparams(gs->aws);
-	NC_rcclear(gs->rcinfo);
         nullfree(gs->tempdir);
         nullfree(gs->home);
         nullfree(gs->cwd);
 	memset(&gs->chunkcache,0,sizeof(struct ChunkCache));
-	NC_clearawsparams(&gs->aws);
+	NC_clearawsparams(gs->aws);
+	nullfree(gs->aws);
         if(gs->rcinfo) {
 	    NC_rcclear(gs->rcinfo);
 	    free(gs->rcinfo);

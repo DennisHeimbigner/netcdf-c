@@ -546,13 +546,13 @@ EXTERNL int NCH5_s3comms_HMAC_SHA256(const unsigned char *key, size_t key_len, c
                                        size_t msg_len, char *dest);
 
 EXTERNL int NCH5_s3comms_load_aws_profile(const char *name, char *key_id_out, char *secret_access_key_out,
-                                            char *aws_region_out);
+                                            char *aws_region_out, char* aws_session_token_out);
 
 EXTERNL int NCH5_s3comms_nlowercase(char *dest, const char *s, size_t len);
 
 EXTERNL int NCH5_s3comms_percent_encode_char(char *repr, const unsigned char c, size_t *repr_len);
 
-EXTERNL int NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *region, connst char* session_token,
+EXTERNL int NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *region, const char* session_token,
                                        const char *iso8601now);
 
 EXTERNL int NCH5_s3comms_tostringtosign(struct VString* dest, const char *req_str, const char *now,

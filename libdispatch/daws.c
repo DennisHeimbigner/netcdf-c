@@ -33,6 +33,7 @@ static void NC_awsparamsmerge(struct NCAWSPARAMS* baseaws, struct NCAWSPARAMS* n
 void
 NC_clearawsparams(struct NCAWSPARAMS* aws)
 {
+    assert(aws != NULL);
     nullfree(aws->config_file);
     nullfree(aws->profile);
     nullfree(aws->region);
@@ -82,8 +83,12 @@ NC_awsglobal(void)
     NCglobalstate* gs = NC_getglobalstate();
     NCAWSPARAMS aws;
 
-    aws = NC_awsparams_empty();
+    if(gs->aws == NULL)
+	gs->aws = (NCAWSPARAMS*)calloc(1,sizeof(NCAWSPARAMS));
     NC_clearawsparams(gs->aws);
+
+    aws = NC_awsparams_empty();
+    NC_clearawsparams(&aws);
     
     /* Get .rc information */
     NC_clearawsparams(&aws);

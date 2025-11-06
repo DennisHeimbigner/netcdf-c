@@ -16,6 +16,7 @@
 #include "hdf5debug.h"
 #include "nc4internal.h"
 #include "ncrc.h"
+#include "ncaws.h"
 #include "ncauth.h"
 #include "ncmodel.h"
 #include "ncpathmgr.h"
@@ -915,7 +916,7 @@ nc4_open_file(const char *path, int mode, void* parameters, int ncid)
 		    BAIL(retval);		
 		if((retval = NC_s3profilelookup(profile0,AWS_PROF_SECRET_ACCESS_KEY,&awssecretkey0)))
 		    BAIL(retval);		
-???		if((retval = NC_s3profilelookup(profile0,AWS_SESSION_TOKEN,&sessiontoken0)))
+		if((retval = NC_s3profilelookup(profile0,AWS_PROF_SESSION_TOKEN,&sessiontoken0)))
 		    BAIL(retval);		
 		if(s3.region == NULL)
 		    s3.region = strdup(AWS_GLOBAL_DEFAULT_REGION);

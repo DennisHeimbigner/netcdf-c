@@ -1137,7 +1137,7 @@ NCH5_s3comms_s3r_open(const char* root, NCS3SVC svc, NCAWSPARAMS* aws)
             HGOTO_ERROR(H5E_ARGS, NC_EAUTH, NULL, "signing key cannot be null.");
 
         /* Compute the signing key */
-        if (SUCCEED != NCH5_s3comms_signing_key(&signing_key, access_key, region, iso8601now))
+        if (SUCCEED != NCH5_s3comms_signing_key(&signing_key, access_key, region, session_token, iso8601now))
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, NULL, "problem in NCH5_s3comms_s3comms_signing_key.");
 #if S3COMMS_DEBUG_TRACE
   {
@@ -1745,7 +1745,7 @@ done:
  */
 int
 NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *secret_access_key_out,
-                              char *aws_region_out, char* aws_session_token_outa)
+                              char *aws_region_out, char* aws_session_token_out)
 {
     int ret_value = SUCCEED;
     FILE  *credfile  = NULL;
@@ -1786,7 +1786,7 @@ NCH5_s3comms_load_aws_profile(const char *profile_name, char *key_id_out, char *
         if (H5FD__s3comms_load_aws_creds_from_file(
                 credfile, profile_name, (*key_id_out == 0) ? key_id_out : NULL,
                 (*secret_access_key_out == 0) ? secret_access_key_out : NULL,
-                (*aws_region_out == 0) ? aws_region_out : NULL) != SUCCEED,
+                (*aws_region_out == 0) ? aws_region_out : NULL,
                 (*aws_session_token_out == 0) ? aws_session_token_out : NULL) != SUCCEED)
             HGOTO_ERROR(H5E_ARGS, NC_EINVAL, FAIL, "unable to load from aws config");
         if (fclose(credfile) == EOF)
@@ -2007,7 +2007,7 @@ done:
  *----------------------------------------------------------------------------
  */
 int
-NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *region, const char *iso8601now)
+NCH5_s3comms_signing_key(unsigned char **mdp, const char *secret, const char *region, const char* session_token, const char *iso8601now)
 {
     char         *AWS4_secret     = NULL;
     size_t        AWS4_secret_len = 0;

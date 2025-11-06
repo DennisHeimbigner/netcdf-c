@@ -48,7 +48,9 @@
 
 enum URLFORMAT {UF_NONE=0, UF_VIRTUAL=1, UF_PATH=2, UF_S3=3, UF_OTHER=4};
 
-/* Read these files in order and later overriding earlier */
+/* Read these files in order and later overriding earlier;
+   trailing NULL is for any user-specified env variable, which takes precedence
+*/
 static const char* awsconfigfiles[] = {".aws/config",".aws/credentials",NULL};
 #define NCONFIGFILES (sizeof(awsconfigfiles)/sizeof(char*))
 
@@ -524,12 +526,12 @@ int
 NC_aws_load_credentials(NCglobalstate* gstate)
 {
     int stat = NC_NOERR;
+    size_t i;
     NClist* profiles = nclistnew();
     NCbytes* buf = ncbytesnew();
     char path[8192];
     const char* aws_root = getenv(NC_TEST_AWS_DIR);
-    const char* awscfg_local[NCONFIGFILES + 1]; /* +1 for the env variable */
-    const char** awscfg = NULL;
+    const char* awscfg_local[NCONFIGFILES];
 
     /* add a "no" credentials */
     {
@@ -539,15 +541,13 @@ NC_aws_load_credentials(NCglobalstate* gstate)
 	nclistpush(profiles,noprof); noprof = NULL;
     }
 
-    awscfg = awsconfigfiles;
-    if((awscfg_local[0] = NC_getglobalstate()->aws->config_file)!=NULL) {
-	memcpy(&awscfg_local[1],awsconfigfiles,sizeof(char*)*NCONFIGFILES);
-	awscfg = awscfg_local;
-    }
-    for(;*awscfg;awscfg++) {
+    /* Make local copy list of places to look so we can add any place specified by env variable */
+    memcpy(awscfg_local,awsconfigfiles,sizeof(char*)*NCONFIGFILES);
+    awscfg_local[2] = NC_getglobalstate()->aws->config_file;
+    for(i=0;i<NCONFIGFILES;i++) {
         /* Construct the path ${HOME}/<file> or Windows equivalent. */
-	const char* cfg = *awscfg;
-
+	const char* cfg = awscfg_local[i];
+	if(cfg == NULL) continue; /* Ignore any NULL config files */
         snprintf(path,sizeof(path),"%s%s%s",
 	    (aws_root?aws_root:gstate->home),
 	    (*cfg == '/'?"":"/"),
