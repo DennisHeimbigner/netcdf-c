@@ -7,11 +7,11 @@
 
 #include "nclist.h"
 
+#undef HAVE_MEMMOVE
+
 #if defined(_WIN32) && !defined(__MINGW32__)
 #define strcasecmp _stricmp
 #endif
-
-int nclistisnull(void* e) {return e == NULL;}
 
 #define NCLISTDEBUG 1
 
@@ -24,6 +24,11 @@ int nclistisnull(void* e) {return e == NULL;}
 
 #define DEFAULTALLOC 16
 #define ALLOCINCR 16
+
+/*Forward */
+static void memmovex(void* dst, void* src, size_t len);
+
+int nclistisnull(void* e) {return e == NULL;}
 
 static int
 nclistfail(void)
@@ -94,21 +99,30 @@ nclistclearall(NClist* l)
   return TRUE;
 }
 
+/*
+Set allocated memory to newalloc elements.
+If newalloc is zero, then just guarantee that l->content has memory allocated.
+*/
 int
-nclistsetalloc(NClist* l, size_t sz)
+nclistsetalloc(NClist* l, size_t newalloc)
 {
   void** newcontent = NULL;
+  size_t alloc;
   if(l == NULL) return nclistfail();
-  if(sz <= 0) {sz = (l->length?2*l->length:DEFAULTALLOC);}
-  if(l->alloc >= sz) {return TRUE;}
-  if(!l->extendible) return nclistfail();
-  newcontent=(void**)calloc(sz,sizeof(void*));
-  if(newcontent != NULL && l->alloc > 0 && l->length > 0 && l->content != NULL) {
+  if(newalloc == 0) newalloc = DEFAULTALLOC; /* force newalloc to be greater than 0 */
+  if(l->alloc >= newalloc) {return TRUE;} /* already enough space */
+  /* Iterate to find an allocation greater or equal to newalloc */
+  alloc = l->alloc;
+  while(alloc < newalloc)
+      alloc = (2*alloc + 1); /* Double until we have a suitable allocation; +1 in case alloc is zero*/
+  newcontent=(void**)calloc(alloc,sizeof(void*));
+  if(newcontent == NULL) return nclistfail(); /* out of memory */
+  /* Copy data, if any,  to new contents */
+  if(l->alloc > 0 && l->length > 0 && l->content != NULL)
     memcpy((void*)newcontent,(void*)l->content,sizeof(void*)*l->length);
-  }
-  if(l->content != NULL) free(l->content);
-  l->content=newcontent;
-  l->alloc=sz;
+  if(l->content != NULL) free(l->content); /* reclaim old contents */
+  l->content = newcontent;
+  l->alloc = alloc;
   return TRUE;
 }
 
@@ -116,7 +130,8 @@ int
 nclistsetlength(NClist* l, size_t newlen)
 {
   if(l == NULL) return nclistfail();
-  if(newlen > l->alloc && !nclistsetalloc(l,newlen)) return nclistfail();
+  if(newlen >= l->alloc && !nclistsetalloc(l,newlen+1)) /* +1 in case newlen == l->alloc */
+      return nclistfail();
   if(newlen > l->length) {
       /* clear any extension */
       memset(&l->content[l->length],0,(newlen - l->length)*sizeof(void*));
@@ -158,7 +173,10 @@ nclistinsert(NClist* l, size_t index, void* elem)
   if(index > l->length) return nclistfail();
   nclistsetalloc(l,0);
   if(l->length > 0) {
+    memmovex(l->content+(index+1),l->content+index,(l->length-index)*sizeof(void*));
+#if 0
     for(i=l->length;i>index;i--) l->content[i] = l->content[i-1];
+#endif
   }
   l->content[index] = elem;
   l->length++;
@@ -169,9 +187,9 @@ int
 nclistpush(NClist* l, const void* elem)
 {
   if(l == NULL) return nclistfail();
-  if(l->length >= l->alloc) nclistsetalloc(l,0);
   if(l->content == NULL)
       nclistsetalloc(l,0);
+  if(l->length >= l->alloc) nclistsetalloc(l,l->length+1);
   l->content[l->length] = (void*)elem;
   l->length++;
   return TRUE;
@@ -203,7 +221,10 @@ nclistremove(NClist* l, size_t i)
   if((len=l->length) == 0) return NULL;
   if(i >= len) return NULL;
   elem = l->content[i];
+  memmovex(l->content+i,l->content+(i+1),(len-(i+1))*sizeof(void*));
+#if 0  
   for(i+=1;i<len;i++) l->content[i-1] = l->content[i];
+#endif
   l->length--;
   return elem;
 }
@@ -248,10 +269,9 @@ nclistelemremove(NClist* l, void* elem)
   for(i=0;i<nclistlength(l);i++) {
     void* candidate = l->content[i];
     if(elem == candidate) {
-      for(i+=1;i<len;i++) l->content[i-1] = l->content[i];
-      l->length--;
-      found = 1;
-      break;
+	nclistremove(l,i);
+        found = 1;
+        break;
     }
   }
   return found;
@@ -314,10 +334,10 @@ nclistextract(NClist* l)
 {
     void* result = NULL;
     if(l) {
-    result = l->content;
-    l->alloc = 0;
-    l->length = 0;
-    l->content = NULL;
+	result = l->content;
+	l->alloc = 0;
+	l->length = 0;
+	l->content = NULL;
     }
     return result;
 }
@@ -348,3 +368,35 @@ nclistnull(NClist* l)
     return 1;
 }
 
+/**************************************************/
+/* Utility functions */
+
+/**
+Define an internal form of memmove if not
+defined by platform.
+@param dst where to store bytes
+@param src source of bytes
+@param len no. of bytes to move
+@return void
+*/
+static void
+memmovex(void* dst, void* src, size_t len)
+{
+    if(len == 0) return;
+#ifdef HAVE_MEMMOVE
+    memmove(dst,src,len*sizeof(char));
+#else
+    {
+        char *d = dst;
+        const char *s = src;
+        if (d < s) {
+            while (len--) {*d++ = *s++;}
+        } else {
+            d += len; /* Point to one past the end of destination */
+            s += len; /* Point to one past the end of source */
+            while (len--) {*(--d) = *(--s);} /* Decrement pointers and copy */
+        }
+    }
+#endif
+}
+    

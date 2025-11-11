@@ -6,8 +6,15 @@ Release Notes       {#RELEASE_NOTES}
 This file contains a high-level description of this package's evolution. Releases are in reverse chronological order (most recent first). Note that, as of netcdf 4.2, the `netcdf-c++` and `netcdf-fortran` libraries have been separated into their own libraries.
 
 ## 4.10.0 - TBD
+
 * Clean up some filter issues. Also add some new filters in expected support for Zarr V3. See [Github #???](https://github.com/Unidata/netcdf-c/pull/????) for more information.
+* Begin the consolidation of global state into two files: libdispatch/dglobal.c and include/ncglobal.h. See [Github 3197](https://github.com/Unidata/netcdf-c/issues/3197) for more information. 
+* Fix Issue with Numcodecs encoding problems where integer filter parameters are being encoded as strings. See [Github 3201](https://github.com/Unidata/netcdf-c/issues/3201) for more information. 
+* Cleanup RELEASE_NOTES.md. See [Github 3190](https://github.com/Unidata/netcdf-c/issues/3190) for more information. 
 * Rebuild the S3-related code and other changes necessary to build cleanly on github actions. See [Github #3159](https://github.com/Unidata/netcdf-c/pull/3159) for more information.
+* Fix the problems around ncdap_test/test_manyurls.c. See [Github 3182](https://github.com/Unidata/netcdf-c/issues/3182) for more information. 
+* Fix bug in ncdump when printing FQNs ([Issue 3184](https://github.com/Unidata/netcdf-c/issues/3184)). See [Github 3185](https://github.com/Unidata/netcdf-c/issues/3185) for more information. 
+* Update `macOS` github runners from macos-13 to macos-14, due to deprecation. 
 * Fix an error compiling netCDF with AWS-S3-SDK support using cmake. See [Github 3155](https://github.com/Unidata/netcdf-c/issues/3155) for more information. 
 * Add new environmental logging variable for `netCDF4` related logging subsystem, `NC4LOGGING`.  If `libnetcdf` is compiled with logging enabled, logs can be enabled at runtime by setting this environmental variable to the desired log level.  
 * Update ncjson.[ch] and ncproplist.[ch]. Also fix references to old API. Also fix include/netcdf_ncjson.h and include/netcdf_proplist.h builds. See [Github #3086](https://github.com/Unidata/netcdf-c/pull/3086) for more information.

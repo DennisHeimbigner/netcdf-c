@@ -140,7 +140,6 @@ NCZ_bzip2_hdf5_to_codec(const NCproplist* env, int id, size_t nparams, const uns
 
     ncproplistget(env,"zarrformat",&zarrformat,NULL);
     level = params[0];
-
     if(zarrformat == 3)
         snprintf(json,sizeof(json),"{\"name\": \"%s\", \"configuration\": {\"level\": %u}}",NCZ_bzip2_codec.codecid,level);
     else
@@ -240,6 +239,7 @@ NCZ_zstd_hdf5_to_codec(const NCproplist* env, int id, size_t nparams, const unsi
 	snprintf(json,sizeof(json),"{\"name\": \"%s\", \"configuration\": {\"level\": %u}}",NCZ_zstd_codec.codecid,level);
     else
 	snprintf(json,sizeof(json),"{\"id\": \"%s\", \"level\": %u}",NCZ_zstd_codec.codecid,level);
+
     if(codecp) {
         if((*codecp = strdup(json))==NULL) {stat = NC_ENOMEM; goto done;}
     }

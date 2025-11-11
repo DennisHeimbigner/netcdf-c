@@ -6,14 +6,9 @@
 #ifndef NCS3SDK_H
 #define NCS3SDK_H 1
 
-#define AWSHOST ".amazonaws.com"
-#define GOOGLEHOST "storage.googleapis.com"
-
-/* Define the "global" default region to be used if no other region is specified */
-#define AWS_GLOBAL_DEFAULT_REGION "us-east-1"
-
 /* Track the server type, if known */
-typedef enum NCS3SVC {NCS3UNK=0, /* unknown */
+typedef enum NCS3SVC {
+	NCS3UNK=0, /* unknown */
 	NCS3=1,     /* s3.amazon.aws */
 	NCS3GS=2,   /* storage.googleapis.com */
 #ifdef NETCDF_ENABLE_ZOH
@@ -23,6 +18,7 @@ typedef enum NCS3SVC {NCS3UNK=0, /* unknown */
 
 /* Opaque Handles */
 struct NClist;
+struct AWSprofile;
 
 typedef struct NCS3INFO {
     char* host; /* non-null if other*/
@@ -32,16 +28,6 @@ typedef struct NCS3INFO {
     char* profile;
     NCS3SVC svc;
 } NCS3INFO;
-
-struct AWSentry {
-    char* key;
-    char* value;
-};
-
-struct AWSprofile {
-    char* name;
-    struct NClist* entries; /* NClist<struct AWSentry*> */
-};
 
 /* Opaque Types */
 struct NClist;
@@ -94,7 +80,6 @@ DECLSPEC void NC_s3getcredentials(const char *profile, const char **region, cons
 DECLSPEC int NC_authgets3profile(const char* profile, struct AWSprofile** profilep);
 DECLSPEC int NC_iss3(NCURI* uri, enum NCS3SVC*);
 DECLSPEC int NC_s3urlrebuild(NCURI* url, struct NCS3INFO* s3, NCURI** newurlp);
-DECLSPEC int NC_aws_load_credentials(struct NCglobalstate* gstate);
 
 #ifdef __cplusplus
 }
