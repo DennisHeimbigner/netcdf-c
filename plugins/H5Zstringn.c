@@ -42,9 +42,10 @@ H5PLget_plugin_info(void)
 /*-------------------------------------------------------------------------
  * Function:	H5Z__filter_stringn
  *
- * Purpose:	Implement an I/O filter which converts between a block pointers
+ * Purpose:	Experimental.
+ *              Implement an I/O filter which converts between an array of pointers
  *              to char* and a linearized set of strings of max length specified
- *              filter parameter.
+ *              by filter parameter.
  *
  * Return:	Success: Size of buffer filtered
  *		Failure: 0

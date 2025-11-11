@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "netcdf_filter_build.h"
+#include "netcdf_json.h"
 #include "h5misc.h"
 
 /*

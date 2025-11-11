@@ -39,8 +39,17 @@ struct All {
     unsigned long long tuint64;
     double tfloat64;
 };
+
 /* number of 32 bit unsigned value needed to hold fields of struct All */
 #define NPARAMS (10 + 1/*int64*/ + 1/*uint64*/ + 1/*double*/ + 1/*test case number*/)
+
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+/* Opaque */
+struct NCjson;
 
 /* declare the hdf5 interface */
 DECLSPEC H5PL_type_t H5PLget_plugin_type(void);
@@ -59,6 +68,10 @@ DECLSPEC void NC_h5filterspec_fix8(void* mem0, int decode);
 /* Raw encode/decode */
 struct NCjson; /*Opaque*/
 DECLSPEC int NCraw_encode(size_t nparams, const unsigned* params, struct NCjson** jparamsp);
-DECLSPEC int NCraw_decode(const NCjson* jraw, size_t* nparamsp, unsigned** paramsp);
+DECLSPEC int NCraw_decode(const struct NCjson* jraw, size_t* nparamsp, unsigned** paramsp);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /*H5MISC_H*/

@@ -48,7 +48,7 @@ EXTRA_DIST += \
 	H5Ztemplate.c H5Zmisc.c H5Zutil.c H5Znoop.c h5noop.h NCZmisc.c \
 	H5Zshuffle.c H5Zdeflate.c H5Zszip.c H5Zszip.h \
         H5Zbzip2.c h5bzip2.h H5Zblosc.c H5Zblosc.h H5Zzstd.c H5Zzstd.h \
-	H5Zendian.c
+        H5Zendian.c
 
 # The Codec filter wrappers
 EXTRA_DIST += NCZhdf5filters.c NCZstdfilters.c
@@ -92,6 +92,7 @@ plugins_to_install += lib__nczstdfilters.la
 endif
 
 # Zarr Version 3 Filters
+#    "endian" implements endian-ness as a filter.
 plugins_to_install += lib__nch5endian.la
 lib__nch5endian_la_SOURCES = H5Zendian.c
 lib__nch5endian_la_LIBADD = $(LIBADD)  $(top_builddir)/liblib/libnetcdf.la
@@ -128,6 +129,10 @@ lib__nch5bzip2_la_SOURCES += ${BZIP2SRC}
 endif
 plugins_to_install += lib__nch5bzip2.la
 
+# Experimental: Allow array of variable length Strings
+# to be converted to an array of fixed size strings where
+# the fixed size is determined by a filter parameter
+# In effect convert from char*[N] to char[maxstrlen][N].
 lib__nch5stringn_la_SOURCES = H5Zstringn.c
 EXTRA_DIST += H5Zstringn.c
 plugins_to_install += lib__nch5stringn.la
@@ -139,7 +144,7 @@ check_LTLIBRARIES += $(plugins_to_install)
 endif
 
 DISTCLEANFILES += findplugin.sh
-DISTCLEANFILES += H5Znoop1.c H5Znoop2.c ncjson.h
+DISTCLEANFILES += H5Znoop1.c H5Znoop2.c netcdf_json.h
 
 BUILT_SOURCES = H5Znoop1.c
 H5Znoop1.c: Makefile H5Znoop.c
