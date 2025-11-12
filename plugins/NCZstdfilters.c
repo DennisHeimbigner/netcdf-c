@@ -38,19 +38,19 @@ Author: Dennis Heimbigner
 
 /* Forward */
 
-static int NCZ_bzip2_codec_to_hdf5(const NCproplist* env, const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_bzip2_hdf5_to_codec(const NCproplist* env, int id, size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_bzip2_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_bzip2_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp);
 
 #ifdef HAVE_ZSTD
-static int NCZ_zstd_codec_to_hdf5(const struct NCproplist* env, const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_zstd_hdf5_to_codec(const struct NCproplist* env, int id, size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_zstd_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_zstd_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp);
 #endif
 
 #ifdef HAVE_BLOSC
-static int NCZ_blosc_codec_to_hdf5(const NCproplist* env, const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_blosc_hdf5_to_codec(const NCproplist* env, int id, size_t nparams, const unsigned* params, char** codecp);
-static int NCZ_blosc_modify_parameters(const NCproplist* env, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
-static void NCZ_blosc_codec_finalize(const NCproplist*);
+static int NCZ_blosc_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_blosc_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_blosc_modify_parameters(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
+static void NCZ_blosc_codec_finalize(void);
 #endif
 
 /**************************************************/
@@ -77,7 +77,7 @@ NCZ_get_codec_info(void)
 }
 
 static int
-NCZ_bzip2_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
+NCZ_bzip2_codec_to_hdf5(const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
@@ -85,7 +85,6 @@ NCZ_bzip2_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp,
     const NCjson* jtmp = NULL;
     unsigned* params = NULL;
     struct NCJconst jc;
-    uintptr_t zarrformat = 0;
   
     if(nparamsp == NULL || paramsp == NULL)
         {stat = NC_EINTERNAL; goto done;}
@@ -93,19 +92,13 @@ NCZ_bzip2_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp,
     if((params = (unsigned*)calloc(1,sizeof(unsigned)))== NULL)
         {stat = NC_ENOMEM; goto done;}
 
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
-
     /* parse the JSON */
     if(NCJparse(codec_json,0,&jcodec)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
-    if(zarrformat == 3) {
-        if(NCJdictget(jcodec,"name",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
-        if(NCJdictget(jcodec,"configuration",(NCjson**)&jdict)<0) {stat = NC_EFILTER; goto done;}
-    } else {
-        if(NCJdictget(jcodec,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
-	jdict = jcodec;
-    }
+    if(NCJdictget(jcodec,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
+    jdict = jcodec;
+
     /* Verify the codec ID */
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EFILTER; goto done;}
     if(strcmp(NCJstring(jtmp),NCZ_bzip2_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
@@ -126,24 +119,19 @@ done:
 }
 
 static int
-NCZ_bzip2_hdf5_to_codec(const NCproplist* env, int id, size_t nparams, const unsigned* params, char** codecp)
+NCZ_bzip2_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     unsigned level = 0;
     char json[1024];
-    uintptr_t zarrformat;
 
     NC_UNUSED(id);
 
     if(nparams == 0 || params == NULL)
         {stat = NC_EFILTER; goto done;}
 
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
     level = params[0];
-    if(zarrformat == 3)
-        snprintf(json,sizeof(json),"{\"name\": \"%s\", \"configuration\": {\"level\": %u}}",NCZ_bzip2_codec.codecid,level);
-    else
-        snprintf(json,sizeof(json),"{\"id\": \"%s\", \"level\": %u}",NCZ_bzip2_codec.codecid,level);
+    snprintf(json,sizeof(json),"{\"id\": \"%s\", \"level\": %u}",NCZ_bzip2_codec.codecid,level);
     if(codecp) {
         if((*codecp = strdup(json))==NULL) {stat = NC_ENOMEM; goto done;}
     }
@@ -170,7 +158,7 @@ static NCZ_codec_t NCZ_zstd_codec = {/* NCZ_codec_t  codec fields */
 };
 
 static int
-NCZ_zstd_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
+NCZ_zstd_codec_to_hdf5(const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
@@ -178,7 +166,6 @@ NCZ_zstd_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp, 
     const NCjson* jtmp = NULL;
     unsigned* params = NULL;
     struct NCJconst jc;
-    uintptr_t zarrformat = 0;
   
     if(nparamsp == NULL || paramsp == NULL)
         {stat = NC_EINTERNAL; goto done;}
@@ -186,19 +173,12 @@ NCZ_zstd_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp, 
     if((params = (unsigned*)calloc(1,sizeof(unsigned)))== NULL)
         {stat = NC_ENOMEM; goto done;}
 
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
-
     /* parse the JSON */
     if(NCJparse(codec_json,0,&jcodec)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
-    if(zarrformat == 3) {
-        if(NCJdictget(jcodec,"name",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
-	if(NCJdictget(jcodec,"configuration",(NCjson**)&jdict)<0) {stat = NC_EFILTER; goto done;}
-    } else {
-	jdict = jcodec;
-        if(NCJdictget(jdict,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
-    }
+    jdict = jcodec;
+    if(NCJdictget(jdict,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
 
     /* Verify the codec ID */
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EFILTER; goto done;}
@@ -220,25 +200,20 @@ done:
 }
 
 static int
-NCZ_zstd_hdf5_to_codec(const NCproplist* env, int id, size_t nparams, const unsigned* params, char** codecp)
+NCZ_zstd_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     unsigned level = 0;
     char json[1024];
-    uintptr_t zarrformat;
     
     NC_UNUSED(id);
 
     if(nparams == 0 || params == NULL)
         {stat = NC_EFILTER; goto done;}
 
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
     level = params[0];
 
-    if(zarrformat == 3)
-	snprintf(json,sizeof(json),"{\"name\": \"%s\", \"configuration\": {\"level\": %u}}",NCZ_zstd_codec.codecid,level);
-    else
-	snprintf(json,sizeof(json),"{\"id\": \"%s\", \"level\": %u}",NCZ_zstd_codec.codecid,level);
+    snprintf(json,sizeof(json),"{\"id\": \"%s\", \"level\": %u}",NCZ_zstd_codec.codecid,level);
 
     if(codecp) {
         if((*codecp = strdup(json))==NULL) {stat = NC_ENOMEM; goto done;}
@@ -294,9 +269,8 @@ void blosc_destroy(void);
 static int ncz_blosc_initialized = 0;
 
 static void
-NCZ_blosc_codec_finalize(const NCproplist* env)
+NCZ_blosc_codec_finalize(void)
 {
-    NC_UNUSED(env);
     if(ncz_blosc_initialized) {
         blosc_destroy();
 	ncz_blosc_initialized = 0;
@@ -304,7 +278,7 @@ NCZ_blosc_codec_finalize(const NCproplist* env)
 }
 
 static int
-NCZ_blosc_modify_parameters(const NCproplist* env, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
+NCZ_blosc_modify_parameters(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int i,stat = NC_NOERR;
     nc_type vtype;
@@ -316,7 +290,6 @@ NCZ_blosc_modify_parameters(const NCproplist* env, int* idp, size_t* vnparamsp, 
     size_t nparams;
     size_t vnparams = *vnparamsp;
     unsigned* vparams = *vparamsp;
-    uintptr_t ncid, varid;
     
     NC_UNUSED(idp);
 
@@ -329,9 +302,6 @@ NCZ_blosc_modify_parameters(const NCproplist* env, int* idp, size_t* vnparamsp, 
 
     if(wnparamsp == NULL || wparamsp == NULL)
         {stat = NC_EFILTER; goto done;}
-
-    ncproplistget(env,"ncid",&ncid,NULL);
-    ncproplistget(env,"varid",&varid,NULL);
 
     vnparams = *vnparamsp;
     vparams = *vparamsp;
@@ -375,7 +345,7 @@ done:
 }
 
 static int
-NCZ_blosc_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
+NCZ_blosc_codec_to_hdf5(const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
@@ -384,21 +354,13 @@ NCZ_blosc_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp,
     unsigned* params = NULL;
     struct NCJconst jc = {0,0,0,NULL};
     int compcode;
-    uintptr_t zarrformat = 0;
-
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     /* parse the JSON */
     if(NCJparse(codec_json,0,&jcodec)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
-    if(zarrformat == 3) {
-        if(NCJdictget(jcodec,"name",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
-	if(NCJdictget(jcodec,"configuration",(NCjson**)&jdict)<0) {stat = NC_EFILTER; goto done;}
-    } else {
-	jdict = jcodec;
-        if(NCJdictget(jdict,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
-    }
+    jdict = jcodec;
+    if(NCJdictget(jdict,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
 
     /* Verify the codec ID */
     if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
@@ -458,29 +420,21 @@ done:
 }
 
 static int
-NCZ_blosc_hdf5_to_codec(const NCproplist* env, int id, size_t nparams, const unsigned* params, char** codecp)
+NCZ_blosc_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     char json[1024];
     const char* compname = NULL;
-    uintptr_t zarrformat;
 
     NC_UNUSED(id);
 
     if(nparams == 0 || params == NULL)
         {stat = NC_EINVAL; goto done;}
 
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
-
     /* Get the sub-compressor name */
     if(blosc_compcode_to_compname((int)params[6],&compname) < 0) {stat = NC_EFILTER; goto done;}
 
-    if(zarrformat == 3)
-        snprintf(json,sizeof(json),
-	    "{\"name\": \"blosc\", \"configuration\": {\"clevel\": %u,\"blocksize\": %u,\"cname\": %s,\"shuffle\": %d}}",
-	    params[4],params[3],compname,params[5]);
-    else
-	snprintf(json,sizeof(json),
+    snprintf(json,sizeof(json),
 	    "{\"id\": \"blosc\",\"clevel\": %u,\"blocksize\": %u,\"cname\": %s,\"shuffle\": %d}",
 	    params[4],params[3],compname,params[5]);
 

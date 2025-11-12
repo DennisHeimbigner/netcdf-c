@@ -127,8 +127,8 @@ done:
 /* Codec Interface */
 
 /* Forward */
-static int NCZ_stringn_codec_to_hdf5(const NCproplist* env, const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_stringn_hdf5_to_codec(const NCproplist* env, int id, size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_stringn_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_stringn_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp);
 
 /* Structure for NCZ_PLUGIN_CODEC */
 static NCZ_codec_t NCZ_stringn_codec = {/* NCZ_codec_t  codec fields */ 
@@ -154,7 +154,7 @@ NCZ_get_codec_info(void)
 /* NCZarr Interface Functions */
 
 static int
-NCZ_stringn_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
+NCZ_stringn_codec_to_hdf5(const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
@@ -162,10 +162,7 @@ NCZ_stringn_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* id
     const NCjson* jtmp = NULL;
     size_t nparams = 0;
     unsigned* params = NULL;
-    uintptr_t zarrformat = 0;
     
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
-
     /* parse the JSON */
     if(NCJparse(codec_json,0,&jcodec)<0)
 	{stat = NC_EFILTER; goto done;}
@@ -173,12 +170,7 @@ NCZ_stringn_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* id
 
     /* Get and Verify the codec ID */
 
-    if(zarrformat == 3) {
-        if(NCJdictget(jcodec,"name",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
-        if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
-        if(strcmp(NCJstring(jtmp),NCZ_stringn_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
-        if(NCJdictget(jcodec,"configuration",(NCjson**)(NCjson**)&jdict)<0) {stat = NC_EFILTER; goto done;}
-    } else {
+    {
         if(NCJdictget(jcodec,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
         if(jtmp == NULL || !NCJisatomic(jtmp)) {stat = NC_EINVAL; goto done;}
         if(strcmp(NCJstring(jtmp),NCZ_stringn_codec.codecid)!=0) {stat = NC_EINVAL; goto done;}
@@ -206,25 +198,18 @@ done:
 }
 
 static int
-NCZ_stringn_hdf5_to_codec(const NCproplist* env, int id, size_t nparams, const unsigned* params, char** codecp)
+NCZ_stringn_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     char json[8192];
     char value[8192];
-    uintptr_t zarrformat = 0;
 
     NC_UNUSED(id);
 
     if(nparams != 0 && params == NULL)
         {stat = NC_EINVAL; goto done;}
 
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
-
-    if(zarrformat == 2) {
-        snprintf(json,sizeof(json),"{\"id\": \"%s\"",NCZ_stringn_codec.codecid);
-        snprintf(value,sizeof(value),", \"maxstrlen\": \"%u\"",params[0]);
-	strcat(json,value);
-    } else {
+    {
         snprintf(json,sizeof(json),"{\"name\": \"%s\", \"configuration\": {\"maxstrlen\": %u}",
 		NCZ_stringn_codec.codecid,params[0]);
     }    

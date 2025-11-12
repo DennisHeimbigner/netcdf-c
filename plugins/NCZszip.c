@@ -28,9 +28,9 @@ Author: Dennis Heimbigner
 /**************************************************/
 /* NCZarr Filter Objects */
 
-static int NCZ_szip_codec_to_hdf5(const NCproplist* env, const char* codec, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_szip_hdf5_to_codec(const NCproplist* env, size_t nparams, const unsigned* params, char** codecp);
-static int NCZ_szip_modify_parameters(const NCproplist* env, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
+static int NCZ_szip_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_szip_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_szip_modify_parameters(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 
 static NCZ_codec_t NCZ_szip_codec = {
   NCZ_CODEC_CLASS_VER,	/* Struct version number */
@@ -45,7 +45,7 @@ static NCZ_codec_t NCZ_szip_codec = {
 };
 
 static int
-NCZ_szip_codec_to_hdf5(const NCproplist* env, const char* codec_json, size_t* nparamsp, unsigned** paramsp)
+NCZ_szip_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     unsigned* params = NULL;
@@ -54,7 +54,6 @@ NCZ_szip_codec_to_hdf5(const NCproplist* env, const char* codec_json, size_t* np
     NCjson* jparams = NULL;
     NCjson* jtmp = NULL;
     struct NCJconst jc = {0,0,0,NULL};
-    uintptr_t zarrformat = 0;
     
     if(nparamsp == NULL || paramsp == NULL)
         {stat = NC_EINTERNAL; goto done;}
@@ -62,14 +61,9 @@ NCZ_szip_codec_to_hdf5(const NCproplist* env, const char* codec_json, size_t* np
     if((params = (unsigned*)calloc(nparams,sizeof(unsigned)))== NULL)
         {stat = NC_ENOMEM; goto done;}
 
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
-
     if(NCJparse(codec_json,0,&json)<0) {stat = NC_EFILTER; goto done;}
 
-    if(zarrformat == 3) {
-	if(NCZdictget(json,"configuration",&jdict)) {stat = NC_EFILTER; goto done;}
-    } else
-        jdict = json;
+    jdict = json;
 
     if(NCJdictget(jdict,"mask",(NCjson**)&jtmp) < 0 || jtmp == NULL) {stat = NC_EFILTER; goto done;}
     if(NCJcvt(jtmp,NCJ_INT,&jc) < 0) {stat = NC_EFILTER;  goto done;}
@@ -90,25 +84,15 @@ done:
 }
 
 static int
-NCZ_szip_hdf5_to_codec(const NCproplist* env, size_t nparams, const unsigned* params, char** codecp)
+NCZ_szip_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     char json[2048];
-    uintptr_t zarrformat = 0;
 
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
-
-    if(zarrformat == 2) {
-        snprintf(json,sizeof(json),"{\"id\": \"%s\", \"mask\": %u, \"pixels-per-block\": %u}",
+    snprintf(json,sizeof(json),"{\"id\": \"%s\", \"mask\": %u, \"pixels-per-block\": %u}",
     		NCZ_szip_codec.codecid,
 		params[H5Z_SZIP_PARM_MASK],
 		params[H5Z_SZIP_PARM_PPB]);
-    } else {
-        snprintf(json,sizeof(json),"{\"name\": \"%s\", \"configuration\": {\"mask\": %u, \"pixels-per-block\": %u}}",
-    		NCZ_szip_codec.codecid,
-		params[H5Z_SZIP_PARM_MASK],
-		params[H5Z_SZIP_PARM_PPB]);
-    }
 
     if(codecp) {
         if((*codecp = strdup(json))==NULL) {stat = NC_ENOMEM; goto done;}
@@ -119,7 +103,7 @@ done:
 }
 
 static int
-NCZ_szip_modify_parameters(const NCZproplist* env, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
+NCZ_szip_modify_parameters(int ncid, int varid, int*idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int i,ret_value = NC_NOERR;
     nc_type vtype;
@@ -131,7 +115,6 @@ NCZ_szip_modify_parameters(const NCZproplist* env, size_t* vnparamsp, unsigned**
     unsigned* params = NULL;
     unsigned* vparams = NULL;
     size_t wnparams = 4;
-    uintptr_t ncid, varid, zarrformat;
     
     if(wnparamsp == NULL || wparamsp == NULL)
         {ret_value = NC_EFILTER; goto done;}
@@ -141,10 +124,6 @@ NCZ_szip_modify_parameters(const NCZproplist* env, size_t* vnparamsp, unsigned**
         {ret_value = NC_EFILTER; goto done;}
 
     vparams = *vparamsp;
-
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
-    ncproplistget(env,"ncid",&ncid,NULL);
-    ncproplistget(env,"varid",&varid,NULL);
 
     /* Get variable info */
     if((ret_value = nc_inq_var(ncid,varid,vname,&vtype,&ndims,dimids,NULL))) goto done;

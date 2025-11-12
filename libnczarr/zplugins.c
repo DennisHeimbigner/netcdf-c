@@ -63,8 +63,7 @@ NCZ_plugin_path_initialize(void)
     gs->zarr.pluginpaths = nclistnew();
     gs->zarr.default_libs = nclistnew();
     gs->zarr.codec_defaults = nclistnew();
-    gs->zarr.loaded_plugins = (struct NCZ_Plugin**)calloc(H5Z_FILTER_MAX+1,sizeof(struct NCZ_Plugin*));
-    if(gs->zarr.loaded_plugins == NULL) {stat = NC_ENOMEM; goto done;}
+    gs->zarr.loaded_plugins = nclistnew();
 
 done:
     return stat;
@@ -87,10 +86,10 @@ NCZ_plugin_path_finalize(void)
 
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
     /* Reclaim all loaded filters */
-    for(i=1;i<=gs->zarr.loaded_plugins_max;i++) {
-	if(gs->zarr.loaded_plugins[i]) {
-            NCZ_unload_plugin(gs->zarr.loaded_plugins[i]);
-	    gs->zarr.loaded_plugins[i] = NULL;
+    for(i=1;i<=nclistlength(gs->zarr.loaded_plugins);i++) {
+	if(nclistget(gs->zarr.loaded_plugins,i)) {
+            NCZ_unload_plugin(nclistget(gs->zarr.loaded_plugins,i));
+	    nclistset(gs->zarr.loaded_plugins,i,NULL);
 	}
     }
     /* Reclaim the codec defaults */
@@ -108,7 +107,6 @@ NCZ_plugin_path_finalize(void)
 	}
     }
 #endif
-    gs->zarr.loaded_plugins_max = 0;
     nullfree(gs->zarr.loaded_plugins); gs->zarr.loaded_plugins = NULL;
     nclistfree(gs->zarr.default_libs); gs->zarr.default_libs = NULL;
     nclistfree(gs->zarr.codec_defaults); gs->zarr.codec_defaults = NULL;
@@ -247,7 +245,32 @@ NCZ_load_all_plugins(void)
         /* Try to load plugins from this directory */
         if((ret = NCZ_load_plugin_dir(dir))) goto done;
     }
-    if(nclistlength(gs->zarr.codec_defaults)) { /* Try to provide default for any HDF5 filters without matching Codec. */
+    /* Try to provide default for any HDF5 filters without matching Codec. */
+    if(nclistlength(gs->zarr.codec_defaults) || gs->zarr.hdf5raw != NULL) { 
+        /* Search the loaded_plugins */
+        for(i=0;i<nclistlength(gs->zarr.loaded_plugins);i++) {
+	    int matched = 0;
+	    NCZ_Plugin* p = (NCZ_Plugin*)nclistget(gs->zarr.loaded_plugins,i);
+	    /* Check if plugin has codec */
+	    if(p != NULL && p->hdf5.filter != NULL && p->codec.codec == NULL) {
+		/* Find for a default for this */
+		matched = 0;
+		for(j=0;!matched && j<nclistlength(gs->zarr.codec_defaults);j++) {
+	            struct CodecAPI* dfalt = (struct CodecAPI*)nclistget(gs->zarr.codec_defaults,j);
+		    if(dfalt->codec->hdf5id == p->hdf5.filter->id && !dfalt->ishdf5raw) {
+			p->codec = *dfalt;
+			p->codec.defaulted = 1;
+			matched = 1;
+		    }
+		}
+		/* Last chance: use hdfraw */
+		if(!matched && gs->zarr.hdf5raw != NULL) {
+		    p->codec = *gs->zarr.hdf5raw;
+		    p->codec.defaulted = 1;
+		}
+	    }
+	}
+#if 0
         /* Search the defaults */
 	for(j=0;j<nclistlength(gs->zarr.codec_defaults);j++) {
             struct CodecAPI* dfalt = (struct CodecAPI*)nclistget(gs->zarr.codec_defaults,j);
@@ -255,24 +278,24 @@ NCZ_load_all_plugins(void)
 	        const NCZ_codec_t* codec = dfalt->codec;
 	        size_t hdf5id = codec->hdf5id;
 		NCZ_Plugin* p = NULL;
-		if(hdf5id <= 0 || hdf5id > gs->zarr.loaded_plugins_max) {ret = NC_EFILTER; goto done;}
+		if(hdf5id <= 0 || hdf5id > nclistlength(gs->zarr.loaded_plugins)) {ret = NC_EFILTER; goto done;}
 	        p = gs->zarr.loaded_plugins[hdf5id]; /* get candidate */
-	        if(p != NULL && p->hdf5.filter != NULL
-                   && p->codec.codec == NULL) {
+	        if(p != NULL && p->hdf5.filter != NULL && p->codec.codec == NULL) {
 		    p->codec.codec = codec;
 		    p->codec.codeclib = dfalt->codeclib;
 		    p->codec.defaulted = 1;
 		}
 	    }
 	}
+#endif /*0*/
     }
 
     /* Mark all plugins for which we do not have both HDF5 and codec */
     {
         size_t i;
 	NCZ_Plugin* p;
-	for(i=1;i<gs->zarr.loaded_plugins_max;i++) {
-	    if((p = gs->zarr.loaded_plugins[i]) != NULL) {
+	for(i=1;i<nclistlength(gs->zarr.loaded_plugins);i++) {
+	    if((p = nclistget(gs->zarr.loaded_plugins,i)) != NULL) {
 		if(p->hdf5.filter == NULL || p->codec.codec == NULL) {
 		    /* mark this entry as incomplete */
 		    p->incomplete = 1;
@@ -284,8 +307,8 @@ NCZ_load_all_plugins(void)
     {
         size_t i;
 	NCZ_Plugin* p;
-	for(i=1;i<gs->zarr.loaded_plugins_max;i++) {
-	    if((p = gs->zarr.loaded_plugins[i]) != NULL) {
+	for(i=1;i<nclistlength(gs->zarr.loaded_plugins);i++) {
+	    if((p = nclistget(gs->zarr.loaded_plugins,i)) != NULL) {
 		if(p->incomplete) continue;
 		if(p->hdf5.filter != NULL && p->codec.codec != NULL) {
 		    if(p->codec.codec && p->codec.codec->NCZ_codec_initialize)
@@ -346,9 +369,9 @@ NCZ_load_plugin_dir(const char* path)
 	}
 	if(plugin != NULL) {
 	    id = (size_t)plugin->hdf5.filter->id;
-	    if(gs->zarr.loaded_plugins[id] == NULL) {
-	        gs->zarr.loaded_plugins[id] = plugin;
-		if(id > gs->zarr.loaded_plugins_max) gs->zarr.loaded_plugins_max = id;
+	    if(nclistget(gs->zarr.loaded_plugins,id) == NULL) {
+	        nclistset(gs->zarr.loaded_plugins,id,plugin);
+		if(id > nclistlength(gs->zarr.loaded_plugins)) nclistsetlength(gs->zarr.loaded_plugins,id);
 	    } else {
 	        NCZ_unload_plugin(plugin); /* its a duplicate */
 	    }
@@ -488,7 +511,7 @@ NCZ_unload_plugin(NCZ_Plugin* plugin)
     if(plugin) {
 	if(plugin->codec.codec && plugin->codec.codec->NCZ_codec_finalize)
 		plugin->codec.codec->NCZ_codec_finalize();
-        if(plugin->hdf5.filter != NULL) gs->zarr.loaded_plugins[plugin->hdf5.filter->id] = NULL;
+        if(plugin->hdf5.filter != NULL) nclistset(gs->zarr.loaded_plugins,plugin->hdf5.filter->id,NULL);
 	if(plugin->hdf5.hdf5lib != NULL) (void)ncpsharedlibfree(plugin->hdf5.hdf5lib);
 	if(!plugin->codec.defaulted && plugin->codec.codeclib != NULL) (void)ncpsharedlibfree(plugin->codec.codeclib);
 memset(plugin,0,sizeof(NCZ_Plugin));
@@ -507,8 +530,8 @@ NCZ_plugin_loaded(size_t filterid, NCZ_Plugin** pp)
     ZTRACE(6,"filterid=%d",filterid);
     if(filterid <= 0 || filterid >= H5Z_FILTER_MAX)
 	{stat = NC_EINVAL; goto done;}
-    if(filterid <= gs->zarr.loaded_plugins_max) 
-        plug = gs->zarr.loaded_plugins[filterid];
+    if(filterid <= nclistlength(gs->zarr.loaded_plugins)) 
+        plug = nclistget(gs->zarr.loaded_plugins,filterid);
     if(pp) *pp = plug;
 done:
     return ZUNTRACEX(stat,"plugin=%p",*pp);
@@ -524,11 +547,10 @@ NCZ_plugin_loaded_byname(const char* name, NCZ_Plugin** pp)
 
     ZTRACE(6,"pluginname=%s",name);
     if(name == NULL) {stat = NC_EINVAL; goto done;}
-    for(i=1;i<=gs->zarr.loaded_plugins_max;i++) {
-        if (!gs->zarr.loaded_plugins[i]) continue;
-        if(!gs->zarr.loaded_plugins[i] || !gs->zarr.loaded_plugins[i]->codec.codec) continue; /* no plugin or no codec */
-        if(strcmp(name, gs->zarr.loaded_plugins[i]->codec.codec->codecid) == 0)
-	    {plug = gs->zarr.loaded_plugins[i]; break;}
+    for(i=1;i<=nclistlength(gs->zarr.loaded_plugins);i++) {
+	NCZ_Plugin* plug = nclistget(gs->zarr.loaded_plugins,i);
+	if(plug == NULL || plug->codec.codec == NULL) {plug = NULL; continue;} /* no plugin or no codec */
+        if(strcmp(name, plug->codec.codec->codecid) == 0) break;
     }
     if(pp) *pp = plug;
 done:
@@ -544,8 +566,8 @@ NCZ_plugin_save(size_t filterid, NCZ_Plugin* p)
     ZTRACE(6,"filterid=%d p=%p",filterid,p);
     if(filterid <= 0 || filterid >= H5Z_FILTER_MAX)
 	{stat = NC_EINVAL; goto done;}
-    if(filterid > gs->zarr.loaded_plugins_max) gs->zarr.loaded_plugins_max = filterid;
-    gs->zarr.loaded_plugins[filterid] = p;
+    if(filterid > nclistlength(gs->zarr.loaded_plugins)) nclistsetlength(gs->zarr.loaded_plugins,filterid);
+    nclistset(gs->zarr.loaded_plugins,filterid,p);
 done:
     return ZUNTRACE(stat);
 }

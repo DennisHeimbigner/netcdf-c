@@ -29,9 +29,9 @@ static herr_t H5Z_set_local_endian(hid_t dcpl_id, hid_t type_id, hid_t space_id)
 static size_t H5Z_filter_endian(unsigned flags, size_t cd_nelmts,
     const unsigned cd_values[], size_t nbytes, size_t *buf_size, void **buf);
 
-static int NCZ_endian_modify_parameters(const NCproplist* env, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
-static int NCZ_endian_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp, size_t* vnparamsp, unsigned** vparamsp);
-static int NCZ_endian_hdf5_to_codec(const NCproplist* env, int id, size_t vnparams, const unsigned* vparams, char** codecp);
+static int NCZ_endian_modify_parameters(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
+static int NCZ_endian_codec_to_hdf5(const char* codec_json, int* idp, size_t* vnparamsp, unsigned** vparamsp);
+static int NCZ_endian_hdf5_to_codec(int id, size_t vnparams, const unsigned* vparams, char** codecp);
 
 /* This message derives from H5Z */
 const H5Z_class2_t H5Z_ENDIAN[1] = {{
@@ -251,14 +251,13 @@ param[1] -- type size: 2|4|8
 */
 
 static int
-NCZ_endian_modify_parameters(const NCproplist* env, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
+NCZ_endian_modify_parameters(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int stat = NC_NOERR;
     unsigned* wparams = NULL;
     size_t wnparams;
     size_t vnparams = *vnparamsp;
     unsigned* vparams = *vparamsp;
-    uintptr_t ncid, varid;
     nc_type xtype;
     size_t typesize;
     
@@ -274,9 +273,6 @@ NCZ_endian_modify_parameters(const NCproplist* env, int* idp, size_t* vnparamsp,
 
     if(wnparamsp == NULL || wparamsp == NULL)
         {stat = NC_EFILTER; goto done;}
-
-    ncproplistget(env,"ncid",&ncid,NULL);
-    ncproplistget(env,"varid",&varid,NULL);
 
     vnparams = *vnparamsp;
     vparams = *vparamsp;
@@ -307,25 +303,19 @@ done:
 }
 
 static int
-NCZ_endian_codec_to_hdf5(const NCproplist* env, const char* codec_json, int* idp, size_t* vnparamsp, unsigned** vparamsp)
+NCZ_endian_codec_to_hdf5(const char* codec_json, int* idp, size_t* vnparamsp, unsigned** vparamsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
     const NCjson* jdict = NULL;
     const NCjson* jtmp = NULL;
     unsigned* vparams = NULL;
-    uintptr_t zarrformat = 0;
-
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
 
     /* parse the JSON */
     if(NCJparse(codec_json,0,&jcodec)<0) {stat = NC_EFILTER; goto done;}
     if(NCJsort(jcodec) != NCJ_DICT) {stat = NC_EPLUGIN; goto done;}
 
-    if(zarrformat == 3) {
-        if(NCJdictget(jcodec,"name",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
-	if(NCJdictget(jcodec,"configuration",(NCjson**)&jdict)<0) {stat = NC_EFILTER; goto done;}
-    } else {
+    {
 	jdict = jcodec;
         if(NCJdictget(jdict,"id",(NCjson**)&jtmp)<0) {stat = NC_EFILTER; goto done;}
     }
@@ -352,24 +342,16 @@ done:
 }
 
 static int
-NCZ_endian_hdf5_to_codec(const NCproplist* env, int id, size_t vnparams, const unsigned* vparams, char** codecp)
+NCZ_endian_hdf5_to_codec(int id, size_t vnparams, const unsigned* vparams, char** codecp)
 {
     int stat = NC_NOERR;
     char json[1024];
-    uintptr_t zarrformat;
 
     NC_UNUSED(id);
 
     if(vnparams == 0 || vparams == NULL) {stat = NC_EINVAL; goto done;}
 
-    ncproplistget(env,"zarrformat",&zarrformat,NULL);
-
-    if(zarrformat == 3)
-        snprintf(json,sizeof(json),
-	    "{\"name\": \"bytes\", \"configuration\": {\"endian\": \"%s\"}}",
-	    (vparams[0]==NC_ENDIAN_LITTLE?"little":"big"));
-    else
-	snprintf(json,sizeof(json),
+    snprintf(json,sizeof(json),
 	    "{\"id\": \"bytes\",\"endian\": \"%s\"}",
 	    (vparams[0]==NC_ENDIAN_LITTLE?"little":"big"));
     if(codecp) {

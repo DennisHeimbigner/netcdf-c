@@ -22,6 +22,11 @@
 
 #include "netcdf_filter_hdf5_build.h"
 
+/* Avoid including netcdf_json.h and ncjson.h */
+#ifndef NCJSON_H
+#include "netcdf_json.h"
+#endif /*NCJSON_H*/
+
 /**************************************************/
 /* Build To a NumCodecs-style C-API for Filters */
 
@@ -105,7 +110,7 @@ int (*NCZ_codec_to_hdf5)(const char* codec, int* nparamsp, unsigned** paramsp);
 
 * Convert an HDF5 vector of visible parameters to a JSON representation.
 
-int (*NCZ_hdf5_to_codec)(size_t nparams, const unsigned* params, char** codecp);
+int (*NCZ_hdf5_to_codec)(int id, size_t nparams, const unsigned* params, char** codecp);
 
 @param nparams -- (in) the length of the HDF5 unsigned vector
 @param params -- (in) pointer to the HDF5 unsigned vector.
@@ -127,7 +132,7 @@ int (*NCZ_modify_parameters)(int ncid, int varid, size_t* vnparamsp, unsigned** 
 
 * Convert an HDF5 vector of visible parameters to a JSON representation.
 
-int (*NCZ_hdf5_to_codec)(size_t nparams, const unsigned* params, char** codecp);
+int (*NCZ_hdf5_to_codec)(int id, size_t nparams, const unsigned* params, char** codecp);
 
 @param nparams -- (in) the length of the HDF5 unsigned vector
 @param params -- (in) pointer to the HDF5 unsigned vector.
@@ -135,6 +140,18 @@ int (*NCZ_hdf5_to_codec)(size_t nparams, const unsigned* params, char** codecp);
 @return -- a netcdf-c error code.
 
 */
+
+/* Test if JSON dict is in raw format.
+@param jraw to test
+@return NCJ_OK if in raw format; NCJ_ERR/NC_ERROR otherwise.
+*/
+#ifndef NCraw_test
+#define NC_RAWTAG "hdf5raw"
+#define NC_RAWVERSION "1"
+#define NCraw_test(jraw) (jraw == NULL || NCJsort(jraw) != NCJ_DICT \
+		? NCJ_ERR \
+		: (strcmp(NCJstring(NCJdictlookup(jraw,NC_RAWTAG)),NC_RAWVERSION)!=0 ? NCJ_ERR : NCJ_OK))
+#endif /*NCraw_test*/
 
 /*
 The struct that provides the necessary filter info.
@@ -149,9 +166,9 @@ typedef struct NCZ_codec_t {
     unsigned int hdf5id; /* corresponding hdf5 id */
     void (*NCZ_codec_initialize)(void);
     void (*NCZ_codec_finalize)(void);
-    int (*NCZ_codec_to_hdf5)(const char* codec, size_t* nparamsp, unsigned** paramsp);
-    int (*NCZ_hdf5_to_codec)(size_t nparams, const unsigned* params, char** codecp);
-    int (*NCZ_modify_parameters)(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
+    int (*NCZ_codec_to_hdf5)(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
+    int (*NCZ_hdf5_to_codec)(int id, size_t nparams, const unsigned* params, char** codecp);
+    int (*NCZ_modify_parameters)(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 } NCZ_codec_t;
 
 #ifndef NC_UNUSED

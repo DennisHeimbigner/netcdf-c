@@ -30,13 +30,13 @@ typedef struct NCglobalstate {
 	char dimension_separator;
 	int default_zarrformat;
 	struct NClist* pluginpaths; /* NCZarr mirror of plugin paths */
-	struct NClist* codec_defaults;
-	struct NClist* default_libs;
+	struct NClist* codec_defaults; /* NClist<struct CodecAPI*> */
+	struct NClist* default_libs;   /* NClist<NCPSharedLib*> */
 	/* All possible HDF5 filter plugins */
 	/* Consider onverting to linked list or hash table or
 	   equivalent since very sparse */
-	struct NCZ_Plugin** loaded_plugins; /*[H5Z_FILTER_MAX+1]*/
-	size_t loaded_plugins_max; /* plugin filter id index. 0<loaded_plugins_max<=H5Z_FILTER_MAX */
+	struct NClist* loaded_plugins; /* NClist<NCZ_Plugin*>; element zero is unused */
+	struct CodecAPI* hdf5raw; /* Used when an HDF5 filter has no corresponding codec */
     } zarr;
     struct NCAWSPARAMS* aws;
     struct Alignment { /* H5Pset_alignment parameters */

@@ -35,21 +35,21 @@ Author: Dennis Heimbigner
 /* NCZarr Filter Objects */
 
 /* Forward */
-static int NCZ_shuffle_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_shuffle_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
-static int NCZ_shuffle_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
+static int NCZ_shuffle_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_shuffle_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_shuffle_modify_parameters(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 
-static int NCZ_fletcher32_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_fletcher32_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
-static int NCZ_fletcher32_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
+static int NCZ_fletcher32_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_fletcher32_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_fletcher32_modify_parameters(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 
-static int NCZ_deflate_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_deflate_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_deflate_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_deflate_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp);
 
 #ifdef HAVE_SZ
-static int NCZ_szip_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_szip_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
-static int NCZ_szip_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
+static int NCZ_szip_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_szip_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_szip_modify_parameters(int ncid, int varid, int*idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp);
 #endif
 
 /**************************************************/
@@ -67,7 +67,7 @@ static NCZ_codec_t NCZ_shuffle_codec = {
 };
 
 static int
-NCZ_shuffle_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp)
+NCZ_shuffle_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     
@@ -75,11 +75,12 @@ NCZ_shuffle_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** params
 
     if(nparamsp) *nparamsp = 0;
     
+    if(idp) *idp = H5Z_FILTER_SHUFFLE;
     return stat;
 }
 
 static int
-NCZ_shuffle_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
+NCZ_shuffle_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     char json[1024];
@@ -97,7 +98,7 @@ done:
 }
 
 static int
-NCZ_shuffle_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
+NCZ_shuffle_modify_parameters(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int stat = NC_NOERR;
     nc_type vtype;
@@ -174,7 +175,7 @@ static NCZ_codec_t NCZ_fletcher32_codec = {/* NCZ_codec_t  codec fields */
 };
 
 static int
-NCZ_fletcher32_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp)
+NCZ_fletcher32_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
 
@@ -186,11 +187,12 @@ NCZ_fletcher32_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** par
     *paramsp = NULL;
     
 done:
+    if(idp) *idp = H5Z_FILTER_FLETCHER32;
     return stat;
 }
 
 static int
-NCZ_fletcher32_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
+NCZ_fletcher32_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     char json[1024];
@@ -205,7 +207,7 @@ done:
 }
 
 static int
-NCZ_fletcher32_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
+NCZ_fletcher32_modify_parameters(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int stat = NC_NOERR;
 
@@ -252,11 +254,11 @@ static NCZ_codec_t NCZ_zlib_codec = {/* NCZ_codec_t  codec fields */
 };
 
 static int
-NCZ_deflate_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** paramsp)
+NCZ_deflate_codec_to_hdf5(const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
-    const NCjson* jtmp = NULL;
+    NCjson* jtmp = NULL;
     unsigned* params = NULL;
     struct NCJconst jc;
   
@@ -289,11 +291,12 @@ NCZ_deflate_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** p
 done:
     if(params) free(params);
     NCJreclaim(jcodec);
+    if(idp) *idp = H5Z_FILTER_DEFLATE;
     return stat;
 }
 
 static int
-NCZ_deflate_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
+NCZ_deflate_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     unsigned level = 0;
@@ -329,13 +332,13 @@ static NCZ_codec_t NCZ_szip_codec = {
 };
 
 static int
-NCZ_szip_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** paramsp)
+NCZ_szip_codec_to_hdf5(const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     unsigned* params = NULL;
     size_t nparams = 2; /* No. of visible parameters */
     NCjson* json = NULL;
-    const NCjson* jtmp = NULL;
+    NCjson* jtmp = NULL;
     struct NCJconst jc = {0,0,0,NULL};
     
     if(nparamsp == NULL || paramsp == NULL)
@@ -366,11 +369,12 @@ NCZ_szip_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** para
 done:
     NCJreclaim(json);
     nullfree(params);
+    if(idp) *idp = H5Z_FILTER_SZIP;
     return stat;
 }
 
 static int
-NCZ_szip_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
+NCZ_szip_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp)
 {
     int stat = NC_NOERR;
     char json[2048];
@@ -388,7 +392,7 @@ done:
 }
 
 static int
-NCZ_szip_modify_parameters(int ncid, int varid, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
+NCZ_szip_modify_parameters(int ncid, int varid, int* idp, size_t* vnparamsp, unsigned** vparamsp, size_t* wnparamsp, unsigned** wparamsp)
 {
     int i,ret_value = NC_NOERR;
     nc_type vtype;
