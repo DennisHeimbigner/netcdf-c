@@ -88,7 +88,8 @@ NCZ_plugin_path_finalize(void)
     /* Reclaim all loaded filters */
     for(i=1;i<=nclistlength(gs->zarr.loaded_plugins);i++) {
 	if(nclistget(gs->zarr.loaded_plugins,i)) {
-            NCZ_unload_plugin(nclistget(gs->zarr.loaded_plugins,i));
+	    NCZ_Plugin* p = nclistget(gs->zarr.loaded_plugins,i);
+            NCZ_unload_plugin(p);
 	    nclistset(gs->zarr.loaded_plugins,i,NULL);
 	}
     }
@@ -107,7 +108,7 @@ NCZ_plugin_path_finalize(void)
 	}
     }
 #endif
-    nullfree(gs->zarr.loaded_plugins); gs->zarr.loaded_plugins = NULL;
+    nclistfree(gs->zarr.loaded_plugins); gs->zarr.loaded_plugins = NULL;
     nclistfree(gs->zarr.default_libs); gs->zarr.default_libs = NULL;
     nclistfree(gs->zarr.codec_defaults); gs->zarr.codec_defaults = NULL;
     nclistfreeall(gs->zarr.pluginpaths); gs->zarr.pluginpaths = NULL;
@@ -548,9 +549,12 @@ NCZ_plugin_loaded_byname(const char* name, NCZ_Plugin** pp)
     ZTRACE(6,"pluginname=%s",name);
     if(name == NULL) {stat = NC_EINVAL; goto done;}
     for(i=1;i<=nclistlength(gs->zarr.loaded_plugins);i++) {
-	NCZ_Plugin* plug = nclistget(gs->zarr.loaded_plugins,i);
-	if(plug == NULL || plug->codec.codec == NULL) {plug = NULL; continue;} /* no plugin or no codec */
-        if(strcmp(name, plug->codec.codec->codecid) == 0) break;
+	NCZ_Plugin* p = nclistget(gs->zarr.loaded_plugins,i);
+	if(p == NULL || p->codec.codec == NULL) continue; /* no plugin or no codec */
+        if(strcmp(name, p->codec.codec->codecid) == 0) {
+	    plug = p;
+	    break;
+	}
     }
     if(pp) *pp = plug;
 done:

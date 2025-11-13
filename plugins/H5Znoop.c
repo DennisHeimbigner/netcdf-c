@@ -22,6 +22,12 @@ const static int instance[1] = {0};
 /* use a temporary */
 #define H5Z_FILTER_NOOP 40000
 
+#if NOOP_INSTANCE == 0
+#define H5Z_FILTER_NOOPX H5Z_FILTER_NOOP
+#else
+#define H5Z_FILTER_NOOPX (H5Z_FILTER_NOOP + 1)
+#endif
+
 /* WARNING:
 Starting with HDF5 version 1.10.x, the plugin code MUST be
 careful when using the standard *malloc()*, *realloc()*, and
@@ -47,11 +53,7 @@ static size_t H5Z_filter_noop(unsigned int, size_t, const unsigned int cd_values
 
 static H5Z_class2_t H5Z_NOOP[1] = {{
     H5Z_CLASS_T_VERS,                /* H5Z_class_t version */
-#if NOOP_INSTANCE == 0
-    (H5Z_filter_t)(H5Z_FILTER_NOOP), /* Filter id number */
-#else
-    (H5Z_filter_t)(H5Z_FILTER_NOOP+1), /* Filter id number */
-#endif
+    (H5Z_filter_t)H5Z_FILTER_NOOPX,		     /* Filter id number */
     1,                               /* encoder_present flag (set to true) */
     1,                               /* decoder_present flag (set to true) */
 #if NOOP_INSTANCE == 0
@@ -145,8 +147,8 @@ H5Z_filter_noop(unsigned int flags, size_t cd_nelmts,
 */
 
 /* Forward */
-static int NCZ_noop_codec_to_hdf5(const char* codec, size_t* nparamsp, unsigned** paramsp);
-static int NCZ_noop_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp);
+static int NCZ_noop_codec_to_hdf5(const char* codec, int* idp, size_t* nparamsp, unsigned** paramsp);
+static int NCZ_noop_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp);
 
 /* Structure for NCZ_PLUGIN_CODEC */
 static NCZ_codec_t NCZ_noop_codec = {/* NCZ_codec_t  codec fields */ 
@@ -177,11 +179,11 @@ NCZ_get_codec_info(void)
 /* NCZarr Interface Functions */
 
 static int
-NCZ_noop_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** paramsp)
+NCZ_noop_codec_to_hdf5(const char* codec_json, int* idp, size_t* nparamsp, unsigned** paramsp)
 {
     int stat = NC_NOERR;
     NCjson* jcodec = NULL;
-    const NCjson* jtmp = NULL;
+    NCjson* jtmp = NULL;
     int i,nparams = 0;
     unsigned* params = NULL;
     char field[1024];
@@ -220,11 +222,12 @@ NCZ_noop_codec_to_hdf5(const char* codec_json, size_t* nparamsp, unsigned** para
 done:
     if(params) free(params);
     NCJreclaim(jcodec);
+    if(idp) *idp =  H5Z_FILTER_NOOPX;
     return stat;
 }
 
 static int
-NCZ_noop_hdf5_to_codec(size_t nparams, const unsigned* params, char** codecp)
+NCZ_noop_hdf5_to_codec(int id, size_t nparams, const unsigned* params, char** codecp)
 {
     int i,stat = NC_NOERR;
     char json[8192];

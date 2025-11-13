@@ -857,8 +857,8 @@ download_jatts(NC_FILE_INFO_T* file, NC_OBJ* container, const NCjson** jattsp, c
 {
     int stat = NC_NOERR;
     const NCjson* jatts = NULL;
-    const NCjson* jtypes = NULL;
-    const NCjson* jnczattr = NULL;
+    NCjson* jtypes = NULL;
+    NCjson* jnczattr = NULL;
     NC_GRP_INFO_T* grp = NULL;
     NC_VAR_INFO_T* var = NULL;
     NCZ_GRP_INFO_T* zgrp = NULL;
@@ -1003,7 +1003,7 @@ computeattrinfo(const char* name, const NCjson* jtypes, nc_type typehint, int pu
     for(i=0;i<NCJdictlength(jtypes);i++) {
 	NCjson* akey = NCJdictkey(jtypes,i);
 	if(strcmp(NCJstring(akey),name)==0) {
-	    const NCjson* avalue = NULL;
+	    NCjson* avalue = NULL;
 	    NCJdictget(jtypes,NCJstring(akey),&avalue);
 	    if((stat = ncz_dtype2nctype(NCJstring(avalue),typehint,purezarr,&typeid,NULL,NULL))) goto done;
 //		if((stat = ncz_nctypedecode(atype,&typeid))) goto done;
@@ -1406,7 +1406,7 @@ define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
     const NCjson* jatts = NULL; /* corresponding to jvar */
     const NCjson* jncvar = NULL;
     const NCjson* jdimrefs = NULL;
-    const NCjson* jvalue = NULL;
+    NCjson* jvalue = NULL;
     char* varpath = NULL;
     char* key = NULL;
     size64_t* shapes = NULL;
@@ -1418,7 +1418,7 @@ define_var1(NC_FILE_INFO_T* file, NC_GRP_INFO_T* grp, const char* varname)
     size_t rank = 0;
     size_t zarr_rank = 0; /* Need to watch out for scalars */
 #ifdef NETCDF_ENABLE_NCZARR_FILTERS
-    const NCjson* jfilter = NULL;
+    NCjson* jfilter = NULL;
     int chainindex = 0;
 #endif
 
@@ -1802,7 +1802,7 @@ ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
     const NCjson* jnczattr = NULL;
     const NCjson* jzgroup = NULL;
     const NCjson* jsuper = NULL;
-    const NCjson* jtmp = NULL;
+    NCjson* jtmp = NULL;
     char* nczarr_version = NULL;
     char* zarr_format = NULL;
     NCZ_FILE_INFO_T* zinfo = NULL;
@@ -1854,7 +1854,7 @@ ncz_read_superblock(NC_FILE_INFO_T* file, char** nczarrvp, char** zarrfp)
 
     if(jsuper != NULL) {
 	if(jsuper->sort != NCJ_DICT) {stat = NC_ENCZARR; goto done;}
-	if((stat = dictgetalt(jsuper,"nczarr_version","version",&jtmp))<0) {stat = NC_EINVAL; goto done;}
+	if((stat = dictgetalt(jsuper,"nczarr_version","version",(const NCjson**)&jtmp))<0) {stat = NC_EINVAL; goto done;}
 	nczarr_version = nulldup(NCJstring(jtmp));
     }
 
@@ -1885,18 +1885,18 @@ parse_group_content(const NCjson* jcontent, NClist* dimdefs, NClist* varnames, N
 {
     int stat = NC_NOERR;
     size_t i;
-    const NCjson* jvalue = NULL;
+    NCjson* jvalue = NULL;
 
     ZTRACE(3,"jcontent=|%s| |dimdefs|=%u |varnames|=%u |subgrps|=%u",NCJtotext(jcontent,0),(unsigned)nclistlength(dimdefs),(unsigned)nclistlength(varnames),(unsigned)nclistlength(subgrps));
 
-    if((stat=dictgetalt(jcontent,"dimensions","dims",&jvalue))) goto done;
+    if((stat=dictgetalt(jcontent,"dimensions","dims",(const NCjson**)&jvalue))) goto done;
     if(jvalue != NULL) {
 	if(NCJsort(jvalue) != NCJ_DICT) {stat = (THROW(NC_ENCZARR)); goto done;}
 	/* Extract the dimensions defined in this group */
 	for(i=0;i<NCJdictlength(jvalue);i++) {
 	    const NCjson* jname = NCJdictkey(jvalue,i);
 	    const NCjson* jleninfo = NCJdictvalue(jvalue,i);
-    	    const NCjson* jtmp = NULL;
+    	    NCjson* jtmp = NULL;
        	    const char* slen = "0";
        	    const char* sunlim = "0";
 	    char norm_name[NC_MAX_NAME + 1];
@@ -1922,7 +1922,7 @@ parse_group_content(const NCjson* jcontent, NClist* dimdefs, NClist* varnames, N
 	}
     }
 
-    if((stat=dictgetalt(jcontent,"arrays","vars",&jvalue))) goto done;
+    if((stat=dictgetalt(jcontent,"arrays","vars",(const NCjson**)&jvalue))) goto done;
     if(jvalue != NULL) {
 	/* Extract the variable names in this group */
 	for(i=0;i<NCJarraylength(jvalue);i++) {
@@ -2541,7 +2541,7 @@ static int
 dictgetalt(const NCjson* jdict, const char* name, const char* alt, const NCjson** jvaluep)
 {
     int stat = NC_NOERR;
-    const NCjson* jvalue = NULL;
+    NCjson* jvalue = NULL;
     if((stat = NCJdictget(jdict,name,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this first */
     if(jvalue == NULL) {
         if((stat = NCJdictget(jdict,alt,&jvalue))<0) {stat = NC_EINVAL; goto done;} /* try this alternative*/
@@ -2556,7 +2556,7 @@ static int
 getnczarrkey(NC_OBJ* container, const char* name, const NCjson** jncxxxp)
 {
     int stat = NC_NOERR;
-    const NCjson* jxxx = NULL;
+    NCjson* jxxx = NULL;
     NC_GRP_INFO_T* grp = NULL;
     NC_VAR_INFO_T* var = NULL;
     struct ZARROBJ* zobj = NULL;

@@ -127,7 +127,6 @@ NCZ_unknown_codec_to_hdf5(const char* codec_json, int* idp, size_t* nparamsp, un
 {
     int stat = NC_NOERR;
 
-    NC_UNUSED(env);
     NC_UNUSED(codec_json);
     
     *nparamsp = 0;
