@@ -7,7 +7,7 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.10.0 - TBD
 
-* Clean up various filter issues. Also add some new filters in expected support for Zarr V3. See [Github #3??](https://github.com/Unidata/netcdf-c/pull/3???) for more information.
+* Clean up various filter issues. Also add some new filters in expected support for Zarr V3. See [Github #???](https://github.com/Unidata/netcdf-c/pull/????) for more information.
 * Begin the consolidation of global state into two files: libdispatch/dglobal.c and include/ncglobal.h. See [Github 3197](https://github.com/Unidata/netcdf-c/issues/3197) for more information. 
 * Fix Issue with Numcodecs encoding problems where integer filter parameters are being encoded as strings. See [Github 3201](https://github.com/Unidata/netcdf-c/issues/3201) for more information. 
 * Cleanup RELEASE_NOTES.md. See [Github 3190](https://github.com/Unidata/netcdf-c/issues/3190) for more information. 
