@@ -2246,10 +2246,14 @@ computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int purezarr, int xarra
 {
     int stat = NC_NOERR;
     size_t i;
-    int createdims = 0; /* 1 => we need to create the dims in root if they do not already exist */
+    int createdims = 0; /* 1 => we need to create the dims in current group
+                                if they do not already exist */
+    NC_FILE_INFO_T* grp = var->container;
     NCZ_FILE_INFO_T* zfile = (NCZ_FILE_INFO_T*)file->format_file_info;
     NCZ_VAR_INFO_T* zvar = (NCZ_VAR_INFO_T*)(var->format_var_info);
     NCjson* jatts = NULL;
+    char* grpfqn = NULL;
+    NCList* segments = NULL;
 
     ZTRACE(3,"file=%s var=%s purezarr=%d xarray=%d ndims=%d shape=%s",
     	file->controller->path,var->hdr.name,purezarr,xarray,(int)ndims,nczprint_vector(ndims,shapes));
@@ -2258,14 +2262,23 @@ computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int purezarr, int xarra
     if(purezarr && xarray) {/* Read in the attributes to get xarray dimdef attribute; Note that it might not exist */
 	/* Note that if xarray && !purezarr, then xarray will be superseded by the nczarr dimensions key */
         char zdimname[4096];
+#if 0
+	segments = nclistnew();
+	if((stat = ncz_splitkey(dimpath,segments)))
+	    goto done;
+	if((stat=locategroup(file,nclistlength(segments)-1,segments,&g)))
+	    goto done;
+#endif
 	if(zvar->xarray == NULL) {
 	    assert(nclistlength(dimnames) == 0);
 	    if((stat = ncz_read_atts(file,(NC_OBJ*)var))) goto done;
 	}
 	if(zvar->xarray != NULL) {
+	    /* get the FQN of the current group */
+	    if((stat = NCZ_grpkey(grp, &grpfqn))) goto done;
 	    /* convert xarray to the dimnames */
 	    for(i=0;i<nclistlength(zvar->xarray);i++) {
-	        snprintf(zdimname,sizeof(zdimname),"/%s",(const char*)nclistget(zvar->xarray,i));
+	        snprintf(zdimname,sizeof(zdimname),"%s/%s",grpfqn,(const char*)nclistget(zvar->xarray,i));
 	        nclistpush(dimnames,strdup(zdimname));
 	    }
 	}
@@ -2289,6 +2302,8 @@ computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int purezarr, int xarra
         goto done;
 
 done:
+    nullfree(grpfqn);
+    nclistfreeall(segments);
     NCJreclaim(jatts);
     return ZUNTRACE(THROW(stat));
 }
