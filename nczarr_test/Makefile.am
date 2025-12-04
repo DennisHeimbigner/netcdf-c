@@ -170,6 +170,9 @@ endif #NETCDF_ENABLE_NCZARR_FILTERS
 # Test various corrupted files
 TESTS += run_corrupt.sh
 
+# Test where xarray places anonymous and _ARRAY_ATTRIBUTE dimensions
+TESTS += run_xarraygroup.sh
+
 endif #NETCDF_BUILD_UTILITIES
 
 # These programs are used by the test cases

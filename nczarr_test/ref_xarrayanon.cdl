@@ -1,0 +1,7 @@
+netcdf tmp_anon {
+dimensions:
+	x = 2 ;
+	y = 3 ;
+variables:
+	int i(x, y) ;
+}

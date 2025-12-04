@@ -5,7 +5,7 @@
 #ifndef ZDEBUG_H
 #define ZDEBUG_H
 
-#undef ZCATCH /* Warning: significant performance impact */
+#define ZCATCH /* Warning: significant performance impact */
 #undef ZTRACING /* Warning: significant performance impact */
 
 #undef ZDEBUG /* general debug */
@@ -55,8 +55,13 @@ EXTERNL int zreport(int err, const char* msg, const char* fname, const char* fcn
 #else
 #define ZTRACE(level,fmt,...)
 #define ZTRACEMORE(level,fmt,...)
+#ifdef ZCATCH
+#define ZUNTRACE(e) THROW(e)
+#define ZUNTRACEX(e,fmt,...) THROW(e)
+#else
 #define ZUNTRACE(e) (e)
 #define ZUNTRACEX(e,fmt,...) (e)
+#endif
 #endif
 
 /* printers */
