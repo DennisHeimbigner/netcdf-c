@@ -1,7 +1,12 @@
-netcdf tmp_anon {
+netcdf tmp_xarrayanon {
 dimensions:
-	x = 2 ;
-	y = 3 ;
+	_Anonymous_Dim_2 = 2 ;
+	_Anonymous_Dim_3 = 3 ;
 variables:
-	int i(x, y) ;
+ 	int i(_Anonymous_Dim_2, _Anonymous_Dim_3) ;
+data:
+
+ i =
+  _, _, _,
+  _, _, _ ;
 }

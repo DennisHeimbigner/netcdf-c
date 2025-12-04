@@ -2294,7 +2294,6 @@ computedimrefs(NC_FILE_INFO_T* file, NC_VAR_INFO_T* var, int purezarr, int xarra
 
 done:
     nullfree(grpfqn);
-    nclistfreeall(segments);
     NCJreclaim(jatts);
     return ZUNTRACE(THROW(stat));
 }

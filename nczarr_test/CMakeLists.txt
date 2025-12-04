@@ -239,7 +239,7 @@ IF(NETCDF_ENABLE_TESTS)
   ADD_SH_TEST(nczarr_test run_corrupt)
 
   # Test xarray support
-  TESTS += run_xarray.sh
+  ADD_SH_TEST(nczarr_test run_xarray_misc)
 
   IF(FALSE) # Obsolete tests
       add_sh_test(nczarr_test run_ut_chunk)
