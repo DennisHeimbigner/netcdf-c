@@ -364,10 +364,10 @@ NC_s3clear(NCS3INFO* s3)
 }
 
 /*
-Check if a url has indicators that signal an S3 or Google S3 url or ZoH S3 url.
+Check if a url has indicators that signal an S3 or Google S3 url url.
 The rules are as follows:
-1. If the protocol is "s3" or "gs3" or "zoh", then return (true,s3|gs3|zoh).
-2. If the mode contains "s3" or "gs3" or "zoh", then return (true,s3|gs3|zoh).
+1. If the protocol is "s3" or "gs3", then return (true,s3|gs3).
+2. If the mode contains "s3" or "gs3", then return (true,s3|gs3).
 3. Check the host name:
 3.1 If the host ends with ".amazonaws.com", then return (true,s3).
 3.1 If the host is "storage.googleapis.com", then return (true,gs3).
@@ -381,12 +381,9 @@ NC_iss3(NCURI* uri, NCS3SVC* svcp)
     NCS3SVC svc = NCS3UNK;
 
     if(uri == NULL) goto done; /* not a uri */
-    /* is the protocol "s3" or "gs3" or "zoh" ? */
+    /* is the protocol "s3" or "gs3" ? */
     if(strcasecmp(uri->protocol,"s3")==0) {iss3 = 1; svc = NCS3; goto done;}
     if(strcasecmp(uri->protocol,"gs3")==0) {iss3 = 1; svc = NCS3GS; goto done;}
-#ifdef NETCDF_ENABLE_ZOH
-    if(strcasecmp(uri->protocol,"zoh")==0) {iss3 = 1; svc = NCS3ZOH; goto done;}
-#endif
     /* Is "s3" or "gs3" in the mode list? */
     if(NC_testmode(uri,"s3")) {iss3 = 1; svc = NCS3; goto done;}
     if(NC_testmode(uri,"gs3")) {iss3 = 1; svc = NCS3GS; goto done;}    

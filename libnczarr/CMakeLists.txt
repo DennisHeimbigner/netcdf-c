@@ -9,6 +9,7 @@
 
 # The source files for the HDF5 dispatch layer.
 set(libnczarr_SOURCES
+zinfermodes.c
 zarr.c
 zattr.c
 zxcache.c

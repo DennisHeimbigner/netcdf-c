@@ -162,18 +162,13 @@ static const struct MODEINFER {
     char* key;
     char* inference;
 } modeinferences[] = {
-{"zarr","nczarr"},
-{"xarray","zarr"},
-{"noxarray","nczarr"},
-{"noxarray","zarr"},
 {NULL,NULL}
 };
 
 /* Mode negations: if mode contains key, then remove all occurrences of the inference and repeat */
 static const struct MODEINFER modenegations[] = {
 {"bytes","nczarr"}, /* bytes negates (nc)zarr */
-{"bytes","zarr"},
-{"noxarray","xarray"},
+{"bytes","zarr"}, /* ditto */
 {NULL,NULL}
 };
 

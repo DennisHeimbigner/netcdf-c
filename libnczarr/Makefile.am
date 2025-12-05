@@ -29,6 +29,7 @@ noinst_LTLIBRARIES = libnczarr.la
 
 # The source files.
 libnczarr_la_SOURCES = \
+zinfermodes.c \
 zarr.c \
 zattr.c \
 zxcache.c \
