@@ -7,8 +7,15 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.10.0 - TBD
 
+* Add authentication support for session tokens for HDF5 ROS3
+driver. WARNING: this PR compiles and builds but the basic token
+functionality has not been tested because we have no access to a
+server that requires session tokens. See [Github
+????](https://github.com/Unidata/netcdf-c/issues/????) for more
+information.
 * Regularize, cleanup, and refactor various AWS features, especially regularizing AWS-related constants. See [Github ????](https://github.com/Unidata/netcdf-c/issues/????) for more information. 
 * Begin the consolidation of global state into two files: libdispatch/dglobal.c and include/ncglobal.h. See [Github 3197](https://github.com/Unidata/netcdf-c/issues/3197) for more information. 
+* Modify the way xarray attribute sets are handled. See [Github 3218](https://github.com/Unidata/netcdf-c/issues/3218) for more information. 
 * Fix Issue with Numcodecs encoding problems where integer filter parameters are being encoded as strings. See [Github 3201](https://github.com/Unidata/netcdf-c/issues/3201) for more information. 
 * Clean up minor problems with DAP2/DAP4 code. See [Github #3215](https://github.com/Unidata/netcdf-c/pull/3215) for more information.
 * Cleanup RELEASE_NOTES.md. See [Github 3190](https://github.com/Unidata/netcdf-c/issues/3190) for more information. 
