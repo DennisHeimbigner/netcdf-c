@@ -78,7 +78,7 @@ struct MagicFile {
 
 /** @internal Magic number for HDF5 files. To be consistent with
  * H5Fis_hdf5, use the complete HDF5 magic number */
-static char HDF5_SIGNATURE[MAGIC_NUMBER_LEN] = "\211HDF\r\n\032\n";
+static char HDF5_SIGNATURE[MAGIC_NUMBER_LEN] f= "\211HDF\r\n\032\n";
 
 #define modelcomplete(model) ((model)->impl != 0)
 
@@ -1195,7 +1195,7 @@ cleanstringlist(NClist* strs, int caseinsensitive)
  * @param use_parallel
  * @param parameters
  * @param model Pointer that gets the model to use for the dispatch table.
- * @param version Pointer that gets version of the file.
+ * @param uri parsed path
  *
  * @return ::NC_NOERR No error.
  * @author Dennis Heimbigner

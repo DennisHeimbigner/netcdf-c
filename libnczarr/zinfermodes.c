@@ -43,7 +43,7 @@ Also infer mode values such as xarray|noxarray and zarr|nczarr.
 The current rules are as follows.
 
 Creation:
-1. Use the store type specified in the URL mode fragment: "file", "zip", "s3", gs3.
+1. Use the store type specified in the URL mode fragment: "file", "zip", "s3", gs3, etc.
 2. Probe the file to decide nczarr|zarr for mode.
 3. Add xarray mode unless noxarray is specified explicitly.
 

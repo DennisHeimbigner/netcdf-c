@@ -7,7 +7,7 @@
 
 #add_compile_options("/showincludes")
 
-# The source files for the HDF5 dispatch layer.
+# The source files for the NCZarr dispatch layer.
 set(libnczarr_SOURCES
 zinfermodes.c
 zarr.c
