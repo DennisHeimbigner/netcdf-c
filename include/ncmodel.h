@@ -21,4 +21,9 @@ typedef struct NCmodel {
 /* Infer model implementation */
 EXTERNL int NC_infermodel(const char* path, int* omodep, int iscreate, int useparallel, void* params, NCmodel* model, char** newpathp);
 
+/* Probe API */
+EXTERNL int NC_file_probe(const char *path, int omode, int use_parallel,
+	       void *parameters, NCmodel* model);
+EXTERNL int NC_uri_probe(NCURI* uri, void *parameters, NCmodel* model);
+
 #endif /*NCINFERMODEL_H*/

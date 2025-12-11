@@ -234,10 +234,10 @@ Use this in mode flags for both nc_create() and nc_open(). */
 #define NC_FORMATX_NCZARR    (10) /**< Added in version 4.8.0 */
 #define NC_FORMATX_UNDEFINED (0)
 
-  /* To avoid breaking compatibility (such as in the python library),
+/* To avoid breaking compatibility (such as in the python library),
    we need to retain the NC_FORMAT_xxx format as well. This may come
-  out eventually, as the NC_FORMATX is more clear that it's an extended
-  format specifier.*/
+   out eventually, as the NC_FORMATX is more clear that it's an extended
+   format specifier.*/
 
 #define NC_FORMAT_NC3       NC_FORMATX_NC3 /**< \deprecated As of 4.4.0, use NC_FORMATX_NC3 */
 #define NC_FORMAT_NC_HDF5   NC_FORMATX_NC_HDF5 /**< \deprecated As of 4.4.0, use NC_FORMATX_NC_HDF5 */
