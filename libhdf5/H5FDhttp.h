@@ -29,7 +29,20 @@
 
 #include "H5Ipublic.h"
 
+/**
+The big issue to be addressed: H5FD_CLASS_VERSION defined?
+Apparently this first occurs in HDF5 version 1.13.2.
+This affects the H5FD_class_t structure.
+*/
 #if H5_VERSION_GE(1,13,2)
+#  ifndef H5FD_CLASS_VERSION
+/* If not defined then fake it
+#  define H5FD_CLASS_VERSION 0x00
+#  endif
+#endif
+
+/* Class Version field changes. */
+#if H5FD_CLASS_VERSION > 0
 #define H5_VFD_HTTP     ((H5FD_class_value_t)(514))
 #define H5FD_HTTP	(H5FDperform_init(H5FD_http_init))
 #else

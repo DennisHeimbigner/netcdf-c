@@ -133,16 +133,25 @@ static herr_t H5FD_http_read(H5FD_t *lf, H5FD_mem_t type, hid_t fapl_id, haddr_t
                 size_t size, void *buf);
 static herr_t H5FD_http_write(H5FD_t *lf, H5FD_mem_t type, hid_t fapl_id, haddr_t addr,
                 size_t size, const void *buf);
+static herr_t H5FD_http_term(void);
 
 /* The H5FD_class_t structure has different versions */
-static haddr_t H5FD_http_get_eof(const H5FD_t *_file);
-static herr_t H5FD_http_flush(H5FD_t *_file, hid_t dxpl_id, unsigned closing);
-static herr_t H5FD_http_lock(H5FD_t *_file, unsigned char* old, unsigned lock_type, hbool_t last);
-static herr_t H5FD_http_unlock(H5FD_t *file, unsigned char *oid, hbool_t last);
+#if H5FD_CLASS_VERSION > 0
+//static haddr_t H5FD_http_get_eof(const H5FD_t *_file);
+//static herr_t H5FD_http_flush(H5FD_t *_file, hid_t dxpl_id, unsigned closing);
+//static herr_t H5FD_http_lock(H5FD_t *_file, unsigned char* old, unsigned lock_type, hbool_t last);
+//static herr_t H5FD_http_unlock(H5FD_t *file, unsigned char *oid, hbool_t last);
+#else
+//static haddr_t H5FD_http_get_eof(const H5FD_t *_file, H5FD_mem_t type);
+//static herr_t H5FD_http_flush(H5FD_t *_file, hid_t dxpl_id, hbool_t closing);
+//static herr_t H5FD_http_lock(H5FD_t *_file, hbool_t rw);
+//static herr_t H5FD_http_unlock(H5FD_t *_file);
+#endif
+
 
 /* Beware, not same as H5FD_HTTP_g */
 static const H5FD_class_t H5FD_http_g = {
-#if H5_VERSION_GE(1,13,2)
+#if H5FD_CLASS_VERSION > 0
     H5FD_CLASS_VERSION,		/* struct version  */
     H5_VFD_HTTP,		/* value           */
 #endif
@@ -173,7 +182,7 @@ static const H5FD_class_t H5FD_http_g = {
     H5FD_http_get_handle,	/* get_handle   */
     H5FD_http_read,		/* read         */
     H5FD_http_write,		/* write        */
-#if H5_VERSION_GE(1,13,2)
+#if H5FD_CLASS_VERSION > 0
     NULL,			/* read_vector     */
     NULL,			/* write_vector    */
     NULL,			/* read_selection  */
@@ -183,7 +192,7 @@ static const H5FD_class_t H5FD_http_g = {
     NULL,			/* truncate     */
     H5FD_http_lock,		/* lock         */
     H5FD_http_unlock,		/* unlock       */
-#if H5_VERSION_GE(1,13,2)
+#if H5FD_CLASS_VERSION > 0
     NULL,			/* del          */
     NULL,			/* ctl	        */
 #endif
@@ -454,6 +463,9 @@ H5FD_http_query(const H5FD_t *_f, unsigned long /*OUT*/ *flags)
         *flags |= H5FD_FEAT_ACCUMULATE_METADATA;    /* OK to accumulate metadata for faster writes                      */
         *flags |= H5FD_FEAT_DATA_SIEVE;             /* OK to perform data sieving for faster raw data reads & writes    */
         *flags |= H5FD_FEAT_AGGREGATE_SMALLDATA;    /* OK to aggregate "small" raw data allocations                     */
+#if H5FD_CLASS_VERSION > 0
+        *flags |= H5FD_FEAT_DEFAULT_VFD_COMPATIBLE; /* VFD creates a file which can be opened with the default VFD      */
+#endif
     }
 
     return 0;
