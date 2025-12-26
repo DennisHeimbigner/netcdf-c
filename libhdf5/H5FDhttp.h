@@ -44,9 +44,11 @@ This affects the H5FD_class_t structure.
 /* Class Version field changes. */
 #if H5FD_CLASS_VERSION > 0
 /* see https://support.hdfgroup.org/documentation/hdf5-docs/registered_virtual_file_drivers_vfds.html */
+#warning "@@@ class version > 0"
 #define H5_VFD_HTTP     ((H5FD_class_value_t)(514))
 #define H5FD_HTTP	(H5FD_http_init())
 #else
+#warning "@@@ class version == 0"
 #define H5_VFD_HTTP     ((H5FD_class_value_t)(514))
 #define H5FD_HTTP	(H5FDperform_init(H5FD_http_init))
 #endif
