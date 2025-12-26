@@ -136,16 +136,16 @@ static herr_t H5FD_http_write(H5FD_t *lf, H5FD_mem_t type, hid_t fapl_id, haddr_
 static herr_t H5FD_http_term(void);
 
 /* The H5FD_class_t structure has different versions */
-#if H5FD_CLASS_VERSION > 0
-//static haddr_t H5FD_http_get_eof(const H5FD_t *_file);
-//static herr_t H5FD_http_flush(H5FD_t *_file, hid_t dxpl_id, unsigned closing);
-//static herr_t H5FD_http_lock(H5FD_t *_file, unsigned char* old, unsigned lock_type, hbool_t last);
-//static herr_t H5FD_http_unlock(H5FD_t *file, unsigned char *oid, hbool_t last);
+#if  0
+static haddr_t H5FD_http_get_eof(const H5FD_t *_file);
+static herr_t H5FD_http_flush(H5FD_t *_file, hid_t dxpl_id, unsigned closing);
+static herr_t H5FD_http_lock(H5FD_t *_file, unsigned char* old, unsigned lock_type, hbool_t last);
+static herr_t H5FD_http_unlock(H5FD_t *file, unsigned char *oid, hbool_t last);
 #else
-//static haddr_t H5FD_http_get_eof(const H5FD_t *_file, H5FD_mem_t type);
-//static herr_t H5FD_http_flush(H5FD_t *_file, hid_t dxpl_id, hbool_t closing);
-//static herr_t H5FD_http_lock(H5FD_t *_file, hbool_t rw);
-//static herr_t H5FD_http_unlock(H5FD_t *_file);
+static haddr_t H5FD_http_get_eof(const H5FD_t *_file, H5FD_mem_t type);
+static herr_t H5FD_http_flush(H5FD_t *_file, hid_t dxpl_id, hbool_t closing);
+static herr_t H5FD_http_lock(H5FD_t *_file, hbool_t rw);
+static herr_t H5FD_http_unlock(H5FD_t *_file);
 #endif
 
 
@@ -250,6 +250,27 @@ H5FD_http_finalize(void)
 
     return H5FD_HTTP_g;
 } /* end H5FD_http_finalize() */
+
+
+/*---------------------------------------------------------------------------
+ * Function:  H5FD_http_term
+ *
+ * Purpose:  Shut down the VFD
+ *
+ * Returns:     Non-negative on success or negative on failure
+ *
+ * Programmer:  Quincey Koziol
+ *              Friday, Jan 30, 2004
+ *
+ *---------------------------------------------------------------------------
+ */
+#ifndef H5FDCLASS1
+static herr_t
+H5FD_http_term(void)
+{
+    return 0;
+} /* end H5FD_http_term() */
+#endif
 
 
 /*-------------------------------------------------------------------------
@@ -596,7 +617,7 @@ H5FD_http_set_eoa(H5FD_t *_file, H5FD_mem_t /*UNUSED*/ type, haddr_t addr)
  */
 
 static haddr_t
-H5FD_http_get_eof(const H5FD_t *_file)
+H5FD_http_get_eof(const H5FD_t *_file, H5FD_mem_t type)
 {
     const H5FD_http_t  *file = (const H5FD_http_t *)_file;
 
@@ -787,7 +808,7 @@ H5FD_http_write(H5FD_t *_file, H5FD_mem_t /*UNUSED*/ type, hid_t /*UNUSED*/ dxpl
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5FD_http_flush(H5FD_t *_file, hid_t dxpl_id, unsigned closing)
+H5FD_http_flush(H5FD_t *_file, hid_t dxpl_id, hbool_t closing)
 {
 
     /* Clear the error stack */
@@ -813,14 +834,10 @@ H5FD_http_flush(H5FD_t *_file, hid_t dxpl_id, unsigned closing)
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5FD_http_lock(H5FD_t *_file, unsigned char* old, unsigned lock_type, hbool_t last)
+H5FD_http_lock(H5FD_t *_file, hbool_t rw)
 {
     /* Clear the error stack */
     H5Eclear2(H5E_DEFAULT);
-
-    /* Quiet the compiler */
-    lock_type = lock_type;
-    last = last;
 
     return 0;
 } /* end H5FD_http_lock() */
@@ -841,14 +858,10 @@ H5FD_http_lock(H5FD_t *_file, unsigned char* old, unsigned lock_type, hbool_t la
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5FD_http_unlock(H5FD_t *file, /*UNUSED*/unsigned char *oid, /*UNUSED*/ hbool_t last)
+H5FD_http_unlock(H5FD_t *file)
 {
     /* Clear the error stack */
     H5Eclear2(H5E_DEFAULT);
-
-    /* Quiet the compiler */
-    oid = oid;
-    last = last;
 
     return 0;
 } /* end H5FD_http_unlock() */
