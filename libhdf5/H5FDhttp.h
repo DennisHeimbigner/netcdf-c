@@ -42,12 +42,15 @@ This affects the H5FD_class_t structure.
 #endif
 
 /* Class Version field changes. */
+#if 0
 #if H5FD_CLASS_VERSION == 0
 #define H5_VFD_HTTP     ((H5FD_class_value_t)(514))
 #define H5FD_HTTP	(H5FDperform_init(H5FD_http_init))
 #else
 #define H5FD_HTTP	(H5FD_http_init())
 #endif
+#endif
+#define H5FD_HTTP	(H5FD_http_init())
 
 #ifdef __cplusplus
 extern "C" {
