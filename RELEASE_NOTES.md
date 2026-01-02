@@ -6,13 +6,12 @@ Release Notes       {#RELEASE_NOTES}
 This file contains a high-level description of this package's evolution. Releases are in reverse chronological order (most recent first). Note that, as of netcdf 4.2, the `netcdf-c++` and `netcdf-fortran` libraries have been separated into their own libraries.
 
 ## 4.10.0 - TBD
-
+https://github.com/Unidata/netcdf-c/pull/3229
 * Add authentication support for session tokens for HDF5 ROS3
 driver. WARNING: this PR compiles and builds but the basic token
 functionality has not been tested because we have no access to a
-server that requires session tokens. See [Github
-????](https://github.com/Unidata/netcdf-c/issues/????) for more
-information.
+server that requires session tokens.
+See [Github](https://github.com/Unidata/netcdf-c/issues/????) for more information.
 * Regularize, cleanup, and refactor various AWS features, especially regularizing AWS-related constants. See [Github ????](https://github.com/Unidata/netcdf-c/issues/????) for more information. 
 * Begin the consolidation of global state into two files: libdispatch/dglobal.c and include/ncglobal.h. See [Github 3197](https://github.com/Unidata/netcdf-c/issues/3197) for more information. 
 * Modify the way xarray attribute sets are handled. See [Github 3218](https://github.com/Unidata/netcdf-c/issues/3218) for more information. 
