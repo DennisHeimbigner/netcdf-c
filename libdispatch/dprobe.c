@@ -1,9 +1,6 @@
 /**
  * @file
  *
- * Infer as much as possible from the omode + path.
- * Rewrite the path to a canonical form.
- *
  * Copyright 2018 University Corporation for Atmospheric
  * Research/Unidata. See COPYRIGHT file for more info.
 */
