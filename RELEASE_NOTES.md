@@ -7,6 +7,7 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.10.0 - TBD
 
+* Add compatibility with HDF5 2.0.0.  See [Github #3247](https://github.com/Unidata/netcdf-c/pull/3247) for more information.
 * Add authentication support for session tokens for HDF5 ROS3
 driver. WARNING: this PR compiles and builds but the basic token
 functionality has not been tested because we have no access to a
