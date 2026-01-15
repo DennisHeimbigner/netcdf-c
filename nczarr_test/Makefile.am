@@ -188,6 +188,7 @@ zs3parse_SOURCES = zs3parse.c
 if NETCDF_ENABLE_S3
 noinst_PROGRAMS += s3util 
 s3util_SOURCES = s3util.c
+TESTS += run_s3env.sh
 if NETCDF_ENABLE_S3_TESTALL
 if NETCDF_ENABLE_S3_AWS
 check_PROGRAMS += tst_pure_awssdk
@@ -213,7 +214,7 @@ run_filter.sh \
 run_newformat.sh run_nczarr_fill.sh run_quantize.sh \
 run_jsonconvention.sh run_nczfilter.sh run_unknown.sh \
 run_scalar.sh run_strings.sh run_nulls.sh run_notzarr.sh run_external.sh \
-run_unlim_io.sh run_corrupt.sh run_oldkeys.sh run_xarray_misc.sh
+run_unlim_io.sh run_corrupt.sh run_oldkeys.sh run_xarray_misc.sh run_s3env.sh
 
 EXTRA_DIST += \
 ref_ut_map_create.cdl ref_ut_map_writedata.cdl ref_ut_map_writemeta2.cdl ref_ut_map_writemeta.cdl \

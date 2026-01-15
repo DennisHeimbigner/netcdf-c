@@ -40,14 +40,14 @@ ENDIF(NETCDF_ENABLE_HDF5)
 build_bin_test(test_pathcvt)
 add_sh_test(unit_test run_pathcvt)
 
-IF(NETCDF_BUILD_UTILITIES)
-  IF(NETCDF_ENABLE_S3 AND WITH_S3_TESTING)
+IF(NETCDF_ENABLE_S3)
+  #AWS Configuration test
+   build_bin_test(aws_config)
+  add_sh_test(unit_test run_aws_config)
+  IF(NETCDF_BUILD_UTILITIES AND WITH_S3_TESTING)
   # SDK Test
     build_bin_test(test_s3sdk ${XGETOPTSRC})
     add_sh_test(unit_test run_s3sdk)
-  #AWS Configuration test
-    build_bin_test(aws_config)
-    add_sh_test(unit_test run_aws_config)
   ENDIF()
 ENDIF()
 

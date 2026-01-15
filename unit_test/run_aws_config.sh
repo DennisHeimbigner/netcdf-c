@@ -53,23 +53,25 @@ EOF
 
 echo -e "Testing loading AWS configuration in ${THISDIR}/.aws/config"
 export NC_TEST_AWS_DIR=${THISDIR}
-export AWS_PROFILE=unidata
+AWS_PROFILE=unidata \
 ${CMD} ${execdir}/aws_config  endpoint_url region dummy_key
 echo "Status: $?"
-export AWS_PROFILE=play
+AWS_PROFILE=play \
 ${CMD} ${execdir}/aws_config  endpoint_url region 
 echo "Status: $?"
 
-export AWS_PROFILE=uni
+AWS_PROFILE=uni \
 ${CMD} ${execdir}/aws_config  endpoint_url region key 
 echo "Status: $?"
 
-export AWS_PROFILE=uni
+AWS_PROFILE=uni \
 ${CMD} ${execdir}/aws_config key=value-overwritten region=somewhere-2 endpoint_url=https://example.com/bucket/prefix/2 extrakey=willbepropagated
 echo "Status: $?"
 
+AWS_ACCESS_KEY_ID='' AWS_SECRET_ACCESS_KEY='' \
+${CMD} ${execdir}/aws_config 2>&1 | grep -q 'Active profile:default'
+
 # Will use profile=no
-unset AWS_PROFILE
 ${CMD} ${execdir}/aws_config 2>&1 | grep -q 'Active profile:no'
 echo "Status: $?"
 echo -e "Finished"
